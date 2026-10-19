@@ -105,7 +105,10 @@ export function videoSecondPrice(
   if (typeof source.second_usd === 'number' && source.second_usd > 0) {
     return source.second_usd;
   }
-  if (typeof source.output_per_mtok === 'number' && source.output_per_mtok > 0) {
+  if (
+    typeof source.output_per_mtok === 'number' &&
+    source.output_per_mtok > 0
+  ) {
     return (
       (videoTokensPerSecond(tier || '720p', ratio) * source.output_per_mtok) /
       1_000_000
@@ -231,8 +234,9 @@ export const readVideoPricing = (value: unknown): VideoPricing | undefined => {
       ? Object.fromEntries(
           Object.entries(row.resolution_second_usd as Record<string, unknown>)
             .map(([key, price]) => [key, number(price)] as const)
-            .filter((entry): entry is readonly [string, number] =>
-              typeof entry[1] === 'number',
+            .filter(
+              (entry): entry is readonly [string, number] =>
+                typeof entry[1] === 'number',
             ),
         )
       : undefined;

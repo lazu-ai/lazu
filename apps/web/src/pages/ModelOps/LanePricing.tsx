@@ -15,9 +15,7 @@ import {
   type OfficialPrice,
   type PinKey,
 } from './ratioPricing';
-import { Badge, Button, Input, Select,
-  Textarea,
-} from '../../components/ui';
+import { Badge, Button, Input, Select, Textarea } from '../../components/ui';
 import type { BillingMode, SellPriceRow } from './sellPrices';
 import type { ModelOpsPoolEntry } from '../../hooks/models/useModelOpsQuery';
 import type { TFunction } from 'i18next';

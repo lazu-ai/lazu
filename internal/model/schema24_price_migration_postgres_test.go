@@ -128,9 +128,10 @@ func TestPostgresSchema24PriceUpgradePreservesFollowingFieldsAndMoney(t *testing
 		var rows []string
 		projection := "to_jsonb(row)"
 		if table == "model_sell_prices" {
-			// Schema 28 adds a nullable image price sheet. Compare all historical
-			// fields exactly, and assert the new field stays NULL separately.
-			projection = "(to_jsonb(row) - 'image_pricing')"
+			// Schemas 28 and 35 add nullable image and video price sheets.
+			// Compare all historical fields exactly, and assert the new fields
+			// stay NULL separately.
+			projection = "(to_jsonb(row) - 'image_pricing' - 'video_pricing')"
 		}
 		if err := db.Raw("SELECT " + projection + "::text FROM " + table + " row ORDER BY id").Scan(&rows).Error; err != nil {
 			t.Fatal(err)
@@ -152,6 +153,10 @@ func TestPostgresSchema24PriceUpgradePreservesFollowingFieldsAndMoney(t *testing
 		var imagePriceCount int64
 		if err := db.Table("model_sell_prices").Where("image_pricing IS NOT NULL").Count(&imagePriceCount).Error; err != nil || imagePriceCount != 0 {
 			t.Fatalf("upgrade attempt %d added image prices to historical rows: count=%d err=%v", attempt, imagePriceCount, err)
+		}
+		var videoPriceCount int64
+		if err := db.Table("model_sell_prices").Where("video_pricing IS NOT NULL").Count(&videoPriceCount).Error; err != nil || videoPriceCount != 0 {
+			t.Fatalf("upgrade attempt %d added video prices to historical rows: count=%d err=%v", attempt, videoPriceCount, err)
 		}
 		if after := readRows("wallet_ledgers"); !reflect.DeepEqual(after, ledgerBefore) {
 			t.Fatalf("upgrade attempt %d changed historical wallet facts", attempt)

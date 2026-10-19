@@ -26,9 +26,9 @@ describe('video options', () => {
       resolutions: ['720p', '1080p'],
       seconds: [4, 6, 8],
     });
-    expect(videoOptionsFor({ min_seconds: 2, max_seconds: 12 }).seconds).toEqual(
-      [2, 4, 5, 6, 8, 10, 12],
-    );
+    expect(
+      videoOptionsFor({ min_seconds: 2, max_seconds: 12 }).seconds,
+    ).toEqual([2, 4, 5, 6, 8, 10, 12]);
   });
 
   it('keeps a remembered choice only while the model offers it', () => {
@@ -47,7 +47,11 @@ describe('video options', () => {
       ),
     ).toEqual({ ratio: '9:16', resolution: '1080p', seconds: 8 });
     expect(
-      clampVideoChoice(options, { ratio: '1:1', resolution: '480p', seconds: 6 }),
+      clampVideoChoice(options, {
+        ratio: '1:1',
+        resolution: '480p',
+        seconds: 6,
+      }),
     ).toEqual({ ratio: '16:9', resolution: '720p', seconds: 6 });
   });
 });
@@ -84,9 +88,9 @@ describe('video prices', () => {
     expect(videoSecondPrice({ second_usd: 0.03 }, '720p')).toBe(0.03);
     // Ark: 1280 × 720 × 24 / 1024 = 21,600 tokens a second at $2 / M.
     expect(videoTokensPerSecond('720p', '16:9')).toBe(21_600);
-    expect(videoSecondPrice({ output_per_mtok: 2 }, '720p', '16:9')).toBeCloseTo(
-      0.0432,
-    );
+    expect(
+      videoSecondPrice({ output_per_mtok: 2 }, '720p', '16:9'),
+    ).toBeCloseTo(0.0432);
     expect(videoSecondPrice({}, '720p')).toBeNull();
   });
 });
