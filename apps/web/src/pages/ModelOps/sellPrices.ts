@@ -7,6 +7,7 @@
 /** How a model bills. The form swaps its price fields on this, because a
  *  per-call image model has no input/output token price to show. */
 import type { ImagePricing } from '../../lib/image-pricing';
+import type { VideoPricing } from '../../lib/video-pricing';
 
 export type BillingMode = 'per_call' | 'per_second' | 'per_token';
 
@@ -14,6 +15,7 @@ export type LaneKey = 'eco' | 'stable';
 
 export type LanePrice = {
   image_pricing?: ImagePricing;
+  video_pricing?: VideoPricing | null;
   cache_read_per_mtok?: number | null;
   cache_write_5m_per_mtok?: number | null;
   cache_write_1h_per_mtok?: number | null;
@@ -112,6 +114,7 @@ export const billingModeOf = (row: SellPriceRow): BillingMode => {
 
 export const toLane = (row: SellPriceRow): LanePrice => ({
   image_pricing: row.image_pricing,
+  video_pricing: row.video_pricing ?? null,
   billing_mode: billingModeOf(row),
   enabled: row.active !== false,
   input_per_million: row.input_per_mtok ?? row.input_per_million ?? null,

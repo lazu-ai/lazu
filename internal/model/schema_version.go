@@ -13,6 +13,10 @@ import (
 )
 
 const (
+	// Version 35 adds models.video_capabilities and video_pricing on
+	// model_sell_prices and provider_cost_prices (text JSON, added by
+	// AutoMigrate), for the video gateway's per-model capability rows and
+	// resolution / token / provider-cost video prices.
 	// Version 34 adds dashboard_usage_hourly_slices: hourly usage per project,
 	// member, key, model, client, channel and group, written by the batched
 	// consumer, for the overview's clients, the filtered user tab and project
@@ -55,7 +59,7 @@ const (
 	// Version 12 records the disputed and original charge amounts for proportional reversals.
 	// Version 11 adds payment reversal and dispute hold fields. Version 10
 	// retired startup seeders, so rollback across that floor remains unsafe.
-	SchemaVersionCurrent = 34
+	SchemaVersionCurrent = 35
 
 	schemaVersionPrimary = "primary"
 	schemaVersionLog     = "log"

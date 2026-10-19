@@ -9,6 +9,7 @@ import (
 
 	gormsqlite "github.com/glebarez/sqlite"
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/lazu-ai/lazu/internal/dto"
 	usagepkg "github.com/lazu-ai/lazu/internal/usage"
 	"github.com/lazu-ai/lazu/pkg/billing"
 	"gorm.io/gorm"
@@ -1371,5 +1372,55 @@ func TestMediaJobSettlementReleasesItsHoldInTheSameTransaction(t *testing.T) {
 	}
 	if remaining != 0 {
 		t.Fatalf("settlement left %d hold(s) for the cap to double count", remaining)
+	}
+}
+
+func TestReservedVideoJobRepricesOnProviderReportedFacts(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	job := seedPricedVideoMediaJob(t, db)
+	reserved, err := ReserveMediaJobBillingBeforeSubmit(&job, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("ReserveMediaJobBillingBeforeSubmit error: %v", err)
+	}
+	if reserved.CustomerCharge != billing.USD(0.10) {
+		t.Fatalf("five seconds at $0.02 should hold $0.10, got %d", reserved.CustomerCharge)
+	}
+	// The provider delivered a ten-second clip and said so.
+	snapshot, err := SnapshotWithVideoFacts(job.RequestSnapshot, MediaJobProviderFactsSnapshotKey, dto.VideoFacts{
+		Seconds: 10, Resolution: "720p", FPS: 24, Reported: true,
+	})
+	if err != nil {
+		t.Fatalf("SnapshotWithVideoFacts error: %v", err)
+	}
+	if err := db.Model(&MediaJob{}).Where("id = ?", job.ID).Updates(map[string]any{
+		"request_snapshot": snapshot,
+		"cost_snapshot":    job.CostSnapshot,
+	}).Error; err != nil {
+		t.Fatalf("persist reported facts: %v", err)
+	}
+	var persisted MediaJob
+	if err := db.First(&persisted, job.ID).Error; err != nil {
+		t.Fatalf("reload media job: %v", err)
+	}
+	settled, err := SettleMediaJobBilling(persisted, time.Now().UTC().Add(time.Minute))
+	if err != nil {
+		t.Fatalf("SettleMediaJobBilling error: %v", err)
+	}
+	if settled.CustomerCharge != billing.USD(0.20) {
+		t.Fatalf("settlement should follow the reported ten seconds: got %d", settled.CustomerCharge)
+	}
+	if settled.UsageFact.MediaUnits == nil || settled.UsageFact.MediaUnits.VideoSeconds != 10 {
+		t.Fatalf("usage fact should carry the reported duration: %+v", settled.UsageFact.MediaUnits)
+	}
+	var user User
+	if err := db.First(&user, job.UserID).Error; err != nil {
+		t.Fatalf("reload user: %v", err)
+	}
+	if user.Quota != billing.MicroUSD(1_000_000)-billing.USD(0.20) {
+		t.Fatalf("the hold plus the delta should leave the user charged $0.20: quota=%d", user.Quota)
+	}
+	public := persisted.ToDTO(false)
+	if public.Usage == nil || public.Usage.Seconds != 10 || public.Usage.Resolution != "720p" {
+		t.Fatalf("public job usage should expose the reported facts: %+v", public.Usage)
 	}
 }

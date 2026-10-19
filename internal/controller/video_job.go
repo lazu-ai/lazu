@@ -44,6 +44,14 @@ func SubmitVideoJob(c *gin.Context) {
 		writeControlPlaneCatalogError(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "prompt"})
 		return
 	}
+	if capErr := model.ModelVideoCapabilities(payload.Model).Validate(&payload); capErr != nil {
+		writeControlPlaneCatalogError(c, types.ErrorCodeInvalidRequest, types.D{
+			"field":   capErr.Field,
+			"reason":  capErr.Error(),
+			"allowed": strings.Join(capErr.Allowed, ", "),
+		})
+		return
+	}
 	providerExecutionRequired := mediaJobProviderExecutionRequired(payload.ArtifactFileID, payload.ArtifactURL)
 	routingOutcomeRecorded := false
 	if providerExecutionRequired {
@@ -189,7 +197,7 @@ func submitVideoProviderWithRetry(c *gin.Context, payload dto.VideoRequest, job 
 			refundVideoBillingProbe(lastProbe)
 			return nil, nil, videoProviderSubmissionLazuError(prepareErr)
 		}
-		probe, probeErr := buildVideoMediaJobBillingProbe(c, payload, model.JSONValue(prepared.Body))
+		probe, probeErr := buildVideoMediaJobBillingProbe(c, payload, model.JSONValue(prepared.Body), prepared.Facts, prepared.Driver.Family())
 		if probeErr != nil {
 			refundVideoBillingProbe(lastProbe)
 			return nil, nil, types.NewErrorWithStatusCode(
@@ -249,7 +257,7 @@ func submitVideoProviderWithRetry(c *gin.Context, payload dto.VideoRequest, job 
 			probe.RequestSnapshot = mediaJobSnapshotWithProviderExecution(probe.RequestSnapshot, true)
 			probe.RequestSnapshot = mediaJobSnapshotWithIndeterminateSubmission(probe.RequestSnapshot, submitErr.Error())
 			return &videoProviderSubmission{
-				ProviderName:        strings.ToLower(strings.TrimSpace(prepared.Adaptor.GetChannelName())),
+				ProviderName:        videoProviderName(prepared.Driver, prepared.Channel),
 				Indeterminate:       true,
 				IndeterminateReason: submitErr.Error(),
 			}, probe, nil
@@ -450,7 +458,7 @@ func refundVideoBillingProbeBeforeRetry(probe *model.MediaJob) error {
 	return nil
 }
 
-func buildVideoMediaJobBillingProbe(c *gin.Context, payload dto.VideoRequest, body model.JSONValue) (*model.MediaJob, error) {
+func buildVideoMediaJobBillingProbe(c *gin.Context, payload dto.VideoRequest, body model.JSONValue, facts dto.VideoFacts, family string) (*model.MediaJob, error) {
 	modelName := firstNonEmptyMediaJobValue(c.GetString("original_model"), payload.Model)
 	channelID := common.GetContextKeyInt(c, constant.ContextKeyChannelId)
 	var channelIDPointer *int
@@ -465,6 +473,20 @@ func buildVideoMediaJobBillingProbe(c *gin.Context, payload dto.VideoRequest, bo
 	requestSnapshot, err := mediaJobSnapshotWithProviderCredential(mediaJobSnapshotWithContext(body, c), c)
 	if err != nil {
 		return nil, err
+	}
+	if !facts.IsZero() {
+		// The estimate prices the reservation; the worker replaces it with
+		// what the provider reports at the terminal state.
+		requestSnapshot, err = model.SnapshotWithVideoFacts(requestSnapshot, model.MediaJobProviderFactsEstimateSnapshotKey, facts)
+		if err != nil {
+			return nil, fmt.Errorf("record video billing estimate: %w", err)
+		}
+	}
+	if strings.TrimSpace(family) != "" {
+		requestSnapshot, err = model.SnapshotWithVideoFamily(requestSnapshot, family)
+		if err != nil {
+			return nil, fmt.Errorf("record video upstream family: %w", err)
+		}
 	}
 	job := &model.MediaJob{
 		ProjectID:       common.GetContextKeyInt(c, constant.ContextKeyProjectID),

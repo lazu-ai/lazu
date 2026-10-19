@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
-	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
+	"github.com/lazu-ai/lazu/internal/relay/channel/video"
 	"github.com/lazu-ai/lazu/internal/service"
-	"github.com/lazu-ai/lazu/internal/setting/system_setting"
 )
 
 const (
@@ -51,6 +50,7 @@ type videoProviderPollResult struct {
 	ErrorCode   string
 	Error       string
 	State       string
+	Facts       *dto.VideoFacts
 }
 
 func processUpstreamVideoJob(ctx context.Context, job model.MediaJob, now time.Time) error {
@@ -107,7 +107,7 @@ func processUpstreamVideoJob(ctx context.Context, job model.MediaJob, now time.T
 		}
 		return failMediaProviderJob(job, code, result.Error, now)
 	case model.MediaJobStatusSucceeded:
-		recoveryJob, err := persistVideoArtifactRecovery(job, result.ArtifactURL, now)
+		recoveryJob, err := persistVideoArtifactRecovery(job, result.ArtifactURL, result.Facts, now)
 		if err != nil {
 			if rescheduleErr := model.RescheduleMediaJob(job.ID, now.Add(videoProviderPollInterval)); rescheduleErr != nil {
 				return fmt.Errorf("persist completed video recovery: %w; reschedule: %v", err, rescheduleErr)
@@ -141,7 +141,10 @@ func mediaJobProviderArtifactRecovery(job model.MediaJob) bool {
 	return recovery
 }
 
-func persistVideoArtifactRecovery(job model.MediaJob, artifactURL string, now time.Time) (model.MediaJob, error) {
+// persistVideoArtifactRecovery records a completed upstream job before its
+// artifact is fetched, with the facts the provider reported, so a download
+// or billing retry neither re-polls nor loses the reported dimensions.
+func persistVideoArtifactRecovery(job model.MediaJob, artifactURL string, facts *dto.VideoFacts, now time.Time) (model.MediaJob, error) {
 	var snapshot map[string]any
 	if err := common.Unmarshal(job.RequestSnapshot, &snapshot); err != nil {
 		return job, err
@@ -151,10 +154,17 @@ func persistVideoArtifactRecovery(job model.MediaJob, artifactURL string, now ti
 	if err != nil {
 		return job, err
 	}
+	requestSnapshot := model.JSONValue(snapshotBody)
+	if facts != nil && !facts.IsZero() {
+		requestSnapshot, err = model.SnapshotWithVideoFacts(requestSnapshot, model.MediaJobProviderFactsSnapshotKey, *facts)
+		if err != nil {
+			return job, err
+		}
+	}
 	updated, err := model.UpdateMediaJobSubmission(job.ID, job.UserID, model.UpdateMediaJobSubmissionInput{
 		Provider:        job.Provider,
 		ChannelID:       job.ChannelID,
-		RequestSnapshot: model.JSONValue(snapshotBody),
+		RequestSnapshot: requestSnapshot,
 		CostSnapshot:    job.CostSnapshot,
 		ArtifactURL:     artifactURL,
 		UpstreamJobID:   job.UpstreamJobID,
@@ -175,16 +185,48 @@ func loadMediaJobChannel(job model.MediaJob) (*model.Channel, error) {
 	return model.GetChannelById(*job.ChannelID, true)
 }
 
-func pollVideoProvider(ctx context.Context, job model.MediaJob, channel *model.Channel) (*videoProviderPollResult, error) {
-	key, keyErr := mediaJobProviderKey(job, channel)
-	if keyErr != nil {
-		return nil, keyErr
+// videoDriverFor resolves the family driver and the channel view a job's
+// upstream calls need, with the credential the submission pinned.
+func videoDriverFor(job model.MediaJob, channel *model.Channel) (video.Driver, video.Channel, error) {
+	if channel == nil {
+		return nil, video.Channel{}, fmt.Errorf("video channel is missing")
 	}
-	requestURL, err := videoProviderStatusURL(job, channel)
+	key, err := mediaJobProviderKey(job, channel)
+	if err != nil {
+		return nil, video.Channel{}, err
+	}
+	ch := video.Channel{
+		Type:           channel.Type,
+		BaseURL:        channel.GetBaseURL(),
+		Key:            key,
+		Settings:       channel.GetOtherSettings(),
+		HeaderOverride: channel.GetHeaderOverride(),
+	}
+	// The submission pinned its family; a mapped model name must not send the
+	// poll down another family's path.
+	if pinned := model.MediaJobVideoFamily(job); pinned != "" {
+		ch.Settings.VideoFamily = pinned
+	}
+	driver, err := video.Select(ch, job.ModelName)
+	if err != nil {
+		return nil, ch, fmt.Errorf("%w: %v", errVideoProviderConfiguration, err)
+	}
+	return driver, ch, nil
+}
+
+func pollVideoProvider(ctx context.Context, job model.MediaJob, channel *model.Channel) (*videoProviderPollResult, error) {
+	driver, ch, err := videoDriverFor(job, channel)
 	if err != nil {
 		return nil, err
 	}
-	response, body, err := doVideoProviderRequest(ctx, http.MethodGet, requestURL, key, channel)
+	statusRequest, err := driver.BuildStatus(ch, video.Job{UpstreamID: job.UpstreamJobID, ArtifactURL: job.ArtifactURL, Model: job.ModelName})
+	if err != nil {
+		if errors.Is(err, video.ErrConfiguration) {
+			return nil, fmt.Errorf("%w: %v", errVideoProviderConfiguration, err)
+		}
+		return nil, err
+	}
+	response, body, err := doVideoProviderRequest(ctx, http.MethodGet, statusRequest.URL, statusRequest.Headers, channel)
 	if err != nil {
 		return nil, err
 	}
@@ -194,14 +236,33 @@ func pollVideoProvider(ctx context.Context, job model.MediaJob, channel *model.C
 			Message:    compactWorkerProviderError(body),
 		}
 	}
-	var payload map[string]any
-	if err := common.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("decode video status: %w", err)
+	parsed, err := driver.ParseStatus(ch, body)
+	if err != nil {
+		return nil, err
 	}
-	if channel.Type == constant.ChannelTypeGemini {
-		return parseGeminiVideoStatus(payload), nil
+	return pollResultFromStatus(parsed), nil
+}
+
+// pollResultFromStatus maps a driver's state words onto the job states.
+func pollResultFromStatus(status *video.StatusResult) *videoProviderPollResult {
+	switch status.State {
+	case video.StateSucceeded:
+		return &videoProviderPollResult{State: model.MediaJobStatusSucceeded, ArtifactURL: status.ArtifactURL, Facts: status.Facts}
+	case video.StateFailed:
+		return &videoProviderPollResult{State: model.MediaJobStatusFailed, ErrorCode: status.ErrorCode, Error: status.ErrorMessage}
+	case video.StateCancelled:
+		code := status.ErrorCode
+		if code == "" {
+			code = "video_provider_cancelled"
+		}
+		message := status.ErrorMessage
+		if message == "" {
+			message = "video generation was cancelled upstream"
+		}
+		return &videoProviderPollResult{State: model.MediaJobStatusFailed, ErrorCode: code, Error: message}
+	default:
+		return &videoProviderPollResult{State: model.MediaJobStatusRunning}
 	}
-	return parseOpenAIVideoStatus(payload), nil
 }
 
 func isPermanentVideoProviderPollStatus(statusCode int) bool {
@@ -213,87 +274,6 @@ func isPermanentVideoProviderPollStatus(statusCode int) bool {
 	}
 }
 
-func videoProviderStatusURL(job model.MediaJob, channel *model.Channel) (string, error) {
-	baseURL := strings.TrimRight(strings.TrimSpace(channel.GetBaseURL()), "/")
-	if baseURL == "" {
-		return "", fmt.Errorf("video channel base url is empty")
-	}
-	upstreamID := strings.TrimSpace(job.UpstreamJobID)
-	if upstreamID == "" {
-		return "", fmt.Errorf("video upstream job id is empty")
-	}
-	if channel.Type == constant.ChannelTypeGemini {
-		if parsed, err := url.Parse(upstreamID); err == nil && parsed.IsAbs() {
-			if parsed.Scheme != "http" && parsed.Scheme != "https" {
-				return "", fmt.Errorf("unsupported video operation url scheme")
-			}
-			if !sameVideoProviderOrigin(baseURL, parsed.String()) {
-				return "", fmt.Errorf("%w: Gemini operation url must use the configured provider origin", errVideoProviderConfiguration)
-			}
-			return parsed.String(), nil
-		}
-		upstreamID = strings.TrimPrefix(upstreamID, "/")
-		upstreamID = strings.TrimPrefix(upstreamID, "v1beta/")
-		return baseURL + "/v1beta/" + upstreamID, nil
-	}
-	if channel.Type == constant.ChannelTypeCustom {
-		template := strings.TrimSpace(channel.GetOtherSettings().VideoStatusURLTemplate)
-		if template == "" {
-			return "", fmt.Errorf("%w: custom video channel requires video_status_url_template", errVideoProviderConfiguration)
-		}
-		return renderVideoProviderURLTemplate(baseURL, template, upstreamID)
-	}
-	return relaycommon.GetFullRequestURL(
-		baseURL,
-		"/v1/videos/"+url.PathEscape(upstreamID),
-		channel.Type,
-	), nil
-}
-
-func parseOpenAIVideoStatus(payload map[string]any) *videoProviderPollResult {
-	status := strings.ToLower(firstWorkerStringAtPaths(payload, "status", "state", "data.status"))
-	artifactURL := firstWorkerStringAtPaths(payload, "url", "video.url", "output.url", "data.url")
-	switch status {
-	case "completed", "complete", "succeeded", "success", "done", "ready":
-		return &videoProviderPollResult{State: model.MediaJobStatusSucceeded, ArtifactURL: artifactURL}
-	case "failed", "failure", "cancelled", "canceled", "expired", "rejected":
-		return &videoProviderPollResult{
-			State:     model.MediaJobStatusFailed,
-			ErrorCode: firstWorkerStringAtPaths(payload, "error.code", "code"),
-			Error:     firstWorkerStringAtPaths(payload, "error.message", "message", "detail"),
-		}
-	default:
-		if artifactURL != "" {
-			return &videoProviderPollResult{State: model.MediaJobStatusSucceeded, ArtifactURL: artifactURL}
-		}
-		return &videoProviderPollResult{State: model.MediaJobStatusRunning}
-	}
-}
-
-func parseGeminiVideoStatus(payload map[string]any) *videoProviderPollResult {
-	if errorMessage := firstWorkerStringAtPaths(payload, "error.message", "response.error.message"); errorMessage != "" {
-		return &videoProviderPollResult{
-			State:     model.MediaJobStatusFailed,
-			ErrorCode: firstWorkerStringAtPaths(payload, "error.status", "error.code"),
-			Error:     errorMessage,
-		}
-	}
-	done, _ := payload["done"].(bool)
-	artifactURL := firstWorkerStringAtPaths(payload,
-		"response.generateVideoResponse.generatedSamples.0.video.uri",
-		"response.generateVideoResponse.generatedSamples.0.video.url",
-		"response.generatedVideos.0.video.uri",
-		"response.generatedVideos.0.video.url",
-	)
-	if done && artifactURL != "" {
-		return &videoProviderPollResult{State: model.MediaJobStatusSucceeded, ArtifactURL: artifactURL}
-	}
-	if done {
-		return &videoProviderPollResult{State: model.MediaJobStatusFailed, ErrorCode: "video_artifact_missing", Error: "video provider completed without an artifact"}
-	}
-	return &videoProviderPollResult{State: model.MediaJobStatusRunning}
-}
-
 func completeUpstreamVideoJob(ctx context.Context, job model.MediaJob, channel *model.Channel, artifactURL string, now time.Time) error {
 	if model.MediaJobBillingReservationAmount(job) <= 0 {
 		if err := model.CheckMediaJobBillingBeforeArtifactFetch(job, now); err != nil {
@@ -301,15 +281,15 @@ func completeUpstreamVideoJob(ctx context.Context, job model.MediaJob, channel *
 		}
 	}
 
-	key, keyErr := mediaJobProviderKey(job, channel)
-	if keyErr != nil {
-		return failMediaJob(job, "video_channel_key_unavailable", keyErr.Error(), now)
+	driver, ch, err := videoDriverFor(job, channel)
+	if err != nil {
+		return failMediaJob(job, "video_channel_key_unavailable", err.Error(), now)
 	}
-	downloadURL, authenticateDownload, err := videoProviderArtifactDownloadURL(job, channel, artifactURL)
+	download, err := driver.BuildDownload(ch, video.Job{UpstreamID: job.UpstreamJobID, ArtifactURL: job.ArtifactURL, Model: job.ModelName}, artifactURL)
 	if err != nil {
 		return failMediaJob(job, "artifact_download_url_invalid", err.Error(), now)
 	}
-	response, data, err := doVideoProviderDownload(ctx, downloadURL, key, channel, authenticateDownload)
+	response, data, err := doVideoProviderDownload(ctx, download, channel)
 	if err != nil {
 		var downloadErr *videoArtifactDownloadError
 		if errors.As(err, &downloadErr) && downloadErr.Permanent {
@@ -317,8 +297,8 @@ func completeUpstreamVideoJob(ctx context.Context, job model.MediaJob, channel *
 		}
 		return rescheduleCompletedVideoArtifact(job, now, "download", err)
 	}
-	mimeType := mediaJobArtifactMime(response, data, downloadURL)
-	file, err := service.StoreMediaJobArtifact(ctx, job, data, mimeType, downloadURL, now)
+	mimeType := mediaJobArtifactMime(response, data, download.URL)
+	file, err := service.StoreMediaJobArtifact(ctx, job, data, mimeType, download.URL, now)
 	if err != nil {
 		return rescheduleCompletedVideoArtifact(job, now, "storage", err)
 	}
@@ -363,12 +343,16 @@ func rescheduleCompletedVideoArtifact(job model.MediaJob, now time.Time, stage s
 	return nil
 }
 
-func doVideoProviderRequest(ctx context.Context, method string, requestURL string, key string, channel *model.Channel) (*http.Response, []byte, error) {
+func doVideoProviderRequest(ctx context.Context, method string, requestURL string, headers http.Header, channel *model.Channel) (*http.Response, []byte, error) {
 	request, err := http.NewRequestWithContext(ctx, method, requestURL, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	setVideoProviderHeaders(request.Header, key, channel)
+	for name, values := range headers {
+		for _, value := range values {
+			request.Header.Add(name, value)
+		}
+	}
 	client, err := videoProviderHTTPClient(channel, requestURL, true)
 	if err != nil {
 		return nil, nil, err
@@ -388,15 +372,22 @@ func doVideoProviderRequest(ctx context.Context, method string, requestURL strin
 	return response, body, nil
 }
 
-func doVideoProviderDownload(ctx context.Context, requestURL string, key string, channel *model.Channel, authenticated bool) (*http.Response, []byte, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+func doVideoProviderDownload(ctx context.Context, download *video.DownloadRequest, channel *model.Channel) (*http.Response, []byte, error) {
+	if download == nil {
+		return nil, nil, fmt.Errorf("video download request is missing")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, download.URL, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	if authenticated {
-		setVideoProviderHeaders(request.Header, key, channel)
+	if download.Authenticated {
+		for name, values := range download.Headers {
+			for _, value := range values {
+				request.Header.Add(name, value)
+			}
+		}
 	}
-	client, err := videoProviderHTTPClient(channel, requestURL, authenticated)
+	client, err := videoProviderHTTPClient(channel, download.URL, download.Authenticated)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -413,9 +404,9 @@ func doVideoProviderDownload(ctx context.Context, requestURL string, key string,
 			Message:    fmt.Sprintf("video download returned %d: %s", response.StatusCode, compactWorkerProviderError(body)),
 		}
 	}
-	maxSize := constant.MaxFileDownloadMB
+	maxSize := constant.MaxVideoDownloadMB
 	if maxSize <= 0 {
-		maxSize = 20
+		maxSize = 200
 	}
 	maxBytes := int64(maxSize * 1024 * 1024)
 	data, err := io.ReadAll(io.LimitReader(response.Body, maxBytes+1))
@@ -444,64 +435,13 @@ func isPermanentVideoArtifactDownloadStatus(statusCode int) bool {
 	}
 }
 
+// videoProviderHTTPClient is the channel-aware client for one upstream call;
+// the policy (proxy, SSRF filter, redirect origin) lives in service.
 func videoProviderHTTPClient(channel *model.Channel, requestURL string, authenticated bool) (*http.Client, error) {
 	if channel == nil {
 		return nil, fmt.Errorf("video channel is missing")
 	}
-	if !authenticated {
-		if err := validateExternalVideoArtifactURL(requestURL); err != nil {
-			return nil, err
-		}
-	}
-	proxyURL := strings.TrimSpace(channel.GetSetting().Proxy)
-	var client *http.Client
-	if proxyURL == "" {
-		if authenticated {
-			client = service.GetRelayHttpClient()
-		} else {
-			client = service.GetHttpClient()
-		}
-	} else {
-		var err error
-		client, err = service.NewProxyHttpClient(proxyURL)
-		if err != nil {
-			return nil, fmt.Errorf("configure video channel proxy: %w", err)
-		}
-	}
-	secured := *client
-	previousRedirectCheck := client.CheckRedirect
-	secured.CheckRedirect = func(request *http.Request, via []*http.Request) error {
-		if authenticated {
-			if len(via) > 0 && !sameVideoProviderOrigin(requestURL, request.URL.String()) {
-				return fmt.Errorf("authenticated video artifact redirect changed origin")
-			}
-		} else if err := validateExternalVideoArtifactURL(request.URL.String()); err != nil {
-			return err
-		}
-		if previousRedirectCheck != nil {
-			return previousRedirectCheck(request, via)
-		}
-		return nil
-	}
-	return &secured, nil
-}
-
-func validateExternalVideoArtifactURL(rawURL string) error {
-	fetchSetting := system_setting.GetFetchSetting()
-	if err := common.ValidateURLWithFetchSetting(
-		rawURL,
-		fetchSetting.EnableSSRFProtection,
-		fetchSetting.AllowPrivateIp,
-		fetchSetting.DomainFilterMode,
-		fetchSetting.IpFilterMode,
-		fetchSetting.DomainList,
-		fetchSetting.IpList,
-		fetchSetting.AllowedPorts,
-		fetchSetting.ApplyIPFilterForDomain,
-	); err != nil {
-		return fmt.Errorf("external video artifact url blocked: %w", err)
-	}
-	return nil
+	return service.VideoUpstreamClient(channel.GetSetting().Proxy, requestURL, authenticated)
 }
 
 func mediaJobProviderKey(job model.MediaJob, channel *model.Channel) (string, error) {
@@ -538,131 +478,6 @@ func mediaJobProviderKey(job model.MediaJob, channel *model.Channel) (string, er
 		}
 	}
 	return "", fmt.Errorf("%w: stored channel key index is missing", errVideoProviderConfiguration)
-}
-
-func videoProviderArtifactDownloadURL(job model.MediaJob, channel *model.Channel, artifactURL string) (string, bool, error) {
-	baseURL := strings.TrimRight(strings.TrimSpace(channel.GetBaseURL()), "/")
-	if baseURL == "" {
-		return "", false, fmt.Errorf("%w: video channel base url is empty", errVideoProviderConfiguration)
-	}
-	if candidate := strings.TrimSpace(artifactURL); candidate != "" {
-		resolved, err := resolveVideoProviderURL(baseURL, candidate)
-		if err != nil {
-			return "", false, err
-		}
-		return resolved, sameVideoProviderOrigin(baseURL, resolved), nil
-	}
-	if channel.Type == constant.ChannelTypeCustom {
-		template := strings.TrimSpace(channel.GetOtherSettings().VideoContentURLTemplate)
-		if template == "" {
-			return "", false, fmt.Errorf("%w: custom video channel requires video_content_url_template when no artifact url is returned", errVideoProviderConfiguration)
-		}
-		resolved, err := renderVideoProviderURLTemplate(baseURL, template, job.UpstreamJobID)
-		return resolved, err == nil && sameVideoProviderOrigin(baseURL, resolved), err
-	}
-	return relaycommon.GetFullRequestURL(
-		baseURL,
-		"/v1/videos/"+url.PathEscape(job.UpstreamJobID)+"/content",
-		channel.Type,
-	), true, nil
-}
-
-func renderVideoProviderURLTemplate(baseURL string, template string, upstreamID string) (string, error) {
-	if !strings.Contains(template, "{id}") {
-		return "", fmt.Errorf("%w: video url template must contain {id}", errVideoProviderConfiguration)
-	}
-	return resolveVideoProviderURL(baseURL, strings.ReplaceAll(template, "{id}", url.PathEscape(strings.TrimSpace(upstreamID))))
-}
-
-func resolveVideoProviderURL(baseURL string, candidate string) (string, error) {
-	base, err := url.Parse(baseURL)
-	if err != nil || base.Scheme == "" || base.Host == "" {
-		return "", fmt.Errorf("%w: invalid video channel base url", errVideoProviderConfiguration)
-	}
-	target, err := url.Parse(strings.TrimSpace(candidate))
-	if err != nil {
-		return "", fmt.Errorf("invalid video provider url: %w", err)
-	}
-	if !target.IsAbs() {
-		if !strings.HasPrefix(target.Path, "/") {
-			base.Path = strings.TrimRight(base.Path, "/") + "/"
-		}
-		target = base.ResolveReference(target)
-	}
-	if target.Scheme != "http" && target.Scheme != "https" {
-		return "", fmt.Errorf("unsupported video provider url scheme")
-	}
-	if target.Host == "" || target.User != nil {
-		return "", fmt.Errorf("invalid video provider url")
-	}
-	return target.String(), nil
-}
-
-func sameVideoProviderOrigin(left string, right string) bool {
-	leftURL, leftErr := url.Parse(left)
-	rightURL, rightErr := url.Parse(right)
-	if leftErr != nil || rightErr != nil {
-		return false
-	}
-	return strings.EqualFold(leftURL.Scheme, rightURL.Scheme) &&
-		strings.EqualFold(leftURL.Hostname(), rightURL.Hostname()) &&
-		effectiveVideoProviderPort(leftURL) == effectiveVideoProviderPort(rightURL)
-}
-
-func effectiveVideoProviderPort(value *url.URL) string {
-	if value.Port() != "" {
-		return value.Port()
-	}
-	if strings.EqualFold(value.Scheme, "https") {
-		return "443"
-	}
-	return "80"
-}
-
-func setVideoProviderHeaders(header http.Header, key string, channel *model.Channel) {
-	if channel.Type == constant.ChannelTypeGemini {
-		header.Set("x-goog-api-key", key)
-	} else {
-		header.Set("Authorization", "Bearer "+key)
-	}
-	for name, value := range channel.GetHeaderOverride() {
-		if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
-			header.Set(name, strings.ReplaceAll(text, "{api_key}", key))
-		}
-	}
-}
-
-func firstWorkerStringAtPaths(payload map[string]any, paths ...string) string {
-	for _, candidate := range paths {
-		value := any(payload)
-		for _, part := range strings.Split(candidate, ".") {
-			if items, ok := value.([]any); ok {
-				index := -1
-				if part == "0" {
-					index = 0
-				}
-				if index < 0 || index >= len(items) {
-					value = nil
-					break
-				}
-				value = items[index]
-				continue
-			}
-			record, ok := value.(map[string]any)
-			if !ok {
-				value = nil
-				break
-			}
-			value = record[part]
-		}
-		if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
-			return strings.TrimSpace(text)
-		}
-		if number, ok := value.(float64); ok {
-			return fmt.Sprintf("%.0f", number)
-		}
-	}
-	return ""
 }
 
 func compactWorkerProviderError(body []byte) string {

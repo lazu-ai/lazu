@@ -1,0 +1,171 @@
+package controller
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/model"
+)
+
+// videoCatalogParameters describes /v1/videos for one model from its
+// capability row, so the catalog, the validation and clients agree on what the
+// model takes. A model without a row shows the open contract.
+func videoCatalogParameters(modelName string) map[string]dto.CatalogParam {
+	caps := model.ModelVideoCapabilities(modelName)
+	seconds := dto.CatalogParam{Type: "integer", Description: "Requested clip length in seconds."}
+	if caps.DefaultSeconds > 0 {
+		seconds.Default = caps.DefaultSeconds
+	} else {
+		seconds.Default = 5
+	}
+	if len(caps.Durations) > 0 {
+		seconds.Enum = intEnum(caps.Durations)
+	} else if caps.MinSeconds > 0 || caps.MaxSeconds > 0 {
+		seconds.Range = []float64{float64(caps.MinSeconds), float64(caps.MaxSeconds)}
+	}
+	resolution := dto.CatalogParam{Type: "string", Description: "Resolution tier (480p, 720p, 1080p, 4k); also read from `quality` or a WIDTHxHEIGHT `size`."}
+	if caps.DefaultResolution != "" {
+		resolution.Default = caps.DefaultResolution
+	}
+	if len(caps.Resolutions) > 0 {
+		resolution.Enum = append([]string(nil), caps.Resolutions...)
+	}
+	ratio := dto.CatalogParam{Type: "string", Description: "Aspect ratio such as 16:9; also read from a WIDTHxHEIGHT `size`."}
+	if caps.DefaultRatio != "" {
+		ratio.Default = caps.DefaultRatio
+	}
+	if len(caps.Ratios) > 0 {
+		ratio.Enum = append([]string(nil), caps.Ratios...)
+	}
+	params := map[string]dto.CatalogParam{
+		"model": {
+			Type:        "string",
+			Description: "Model ID from the catalog.",
+			Required:    true,
+		},
+		"prompt": {
+			Type:        "string",
+			Description: "Video generation prompt.",
+			Required:    true,
+		},
+		"seconds":      seconds,
+		"resolution":   resolution,
+		"aspect_ratio": ratio,
+		"size": {
+			Type:        "string",
+			Description: "WIDTHxHEIGHT or an aspect ratio; a convenience for resolution plus aspect_ratio.",
+		},
+		"generate_audio": {
+			Type:        "boolean",
+			Description: "Generate synchronized audio when the model can.",
+		},
+		"seed": {
+			Type:        "integer",
+			Description: "Random seed; similar, not identical, results.",
+		},
+		"artifact_file_id": {
+			Type:        "string",
+			Description: "Register an already-produced artifact by Lazu file ID instead of generating.",
+		},
+		"artifact_url": {
+			Type:        "string",
+			Description: "Register an already-produced artifact by URL instead of generating.",
+		},
+	}
+	inputs := caps.Inputs
+	if len(inputs) == 0 || containsInput(inputs, dto.VideoInputFirstFrame) || containsInput(inputs, dto.VideoInputLastFrame) {
+		frameTypes := []string{}
+		if len(inputs) == 0 || containsInput(inputs, dto.VideoInputFirstFrame) {
+			frameTypes = append(frameTypes, dto.VideoFrameFirst)
+		}
+		if len(inputs) == 0 || containsInput(inputs, dto.VideoInputLastFrame) {
+			frameTypes = append(frameTypes, dto.VideoFrameLast)
+		}
+		params["frame_images"] = dto.CatalogParam{
+			Type:        "array",
+			Description: fmt.Sprintf("Image-to-video frames: objects with `url` and `frame_type` (%s).", strings.Join(frameTypes, ", ")),
+		}
+	}
+	referenceKinds := []string{}
+	for kind, label := range map[string]string{
+		dto.VideoInputReferenceImage: dto.VideoReferenceImage,
+		dto.VideoInputReferenceVideo: dto.VideoReferenceVideo,
+		dto.VideoInputReferenceAudio: dto.VideoReferenceAudio,
+	} {
+		if len(inputs) == 0 || containsInput(inputs, kind) {
+			referenceKinds = append(referenceKinds, label)
+		}
+	}
+	if len(referenceKinds) > 0 {
+		description := fmt.Sprintf("Reference material: objects with `url` and `type` (%s).", strings.Join(sortedStrings(referenceKinds), ", "))
+		if caps.MaxReferences > 0 {
+			description += fmt.Sprintf(" At most %d.", caps.MaxReferences)
+		}
+		params["input_references"] = dto.CatalogParam{Type: "array", Description: description}
+	}
+	if caps.Audio != nil && !*caps.Audio {
+		delete(params, "generate_audio")
+	}
+	if len(caps.Passthrough) > 0 {
+		params["provider_options"] = dto.CatalogParam{
+			Type:        "object",
+			Description: "Provider-specific fields passed through unchanged: " + strings.Join(caps.Passthrough, ", ") + ".",
+		}
+	}
+	return params
+}
+
+func containsInput(values []string, wanted string) bool {
+	for _, value := range values {
+		if strings.EqualFold(strings.TrimSpace(value), wanted) {
+			return true
+		}
+	}
+	return false
+}
+
+func intEnum(values []int) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		out = append(out, strconv.Itoa(value))
+	}
+	return out
+}
+
+func sortedStrings(values []string) []string {
+	out := append([]string(nil), values...)
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j] < out[j-1]; j-- {
+			out[j], out[j-1] = out[j-1], out[j]
+		}
+	}
+	return out
+}
+
+// videoCatalogExample is the curl the catalog shows for a video model.
+func videoCatalogExample(baseURL string, path string, modelName string) string {
+	caps := model.ModelVideoCapabilities(modelName)
+	seconds := caps.DefaultSeconds
+	if seconds <= 0 {
+		seconds = 5
+	}
+	resolution := caps.DefaultResolution
+	if resolution == "" {
+		resolution = "720p"
+	}
+	ratio := caps.DefaultRatio
+	if ratio == "" {
+		ratio = "16:9"
+	}
+	return fmt.Sprintf(
+		"curl %s%s -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' -d '{\"model\":\"%s\",\"prompt\":\"A cinematic product reveal on a clean studio table\",\"seconds\":%d,\"resolution\":\"%s\",\"aspect_ratio\":\"%s\"}'",
+		baseURL,
+		path,
+		modelName,
+		seconds,
+		resolution,
+		ratio,
+	)
+}

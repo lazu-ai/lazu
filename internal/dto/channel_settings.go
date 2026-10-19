@@ -100,19 +100,26 @@ type ChannelOtherSettings struct {
 	// thinking-token-count beta, which only changes the response usage breakdown.
 	ClaudeOmitThinkingTokenCountBetaModels []string `json:"claude_omit_thinking_token_count_beta_models,omitempty"`
 	// Opt-in restriction for Responses-only upstreams that accept one user text string.
-	ResponsesSingleUserText bool                 `json:"responses_single_user_text,omitempty"`
-	ProtocolDialect         string               `json:"protocol_dialect,omitempty"`
-	AzureResponsesVersion   string               `json:"azure_responses_version,omitempty"`
-	VertexKeyType           VertexKeyType        `json:"vertex_key_type,omitempty"` // "json" or "api_key"
-	OpenRouterEnterprise    *bool                `json:"openrouter_enterprise,omitempty"`
-	AllowServiceTier        bool                 `json:"allow_service_tier,omitempty"`        // 是否允许 service_tier 透传（默认过滤以避免额外计费）
-	AllowSpeed              bool                 `json:"allow_speed,omitempty"`               // 是否允许 speed 透传（仅 Claude，默认过滤以避免意外切换模式）
-	AllowInferenceGeo       bool                 `json:"allow_inference_geo,omitempty"`       // 是否允许 inference_geo 透传（仅 Claude，默认过滤以避免地域驻留配置意外透传）
-	DisableStore            bool                 `json:"disable_store,omitempty"`             // 是否禁用 store 透传（默认允许透传，禁用后可能导致 Codex 无法使用）
-	ExplicitStreamRequired  bool                 `json:"explicit_stream_required,omitempty"`  // 上游要求 stream 即使为 false 也必须显式发送
-	AllowSafetyIdentifier   bool                 `json:"allow_safety_identifier,omitempty"`   // 是否允许 safety_identifier 透传（默认过滤以保护用户隐私）
-	AllowIncludeObfuscation bool                 `json:"allow_include_obfuscation,omitempty"` // 是否允许 stream_options.include_obfuscation 透传（默认过滤以保留混淆保护）
-	AwsKeyType              AwsKeyType           `json:"aws_key_type,omitempty"`
+	ResponsesSingleUserText bool          `json:"responses_single_user_text,omitempty"`
+	ProtocolDialect         string        `json:"protocol_dialect,omitempty"`
+	AzureResponsesVersion   string        `json:"azure_responses_version,omitempty"`
+	VertexKeyType           VertexKeyType `json:"vertex_key_type,omitempty"` // "json" or "api_key"
+	OpenRouterEnterprise    *bool         `json:"openrouter_enterprise,omitempty"`
+	AllowServiceTier        bool          `json:"allow_service_tier,omitempty"`        // 是否允许 service_tier 透传（默认过滤以避免额外计费）
+	AllowSpeed              bool          `json:"allow_speed,omitempty"`               // 是否允许 speed 透传（仅 Claude，默认过滤以避免意外切换模式）
+	AllowInferenceGeo       bool          `json:"allow_inference_geo,omitempty"`       // 是否允许 inference_geo 透传（仅 Claude，默认过滤以避免地域驻留配置意外透传）
+	DisableStore            bool          `json:"disable_store,omitempty"`             // 是否禁用 store 透传（默认允许透传，禁用后可能导致 Codex 无法使用）
+	ExplicitStreamRequired  bool          `json:"explicit_stream_required,omitempty"`  // 上游要求 stream 即使为 false 也必须显式发送
+	AllowSafetyIdentifier   bool          `json:"allow_safety_identifier,omitempty"`   // 是否允许 safety_identifier 透传（默认过滤以保护用户隐私）
+	AllowIncludeObfuscation bool          `json:"allow_include_obfuscation,omitempty"` // 是否允许 stream_options.include_obfuscation 透传（默认过滤以保留混淆保护）
+	AwsKeyType              AwsKeyType    `json:"aws_key_type,omitempty"`
+	// Video upstream shape. VideoFamily picks the driver ("" = decide from
+	// the channel type and model name; see internal/relay/channel/video).
+	// VideoEnvelope configures the unified-envelope family (aggregators that
+	// serve every video model through one task API). The two URL templates are the pre-family Custom-channel
+	// form and still work: they map onto an envelope with OpenAI-shaped bodies.
+	VideoFamily             string               `json:"video_family,omitempty"`
+	VideoEnvelope           *VideoEnvelopeConfig `json:"video_envelope,omitempty"`
 	VideoStatusURLTemplate  string               `json:"video_status_url_template,omitempty"`
 	VideoContentURLTemplate string               `json:"video_content_url_template,omitempty"`
 	Capabilities            *ChannelCapabilities `json:"capabilities,omitempty"` // 路由能力声明，nil = 视为全能；详见 ChannelCapabilities

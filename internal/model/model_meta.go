@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/lazu-ai/lazu/internal/dto"
 
 	"gorm.io/gorm"
 )
@@ -88,10 +89,14 @@ type Model struct {
 	Modalities        ModelModalities       `json:"modalities" gorm:"type:text"`
 	ReasoningOptions  ModelReasoningOptions `json:"reasoning_options" gorm:"type:text"`
 	UnsupportedParams ModelStringList       `json:"unsupported_params" gorm:"type:text"`
-	OpenWeights       bool                  `json:"open_weights" gorm:"default:false"`
-	ModelsDevID       string                `json:"models_dev_id" gorm:"type:varchar(160);not null;default:''"`
-	InfoSources       ModelInfoSources      `json:"info_sources" gorm:"type:text"`
-	InfoLocked        bool                  `json:"info_locked" gorm:"default:false"`
+	// VideoCapabilities is the operator's row of what a video model takes
+	// (durations, resolutions, ratios, inputs, passthrough). Nil falls back
+	// to the family defaults; see ModelVideoCapabilities.
+	VideoCapabilities *dto.VideoCapabilities `json:"video_capabilities,omitempty" gorm:"type:text;serializer:json"`
+	OpenWeights       bool                   `json:"open_weights" gorm:"default:false"`
+	ModelsDevID       string                 `json:"models_dev_id" gorm:"type:varchar(160);not null;default:''"`
+	InfoSources       ModelInfoSources       `json:"info_sources" gorm:"type:text"`
+	InfoLocked        bool                   `json:"info_locked" gorm:"default:false"`
 
 	BoundChannels       []BoundChannel `json:"bound_channels,omitempty" gorm:"-"`
 	EnableGroups        []string       `json:"enable_groups,omitempty" gorm:"-"`

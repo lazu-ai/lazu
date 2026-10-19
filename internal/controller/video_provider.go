@@ -2,24 +2,24 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
-	"github.com/lazu-ai/lazu/internal/relay"
-	"github.com/lazu-ai/lazu/internal/relay/channel"
+	"github.com/lazu-ai/lazu/internal/model"
+	"github.com/lazu-ai/lazu/internal/relay/channel/video"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
+	"github.com/lazu-ai/lazu/internal/service"
 )
 
 const maxVideoProviderResponseBytes = int64(2 << 20)
@@ -32,10 +32,18 @@ type videoProviderSubmission struct {
 	IndeterminateReason string
 }
 
+// preparedVideoProviderRequest is one submission ready to send: the family
+// driver that built it, the channel it goes to, the final body (extension
+// fields and the channel's parameter override applied) and the billing
+// estimate read off that body.
 type preparedVideoProviderRequest struct {
-	Adaptor channel.BaseAdaptor
+	Driver  video.Driver
+	Channel video.Channel
+	Submit  *video.SubmitRequest
 	Body    []byte
 	Info    *relaycommon.RelayInfo
+	Facts   dto.VideoFacts
+	Proxy   string
 }
 
 type videoProviderSubmitError struct {
@@ -62,30 +70,24 @@ func (e *videoProviderSubmitError) Unwrap() error {
 func prepareVideoProviderRequest(c *gin.Context, request dto.VideoRequest) (*preparedVideoProviderRequest, error) {
 	info := relaycommon.GenRelayInfoOpenAI(c, &request)
 	info.InitChannelMeta(c)
-	if err := validateVideoProviderPollingConfiguration(info); err != nil {
-		return nil, err
-	}
+	originalModel := request.Model
 	if err := helper.ModelMappedHelper(c, info, &request); err != nil {
 		return nil, fmt.Errorf("map video model: %w", err)
 	}
-	adaptor := relay.GetAdaptor(info.ApiType)
-	if adaptor == nil {
-		return nil, fmt.Errorf("video provider protocol is unsupported")
+	upstreamModel := firstNonEmptyMediaJobValue(info.UpstreamModelName, request.Model, originalModel)
+	ch := videoChannelFromRelayInfo(info)
+	driver, err := video.Select(ch, originalModel, upstreamModel)
+	if err != nil {
+		return nil, fmt.Errorf("video provider: %w", err)
 	}
-	adaptor.Init(info)
-	converter, ok := adaptor.(channel.VideoRequestConverter)
-	if !ok {
-		return nil, fmt.Errorf("video provider %s does not support video generation", adaptor.GetChannelName())
+	if err := validateVideoProviderPollingConfiguration(driver, ch); err != nil {
+		return nil, err
 	}
-	converted, err := converter.ConvertVideoRequest(c, info, request)
+	submit, err := driver.BuildSubmit(ch, request, upstreamModel)
 	if err != nil {
 		return nil, fmt.Errorf("convert video request: %w", err)
 	}
-	body, err := common.Marshal(converted)
-	if err != nil {
-		return nil, fmt.Errorf("encode video request: %w", err)
-	}
-	body, err = mergeVideoProviderExtraFields(body, request.Extra)
+	body, err := mergeVideoProviderExtraFields(submit.Body, request.Extra)
 	if err != nil {
 		return nil, fmt.Errorf("merge video extension fields: %w", err)
 	}
@@ -95,41 +97,87 @@ func prepareVideoProviderRequest(c *gin.Context, request dto.VideoRequest) (*pre
 			return nil, fmt.Errorf("apply video parameter override: %w", err)
 		}
 	}
+	submit.Body = body
+	proxy := ""
+	if info.ChannelMeta != nil {
+		proxy = info.ChannelSetting.Proxy
+	}
 	return &preparedVideoProviderRequest{
-		Adaptor: adaptor,
+		Driver:  driver,
+		Channel: ch,
+		Submit:  submit,
 		Body:    body,
 		Info:    info,
+		Facts:   driver.EstimateFacts(body, model.ModelVideoCapabilities(originalModel)),
+		Proxy:   proxy,
 	}, nil
 }
 
-func validateVideoProviderPollingConfiguration(info *relaycommon.RelayInfo) error {
-	if info == nil || info.ChannelMeta == nil || info.ChannelType != constant.ChannelTypeCustom {
+func videoChannelFromRelayInfo(info *relaycommon.RelayInfo) video.Channel {
+	if info == nil || info.ChannelMeta == nil {
+		return video.Channel{}
+	}
+	return video.Channel{
+		Type:           info.ChannelType,
+		BaseURL:        info.ChannelBaseUrl,
+		Key:            info.ApiKey,
+		Settings:       info.ChannelOtherSettings,
+		HeaderOverride: info.HeadersOverride,
+	}
+}
+
+// validateVideoProviderPollingConfiguration refuses to submit a job the
+// worker could never poll: a Custom channel without its status template
+// would otherwise park every submission as indeterminate.
+func validateVideoProviderPollingConfiguration(driver video.Driver, ch video.Channel) error {
+	if driver == nil {
 		return nil
 	}
-	if strings.TrimSpace(info.ChannelOtherSettings.VideoStatusURLTemplate) == "" {
-		return fmt.Errorf("custom video channel requires video_status_url_template before submission")
+	_, err := driver.BuildStatus(ch, video.Job{UpstreamID: "pending"})
+	if errors.Is(err, video.ErrConfiguration) {
+		return err
 	}
 	return nil
 }
 
 func submitVideoProvider(c *gin.Context, prepared *preparedVideoProviderRequest) (*videoProviderSubmission, error) {
-	if prepared == nil || prepared.Adaptor == nil || prepared.Info == nil {
+	if prepared == nil || prepared.Driver == nil || prepared.Submit == nil {
 		return nil, fmt.Errorf("video provider request is not prepared")
 	}
 	common.SetContextKey(c, constant.ContextKeyProviderAttempted, true)
-	rawResponse, err := prepared.Adaptor.DoRequest(c, prepared.Info, bytes.NewReader(prepared.Body))
+	client, err := service.VideoUpstreamClient(prepared.Proxy, prepared.Submit.URL, true)
+	if err != nil {
+		return nil, &videoProviderSubmitError{
+			StatusCode: http.StatusBadGateway,
+			Err:        fmt.Errorf("prepare video provider client: %w", err),
+		}
+	}
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	method := prepared.Submit.Method
+	if method == "" {
+		method = http.MethodPost
+	}
+	request, err := http.NewRequestWithContext(ctx, method, prepared.Submit.URL, bytes.NewReader(prepared.Body))
+	if err != nil {
+		return nil, &videoProviderSubmitError{
+			StatusCode: http.StatusBadGateway,
+			Err:        fmt.Errorf("build video provider request: %w", err),
+		}
+	}
+	for name, values := range prepared.Submit.Headers {
+		for _, value := range values {
+			request.Header.Add(name, value)
+		}
+	}
+	response, err := client.Do(request)
 	if err != nil {
 		return nil, &videoProviderSubmitError{
 			StatusCode: http.StatusBadGateway,
 			Accepted:   videoProviderSubmissionMayHaveBeenDispatched(err),
 			Err:        fmt.Errorf("submit video generation: %w", err),
-		}
-	}
-	response, ok := rawResponse.(*http.Response)
-	if !ok || response == nil {
-		return nil, &videoProviderSubmitError{
-			StatusCode: http.StatusBadGateway,
-			Err:        fmt.Errorf("video provider returned an invalid response"),
 		}
 	}
 	defer response.Body.Close()
@@ -155,19 +203,31 @@ func submitVideoProvider(c *gin.Context, prepared *preparedVideoProviderRequest)
 			Err:        fmt.Errorf("video provider returned status %d: %s", response.StatusCode, compactProviderError(responseBody)),
 		}
 	}
-	upstreamID, artifactURL := parseVideoProviderSubmission(responseBody)
-	if upstreamID == "" && artifactURL == "" {
+	receipt, err := prepared.Driver.ParseSubmit(prepared.Channel, responseBody)
+	if err != nil {
+		// The provider answered 2xx: the job may well be running. Keep it
+		// recoverable instead of resubmitting paid work.
 		return nil, &videoProviderSubmitError{
 			StatusCode: http.StatusBadGateway,
 			Accepted:   true,
-			Err:        fmt.Errorf("video provider response did not include a job id"),
+			Err:        err,
 		}
 	}
 	return &videoProviderSubmission{
-		ArtifactURL:  artifactURL,
-		ProviderName: strings.ToLower(strings.TrimSpace(prepared.Adaptor.GetChannelName())),
-		UpstreamID:   upstreamID,
+		ArtifactURL:  receipt.ArtifactURL,
+		ProviderName: videoProviderName(prepared.Driver, prepared.Channel),
+		UpstreamID:   receipt.UpstreamID,
 	}, nil
+}
+
+// videoProviderName is the provider recorded on the job. It keeps the values
+// the pre-family adaptors wrote ("gemini" for Veo, "openai" for every other
+// channel) because ephemeral credentials scope jobs by this string.
+func videoProviderName(driver video.Driver, _ video.Channel) string {
+	if driver != nil && driver.Family() == dto.VideoFamilyGemini {
+		return "gemini"
+	}
+	return "openai"
 }
 
 func videoProviderSubmissionMayHaveBeenDispatched(err error) bool {
@@ -200,19 +260,7 @@ func mergeVideoProviderExtraFields(body []byte, extra map[string]json.RawMessage
 }
 
 func isSafeVideoProviderExtraField(key string) bool {
-	if key == "" || strings.HasPrefix(key, "_") {
-		return false
-	}
-	switch strings.ToLower(key) {
-	case "channel_group",
-		"channel_id",
-		"channel_multi_key_index",
-		"final_group",
-		"original_model":
-		return false
-	default:
-		return true
-	}
+	return !dto.IsInternalVideoRequestField(key)
 }
 
 func videoProviderStatusRetrySafe(status int) bool {
@@ -227,52 +275,6 @@ func videoProviderSubmissionRetrySafe(err error) bool {
 func videoProviderSubmissionAccepted(err error) bool {
 	var providerErr *videoProviderSubmitError
 	return errors.As(err, &providerErr) && providerErr.Accepted
-}
-
-func parseVideoProviderSubmission(body []byte) (string, string) {
-	var payload map[string]any
-	if err := common.Unmarshal(body, &payload); err != nil {
-		return "", ""
-	}
-	upstreamID := firstStringAtPaths(payload,
-		"id",
-		"name",
-		"job_id",
-		"task_id",
-		"data.id",
-		"data.name",
-		"operation.name",
-	)
-	artifactURL := firstStringAtPaths(payload,
-		"url",
-		"video.url",
-		"output.url",
-		"data.url",
-		"response.video.url",
-	)
-	return upstreamID, artifactURL
-}
-
-func firstStringAtPaths(payload map[string]any, paths ...string) string {
-	for _, candidate := range paths {
-		value := any(payload)
-		for _, part := range strings.Split(candidate, ".") {
-			record, ok := value.(map[string]any)
-			if !ok {
-				value = nil
-				break
-			}
-			value = record[part]
-		}
-		if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
-			return strings.TrimSpace(text)
-		}
-		if number, ok := value.(float64); ok &&
-			!math.IsNaN(number) && !math.IsInf(number, 0) {
-			return strconv.FormatFloat(number, 'f', -1, 64)
-		}
-	}
-	return ""
 }
 
 func compactProviderError(body []byte) string {

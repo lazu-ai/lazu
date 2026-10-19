@@ -59,6 +59,8 @@ type ChannelFormValues = LooseRecord & {
   shared_max_in_flight?: number;
   settings?: string;
   video_content_url_template?: string;
+  video_envelope?: string;
+  video_family?: string;
   video_status_url_template?: string;
 };
 
@@ -253,6 +255,11 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
     video_content_url_template: String(
       settings.video_content_url_template || '',
     ),
+    video_envelope:
+      settings.video_envelope && typeof settings.video_envelope === 'object'
+        ? JSON.stringify(settings.video_envelope, null, 2)
+        : '',
+    video_family: String(settings.video_family || ''),
     video_status_url_template: String(settings.video_status_url_template || ''),
     weight: Number(data.weight ?? 0),
   };
@@ -307,6 +314,18 @@ const normalizeChannelPayload = (
     settings.video_content_url_template = videoContentTemplate;
   } else {
     delete settings.video_content_url_template;
+  }
+  const videoFamily = String(values.video_family || '').trim();
+  if (videoFamily) {
+    settings.video_family = videoFamily;
+  } else {
+    delete settings.video_family;
+  }
+  const videoEnvelopeText = String(values.video_envelope || '').trim();
+  if (videoEnvelopeText) {
+    settings.video_envelope = JSON.parse(videoEnvelopeText);
+  } else {
+    delete settings.video_envelope;
   }
   if (values.observe_new_routes) {
     settings.observe_new_routes = true;

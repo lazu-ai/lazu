@@ -48,6 +48,7 @@ var providerCostPriceTableCache = struct {
 
 type ProviderCostPrice struct {
 	ImagePricing        *billing.ImagePrices `json:"image_pricing,omitempty" gorm:"type:text;serializer:json"`
+	VideoPricing        *billing.VideoPrices `json:"video_pricing,omitempty" gorm:"type:text;serializer:json"`
 	ID                  uint                 `json:"id" gorm:"primaryKey"`
 	ModelName           string               `json:"model_name" gorm:"type:varchar(191);index:idx_provider_cost_prices_model_provider_channel_version,unique;not null"`
 	Provider            string               `json:"provider" gorm:"type:varchar(64);default:'seed';index:idx_provider_cost_prices_model_provider_channel_version,unique"`
@@ -84,6 +85,7 @@ func (price ProviderCostPrice) ToBillingPriceSheet() billing.PriceSheet {
 	return billing.PriceSheet{
 		ModelName:                   price.ModelName,
 		Images:                      price.ImagePricing.Scaled(1),
+		Video:                       price.VideoPricing.Scaled(1),
 		InputPerMtokMicrousd:        usdToMicrousdPtr(price.InputPerMtok),
 		OutputPerMtokMicrousd:       usdToMicrousdPtr(price.OutputPerMtok),
 		CacheReadPerMtokMicrousd:    usdToMicrousdPtr(price.CacheReadPerMtok),
@@ -152,6 +154,7 @@ func pickTierPrice(tier, base *float64) *float64 {
 
 type ModelSellPrice struct {
 	ImagePricing        *billing.ImagePrices `json:"image_pricing,omitempty" gorm:"type:text;serializer:json"`
+	VideoPricing        *billing.VideoPrices `json:"video_pricing,omitempty" gorm:"type:text;serializer:json"`
 	ID                  uint                 `json:"id" gorm:"primaryKey"`
 	ModelName           string               `json:"model_name" gorm:"type:varchar(191);index:idx_model_sell_prices_model_lane_version,unique;not null"`
 	ChannelGroup        string               `json:"channel_group" gorm:"type:varchar(32);default:'direct';index:idx_model_sell_prices_model_lane_version,unique;not null"`
@@ -262,6 +265,7 @@ func (price ModelSellPrice) ToBillingPriceSheetAt(now time.Time) billing.PriceSh
 	return billing.PriceSheet{
 		ModelName:                   price.ModelName,
 		Images:                      price.ImagePricing.Scaled(factor),
+		Video:                       price.VideoPricing.Scaled(factor),
 		InputPerMtokMicrousd:        scale(price.InputPerMtok),
 		OutputPerMtokMicrousd:       scale(price.OutputPerMtok),
 		CacheReadPerMtokMicrousd:    scale(price.CacheReadPerMtok),

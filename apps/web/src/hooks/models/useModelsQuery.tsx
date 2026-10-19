@@ -235,6 +235,20 @@ async function fetchModels({
   ) as PageData;
 }
 
+/** A JSON-object text field as the API stores it: the object, or null to clear. */
+const parseJsonObjectOrNull = (raw: unknown): LooseRecord | null => {
+  const text = typeof raw === 'string' ? raw.trim() : '';
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as LooseRecord)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const normalizeModelDetail = (data: LooseRecord = {}): ModelFormValues => ({
   ...data,
   capabilities: {
@@ -249,6 +263,10 @@ const normalizeModelDetail = (data: LooseRecord = {}): ModelFormValues => ({
   description_zh: data.description_zh || '',
   enable_groups: splitListValue(data.enable_groups),
   endpoints: data.endpoints || '',
+  video_capabilities:
+    data.video_capabilities && typeof data.video_capabilities === 'object'
+      ? JSON.stringify(data.video_capabilities, null, 2)
+      : '',
   icon: data.icon || '',
   family: data.family || '',
   max_tokens: String(data.max_tokens ?? data.max_output_tokens ?? ''),
@@ -291,6 +309,7 @@ const normalizeModelPayload = (values: ModelFormValues): LooseRecord => {
     },
     context_length: asIntegerOrZero(values.context_window),
     endpoints: values.endpoints || '',
+    video_capabilities: parseJsonObjectOrNull(values.video_capabilities),
     family: String(values.family || '')
       .trim()
       .toLowerCase(),

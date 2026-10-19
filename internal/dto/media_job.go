@@ -21,6 +21,9 @@ type MediaJobObject struct {
 	Error        *MediaJobError    `json:"error,omitempty"`
 	Request      json.RawMessage   `json:"request,omitempty"`
 	CostSnapshot json.RawMessage   `json:"cost_snapshot,omitempty"`
+	// Usage is what the provider reported about a finished video: seconds,
+	// resolution, frame rate and token count. Procurement cost is never here.
+	Usage *MediaJobUsage `json:"usage,omitempty"`
 }
 
 type MediaJobArtifact struct {

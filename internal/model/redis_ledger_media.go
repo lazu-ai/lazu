@@ -132,6 +132,16 @@ func settleRedisMediaJob(job MediaJob, now time.Time) (MediaJobBillingResult, er
 	}
 	amount := billing.MicroUSD(input.Amount)
 	result := mediaJobBillingResultFromReservation(job, amount)
+	if MediaJobHasReportedFacts(job) {
+		// The provider reported its own billing dimension; settle the fresh
+		// quote against the hold (the ledger finishes above or below it).
+		if quoted, err := quoteMediaJobBilling(job); err == nil && quoted.CustomerPriceConfigured {
+			if quoted.ChannelGroup == "" {
+				quoted.ChannelGroup = result.ChannelGroup
+			}
+			result = quoted
+		}
+	}
 	result.CostSnapshot = buildMediaJobCostSnapshot(result)
 	if job.BillingSettledAt > 0 {
 		result.AlreadySettled = true

@@ -100,18 +100,25 @@ func TestBuildCatalogVideoEndpointUsesAsyncVideosPath(t *testing.T) {
 		t.Fatalf("expected video output modality, got %+v", modality)
 	}
 	example := buildCatalogCurlExample("veo-3-fast", constant.EndpointTypeVideoGeneration, endpoints, modality)
+	// The example follows the model's capability row: Veo defaults to eight
+	// seconds at 720p, and generation needs no pre-made artifact.
 	if !strings.Contains(example, "{{base_url}}/v1/videos") ||
-		!strings.Contains(example, "\"seconds\":5") ||
-		!strings.Contains(example, "\"artifact_url\":\"https://example.com/input.png\"") {
+		!strings.Contains(example, "\"seconds\":8") ||
+		!strings.Contains(example, "\"resolution\":\"720p\"") ||
+		strings.Contains(example, "artifact_url") {
 		t.Fatalf("expected video curl example, got %q", example)
 	}
 	params := buildCatalogParameters("veo-3-fast", constant.EndpointTypeVideoGeneration, 0, nil)
 	artifactURL, ok := params["artifact_url"]
-	if !ok || !artifactURL.Required {
-		t.Fatalf("expected required artifact_url catalog parameter, got %+v", params)
+	if !ok || artifactURL.Required {
+		t.Fatalf("expected optional artifact_url catalog parameter, got %+v", params)
 	}
 	if _, ok := params["artifact_file_id"]; !ok {
 		t.Fatalf("expected artifact_file_id catalog parameter, got %+v", params)
+	}
+	seconds := params["seconds"]
+	if len(seconds.Enum) != 3 || seconds.Enum[2] != "8" || params["resolution"].Enum == nil || params["frame_images"].Type != "array" {
+		t.Fatalf("video parameters should come from the capability row, got %+v", params)
 	}
 }
 

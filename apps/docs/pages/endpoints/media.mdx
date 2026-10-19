@@ -102,6 +102,26 @@ else:
 # A local timeout does not cancel the remote job. Keep job_id for later GETs.
 ```
 
+### Clip length, resolution, frames and references
+
+Every video model publishes what it takes in the [model catalog](/models/catalog): the clip lengths, resolution tiers, aspect ratios and inputs it accepts. Send `seconds`, `resolution` (`480p`, `720p`, `1080p`, `4k`) and `aspect_ratio` (`16:9`, `9:16`, …); `size` as `WIDTHxHEIGHT` is accepted as a shorthand for both. A value the model does not take is refused with HTTP 400 before any charge, and the error names the values it accepts.
+
+Image-to-video takes `frame_images`, each with a `url` and a `frame_type` of `first_frame` or `last_frame`. Models that take reference material take `input_references`, each with a `url` and a `type` of `image`, `video` or `audio`. `generate_audio` asks for synchronized audio on models that make it, and `seed` fixes the random seed. Fields the catalog lists as provider options pass through unchanged.
+
+```python
+response = requests.post(origin + "/v1/videos", headers=headers, json={
+    "model": os.environ["LAZU_VIDEO_MODEL"],
+    "prompt": "The fox turns toward the camera as the wind moves her fur",
+    "seconds": 5,
+    "resolution": "720p",
+    "aspect_ratio": "16:9",
+    "generate_audio": True,
+    "frame_images": [{"url": "https://example.com/first.png", "frame_type": "first_frame"}],
+}, timeout=180)
+```
+
+A succeeded job carries `usage` with what the provider reported: `seconds`, `resolution`, `fps` and, for token-billed models such as Seedance, `output_tokens`. The charge on `cost_snapshot` follows that report, so a clip that comes back shorter or longer than asked is billed as delivered.
+
 ## Generate speech or transcribe audio
 
 Set `LAZU_AUDIO_MODEL` to a speech model and `LAZU_VOICE` to a supported voice. `/v1/audio/speech` returns binary audio, not JSON. For transcription, choose a compatible model and upload a local audio file to `/v1/audio/transcriptions` as multipart data. These are separate model capabilities.

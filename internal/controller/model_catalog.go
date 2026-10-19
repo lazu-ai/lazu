@@ -1716,41 +1716,7 @@ func buildCatalogParameters(
 			},
 		}
 	case constant.EndpointTypeVideoGeneration:
-		return map[string]dto.CatalogParam{
-			"model": {
-				Type:        "string",
-				Description: "Model ID from the catalog.",
-				Required:    true,
-			},
-			"prompt": {
-				Type:        "string",
-				Description: "Video generation prompt.",
-				Required:    true,
-			},
-			"seconds": {
-				Type:        "integer",
-				Description: "Requested video duration in seconds.",
-				Default:     5,
-			},
-			"size": {
-				Type:        "string",
-				Description: "Requested video size or aspect ratio.",
-				Default:     "16:9",
-			},
-			"artifact_file_id": {
-				Type:        "string",
-				Description: "Uploaded artifact file ID. Required until provider execution is enabled unless artifact_url is supplied.",
-			},
-			"artifact_url": {
-				Type:        "string",
-				Description: "Artifact URL. Required until provider execution is enabled unless artifact_file_id is supplied.",
-				Required:    true,
-			},
-			"quality": {
-				Type:        "string",
-				Description: "Provider-specific quality tier.",
-			},
-		}
+		return videoCatalogParameters(modelName)
 	case constant.EndpointTypeJinaRerank:
 		return map[string]dto.CatalogParam{
 			"model": {
@@ -1827,12 +1793,7 @@ func buildCatalogCurlExample(
 			modelName,
 		)
 	case constant.EndpointTypeVideoGeneration:
-		return fmt.Sprintf(
-			"curl %s%s -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' -d '{\"model\":\"%s\",\"prompt\":\"A cinematic product reveal on a clean studio table\",\"seconds\":5,\"size\":\"16:9\",\"artifact_url\":\"https://example.com/input.png\"}'",
-			baseURL,
-			path,
-			modelName,
-		)
+		return videoCatalogExample(baseURL, path, modelName)
 	case constant.EndpointTypeJinaRerank:
 		return fmt.Sprintf(
 			"curl %s%s -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' -d '{\"model\":\"%s\",\"query\":\"Which document is about billing?\",\"documents\":[\"API billing is usage-based.\",\"This guide covers image generation.\"],\"top_n\":2}'",
