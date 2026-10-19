@@ -273,6 +273,8 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 | <a id="lz-7112"></a>`LZ-7112` | `dispute_still_open` | 409 | `conflict_error` | Stripe 尚未按这个结果关闭争议。等 Stripe 关闭后再记录结果。 |
 | <a id="lz-7113"></a>`LZ-7113` | `dispute_resolution_failed` | 409 | `conflict_error` | 无法为这笔充值记录争议结果。核对充值单号和争议 ID。 |
 | <a id="lz-7114"></a>`LZ-7114` | `payment_document_reconcile_failed` | 503 | `api_error` | 无法与 Stripe 核对这笔充值的发票和收据。稍后再试。 |
+| <a id="lz-7115"></a>`LZ-7115` | `auto_reload_settings_invalid` | 400 | `invalid_request_error` | 自动续费的金额必须是整数美元：余额线至少 $1，每次充值在充值范围内，每月上限不低于一次充值金额。 |
+| <a id="lz-7116"></a>`LZ-7116` | `auto_reload_card_required` | 409 | `conflict_error` | 开启自动续费前先保存一张卡。保存时不会扣款。 |
 | <a id="lz-7121"></a>`LZ-7121` | `referral_unavailable` | 500 | `invalid_request_error` | 推荐记录暂时不可用，请稍后重试。 |
 | <a id="lz-7122"></a>`LZ-7122` | `referral_code_invalid` | 400 | `invalid_request_error` | 名字只能用 3–20 位小写字母、数字或连字符，不能以连字符开头或结尾。 |
 | <a id="lz-7123"></a>`LZ-7123` | `referral_code_reserved` | 400 | `invalid_request_error` | 这个名字不能用，换一个试试。 |
