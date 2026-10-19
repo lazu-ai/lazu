@@ -1,0 +1,11 @@
+{{define "main"}}
+<main class="lazu-site-notfound">
+  <div class="lazu-site-notfound__mark">404</div>
+  <h1>{{t "notFound.title"}}</h1>
+  <p>{{t "notFound.body"}}</p>
+  <div class="lazu-site-notfound__actions">
+    <a class="lazu-btn lazu-btn--ink" href="{{.Page.ModelsHref}}">{{t "notFound.models"}}</a>
+    <a class="lazu-btn lazu-btn--line" href="{{.Page.HomeHref}}">{{t "notFound.home"}}</a>
+  </div>
+</main>
+{{end}}

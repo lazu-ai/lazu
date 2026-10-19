@@ -1,0 +1,547 @@
+/*
+ * Announcement workbench — the single place every user-facing announcement is
+ * written and maintained.
+ *
+ * Two panes that stay on screen together: history on the left, a resident
+ * editor on the right. Editing an old announcement is the highest-frequency
+ * action here, and a list that never leaves means it costs no navigation.
+ */
+
+/* Both panes fill one viewport-height frame and scroll inside themselves.
+ *
+ * The list used to carry `max-height: 72vh` while the grid stretched the
+ * editor to match it. The editor's own content stops around 400px and its
+ * textarea only has `min-height: 160px`, so it never grew to fill — which is
+ * where the dead band under the editor came from. Giving the frame one
+ * definite height and letting each pane scroll internally means the page
+ * itself does not scroll, so there is no page tail left over to be blank.
+ *
+ * The subtrahend is the console chrome above this block: 54px scope bar,
+ * 48px content padding, 58px page-body padding, ~76px page head. */
+.ann-workbench {
+  --ann-frame-offset: 236px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 285px minmax(0, 1fr);
+  height: calc(100dvh - var(--ann-frame-offset));
+  min-height: 420px;
+  min-width: 0;
+}
+.announcements-page--review .ann-workbench[hidden] {
+  display: none;
+}
+
+.ann-panel {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  min-width: 0;
+}
+
+/* ── left: history ───────────────────────────────────────────── */
+
+.ann-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ann-list__search {
+  padding: 12px 12px 8px;
+}
+
+.ann-list__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 12px 10px;
+}
+
+.ann-list__items {
+  border-top: 1px solid var(--lazu-border);
+  flex: 1;
+  overflow: auto;
+}
+
+.ann-list__more {
+  border-top: 1px solid var(--lazu-border);
+  padding: 9px 12px;
+  text-align: center;
+}
+
+.ann-list__item {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--lazu-border);
+  cursor: pointer;
+  display: block;
+  padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
+  text-align: left;
+  transition: background var(--lazu-motion-fast) var(--lazu-ease-direct);
+  width: 100%;
+}
+
+.ann-list__item:hover {
+  background: var(--lazu-surface-muted);
+}
+
+/* Yunmu rule 6: selection is background + weight + foreground only — no rail,
+   bracket or brand fill down the leading edge. */
+.ann-list__item.is-active {
+  background: var(--lazu-surface-selected);
+}
+
+.ann-list__item.is-active .ann-list__title {
+  color: var(--lazu-ink);
+  font-weight: 700;
+}
+
+.ann-list__item:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.ann-list__title {
+  color: var(--lazu-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ann-list__meta {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.ann-list__date {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  margin-left: auto;
+}
+
+.ann-list__empty {
+  color: var(--lazu-text-faint);
+  font-size: 12.5px;
+  padding: 26px 14px;
+  text-align: center;
+}
+
+/* ── shared chips ────────────────────────────────────────────── */
+
+.ann-kind {
+  border-radius: var(--lazu-radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.ann-kind[data-tone='feature'] {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence);
+}
+
+.ann-kind[data-tone='model'] {
+  background: var(--lazu-success-soft);
+  color: var(--lazu-success);
+}
+
+.ann-kind[data-tone='notice'] {
+  background: var(--lazu-warning-soft);
+  color: var(--lazu-warning-strong);
+}
+
+.ann-kind[data-tone='danger'] {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+.ann-kind[data-tone='neutral'] {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-text-muted);
+}
+
+.ann-state {
+  border-radius: var(--lazu-radius-pill);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.ann-state[data-state='published'] {
+  background: var(--lazu-success-soft);
+  color: var(--lazu-success);
+}
+
+.ann-state[data-state='draft'] {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-text-faint);
+}
+
+.ann-state[data-state='unpublished'] {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+.ann-delivery {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.ann-delivery[data-delivery='notice'] {
+  background: var(--lazu-warning-soft);
+  color: var(--lazu-warning-strong);
+}
+
+.ann-delivery[data-delivery='critical'] {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+/* ── right: editor ───────────────────────────────────────────── */
+
+/* Head and footer hold still; only the field stack between them scrolls. */
+.ann-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.ann-editor__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 15px 17px;
+}
+
+.ann-editor__foot {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 11px 17px;
+}
+
+.ann-editor__head {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 13px 17px;
+}
+
+.ann-editor__head h2 {
+  color: var(--lazu-ink);
+  font-size: 13.5px;
+  font-weight: 650;
+  margin: 0;
+}
+
+.ann-field {
+  min-width: 0;
+}
+
+.ann-label {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.ann-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ann-kind-btn {
+  background: transparent;
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font-size: 11.5px;
+  padding: 4px 11px;
+  transition:
+    background var(--lazu-motion-fast) var(--lazu-ease-direct),
+    border-color var(--lazu-motion-fast) var(--lazu-ease-direct),
+    color var(--lazu-motion-fast) var(--lazu-ease-direct);
+}
+
+.ann-kind-btn:hover {
+  color: var(--lazu-ink);
+}
+
+.ann-kind-btn[aria-pressed='true'] {
+  background: var(--lazu-evidence-soft);
+  border-color: var(--lazu-evidence);
+  color: var(--lazu-evidence);
+  font-weight: 600;
+}
+
+.ann-kind-btn:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.ann-locales {
+  display: flex;
+  gap: 4px;
+}
+
+.ann-locale-btn {
+  background: transparent;
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  padding: 3px 9px;
+}
+
+.ann-locale-btn[aria-pressed='true'] {
+  background: var(--lazu-surface-selected);
+  border-color: var(--lazu-border-strong);
+  color: var(--lazu-ink);
+}
+
+.ann-locale-btn:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+/* Markdown box: write and preview are two views of one field, so they share a
+   frame rather than sitting in two separate boxes. */
+.ann-md {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  overflow: hidden;
+}
+
+.ann-md__bar {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+}
+
+.ann-md__spacer {
+  flex: 1;
+}
+
+.ann-md__view {
+  background: transparent;
+  border: 0;
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+.ann-md__view[aria-pressed='true'] {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.ann-md__view:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.ann-md__input {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  display: block;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  line-height: 1.75;
+  min-height: 160px;
+  padding: 12px 14px;
+  resize: vertical;
+  width: 100%;
+}
+
+.ann-md__input:focus {
+  outline: none;
+}
+
+.ann-md__preview {
+  min-height: 160px;
+  padding: 10px 14px;
+}
+
+.ann-md__preview-empty {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.ann-editor__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.ann-editor__row > .ann-field:first-child {
+  flex: 1;
+  min-width: 190px;
+}
+
+.ann-models {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ann-model {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border: 0;
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  gap: 6px;
+  padding: 4px 9px;
+}
+
+.ann-model button {
+  background: none;
+  border: 0;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.ann-model button:hover {
+  color: var(--lazu-danger);
+}
+
+.ann-model-add {
+  background: transparent;
+  border: 1px dashed var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  padding: 4px 9px;
+}
+
+.ann-model-add:hover {
+  color: var(--lazu-ink);
+}
+
+.ann-date {
+  max-width: 150px;
+}
+
+.ann-hint {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  margin: 0;
+}
+
+/* Stacked on narrow screens: one frame height for two panes would leave each
+   of them too short to use, so the page scrolls normally again there. */
+@media (max-width: 900px) {
+  .ann-workbench {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 0;
+  }
+
+  .ann-list {
+    max-height: 320px;
+  }
+
+  .ann-editor {
+    overflow: visible;
+  }
+
+  .ann-editor__body {
+    overflow: visible;
+  }
+}
+
+.ann-editor__selectors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.ann-list__filters .lazu-select-trigger {
+  width: 100%;
+}
+.announcements-page--review .ann-workbench {
+  height: calc(100dvh - 166px);
+}
+.announcements-page--review .lazu-select-trigger {
+  background: var(--lazu-surface) !important;
+  border: 1px solid var(--lazu-border) !important;
+  border-radius: var(--lazu-radius-control);
+  height: 38px;
+  padding: 0 12px;
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .announcements-page--review .ann-workbench {
+    height: auto;
+  }
+}
+@media (max-width: 520px) {
+  .ann-editor__selectors {
+    grid-template-columns: 1fr;
+  }
+}
+.ann-field--body {
+  flex: 1;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+.ann-field--body .ann-md {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.ann-field--body .ann-md__input,
+.ann-field--body .ann-md__preview {
+  flex: 1;
+  min-height: 200px;
+  overflow: auto;
+}

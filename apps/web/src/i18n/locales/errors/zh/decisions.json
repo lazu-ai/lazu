@@ -1,0 +1,11 @@
+{
+  "missing_questions": "请提供 questions，或开启自动生成判别问题。",
+  "invalid_decision_state": "请提供文本或 JSON 材料，或嵌入图片。",
+  "invalid_decision_questions": "判别问题格式不正确。",
+  "unsupported_question_type": "暂不支持这种问题类型。",
+  "unsupported_decision_input": "该判别模型不支持这种输入。",
+  "unsupported_decision_parameter": "暂不支持这个参数。判别接口不支持流式输出。",
+  "question_generation_failed": "生成的问题未通过校验，生成费用将退回。",
+  "upstream_decision_invalid": "判别模型返回的结果格式不正确。",
+  "upstream_capacity": "上游容量已满，请按提示时间稍后重试。"
+}

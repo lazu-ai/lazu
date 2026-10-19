@@ -1,0 +1,76 @@
+---
+title: "Embeddings API（OpenAI 互換）"
+description: OpenAI-compatible /v1/embeddings。request fields、batch inputs、dimensions。
+---
+
+import {
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="エンドポイント / Vectors"
+  method="POST"
+  path="/v1/embeddings"
+  title="Embeddings"
+  description="OpenAI-compatible clients で vector embeddings を作成します。モデルカタログで embeddings support と custom dimensions support を確認してください。"
+  aside={
+    <EndpointRail
+      endpoint="embeddings"
+      extra={
+        <MiniCard title="Catalog filter">
+          <code>supported_endpoint_types</code> includes <code>embeddings</code>
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## Request body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    <code>/api/models/catalog</code> の embedding model ID。
+  </Field>
+  <Field name="input" type="string | string[]" required>
+    text input または ordered batch。response は入力順を保持します。
+  </Field>
+  <Field name="dimensions" type="integer" nullable>
+    truncation を support する model の optional vector dimension。
+  </Field>
+  <Field
+    name="encoding_format"
+    type="string"
+    nullable
+    values={["float", "base64"]}
+  >
+    upstream が support する場合の output encoding format。
+  </Field>
+</FieldList>
+
+## Response
+
+<FieldList>
+  <Field name="object" type="string">
+    通常は <code>list</code>。
+  </Field>
+  <Field name="data" type="object[]">
+    input ごとの embedding item。
+  </Field>
+  <Field name="data[].embedding" type="number[] | string">
+    vector values または <code>encoding_format</code> に応じた base64 vector。
+  </Field>
+  <Field name="usage.prompt_tokens" type="integer">
+    embedding に使われた input tokens。
+  </Field>
+</FieldList>
+
+## Batch guidance
+
+小さな batch は array で渡せます。大規模 jobs では client-side chunking を行い、
+provider の body-size と token limits を超えないようにしてください。
+
+</EndpointPage>

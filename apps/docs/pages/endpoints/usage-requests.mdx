@@ -1,0 +1,86 @@
+---
+title: "Request details API: usage, charge and timing per request"
+description: "Look up a single request by its ID: normalized token usage, the customer charge, cache fields and public timing."
+---
+
+import {
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../components/mdx";
+
+<EndpointPage
+  eyebrow="Endpoints / Usage"
+  method="GET"
+  path="/api/usage/requests/{request_id}"
+  sendable={false}
+  title="Request details"
+  description="Fetch the customer receipt for one completed request, including normalized usage dimensions, billing line items and public timing."
+  aside={
+    <EndpointRail
+      endpoint="usage-requests"
+      extra={
+        <MiniCard title="Where request_id comes from">
+          Read <code>X-Lazu-Request-Id</code>, an error payload
+          <code>request_id</code>, or the gateway response request ID.
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## Path parameters
+
+<FieldList>
+  <Field name="request_id" type="string" required>
+    Request ID for a request made by the same API key. Lazu rejects attempts to
+    read another key's request details.
+  </Field>
+</FieldList>
+
+## Response fields
+
+<FieldList>
+  <Field name="id" type="string">
+    The requested request ID.
+  </Field>
+  <Field name="model" type="string">
+    Requested model or route name.
+  </Field>
+  <Field name="usage.measurement" type="object" nullable>
+    Input and output provenance: `provider`, `local_estimate`, or `unavailable`. This optional field is absent on historical or unclassified records; absence does not prove provider measurement.
+  </Field>
+  <Field name="usage.dimensions" type="object[]">
+    Normalized dimensions such as <code>input</code>, <code>output</code>,
+    <code>cache_read</code>, <code>cache_write_5m</code>,
+    <code>cache_write_1h</code>, <code>cache_miss</code>, audio and image
+    dimensions.
+  </Field>
+  <Field name="billing.line_items" type="object[]">
+    Billable usage lines with price, quantity and total charge.
+  </Field>
+  <Field name="routing" type="object" nullable>
+    Public status and timing only. Internal routing decisions and provider identities are not exposed.
+  </Field>
+</FieldList>
+
+## Cache field guidance
+
+OpenAI-compatible responses may show cache reads as
+
+<code>usage.prompt_tokens_details.cached_tokens</code> or
+<code>usage.input_tokens_details.cached_tokens</code>. Cache writes may appear
+as <code>cache_write_tokens</code>, <code>cache_write_5m_tokens</code> or
+<code>cache_write_1h_tokens</code> only when the upstream reports them.
+
+For billing and reconciliation, this endpoint is the more complete source.
+
+## See also
+
+- [Billing and cache fields](/billing)
+- [Model catalog](/models/catalog)
+- [Chat completions](/endpoints/chat)
+
+</EndpointPage>

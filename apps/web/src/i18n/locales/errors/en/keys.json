@@ -1,0 +1,15 @@
+{
+  "key_name_too_long": "This API key name is too long. Keep it within {{max_length}} characters.",
+  "key_enable_blocked": "This API key has expired or used up its allowance, so it can't be enabled. Extend its expiry or raise its allowance first.",
+  "key_limit_reached": "You already hold {{limit}} API keys in this project, the most allowed. Delete a key you no longer use, then create a new one.",
+  "secret_unavailable": "Only a fingerprint of this API key was kept, so the full key can't be shown. Create a new key if you need the full value.",
+  "key_not_found": "This API key no longer exists. It may have been deleted. Refresh the page.",
+  "usage_range_invalid": "The end of the time range is earlier than its start. Adjust the range and try again.",
+  "usage_range_too_long": "The time range is longer than {{max_days}} days. Choose a shorter range.",
+  "invalid_usage_summary_window": "The usage summary window is invalid. Check since, until and granularity.",
+  "request_not_found": "No request with this ID was found for this API key. Check the request ID.",
+  "log_session_not_found": "This session was not found in the logs you can view. Refresh the page.",
+  "usage_export_format_unsupported": "This export format is not supported. Export as CSV or XLSX.",
+  "log_cleanup_cutoff_too_recent": "Logs from the last {{min_days}} days are kept for model rankings. Choose an earlier cutoff date.",
+  "spend_budget_not_found": "This spend budget no longer exists. It may have been deleted. Refresh the page."
+}

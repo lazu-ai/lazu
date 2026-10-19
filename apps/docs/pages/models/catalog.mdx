@@ -1,0 +1,170 @@
+---
+title: "Model catalog API: capabilities and prices at runtime"
+description: Discover available models and their capabilities at runtime via /api/models/catalog.
+---
+
+# Model catalog
+
+Lazu publishes the full set of models a given API key can access. Read this
+catalog at runtime instead of hardcoding model names — new models get added,
+old ones get deprecated, and which models a key can reach depends on the
+key's scope.
+
+## GET `/api/models/catalog`
+
+```bash
+curl https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+Response (abridged):
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "gpt-6-luna",
+      "object": "model",
+      "name": "gpt-6-luna",
+      "provider": "openai",
+      "owned_by": "openai",
+      "modality": {
+        "input": ["text", "image"],
+        "output": ["text"]
+      },
+      "capabilities": {
+        "supports_function_calling": true,
+        "supports_parallel_function_calling": true,
+        "supports_vision": true,
+        "supports_reasoning": false,
+        "supports_response_schema": true,
+        "supports_prompt_caching": true
+      },
+      "supported_endpoint_types": ["openai", "openai-response"],
+      "supported_endpoints": [
+        { "type": "openai", "path": "/v1/chat/completions", "method": "POST" },
+        { "type": "openai-response", "path": "/v1/responses", "method": "POST" }
+      ],
+      "default_endpoint_type": "openai",
+      "context_length": 128000,
+      "max_output_tokens": 16384,
+      "pricing": {
+        "currency": "USD",
+        "billing_type": "per_token",
+        "input": 0.15,
+        "output": 0.6,
+        "cache_read": 0.075,
+        "pricing_version": 3
+      },
+      "usage_capabilities": {
+        "reported_dimensions": [
+          "input",
+          "output",
+          "cache_read",
+          "cache_write",
+          "cache_write_5m",
+          "cache_write_1h"
+        ],
+        "billable_dimensions": [
+          "input",
+          "output",
+          "cache_read",
+          "cache_write_5m"
+        ],
+        "response_fields": {
+          "openai_compatible": [
+            "usage.prompt_tokens_details.cached_tokens",
+            "usage.prompt_tokens_details.cache_write_tokens",
+            "usage.prompt_tokens_details.cache_write_5m_tokens"
+          ],
+          "request_detail": [
+            "usage.dimensions",
+            "billing.line_items"
+          ]
+        }
+      },
+      "supported_parameters": [
+        "tools",
+        "tool_choice",
+        "response_format",
+        "cache_control"
+      ],
+      "parameters": {
+        "model": { "type": "string", "required": true },
+        "messages": { "type": "array", "required": true },
+        "temperature": { "type": "float", "default": 1, "range": [0, 2] },
+        "max_tokens": { "type": "integer", "default": 1024 },
+        "stream": { "type": "boolean", "default": false }
+      },
+      "example": {
+        "curl": "curl https://api.lazu.ai/v1/chat/completions ..."
+      }
+    },
+    "..."
+  ]
+}
+```
+
+## Picking a model
+
+| You want             | Filter on                                         | Common endpoint                           |
+| -------------------- | ------------------------------------------------- | ----------------------------------------- |
+| Text chat            | `modality.output` includes `text`                 | `/v1/chat/completions`                    |
+| Multimodal (vision)  | `modality.input` includes `image`                 | `/v1/chat/completions` or `/v1/responses` |
+| Reasoning (o-series) | `capabilities.supports_reasoning === true`        | `/v1/responses` (recommended)             |
+| Embeddings           | `supported_endpoint_types` includes `embeddings`  | `/v1/embeddings`                          |
+| Tool / function call | `capabilities.supports_function_calling === true` | `/v1/chat/completions`                    |
+
+Use `default_endpoint_type` unless your client SDK specifically needs a
+native provider endpoint (Anthropic's `/v1/messages`, Gemini's
+`/v1beta/models/…:generateContent`, etc.).
+
+## Usage and cache metadata
+
+Each model includes `usage_capabilities` so production clients can discover
+which usage dimensions may appear before sending traffic. This matters for
+prompt caching because providers do not use one shared field set.
+
+| Dimension        | Meaning                                                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cache_read`     | Cached input tokens read from an existing cache entry. In OpenAI-compatible responses this appears as `usage.prompt_tokens_details.cached_tokens` or `usage.input_tokens_details.cached_tokens`. |
+| `cache_write`    | Cache creation/write tokens when the provider reports a total but not a TTL bucket.                                                                                                              |
+| `cache_write_5m` | Cache creation/write tokens for a 5-minute TTL bucket.                                                                                                                                           |
+| `cache_write_1h` | Cache creation/write tokens for a 1-hour TTL bucket.                                                                                                                                             |
+| `cache_miss`     | Cache misses reported separately by the provider, for example DeepSeek `prompt_cache_miss_tokens`.                                                                                               |
+
+Provider notes:
+
+- OpenAI-compatible cache reads use `cached_tokens`; OpenAI chat responses do
+  not expose a separate cache-write token count.
+- Anthropic reports cache reads and cache creation, including 5-minute and
+  1-hour buckets when available.
+- Gemini reports cached content reads through `cachedContentTokenCount`.
+- Qwen/DashScope may report `cached_tokens` and cache creation fields,
+  including Anthropic-compatible cache field names on some routes.
+- DeepSeek reports `prompt_cache_hit_tokens` and
+  `prompt_cache_miss_tokens`; Lazu normalizes hits to `cache_read` and misses
+  to `cache_miss`.
+
+Use `reported_dimensions` to decide which fields may appear, and
+`billable_dimensions` to decide which dimensions can affect price for the
+current catalog price context.
+
+## Listing via `/v1/models`
+
+If your SDK uses OpenAI-style `models.list()`, Lazu also serves a flatter
+OpenAI-compatible response at `/v1/models`:
+
+```bash
+curl https://api.lazu.ai/v1/models \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+See [Models list](/endpoints/models) for the exact schema.
+
+## Pricing detail
+
+Each catalog entry has a `pricing` object for the current API key's effective
+catalog price. See [Pricing & lanes](/models/pricing) for how routing lane
+preferences affect the price returned for a key.

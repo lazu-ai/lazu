@@ -7,3 +7,81 @@ Makefile
 docs
 .eslintcache
 .gocache
+# Node modules and cache
+node_modules
+**/node_modules
+.npm
+.yarn
+.pnp.*
+*.log
+
+# Build artifacts
+dist
+**/dist
+build
+*.map
+.cache
+.parcel-cache
+.next
+**/.next
+.nuxt
+.vuepress/dist
+.serverless
+.fusebox
+
+# Development files
+.env
+.env.*
+*.local
+.env*.local
+coverage
+.nyc_output
+.grunt
+.sass-cache
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea
+*.swp
+*.swo
+*~
+
+# Test files
+__tests__
+*.test.js
+*.spec.js
+cypress
+e2e
+
+# Temporary files
+tmp
+temp
+**/tmp
+**/temp
+*.tmp
+*.temp
+
+# Local runtime data
+.runtime
+data
+*.db
+
+# Docker specific
+docker-compose*.yml
+Dockerfile*
+!Dockerfile
+!platform/docker/Dockerfile
+!apps/docs/Dockerfile
+
+# Web specific ignores
+apps/web/node_modules
+apps/web/dist
+mysql_data/
+redis_data/
+apps/web/.vite
+**/.vite
+apps/web/coverage
+apps/web/.eslintcache

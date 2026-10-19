@@ -1,0 +1,335 @@
+/* 观察详情 — the dialog behind 「查看 N 个」 on a watched source, and its two
+   confirmations. Selectors carry body:has(.console-review) so they outrank the
+   console's 600px default dialog rule. */
+
+body:has(.console-review) .lazu-modal-content.mo-obsd {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 48px);
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  padding: 0;
+  width: min(1160px, calc(100vw - 32px));
+}
+
+.mo-obsd__head {
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 24px 14px;
+}
+
+.mo-obsd__title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+body:has(.console-review) .mo-obsd .mo-obsd__name {
+  color: var(--lazu-ink);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.mo-obsd__tag {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  padding: 1px 9px;
+}
+
+.mo-obsd__tag.is-lane {
+  background: color-mix(in srgb, var(--lazu-evidence) 16%, transparent);
+  color: var(--lazu-evidence);
+}
+
+.mo-obsd__spacer {
+  flex: 1 1 auto;
+}
+
+.mo-obsd__sub {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.mo-obsd__counts {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.mo-obsd__pill {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.mo-obsd__dot {
+  background: var(--lazu-border-strong);
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+.mo-obsd__dot.is-ok,
+.mo-obsd__cell.is-ok .mo-obsd__dot {
+  background: var(--lazu-success);
+}
+
+.mo-obsd__dot.is-bad,
+.mo-obsd__cell.is-bad .mo-obsd__dot {
+  background: var(--lazu-danger);
+}
+
+.mo-obsd__cell.is-warn .mo-obsd__dot {
+  background: var(--lazu-warning);
+}
+
+.mo-obsd__dot.is-wait,
+.mo-obsd__cell.is-wait .mo-obsd__dot {
+  background: var(--lazu-border-strong);
+}
+
+.mo-obsd__legend {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+}
+
+.mo-obsd__legend-days {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  display: inline-flex;
+  font-size: 11.5px;
+  gap: 3px;
+}
+
+.mo-obsd__legend-days .mo-obsd__sq:last-of-type {
+  margin-right: 3px;
+}
+
+.mo-obsd__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 14px;
+}
+
+.mo-obsd__grid {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 24px minmax(0, 1fr) 86px 80px 80px 80px 92px;
+}
+
+.mo-obsd__colhead {
+  padding: 8px 10px;
+}
+
+.mo-obsd__colhead > span {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-weight: 550;
+  letter-spacing: 0.04em;
+}
+
+.mo-obsd__row {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 10px 12px;
+}
+
+.mo-obsd__model {
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mo-obsd__cell {
+  align-items: center;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mo-obsd__cell.is-bad {
+  color: var(--lazu-danger);
+}
+
+.mo-obsd__cell.is-warn {
+  color: var(--lazu-warning-strong);
+}
+
+.mo-obsd__cell.is-wait {
+  color: var(--lazu-text-faint);
+}
+
+.mo-obsd__verdict {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  padding: 1px 9px;
+  white-space: nowrap;
+}
+
+.mo-obsd__verdict.is-ok {
+  background: var(--lazu-success-soft);
+  color: var(--lazu-success);
+}
+
+.mo-obsd__verdict.is-bad {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+.mo-obsd__chart {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-left: 32px;
+}
+
+.mo-obsd__days {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mo-obsd__day {
+  align-items: center;
+  border-radius: 3px;
+  display: flex;
+  gap: 3px;
+  padding: 2px 4px;
+}
+
+.mo-obsd__day.is-today {
+  background: var(--lazu-surface-selected);
+}
+
+.mo-obsd__sq {
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--lazu-border-strong);
+  display: inline-block;
+  flex: none;
+  height: 9px;
+  width: 9px;
+}
+
+.mo-obsd__sq.is-ok {
+  background: var(--lazu-success);
+  box-shadow: none;
+}
+
+.mo-obsd__sq.is-bad {
+  background: var(--lazu-danger);
+  box-shadow: none;
+}
+
+.mo-obsd__daylabel {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  margin-left: auto;
+}
+
+.mo-obsd__why {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-left: 32px;
+}
+
+.mo-obsd__pending {
+  height: 480px;
+}
+
+.mo-obsd__foot {
+  align-items: center;
+  background: var(--lazu-surface);
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 10px;
+  padding: 14px 24px;
+}
+
+.mo-obsd__note {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+/* The two confirmations: 560px, a list of the models they act on. */
+body:has(.console-review)
+  .lazu-modal-content.mo-obsd-confirm:not(.whats-new-panel):not(
+    .lazu-modal-content--wide
+  ):not(.lazu-modal-content--xwide) {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.mo-obsd-confirm__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mo-obsd-confirm__list {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.mo-obsd-confirm__list li {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.mo-obsd-confirm__model {
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+}
+
+.mo-obsd-confirm__list em {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-style: normal;
+  margin-left: 8px;
+}
+
+.mo-obsd-confirm__desc {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0;
+}

@@ -1,0 +1,162 @@
+{
+  "info": {
+    "description": "Lazu API は主要な AI モデルへのアクセスを統合するゲートウェイで、OpenAI API 形式と完全互換です。GPT、Claude、Gemini などの主要プロバイダーに加えて、Sora や Grok の動画生成にも対応します。\n\n## 認証\nすべての API リクエストには `Authorization` ヘッダーで API キーを含めてください。\n```\nAuthorization: Bearer YOUR_API_KEY\n```\n\n## ベース URL\n- メイン: `https://api.lazu.ai`\n"
+  },
+  "tags": {
+    "Models": "モデル一覧・モデルカタログ・モデル機能の発見に関するエンドポイント。",
+    "Files": "OpenAI 互換のファイルアップロード、一覧、ダウンロード、削除 API。",
+    "Discovery": "モデル発見、カタログ確認、料金メタデータ。",
+    "Chat": "OpenAI 互換のチャット補完 API。",
+    "Anthropic": "Anthropic ネイティブのメッセージ形式。",
+    "Gemini": "Gemini ネイティブのリクエスト形式と発見 API。",
+    "Embeddings": "埋め込み生成 API。",
+    "Images": "画像生成 API。",
+    "Responses": "OpenAI Responses 形式の推論 API。",
+    "Rerank": "検索フロー向けの再ランキング API。",
+    "Audio": "テキスト読み上げ・音声認識・音声翻訳。",
+    "Account": "使用状況・請求・API キー情報の取得。"
+  },
+  "paths": {
+    "/models.json": {
+      "get": {
+        "summary": "公開静的モデルカタログを取得",
+        "description": "未認証の `/v1/models` と同じ公開リスト価格のモデル発見ペイロードを返します。このエンドポイントは個人化された API キー料金フィールドを受け付けず、返しません。CDN キャッシュ、クローラー、エージェントの発見用途向けです。\n"
+      }
+    },
+    "/api/models/catalog": {
+      "get": {
+        "summary": "利用可能なモデルカタログを取得",
+        "description": "現在の API キーで利用可能なモデルカタログを返します。本番呼び出しの前に機能、対応エンドポイント、料金、サンプルリクエストを確認するのに最適です。\n\n結果は現在の API キーに合わせて自動的にフィルタリングされ、さらに次の情報も含まれます。\n- 入出力モダリティ\n- 対応するエンドポイント種別\n- 直接呼び出せるエンドポイントパス\n- 料金情報\n- パラメータヒント\n- コピー＆ペースト可能な curl サンプル\n"
+      }
+    },
+    "/api/pricing": {
+      "get": {
+        "summary": "公開料金とマーケットプレイスのメタデータを取得",
+        "description": "有効化されているモデルの公開料金ビュー。特定の API キーのスコープで利用可能なモデルを発見したい場合は `/api/models/catalog` を使用してください。\n"
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "summary": "利用可能なモデルを発見",
+        "description": "OpenAI 互換の `{object:\"list\",data:[...]}` エンベロープでリッチなモデル発見カタログを返します。認証は任意です。キーなしでは公開有効モデルとリスト価格を返し、キーありでは同じ項目に `your_price`、`accessible`、トップレベルの `your_pricing_context` も含めます。\n\n`include=health` を指定するとベストエフォートのランタイム健全性フィールドを追加できます。`view` パラメータはありません。デフォルト応答がすでにリッチです。\n"
+      }
+    },
+    "/v1/models/{model}": {
+      "get": {
+        "summary": "単一モデルを発見",
+        "description": "モデル ID に対して `/v1/models` と同じリッチカタログ項目の形状を返します。"
+      }
+    },
+    "/v1/files": {
+      "get": {
+        "summary": "アップロード済みファイルを一覧表示",
+        "description": "現在の API キー所有者がアップロードしたファイルを一覧表示します。`purpose` で対応ファイル用途を絞り込めます。\n"
+      },
+      "post": {
+        "summary": "ファイルをアップロード",
+        "description": "後で取得したり、`/v1/responses` の入力項目から `file_id` で参照したりするためにファイルをアップロードします。\n\nセルフホスト環境では `artifact_storage` に Cloudflare R2 または S3 互換ストレージを設定する必要があります。Tencent COS は部分的に互換な S3 エンドポイントを提供しますが、Lazu では検証していません。オブジェクトストレージが未設定の場合、このエンドポイントは `503 storage_not_configured` を返します。\n\n対応する purpose:\n- `user_data`: 実行可能ファイル以外、最大 512 MiB\n- `vision`: PNG、JPEG、GIF、WebP 画像、最大 20 MiB\n"
+      }
+    },
+    "/v1/files/{file_id}": {
+      "get": {
+        "summary": "ファイルメタデータを取得",
+        "description": "現在の API キー所有者が所有するファイルのメタデータを返します。"
+      },
+      "delete": {
+        "summary": "ファイルを削除",
+        "description": "ファイルレコードとオブジェクトストレージ上の内容を削除します。残り TTL のストレージ料金はバックエンドの会計ルールに従って返金されます。"
+      }
+    },
+    "/v1/files/{file_id}/content": {
+      "get": {
+        "summary": "ファイル内容をダウンロード",
+        "description": "現在の API キー所有者が所有するファイルの生バイトをダウンロードします。"
+      }
+    },
+    "/v1beta/models": {
+      "get": {
+        "summary": "Gemini 互換形式でモデルを一覧表示"
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "summary": "チャット補完を作成",
+        "description": "渡されたメッセージ一覧からモデルの応答を生成します。ストリーミング出力とマルチターン会話に対応します。"
+      }
+    },
+    "/v1/messages": {
+      "post": {
+        "summary": "Anthropic ネイティブ形式でメッセージを作成",
+        "description": "選択したモデルの `supported_endpoint_types` に `anthropic` が含まれている場合に使用します。\n\n認証は次のどちらでも可能です。\n- `Authorization: Bearer <api-key>`\n- `x-api-key: <api-key>`\n"
+      }
+    },
+    "/v1beta/models/{model}:generateContent": {
+      "post": {
+        "summary": "Gemini ネイティブ形式でコンテンツを生成",
+        "description": "選択したモデルの `supported_endpoint_types` に `gemini` が含まれている場合に使用します。\n\n認証は次に対応します。\n- `Authorization: Bearer <api-key>`\n- `x-goog-api-key: <api-key>`\n- `?key=<api-key>`\n"
+      }
+    },
+    "/v1/embeddings": {
+      "post": {
+        "summary": "埋め込みを生成"
+      }
+    },
+    "/v1/images/generations": {
+      "post": {
+        "summary": "テキストプロンプトから画像を生成"
+      }
+    },
+    "/v1/responses": {
+      "post": {
+        "summary": "OpenAI Responses 形式の API で応答を作成"
+      }
+    },
+    "/v1/rerank": {
+      "post": {
+        "summary": "クエリに対する候補ドキュメントを再ランキング"
+      }
+    },
+    "/v1/audio/speech": {
+      "post": {
+        "summary": "テキスト読み上げ",
+        "description": "OpenAI 互換 TTS。バイナリ音声を返します。"
+      }
+    },
+    "/v1/audio/transcriptions": {
+      "post": {
+        "summary": "音声文字起こし",
+        "description": "Whisper 互換の音声→テキスト。multipart で音声ファイルをアップロード。"
+      }
+    },
+    "/v1/audio/translations": {
+      "post": {
+        "summary": "音声を英訳",
+        "description": "Whisper 互換の翻訳。出力は常に英語です。"
+      }
+    },
+    "/v1/images/edits": {
+      "post": {
+        "summary": "画像編集",
+        "description": "プロンプトで既存画像を編集。OpenAI 互換。"
+      }
+    },
+    "/v1/completions": {
+      "post": {
+        "summary": "レガシー補完",
+        "description": "OpenAI レガシー /v1/completions — 新規コードは /v1/chat/completions を推奨。"
+      }
+    },
+    "/api/usage/summary": {
+      "get": {
+        "summary": "使用状況サマリー",
+        "description": "期間内の合計支出・リクエスト数・トークン数。"
+      }
+    },
+    "/api/token/inspect": {
+      "get": {
+        "summary": "API キー情報の取得",
+        "description": "ティア、残高、レーン設定、入金済みフラグなどを返します。"
+      }
+    }
+  }
+}

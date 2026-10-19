@@ -1,0 +1,165 @@
+---
+title: "Responses API（OpenAI 互換）"
+description: OpenAI-compatible /v1/responses。file_id dereference、reasoning controls、request fields。
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="エンドポイント / OpenAI-compatible"
+  method="POST"
+  path="/v1/responses"
+  title="Responses API"
+  description="Responses は reasoning models、multimodal input、Lazu file_id dereferencing に適しています。uploaded files や新しい OpenAI response features が必要な場合に推奨します。"
+  aside={
+    <EndpointRail
+      endpoint="responses"
+      extra={
+        <MiniCard title="向いている用途">
+          <ul>
+            <li>Reasoning models</li>
+            <li>Uploaded PDFs or images</li>
+            <li>Structured multimodal input</li>
+          </ul>
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 使い分け
+
+<EndpointGrid>
+  <EndpointTile title="Responses を使う">
+    uploaded files、reasoning controls、document workflows、server-side
+    normalized multimodal inputs。
+  </EndpointTile>
+  <EndpointTile title="Chat completions を使う">
+    simple chat、SDK compatibility、tool calling、既存の
+    <code>/v1/chat/completions</code> ベースのアプリ。
+  </EndpointTile>
+</EndpointGrid>
+
+## Request body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    <code>/api/models/catalog</code> の model ID。
+    <code>supported_endpoints</code> に <code>/v1/responses</code> のパスを含む model
+    を優先してください。
+  </Field>
+  <Field name="input" type="string | object[]" required>
+    text input または response input messages array。
+  </Field>
+  <Field name="instructions" type="string" nullable>
+    response の system-level instructions。
+  </Field>
+  <Field name="reasoning" type="object" nullable>
+    supported models で reasoning effort を制御します。例：
+    <code>{'{"effort":"medium"}'}</code>。
+  </Field>
+  <Field name="tools" type="object[]" nullable>
+    OpenAI-compatible Responses shape の tool definitions。
+  </Field>
+  <Field name="stream" type="boolean" nullable>
+    model が対応する場合、response events stream を返します。
+  </Field>
+  <Field name="max_output_tokens" type="integer" nullable>
+    generated output tokens の上限。
+  </Field>
+</FieldList>
+
+## File dereferencing
+
+[Files](/ja/endpoints/files) で upload した <code>file_id</code> を参照できます。
+dereference が発生した場合、Lazu は <code>X-Lazu-File-Dereference: 1</code> を付けます。
+
+制限：
+
+- single file purpose limit は引き続き適用されます。
+- 1 回の Responses call で dereference される files は合計 64 MB 未満。
+- Chat completions は <code>file_id</code> を自動 dereference しません。
+
+## Stateless compatibility bridge
+
+一部の catalog entry は lossless Chat bridge 経由で Responses を提供します。
+<code>supported_endpoints[].mode</code> で確認できます。この route では
+<code>store</code> 省略時は成功し
+<code>X-Lazu-Warning: stateless_bridge</code> を返し、
+<code>store: false</code> は warning なしで成功します。明示的な
+<code>store: true</code>、保持できない state field、未知の cross-protocol
+field は upstream call 前に <code>400 protocol_bridge_unsupported</code>
+になります。標準 Responses body に Lazu 独自 field は追加しません。
+
+## Response
+
+<FieldList>
+  <Field name="id" type="string">
+    Response ID。
+  </Field>
+  <Field name="output" type="object[]">
+    output messages、reasoning items、tool calls、その他 response events。
+  </Field>
+  <Field name="usage.input_tokens" type="integer" nullable>
+    upstream が usage を返す場合の input token count。
+  </Field>
+  <Field name="usage.output_tokens" type="integer" nullable>
+    upstream が usage を返す場合の output token count。
+  </Field>
+</FieldList>
+
+完全な照合には同じ API Key で
+
+<code>GET /api/usage/requests/{"{request_id}"}</code> を使ってください。
+
+## ツール結果を含む完全な往復
+
+キーのカタログから Responses と関数ツールに対応するモデルを選び、`LAZU_API_KEY` と `LAZU_MODEL` を設定します。ステートレスな継続では reasoning を含む全 output item を保持し、同じ `call_id` でツール結果を追加します。ブリッジで保持できない暗号化状態やプロバイダー固有状態はネイティブ経路が必要です。
+
+```python
+import json
+import os
+from openai import OpenAI, APIStatusError
+
+client = OpenAI(
+    api_key=os.environ["LAZU_API_KEY"],
+    base_url=os.environ.get("LAZU_BASE_URL", "https://api.lazu.ai/v1"),
+    max_retries=0,
+)
+model = os.environ["LAZU_MODEL"]
+tools = [{"type": "function", "name": "add", "description": "Add two integers",
+          "parameters": {"type": "object", "properties": {
+              "a": {"type": "integer"}, "b": {"type": "integer"}},
+              "required": ["a", "b"], "additionalProperties": False}}]
+history = [{"role": "user", "content": "Use add to calculate 2 + 3."}]
+try:
+    first = client.responses.create(model=model, input=history, tools=tools,
+        tool_choice={"type": "function", "name": "add"}, store=False,
+        max_output_tokens=1024)
+    history.extend(item.model_dump(exclude_unset=True) for item in first.output)
+    for item in first.output:
+        if item.type == "function_call":
+            if item.name != "add":
+                raise ValueError("Unexpected tool")
+            args = json.loads(item.arguments)
+            history.append({"type": "function_call_output", "call_id": item.call_id,
+                            "output": json.dumps({"result": args["a"] + args["b"]})})
+    final = client.responses.create(model=model, input=history, tools=tools,
+        tool_choice="none", store=False, max_output_tokens=1024)
+    print(final.output_text)
+except APIStatusError as exc:
+    print(exc.status_code, exc.response.headers.get("x-lazu-request-id"), exc.body)
+    raise
+```
+
+出力を受信した後は自動再送しないでください。413 `request_body_too_large` はリクエストを縮小し、503 `gateway_overloaded` は時間を置いて再試行します。後者はプロバイダー障害を意味しません。部分用量はリクエスト詳細で照合できます。
+
+</EndpointPage>

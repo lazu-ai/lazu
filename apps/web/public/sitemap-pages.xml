@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://lazu.ai/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/" />
+    <changefreq>weekly</changefreq>
+    <priority>1</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/faq</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/faq" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/faq" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/faq" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/faq" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/faq" />
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/about</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/about" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/about" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/about" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/about" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/privacy</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/privacy" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/privacy" />
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/terms</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/terms" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/terms" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/terms" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/terms" />
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/" />
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh/faq</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/faq" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/faq" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/faq" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/faq" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/faq" />
+    <changefreq>weekly</changefreq>
+    <priority>0.64</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh/about</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/about" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/about" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/about" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/about" />
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh/privacy</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/privacy" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/privacy" />
+    <changefreq>yearly</changefreq>
+    <priority>0.32</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh/terms</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/terms" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/terms" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/terms" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/terms" />
+    <changefreq>yearly</changefreq>
+    <priority>0.32</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh-TW/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/" />
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh-TW/faq</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/faq" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/faq" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/faq" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/faq" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/faq" />
+    <changefreq>weekly</changefreq>
+    <priority>0.64</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh-TW/about</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/about" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/about" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/about" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/about" />
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh-TW/privacy</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/privacy" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/privacy" />
+    <changefreq>yearly</changefreq>
+    <priority>0.32</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/zh-TW/terms</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/terms" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/terms" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/terms" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/terms" />
+    <changefreq>yearly</changefreq>
+    <priority>0.32</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/ja/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/" />
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/ja/faq</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/faq" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/faq" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/faq" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/faq" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/faq" />
+    <changefreq>weekly</changefreq>
+    <priority>0.64</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/ja/about</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/about" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/about" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/about" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/about" />
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/ja/privacy</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/privacy" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/privacy" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/privacy" />
+    <changefreq>yearly</changefreq>
+    <priority>0.32</priority>
+  </url>
+  <url>
+    <loc>https://lazu.ai/ja/terms</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lazu.ai/terms" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://lazu.ai/zh/terms" />
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://lazu.ai/zh-TW/terms" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://lazu.ai/ja/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lazu.ai/terms" />
+    <changefreq>yearly</changefreq>
+    <priority>0.32</priority>
+  </url>
+</urlset>

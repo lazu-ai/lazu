@@ -1,0 +1,66 @@
+/* Draggable capacity sliders for the per-key rate-limit editor. The colored
+   fill is supplied inline as a left-to-right gradient on the element
+   background; the runnable track is transparent so that fill shows through,
+   and the thumb is centered on the 8px track. */
+.rl-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: var(--ui-radius-pill, 999px);
+  background: var(--ui-bg-muted);
+  outline: none;
+  cursor: pointer;
+}
+
+.rl-slider:focus-visible {
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}
+
+.rl-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: var(--ui-radius-pill, 999px);
+  background: transparent;
+}
+
+.rl-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--lazu-control-knob);
+  border: 2px solid var(--ui-accent);
+  box-shadow: var(--ui-shadow-sm);
+  cursor: grab;
+}
+
+.rl-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.rl-slider::-moz-range-track {
+  height: 8px;
+  border-radius: var(--ui-radius-pill, 999px);
+  background: transparent;
+}
+
+.rl-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--lazu-control-knob);
+  border: 2px solid var(--ui-accent);
+  box-shadow: var(--ui-shadow-sm);
+  cursor: grab;
+}
+
+.rl-slider--over::-webkit-slider-thumb {
+  border-color: var(--ui-warning);
+}
+
+.rl-slider--over::-moz-range-thumb {
+  border-color: var(--ui-warning);
+}

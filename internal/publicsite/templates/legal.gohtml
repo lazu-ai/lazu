@@ -1,0 +1,12 @@
+{{define "main"}}
+<main class="legal-page"><div class="legal-layout">
+<article>
+<header class="legal-head"><div class="legal-head__crumb"><a href="{{.Page.Home}}">Lazu</a><span aria-hidden="true">/</span><span>{{.Page.Title}}</span></div><h1>{{.Page.Title}}</h1></header>
+{{if .Page.Chapters}}<nav class="legal-toc" aria-label="{{.Page.Contents}}"><div class="legal-toc__label">{{.Page.Contents}}</div><ol>{{range .Page.Chapters}}<li><a href="#{{.ID}}">{{.Title}}</a></li>{{end}}</ol></nav>{{end}}
+<div class="legal-doc">{{.Page.Body}}</div>
+<div class="legal-siblings"><a href="{{.Page.SiblingHref}}"><b>{{.Page.SiblingTitle}}</b></a><a href="{{.Page.MarkdownHref}}"><b>Markdown</b></a></div>
+<div class="legal-foot"><a href="mailto:support@lazu.ai">support@lazu.ai</a></div>
+</article>
+{{if .Page.Chapters}}<nav class="legal-anchors" aria-label="{{.Page.Contents}}"><div class="legal-anchors__label">{{.Page.Contents}}</div>{{range .Page.Chapters}}<a href="#{{.ID}}">{{.Title}}</a>{{end}}</nav>{{end}}
+</div></main>
+{{end}}

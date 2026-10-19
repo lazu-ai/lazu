@@ -1,0 +1,196 @@
+---
+title: "Responses API (OpenAI-compatible)"
+description: OpenAI-compatible /v1/responses with file_id dereferencing, reasoning controls, request fields and examples.
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../components/mdx";
+
+<EndpointPage
+  eyebrow="Endpoints / OpenAI-compatible"
+  method="POST"
+  path="/v1/responses"
+  title="Responses API"
+  description="Use Responses for reasoning models, multimodal inputs and Lazu file_id dereferencing. This is the recommended endpoint when a request needs uploaded files or newer OpenAI response features."
+  aside={
+    <EndpointRail
+      endpoint="responses"
+      extra={
+        <MiniCard title="Best for">
+          <ul>
+            <li>Reasoning models</li>
+            <li>Uploaded PDFs or images</li>
+            <li>Structured multimodal input</li>
+          </ul>
+        </MiniCard>
+      }
+    />
+}
+
+>
+
+## When to use it
+
+<EndpointGrid>
+  <EndpointTile title="Use Responses">
+    Uploaded files, reasoning controls, document workflows, and multimodal
+    inputs that should be normalized server-side.
+  </EndpointTile>
+  <EndpointTile title="Use Chat completions">
+    Simple chat, SDK compatibility, tool calling, and existing apps already
+    built around <code>/v1/chat/completions</code>.
+  </EndpointTile>
+</EndpointGrid>
+
+## Request body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    Model ID from <code>/api/models/catalog</code>. Prefer models where
+    <code>supported_endpoints</code> includes the path <code>/v1/responses</code>.
+  </Field>
+  <Field name="input" type="string | object[]" required>
+    Text input or an array of response input messages.
+  </Field>
+  <Field name="instructions" type="string" nullable>
+    System-level instructions for the response.
+  </Field>
+  <Field name="reasoning" type="object" nullable>
+    Reasoning effort controls for supported models, for example
+    <code>{'{"effort":"medium"}'}</code>.
+  </Field>
+  <Field name="tools" type="object[]" nullable>
+    Tool definitions using the OpenAI-compatible Responses shape.
+  </Field>
+  <Field name="stream" type="boolean" nullable>
+    Streams response events when supported by the selected model.
+  </Field>
+  <Field name="max_output_tokens" type="integer" nullable>
+    Upper bound for generated output tokens.
+  </Field>
+</FieldList>
+
+## Content parts
+
+<FieldList>
+  <Field name="input_text" type="content part">
+    Text content sent to the model.
+  </Field>
+  <Field name="input_image" type="content part">
+    Image content. Lazu can dereference uploaded <code>file_id</code> values
+    with purpose <code>vision</code>.
+  </Field>
+  <Field name="input_file" type="content part">
+    Uploaded file reference. Lazu dereferences file content server-side before
+    forwarding the request upstream.
+  </Field>
+</FieldList>
+
+## File dereferencing
+
+Upload via [Files](/endpoints/files), then reference the resulting
+
+<code>file_id</code>. Lazu adds <code>X-Lazu-File-Dereference: 1</code> when the
+request dereferenced files.
+
+Limits:
+
+- Single file purpose limit still applies.
+- Total dereferenced files in one Responses call must stay under 64 MB.
+- Chat completions does not auto-dereference <code>file_id</code>.
+
+## Stateless compatibility bridges
+
+Some catalog entries expose Responses through a lossless Chat bridge; check
+<code>supported_endpoints[].mode</code>. On such a route, omitted
+<code>store</code> is accepted and returns
+<code>X-Lazu-Warning: stateless_bridge</code>, while
+<code>store: false</code> is accepted without a warning. Explicit
+<code>store: true</code>, stateful fields, and unknown cross-protocol fields
+return <code>400 protocol_bridge_unsupported</code> before an upstream call.
+The standard Responses body is not extended with Lazu-only fields.
+
+## Response
+
+<FieldList>
+  <Field name="id" type="string">
+    Response ID.
+  </Field>
+  <Field name="output" type="object[]">
+    Output messages, reasoning items, tool calls, or other response events.
+  </Field>
+  <Field name="usage.input_tokens" type="integer" nullable>
+    Input token count when the upstream reports usage.
+  </Field>
+  <Field name="usage.output_tokens" type="integer" nullable>
+    Output token count when the upstream reports usage.
+  </Field>
+  <Field
+    name="usage.input_tokens_details.cached_tokens"
+    type="integer"
+    nullable
+  >
+    Cache read tokens for providers that expose response-level cache usage.
+  </Field>
+</FieldList>
+
+For full reconciliation, use
+
+<code>GET /api/usage/requests/{"{request_id}"}</code> with the same API key.
+
+## See also
+
+- [Files API](/endpoints/files)
+- [Chat completions](/endpoints/chat)
+- [Model catalog](/models/catalog)
+
+## Complete tool round trip
+
+Select a model with Responses and function tools from your token-scoped catalog, then set `LAZU_API_KEY` and `LAZU_MODEL`. Keep every output item when continuing a stateless conversation, including reasoning items; append the tool result with the same `call_id`. Encrypted or provider-specific reasoning state remains native-only when a bridge cannot preserve it.
+
+```python
+import json
+import os
+from openai import OpenAI, APIStatusError
+
+client = OpenAI(
+    api_key=os.environ["LAZU_API_KEY"],
+    base_url=os.environ.get("LAZU_BASE_URL", "https://api.lazu.ai/v1"),
+    max_retries=0,
+)
+model = os.environ["LAZU_MODEL"]
+tools = [{"type": "function", "name": "add", "description": "Add two integers",
+          "parameters": {"type": "object", "properties": {
+              "a": {"type": "integer"}, "b": {"type": "integer"}},
+              "required": ["a", "b"], "additionalProperties": False}}]
+history = [{"role": "user", "content": "Use add to calculate 2 + 3."}]
+try:
+    first = client.responses.create(model=model, input=history, tools=tools,
+        tool_choice={"type": "function", "name": "add"}, store=False,
+        max_output_tokens=1024)
+    history.extend(item.model_dump(exclude_unset=True) for item in first.output)
+    for item in first.output:
+        if item.type == "function_call":
+            if item.name != "add":
+                raise ValueError("Unexpected tool")
+            args = json.loads(item.arguments)
+            history.append({"type": "function_call_output", "call_id": item.call_id,
+                            "output": json.dumps({"result": args["a"] + args["b"]})})
+    final = client.responses.create(model=model, input=history, tools=tools,
+        tool_choice="none", store=False, max_output_tokens=1024)
+    print(final.output_text)
+except APIStatusError as exc:
+    print(exc.status_code, exc.response.headers.get("x-lazu-request-id"), exc.body)
+    raise
+```
+
+Do not replay automatically after output has arrived. For 413 `request_body_too_large`, reduce the request; for 503 `gateway_overloaded`, retry later with backoff. Local overload does not imply a provider failure. Use request details to reconcile partial usage.
+
+</EndpointPage>

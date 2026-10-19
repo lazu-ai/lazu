@@ -1,0 +1,21 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+build
+
+# Test outputs
+test-results
+coverage
+
+# Local/editor artifacts
+.DS_Store
+.idea
+.vscode
+*.log
+*.tmp
+
+# VCS
+.git
+.gitignore

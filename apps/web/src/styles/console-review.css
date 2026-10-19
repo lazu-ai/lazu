@@ -1,0 +1,858 @@
+/* Selected September HTML geometry. Explicit opt-in preserves catalog/auth/home.
+   See brand/foundations/console-review-2026-09.md. */
+.console-page-shell.console-review {
+  min-width: 0;
+  margin-inline: 12px 16px;
+}
+/* Same head geometry as yunmu.css: the console top bar above says where you
+   are, so the head opens at 10px with the page's own name. The review pages
+   had collapsed this to 0, which left the title against the top edge. */
+.console-page-shell.console-review > .console-page-topbar {
+  align-items: flex-end;
+  border-bottom: 0;
+  min-height: 0;
+  padding: 10px 0 0;
+  margin: 0;
+}
+.console-page-shell.console-review
+  > .console-page-topbar
+  .console-page-topbar__title {
+  font-family: var(--lazu-font-display);
+  font-size: var(--lazu-console-heading-size);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+/* Every head sits on a rule. With peer views the tab row draws it; without
+   them the head does. (yunmu.css says the same for unscoped pages; this file
+   loads after it, so the review pages need it stated here too.) */
+.console-page-shell.console-review:not([data-has-tabs]) > .console-page-topbar {
+  border-bottom: 1px solid var(--lazu-border);
+  padding-bottom: 16px;
+}
+
+.console-page-shell.console-review > .console-page-body {
+  padding-top: 22px;
+  gap: 12px;
+}
+:is(.console-page-shell.console-review, .console-review-controls) .lazu-button {
+  min-height: var(--lazu-control-height-lg);
+  border-radius: var(--lazu-radius-control);
+  font-size: var(--lazu-row-label);
+  line-height: 1.3;
+  gap: 8px;
+  padding: 0 14px;
+}
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-button--primary {
+  background: var(--lazu-ink);
+  color: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-ink);
+  box-shadow: none;
+}
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-button--secondary {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  box-shadow: none;
+}
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-button--secondary:hover {
+  background: var(--lazu-surface-selected);
+}
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-button--primary:hover {
+  opacity: 0.88;
+}
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-button--sm,
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-button--xs {
+  min-height: var(--lazu-control-height-sm);
+  padding-inline: 10px;
+}
+.console-page-shell.console-review > .console-page-topbar .lazu-button {
+  min-height: var(--lazu-control-height-lg);
+}
+:is(.console-page-shell.console-review, .console-review-controls) .lazu-input,
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-select-trigger {
+  min-height: var(--lazu-control-height-lg);
+  border-radius: var(--lazu-radius-control);
+  font-size: var(--lazu-row-label);
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+}
+:is(.console-page-shell.console-review, .console-review-controls)
+  .lazu-select-trigger {
+  padding: 0 12px;
+}
+/* A value that carries its unit ($ 20, 500 tokens) is one control: the wrapper
+   draws the box and the field inside it draws nothing. The rule above is more
+   specific than the wrapper's own reset, so without this the field kept its
+   border and background and every amount on the page rendered as a box inside
+   a box. */
+:is(.console-page-shell.console-review, .console-review-controls)
+  .set-num
+  .lazu-input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 0;
+  padding: 0;
+}
+.console-page-shell.console-review .lazu-table-wrap,
+.console-page-shell.console-review .model-ops__card {
+  box-shadow: none;
+}
+.console-page-shell.console-review .lazu-table th {
+  background: var(--lazu-surface-muted);
+  color: var(--lazu-text-muted);
+}
+.console-page-shell.console-review .lazu-table th,
+.console-page-shell.console-review .lazu-table td {
+  padding: 14px 16px;
+}
+/* Peer navigation is an underline strip; segmented controls still use pills. */
+.lazu-tabs-list.lazu-tabs-list--line {
+  display: flex;
+  width: 100%;
+  gap: 24px;
+  padding: 0;
+  margin-bottom: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--lazu-border);
+  border-radius: 0;
+  background: transparent;
+  overflow-x: auto;
+  justify-content: flex-start;
+}
+.lazu-tabs-list--line .lazu-tabs-trigger {
+  flex: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 12px 0;
+  min-height: 46px;
+  color: var(--lazu-text-muted);
+  background: transparent;
+  box-shadow: none;
+}
+.lazu-tabs-list--line .lazu-tabs-trigger[data-active] {
+  background: transparent;
+  border-bottom-color: var(--lazu-evidence);
+  color: var(--lazu-ink);
+  font-weight: 560;
+  box-shadow: none;
+}
+.console-review-help {
+  margin: 0 0 10px;
+  color: var(--lazu-text-muted);
+  font-size: var(--lazu-row-label);
+}
+.console-review-help summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.console-review-help p {
+  margin: 8px 0 0;
+}
+.console-page-shell.console-review .lazu-tabs-content {
+  padding-top: 0;
+}
+.console-page-shell.console-review .model-ops__filters--models {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.5fr) repeat(3, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin: 0 0 12px;
+}
+.model-ops__filters--models > label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+  max-width: none !important;
+  font-size: var(--lazu-row-label);
+  color: var(--lazu-text-muted);
+}
+.model-ops__filters--models .model-ops__select {
+  width: 100%;
+  min-width: 0;
+}
+.model-ops__filters--models .model-ops__selection-actions {
+  grid-column: 1 / -1;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.model-ops__selection-actions .model-ops__hint {
+  margin-right: auto;
+}
+.console-review .model-ops__table--models {
+  table-layout: fixed;
+  min-width: 1020px;
+}
+.model-ops__table--models th:nth-child(1) {
+  width: 38px;
+}
+.model-ops__table--models th:nth-child(2) {
+  width: 28%;
+}
+.model-ops__table--models th:nth-child(3) {
+  width: 8%;
+}
+.model-ops__table--models th:nth-child(4) {
+  width: 16%;
+}
+.model-ops__table--models th:nth-child(5) {
+  width: 10%;
+}
+.model-ops__table--models th:nth-child(6) {
+  width: 8%;
+}
+.model-ops__table--models th:nth-child(7) {
+  width: 7%;
+}
+.model-ops__table--models th:last-child {
+  width: 190px;
+}
+.model-ops__table--models td,
+.model-ops__table--models th {
+  padding: 12px 10px;
+}
+.model-ops__table--models .model-ops__name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.model-ops__table--models .model-ops__failure {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.model-ops__table--models .model-ops__row-actions {
+  gap: 4px;
+}
+.model-ops__table--models .model-ops__row-actions .lazu-button {
+  margin: 0;
+  padding-inline: 7px;
+}
+.console-page-shell.console-review.users-page--compact .lazu-data-surface {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.console-page-shell.console-review.users-page--compact
+  .lazu-data-surface__body {
+  padding: 0;
+}
+.console-page-shell.console-review.users-page--compact .lazu-table-wrap {
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  background: var(--lazu-surface);
+}
+.console-page-shell.console-review.search-services-page {
+  gap: 0;
+  max-width: none;
+  width: auto;
+}
+/* Settings reads at the width of the content area like every other console
+   page. It used to opt into the 868px form cap, which is narrower than the
+   row grid needs: the explanation column collapsed under its 300px minimum,
+   so every control was pushed into a lone column against the right edge while
+   the label column kept its full width. */
+.console-page-shell.console-review.settings-page .settings-continuous-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+.console-page-shell.console-review.settings-page .set-card + .set-card {
+  margin-top: 0;
+}
+.console-page-shell.console-review.settings-page .set-card__d {
+  max-width: 72ch;
+}
+.console-page-shell.console-review .platform-overview__metrics {
+  gap: 0;
+  border-block: 1px solid var(--lazu-border);
+  padding: 22px 0;
+}
+.console-page-shell.console-review .platform-overview__metrics .lazu-data-card {
+  border: 0;
+  border-right: 1px solid var(--lazu-border);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.console-page-shell.console-review
+  .platform-overview__metrics
+  .lazu-data-card:last-child {
+  border-right: 0;
+}
+.console-page-shell.console-review
+  .platform-overview__metrics
+  .lazu-data-card__body {
+  padding: 0 24px;
+}
+.console-page-shell.console-review
+  .platform-overview__metrics
+  .lazu-data-card:first-child
+  .lazu-data-card__body {
+  padding-left: 0;
+}
+.console-page-shell.console-review .platform-overview__number {
+  margin: 5px 0;
+}
+.console-page-shell.console-review .chealth-tiles {
+  margin: 0;
+  padding: 4px 0;
+}
+.console-page-shell.console-review .chealth-layout {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+}
+.console-page-shell.console-review .chealth-providers {
+  padding: 0;
+}
+.console-page-shell.console-review .ann-workbench {
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 28px;
+}
+.console-page-shell.console-review .ann-editor__body {
+  min-height: 0;
+}
+.console-page-shell.console-review .ann-editor textarea {
+  min-height: 280px;
+}
+@media (max-width: 1100px) {
+  .console-page-shell.console-review {
+    margin-inline: 0;
+  }
+  .console-page-shell.console-review .model-ops__filters--models {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .console-page-shell.console-review .chealth-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-page-shell.console-review .ann-workbench {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+@media (max-width: 600px) {
+  .console-page-shell.console-review .model-ops__filters--models {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-page-shell.console-review .ann-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-page-shell.console-review .platform-overview__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
+  }
+  .console-page-shell.console-review > .console-page-topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+.model-ops__lane-prices {
+  display: grid;
+  gap: 4px;
+}
+.model-ops__lane-prices > div {
+  display: flex;
+  gap: 6px;
+  font-size: var(--lazu-row-label);
+}
+.console-page-shell.console-review
+  .model-ops__table--models
+  .model-ops__failure {
+  max-width: none;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.console-page-shell.console-review .usage-log-page .console-page-body {
+  padding-top: 0;
+}
+.console-page-shell.console-review .logv2-view-tabs {
+  border-bottom: 1px solid var(--lazu-border);
+  margin: 0 0 10px;
+  padding: 0;
+  min-height: 46px;
+}
+.console-page-shell.console-review .logv2-filters__row {
+  gap: 12px;
+}
+.console-page-shell.console-review .logv2-chip-field {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  gap: 10px;
+}
+.console-page-shell.console-review
+  .logv2-chip-field
+  :is(input, .lazu-select-trigger, .lazu-date-trigger) {
+  min-height: var(--lazu-control-height-lg);
+  font-size: var(--lazu-row-label);
+  padding: 0 12px;
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  background: var(--lazu-surface);
+}
+.console-page-shell.console-review .logv2-chip-field--search {
+  max-width: 400px;
+  min-width: 220px;
+  margin-left: 0;
+}
+.console-page-shell.console-review .console-compact-stats {
+  padding: 4px 0;
+  margin: 0 0 12px;
+}
+.console-page-shell.console-review .lazu-metric-pill {
+  background: transparent;
+  border: 0;
+  padding: 0 20px 0 0;
+  border-radius: 0;
+  color: var(--lazu-text-muted);
+}
+.console-page-shell.console-review .lazu-metric-pill__value {
+  font-size: 18px;
+  color: var(--lazu-ink);
+}
+.console-page-shell.console-review .wal-layout {
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 24px;
+}
+.console-page-shell.console-review .wal-ledger-card {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.console-page-shell.console-review .wal-ledger-card .lazu-table-wrap {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+}
+.console-page-shell.console-review.search-services-page .lazu-data-card {
+  padding: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+.console-page-shell.console-review.search-services-page .lazu-data-card__body {
+  padding: 0;
+}
+.search-services-table .lazu-inline-secret input {
+  border: 0;
+  background: transparent;
+}
+.search-services-table td:nth-child(5) > span {
+  display: grid !important;
+  gap: 4px !important;
+}
+.search-services-table .lazu-inline-secret__row .lazu-button {
+  padding: 0 6px;
+}
+.search-services-table td:last-child {
+  text-align: left;
+}
+.search-services-table th:last-child {
+  text-align: left;
+}
+.console-page-shell.console-review .ann-workbench {
+  height: auto;
+  min-height: 570px;
+}
+.console-page-shell.console-review .ann-editor {
+  min-height: 570px;
+}
+.console-page-shell.console-review .ann-list {
+  max-height: 720px;
+}
+@media (max-width: 800px) {
+  .console-page-shell.console-review .wal-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.platform-overview__notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border: 1px solid var(--lazu-warning-soft);
+  background: var(--lazu-surface);
+  padding: 16px 20px;
+  border-radius: var(--lazu-radius-control);
+  font-size: var(--lazu-row-label);
+}
+.platform-overview__notice p {
+  margin: 4px 0 0;
+  color: var(--lazu-text-muted);
+}
+.platform-overview__notice a {
+  white-space: nowrap;
+}
+.app-shell-v2--console .console-page-shell.console-review,
+.app-shell-v2--console .console-page-shell.plaza-page:not(.plaza-public) {
+  width: calc(100% - 28px);
+  max-width: none;
+  margin-inline: 12px 16px;
+}
+
+/* One head geometry on every console page (canvas 2026-10-14): the title's
+   top edge sits at the same height whether the actions beside it are a
+   32px button or a 40px segmented box. The actions keep their bottom
+   alignment with the title; their extra height hangs above the line
+   instead of pushing the title down. */
+.app-shell-v2--console .console-page-topbar > .console-page-topbar__actions {
+  margin-top: -8px;
+}
+/* Two columns, not three. The third column put a row's explanation past its
+   control — about 600px from the label it explains at 1440 — which is what the
+   2026-09 audit filed against this page. Label and explanation now stack in
+   one reading column and the control sits beside them. */
+.console-page-shell.console-review .set-row {
+  align-items: center;
+  gap: 2px 40px;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  padding: 16px 24px;
+}
+.console-page-shell.console-review .set-row__hint {
+  grid-column: 1;
+  grid-row: 2;
+}
+.console-page-shell.console-review .set-row__lb {
+  grid-column: 1;
+  grid-row: 1;
+}
+.console-page-shell.console-review .set-row__vv {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.console-page-shell.console-review .set-row__vv {
+  min-width: 0;
+}
+.console-page-shell.console-review
+  .set-row__vv
+  > :is(input, .lazu-select-trigger) {
+  width: 100%;
+}
+
+/* Platform settings reads label | control | explanation once there is room.
+   The two-column rule above was filed by the 2026-09 audit while this page
+   opted into the 868px form cap: three columns then put an explanation about
+   600px from the label it explained. The cap is gone — the content column is
+   ~1110px at 1440 — so the third column now sits directly after the control it
+   belongs to. Personal settings keeps the stacked pair; it is a narrower page
+   with longer explanations. */
+@media (min-width: 1180px) {
+  .console-page-shell.console-review.settings-page .set-row {
+    /* 280 + 36 buys the value column the ~410px a switch plus a template
+       preview needs before the explanation's 280px floor starts squeezing it;
+       at 300 + 40 the mail rows wrapped their preview under their switch. */
+    --set-kv-label: minmax(240px, 280px);
+    --set-kv-gap: 36px;
+
+    /* One control column for the whole page, so every explanation starts at
+       the same x down the page (canvas 2026-10-14). A row whose control is a
+       wide editor — a template preview, a document set — gives up the third
+       column instead and sets its explanation under the control. */
+    --set-kv-control: 240px;
+
+    align-items: start;
+    gap: 0 var(--set-kv-gap);
+    grid-template-columns:
+      var(--set-kv-label) var(--set-kv-control)
+      minmax(280px, 1fr);
+    padding: 15px 24px;
+  }
+  .console-page-shell.console-review.settings-page .set-row__hint {
+    grid-column: 3;
+    grid-row: 1;
+    max-width: 62ch;
+    padding-top: 7px;
+  }
+  .console-page-shell.console-review.settings-page
+    .set-row:has(.set-template, .set-docs__summary) {
+    grid-template-columns: var(--set-kv-label) minmax(0, 1fr);
+  }
+  .console-page-shell.console-review.settings-page
+    .set-row:has(.set-template, .set-docs__summary)
+    .set-row__hint {
+    grid-column: 2;
+    grid-row: 2;
+    padding-top: 6px;
+  }
+}
+
+/* Label, control and explanation share one top line: the label and the
+   explanation sit level with the middle of a 32px control rather than one
+   hanging at the bottom of the row and the other at the top. */
+.console-page-shell.console-review.settings-page .set-row__lb {
+  align-self: start;
+  padding-top: 6px;
+}
+.console-page-shell.console-review.settings-page .set-row__vv {
+  align-self: start;
+  min-height: 32px;
+}
+
+/* A child row hangs off the setting above it, so the border and the gap that
+   would separate two peers are removed at every width. */
+.console-page-shell.console-review.settings-page .set-row--child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* The row grid owns the widths here; a bare input must not stretch to fill the
+   value column, or a 96px token count becomes 700px of empty field. */
+.console-page-shell.console-review.settings-page
+  .set-row__vv
+  > :is(input, .lazu-select-trigger) {
+  width: auto;
+}
+
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel):not(.lazu-modal-content--wide):not(
+    .lazu-modal-content--xwide
+  ) {
+  width: min(600px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+body:has(.console-review) .lazu-modal-content:not(.whats-new-panel) {
+  padding: 0;
+  max-height: 85dvh;
+  border-radius: var(--lazu-radius-overlay);
+  box-shadow: var(--lazu-shadow-overlay);
+}
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel)
+  .lazu-modal-header {
+  margin-bottom: 0;
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid var(--lazu-border);
+}
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel)
+  .lazu-modal-body {
+  padding: 24px;
+}
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel)
+  .lazu-modal-footer {
+  margin-top: 0;
+  padding: 18px 24px;
+  border-top: 1px solid var(--lazu-border);
+  gap: 8px;
+}
+/* The small member / settings-value dialog (team refinement 2026-09-28):
+   520px, opens straight into its form without a header rule, footer on a
+   muted strip. Same selector shape as the defaults above so it outranks them. */
+body:has(.console-review)
+  .lazu-modal-content.pj-modal--member:not(.whats-new-panel):not(
+    .lazu-modal-content--wide
+  ):not(.lazu-modal-content--xwide) {
+  width: min(520px, calc(100vw - 32px));
+}
+body:has(.console-review)
+  .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
+  .lazu-modal-header {
+  border-bottom: 0;
+  padding: 20px 22px 0;
+}
+body:has(.console-review)
+  .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
+  .lazu-modal-body {
+  padding: 16px 22px 20px;
+}
+body:has(.console-review)
+  .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
+  .lazu-modal-footer {
+  background: var(--lazu-surface-muted);
+  padding: 14px 22px;
+}
+@media (max-width: 1100px) {
+  .app-shell-v2--console .console-page-shell.console-review {
+    width: 100%;
+    margin-inline: 0;
+  }
+  .console-page-shell.console-review .set-row {
+    grid-template-columns: minmax(180px, 1fr) minmax(0, 200px);
+    gap: 2px 20px;
+  }
+}
+/* Below 640 the fixed columns collapse to one reading column in the locked
+   order: label, explanation, control (yunmu-console.md settings rule 5). This
+   query said 600 while its comment, the rule and settings-surface.css all said
+   640, so a 600-639px window got neither layout it was specified to get. */
+@media (max-width: 640px) {
+  .console-page-shell.console-review .set-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 16px 18px;
+  }
+  .console-page-shell.console-review .set-row__lb,
+  .console-page-shell.console-review .set-row__hint,
+  .console-page-shell.console-review .set-row__vv {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+.lazu-daily-bars__plot {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 220px;
+  border-bottom: 1px solid var(--lazu-border);
+}
+.lazu-daily-bars__slot {
+  height: 100%;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+.lazu-daily-bars__bar {
+  width: 100%;
+  background: var(--lazu-chart-1);
+  opacity: 0.35;
+  min-height: 1px;
+}
+.lazu-daily-bars__bar[data-latest] {
+  opacity: 1;
+}
+.lazu-daily-bars__labels {
+  display: flex;
+  padding-top: 10px;
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+}
+.lazu-daily-bars__labels span {
+  flex: 1;
+  text-align: center;
+}
+.lazu-daily-bars__empty {
+  min-height: 220px;
+}
+/* Record actions and payment presets use the same control language. */
+.console-page-shell.console-review .tokv2-editlink {
+  color: var(--lazu-ink);
+  min-height: var(--lazu-control-height-sm);
+  padding: 4px 8px;
+  border-radius: var(--lazu-radius-control);
+  font-size: var(--lazu-row-label);
+}
+.console-page-shell.console-review .tokv2-editlink:hover {
+  background: var(--lazu-surface-selected);
+}
+
+.console-page-shell.console-review .wal-ledger {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  overflow: hidden;
+  background: var(--lazu-surface);
+}
+.console-page-shell.console-review .wal-ledger th {
+  background: var(--lazu-surface-muted);
+}
+.console-page-shell.console-review .wal-ledger :is(th, td) {
+  padding: 16px;
+}
+.console-page-shell.console-review .model-ops__table--models th:nth-child(2) {
+  width: auto;
+}
+.console-page-shell.console-review .model-ops__table--models th:nth-child(3) {
+  width: 80px;
+}
+.console-page-shell.console-review .model-ops__table--models th:nth-child(4) {
+  width: 170px;
+}
+.console-page-shell.console-review .model-ops__table--models th:nth-child(5) {
+  width: 90px;
+}
+.console-page-shell.console-review .model-ops__table--models th:nth-child(6) {
+  width: 70px;
+}
+.console-page-shell.console-review .model-ops__table--models th:nth-child(7) {
+  width: 54px;
+}
+.tokv2-quota-meter {
+  width: 110px;
+  height: 3px;
+  accent-color: var(--lazu-chart-1);
+  border: 0;
+}
+.tokv2-quota-meter::-webkit-progress-bar {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+}
+.tokv2-quota-meter::-webkit-progress-value {
+  background: var(--lazu-chart-1);
+  border-radius: var(--lazu-radius-pill);
+}
+.console-page-shell.console-review .platform-overview__share progress {
+  accent-color: var(--lazu-chart-1);
+}
+
+/* Expanded rows must not inherit the action cell's no-wrap contract. */
+.model-ops-page--compact .model-ops__table .model-ops__row--expand > td {
+  white-space: normal;
+}
+.console-review .model-ops__tier-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.console-review .model-ops__tier-card {
+  min-width: 0;
+}
+.console-review .model-ops__tier-head {
+  flex-wrap: wrap;
+}
+.console-review .model-ops__tier-head .model-ops__mono {
+  overflow-wrap: anywhere;
+}
+.console-review .model-ops__token-prices,
+.console-review .model-ops__cache-fields {
+  width: 100%;
+  min-width: 0;
+}
+.console-review .model-ops__cache-fields label {
+  min-width: 0;
+}
+.search-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.search-editor-pair {
+  display: contents;
+}
+.search-editor-grid > * {
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  .console-review .model-ops__tier-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .search-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.console-review .model-ops__lane-prices > div {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.console-review .model-ops__lane-prices > div > span:first-child {
+  flex-shrink: 0;
+}
+
+.lazu-daily-bars {
+  margin: 0;
+}

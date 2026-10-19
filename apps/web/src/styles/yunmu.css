@@ -1,0 +1,1002 @@
+/*
+ * Console signature layer — G1 (brand/BRAND.md, locked 2026-10-06).
+ * Grew out of 云母 Yunmu; G1 kept its type and spacing and took away the
+ * ground gradient, the grid, the floating glass sidebar and the blur.
+ * Loaded last so it owns the ground, the sidebar and the ink action.
+ * Palette values come from brand tokens; nothing here hardcodes a brand hex.
+ */
+
+/* ---------------------------------------------------------------
+   1 · Ground: one flat neutral grey. No ambient light, no grid.
+   --------------------------------------------------------------- */
+.app-shell-v2,
+.app-shell-v2--console {
+  background: var(--lazu-page);
+  position: relative;
+}
+
+.app-shell-body-v2,
+.app-shell-global-controls {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------------------------------------------------------------
+   2 · Sidebar: flush to the left edge, on the page's own ground,
+   divided from the content by one hairline. No card, no blur.
+   --------------------------------------------------------------- */
+.app-shell-sidebar {
+  background: var(--lazu-sidebar);
+  border-right: 1px solid var(--lazu-border);
+  padding: 0;
+}
+
+.app-shell-sidebar > * {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+  overflow: hidden auto;
+}
+
+/* The current item is a teal wash with teal type and icon: the whole row,
+   never a rail, arrow or bracket — Brand rule 6. */
+.sidebar-v2 .sidebar-v2__item.is-active,
+.sidebar-v2 a[aria-current='page'],
+.sidebar-v2 button[aria-current='page'] {
+  background: var(--lazu-evidence-soft);
+  border-left: 0;
+  color: var(--lazu-evidence);
+  font-weight: 600;
+}
+
+.sidebar-v2 .sidebar-v2__item.is-active .sidebar-v2__item-icon {
+  color: var(--lazu-evidence);
+}
+
+.sidebar-v2 .sidebar-v2__item.is-active::before,
+.sidebar-v2 .sidebar-v2__item.is-active::after {
+  content: none;
+}
+
+/* Sidebar internals — mirrors the design mock's single floating column:
+   brand row, mono section labels, 13.5px items, account row pinned bottom. */
+.sidebar-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: 100%;
+  padding: 20px 14px;
+}
+
+.sidebar-v2__brand-row {
+  padding: 0 12px 20px;
+}
+
+/* shell.css still boxes this as the old icon-only 32x32 brand button. Yunmu
+   puts the mark and the wordmark inside it, so the fixed square made the
+   content overflow its own container — reset it to shrink-wrap and align left. */
+.sidebar-v2__brand {
+  align-items: center;
+  color: var(--lazu-ink);
+  display: flex;
+  gap: 10px;
+  height: auto;
+  justify-content: flex-start;
+  text-decoration: none;
+  width: auto;
+}
+
+.sidebar-v2__brand:hover {
+  background: none;
+}
+
+.sidebar-v2__content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden auto;
+}
+
+.sidebar-v2__section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-v2__label {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  padding: 14px 12px 7px;
+  text-transform: uppercase;
+}
+
+.sidebar-v2__item {
+  align-items: center;
+  border-radius: 12px;
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 13.5px;
+  gap: 11px;
+  padding: 9px 12px;
+  text-decoration: none;
+  transition:
+    background 150ms cubic-bezier(0.22, 0.9, 0.28, 1),
+    color 150ms cubic-bezier(0.22, 0.9, 0.28, 1);
+}
+
+.sidebar-v2__item:hover {
+  background: var(--lazu-surface-muted);
+  color: var(--lazu-ink);
+}
+
+.sidebar-v2__item-icon {
+  align-items: center;
+  display: flex;
+  flex: none;
+}
+
+/* Docs sits in the nav but leaves the console, so it carries the outbound
+   arrow and pushes it to the far edge. */
+.sidebar-v2__item-external {
+  color: var(--lazu-text-faint);
+  flex: none;
+  margin-left: auto;
+}
+
+.sidebar-v2__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+/* One utility row: theme and language on the left, the way out on the right. */
+.sidebar-v2__utility {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.sidebar-v2__logout {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  margin-left: auto;
+  transition:
+    background 150ms cubic-bezier(0.22, 0.9, 0.28, 1),
+    color 150ms cubic-bezier(0.22, 0.9, 0.28, 1);
+  width: 30px;
+}
+
+.sidebar-v2__logout:hover {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-v2__logout {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Content chrome: the Yunmu page is a single sheet of paper. The scope bar
+   and the boxed page topbar were both artefacts of the retired two-plane
+   shell; the design head is plain type sitting directly on the ground.
+   --------------------------------------------------------------- */
+.console-scope-bar {
+  display: none;
+}
+
+.console-page-shell {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* The head sits under the console top bar, which already says where you are,
+   so it opens with the page's own name at 28px and needs only 10px of air
+   above it. Its rule belongs to the tab row below, not to the head: a page
+   without tabs draws no line at all. */
+.console-page-topbar {
+  align-items: flex-end;
+  background: transparent;
+  border-bottom: 0;
+  min-height: 0;
+  padding: 10px 0 0;
+}
+
+/* Title, then the page's own numbers, on one baseline. */
+.console-page-topbar__title-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.console-page-topbar__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.console-stat {
+  align-items: baseline;
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-badge);
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px 10px;
+}
+
+.console-stat__label {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+}
+
+.console-stat__value {
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* Every head sits on a rule, so the top of one page looks like the top of the
+   next. On a page with peer views the rule belongs to the tab row; on a page
+   without them the head draws it itself. */
+.console-page-shell:not([data-has-tabs]) > .console-page-topbar {
+  border-bottom: 1px solid var(--lazu-border);
+  padding-bottom: 16px;
+}
+
+/* The tab row carries the head's rule. Its teal underline is the active mark,
+   with the label set in ink and heavier, so colour alone never is. */
+.console-page-tabs {
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 22px;
+  margin-top: 14px;
+  position: relative;
+}
+
+.console-page-tabs .lazu-tabs-list {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  gap: 22px;
+  padding: 0;
+}
+
+.console-page-tabs .lazu-tabs-trigger {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  font-weight: 480;
+  height: auto;
+  padding: 10px 2px;
+  position: relative;
+}
+
+.console-page-tabs .lazu-tabs-trigger[data-selected],
+.console-page-tabs .lazu-tabs-trigger[data-active] {
+  background: transparent;
+  box-shadow: none;
+  color: var(--lazu-ink);
+  font-weight: 560;
+}
+
+.console-page-tabs .lazu-tabs-trigger[data-selected]::after,
+.console-page-tabs .lazu-tabs-trigger[data-active]::after {
+  background: var(--lazu-evidence);
+  border-radius: 2px;
+  bottom: -1px;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.console-page-tabs .lazu-tabs-indicator {
+  display: none;
+}
+
+/* Kumo floated the page head as a sticky frosted sheet. In Yunmu the heading
+   is set directly on the paper ground, so the glass reads as a stray box —
+   it goes, in both themes and in the no-backdrop-filter fallback. */
+.app-shell-v2--console .console-page-topbar,
+body[theme-mode='dark'] .app-shell-v2--console .console-page-topbar {
+  backdrop-filter: none;
+  background: transparent;
+  position: static;
+  -webkit-backdrop-filter: none;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .app-shell-v2--console .console-page-topbar,
+  body[theme-mode='dark'] .app-shell-v2--console .console-page-topbar {
+    background: transparent;
+  }
+}
+
+/* Console page titles are set in the wordmark's serif, like the money under
+   them. 32px keeps every title well clear of the serif's 20px floor. */
+.console-page-topbar__title {
+  font-family: var(--lazu-font-display);
+  font-size: var(--lazu-console-heading-size);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+/* The mock's page head is title + description only; the ALL-CAPS route badge
+   was shell furniture, not part of the locked design. */
+.console-page-topbar__badge {
+  display: none;
+}
+
+.console-page-topbar__description {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin-top: 7px;
+  max-width: 58ch;
+}
+
+/* Tabbed pages (用量与日志, 设置) mount whole console pages as their tab bodies,
+   so the inner page repeats a title and lede under the outer one. The inner
+   heading goes; its action row stays where the user expects it. */
+.console-page-shell .console-page-shell .console-page-topbar__title,
+.console-page-shell .console-page-shell .console-page-topbar__description {
+  display: none;
+}
+
+.console-page-shell .console-page-shell > .console-page-topbar {
+  padding-top: 0;
+}
+
+/* Data tables already sit inside a paper card; the extra "数据列表" header row
+   duplicated the page head and read as a box inside a box. Counts still show
+   in the footer, so only the redundant chrome goes. */
+.lazu-table-page-surface > .lazu-data-surface__header {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.lazu-table-page-surface
+  > .lazu-data-surface__header
+  .lazu-data-surface__title {
+  display: none;
+}
+
+.console-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 0 40px;
+}
+
+/* Inner pages (a console page mounted as a tab body) keep their head
+   ruleless: the outer page already drew one. */
+.console-page-shell
+  .console-page-shell:not([data-has-tabs])
+  > .console-page-topbar {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.app-route-stage,
+.console-page-shell > * {
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------
+   3 · Surfaces: white sheets + hairline on the flat ground. Shadows
+   only carry real elevation (panels, popovers), never decoration.
+   --------------------------------------------------------------- */
+.lazu-card,
+.cv-card,
+.app-panel {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px rgb(50 56 70 / 5%),
+    0 12px 30px rgb(50 56 70 / 8%);
+}
+
+/* Dark G1 separates sheets by tone and hairline; only real elevation
+   (popovers, dialogs) keeps a shadow. */
+body[theme-mode='dark'] :is(.lazu-card, .cv-card, .app-panel) {
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------
+   4 · Ink / paper primary action. Hover moves and lifts; it never
+   changes hue and never glows — Brand rule 2.
+   --------------------------------------------------------------- */
+.lazu-button--primary,
+.lazu-button[data-variant='primary'] {
+  background: var(--lazu-action);
+  border-color: transparent;
+  color: var(--lazu-on-action);
+  transition:
+    transform 160ms cubic-bezier(0.22, 0.9, 0.28, 1),
+    box-shadow 160ms cubic-bezier(0.22, 0.9, 0.28, 1);
+}
+
+.lazu-button--primary:hover:not(:disabled),
+.lazu-button[data-variant='primary']:hover:not(:disabled) {
+  background: var(--lazu-action);
+  box-shadow: 0 6px 18px rgb(20 25 30 / 18%);
+  transform: translateY(-1px);
+}
+
+.lazu-button--primary:active:not(:disabled),
+.lazu-button[data-variant='primary']:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+/* Evidence colour is for links, hits and focus only. */
+.lazu-link,
+a.lazu-evidence {
+  color: var(--lazu-evidence);
+  font-weight: 550;
+  text-decoration: none;
+}
+
+.lazu-link:hover,
+a.lazu-evidence:hover {
+  text-decoration: underline;
+}
+
+:where(.lazu-input, .lazu-select-trigger, .lazu-textarea):focus-visible {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lazu-button--primary,
+  .lazu-button[data-variant='primary'] {
+    transition: none;
+  }
+}
+
+/* Channel lane assignment: two chips, never a supply-origin label. */
+.channel-lanes {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* Settings — G2 grouping renders as horizontal tabs over grouped cards,
+   replacing the retired left task rail. */
+/* The --form modifier narrows shells to a single reading column. G2 settings
+   is a tab bar plus a section list with a right anchor rail, so it takes the
+   full stage while keeping the modifier's inner layout rules. */
+.app-shell-v2--console .console-page-shell--form.settings-page {
+  max-width: none;
+  width: 100%;
+}
+
+.settings-groupbar {
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 2px;
+}
+
+.settings-groupbar__tab {
+  background: none;
+  border: 0;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 9px 16px 11px;
+  position: relative;
+  transition: color 150ms cubic-bezier(0.22, 0.9, 0.28, 1);
+}
+
+.settings-groupbar__tab:hover {
+  color: var(--lazu-ink);
+}
+
+.settings-groupbar__tab.is-active {
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.settings-groupbar__tab.is-active::after {
+  background: var(--lazu-ink);
+  border-radius: 2px;
+  bottom: -1px;
+  content: '';
+  height: 2px;
+  left: 14px;
+  position: absolute;
+  right: 14px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+   8 · Component primitives — the mock recipes applied to the shared UI kit.
+   Buttons are pills, icon buttons 12px squares, chips full pills; every
+   surface gets the paper shadow so panels float instead of sitting flat.
+   -------------------------------------------------------------------------*/
+
+:root {
+  --ui-focus-ring: 0 0 0 3px var(--lazu-evidence-soft);
+}
+
+.lazu-button {
+  border-radius: var(--lazu-radius-pill);
+}
+
+.lazu-button--primary:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.lazu-button:not(:disabled):active {
+  transform: translateY(0) scale(0.98);
+}
+
+.lazu-icon-button,
+.lazu-pagination-button,
+.lazu-modal-close,
+.lazu-drawer-close {
+  border-radius: 12px;
+}
+
+/* Status sheet (S3): opaque paper, anchored to the FAB, not a glass drawer. */
+.lazu-status-sheet.lazu-popover-content {
+  background: var(--lazu-surface-solid, #fdfdfc);
+  border-radius: 20px;
+  box-shadow:
+    0 1px 2px rgb(50 56 70 / 6%),
+    0 24px 60px rgb(20 25 35 / 22%);
+  display: flex;
+  flex-direction: column;
+  max-height: min(520px, 70vh);
+  overflow: hidden;
+  padding: 0;
+  width: min(380px, calc(100vw - 32px));
+}
+
+.lazu-status-sheet__head {
+  padding: 16px 16px 12px;
+}
+
+.lazu-status-sheet__head b {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.lazu-status-sheet__head span {
+  color: var(--lazu-text-muted);
+  display: block;
+  font-size: 12.5px;
+  margin-top: 3px;
+}
+
+.lazu-status-sheet__list {
+  overflow: auto;
+}
+
+.lazu-status-sheet__item {
+  align-items: flex-start;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 11px 16px;
+}
+
+.lazu-status-sheet__item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.lazu-status-sheet__item p {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.lazu-status-sheet__item span {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+/* Feedback system: the states that ask for action tint their title. This row
+   previously reset to plain ink, so an error read exactly like an info note. */
+.lazu-status-sheet__item[data-kind='error'] strong {
+  color: var(--lazu-danger);
+}
+
+.lazu-status-sheet__item[data-kind='warning'] strong {
+  color: var(--lazu-warning-strong);
+}
+
+.lazu-status-sheet__dismiss {
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: grid;
+  height: 28px;
+  place-items: center;
+  width: 28px;
+}
+
+.lazu-status-sheet__dismiss:hover {
+  background: var(--lazu-surface-muted);
+  color: var(--lazu-ink);
+}
+
+.lazu-status-sheet__empty {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  padding: 18px 16px 20px;
+}
+
+.lazu-status-sheet__empty svg {
+  color: var(--lazu-success);
+  flex: none;
+}
+
+.lazu-status-sheet__foot {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lazu-status-sheet.lazu-popover-content {
+    background: var(--lazu-surface-raised);
+  }
+}
+
+.lazu-badge {
+  border-radius: var(--lazu-radius-pill);
+  padding: 2px 9px;
+}
+
+.lazu-input:focus-visible,
+.lazu-textarea:focus-visible,
+.lazu-select-trigger:focus-visible,
+.lazu-date-trigger:focus-visible {
+  border-color: var(--lazu-evidence);
+}
+
+/* Tables: small quiet headers, hover rows, no boxed header band. */
+.lazu-table th {
+  background: transparent;
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lazu-table tbody tr:hover td {
+  background: var(--lazu-surface-muted);
+}
+
+/* Surfaces float on the ground like sheets of paper. */
+.lazu-data-surface,
+.lazu-data-card,
+.console-panel,
+.cv-panel {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  box-shadow: var(--lazu-shadow-panel);
+}
+
+/* Dialogs are opaque paper like the status sheet: the raised surface token
+   is 78%-alpha mica meant for blurred panels, and without a backdrop filter
+   the page bleeds straight through the popup. */
+.lazu-modal-content {
+  background: var(--lazu-surface-solid, #fdfdfc);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgb(20 25 35 / 30%);
+}
+
+/* Filter strips and toolbars sit directly on the ground, unboxed. */
+.lazu-filter-bar,
+.lazu-toolbar {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   9 · Sidebar refinements + account popover. Sections separate by whitespace
+   and their mono labels — the hairline rules read as boxes inside the panel.
+   -------------------------------------------------------------------------*/
+.sidebar-v2__section + .sidebar-v2__section {
+  border-top: 0;
+  padding-top: 8px;
+}
+
+.sidebar-v2__footer {
+  border-top: 1px solid var(--lazu-border);
+}
+
+/* ---------------------------------------------------------------------------
+   10 · Settings groups. The account pages (personal, wallet) now carry their
+   own Yunmu layouts in page CSS, so the retrofit rules that used to card
+   their sections are gone — see brand/foundations/yunmu-console.md.
+   -------------------------------------------------------------------------*/
+
+/* A segmented box filters one table: a 4% ink track, the picked segment a
+   white sheet with a hairline. Peer views use the underline strip instead
+   (--line, .console-page-tabs); nothing else draws a switch. */
+.lazu-tabs-list {
+  background: var(--lazu-surface-muted);
+  border: 0;
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.lazu-tabs-trigger {
+  border-radius: 7px;
+}
+
+.lazu-tabs-trigger[data-active] {
+  background: var(--lazu-surface-solid);
+  box-shadow: 0 0 0 1px var(--lazu-border);
+}
+
+.usage-tabs-strip {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+
+/* Selected September console refinement. Scope excludes public/auth/catalog. */
+.users-page--compact .console-page-topbar,
+.health-page--compact .console-page-topbar,
+.model-ops-page--compact .console-page-topbar,
+.usage-page--log-first > .console-page-topbar {
+  margin-bottom: 18px;
+}
+.settings-continuous-group {
+  scroll-margin-top: 90px;
+  margin-top: 28px;
+}
+.settings-continuous-group > h2 {
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+.settings-page .settings-groupbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--lazu-surface-solid);
+  padding: 12px 0;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+/* Selected pages retain their compact field density. The shared Select owns
+   its surface, border and interaction states even outside these pages. */
+:is(
+    .token-page-table,
+    .usage-page--log-first,
+    .users-page--compact,
+    .health-page--compact,
+    .model-ops-page--compact,
+    .search-services-page,
+    .settings-page,
+    .wallet-page
+  )
+  .lazu-select-trigger {
+  border-radius: var(--lazu-radius-control);
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 12px;
+}
+:is(
+    .token-page-table,
+    .usage-page--log-first,
+    .users-page--compact,
+    .health-page--compact,
+    .model-ops-page--compact,
+    .search-services-page,
+    .settings-page,
+    .wallet-page
+  )
+  .lazu-pagination
+  .lazu-select-trigger {
+  width: auto;
+  min-width: 100px;
+}
+.token-page-table .tokv2-toolbar-right {
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.token-page-table .tokv2-toolbar-right .lazu-select-trigger {
+  width: auto;
+  min-width: 160px;
+}
+.token-page-table .lazu-filter-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.token-page-table .lazu-data-surface {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.token-page-table .lazu-data-surface__body {
+  padding: 0;
+}
+.token-page-table .lazu-table-wrap {
+  border: 1px solid var(--lazu-border);
+  background: var(--lazu-surface);
+  border-radius: var(--lazu-radius-surface);
+}
+.usage-log-page .lazu-filter-bar {
+  position: relative;
+}
+.usage-log-page .lazu-filter-bar > .lazu-dropdown-trigger {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.token-page-table .lazu-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.token-page-table .lazu-filter-bar > .tokv2-toolbar {
+  flex: 1;
+  min-width: 220px;
+}
+.token-page-table .tokv2-toolbar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.token-page-table .tokv2-toolbar-right .lazu-select-trigger {
+  width: auto;
+  min-width: 140px;
+}
+
+@media (max-width: 767px) {
+  body:has(
+      :is(
+        .token-page-table,
+        .usage-page--log-first,
+        .users-page--compact,
+        .health-page--compact,
+        .model-ops-page--compact,
+        .search-services-page,
+        .settings-page,
+        .wallet-page,
+        .platform-overview
+      )
+    )
+    .app-shell-v2--console
+    .console-page-topbar:has(.console-page-topbar__actions) {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    margin: 0 0 16px;
+    padding: 0;
+    min-height: 0;
+  }
+  body:has(
+      :is(
+        .token-page-table,
+        .usage-page--log-first,
+        .users-page--compact,
+        .health-page--compact,
+        .model-ops-page--compact,
+        .search-services-page,
+        .settings-page,
+        .wallet-page,
+        .platform-overview
+      )
+    )
+    .console-page-topbar__copy {
+    display: none;
+  }
+}
+
+/* Long selected-page editors scroll their body, keeping their title and actions available. */
+body:has(
+    :is(
+      .token-page-table,
+      .usage-page--log-first,
+      .users-page--compact,
+      .health-page--compact,
+      .model-ops-page--compact,
+      .search-services-page,
+      .settings-page,
+      .wallet-page,
+      .personal-page
+    )
+  )
+  .lazu-modal-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+body:has(
+    :is(
+      .token-page-table,
+      .usage-page--log-first,
+      .users-page--compact,
+      .health-page--compact,
+      .model-ops-page--compact,
+      .search-services-page,
+      .settings-page,
+      .wallet-page,
+      .personal-page
+    )
+  )
+  .lazu-modal-content
+  > .lazu-modal-body {
+  min-height: 0;
+  overflow: auto;
+}
+body:has(
+    :is(
+      .token-page-table,
+      .usage-page--log-first,
+      .users-page--compact,
+      .health-page--compact,
+      .model-ops-page--compact,
+      .search-services-page,
+      .settings-page,
+      .wallet-page,
+      .personal-page
+    )
+  )
+  .lazu-modal-content
+  > :is(.lazu-modal-header, .lazu-modal-footer) {
+  flex-shrink: 0;
+}

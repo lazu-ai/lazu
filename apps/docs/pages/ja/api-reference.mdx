@@ -1,0 +1,31 @@
+---
+title: "API Explorer：Lazu API をライブで呼び出す"
+description: Lazu API をライブで試す —— 操作を選び、キーを貼り付けて、本物のリクエストを送信。
+---
+
+import { ApiExplorer } from "../../components/mdx";
+
+# API Explorer
+
+操作を選び、Lazu API キーを貼り付けて、ライブ API に**本物のリクエスト**を送信できます。
+リクエストはブラウザから直接 `api.lazu.ai` へ送られ、キーはこのタブ内にのみ保持されます
+（_Remember_ をチェックした場合のみ保存）。
+
+## 互換性マトリクス
+
+「OpenAI-compatible」は、対応する API のリクエストとレスポンス形式が互換であることを示します。OpenAI の全製品 API が実装済みという意味ではありません。未実装ルートは OpenAI 形式のエラーと HTTP `501` を返します。
+
+| 機能                          | 状態          | ルート                                              |
+| ----------------------------- | ------------- | --------------------------------------------------- |
+| Chat / legacy Completions     | 対応          | `POST /v1/chat/completions`、`POST /v1/completions` |
+| Responses                     | 対応          | `POST /v1/responses`                                |
+| Embeddings / Rerank           | 対応          | `POST /v1/embeddings`、`POST /v1/rerank`            |
+| Images                        | 一部対応      | 生成と編集に対応、variations は未対応               |
+| Audio                         | 対応          | 音声生成、文字起こし、翻訳                          |
+| Files / Models                | 対応          | ファイル操作、モデル一覧と取得                      |
+| Realtime / Anthropic / Gemini | Provider 依存 | 対応能力を持つチャネル設定が必要                    |
+| Fine-tuning / モデル削除      | 未実装        | `501` を返す                                        |
+
+長時間の対話推論ではストリーミングを使用してください。数分間出力がない可能性のある処理は、無期限の HTTP 接続ではなく非同期ジョブとポーリングを使用します。
+
+<ApiExplorer />

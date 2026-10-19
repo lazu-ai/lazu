@@ -1,0 +1,74 @@
+---
+title: "模型目錄 API：執行時讀取能力與價格"
+description: 透過 /api/models/catalog 在執行時發現目前 API Key 可用的模型與能力。
+---
+
+# 模型目錄
+
+Lazu 會按目前 API Key 返回可存取模型集合。生產用戶端、agent 和腳本應在執行時讀取
+catalog，而不是把模型名稱寫死。
+
+## GET `/api/models/catalog`
+
+```bash
+curl https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+響應會包含：
+
+- `id`、`provider`、`owned_by`
+- `modality.input` / `modality.output`
+- `capabilities`
+- `supported_endpoint_types`
+- `supported_endpoints`
+- `default_endpoint_type`
+- `context_length`、`max_output_tokens`
+- 目前 key 的有效 `pricing`
+- `usage_capabilities`
+- `supported_parameters` 和 `parameters`
+
+## 如何選模型
+
+| 需求            | 關注欄位                                          | 常用 endpoint                             |
+| --------------- | ------------------------------------------------- | ----------------------------------------- |
+| 文字聊天        | `modality.output` 包含 `text`                     | `/v1/chat/completions`                    |
+| 多模態/圖片輸入 | `modality.input` 包含 `image`                     | `/v1/chat/completions` 或 `/v1/responses` |
+| 推理模型        | `capabilities.supports_reasoning === true`        | `/v1/responses`                           |
+| Embeddings      | `supported_endpoint_types` 包含 `embeddings`      | `/v1/embeddings`                          |
+| 工具呼叫        | `capabilities.supports_function_calling === true` | `/v1/chat/completions`                    |
+
+除非用戶端 SDK 明確需要 Anthropic/Gemini 原生介面，否則優先使用
+`default_endpoint_type`。
+
+## Usage 和 cache metadata
+
+每個模型都有 `usage_capabilities`，讓用戶端在發請求前知道可能出現哪些 usage 維度：
+
+| 維度             | 含義                                                |
+| ---------------- | --------------------------------------------------- |
+| `cache_read`     | 命中並讀取既有 cache 的輸入 token                   |
+| `cache_write`    | provider 返回總 cache write token 但沒有 TTL bucket |
+| `cache_write_5m` | 5 分鐘 TTL 的 cache creation/write token            |
+| `cache_write_1h` | 1 小時 TTL 的 cache creation/write token            |
+| `cache_miss`     | provider 單獨上報的 cache miss token                |
+
+使用 `reported_dimensions` 判斷哪些欄位可能出現，使用 `billable_dimensions`
+判斷哪些維度會影響價格。
+
+## `/v1/models`
+
+如果你的 SDK 呼叫 OpenAI 風格的 `models.list()`，Lazu 也提供扁平響應：
+
+```bash
+curl https://api.lazu.ai/v1/models \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+但它只適合 SDK 相容。需要路由、價格、能力、參數和 usage metadata 時，請使用
+`/api/models/catalog`。
+
+## 相關頁面
+
+- [模型列表](/zh-TW/endpoints/models)
+- [定價與通道](/zh-TW/models/pricing)

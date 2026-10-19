@@ -1,0 +1,23 @@
+{
+  "setting_invalid": "有一项设置的值不符合要求，这次没有保存。请检查它的格式和取值后再保存。",
+  "content_limit_exceeded": "这个列表最多只能有 {{limit}} 项。请删掉一些后再保存。",
+  "announcement_not_found": "这条公告已不存在。请刷新列表。",
+  "email_test_failed": "测试邮件没有发出。请检查 SMTP 设置；邮件服务器的回复已记入服务端日志。",
+  "email_test_recipient_missing": "你的账号还没有邮箱，测试邮件无处可发。请先为账号绑定邮箱。",
+  "email_recipients_required": "还没有选择收件人，邮件没有发出。请选择用户，或选择发送给全部用户。",
+  "announcement_email_content_missing": "没有可以发送的公告。请填写标题和内容，或先发布一条公告。",
+  "translation_token_missing": "翻译需要用你自己的 API Key 调用模型，但你名下没有可用的 Key。请新建或启用一把 Key 后再试。",
+  "feedback_request_not_found": "你的账号下没有这个请求编号。请检查请求编号。",
+  "database_unreachable": "服务器连不上数据库。请检查数据库服务后再试。",
+  "email_domain_not_allowed": "这个邮箱域名不在允许范围内。请换用允许域名下的邮箱。",
+  "email_alias_not_allowed": "不接受 @ 前带有「+」或「.」的邮箱地址。请使用不带别名的邮箱。",
+  "password_invalid": "密码需为 8 到 64 个字符，且不超过 72 字节。请换一个密码。",
+  "password_reset_link_invalid": "重置链接无效或已过期。请重新申请一封重置邮件。",
+  "password_reset_client_upgrade_required": "页面版本过旧，重置链接尚未使用。请刷新页面后重新设置密码。",
+  "mail_not_found": "未找到归档邮件。",
+  "mail_resend_failed": "归档邮件重发失败，请查看投递详情。",
+  "admin_email_missing": "发送预览前，请先为账户添加邮箱。",
+  "mail_regenerate_failed": "邮件重新生成失败；草稿请从用量回顾页面重新生成。",
+  "digest_settings_invalid": "用量回顾设置无效。",
+  "mail_send_failed": "邮件发送失败，请查看投递详情。"
+}

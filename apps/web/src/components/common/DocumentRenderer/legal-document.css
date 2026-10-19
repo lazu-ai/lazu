@@ -1,0 +1,416 @@
+/* Legal long-form reading layout.
+   public-web-system.md #02 (舒展阅读: ~17px body, ~720px single column) and #08
+   (无框色差: no card around a document). The audit found this content inside one
+   card at 12px; nothing here is a new visual language, it is that spec applied. */
+
+.legal-page {
+  margin-inline: auto;
+  max-width: 1080px;
+  padding: 28px clamp(18px, 4vw, 40px) 96px;
+}
+
+/* Holds a page's worth of height while the document is in flight, so the
+   footer starts where the real document puts it — below the fold — instead of
+   being thrown thousands of pixels down when the text lands. */
+.legal-page--pending {
+  min-height: 100dvh;
+}
+
+.legal-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.legal-skeleton__title {
+  margin: 10px 0 2px;
+}
+
+.legal-skeleton__toc {
+  border-bottom: 1px solid var(--lazu-border);
+  border-top: 1px solid var(--lazu-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0 8px;
+  padding: 18px 0;
+}
+
+.legal-skeleton__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.legal-skeleton__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.legal-layout {
+  display: grid;
+  gap: 64px;
+  grid-template-columns: minmax(0, 720px) 190px;
+  justify-content: center;
+}
+
+.legal-head {
+  margin-bottom: 26px;
+}
+
+.legal-head__crumb {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 12.5px;
+  gap: 8px;
+}
+
+.legal-head__crumb a {
+  color: var(--lazu-text-muted);
+  text-decoration: none;
+}
+
+.legal-head__crumb a:hover {
+  color: var(--lazu-ink);
+}
+
+.legal-head h1 {
+  font-family: var(--lazu-web-font-display);
+  font-size: clamp(36px, 4.2vw, 52px);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.03;
+  margin: 12px 0 14px;
+}
+
+/* Dates and the operating company are machine facts: they stay in mono,
+   beside the serif title rather than inside it. */
+.legal-head__meta {
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  gap: 8px 18px;
+}
+
+.legal-head__meta b {
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+/* Page-head contents list. Two columns because eleven one-line chapters in a
+   single column push the first paragraph below the fold. */
+/* The contents are a list on the page, not a box on it: an ink rule above,
+   a hairline below, nothing around. */
+.legal-toc {
+  border-bottom: 1px solid var(--lazu-border);
+  border-top: 1px solid var(--lazu-ink);
+  font-size: 14px;
+  margin: 30px 0 8px;
+  padding: 18px 0;
+}
+
+.legal-toc__label {
+  color: var(--lazu-text-faint);
+  font: 500 10.5px var(--lazu-font-mono);
+  letter-spacing: 0.14em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.legal-toc ol {
+  column-gap: 28px;
+  columns: 2;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.legal-toc li {
+  break-inside: avoid;
+  margin: 0;
+  padding: 3px 0;
+}
+
+.legal-toc a {
+  color: var(--lazu-ink);
+  display: flex;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.legal-toc a:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+.legal-toc__no,
+.legal-anchors__no {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font: 500 12px var(--lazu-font-mono);
+  min-width: 28px;
+  white-space: nowrap;
+}
+
+/* Sticky chapter rail. It tracks the reader rather than the click, so a
+   reader who scrolls past a chapter always knows where they are. */
+.legal-anchors {
+  align-content: start;
+  align-self: start;
+  display: grid;
+  font-size: 12.5px;
+  gap: 2px;
+  position: sticky;
+  top: 28px;
+}
+
+.legal-anchors__label {
+  color: var(--lazu-text-faint);
+  font: 500 10.5px var(--lazu-font-mono);
+  letter-spacing: 0.14em;
+  margin: 0 10px 8px;
+  text-transform: uppercase;
+}
+
+.legal-anchors a {
+  border-radius: 8px;
+  color: var(--lazu-text-muted);
+  display: flex;
+  gap: 8px;
+  line-height: 1.4;
+  padding: 5px 10px;
+  text-decoration: none;
+}
+
+.legal-anchors a:hover {
+  color: var(--lazu-ink);
+}
+
+.legal-anchors a.is-active {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.legal-anchors__no {
+  font-size: 11px;
+  min-width: 22px;
+  padding-top: 1px;
+}
+
+/* ---- the document itself ---- */
+
+.legal-doc {
+  color: var(--lazu-ink);
+  font-size: 16.5px;
+  line-height: 1.8;
+}
+
+.legal-doc h2 {
+  align-items: baseline;
+  display: flex;
+  font-family: var(--lazu-web-font-display);
+  font-size: 32px;
+  font-weight: 400;
+  gap: 12px;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 46px 0 14px;
+  scroll-margin-top: 24px;
+}
+
+.legal-doc h2:first-child {
+  margin-top: 8px;
+}
+
+.legal-doc__no {
+  color: var(--lazu-text-muted);
+  flex: none;
+  font: 500 13px var(--lazu-font-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.legal-doc h3 {
+  font-size: 16.5px;
+  font-weight: 600;
+  margin: 24px 0 8px;
+}
+
+.legal-doc p {
+  margin: 0 0 14px;
+}
+
+.legal-doc ul,
+.legal-doc ol {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.legal-doc ul {
+  list-style: disc;
+}
+
+.legal-doc ol {
+  list-style: decimal;
+}
+
+.legal-doc li {
+  margin: 0 0 6px;
+  padding-left: 4px;
+}
+
+.legal-doc li::marker {
+  color: var(--lazu-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.legal-doc code {
+  background: var(--lazu-surface-selected);
+  border-radius: 5px;
+  font-family: var(--lazu-font-mono);
+  font-size: 0.88em;
+  padding: 1px 6px;
+}
+
+.legal-doc a {
+  color: var(--lazu-evidence-strong);
+  text-decoration: underline;
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--lazu-evidence) 40%,
+    transparent
+  );
+  text-underline-offset: 3px;
+}
+
+.legal-doc img {
+  border-radius: var(--lazu-radius-control);
+  height: auto;
+  max-width: 100%;
+}
+
+.legal-doc pre {
+  background: var(--lazu-code-bg);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-code-text);
+  font: 12px/1.75 var(--lazu-font-mono);
+  overflow-x: auto;
+  padding: 16px 18px;
+}
+
+.legal-doc table {
+  border-collapse: collapse;
+  font-size: 14px;
+  width: 100%;
+}
+
+.legal-doc th,
+.legal-doc td {
+  border-bottom: 1px solid var(--lazu-border);
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.legal-doc th {
+  background: var(--lazu-surface-muted);
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ---- foot ---- */
+
+.legal-siblings {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 40px;
+}
+
+.legal-siblings a {
+  background: var(--lazu-surface-raised);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: block;
+  padding: 16px 18px;
+  text-decoration: none;
+}
+
+.legal-siblings a:hover {
+  border-color: var(--lazu-border-strong);
+}
+
+.legal-siblings b {
+  color: var(--lazu-ink);
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.legal-siblings span {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.legal-foot {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 24px;
+  margin-top: 56px;
+  padding-top: 22px;
+}
+
+.legal-foot__note {
+  flex: 1;
+  min-width: 260px;
+}
+
+.legal-foot a {
+  color: var(--lazu-evidence-strong);
+  text-decoration: none;
+}
+
+/* Below the two-column threshold the rail folds back into the page-head
+   contents list; the reading column keeps its measure. */
+@media (max-width: 1100px) {
+  .legal-layout {
+    gap: 24px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .legal-anchors {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .legal-page {
+    padding: 20px 18px 80px;
+  }
+
+  .legal-doc {
+    font-size: 16px;
+  }
+
+  .legal-head h1 {
+    font-size: 30px;
+  }
+
+  .legal-toc ol {
+    columns: 1;
+  }
+
+  .legal-siblings {
+    grid-template-columns: 1fr;
+  }
+}

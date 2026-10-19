@@ -1,0 +1,15 @@
+{
+  "key_name_too_long": "Key 名稱過長，最多 {{max_length}} 個字元。請縮短後再儲存。",
+  "key_enable_blocked": "這把 Key 已過期或額度已用完，暫時無法啟用。請先延長有效期限或調高額度。",
+  "key_limit_reached": "你在這個專案裡已有 {{limit}} 把 Key，已達上限。請刪除不再使用的 Key 後再新增。",
+  "secret_unavailable": "這把 Key 只保存了摘要，無法顯示完整金鑰。如需完整金鑰，請新增一把。",
+  "key_not_found": "找不到這把 Key，它可能已被刪除。請重新整理頁面。",
+  "usage_range_invalid": "時間範圍的結束早於開始。請調整時間範圍後再試。",
+  "usage_range_too_long": "時間範圍超過了 {{max_days}} 天。請縮短時間範圍。",
+  "invalid_usage_summary_window": "用量彙總的時間區間無效。請檢查 since、until 和 granularity 參數。",
+  "request_not_found": "這把 Key 底下找不到這個請求。請檢查請求 ID。",
+  "log_session_not_found": "在你可檢視的日誌裡找不到這個工作階段。請重新整理頁面。",
+  "usage_export_format_unsupported": "不支援這種匯出格式。請匯出為 CSV 或 XLSX。",
+  "log_cleanup_cutoff_too_recent": "最近 {{min_days}} 天的日誌要用於模型排行，無法清理。請選擇更早的截止日期。",
+  "spend_budget_not_found": "找不到這筆支出預算，它可能已被刪除。請重新整理頁面。"
+}

@@ -1,0 +1,97 @@
+---
+title: "コードサンプル：Lazu API の cURL・Python・JavaScript"
+description: Lazu API の cURL、Python、JavaScript、本番トラブルシューティングのサンプル。
+---
+
+import { Callout } from "../../components/mdx";
+
+# コードサンプル
+
+These examples use the hosted Lazu base URL. For self-hosted deployments, replace it with your own API domain.
+
+## OpenAI 互換チャット
+
+### Python
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.lazu.ai/v1",
+    api_key="YOUR_LAZU_KEY",
+)
+
+response = client.chat.completions.create(
+    model="gpt-6-luna",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Explain model routing in one paragraph."},
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+### JavaScript
+
+```javascript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.lazu.ai/v1",
+  apiKey: process.env.LAZU_API_KEY,
+});
+
+const response = await client.chat.completions.create({
+  model: "gpt-6-luna",
+  messages: [{ role: "user", content: "Hello from Lazu" }],
+});
+
+console.log(response.choices[0].message.content);
+```
+
+### cURL
+
+```bash
+curl https://api.lazu.ai/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_LAZU_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-6-luna",
+    "messages": [
+      {"role": "user", "content": "Reply with: Lazu test successful"}
+    ]
+  }'
+```
+
+## ストリーミング
+
+```python
+stream = client.chat.completions.create(
+    model="claude-sonnet-5",
+    messages=[{"role": "user", "content": "Write a short deployment checklist."}],
+    stream=True,
+)
+
+for chunk in stream:
+    delta = chunk.choices[0].delta.content
+    if delta:
+        print(delta, end="", flush=True)
+```
+
+## モデル検索
+
+```bash
+curl https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer YOUR_LAZU_KEY"
+```
+
+<Callout type="tip">
+  catalog レスポンスを使って、endpoint、モダリティ、パラメータを選んでください。
+  Agent や SDK wrapper
+  の中にグローバルなモデル一覧をハードコードしないでください。
+</Callout>
+
+## トラブルシューティング
+
+すべてのレスポンスには `x-request-id` が含まれている必要があります。コンソールでこの ID を使うと、モデル、upstream channel、ステータス、トークン計上を追跡できます。

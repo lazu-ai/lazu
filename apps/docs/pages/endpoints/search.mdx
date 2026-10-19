@@ -1,0 +1,213 @@
+---
+title: "Search API: web and news retrieval"
+description: Provider-neutral POST /v1/search for web and news retrieval through configured Lazu search backends.
+---
+
+import {
+  CodeSample,
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../components/mdx";
+
+<EndpointPage
+  eyebrow="Endpoints / Retrieval"
+  method="POST"
+  path="/v1/search"
+  title="Search"
+  description="Run provider-neutral web or news search through Lazu. Hosted api.lazu.ai currently enables Tavily, Serper and Jina; self-hosted operators can add Exa or Brave through the same search-backend system."
+  aside={
+    <EndpointRail
+      endpoint="search"
+      extra={
+
+<MiniCard title="Console">
+Admins configure providers in{" "}
+<a href="https://lazu.ai/console/search-backend">Search backends</a>.
+</MiniCard>
+}
+/>
+}
+
+>
+
+## What it returns
+
+<EndpointGrid>
+  <EndpointTile title="Normalized results">
+    Every backend maps into <code>title</code>, <code>url</code>,
+    <code>snippet</code>, optional <code>content</code>,
+    <code>published_at</code>, <code>score</code> and <code>source</code>.
+  </EndpointTile>
+  <EndpointTile title="Auditable routing">
+    The response includes the selected backend and route receipt. Request logs
+    store the same routing metadata for support and billing reconciliation.
+  </EndpointTile>
+</EndpointGrid>
+
+## Hosted configuration
+
+The `/v1/search` implementation supports Tavily, Serper, Exa, Jina and Brave,
+but the hosted Lazu deployment is configured with this active set:
+
+| Backend     | Hosted status | Capabilities                        | Notes                                                                 |
+| ----------- | ------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| Tavily      | Enabled       | `web_search`, `web_fetch`, `answer` | Supports `include_answer` and `search_depth`; `advanced` is 2 units.  |
+| Serper      | Enabled       | `web_search`                        | Maps `country` / `region`, `language` and `time_range` when provided. |
+| Jina        | Enabled       | `web_search`, `web_fetch`           | Uses `https://s.jina.ai`; best for retrieval-style snippets.          |
+| Exa / Brave | Supported     | `web_search` after operator setup   | Available for self-hosted or admin-configured deployments.            |
+
+Hosted backends currently use the default backend policy: up to 10 results per
+request and an 8s upstream timeout. If you send a larger `max_results`, Lazu
+clips it to the selected backend policy.
+
+## Request body
+
+<FieldList>
+  <Field name="query" type="string" required>
+    Search query. The MVP supports one query per request.
+  </Field>
+  <Field name="type" type="string" nullable values={["web", "news"]}>
+    Search vertical. Defaults to <code>web</code>.
+  </Field>
+  <Field name="backend" type="string" nullable>
+    <code>auto</code>, a provider name such as <code>tavily</code> or{" "}
+    <code>serper</code>, or a configured backend ID/name. Defaults to{" "}
+    <code>auto</code>.
+  </Field>
+  <Field name="region" type="string" nullable>
+    Region hint. Serper maps this to <code>gl</code>; other providers may ignore
+    unsupported regions.
+  </Field>
+  <Field name="language" type="string" nullable>
+    Language hint such as <code>en</code> or <code>zh-CN</code>.
+  </Field>
+  <Field
+    name="time_range"
+    type="string"
+    nullable
+    values={["day", "week", "month", "year"]}
+  >
+    Freshness hint. Providers that cannot map the value may ignore it.
+  </Field>
+  <Field name="max_results" type="integer" nullable>
+    Number of results to return. Defaults to <code>10</code> and is capped by
+    the selected backend policy.
+  </Field>
+  <Field
+    name="search_depth"
+    type="string"
+    nullable
+    values={["basic", "advanced"]}
+  >
+    Provider depth hint. Tavily <code>advanced</code> uses two billable credits.
+  </Field>
+  <Field name="include_answer" type="boolean" nullable>
+    Include a provider answer when the selected backend returns one. Lazu does
+    not generate its own final answer in this endpoint.
+  </Field>
+  <Field name="include_raw_content" type="boolean" nullable>
+    Include raw or cleaned content when the provider returns it. Defaults to
+    <code>false</code>.
+  </Field>
+  <Field name="include_domains" type="string[]" nullable>
+    Restrict results to domains. Token-level domain allowlists still apply.
+  </Field>
+  <Field name="exclude_domains" type="string[]" nullable>
+    Exclude domains when supported by the selected backend.
+  </Field>
+  <Field name="include_provider_payload" type="boolean" nullable>
+    Return the provider-native payload for debugging. Defaults to
+    <code>false</code>.
+  </Field>
+  <Field name="provider_options" type="object" nullable>
+    Advanced provider passthrough. Only the selected provider's object is used,
+    for example <code>{'{"serper":{"tbs":"qdr:d"}}'}</code>.
+  </Field>
+</FieldList>
+
+## Response
+
+<CodeSample title="Search response" language="json">
+  {`{
+  "query": "latest OpenAI web search API changes",
+  "results": [
+    {
+      "title": "Web search - OpenAI API",
+      "url": "https://platform.openai.com/docs/guides/tools-web-search",
+      "snippet": "Use web search in the Responses API...",
+      "content": null,
+      "published_at": null,
+      "score": 0.91,
+      "source": "web"
+    }
+  ],
+  "usage": {
+    "web_search_requests": 1,
+    "web_search_billable_units": 1
+  },
+  "provider_trace": {
+    "backend": "tavily"
+  },
+  "route_receipt": {
+    "selection": "auto",
+    "selected_backend": "tavily",
+    "chose_provider": "tavily",
+    "candidates": ["tavily:Tavily"],
+    "rejected": [],
+    "downgraded": false,
+    "fallback_count": 0,
+    "decision_reason": "selected"
+  }
+}`}
+</CodeSample>
+
+<FieldList>
+  <Field name="results[]" type="object[]">
+    Normalized search result list. <code>content</code> is only populated when
+    raw content was requested and returned by the backend.
+  </Field>
+  <Field name="usage.web_search_requests" type="integer">
+    Lazu search request count, normally <code>1</code>.
+  </Field>
+  <Field name="usage.web_search_billable_units" type="integer">
+    Provider billing units used for the charge. Tavily basic is 1 unit, Tavily
+    advanced is 2 units, and Serper or Jina is normally 1 successful query.
+  </Field>
+  <Field name="provider_trace.backend" type="string">
+    Actual provider selected after routing.
+  </Field>
+  <Field name="route_receipt" type="object" nullable>
+    Candidate, fallback and rejection metadata. The same data is stored in the
+    request log.
+  </Field>
+</FieldList>
+
+## Billing
+
+Search backends are priced from their configured <code>search_price</code>.
+The value is the USD price per provider billing unit, not always per HTTP
+request.
+
+Check the currently displayed search price and reconcile the `web_search` line item in request details. Do not infer a free service from an old example or deployment configuration.
+
+| Backend | Unit mapping                                                     |
+| ------- | ---------------------------------------------------------------- |
+| Tavily  | <code>basic</code> = 1 credit; <code>advanced</code> = 2 credits |
+| Serper  | 1 successful query = 1 unit                                      |
+| Jina    | 1 successful query = 1 unit                                      |
+
+Failed upstream calls, timeouts and invalid requests are refunded according to
+the normal Lazu billing rules.
+
+## See also
+
+- [How pricing works](/billing)
+- [Request details](/endpoints/usage-requests)
+- [Model catalog](/models/catalog)
+
+</EndpointPage>

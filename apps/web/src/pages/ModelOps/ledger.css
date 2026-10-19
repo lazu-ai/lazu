@@ -1,0 +1,1344 @@
+/* ---- ledger ------------------------------------------------------------ */
+
+.mo-ledger {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  flex: 1;
+  min-width: 0;
+  /* `clip` rather than `hidden`: both round off the corners, but `hidden`
+     makes this a scroll container, and a scroll container that never scrolls
+     silently disables `position: sticky` on everything inside it. */
+  overflow: clip;
+}
+
+.mo-ledger__head,
+.mo-ledger__row {
+  align-items: center;
+  display: grid;
+  grid-template-columns: var(--cols);
+}
+
+.mo-ledger__head {
+  background: var(--lazu-surface-muted);
+  border-bottom: 1px solid var(--lazu-border);
+}
+
+.mo-ledger__head > span {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  padding: 12px 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A fixed height, not a min-height: a min-height lets the tallest control in
+   a row set it, and rows of one ledger must measure the same. */
+.mo-ledger__row {
+  border-bottom: 1px solid var(--lazu-border);
+  cursor: pointer;
+  height: var(--row-h, 46px);
+  text-align: left;
+  width: 100%;
+}
+
+.mo-ledger__row:last-of-type {
+  border-bottom: 0;
+}
+
+/* Vertical centring comes from the grid, so the cells carry no block padding
+   and cannot push the row taller than `--row-h`. */
+.mo-ledger__row > span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 16px;
+}
+
+/* A price is one figure pair. Wrapping it onto a second line inside a
+   fixed-height row hid the output price entirely. */
+.mo-ledger__row > span.mo-num {
+  white-space: nowrap;
+}
+
+/* The leading cell is a checkbox, not data — it keeps its left inset and
+   gives the space back to the name. */
+.mo-ledger__head > span:first-child,
+.mo-ledger__row > span:first-child {
+  padding-right: 0;
+}
+
+.mo-ledger__row:hover {
+  background: var(--lazu-surface-muted);
+}
+
+/* Selection is a tint and nothing else: no left rule, no inset bar. */
+.mo-ledger__row.is-selected {
+  background: var(--lazu-surface-selected);
+}
+
+.mo-ledger__row:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+/* ---- cells ------------------------------------------------------------- */
+
+.mo-name {
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The name shares its cell with the blocked-listing flag, so the cell is a
+   flex row and only the name gives way. */
+.mo-ledger__row > span.mo-ledger__cell--name {
+  align-items: center;
+  display: flex;
+  gap: 0;
+  min-width: 0;
+}
+
+.mo-sub {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+}
+
+.mo-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.mo-mono {
+  font-family: var(--lazu-font-mono);
+}
+
+.mo-mark {
+  align-items: center;
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-surface-solid);
+  display: inline-flex;
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.mo-dot {
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+.mo-dot--ok {
+  background: var(--lazu-success);
+}
+.mo-dot--warn {
+  background: var(--lazu-warning);
+}
+.mo-dot--bad {
+  background: var(--lazu-danger);
+}
+.mo-dot--idle {
+  background: var(--lazu-border-strong);
+}
+
+.mo-flag {
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: -2px;
+}
+
+/* 48h stability. Bars only ever mean "we measured this"; no-data says so in
+   words instead of drawing twelve grey ghosts that read as loading. */
+/* A source's record over the window, in the health page's thin bars: the
+   bars and the window's availability on one line, the mean and the sample
+   count under them. */
+.mo-health {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mo-health__line {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mo-health__line > .lazu-status-bars {
+  flex: 1 1 auto;
+}
+
+/* A fixed slot, so every row's bars end at the same x whatever the figure. */
+.mo-health__uptime {
+  color: var(--lazu-ink);
+  flex: none;
+  min-width: 52px;
+  text-align: right;
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-label-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mo-health__figures {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-metric-text);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 线路健康: one line per lane — its sources pooled into one record of thin
+   bars, the pooled availability, and how many sources it has. */
+.mo-ledger__row > span.mo-ledger__cell--lanes {
+  padding: 0 12px;
+}
+
+.mo-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mo-lanes__row {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 24px minmax(0, 1fr) 44px 24px;
+}
+
+.mo-lanes__label {
+  color: var(--lazu-text-muted);
+  font-size: var(--lazu-health-label-text);
+}
+
+.mo-lanes__uptime {
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-label-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mo-lanes__uptime--warn {
+  color: var(--lazu-warning-strong);
+}
+
+.mo-lanes__uptime--bad {
+  color: var(--lazu-danger);
+}
+
+.mo-lanes__count {
+  color: var(--lazu-text-faint);
+  font-size: var(--lazu-health-metric-text);
+  white-space: nowrap;
+}
+
+.mo-chip {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-pill);
+  display: inline-flex;
+  font-size: 11.5px;
+  font-weight: 550;
+  gap: 6px;
+  padding: 3px 11px;
+  white-space: nowrap;
+}
+
+.mo-rowbtn--danger:hover {
+  background: var(--lazu-danger-soft);
+  border-color: color-mix(in srgb, var(--lazu-danger) 30%, transparent);
+  color: var(--lazu-danger);
+}
+
+/* Page switcher: 模型 / 来源 are two pages, so they sit on the head's
+   underline strip (.console-page-tabs) like every other set of peer views —
+   ink label, teal 2px underline for the current page. */
+.mo-pagenav {
+  display: flex;
+  gap: 24px;
+}
+
+.mo-pagenav__item {
+  align-items: baseline;
+  border-bottom: 2px solid transparent;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 13.5px;
+  font-weight: 480;
+  gap: 6px;
+  margin-bottom: -1px;
+  padding: 10px 2px;
+  text-decoration: none;
+}
+
+.mo-pagenav__item:hover {
+  color: var(--lazu-ink);
+}
+
+.mo-pagenav__item.is-active {
+  border-bottom-color: var(--lazu-evidence);
+  color: var(--lazu-ink);
+  font-weight: 560;
+}
+
+.mo-pagenav__count {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+/* Segmented choice inside the discount rule editor. */
+
+/* "生效后": the rule's arithmetic, written out, before it is saved. */
+.mo-effect {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  font-size: 12.5px;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+/* Section rule: a hairline and a small label, never a nested card. */
+.mo-sect {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-faint);
+  display: flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.06em;
+  padding-top: 8px;
+  white-space: nowrap;
+}
+
+.mo-sect--flush {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.mo-sect__note {
+  font-weight: 400;
+  letter-spacing: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mo-sect__action {
+  margin-left: auto;
+  letter-spacing: 0;
+}
+
+.mo-notice {
+  align-items: center;
+  border-radius: var(--lazu-radius-notice);
+  display: flex;
+  font-size: 12.5px;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.mo-notice--warn {
+  background: var(--lazu-warning-soft);
+  color: var(--lazu-warning-strong);
+}
+
+.mo-notice--bad {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+.mo-notice--ok {
+  background: var(--lazu-success-soft);
+  color: var(--lazu-success);
+}
+
+.mo-notice svg {
+  flex: none;
+}
+
+.mo-bar {
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-datamark);
+  display: inline-block;
+  height: 6px;
+  overflow: hidden;
+  width: 64px;
+}
+
+.mo-bar > i {
+  background: var(--lazu-evidence);
+  display: block;
+  height: 100%;
+}
+
+/* Naming rule: the Chinese label leads, the wire name follows as a tag. */
+.mo-code {
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+}
+
+.mo-field {
+  align-items: center;
+  display: grid;
+  font-size: 12.5px;
+  gap: 10px;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+}
+
+.mo-field > .mo-field__label {
+  color: var(--lazu-text-muted);
+}
+
+.mo-field__value {
+  align-items: center;
+  background: var(--lazu-page);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  box-sizing: border-box;
+  display: flex;
+  font-size: 12px;
+  height: 34px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mo-detail-row {
+  align-items: center;
+  display: flex;
+  font-size: 12.5px;
+  gap: 10px;
+}
+
+.mo-detail-row__trail {
+  color: var(--lazu-text-faint);
+  margin-left: auto;
+}
+
+/* ---- states ------------------------------------------------------------ */
+
+/* Loading, not-yet-measured and genuinely-empty must never look alike.
+   Loading is the hairline ring; not-yet-measured is a sentence; empty is a
+   slot with the action inside it. */
+.mo-state {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 12.5px;
+  gap: 9px;
+}
+
+.mo-state__spinner {
+  animation: lazu-spin var(--lazu-motion-loading-cycle) linear infinite;
+  border: 1.5px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-pill);
+  border-top-color: var(--lazu-text-muted);
+  display: inline-block;
+  flex: none;
+  height: 15px;
+  width: 15px;
+}
+
+.mo-ledger__empty {
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.mo-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mo-toolbar__search {
+  min-width: 240px;
+}
+
+@media (max-width: 720px) {
+  .mo-ledger {
+    overflow-x: auto;
+  }
+  .mo-ledger__head,
+  .mo-ledger__row {
+    min-width: 760px;
+  }
+}
+
+/* ---- forms inside the dialogs ------------------------------------------- */
+
+.mo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mo-form__grid {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* `.lazu-field` is itself a grid, so a stretched cell pushes its label and
+   control to opposite ends of the taller neighbour's row. Anchor each field to
+   the top and the pairs line up. */
+.mo-form__grid > * {
+  align-content: start;
+  align-self: start;
+}
+
+.mo-form__wide,
+.mo-form__switches {
+  grid-column: 1 / -1;
+}
+
+.mo-form__switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.mo-form__row {
+  display: flex;
+  gap: 8px;
+}
+
+.mo-form__row > .lazu-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 接来源 walks three steps; the header says which one and how far along. */
+.mo-steps {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  font-size: 12px;
+  font-weight: 650;
+  gap: 14px;
+  padding: 14px 18px;
+}
+
+.mo-steps__item {
+  color: var(--lazu-text-faint);
+  padding-bottom: 2px;
+}
+
+.mo-steps__item.is-active {
+  border-bottom: 2px solid var(--lazu-ink);
+  color: var(--lazu-ink);
+}
+
+.mo-advanced > summary {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.06em;
+  list-style: none;
+  padding: 8px 0;
+}
+
+.mo-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mo-advanced > summary::before {
+  content: '▸';
+  font-size: 10px;
+}
+
+.mo-advanced[open] > summary::before {
+  content: '▾';
+}
+
+.mo-advanced > summary .mo-sub {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.mo-advanced > .mo-form__grid {
+  padding-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .mo-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.model-ops-page--compact .mo-toolbar__search {
+  flex: 0 1 420px;
+  width: 420px;
+  max-width: 100%;
+  min-width: min(280px, 100%);
+}
+.model-ops-page--compact .mo-toolbar__search input {
+  height: 42px;
+}
+
+/* ---- 维度面板 ----------------------------------------------------------- */
+
+/* The dimension panels stack a label over its control. Named apart from
+   `.mo-field` above, which is a three-column row for a different job — sharing
+   the name meant silently inheriting its 52px first column. */
+.mo-dim-field {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mo-dim-field--pair {
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.mo-dim-field__label {
+  color: var(--lazu-text);
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mo-swatches {
+  display: flex;
+  gap: 6px;
+}
+
+.mo-swatch {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  height: 26px;
+  width: 26px;
+}
+
+.mo-swatch.is-active {
+  box-shadow: 0 0 0 2px var(--lazu-text);
+}
+
+.mo-swatch--evidence,
+.mo-dot--lane-evidence {
+  background: var(--lazu-evidence);
+}
+
+.mo-swatch--warning,
+.mo-dot--lane-warning {
+  background: var(--lazu-warning);
+}
+
+.mo-swatch--info,
+.mo-dot--lane-info {
+  background: var(--lazu-info, #4c78a0);
+}
+
+.mo-swatch--success,
+.mo-dot--lane-success {
+  background: var(--lazu-success);
+}
+
+.mo-swatch--danger,
+.mo-dot--lane-danger {
+  background: var(--lazu-danger);
+}
+
+.mo-effect__title {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* Use the page's continuous scroll, like the model and source ledgers. */
+@media (max-width: 640px) {
+  .model-ops-page--compact .mo-toolbar__search {
+    flex-basis: 100%;
+    width: 100%;
+  }
+}
+
+/* ---- 资料更新 (models.dev review queue, 2026-09) ----
+   One sheet per decision type. Rows use the shared list-row measurements;
+   upstream values are the ink, current values the faint side of the pair. */
+.mo-updates {
+  display: grid;
+  gap: 18px;
+}
+
+.mo-updates__panel {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  box-shadow: var(--lazu-shadow-panel);
+  overflow: hidden;
+}
+
+.mo-updates__panel--pending {
+  padding: 28px 20px;
+}
+
+.mo-updates__head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+.mo-updates__head h2 {
+  color: var(--lazu-ink);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mo-updates__count {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+}
+
+.mo-updates__head p {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 0 0 0 auto;
+}
+
+.mo-updates__row {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: grid;
+  font-size: var(--lazu-row-text);
+  gap: 14px;
+  min-height: 48px;
+  padding: 0 20px;
+}
+
+.mo-updates__row--head {
+  background: var(--lazu-surface-muted);
+  color: var(--lazu-text-muted);
+  font-size: var(--lazu-row-label);
+  min-height: 36px;
+}
+
+.mo-updates__grid--fresh .mo-updates__row {
+  grid-template-columns: minmax(0, 1.3fr) 110px 110px 110px 150px 200px;
+}
+
+.mo-updates__grid--diff .mo-updates__row {
+  grid-template-columns:
+    minmax(0, 1.2fr) 100px 170px 170px minmax(0, 1.3fr)
+    172px;
+}
+
+.mo-updates__grid--tier .mo-updates__row {
+  grid-template-columns: minmax(0, 1.2fr) 130px 170px minmax(0, 1fr) 200px;
+}
+
+.mo-updates__grid--filled .mo-updates__row {
+  grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1fr) 64px;
+}
+
+.mo-updates__was {
+  color: var(--lazu-text-faint);
+}
+
+.mo-updates__up {
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.mo-updates__note {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mo-updates__from {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.mo-updates__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.mo-updates__footnote {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  margin: 0;
+  padding: 13px 20px;
+}
+
+.mo-updates__foot {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 20px;
+}
+
+.mo-updates__quiet,
+.mo-updates__source {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  margin: 0;
+}
+
+@media (max-width: 1080px) {
+  .mo-updates__panel {
+    overflow-x: auto;
+  }
+
+  .mo-updates__grid {
+    min-width: 900px;
+  }
+}
+
+/* ---- maker groups and release dates (2026-09) ---- */
+/* Tokens, not literals: the old warm-paper wash read as a grey bar in dark. */
+.mo-ledger__group {
+  background: var(--lazu-surface-muted);
+  border-bottom: 1px solid var(--lazu-border);
+}
+
+.mo-ledger__group-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--lazu-row-text);
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.mo-ledger__group-toggle svg {
+  color: var(--lazu-text-faint);
+  flex: none;
+}
+
+.mo-ledger__group-toggle b {
+  font-weight: 600;
+}
+
+.mo-ledger__group-toggle:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.mo-ledger__group-count {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+}
+
+/* The date over its source, so the column stays narrow enough for the lane
+   health column beside the prices. */
+.mo-release {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.mo-release__src {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+}
+
+.mo-release__src.is-pending {
+  color: var(--lazu-warning-strong);
+  font-weight: 500;
+}
+
+/* ---- 厂商顺序 dialog ---- */
+.mo-makers {
+  display: grid;
+  gap: 12px;
+  max-height: min(62vh, 620px);
+  overflow-y: auto;
+}
+
+.mo-makers__list {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mo-maker {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: grid;
+  font-size: 14px;
+  gap: 10px;
+  grid-template-columns: 28px 24px minmax(0, 1fr) 88px;
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+.mo-maker.is-unranked {
+  background: transparent;
+  border-style: dashed;
+  color: var(--lazu-text-muted);
+}
+
+.mo-maker.is-dragging {
+  opacity: 0.45;
+}
+
+.mo-maker__handle {
+  align-items: center;
+  border-radius: 8px;
+  color: var(--lazu-text-faint);
+  cursor: grab;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.mo-maker__handle:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.mo-maker__rank {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.mo-maker__name {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mo-maker__count {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  text-align: right;
+}
+
+.mo-makers__rest {
+  display: grid;
+  gap: 6px;
+}
+
+.mo-makers__rest-label {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  padding: 4px 2px;
+}
+
+/* ---- 资料 tab ---- */
+.mo-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.mo-info__row {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: grid;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  gap: 12px;
+  grid-template-columns: 96px minmax(0, 1fr) 112px;
+  padding: 11px 0;
+}
+
+.mo-info__label {
+  color: var(--lazu-text-muted);
+}
+
+.mo-info__value {
+  min-width: 0;
+}
+
+.mo-info__src {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+  text-align: right;
+}
+
+.mo-info__none {
+  color: var(--lazu-text-faint);
+}
+
+.mo-info__upstream {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.mo-info__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mo-info__pill {
+  border: 1px solid var(--lazu-border);
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 2px 9px;
+}
+
+.mo-info__level,
+.mo-info__id {
+  background: var(--lazu-surface-muted);
+  border-radius: 7px;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+.mo-info__param {
+  border: 1px dashed var(--lazu-border-strong);
+  border-radius: 999px;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  padding: 1px 9px;
+}
+
+.mo-info__conflict {
+  align-items: flex-start;
+  background: var(--lazu-surface-raised);
+  border: 1px solid var(--lazu-border);
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  margin: 2px 0 10px;
+  padding: 14px 16px;
+}
+
+.mo-info__conflict > svg {
+  color: var(--lazu-warning);
+  flex: none;
+  margin-top: 2px;
+}
+
+.mo-info__conflict b {
+  color: var(--lazu-warning-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mo-info__conflict p {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 4px 0 0;
+}
+
+.mo-info__conflict-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mo-info__lock {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 16px 0 4px;
+}
+
+.mo-info__lock > span {
+  display: grid;
+  gap: 4px;
+}
+
+.mo-info__lock b {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mo-info__lock > span > span {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* A missing date needs one direct action, even on a narrow screen. */
+.mo-updates__row--missing-date {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.mo-updates__row--missing-date > span {
+  overflow-wrap: anywhere;
+}
+
+/* ── Observation ───────────────────────────────────────────────────────────
+   A source whose routes are all still being watched: the row is tinted a
+   shade under selection, its sub-line counts the days, and the record's
+   second line lists the three daily checks instead of traffic figures. */
+.mo-ledger__row.is-observing {
+  background: color-mix(in srgb, var(--lazu-surface-selected) 45%, transparent);
+}
+
+.mo-ledger__row.is-observing:hover {
+  background: var(--lazu-surface-muted);
+}
+
+.mo-ledger__row.is-observing.is-selected {
+  background: var(--lazu-surface-selected);
+}
+
+.mo-sub__days {
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.mo-observe-checks b {
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+.mo-observe-checks__bad {
+  color: var(--lazu-danger);
+  font-weight: 500;
+}
+
+.mo-dot--observing {
+  background: var(--lazu-evidence);
+}
+
+.mo-observe-chip {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: var(--lazu-health-meta-text);
+  font-weight: 500;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.mo-observe-chip .mo-dot {
+  height: 6px;
+  width: 6px;
+}
+
+/* 上线为备用 before the watch has passed: it stays focusable so its reason can
+   be read, and looks like any disabled control. */
+.lazu-button.mo-golive-inert,
+.lazu-button.mo-golive-inert:hover {
+  background: var(--lazu-surface);
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+/* The reason a source cannot go live yet sits on ink, like the health bars'
+   tip it is read beside. */
+.lazu-tooltip-content.mo-ink-tip {
+  background: var(--lazu-ink);
+  border-color: transparent;
+  box-shadow: var(--lazu-shadow-overlay);
+  color: var(--lazu-surface-solid);
+  max-width: 248px;
+  padding: 10px 12px;
+}
+
+.mo-ink-tip__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.5;
+}
+
+.mo-ink-tip__body b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mo-ink-tip__body span {
+  color: color-mix(in srgb, var(--lazu-surface-solid) 78%, transparent);
+  font-size: 12px;
+}
+
+/* The go-live confirmation: the facts the watch passed on, in a small
+   dialog with no rules between its parts. Same selector shape as the
+   console's modal defaults (console-review.css) so it outranks them. */
+body:has(.console-review)
+  .lazu-modal-content.mo-golive-dialog:not(.whats-new-panel):not(
+    .lazu-modal-content--wide
+  ):not(.lazu-modal-content--xwide) {
+  width: min(440px, calc(100vw - 32px));
+}
+
+body:has(.console-review)
+  .lazu-modal-content.mo-golive-dialog:not(.whats-new-panel)
+  .lazu-modal-header {
+  border-bottom: 0;
+  padding: 22px 24px 0;
+}
+
+body:has(.console-review)
+  .lazu-modal-content.mo-golive-dialog:not(.whats-new-panel)
+  .lazu-modal-body {
+  padding: 14px 24px 4px;
+}
+
+body:has(.console-review)
+  .lazu-modal-content.mo-golive-dialog:not(.whats-new-panel)
+  .lazu-modal-footer {
+  border-top: 0;
+  padding: 10px 24px 22px;
+}
+
+.mo-golive-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.mo-golive-rows__row {
+  align-items: baseline;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.mo-golive-rows__row:first-child {
+  border-top: 0;
+}
+
+.mo-golive-rows__row dt {
+  color: var(--lazu-ink);
+}
+
+.mo-golive-rows__row dd {
+  color: var(--lazu-success);
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.mo-form__switch-note {
+  flex-basis: 100%;
+  margin-top: -8px;
+}
+
+/* A row's sub-line stays on one line; with the inspector open the column
+   narrows and its tail is what gives way. */
+.mo-sub--line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A watched source carries a third line naming which models passed and which
+   hold it back, so its row is a little taller than a live one. */
+.mo-ledger__row.is-observing {
+  height: 84px;
+}
+
+/* Two lines at most: the names are the point of the line, so it wraps
+   rather than cutting the third model off at the column edge. */
+.mo-obs-line {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--lazu-text-muted);
+  display: -webkit-box;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 3px;
+  overflow: hidden;
+}
+
+.mo-obs-line__part.is-ok {
+  color: var(--lazu-success);
+  font-weight: 600;
+}
+
+.mo-obs-line__part.is-bad {
+  color: var(--lazu-danger);
+}
+
+.mo-sub .mo-obs-link {
+  font-size: inherit;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  vertical-align: baseline;
+}
+
+.mo-risk-line {
+  align-items: center;
+  color: var(--lazu-warning-strong);
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 500;
+  gap: 5px;
+  white-space: nowrap;
+}

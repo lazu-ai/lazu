@@ -1,0 +1,44 @@
+/* 平台设置 › 接入地址: one row per address — address, type, who may use it. */
+.set-addr {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 22px 20px;
+}
+
+.set-addr__row {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 160px 110px 28px;
+}
+
+.set-addr__url input,
+input.set-addr__url {
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+}
+
+.set-addr__tail {
+  color: var(--lazu-text-faint);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.set-addr__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .set-addr__row {
+    grid-template-columns: minmax(0, 1fr) 28px;
+  }
+
+  .set-addr__row > :nth-child(2),
+  .set-addr__row > :nth-child(3) {
+    grid-column: 1;
+  }
+}

@@ -1,0 +1,274 @@
+/* Console top bar — where you are, and the controls that belong to no page.
+ *
+ * No background and no bottom rule: the page head's tab line below is the
+ * console's only horizontal rule, and a second one directly above it would
+ * box the head in. The bar is 52px so the project switcher's 30px trigger has
+ * 11px of air on each side. */
+
+.console-topbar {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  gap: 16px;
+  height: 52px;
+  justify-content: space-between;
+  padding: 0 4px 0 0;
+}
+
+.console-topbar__where {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.console-topbar__sep {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.console-topbar__section {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.console-topbar__section:hover {
+  color: var(--lazu-ink);
+}
+
+/* ── Tools ───────────────────────────────────────────────────────────── */
+
+.console-topbar__tools {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.console-topbar__tool {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  transition:
+    background-color var(--lazu-motion-fast) var(--lazu-ease-direct),
+    color var(--lazu-motion-fast) var(--lazu-ease-direct);
+  width: 32px;
+}
+
+.console-topbar__tool:hover,
+.console-topbar__tool[data-popup-open] {
+  background: var(--lazu-surface-muted);
+  color: var(--lazu-ink);
+}
+
+.console-topbar__tool:focus-visible,
+.console-topbar__avatar:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+/* Unread announcements. The dot expands once when it appears rather than
+   blinking: a gateway console is read all day, and a permanent blink is a
+   thing people learn to stop seeing. */
+.console-topbar__unread {
+  animation: console-topbar-ping 2.4s var(--lazu-ease-direct) 1;
+  background: var(--lazu-evidence);
+  border-radius: var(--lazu-radius-pill);
+  height: 6px;
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 6px;
+}
+
+@keyframes console-topbar-ping {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+
+  20% {
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--lazu-evidence) 45%, transparent);
+  }
+
+  55% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.console-topbar__divider {
+  background: var(--lazu-border);
+  height: 18px;
+  margin: 0 8px 0 6px;
+  width: 1px;
+}
+
+.console-topbar__avatar {
+  align-items: center;
+  background: var(--lazu-action);
+  border: 0;
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-on-action);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+/* ── Menus ───────────────────────────────────────────────────────────── */
+
+.console-topbar__menu.lazu-dropdown-content {
+  min-width: 180px;
+  padding: 6px;
+}
+
+.console-topbar__item.lazu-dropdown-item {
+  align-items: center;
+  border-radius: 10px;
+  display: flex;
+  font-size: 12.5px;
+  gap: 10px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+/* The label takes the row; only a trailing meta (a language code, the build
+   number) sits against the right edge. */
+.console-topbar__item.lazu-dropdown-item > span {
+  flex: 1;
+}
+
+.console-topbar__item.lazu-dropdown-item > .console-topbar__item-meta,
+.console-topbar__item.lazu-dropdown-item > .console-topbar__version {
+  flex: none;
+}
+
+.console-topbar__item.lazu-dropdown-item svg {
+  color: var(--lazu-text-faint);
+  flex: none;
+}
+
+.console-topbar__item--quiet.lazu-dropdown-item,
+.console-topbar__item-meta {
+  color: var(--lazu-text-muted);
+}
+
+.console-topbar__item--danger.lazu-dropdown-item {
+  color: var(--lazu-danger);
+}
+
+.console-topbar__item--danger.lazu-dropdown-item svg {
+  color: currentcolor;
+}
+
+.console-topbar__item--danger.lazu-dropdown-item[data-highlighted] {
+  background: var(--lazu-danger-soft);
+}
+
+.console-topbar__item-meta,
+.console-topbar__version {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+}
+
+/* Upstream notice required by the upstream project's license terms; kept verbatim. */
+.console-topbar__attribution {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0 10px 6px;
+  max-width: 220px;
+}
+
+.console-topbar__rule {
+  background: var(--lazu-border);
+  height: 1px;
+  margin: 4px 6px;
+}
+
+.console-topbar__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px 8px;
+}
+
+.console-topbar__who b {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.console-topbar__who small {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console-topbar__tool {
+    transition: none;
+  }
+
+  .console-topbar__unread {
+    animation: none;
+  }
+}
+
+/* The mobile console has its own top chrome; this bar is desktop-only. */
+@media (max-width: 767px) {
+  .console-topbar {
+    display: none;
+  }
+}
+
+.console-topbar__tool--labelled {
+  width: auto;
+  gap: var(--lazu-space-2);
+  padding-inline: var(--lazu-space-2);
+  font-size: var(--lazu-row-label);
+}
+
+/* Keep all tool labels at intermediate desktop widths by giving the location
+   its own row. The mobile chrome takes over below 768px. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .console-topbar {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    gap: var(--lazu-space-2);
+    padding-block: var(--lazu-space-2);
+  }
+
+  .console-topbar > nav {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .console-topbar__tools {
+    margin-left: auto;
+  }
+
+  .console-topbar__section {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

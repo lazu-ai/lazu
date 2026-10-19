@@ -1,0 +1,106 @@
+---
+title: "Files API：Responses API 用に PDF・画像をアップロード"
+description: PDF、画像、documents を upload し、Responses API から file_id で参照する。
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="エンドポイント / Storage"
+  method="POST"
+  path="/v1/files"
+  sendable={false}
+  title="Files API"
+  description="documents と images を一度 upload し、Responses API から file_id で参照できます。OpenAI-compatible に寄せつつ、Lazu の retention と purpose rules を明示します。"
+  aside={
+    <EndpointRail
+      endpoint="files"
+      extra={
+        <MiniCard title="Retention">
+          ファイルは 30 日間保存されます。保存は無料で、1 アカウントあたり同時に
+          10 GB まで保存できます。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## File endpoints
+
+| Method | Path                    | Purpose        |
+| ------ | ----------------------- | -------------- |
+| POST   | `/v1/files`             | Upload         |
+| GET    | `/v1/files`             | List           |
+| GET    | `/v1/files/:id`         | Metadata       |
+| GET    | `/v1/files/:id/content` | Download bytes |
+| DELETE | `/v1/files/:id`         | Delete         |
+
+すべて <code>Authorization: Bearer $LAZU_API_KEY</code> を使います。
+
+## Upload request
+
+<FieldList>
+  <Field name="purpose" type="string" required values={["user_data", "vision"]}>
+    file の用途。
+  </Field>
+  <Field name="file" type="multipart file" required>
+    upload する file bytes。
+  </Field>
+</FieldList>
+
+## Supported purposes
+
+<EndpointGrid>
+  <EndpointTile title="user_data">
+    最大 512 MB。PDF、text、structured data を Responses の
+    <code>input_file</code> として渡す用途。
+  </EndpointTile>
+  <EndpointTile title="vision">
+    最大 20 MB。<code>image/png</code>、<code>image/jpeg</code>、
+    <code>image/gif</code>、<code>image/webp</code> を許可。
+  </EndpointTile>
+</EndpointGrid>
+
+OpenAI の <code>batch</code>、<code>fine-tune</code>、<code>assistants</code>
+purposes はまだ support していません。実行ファイル拡張子は purpose に関係なく拒否します。
+
+## Upload response
+
+<FieldList>
+  <Field name="id" type="string">
+    File ID。例：<code>file-lazu-01KSBV4MC6THZ9TCZEM38KPYRX</code>。
+  </Field>
+  <Field name="object" type="string">
+    常に <code>file</code>。
+  </Field>
+  <Field name="bytes" type="integer">
+    upload byte size。
+  </Field>
+  <Field name="filename" type="string">
+    original filename。
+  </Field>
+  <Field name="purpose" type="string">
+    stored purpose。
+  </Field>
+  <Field name="status" type="string">
+    通常 <code>processed</code>。
+  </Field>
+</FieldList>
+
+成功時は <code>201 Created</code> を返します。client SDK が 200 のみを想定している場合は
+201 を success として扱ってください。
+
+## Responses から参照する
+
+Lazu は [Responses](/ja/endpoints/responses) でのみ <code>file_id</code>
+を dereference します。Chat completions は file content を自動取得しません。
+
+</EndpointPage>

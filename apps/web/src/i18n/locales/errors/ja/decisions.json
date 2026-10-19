@@ -1,0 +1,11 @@
+{
+  "missing_questions": "questions を指定するか、質問の自動生成を有効にしてください。",
+  "invalid_decision_state": "テキスト、JSON、または埋め込み画像を指定してください。",
+  "invalid_decision_questions": "判定の質問形式が正しくありません。",
+  "unsupported_question_type": "この質問形式には対応していません。",
+  "unsupported_decision_input": "この判定モデルは入力形式に対応していません。",
+  "unsupported_decision_parameter": "このパラメーターには対応していません。判定はストリーミングできません。",
+  "question_generation_failed": "生成された質問の検証に失敗しました。生成料金は返金されます。",
+  "upstream_decision_invalid": "判定モデルの応答形式が正しくありません。",
+  "upstream_capacity": "上流の処理容量に達しました。指定時間後に再試行してください。"
+}

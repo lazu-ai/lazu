@@ -1,0 +1,458 @@
+/* 专属折扣 — the plan list and its editor. The list reuses the ledger rows in
+ * ledger.css; the editor is two columns of cards over one save bar. */
+
+.pp-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* A plan row carries its note under the name, so it is taller than a model
+   row; the height is still fixed so a pending row measures the same. */
+.pp-ledger {
+  --row-h: 58px;
+}
+
+.pp-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mo-ledger__row > span.pp-row__name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pp-row__name b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-row__name small {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-row--pending {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  height: var(--row-h);
+  padding: 0 16px;
+}
+
+.pp-row--pending:last-of-type {
+  border-bottom: 0;
+}
+
+.pp-row--pending > * {
+  width: 100%;
+}
+
+.pp-empty,
+.pp-none {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  padding: 16px 18px;
+}
+
+.pp-none {
+  border-top: 1px solid var(--lazu-border);
+}
+
+/* ---- editor ------------------------------------------------------------ */
+
+.pp-back {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 13px;
+  gap: 4px;
+  text-decoration: none;
+}
+
+.pp-back:hover {
+  color: var(--lazu-text);
+}
+
+.pp-grid {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.pp-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.pp-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  min-width: 0;
+  overflow: clip;
+}
+
+.pp-card__head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-height: 30px;
+  padding: 12px 18px;
+}
+
+.pp-card__head b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pp-card__action {
+  margin-left: auto;
+}
+
+.pp-basics {
+  display: grid;
+  gap: 16px 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 18px 20px;
+}
+
+.pp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pp-field > span:first-child {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.pp-dates {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The picker's own trigger is 210px wide; two of them and 至 must fit half
+   the card. */
+.pp-dates {
+  flex-wrap: nowrap;
+}
+
+.pp-dates .lazu-date-trigger {
+  font-size: 13px;
+  min-width: 0;
+  padding: 0 10px;
+  width: 128px;
+}
+
+.pp-title {
+  align-items: center;
+  display: inline-flex;
+  gap: 12px;
+}
+
+.pp-title .lazu-badge {
+  font-family: var(--lazu-font-sans);
+}
+
+.pp-error {
+  color: var(--lazu-danger);
+  font-size: 12px;
+}
+
+.pp-rules__error {
+  display: block;
+  padding: 0 18px 12px;
+}
+
+/* − [ N ] % */
+.pp-pct {
+  align-items: center;
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  gap: 6px;
+}
+
+.pp-pct input {
+  font-family: var(--lazu-font-mono);
+  text-align: right;
+}
+
+.pp-pct--md input {
+  width: 96px;
+}
+
+.pp-pct--sm input {
+  width: 72px;
+}
+
+.pp-rule {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  font-size: 13px;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 130px 140px 60px;
+  min-height: 48px;
+  padding: 6px 18px;
+}
+
+.pp-rule > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-rule--head {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  min-height: 34px;
+}
+
+.pp-rule__end {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pp-mono {
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+}
+
+.pp-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  min-width: 260px;
+  overflow: auto;
+}
+
+.pp-picker__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-picker__option {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.pp-picker__option small {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+/* ---- members ----------------------------------------------------------- */
+
+.pp-members {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 18px 10px;
+}
+
+.pp-members .pp-card__head {
+  padding: 10px 0 8px;
+}
+
+.pp-members > .mo-sub {
+  margin: 0 0 8px;
+}
+
+.pp-search {
+  align-items: center;
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-faint);
+  display: flex;
+  gap: 8px;
+  height: 34px;
+  margin-bottom: 6px;
+  padding: 0 10px;
+}
+
+.pp-search:focus-within {
+  box-shadow: var(--ui-focus-ring);
+}
+
+.pp-search input {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-text);
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  min-width: 0;
+  outline: none;
+}
+
+.pp-results {
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  margin-bottom: 8px;
+  padding: 0 10px;
+}
+
+.pp-results .pp-member:first-child {
+  border-top: 0;
+}
+
+.pp-member {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  font-size: 13px;
+  gap: 10px;
+  min-height: 46px;
+}
+
+.pp-member__avatar {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-pill);
+  display: inline-flex;
+  flex: none;
+  font-size: 11px;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.pp-member__who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pp-member__who > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-member__who small {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+/* ---- preview ----------------------------------------------------------- */
+
+.pp-preview {
+  padding: 0 18px 8px;
+}
+
+.pp-preview .pp-card__head {
+  padding: 12px 0 6px;
+}
+
+.pp-prow {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  font-size: 13px;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 80px 80px;
+  min-height: 44px;
+}
+
+.pp-prow > :not(:first-child) {
+  text-align: right;
+}
+
+.pp-prow > b {
+  font-weight: 500;
+}
+
+.pp-prow--head {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  min-height: 30px;
+}
+
+.pp-prow__model {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pp-prow__model > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-prow__model small,
+.pp-prow__official {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.pp-preview .pp-none {
+  padding: 12px 0 4px;
+}
+
+/* ---- save bar ---------------------------------------------------------- */
+
+.pp-savebar {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  bottom: 16px;
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 18px;
+  position: sticky;
+  z-index: 4;
+}
+
+.pp-savebar > .mo-sub {
+  flex: 1;
+}
+
+@media (max-width: 1100px) {
+  .pp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .pp-basics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pp-rule {
+    grid-template-columns: minmax(0, 1fr) 110px 56px;
+  }
+
+  .pp-rule > span:nth-child(3) {
+    display: none;
+  }
+
+  .pp-ledger {
+    overflow-x: auto;
+  }
+
+  .pp-ledger > * {
+    min-width: 900px;
+  }
+}

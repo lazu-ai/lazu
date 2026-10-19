@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+<style>
+.m-mbars{display:none}
+@media only screen and (max-width:600px){.m-shell{width:100%!important}.m-head{padding:36px 28px 44px!important}.m-body{padding:36px 28px 40px!important}.m-hero{font-size:72px!important}.m-hero-long{font-size:54px!important}.m-logo{width:74px!important;height:26px!important}.m-gap{height:56px!important}.m-cell{display:block!important;width:100%!important;padding:14px 0!important;border-left:0!important;border-bottom:1px solid #e5e5e3!important}.m-dbars{display:none!important}.m-mbars{display:block!important}.m-act{display:block!important;width:100%!important;box-sizing:border-box!important}.m-acts{width:100%!important}.m-delta{display:block!important;padding:8px 0 0!important}}
+@media (prefers-color-scheme:dark){body,.m-ground{background:#171718!important}.m-head,.m-btn{background:#2c2c2f!important}.m-body{background:#232325!important;border-color:#414145!important}.m-hero,.m-ink{color:#f1f1f2!important}.m-copy{color:#d0d0d2!important}.m-muted{color:#a4a4a7!important}.m-btn{background:#f1f1f2!important}.m-btn a{color:#1a1a1b!important}.m-link{color:#9fb6f7!important}.m-line{border-color:#414145!important}.m-cur{background:#f1f1f2!important}.m-prev{background:#55555a!important}.m-soft{background:#2c2c2f!important}.m-runcell{border-color:#232325!important}.m-runoff{background:#414145!important}}
+</style>
+</head>
+<body style="margin:0;padding:0;background:#f2f2ef;">
+<span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">{{.Preheader}}</span>
+<table role="presentation" class="m-ground" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f2f2ef" style="background:#f2f2ef;"><tr><td align="center" style="padding:32px 16px 40px;">
+<table role="presentation" class="m-shell" width="640" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;border-collapse:separate;">
+
+<tr><td class="m-head" bgcolor="#202329" style="background:#202329;padding:48px 64px 56px;border-radius:16px 16px 0 0;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+<td valign="middle" style="width:50%;"><img class="m-logo" src="{{.LogoURL}}" alt="Lazu" width="85" height="30" style="display:block;width:85px;height:30px;border:0;"></td>
+<td valign="middle" align="right" style="font:11px/1.3 'IBM Plex Mono','SFMono-Regular',Menlo,Consolas,'Courier New',monospace;letter-spacing:0.16em;color:#b5b5b5;">{{.Eyebrow}}</td>
+</tr></table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="m-gap" height="72" style="height:72px;font-size:1px;line-height:1px;">&nbsp;</td></tr></table>
+<div style="font:14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif;color:#9d9d9d;">{{.HeroLabel}}</div>
+<div class="m-hero{{if .LongHero}} m-hero-long{{end}}" style="padding-top:8px;font:400 {{if .CompactHero}}72px{{else}}96px{{end}}/1 Georgia,'Times New Roman',serif;letter-spacing:-0.01em;color:#fbfaf7;">{{.Hero}}</div>
+{{- if .HeroDelta}}<div style="padding-top:12px;font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif;color:#c5c5c5;">{{.HeroDelta}}</div>{{end}}
+{{- if .HeroLine}}<div style="padding-top:14px;font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif;color:#c5c5c5;">{{.HeroLine}}</div>{{end}}
+</td></tr>
+
+<tr><td class="m-body" bgcolor="#fdfdfc" style="background:#fdfdfc;padding:48px 64px 56px;border:1px solid #e5e5e3;border-top:0;border-radius:0 0 16px 16px;">
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="m-line" style="border-top:1px solid #23262d;border-bottom:1px solid #e5e5e3;"><tr>
+<td class="m-cell" valign="top" width="{{if .Saving.Value}}34{{else}}50{{end}}%" style="width:{{if .Saving.Value}}34{{else}}50{{end}}%;padding:18px 16px 18px 0;">
+<div class="m-muted" style="font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.Wallet.Label}}</div>
+<div class="m-ink" style="padding-top:6px;font:500 22px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.Wallet.Value}}</div>
+{{- if .Runway}}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:8px;"><tr>{{range .Runway}}<td class="m-runcell{{if eq . "#e4e3df"}} m-runoff{{end}}" height="6" bgcolor="{{.}}" style="height:6px;background:{{.}};font-size:1px;line-height:1px;border-right:2px solid #fdfdfc;">&nbsp;</td>{{end}}</tr></table>{{end}}
+<div style="padding-top:6px;font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:{{.Wallet.NoteColor}};">{{.Wallet.Note}}{{if .Wallet.LinkURL}} · <a class="m-link" href="{{.Wallet.LinkURL}}" style="color:#4a66bd;text-decoration:none;">{{.Wallet.LinkLabel}}</a>{{end}}</div>
+</td>
+{{- if .Saving.Value}}
+<td class="m-cell m-line" valign="top" width="33%" style="width:33%;padding:18px 16px;border-left:1px solid #e5e5e3;">
+<div class="m-muted" style="font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.Saving.Label}}</div>
+<div style="padding-top:6px;font:500 22px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:{{.Saving.ValueColor}};">{{.Saving.Value}}</div>
+<div class="m-muted" style="padding-top:6px;font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.Saving.Note}}</div>
+</td>
+{{- end}}
+<td class="m-cell m-line" valign="top" width="{{if .Saving.Value}}33{{else}}50{{end}}%" style="width:{{if .Saving.Value}}33{{else}}50{{end}}%;padding:18px 0 18px 16px;border-left:1px solid #e5e5e3;">
+<div class="m-muted" style="font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.Success.Label}}</div>
+<div class="m-ink" style="padding-top:6px;font:500 22px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.Success.Value}}</div>
+{{- if .Success.Note}}<div class="m-muted" style="padding-top:6px;font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.Success.Note}}</div>{{end}}
+</td>
+</tr></table>
+
+<div style="height:44px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+<td class="m-ink" style="font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.ChartTitle}}</td>
+<td align="right" class="m-muted" style="font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.PeakNote}}</td>
+</tr></table>
+<div style="height:12px;font-size:1px;line-height:1px;">&nbsp;</div>
+<img src="{{.ChartURL}}" alt="{{.ChartAlt}}" width="512" height="200" style="display:block;width:100%;max-width:512px;height:auto;border:0;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:512px;"><tr>{{range .AxisLabels}}<td align="{{.Align}}" class="m-muted" style="padding-top:8px;font:11px/1.4 'IBM Plex Mono','SFMono-Regular',Menlo,Consolas,monospace;color:#696d75;">{{.Text}}</td>{{end}}</tr></table>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:10px;"><tr>
+<td style="padding-right:6px;"><div class="m-cur" style="width:14px;height:2px;background:#23262d;font-size:1px;line-height:1px;">&nbsp;</div></td><td class="m-muted" style="padding-right:16px;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.LegendSpend}}</td>
+{{if .LegendCompare}}<td style="padding-right:6px;"><div style="width:14px;height:0;border-top:2px dashed #8b9099;font-size:1px;line-height:1px;">&nbsp;</div></td><td class="m-muted" style="padding-right:16px;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.LegendCompare}}</td>{{end}}
+<td style="padding-right:6px;"><div class="m-prev" style="width:8px;height:10px;background:#dcdcd7;font-size:1px;line-height:1px;">&nbsp;</div></td><td class="m-muted" style="font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">Tokens</td>
+</tr></table>
+
+<div style="height:44px;font-size:1px;line-height:1px;">&nbsp;</div>
+<div class="m-ink" style="font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.CompareTitle}}</div>
+<div style="height:12px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr><td class="m-line" style="padding:0 0 8px;border-bottom:1px solid #23262d;"></td>
+<td align="right" class="m-muted m-line" style="padding:0 0 8px 12px;border-bottom:1px solid #23262d;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;white-space:nowrap;">{{.ColPrev}}</td>
+<td align="right" class="m-muted m-line" style="padding:0 0 8px 12px;border-bottom:1px solid #23262d;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;white-space:nowrap;">{{.ColCur}}</td>
+<td align="right" class="m-muted m-line" style="padding:0 0 8px 12px;border-bottom:1px solid #23262d;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;white-space:nowrap;">{{.ColDelta}}</td></tr>
+{{- range .Metrics}}
+<tr><td class="m-ink m-line" style="padding:11px 0;border-bottom:1px solid #ecebe7;font:14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.Label}}</td>
+<td align="right" class="m-muted m-line" style="padding:11px 0 11px 12px;border-bottom:1px solid #ecebe7;font:14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#696d75;white-space:nowrap;">{{.Prev}}</td>
+<td align="right" class="m-ink m-line" style="padding:11px 0 11px 12px;border-bottom:1px solid #ecebe7;font:500 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;white-space:nowrap;">{{.Cur}}</td>
+<td align="right" class="m-line{{if eq .Color "#22242a"}} m-ink{{end}}" style="padding:11px 0 11px 12px;border-bottom:1px solid #ecebe7;font:14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:{{.Color}};white-space:nowrap;">{{.Delta}}</td></tr>
+{{- end}}
+</table>
+
+{{- if .Models}}
+<div style="height:44px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+<td class="m-ink" style="font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.ModelsTitle}}</td>
+<td align="right"><table role="presentation" cellspacing="0" cellpadding="0" border="0" align="right"><tr>
+<td style="padding-right:6px;"><div class="m-prev" style="width:10px;height:6px;background:#dcdcd7;font-size:1px;line-height:1px;">&nbsp;</div></td><td class="m-muted" style="padding-right:14px;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.ColPrev}}</td>
+<td style="padding-right:6px;"><div class="m-cur" style="width:10px;height:6px;background:#23262d;font-size:1px;line-height:1px;">&nbsp;</div></td><td class="m-muted" style="font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.ColCur}}</td>
+</tr></table></td></tr></table>
+<div style="height:4px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+{{- range .Models}}
+<tr>
+<td valign="middle" class="m-line" width="176" style="padding:11px 14px 11px 0;border-bottom:1px solid #ecebe7;width:176px;min-width:140px;">
+<div class="m-ink" style="font:{{if .Mono}}12.5px/1.4 'IBM Plex Mono','SFMono-Regular',Menlo,Consolas,monospace{{else}}13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif{{end}};color:#22242a;word-break:break-all;">{{.Name}}</div>
+{{- if .Tag}}<div class="m-muted" style="padding-top:3px;font:11px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.Tag}}</div>{{end}}
+<div class="m-mbars" style="padding-top:6px;">{{template "bars" .}}</div>
+</td>
+<td valign="middle" class="m-dbars m-line" width="100%" style="width:100%;padding:11px 14px 11px 0;border-bottom:1px solid #ecebe7;">{{template "bars" .}}</td>
+<td align="right" valign="middle" class="m-ink m-line" style="padding:11px 0 11px 8px;border-bottom:1px solid #ecebe7;font:500 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;white-space:nowrap;">{{.Cost}}</td>
+<td align="right" valign="middle" class="m-muted m-line" style="padding:11px 0 11px 12px;border-bottom:1px solid #ecebe7;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;white-space:nowrap;">{{.Delta}}</td>
+</tr>
+{{- end}}
+</table>
+{{- end}}
+
+{{- if .Sources}}
+<div style="height:44px;font-size:1px;line-height:1px;">&nbsp;</div>
+<div class="m-ink" style="font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.SourcesTitle}}</div>
+<div style="height:4px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+{{- range .Sources}}
+<tr><td class="m-ink m-line" style="padding:11px 0;border-bottom:1px solid #ecebe7;font:14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.Name}}<div class="m-mbars m-muted" style="padding-top:2px;font-size:12px;color:#5f646d;">{{.Count}}</div></td>
+<td align="right" class="m-dbars m-muted m-line" style="padding:11px 0 11px 12px;border-bottom:1px solid #ecebe7;font:13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;white-space:nowrap;">{{.Count}}</td>
+<td align="right" class="m-ink m-line" style="padding:11px 0 11px 12px;border-bottom:1px solid #ecebe7;font:500 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;white-space:nowrap;">{{.Cost}}</td>
+<td align="right" class="m-muted m-line" style="padding:11px 0 11px 12px;border-bottom:1px solid #ecebe7;font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;white-space:nowrap;">{{.Delta}}</td></tr>
+{{- end}}
+</table>
+{{- end}}
+
+{{- if .LastWeek}}
+<div style="height:44px;font-size:1px;line-height:1px;">&nbsp;</div>
+<div class="m-ink" style="font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.LastWeek.Title}}</div>
+<div class="m-copy" style="padding-top:8px;font:14px/1.7 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#3e4552;">{{.LastWeek.Text}}</div>
+{{- end}}
+
+{{- if .Launches}}
+<div style="height:44px;font-size:1px;line-height:1px;">&nbsp;</div>
+<div class="m-ink" style="font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#22242a;">{{.LaunchesTitle}}</div>
+{{- range .Launches}}
+<div style="height:10px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="m-soft" bgcolor="#f6f6f3" style="background:#f6f6f3;border-radius:10px;padding:14px 16px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+<td valign="top"><div class="m-ink" style="font:500 13px/1.4 'IBM Plex Mono','SFMono-Regular',Menlo,Consolas,monospace;color:#22242a;">{{.Name}}</div><div class="m-muted" style="padding-top:4px;font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.Text}}</div></td>
+<td valign="top" align="right" style="padding-left:12px;white-space:nowrap;"><a class="m-link" href="{{.URL}}" style="font:13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#4a66bd;text-decoration:none;">{{.LinkLabel}} →</a></td>
+</tr></table></td></tr></table>
+{{- end}}
+{{- end}}
+
+<div style="height:44px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" class="m-acts" cellspacing="0" cellpadding="0" border="0"><tr>
+<td class="m-act m-btn" align="center" bgcolor="#202329" style="background:#202329;border-radius:10px;height:48px;"><a href="{{.ActionURL}}" style="display:block;padding:14px 28px;font:500 15px/20px -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#f2f3f5;text-decoration:none;">{{.ActionLabel}}</a></td>
+</tr></table>
+
+</td></tr>
+<tr><td style="padding:20px 8px 0;">
+<div class="m-muted" style="font:12px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#5f646d;">{{.FooterNote}}<br>{{if .OptOutURL}}{{.OptOutLead}}<a class="m-link" href="{{.OptOutURL}}" style="color:#4a66bd;text-decoration:none;">{{.OptOutLabel}}</a>{{.OptOutTail}} · {{end}}<a class="m-link" href="{{.SettingsURL}}" style="color:#4a66bd;text-decoration:none;">{{.SettingsLabel}}</a></div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:10px;"><tr>
+<td class="m-muted" style="font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;color:#696d75;">Lazu.ai</td>
+<td align="right" style="font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',Arial,sans-serif;"><a class="m-muted" href="mailto:support@lazu.ai" style="color:#5f646d;text-decoration:none;">{{.SupportLabel}}</a></td>
+</tr></table></td></tr>
+</table></td></tr></table>
+</body></html>
+{{- define "bars"}}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="m-prev" height="5" width="{{.PrevPct}}%" bgcolor="#dcdcd7" style="width:{{.PrevPct}}%;height:5px;background:#dcdcd7;font-size:1px;line-height:1px;">&nbsp;</td><td style="font-size:1px;line-height:1px;">&nbsp;</td></tr></table>
+<div style="height:3px;font-size:1px;line-height:1px;">&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="m-cur" height="5" width="{{.CurPct}}%" bgcolor="#23262d" style="width:{{.CurPct}}%;height:5px;background:#23262d;font-size:1px;line-height:1px;">&nbsp;</td><td style="font-size:1px;line-height:1px;">&nbsp;</td></tr></table>
+{{- end}}

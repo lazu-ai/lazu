@@ -1,0 +1,20 @@
+{
+  "channel_not_found": "这个渠道已不存在，可能已被删除。请刷新列表。",
+  "channel_search_backend_managed": "这个渠道是检索后端，不能在这里修改。请到「检索后端」页面管理。",
+  "channel_lane_invalid": "档位「{{lane}}」不存在。每个渠道只属于一个已有档位，请从列表中选择。",
+  "channel_settings_invalid": "渠道额外设置无法解析，没有保存。请检查 JSON 格式和取值。",
+  "channel_model_name_too_long": "有模型名称超过 255 个字符，渠道没有保存。请缩短或删除它。",
+  "channel_not_multi_key": "这个渠道只有一个密钥，不能逐个管理密钥。",
+  "channel_key_index_invalid": "这个密钥已不在渠道里。请刷新密钥列表后再试。",
+  "channel_last_key": "这是渠道的最后一个密钥，不能删除。请先添加其他密钥，或直接删除渠道。",
+  "channel_keys_none_eligible": "没有符合这个操作的密钥，渠道没有变化。",
+  "channel_balance_unsupported": "这类渠道或多密钥渠道不支持查询余额。",
+  "channel_balance_query_failed": "上游没有返回余额。请检查渠道密钥和地址后再试。",
+  "channel_upstream_models_failed": "上游没有返回模型列表。请检查密钥和地址，或手动填写模型。",
+  "channel_task_running": "同类维护任务正在运行，这次没有启动。请等它完成后再试。",
+  "channel_test_failed": "渠道测试没有通过，上游返回了错误。请检查密钥、地址和测试模型后再测一次。",
+  "channel_test_not_sent": "无法为这个渠道构造测试请求，没有发往上游。请检查渠道类型、模型映射和定价。",
+  "channel_route_not_found": "这个渠道没有在该档位下服务这个模型。请刷新页面查看最新线路。",
+  "route_observation_incomplete": "这个来源还在观察期。满 7 天且各项检查都通过后才能上线。",
+  "route_observation_none": "这个来源没有观察中的模型。请刷新页面查看最新状态。"
+}

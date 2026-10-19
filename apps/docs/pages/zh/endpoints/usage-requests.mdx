@@ -1,0 +1,88 @@
+---
+title: "请求详情 API：单次请求的用量、费用与耗时"
+description: "按请求 ID 查询单次请求：标准化的 token 用量、实际扣费、缓存字段和公开耗时。"
+---
+
+import {
+  CodeSample,
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="接口 / Usage"
+  method="GET"
+  path="/api/usage/requests/{request_id}"
+  sendable={false}
+  title="请求详情"
+  description="查询已完成请求的客户凭据，包含标准化用量维度、计费明细和公开耗时。"
+  aside={
+    <EndpointRail
+      endpoint="usage-requests"
+      extra={
+        <MiniCard title="request_id 来源">
+          使用响应头 <code>X-Lazu-Request-Id</code>、错误响应里的
+          <code>request_id</code>，或 gateway response request ID。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 路径参数
+
+<FieldList>
+  <Field name="request_id" type="string" required>
+    同一个 API key 发起的请求 ID。Lazu 不允许读取其它 key 的请求详情。
+  </Field>
+</FieldList>
+
+## 响应字段
+
+<FieldList>
+  <Field name="id" type="string">
+    请求 ID。
+  </Field>
+  <Field name="model" type="string">
+    用户请求的模型或 route 名称。
+  </Field>
+  <Field name="usage.measurement" type="object" nullable>
+    分别表示输入和输出用量来源：`provider`（上游上报）、`local_estimate`（本地估算）、`unavailable`（无法确定）。历史或未分类记录可能没有该字段，缺省不能视为上游实测。
+  </Field>
+  <Field name="usage.dimensions" type="object[]">
+    标准化 usage 维度，例如 <code>input</code>、<code>output</code>、
+    <code>cache_read</code>、<code>cache_write_5m</code>、
+    <code>cache_write_1h</code>、<code>cache_miss</code>、audio/image 维度等。
+  </Field>
+  <Field name="billing.line_items" type="object[]">
+    计费明细。
+  </Field>
+  <Field name="routing" type="object" nullable>
+    仅返回公开状态和耗时，不暴露内部路由决策及供应商身份。
+  </Field>
+</FieldList>
+
+## Cache 字段
+
+OpenAI-compatible 响应里，cache read 可能出现在
+
+<code>usage.prompt_tokens_details.cached_tokens</code> 或
+<code>usage.input_tokens_details.cached_tokens</code>。
+
+cache write 只有在上游返回时才会出现，字段可能是
+
+<code>cache_write_tokens</code>、<code>cache_write_5m_tokens</code> 或
+<code>cache_write_1h_tokens</code>。
+
+如果要对账或排查费用，以请求详情 API 为准。
+
+## 相关页面
+
+- [计费规则](/zh/billing)
+- [模型目录](/zh/models/catalog)
+- [Chat completions](/zh/endpoints/chat)
+
+</EndpointPage>

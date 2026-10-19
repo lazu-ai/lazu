@@ -1,0 +1,31 @@
+# Optional integrations for the local / self-hosted stack.
+#
+# Copy to docker-compose.integrations.yml (ignored by git), fill the matching
+# variables in .env, and start with both files:
+#
+#   docker compose --env-file .env \
+#     -f platform/docker/docker-compose.yml \
+#     -f platform/docker/docker-compose.integrations.yml up -d
+#
+# Only the variables listed here reach the containers. An empty value leaves
+# that feature off. Site identity, probe identities and SMTP live in
+# config/backend/config.yaml, which the stack mounts.
+x-integrations: &integrations
+  FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-}
+  SESSION_SECRET: ${SESSION_SECRET:-}
+  CRYPTO_SECRET: ${CRYPTO_SECRET:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+  STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
+  R2_ENDPOINT: ${R2_ENDPOINT:-}
+  R2_BUCKET: ${R2_BUCKET:-}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+
+services:
+  lazu-backend:
+    environment: *integrations
+  lazu-jobs:
+    environment: *integrations

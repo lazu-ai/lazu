@@ -1,0 +1,40 @@
+/* PR #247's compact confirmation travels with its component, regardless of
+   whether the host is an account menu or the mobile sidebar's popover. */
+.lazu-compact-confirmation-surface {
+  border-radius: var(--lazu-confirmation-radius);
+  min-width: 0;
+  padding: 0;
+  width: var(--lazu-confirmation-width);
+}
+
+.lazu-compact-confirmation {
+  padding: 12px 12px 10px;
+}
+
+.lazu-compact-confirmation__title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 10px;
+}
+
+.lazu-compact-confirmation__actions {
+  display: flex;
+  gap: var(--lazu-space-1);
+  justify-content: flex-end;
+}
+
+.lazu-compact-confirmation__actions .lazu-button {
+  border-radius: var(--lazu-radius-badge);
+  height: var(--lazu-confirmation-button-height);
+  min-height: var(--lazu-confirmation-button-height);
+  padding: 0 10px;
+}
+
+.lazu-compact-confirmation__actions .lazu-button--ghost-danger {
+  background: var(--lazu-danger-soft);
+}
+
+.lazu-compact-confirmation__actions .lazu-button--ghost-danger:hover {
+  background: color-mix(in srgb, var(--lazu-danger) 18%, transparent);
+}

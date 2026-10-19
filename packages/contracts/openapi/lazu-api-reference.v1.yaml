@@ -1,0 +1,4454 @@
+openapi: 3.1.0
+info:
+  title: Lazu API
+  version: 2.0.0
+  contact:
+    name: Lazu Support
+    url: https://lazu.ai/docs
+  description: |
+    Lazu API 提供统一的 AI 模型接入服务，完全兼容 OpenAI API 格式。支持 GPT、Claude、Gemini 等主流模型，以及 Sora、Grok 视频生成。
+
+    ## 认证方式
+    所有 API 请求需要在 Header 中携带 API Key：
+    ```
+    Authorization: Bearer YOUR_API_KEY
+    ```
+
+    ## 基础地址
+    - 主地址：`https://api.lazu.ai`
+servers:
+  - url: "{scheme}://{host}"
+    description: Lazu API server
+    variables:
+      scheme:
+        default: https
+      host:
+        default: api.lazu.ai
+security:
+  - bearerAuth: []
+tags:
+  - name: Models
+    description: 模型列表、模型目录与模型能力发现接口。
+  - name: Files
+    description: OpenAI-compatible file upload, listing, download, and deletion APIs.
+  - name: Discovery
+    description: Model discovery, catalog inspection, and pricing metadata.
+  - name: Chat
+    description: OpenAI-compatible chat completion APIs.
+  - name: Anthropic
+    description: Anthropic-native message format.
+  - name: Gemini
+    description: Gemini-native request format and discovery APIs.
+  - name: Embeddings
+    description: Embedding generation APIs.
+  - name: Search
+    description: Provider-neutral web and news search APIs backed by configured Lazu search backends.
+  - name: Images
+    description: Image generation APIs.
+  - name: Videos
+    description: Async video generation job APIs.
+  - name: Responses
+    description: OpenAI Responses-style inference APIs.
+  - name: Decisions
+    description: Non-streaming discriminative model evaluation.
+  - name: Rerank
+    description: Rerank APIs for retrieval workflows.
+  - name: Audio
+    description: Text-to-speech, speech-to-text, and audio translation.
+  - name: Account
+    description: Usage statistics, billing, and API key introspection.
+paths:
+  /api/status:
+    get:
+      tags:
+        - Discovery
+      summary: Get runtime and public status for frontend bootstrap.
+      operationId: getStatus
+      security: []
+      responses:
+        "200":
+          description: Status payload.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: true
+  /api/public/changelog:
+    get:
+      tags: [Discovery]
+      summary: List published Docs changelog entries
+      description: Returns localized announcements published to the Docs audience, newest first.
+      operationId: listPublicChangelog
+      security: []
+      parameters:
+        - name: locale
+          in: query
+          schema: { type: string, enum: [zh, en, zh-TW, ja] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: before
+          in: query
+          description: ID returned as next_before by the previous page.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Published changelog page.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_before]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, kind, title, summary, body_markdown, api_changes, affected_models, published_at, locale]
+                      properties:
+                        id: { type: integer }
+                        version: { type: string }
+                        kind: { type: string }
+                        title: { type: string }
+                        summary: { type: string }
+                        body_markdown: { type: string }
+                        api_changes:
+                          type: array
+                          items:
+                            type: object
+                            required: [method, path, note]
+                            properties:
+                              method: { type: string }
+                              path: { type: string }
+                              note: { type: string }
+                        affected_models:
+                          type: array
+                          items: { type: string }
+                        published_at: { type: string, format: date-time }
+                        locale: { type: string, enum: [zh, en, zh-TW, ja] }
+                  next_before: { type: integer, minimum: 0 }
+  /api/public/changelog.md:
+    get:
+      tags: [Discovery]
+      summary: Get the published Docs changelog as Markdown
+      operationId: getPublicChangelogMarkdown
+      security: []
+      parameters:
+        - name: locale
+          in: query
+          schema: { type: string, enum: [zh, en, zh-TW, ja] }
+      responses:
+        "200":
+          description: Localized Markdown changelog.
+          content:
+            text/markdown:
+              schema: { type: string }
+  /models.json:
+    get:
+      tags:
+        - Models
+      summary: Get the public static model catalog.
+      description: |
+        Returns the same public list-price model discovery payload as unauthenticated `/v1/models`.
+        This endpoint never accepts personalized API-key pricing fields and is intended for CDN caching, crawlers, and agent discovery.
+      operationId: getStaticModelCatalog
+      security: []
+      responses:
+        "200":
+          description: Public cacheable model catalog.
+          headers:
+            Cache-Control:
+              description: Public cache policy for the static catalog.
+              schema:
+                type: string
+            X-Lazu-Models-Source:
+              description: Source live endpoint for the generated payload.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCatalogResponse"
+  /api/models/catalog:
+    get:
+      tags:
+        - Models
+      summary: 获取可用模型目录
+      description: |
+        返回当前 API Key 可访问的模型目录，适合在正式调用前先发现模型能力、支持端点、定价和示例请求。
+
+        返回结果会按当前 API Key 自动过滤，并额外提供：
+        - 输入/输出模态
+        - 支持的端点类型
+        - 可直接调用的接口路径
+        - 定价信息
+        - Usage/cache 上报维度与可计费维度
+        - 参数提示
+        - 可直接复制的 curl 示例
+      operationId: listModelCatalog
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功返回当前 API Key 可用模型目录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCatalogResponse"
+              example:
+                object: list
+                data:
+                  - id: claude-sonnet-4-20250514
+                    owned_by: anthropic
+                    description: Anthropic 平衡型模型，兼顾速度与效果
+                    modality:
+                      input:
+                        - text
+                        - image
+                      output:
+                        - text
+                    supported_endpoint_types:
+                      - openai
+                      - anthropic
+                    supported_endpoints:
+                      - type: openai
+                        path: /v1/chat/completions
+                        method: POST
+                      - type: anthropic
+                        path: /v1/messages
+                        method: POST
+                    default_endpoint_type: openai
+                    context_length: 200000
+                    max_output_tokens: 8192
+                    pricing:
+                      currency: USD
+                      billing_type: per_token
+                      input_per_million: 3
+                      output_per_million: 15
+                    usage_capabilities:
+                      reported_dimensions:
+                        - input
+                        - output
+                        - cache_read
+                        - cache_write
+                        - cache_write_5m
+                        - cache_write_1h
+                      billable_dimensions:
+                        - input
+                        - output
+                        - cache_read
+                        - cache_write_5m
+                        - cache_write_1h
+                      response_fields:
+                        openai_compatible:
+                          - usage.prompt_tokens_details.cached_tokens
+                          - usage.prompt_tokens_details.cache_write_tokens
+                        request_detail:
+                          - usage.dimensions
+                          - billing.line_items
+                    parameters:
+                      max_tokens:
+                        type: integer
+                        description: 最大输出 token 数
+                        default: 1024
+                      temperature:
+                        type: number
+                        description: 采样温度
+                        default: 0.7
+                    example:
+                      curl: >-
+                        curl https://api.lazu.ai/v1/chat/completions -H
+                        'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type:
+                        application/json' -d
+                        '{"model":"claude-sonnet-4-20250514","messages":[{"role":"user","content":"你好，请用一句话介绍 Lazu"}]}'
+                    tags:
+                      - multimodal
+                      - vision
+                    open_source: false
+        "401":
+          description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Model catalog is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/pricing:
+    get:
+      tags:
+        - Discovery
+      summary: Get public pricing and marketplace metadata.
+      description: |
+        Public pricing view for enabled models. Use `/api/models/catalog` when you need token-scoped discovery for a specific API key.
+      operationId: getPricing
+      security: []
+      responses:
+        "200":
+          description: Public pricing payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPricingResponse"
+        "429":
+          description: Too many requests.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/models:
+    get:
+      tags:
+        - Models
+      summary: Discover available models.
+      description: |
+        Returns the rich model discovery catalog in an OpenAI-compatible `{object:"list",data:[...]}` envelope.
+        Authentication is optional: without a key the response includes every public enabled model with list pricing; with a key the same items also include `your_price`, `accessible`, and top-level `your_pricing_context`.
+
+        Use `include=health` to opt into best-effort runtime health fields. There is no `view` parameter; the default response is already rich.
+      operationId: listModels
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: include
+          in: query
+          required: false
+          description: Optional comma-separated enrichment list. Currently supports `health`.
+          schema:
+            type: string
+            example: health
+      responses:
+        "200":
+          description: Rich model discovery payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCatalogResponse"
+              example:
+                object: list
+                data:
+                  - id: gpt-4o
+                    object: model
+                    created: 1698959748
+                    name: gpt-4o
+                    provider: openai
+                    family: gpt
+                    owned_by: openai
+                    context_length: 128000
+                    max_output_tokens: 16384
+                    input_modalities:
+                      - text
+                      - image
+                    output_modalities:
+                      - text
+                    capabilities:
+                      supports_function_calling: true
+                      supports_parallel_function_calling: true
+                      supports_vision: true
+                      supports_reasoning: false
+                      supports_response_schema: true
+                      supports_prompt_caching: true
+                      supports_audio_input: false
+                      supports_audio_output: false
+                      supports_web_search: false
+                      supports_pdf_input: false
+                      supports_computer_use: false
+                    pricing:
+                      currency: USD
+                      billing_type: per_token
+                      input: 2.5
+                      output: 10
+                      cache_read: 1.25
+                    supported_endpoint_types:
+                      - openai
+                    supported_parameters:
+                      - tools
+                      - tool_choice
+                      - response_format
+                    open_source: false
+        "401":
+          description: Invalid API key when one was supplied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/models/{model}:
+    get:
+      tags:
+        - Models
+      summary: Discover one model.
+      description: Returns the same rich catalog item shape as `/v1/models` for one model ID.
+      operationId: retrieveModel
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: model
+          in: path
+          required: true
+          description: 模型 ID
+          schema:
+            type: string
+        - name: include
+          in: query
+          required: false
+          description: Optional comma-separated enrichment list. Currently supports `health`.
+          schema:
+            type: string
+            example: health
+      responses:
+        "200":
+          description: Rich model discovery item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCatalogItem"
+              example:
+                id: gpt-4o
+                object: model
+                created: 1698959748
+                name: gpt-4o
+                provider: openai
+                family: gpt
+                owned_by: openai
+        "401":
+          description: Invalid API key when one was supplied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 模型不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/files:
+    get:
+      tags:
+        - Files
+      summary: List uploaded files.
+      description: |
+        Lists files uploaded by the current API key owner. Use `purpose` to filter by supported file purpose.
+      operationId: listFiles
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: purpose
+          in: query
+          required: false
+          description: Optional purpose filter.
+          schema:
+            $ref: "#/components/schemas/FilePurpose"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of files to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 10000
+        - name: order
+          in: query
+          required: false
+          description: Sort by creation time.
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        "200":
+          description: File list payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileListResponse"
+              example:
+                object: list
+                data:
+                  - id: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+                    object: file
+                    bytes: 18234
+                    created_at: 1779525709
+                    filename: invoice.png
+                    purpose: vision
+                    status: processed
+        "400":
+          description: Invalid purpose.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - Files
+      summary: Upload a file.
+      description: |
+        Uploads a file for later retrieval or for `file_id` references in `/v1/responses` input items.
+
+        Self-hosted deployments must configure `artifact_storage` with an S3-compatible service such as Cloudflare R2 or Amazon S3. Without object storage, this endpoint returns `503 storage_not_configured`.
+
+        Supported purposes:
+        - `user_data`: non-executable files up to 512 MiB
+        - `vision`: PNG, JPEG, GIF, or WebP images up to 20 MiB
+      operationId: uploadFile
+      security:
+        - bearerAuth: []
+      x-codeSamples:
+        - lang: Python
+          label: openai SDK
+          source: |
+            from openai import OpenAI
+
+            client = OpenAI(
+                base_url="https://api.lazu.ai/v1",
+                api_key="YOUR_LAZU_KEY",
+            )
+
+            with open("paper.pdf", "rb") as f:
+                file = client.files.create(file=f, purpose="user_data")
+
+            print(file.id)
+        - lang: TypeScript
+          label: openai SDK
+          source: |
+            import OpenAI from "openai";
+            import fs from "node:fs";
+
+            const client = new OpenAI({
+              baseURL: "https://api.lazu.ai/v1",
+              apiKey: process.env.LAZU_API_KEY,
+            });
+
+            const file = await client.files.create({
+              file: fs.createReadStream("paper.pdf"),
+              purpose: "user_data",
+            });
+            console.log(file.id);
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - purpose
+                - file
+              properties:
+                purpose:
+                  $ref: "#/components/schemas/FilePurpose"
+                file:
+                  type: string
+                  format: binary
+            encoding:
+              file:
+                contentType: application/octet-stream
+      responses:
+        "201":
+          description: Uploaded file metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileObject"
+              example:
+                id: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+                object: file
+                bytes: 18234
+                created_at: 1779525709
+                filename: invoice.png
+                purpose: vision
+                status: processed
+        "400":
+          description: Invalid request, purpose, or file type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: The account's file storage is full (storage_quota_exceeded). Storage is free and capped at 10 GB per account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Uploaded file is too large.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Storage upload failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: File storage is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/files/{file_id}:
+    get:
+      tags:
+        - Files
+      summary: Retrieve file metadata.
+      description: Returns metadata for a file owned by the current API key owner.
+      operationId: retrieveFile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          description: File identifier returned by `POST /v1/files`.
+          schema:
+            type: string
+            example: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+      responses:
+        "200":
+          description: File metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileObject"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File not found or not accessible.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags:
+        - Files
+      summary: Delete a file.
+      description: Deletes a file and its object-storage content, and returns its bytes to the account's storage allowance. Storage is not billed.
+      operationId: deleteFile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          description: File identifier returned by `POST /v1/files`.
+          schema:
+            type: string
+            example: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+      responses:
+        "200":
+          description: File deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileDeleteResponse"
+              example:
+                id: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+                object: file
+                deleted: true
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File not found or not accessible.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Storage delete failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: File storage is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/files/{file_id}/content:
+    get:
+      tags:
+        - Files
+      summary: Download file content.
+      description: Downloads the raw file bytes for a file owned by the current API key owner.
+      operationId: downloadFileContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          description: File identifier returned by `POST /v1/files`.
+          schema:
+            type: string
+            example: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+      responses:
+        "200":
+          description: Raw file content.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File not found or not accessible.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Storage read failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: File storage is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1beta/models:
+    get:
+      tags:
+        - Gemini
+      summary: List models in Gemini-compatible format.
+      operationId: listGeminiModels
+      security:
+        - bearerAuth: []
+        - geminiQueryKey: []
+        - googleApiKeyHeader: []
+      responses:
+        "200":
+          description: Gemini-compatible model list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiModelListResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/chat/completions:
+    post:
+      tags:
+        - Chat
+      summary: 创建对话补全
+      description: 根据提供的消息列表生成模型响应。支持流式输出和多轮对话。
+      operationId: createChatCompletion
+      security:
+        - bearerAuth: []
+      x-codeSamples:
+        - lang: Python
+          label: openai SDK
+          source: |
+            from openai import OpenAI
+
+            client = OpenAI(
+                base_url="https://api.lazu.ai/v1",
+                api_key="YOUR_LAZU_KEY",
+            )
+
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": "Hello from Lazu"}],
+            )
+            print(resp.choices[0].message.content)
+        - lang: TypeScript
+          label: openai SDK
+          source: |
+            import OpenAI from "openai";
+
+            const client = new OpenAI({
+              baseURL: "https://api.lazu.ai/v1",
+              apiKey: process.env.LAZU_API_KEY,
+            });
+
+            const resp = await client.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages: [{ role: "user", content: "Hello from Lazu" }],
+            });
+            console.log(resp.choices[0].message.content);
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+            examples:
+              simple:
+                summary: 简单对话
+                value:
+                  model: gpt-4o-mini
+                  messages:
+                    - role: user
+                      content: 你好，请介绍一下你自己
+              with_system:
+                summary: 带系统提示
+                value:
+                  model: gpt-4o
+                  messages:
+                    - role: system
+                      content: 你是一个专业的编程助手
+                    - role: user
+                      content: 如何用 Python 读取 JSON 文件？
+                  temperature: 0.7
+                  max_tokens: 1000
+              streaming:
+                summary: 流式输出
+                value:
+                  model: claude-sonnet-4-20250514
+                  messages:
+                    - role: user
+                      content: 写一首关于春天的诗
+                  stream: true
+      responses:
+        "200":
+          description: 成功返回对话补全结果
+          headers:
+            x-lazu-cost-usd:
+              description: Actual charged cost for this inference response in USD, when usage was available.
+              schema:
+                type: string
+            x-lazu-request-id:
+              description: Lazu request ID for cost and log correlation.
+              schema:
+                type: string
+            x-lazu-warning:
+              description: Compatibility warning such as `stateless_bridge`; the standard response body is unchanged.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+              example:
+                id: chatcmpl-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+                object: chat.completion
+                created: 1702685778
+                model: gpt-4o-mini
+                choices:
+                  - index: 0
+                    message:
+                      role: assistant
+                      content: 你好！我是一个 AI 助手，很高兴为你服务。
+                    finish_reason: stop
+                usage:
+                  prompt_tokens: 10
+                  completion_tokens: 20
+                  total_tokens: 30
+                  cost: 0.000045
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: 请求频率超限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/messages:
+    post:
+      tags:
+        - Anthropic
+      summary: Create a message using Anthropic-native format.
+      description: |
+        Use this endpoint when the selected model includes `anthropic` in `supported_endpoint_types`.
+
+        Authentication supports either:
+        - `Authorization: Bearer <api-key>`
+        - `x-api-key: <api-key>`
+      operationId: createAnthropicMessage
+      x-codeSamples:
+        - lang: Python
+          label: anthropic SDK
+          source: |
+            from anthropic import Anthropic
+
+            client = Anthropic(
+                base_url="https://api.lazu.ai",
+                api_key="YOUR_LAZU_KEY",
+            )
+
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": "Hello from Lazu"}],
+            )
+            print(msg.content[0].text)
+        - lang: TypeScript
+          label: anthropic SDK
+          source: |
+            import Anthropic from "@anthropic-ai/sdk";
+
+            const client = new Anthropic({
+              baseURL: "https://api.lazu.ai",
+              apiKey: process.env.LAZU_API_KEY,
+            });
+
+            const msg = await client.messages.create({
+              model: "claude-haiku-4-5-20251001",
+              max_tokens: 1024,
+              messages: [{ role: "user", content: "Hello from Lazu" }],
+            });
+            console.log(msg.content[0].text);
+      security:
+        - bearerAuth: []
+        - anthropicApiKey: []
+      parameters:
+        - name: anthropic-version
+          in: header
+          required: false
+          description: Anthropic API version header.
+          schema:
+            type: string
+            default: "2023-06-01"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnthropicMessageRequest"
+      responses:
+        "200":
+          description: Anthropic-style message response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicMessageResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1beta/models/{model}:generateContent:
+    post:
+      tags:
+        - Gemini
+      summary: Generate content using Gemini-native format.
+      description: |
+        Use this endpoint when the selected model includes `gemini` in `supported_endpoint_types`.
+
+        Authentication supports:
+        - `Authorization: Bearer <api-key>`
+        - `x-goog-api-key: <api-key>`
+        - `?key=<api-key>`
+      operationId: generateGeminiContent
+      security:
+        - bearerAuth: []
+        - geminiQueryKey: []
+        - googleApiKeyHeader: []
+      parameters:
+        - name: model
+          in: path
+          required: true
+          description: Model identifier.
+          schema:
+            type: string
+        - name: key
+          in: query
+          required: false
+          description: Gemini-style API key query parameter.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeminiGenerateContentRequest"
+      responses:
+        "200":
+          description: Gemini-style content generation response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiGenerateContentResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/embeddings:
+    post:
+      tags:
+        - Embeddings
+      summary: Generate embeddings.
+      operationId: createEmbeddings
+      security:
+        - bearerAuth: []
+      x-codeSamples:
+        - lang: Python
+          label: openai SDK
+          source: |
+            from openai import OpenAI
+
+            client = OpenAI(
+                base_url="https://api.lazu.ai/v1",
+                api_key="YOUR_LAZU_KEY",
+            )
+
+            resp = client.embeddings.create(
+                model="BAAI/bge-m3",
+                input=["doc one", "doc two"],
+            )
+            for item in resp.data:
+                print(item.embedding[:5])
+        - lang: TypeScript
+          label: openai SDK
+          source: |
+            import OpenAI from "openai";
+
+            const client = new OpenAI({
+              baseURL: "https://api.lazu.ai/v1",
+              apiKey: process.env.LAZU_API_KEY,
+            });
+
+            const resp = await client.embeddings.create({
+              model: "BAAI/bge-m3",
+              input: ["doc one", "doc two"],
+            });
+            console.log(resp.data[0].embedding.slice(0, 5));
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmbeddingsRequest"
+      responses:
+        "200":
+          description: Embedding response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmbeddingsResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/search:
+    post:
+      tags:
+        - Search
+      summary: Run provider-neutral web or news search.
+      description: |
+        Executes a raw retrieval request through configured Lazu search backends such as Tavily, Serper, Exa, Jina, or Brave.
+
+        The response uses a normalized result schema and includes both the Lazu request count and provider billable unit count.
+        Use `/api/search/backends` in the console API to manage the available backends.
+      operationId: createSearch
+      security:
+        - bearerAuth: []
+      x-codeSamples:
+        - lang: cURL
+          label: Basic web search
+          source: |
+            curl https://api.lazu.ai/v1/search \
+              -H "Authorization: Bearer $LAZU_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "latest OpenAI web search API changes",
+                "type": "web",
+                "region": "us",
+                "language": "en",
+                "time_range": "month",
+                "max_results": 5,
+                "backend": "auto",
+                "search_depth": "basic"
+              }'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            examples:
+              web:
+                summary: Web search through the automatic backend router
+                value:
+                  query: latest OpenAI web search API changes
+                  type: web
+                  region: us
+                  language: en
+                  time_range: month
+                  max_results: 5
+                  backend: auto
+                  search_depth: basic
+              serper_passthrough:
+                summary: Serper with provider options
+                value:
+                  query: apple inc
+                  type: web
+                  backend: serper
+                  include_provider_payload: true
+                  provider_options:
+                    serper:
+                      tbs: qdr:d
+                      page: 2
+      responses:
+        "200":
+          description: Search response.
+          headers:
+            x-lazu-cost-usd:
+              description: Actual charged cost for this search response in USD.
+              schema:
+                type: string
+            x-lazu-request-id:
+              description: Lazu request ID for cost and log correlation.
+              schema:
+                type: string
+            x-lazu-warning:
+              description: Compatibility warning such as `stateless_bridge`; the standard response body is unchanged.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+              example:
+                query: latest OpenAI web search API changes
+                results:
+                  - title: Web search - OpenAI API
+                    url: https://platform.openai.com/docs/guides/tools-web-search
+                    snippet: Use web search in the Responses API...
+                    content: null
+                    published_at: null
+                    score: 0.91
+                    source: web
+                usage:
+                  web_search_requests: 1
+                  web_search_billable_units: 1
+                provider_trace:
+                  backend: tavily
+                route_receipt:
+                  selection: auto
+                  selected_backend: tavily
+                  chose_provider: tavily
+                  candidates:
+                    - tavily:primary
+                  rejected: []
+                  downgraded: false
+                  fallback_count: 0
+                  decision_reason: selected
+        "400":
+          description: Invalid search request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: No configured search backend is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/images/generations:
+    post:
+      tags:
+        - Images
+      summary: Generate images from text prompts.
+      operationId: createImageGeneration
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageGenerationRequest"
+      responses:
+        "200":
+          description: Image generation response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageGenerationResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/videos:
+    post:
+      tags:
+        - Videos
+      summary: Create an async video generation job.
+      description: |
+        Creates a video media job and submits prompt-only requests to the selected provider.
+        The response is asynchronous; poll `GET /v1/videos/{id}` until the job succeeds or fails.
+        Existing `artifact_file_id` and `artifact_url` inputs remain available for registering
+        an already-produced artifact without a provider submission.
+      operationId: createVideoJob
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoGenerationRequest"
+      responses:
+        "202":
+          description: Video job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaJobObject"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Referenced artifact file was not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      tags:
+        - Videos
+      summary: List async video generation jobs.
+      operationId: listVideoJobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, running, succeeded, failed]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+      responses:
+        "200":
+          description: Video job list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaJobListResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/videos/{id}:
+    get:
+      tags:
+        - Videos
+      summary: Retrieve an async video generation job.
+      operationId: retrieveVideoJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Video job detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaJobObject"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Video job not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/responses:
+    post:
+      tags:
+        - Responses
+      summary: Create a response using the OpenAI Responses-style API.
+      operationId: createResponse
+      security:
+        - bearerAuth: []
+      x-codeSamples:
+        - lang: Python
+          label: openai SDK
+          source: |
+            from openai import OpenAI
+
+            client = OpenAI(
+                base_url="https://api.lazu.ai/v1",
+                api_key="YOUR_LAZU_KEY",
+            )
+
+            resp = client.responses.create(
+                model="gpt-4o",
+                input=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": "Summarize this PDF"},
+                        {"type": "input_file", "file_id": "file-lazu-..."},
+                    ],
+                }],
+            )
+            print(resp.output[0].content[0].text)
+        - lang: TypeScript
+          label: openai SDK
+          source: |
+            import OpenAI from "openai";
+
+            const client = new OpenAI({
+              baseURL: "https://api.lazu.ai/v1",
+              apiKey: process.env.LAZU_API_KEY,
+            });
+
+            const resp = await client.responses.create({
+              model: "gpt-4o",
+              input: [{
+                role: "user",
+                content: [
+                  { type: "input_text", text: "Summarize this PDF" },
+                  { type: "input_file", file_id: "file-lazu-..." },
+                ],
+              }],
+            });
+            console.log(resp.output[0].content[0].text);
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResponsesRequest"
+      responses:
+        "200":
+          description: Responses API payload.
+          headers:
+            x-lazu-cost-usd:
+              description: Actual charged cost for this inference response in USD, when usage was available.
+              schema:
+                type: string
+            x-lazu-request-id:
+              description: Lazu request ID for cost and log correlation.
+              schema:
+                type: string
+            x-lazu-warning:
+              description: Compatibility warning such as `stateless_bridge`; the standard response body is unchanged.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponsesResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/decisions:
+    post:
+      tags: [Decisions]
+      summary: Evaluate explicit decision questions over text, JSON or embedded images.
+      operationId: createDecision
+      description: |
+        Non-streaming probability, choice and score evaluation. Disabled by default.
+        The official request model gpt-6-luna uses OpenAI-style input plus ordered questions and answers.
+        Its Decisions catalog ID gpt-6-luna-decisions keeps routing and pricing separate from Chat/Responses.
+        The alias remains accepted as a compatibility request name.
+        The alias also accepts the legacy state/keyed-questions bridge; input and
+        state cannot be mixed. Launch limits are 8192 estimated text tokens across
+        input and questions, 64 questions, 4 inline images, and 2–10 score levels.
+        These are Lazu limits, not a claim about the provider's maximum context.
+        A per-question refusal is a valid 200 result, billed using reported usage.
+        Optional question_generation compiles model + state through an independently
+        authorized, billed Responses request. Native usage excludes generation usage.
+        Explicit questions take precedence. Invalid generated questions are refunded;
+        native failures after valid generation retain that charge and return reusable questions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      responses:
+        '200':
+          description: Validated answers, upstream usage, and optional generated questions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionResponse'
+        '400':
+          description: Invalid questions, unsupported input, streaming or missing questions.
+        '401':
+          description: Invalid API key.
+        '403':
+          description: Key, project, IP or temporary credential does not authorize either model.
+        '404':
+          description: Decision API disabled, or model unavailable.
+        '413':
+          description: Request exceeds the configured body limit.
+        '429':
+          description: Account or Key budget, rate limit, or upstream capacity exhausted.
+          headers:
+            Retry-After:
+              schema: {type: string}
+        '502':
+          description: Invalid upstream answer or unusable generated questions. Error details can include reusable questions.
+  /v1/rerank:
+    post:
+      tags:
+        - Rerank
+      summary: Rerank candidate documents for a query.
+      operationId: createRerank
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RerankRequest"
+      responses:
+        "200":
+          description: Rerank response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RerankResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/audio/speech:
+    post:
+      tags: [Audio]
+      summary: Text to speech
+      description: |
+        Convert text to audio. OpenAI-compatible — same request body as
+        OpenAI's TTS API. Returns binary audio (default `audio/mpeg`).
+      operationId: createAudioSpeech
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, input, voice]
+              properties:
+                model:
+                  {
+                    type: string,
+                    example: "tts-1",
+                    description: "TTS model — e.g. tts-1, tts-1-hd",
+                  }
+                input:
+                  { type: string, maxLength: 4096, example: "Hello from Lazu" }
+                voice:
+                  type: string
+                  enum: [alloy, echo, fable, onyx, nova, shimmer]
+                response_format:
+                  type: string
+                  enum: [mp3, opus, aac, flac, wav, pcm]
+                  default: mp3
+                speed:
+                  type: number
+                  minimum: 0.25
+                  maximum: 4.0
+                  default: 1.0
+            examples:
+              basic:
+                summary: Basic TTS
+                value:
+                  model: tts-1
+                  input: Hello from Lazu
+                  voice: alloy
+      responses:
+        "200":
+          description: Binary audio data.
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+  /v1/audio/transcriptions:
+    post:
+      tags: [Audio]
+      summary: Transcribe audio (Whisper)
+      description: |
+        Transcribe audio to text using Whisper-compatible models. Accepts
+        multipart/form-data with an audio `file` field plus model + format
+        params.
+      operationId: createAudioTranscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, model]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Audio file — mp3, mp4, mpeg, mpga, m4a, wav, webm
+                model:
+                  type: string
+                  example: whisper-1
+                language:
+                  type: string
+                  description: ISO-639-1 language code, e.g. "en", "zh"
+                prompt:
+                  type: string
+                  description: Optional context prompt
+                response_format:
+                  type: string
+                  enum: [json, text, srt, verbose_json, vtt]
+                  default: json
+                temperature:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      responses:
+        "200":
+          description: Transcribed text.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text: { type: string }
+              example:
+                text: "Hello from Lazu transcription."
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+  /v1/audio/translations:
+    post:
+      tags: [Audio]
+      summary: Translate audio to English
+      description: |
+        Translate audio from any language into English text using
+        Whisper-compatible models. Same `multipart/form-data` shape as
+        transcriptions, minus the `language` param.
+      operationId: createAudioTranslation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, model]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                model:
+                  type: string
+                  example: whisper-1
+                prompt:
+                  type: string
+                response_format:
+                  type: string
+                  enum: [json, text, srt, verbose_json, vtt]
+                  default: json
+                temperature:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      responses:
+        "200":
+          description: Translated English text.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+  /v1/images/edits:
+    post:
+      tags: [Images]
+      summary: Edit image
+      description: |
+        Edit an existing image given a prompt. OpenAI-compatible —
+        multipart upload of the source image plus optional mask.
+      operationId: createImageEdit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image, prompt]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: PNG image to edit, ≤ 4 MB, square recommended.
+                mask:
+                  type: string
+                  format: binary
+                  description: Optional PNG mask — transparent pixels mark editable area.
+                prompt:
+                  type: string
+                  maxLength: 1000
+                  example: "Add a hat to the cat"
+                model:
+                  type: string
+                  example: dall-e-2
+                n:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 1
+                size:
+                  type: string
+                  enum: ["256x256", "512x512", "1024x1024"]
+                response_format:
+                  type: string
+                  enum: [url, b64_json]
+                  default: url
+      responses:
+        "200":
+          description: Edited image URLs or base64 data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url: { type: string }
+                        b64_json: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+  /v1/completions:
+    post:
+      tags: [Chat]
+      summary: Legacy text completions
+      description: |
+        OpenAI's legacy `/v1/completions` endpoint. Most users should use
+        `/v1/chat/completions` instead; this exists for backward compatibility
+        with old SDKs and instruction-tuned base models.
+      operationId: createLegacyCompletion
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, prompt]
+              properties:
+                model: { type: string, example: "gpt-4o-mini" }
+                prompt:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items: { type: string }
+                max_tokens: { type: integer, default: 16 }
+                temperature:
+                  { type: number, default: 1, minimum: 0, maximum: 2 }
+                top_p: { type: number, default: 1 }
+                n: { type: integer, default: 1 }
+                stream: { type: boolean, default: false }
+                stop:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items: { type: string }
+      responses:
+        "200":
+          description: Completion response.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  object: { type: string, example: "text_completion" }
+                  created: { type: integer }
+                  model: { type: string }
+                  choices:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        text: { type: string }
+                        index: { type: integer }
+                        finish_reason: { type: string }
+                  usage:
+                    type: object
+                    properties:
+                      prompt_tokens: { type: integer }
+                      completion_tokens: { type: integer }
+                      total_tokens: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+  /api/usage/requests/{request_id}:
+    get:
+      tags: [Account]
+      summary: Get request-level usage and billing detail
+      description: |
+        Returns the normalized usage dimensions, billing line items, provider cache fields, and routing metadata for one completed request.
+
+        The endpoint is scoped to the bearer API key: a key can only read request records produced by the same token.
+        Use the `X-Lazu-Request-Id` response header, error payload `request_id`, or gateway response request ID as `request_id`.
+      operationId: getUsageRequestDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          description: Lazu request ID returned by the inference API.
+          schema:
+            type: string
+            example: req_lazu_01ABCDEF
+      responses:
+        "200":
+          description: Request usage detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageRequestDetailResponse"
+              example:
+                object: usage.request
+                id: req_lazu_01ABCDEF
+                created_at: 1779878400
+                model: claude-sonnet-4-20250514
+                endpoint: /v1/chat/completions
+                usage:
+                  prompt_tokens: 1200
+                  completion_tokens: 300
+                  total_tokens: 1500
+                  dimensions:
+                    - name: input
+                      quantity: 800
+                      unit: token
+                    - name: cache_read
+                      quantity: 300
+                      unit: token
+                    - name: cache_write_5m
+                      quantity: 100
+                      unit: token
+                    - name: output
+                      quantity: 300
+                      unit: token
+                billing:
+                  currency: USD
+                  amount_microusd: 800
+                  pricing_version: 3
+                  line_items:
+                    - dimension: input
+                      quantity: 800
+                      unit_microusd: 3000000
+                      amount_microusd: 2400
+        "401":
+          description: Invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Request not found for the current API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  message: request not found
+                  type: not_found_error
+                  param: request_id
+                  code: request_not_found
+  /api/usage/summary:
+    get:
+      tags: [Account]
+      summary: Current usage summary
+      description: |
+        Returns total spend, request count, and token count over a bounded
+        time window for the current API key's owner. Totals and series are
+        aggregated in SQL. Use for client-side dashboards and budget monitoring.
+      operationId: getUsageSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: since
+          in: query
+          description: Unix timestamp (seconds) — start of window. Default = 30 days ago. Explicit windows must be 366 days or less.
+          schema: { type: integer }
+        - name: until
+          in: query
+          description: Unix timestamp (seconds) — end of window. Default = now. Explicit windows must be 366 days or less.
+          schema: { type: integer }
+        - name: granularity
+          in: query
+          description: Bucket size for the time series in the response.
+          schema:
+            type: string
+            enum: [hour, day, month]
+            default: day
+      responses:
+        "200":
+          description: Usage summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_microusd:
+                    { type: integer, description: "Total spend in microUSD" }
+                  total_requests: { type: integer }
+                  total_tokens: { type: integer }
+                  series:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        bucket:
+                          { type: string, description: "ISO 8601 timestamp" }
+                        microusd: { type: integer }
+                        requests: { type: integer }
+                        tokens: { type: integer }
+              example:
+                total_microusd: 1245000
+                total_requests: 318
+                total_tokens: 412000
+                series:
+                  - {
+                      bucket: "2026-05-23T00:00:00Z",
+                      microusd: 412000,
+                      requests: 105,
+                      tokens: 138000,
+                    }
+                  - {
+                      bucket: "2026-05-24T00:00:00Z",
+                      microusd: 833000,
+                      requests: 213,
+                      tokens: 274000,
+                    }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/token/inspect:
+    get:
+      tags: [Account]
+      summary: Inspect the current API key
+      description: |
+        Returns metadata about the API key used to make this request —
+        owner, scopes, remaining quota, tier, lane preferences. Useful when
+        building dashboards that display "logged-in" state from the API key
+        alone.
+      operationId: inspectToken
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: API key metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name:
+                    { type: string, description: "User-set label for this key" }
+                  product:
+                    {
+                      type: string,
+                      description: "Optional product or workload label for isolating keys",
+                    }
+                  metadata:
+                    {
+                      type: object,
+                      additionalProperties: true,
+                      description: "Optional JSON metadata attached to the key",
+                    }
+                  status:
+                    {
+                      type: integer,
+                      description: "Stored key status. 1 = enabled, 2 = disabled, 3 = expired, 4 = exhausted. The console key projections (`/api/token/` list, search, detail, create, update) report `status` as a string instead; `status_code` always carries this number.",
+                    }
+                  status_code:
+                    {
+                      type: integer,
+                      description: "Stored key status as a number, emitted on every projection that carries a status.",
+                    }
+                  rate_limits_enabled: { type: boolean }
+                  rpm_limit:
+                    {
+                      type: integer,
+                      description: "Per-key requests per minute. 0 inherits the account limit.",
+                    }
+                  tpm_limit:
+                    {
+                      type: integer,
+                      description: "Per-key tokens per minute. 0 inherits the account limit.",
+                    }
+                  effective_rate_limits:
+                    type: object
+                    properties:
+                      ceiling:
+                        type: object
+                        properties:
+                          rpm: { type: integer }
+                          tpm: { type: integer }
+                      configured:
+                        type: object
+                        properties:
+                          rpm: { type: integer }
+                          tpm: { type: integer }
+                      effective:
+                        type: object
+                        properties:
+                          rpm: { type: integer }
+                          tpm: { type: integer }
+                      tpm_counting:
+                        type: string
+                        enum: [prompt_plus_max_output_times_completion_count]
+                  group:
+                    {
+                      type: string,
+                      description: "Lane the key routes on: direct (stable lane) or cheap (agent lane)",
+                    }
+                  remain_quota:
+                    {
+                      type: integer,
+                      description: "Remaining balance in microUSD",
+                    }
+                  used_quota:
+                    { type: integer, description: "Total spent in microUSD" }
+                  unlimited_quota: { type: boolean }
+                  expired_time:
+                    { type: integer, description: "Unix timestamp; -1 = never" }
+                  has_topped_up:
+                    {
+                      type: boolean,
+                      description: "Account has completed at least one paid top-up",
+                    }
+                  vendor_groups:
+                    type: object
+                    additionalProperties:
+                      { type: string, enum: [direct, cheap] }
+                    description: "Per-vendor lane preference: direct (stable lane) or cheap (agent lane); empty means default (cheap)"
+              example:
+                id: 42
+                name: "production-bot"
+                product: "search-api"
+                metadata: { environment: "production", cost_center: "search" }
+                status: 1
+                rate_limits_enabled: true
+                rpm_limit: 120
+                tpm_limit: 300000
+                effective_rate_limits:
+                  tier: "Tier2"
+                  ceiling: { rpm: 300, tpm: 1000000 }
+                  configured: { rpm: 120, tpm: 300000 }
+                  effective: { rpm: 120, tpm: 300000 }
+                  tpm_counting: "prompt_plus_max_output_times_completion_count"
+                group: "Tier2"
+                remain_quota: 12500000
+                used_quota: 3850000
+                unlimited_quota: false
+                expired_time: -1
+                has_topped_up: true
+                vendor_groups:
+                  {
+                    "vendor_pub_openai": "direct",
+                    "vendor_pub_anthropic": "cheap",
+                  }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: APIKey
+    anthropicApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+    googleApiKeyHeader:
+      type: apiKey
+      in: header
+      name: x-goog-api-key
+    geminiQueryKey:
+      type: apiKey
+      in: query
+      name: key
+  responses:
+    BadRequest:
+      description: Invalid request — bad parameters, malformed body, or upstream rejected the payload.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              message: "Invalid request body"
+              type: "invalid_request_error"
+              code: "bad_request_body"
+    Unauthorized:
+      description: API key missing, malformed, or revoked.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              message: "Invalid API key"
+              type: "authentication_error"
+              code: "invalid_api_key"
+    Forbidden:
+      description: Key disabled, IP not allow-listed, or insufficient quota.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              message: "Insufficient quota — top up to continue"
+              type: "insufficient_quota"
+              code: "insufficient_quota"
+    NotFound:
+      description: Resource not found — wrong model name, missing file_id, or path doesn't exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              message: "Model not found"
+              type: "not_found_error"
+              code: "model_not_found"
+    PayloadTooLarge:
+      description: Uploaded file exceeds the purpose's max size, or dereferenced files total exceed 64 MB.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              message: "Uploaded file is too large"
+              type: "invalid_request_error"
+              code: "file_too_large"
+    RateLimited:
+      description: |
+        A rate limit was reached. Honor the `Retry-After` header. The error
+        code identifies the limiter: `request_rate_limit_exceeded` for account
+        tier or success-request caps, `token_rate_limit_exceeded` for an
+        individual key cap, and `total_request_rate_limit_exceeded` for the
+        legacy total-request guard.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            tier:
+              value:
+                error:
+                  message: "Request rate limit exceeded (60/min)"
+                  type: "rate_limit_exceeded"
+                  code: "request_rate_limit_exceeded"
+            token:
+              value:
+                error:
+                  message: "Token rate limit exceeded"
+                  type: "rate_limit_exceeded"
+                  code: "token_rate_limit_exceeded"
+    UpstreamError:
+      description: Upstream provider returned an error. `details.status_code` is the upstream HTTP status.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              message: "Upstream returned status 502"
+              type: "api_error"
+              code: "upstream_error"
+              details:
+                channel_type: 1
+                status_code: 502
+  schemas:
+    ApiEnvelope:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+    ModelCatalogResponse:
+      type: object
+      required:
+        - object
+        - data
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelCatalogItem"
+        your_pricing_context:
+          $ref: "#/components/schemas/ModelCatalogPricingContext"
+    ModelCatalogItem:
+      type: object
+      required:
+        - id
+        - object
+        - owned_by
+        - modality
+        - capabilities
+        - supported_endpoint_types
+        - pricing
+        - usage_capabilities
+        - example
+      properties:
+        id:
+          type: string
+          example: claude-sonnet-4-20250514
+        request_model:
+          type: string
+          description: Model name to send to the listed endpoint when it differs from this catalog routing and pricing ID.
+          example: gpt-6-luna
+        object:
+          type: string
+          example: model
+        created:
+          type: integer
+          format: int64
+          example: 1626777600
+        name:
+          type: string
+          example: claude-sonnet-4-20250514
+        provider:
+          type: string
+          example: anthropic
+        family:
+          type: string
+          example: claude
+        owned_by:
+          type: string
+          example: anthropic
+        description:
+          type: string
+        description_en:
+          type: string
+        description_zh:
+          type: string
+        modality:
+          $ref: "#/components/schemas/ModelCatalogModality"
+        input_modalities:
+          type: array
+          items:
+            type: string
+        output_modalities:
+          type: array
+          items:
+            type: string
+        capabilities:
+          $ref: "#/components/schemas/ModelCatalogCapabilities"
+        supported_endpoint_types:
+          type: array
+          items:
+            type: string
+            example: openai
+        supported_endpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelCatalogEndpoint"
+        default_endpoint_type:
+          type: string
+          example: openai
+        context_length:
+          type: integer
+          format: int64
+        max_output_tokens:
+          type: integer
+          format: int64
+        pricing:
+          $ref: "#/components/schemas/ModelCatalogPricing"
+        lanes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelCatalogLane"
+        your_price:
+          $ref: "#/components/schemas/ModelCatalogPricing"
+        your_prices_by_group:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ModelCatalogPricing"
+        usage_capabilities:
+          $ref: "#/components/schemas/ModelCatalogUsageCapabilities"
+        accessible:
+          type: boolean
+          description: Present only when authenticated; true when the supplied API key may call the model.
+        supported_parameters:
+          type: array
+          items:
+            type: string
+        released_at:
+          type: integer
+          format: int64
+        deprecation_date:
+          type: string
+        is_new:
+          type: boolean
+        is_featured:
+          type: boolean
+        popularity:
+          type: number
+          format: double
+        health:
+          $ref: "#/components/schemas/ModelCatalogHealth"
+        parameters:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/CatalogParam"
+        example:
+          $ref: "#/components/schemas/ModelCatalogExample"
+        tags:
+          type: array
+          items:
+            type: string
+        open_source:
+          type: boolean
+    ModelCatalogCapabilities:
+      type: object
+      required:
+        - supports_function_calling
+        - supports_parallel_function_calling
+        - supports_vision
+        - supports_reasoning
+        - supports_response_schema
+        - supports_prompt_caching
+        - supports_audio_input
+        - supports_audio_output
+        - supports_web_search
+        - supports_pdf_input
+        - supports_computer_use
+      properties:
+        supports_function_calling:
+          type: boolean
+        supports_parallel_function_calling:
+          type: boolean
+        supports_vision:
+          type: boolean
+        supports_reasoning:
+          type: boolean
+        supports_response_schema:
+          type: boolean
+        supports_prompt_caching:
+          type: boolean
+        supports_audio_input:
+          type: boolean
+        supports_audio_output:
+          type: boolean
+        supports_web_search:
+          type: boolean
+        supports_pdf_input:
+          type: boolean
+        supports_computer_use:
+          type: boolean
+    ModelCatalogPricingContext:
+      type: object
+      properties:
+        group:
+          type: string
+        tier:
+          type: string
+        discount_factor:
+          type: number
+          format: double
+    ModelCatalogHealth:
+      type: object
+      description: Best-effort runtime health, present only when `include=health`.
+      properties:
+        status:
+          type: string
+          enum:
+            - available
+            - degraded
+            - unavailable
+            - unknown
+        latency_p50_ms:
+          type: integer
+        latency_p95_ms:
+          type: integer
+        availability:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        output_tps:
+          type: number
+          format: double
+        observed_window:
+          type: string
+          enum:
+            - traffic
+            - probe
+            - none
+        bucket_seconds:
+          type: integer
+          format: int64
+          description: Duration represented by each model-plaza history bucket (7200, two hours).
+        buckets:
+          type: array
+          description: Lane-level 7-day history (84 two-hour buckets) without upstream channel identities.
+          items:
+            $ref: "#/components/schemas/ModelCatalogHealthBucket"
+    ModelCatalogHealthBucket:
+      type: object
+      required:
+        - index
+        - start_at
+        - source
+        - tone
+      properties:
+        index:
+          type: integer
+        start_at:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum:
+            - traffic
+            - probe
+            - none
+        success_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        tone:
+          type: string
+          enum:
+            - ok
+            - warn
+            - bad
+            - none
+    ModelCatalogModality:
+      type: object
+      required:
+        - input
+        - output
+      properties:
+        input:
+          type: array
+          items:
+            type: string
+        output:
+          type: array
+          items:
+            type: string
+    ModelCatalogEndpoint:
+      type: object
+      required:
+        - type
+        - path
+      properties:
+        type:
+          type: string
+          example: openai
+        path:
+          type: string
+          example: /v1/chat/completions
+        method:
+          type: string
+          example: POST
+        mode:
+          type: string
+          enum: [native, bridged]
+          description: Whether an accessible route serves this endpoint natively or through a lossless protocol bridge.
+    ImagePricing:
+      type: object
+      description: USD per successful image. Pixel tiers use each returned image size; decomposition includes the base image. References are charged only on successful requests.
+      required: [output_usd]
+      properties:
+        output_usd:
+          type: number
+          exclusiveMinimum: 0
+        pixel_threshold:
+          type: integer
+          minimum: 0
+          example: 2610000
+        high_resolution_output_usd:
+          type: number
+          minimum: 0
+        layer_usd:
+          type: number
+          minimum: 0
+        high_resolution_layer_usd:
+          type: number
+          minimum: 0
+        reference_usd:
+          type: number
+          minimum: 0
+        free_references:
+          type: integer
+          minimum: 0
+          maximum: 14
+    ModelCatalogPricing:
+      type: object
+      required:
+        - currency
+      properties:
+        image_pricing:
+          $ref: "#/components/schemas/ImagePricing"
+        currency:
+          type: string
+          example: USD
+        billing_type:
+          type: string
+          example: per_token
+        input:
+          type: number
+          format: double
+          description: List or personalized input price in USD per million tokens.
+        output:
+          type: number
+          format: double
+          description: List or personalized output price in USD per million tokens.
+        cache_read:
+          type: number
+          format: double
+          description: Cached input read price in USD per million tokens.
+        cache_write_5m:
+          type: number
+          format: double
+          description: Cache creation price for 5-minute TTL in USD per million tokens.
+        cache_write_1h:
+          type: number
+          format: double
+          description: Cache creation price for 1-hour TTL in USD per million tokens.
+        audio_input:
+          type: number
+          format: double
+          description: Audio input price in USD per million tokens.
+        audio_output:
+          type: number
+          format: double
+          description: Audio output price in USD per million tokens.
+        image_input:
+          type: number
+          format: double
+          description: Image input price in USD per million tokens.
+        image_output:
+          type: number
+          format: double
+          description: Image output price in USD per million tokens.
+        peak_hours_utc:
+          type: string
+          description: Comma-separated UTC hour ranges during which peak_multiplier applies.
+        peak_multiplier:
+          type: number
+          format: double
+          description: Multiplier applied to every price dimension during peak_hours_utc.
+        request:
+          type: number
+          format: double
+          description: Per-request price in USD for per-call models.
+        second:
+          type: number
+          format: double
+          description: Per-second price in USD for media/video generation models.
+        input_per_million:
+          type: number
+          format: double
+          deprecated: true
+        output_per_million:
+          type: number
+          format: double
+          deprecated: true
+        cache_read_per_million:
+          type: number
+          format: double
+          deprecated: true
+        cache_write_5m_per_million:
+          type: number
+          format: double
+          deprecated: true
+        cache_write_1h_per_million:
+          type: number
+          format: double
+          deprecated: true
+        request_price:
+          type: number
+          format: double
+          deprecated: true
+        second_price:
+          type: number
+          format: double
+          deprecated: true
+        pricing_version:
+          type: integer
+          format: int64
+        updated_at:
+          type: string
+    ModelCatalogLane:
+      type: object
+      required:
+        - key
+        - available
+        - pricing
+      properties:
+        key:
+          type: string
+          description: Customer-facing lane key. `stable` is the stable lane; `eco` is the agent lane.
+          enum:
+            - stable
+            - eco
+        available:
+          type: boolean
+          description: Whether an enabled routing group can currently serve this lane.
+        pricing:
+          $ref: "#/components/schemas/ModelCatalogPricing"
+        your_price:
+          $ref: "#/components/schemas/ModelCatalogPricing"
+        health:
+          $ref: "#/components/schemas/ModelCatalogHealth"
+    ModelCatalogUsageCapabilities:
+      type: object
+      required:
+        - reported_dimensions
+        - billable_dimensions
+      properties:
+        reported_dimensions:
+          type: array
+          description: Usage dimensions that Lazu can normalize for this model family when upstream reports them.
+          items:
+            $ref: "#/components/schemas/UsageDimensionName"
+          example:
+            - input
+            - output
+            - cache_read
+            - cache_write
+            - cache_miss
+        billable_dimensions:
+          type: array
+          description: Dimensions with configured prices for the current catalog price context.
+          items:
+            $ref: "#/components/schemas/UsageDimensionName"
+          example:
+            - input
+            - output
+            - cache_read
+        response_fields:
+          type: object
+          description: Field paths clients can inspect in compatible responses, request detail, or native provider payloads.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    CatalogParam:
+      type: object
+      properties:
+        type:
+          type: string
+        description:
+          type: string
+        default: {}
+        required:
+          type: boolean
+        range:
+          type: array
+          items:
+            type: number
+            format: double
+        enum:
+          type: array
+          items:
+            type: string
+    ModelCatalogExample:
+      type: object
+      properties:
+        curl:
+          type: string
+    UsageDimensionName:
+      type: string
+      enum:
+        - input
+        - output
+        - cache_read
+        - cache_write
+        - cache_write_5m
+        - cache_write_1h
+        - cache_miss
+        - audio_input
+        - audio_output
+        - image_input
+        - image_output
+        - request
+        - second
+        - web_search
+        - claude_web_search
+        - file_search
+        - image_generation_call
+        - audio_input_separate
+    UsageDimension:
+      type: object
+      required:
+        - name
+        - quantity
+        - unit
+      properties:
+        name:
+          $ref: "#/components/schemas/UsageDimensionName"
+        quantity:
+          type: integer
+          format: int64
+        unit:
+          type: string
+          enum:
+            - token
+            - request
+            - second
+    UsageRequestDetailResponse:
+      type: object
+      required:
+        - object
+        - id
+        - created_at
+        - model
+        - usage
+        - billing
+      properties:
+        object:
+          type: string
+          enum:
+            - usage.request
+        id:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        model:
+          type: string
+        endpoint:
+          type: string
+          example: /v1/chat/completions
+        usage:
+          $ref: "#/components/schemas/UsageRequestUsage"
+        billing:
+          $ref: "#/components/schemas/UsageRequestBilling"
+        routing:
+          $ref: "#/components/schemas/UsageRequestRouting"
+        log_id:
+          type: string
+    UsageRequestUsage:
+      type: object
+      required:
+        - prompt_tokens
+        - completion_tokens
+        - total_tokens
+        - dimensions
+      properties:
+        images:
+          type: object
+          description: Successful image facts used by image billing; also retained for asynchronous reconciliation.
+          properties:
+            input_images:
+              type: integer
+            outputs:
+              type: array
+              items:
+                type: object
+                properties:
+                  pixels:
+                    type: integer
+                  layer:
+                    type: boolean
+
+        measurement:
+          type: object
+          description: Optional token provenance for new text usage facts. Missing on historical or unclassified facts; unrelated to request origin.
+          required: [input, output]
+          properties:
+            input:
+              type: string
+              enum: [provider, local_estimate, unavailable]
+            output:
+              type: string
+              enum: [provider, local_estimate, unavailable]
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+        dimensions:
+          type: array
+          items:
+            $ref: "#/components/schemas/UsageDimension"
+    UsageRequestBilling:
+      type: object
+      required:
+        - currency
+        - amount_microusd
+      properties:
+        currency:
+          type: string
+          example: USD
+        amount_microusd:
+          type: integer
+          format: int64
+        pricing_version:
+          type: integer
+          format: int64
+        line_items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BillingLineItem"
+        missing_price_dimensions:
+          type: array
+          items:
+            type: string
+        context_tier:
+          description: Present when the request's input tokens (cache reads and writes included) passed the model's long-context threshold; every line is then billed at the long-context prices.
+          type: object
+          required:
+            - threshold
+            - input_tokens
+          properties:
+            threshold:
+              type: integer
+              format: int64
+            input_tokens:
+              type: integer
+              format: int64
+        peak:
+          description: Present when the request was billed inside the model's peak hours; unit prices already include the multiplier.
+          type: object
+          required:
+            - multiplier
+          properties:
+            multiplier:
+              type: number
+        discount:
+          description: Whole-order discount applied to the subtotal.
+          type: object
+          required:
+            - pct
+            - amount_microusd
+          properties:
+            pct:
+              type: number
+            amount_microusd:
+              type: integer
+              format: int64
+    BillingLineItem:
+      type: object
+      required:
+        - dimension
+        - quantity
+        - unit_microusd
+        - amount_microusd
+      properties:
+        dimension:
+          type: string
+        quantity:
+          type: integer
+          format: int64
+        unit_microusd:
+          type: integer
+          format: int64
+        amount_microusd:
+          type: integer
+          format: int64
+    UsageRequestRouting:
+      type: object
+      description: Public request timing only; internal routing and provider identities are not exposed.
+      additionalProperties: false
+      properties:
+        status_code:
+          type: integer
+        total_duration_ms:
+          type: integer
+        ttft_ms:
+          type: integer
+        was_streaming:
+          type: boolean
+    UsageRequestProviderUsage:
+      type: object
+      properties:
+        family:
+          type: string
+          enum:
+            - openai
+            - anthropic
+            - gemini
+            - qwen
+            - deepseek
+            - openrouter
+            - xai
+            - openai_compatible
+        raw_fields:
+          type: object
+          additionalProperties: true
+    PublicPricingResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicPricingEntry"
+        vendors:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicPricingVendor"
+        supported_endpoint:
+          type: object
+          additionalProperties: true
+    PublicPricingEntry:
+      type: object
+      properties:
+        model_name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        tags:
+          type: string
+        vendor_id:
+          type: string
+        quota_type:
+          type: integer
+        input_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        output_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        cache_read_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        cache_write_5m_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        cache_write_1h_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        audio_input_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        audio_output_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        image_input_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        image_output_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        peak_hours_utc:
+          type: string
+          nullable: true
+          description: Comma-separated UTC hour ranges (e.g. "1-4,6-10") during which peak_multiplier applies.
+        peak_multiplier:
+          type: number
+          format: double
+          nullable: true
+          description: Multiplier applied to every price field during peak_hours_utc (e.g. 2 for DeepSeek-style peak pricing).
+        request_usd:
+          type: number
+          format: double
+          nullable: true
+        second_usd:
+          type: number
+          format: double
+          nullable: true
+        pricing_version:
+          type: integer
+          format: int64
+        lanes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicPricingLane"
+        owner_by:
+          type: string
+        supported_endpoint_types:
+          type: array
+          items:
+            type: string
+    PublicPricingLane:
+      type: object
+      properties:
+        channel_group:
+          type: string
+          description: Stored lane slug. `direct` is the stable lane; `cheap` is the agent lane.
+          enum:
+            - direct
+            - cheap
+        input_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        output_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        cache_read_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        cache_write_5m_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        cache_write_1h_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        audio_input_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        audio_output_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        image_input_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        image_output_per_mtok:
+          type: number
+          format: double
+          nullable: true
+        peak_hours_utc:
+          type: string
+          nullable: true
+          description: Comma-separated UTC hour ranges (e.g. "1-4,6-10") during which peak_multiplier applies.
+        peak_multiplier:
+          type: number
+          format: double
+          nullable: true
+          description: Multiplier applied to every price field during peak_hours_utc (e.g. 2 for DeepSeek-style peak pricing).
+        request_usd:
+          type: number
+          format: double
+          nullable: true
+        second_usd:
+          type: number
+          format: double
+          nullable: true
+        pricing_version:
+          type: integer
+          format: int64
+    PublicPricingVendor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+    FilePurpose:
+      type: string
+      enum:
+        - user_data
+        - vision
+      description: Supported file purposes. `user_data` supports non-executable files up to 512 MiB; `vision` supports PNG, JPEG, GIF, and WebP images up to 20 MiB.
+    FileObject:
+      type: object
+      required:
+        - id
+        - object
+        - bytes
+        - created_at
+        - filename
+        - purpose
+      properties:
+        id:
+          type: string
+          description: File identifier.
+          example: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+        object:
+          type: string
+          enum:
+            - file
+          example: file
+        bytes:
+          type: integer
+          format: int64
+          description: File size in bytes.
+        created_at:
+          type: integer
+          format: int64
+          description: Unix timestamp when the file was created.
+        filename:
+          type: string
+          description: Sanitized original filename.
+        purpose:
+          $ref: "#/components/schemas/FilePurpose"
+        status:
+          type: string
+          example: processed
+    FileListResponse:
+      type: object
+      required:
+        - object
+        - data
+      properties:
+        object:
+          type: string
+          enum:
+            - list
+          example: list
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileObject"
+    FileDeleteResponse:
+      type: object
+      required:
+        - id
+        - object
+        - deleted
+      properties:
+        id:
+          type: string
+          example: file-lazu-01HZY9Y7A7Q9Z8Y6X5W4V3T2S1
+        object:
+          type: string
+          enum:
+            - file
+          example: file
+        deleted:
+          type: boolean
+    ModelListResponse:
+      type: object
+      required:
+        - object
+        - data
+      properties:
+        object:
+          type: string
+          enum:
+            - list
+          example: list
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelItem"
+    ModelItem:
+      type: object
+      required:
+        - id
+        - object
+      properties:
+        id:
+          type: string
+          description: 模型 ID
+        object:
+          type: string
+          enum:
+            - model
+          example: model
+        created:
+          type: integer
+          description: 创建时间戳
+        owned_by:
+          type: string
+          description: 模型提供商
+        supported_endpoint_types:
+          type: array
+          items:
+            type: string
+    GeminiModelListResponse:
+      type: object
+      properties:
+        models:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    ChatCompletionRequest:
+      type: object
+      required:
+        - model
+        - messages
+      properties:
+        model:
+          type: string
+          description: 模型 ID
+          example: gpt-4o-mini
+        messages:
+          type: array
+          description: 对话消息列表
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        temperature:
+          type: number
+          format: double
+          description: 采样温度，0-2 之间，值越高输出越随机
+          minimum: 0
+          maximum: 2
+          default: 1
+          example: 0.7
+        max_tokens:
+          type: integer
+          description: 最大生成 token 数
+          minimum: 1
+          example: 1000
+        stream:
+          type: boolean
+          description: 是否启用流式输出
+          default: false
+        top_p:
+          type: number
+          format: double
+          description: 核采样参数
+          minimum: 0
+          maximum: 1
+          default: 1
+        frequency_penalty:
+          type: number
+          format: double
+          description: 频率惩罚参数，-2 到 2 之间
+          minimum: -2
+          maximum: 2
+          default: 0
+        presence_penalty:
+          type: number
+          format: double
+          description: 存在惩罚参数，-2 到 2 之间
+          minimum: -2
+          maximum: 2
+          default: 0
+        stop:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        tools:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        tool_choice:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+        response_format:
+          type: object
+          additionalProperties: true
+        seed:
+          type: integer
+        n:
+          type: integer
+          minimum: 1
+    ChatMessage:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          description: 消息角色
+          enum:
+            - system
+            - user
+            - assistant
+            - tool
+        content:
+          description: 消息内容
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                additionalProperties: true
+    ChatCompletionResponse:
+      type: object
+      required:
+        - id
+        - object
+        - created
+        - model
+        - choices
+      properties:
+        id:
+          type: string
+          description: 唯一请求 ID
+        object:
+          type: string
+          description: 响应对象类型
+          example: chat.completion
+        created:
+          type: integer
+          format: int64
+          description: 创建时间戳
+        model:
+          type: string
+          description: 使用的模型
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatCompletionChoice"
+        usage:
+          $ref: "#/components/schemas/CompletionUsage"
+    ChatCompletionChoice:
+      type: object
+      required:
+        - index
+        - message
+      properties:
+        index:
+          type: integer
+        message:
+          $ref: "#/components/schemas/ChatMessage"
+        finish_reason:
+          type: string
+          enum:
+            - stop
+            - length
+            - content_filter
+    CompletionUsage:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+          description: 输入 token 数
+        completion_tokens:
+          type: integer
+          description: 输出 token 数
+        total_tokens:
+          type: integer
+          description: 总 token 数
+        prompt_cache_hit_tokens:
+          type: integer
+          description: Provider-native cache hit tokens when reported at top level, for example DeepSeek.
+        prompt_cache_miss_tokens:
+          type: integer
+          description: Provider-native cache miss tokens when reported at top level, for example DeepSeek.
+        prompt_tokens_details:
+          $ref: "#/components/schemas/InputTokenDetails"
+        input_tokens_details:
+          $ref: "#/components/schemas/InputTokenDetails"
+        completion_tokens_details:
+          $ref: "#/components/schemas/OutputTokenDetails"
+        output_tokens_details:
+          $ref: "#/components/schemas/OutputTokenDetails"
+        cost:
+          type: number
+          format: double
+          description: Actual charged cost for this inference response in USD.
+    InputTokenDetails:
+      type: object
+      properties:
+        cached_tokens:
+          type: integer
+          description: Cache read tokens normalized from OpenAI cached tokens, DeepSeek cache hits, Gemini cachedContentTokenCount, Qwen cached_tokens, or Anthropic cache_read_input_tokens.
+        cache_write_tokens:
+          type: integer
+          description: Cache creation/write tokens when the provider reports an unsplit total.
+        cache_write_5m_tokens:
+          type: integer
+          description: Cache creation/write tokens with a 5-minute TTL when the provider reports TTL buckets.
+        cache_write_1h_tokens:
+          type: integer
+          description: Cache creation/write tokens with a 1-hour TTL when the provider reports TTL buckets.
+        cache_miss_tokens:
+          type: integer
+          description: Cache miss tokens when the provider reports them separately, for example DeepSeek prompt_cache_miss_tokens.
+        text_tokens:
+          type: integer
+        audio_tokens:
+          type: integer
+        image_tokens:
+          type: integer
+    OutputTokenDetails:
+      type: object
+      properties:
+        text_tokens:
+          type: integer
+        audio_tokens:
+          type: integer
+        reasoning_tokens:
+          type: integer
+        accepted_prediction_tokens:
+          type: integer
+        rejected_prediction_tokens:
+          type: integer
+    AnthropicMessageRequest:
+      type: object
+      required:
+        - model
+        - max_tokens
+        - messages
+      properties:
+        model:
+          type: string
+        max_tokens:
+          type: integer
+          minimum: 1
+        system:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                additionalProperties: true
+        messages:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        temperature:
+          type: number
+          format: double
+        top_p:
+          type: number
+          format: double
+        top_k:
+          type: integer
+        stream:
+          type: boolean
+          default: false
+        tools:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+    AnthropicMessageResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          example: message
+        role:
+          type: string
+          example: assistant
+        content:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        model:
+          type: string
+        stop_reason:
+          type: string
+        usage:
+          type: object
+          properties:
+            input_tokens:
+              type: integer
+            output_tokens:
+              type: integer
+    GeminiGenerateContentRequest:
+      type: object
+      required:
+        - contents
+      properties:
+        contents:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        systemInstruction:
+          type: object
+          additionalProperties: true
+        tools:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        generationConfig:
+          type: object
+          additionalProperties: true
+        safetySettings:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    GeminiGenerateContentResponse:
+      type: object
+      additionalProperties: true
+    EmbeddingsRequest:
+      type: object
+      required:
+        - model
+        - input
+      properties:
+        model:
+          type: string
+        input:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        encoding_format:
+          type: string
+          enum:
+            - float
+            - base64
+        dimensions:
+          type: integer
+    EmbeddingsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              object:
+                type: string
+                example: embedding
+              index:
+                type: integer
+              embedding:
+                type: array
+                items:
+                  type: number
+                  format: float
+        model:
+          type: string
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+    SearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Search query. The MVP supports one query per request.
+          example: latest OpenAI web search API changes
+        type:
+          type: string
+          description: Search vertical.
+          enum:
+            - web
+            - news
+          default: web
+        region:
+          type: string
+          description: Region hint. Serper maps this to `gl`.
+          example: us
+        country:
+          type: string
+          description: Country hint for providers that use country instead of region.
+          example: US
+        language:
+          type: string
+          description: Language hint.
+          example: en
+        time_range:
+          type: string
+          description: Freshness hint.
+          enum:
+            - day
+            - week
+            - month
+            - year
+        max_results:
+          type: integer
+          description: Number of normalized results to return, capped by backend policy.
+          minimum: 1
+          maximum: 50
+          default: 10
+        include_answer:
+          type: boolean
+          description: Include a provider answer when available. Lazu does not generate its own final answer for this endpoint.
+          default: false
+        include_raw_content:
+          type: boolean
+          description: Include provider raw or cleaned content when available.
+          default: false
+        include_provider_payload:
+          type: boolean
+          description: Return provider-native payload for debugging.
+          default: false
+        backend:
+          type: string
+          description: Auto, provider name, backend ID, or backend name.
+          default: auto
+          example: auto
+        include_domains:
+          type: array
+          description: Restrict results to domains. Token-level domain allowlists still apply.
+          items:
+            type: string
+          example:
+            - openai.com
+        exclude_domains:
+          type: array
+          description: Exclude domains when supported by the selected backend.
+          items:
+            type: string
+        search_depth:
+          type: string
+          description: Provider depth hint. Tavily advanced uses two billable credits.
+          enum:
+            - basic
+            - advanced
+          default: basic
+        provider_options:
+          type: object
+          description: Advanced provider passthrough. Only the selected provider's object is used.
+          additionalProperties: true
+          example:
+            serper:
+              tbs: qdr:d
+              page: 2
+    SearchResponse:
+      type: object
+      required:
+        - query
+        - results
+        - usage
+        - provider_trace
+      properties:
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResult"
+        answer:
+          type: string
+          nullable: true
+        usage:
+          $ref: "#/components/schemas/SearchUsage"
+        provider_trace:
+          $ref: "#/components/schemas/SearchProviderTrace"
+        route_receipt:
+          $ref: "#/components/schemas/SearchRouteReceipt"
+        provider_payload:
+          type: object
+          description: Provider-native payload returned only when include_provider_payload is true.
+          nullable: true
+          additionalProperties: true
+    SearchResult:
+      type: object
+      required:
+        - title
+        - url
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        snippet:
+          type: string
+        content:
+          type: string
+          nullable: true
+        published_at:
+          type: string
+          nullable: true
+        score:
+          type: number
+          format: double
+          nullable: true
+        source:
+          type: string
+          example: web
+    SearchUsage:
+      type: object
+      required:
+        - web_search_requests
+      properties:
+        web_search_requests:
+          type: integer
+          description: Lazu search request count, normally 1.
+          example: 1
+        web_search_billable_units:
+          type: integer
+          description: Provider billing units used for the charge. Tavily basic is 1, Tavily advanced is 2, and Serper is normally 1 successful query.
+          example: 1
+    SearchProviderTrace:
+      type: object
+      required:
+        - backend
+      properties:
+        backend:
+          type: string
+          description: Actual provider selected after routing.
+          example: tavily
+    SearchRoutingRejected:
+      type: object
+      properties:
+        backend:
+          type: string
+        reason:
+          type: string
+    SearchRouteReceipt:
+      type: object
+      properties:
+        selection:
+          type: string
+          example: auto
+        selected_backend:
+          type: string
+          example: tavily
+        chose_provider:
+          type: string
+          example: tavily
+        candidates:
+          type: array
+          items:
+            type: string
+        rejected:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchRoutingRejected"
+        downgraded:
+          type: boolean
+        fallback_count:
+          type: integer
+        decision_reason:
+          type: string
+    ImageGenerationRequest:
+      type: object
+      required:
+        - model
+      properties:
+        model:
+          type: string
+        prompt:
+          type: string
+          description: Required for generation; optional for Seedream layer decomposition.
+        image:
+          description: Seedream reference URL/data URL or array. Edits use this field on the generations endpoint.
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        layer_decomposition:
+          type: boolean
+          default: false
+          description: Seedream Pro/Flash only; exactly one image. Up to 16 layers plus the base image.
+        sequential_image_generation:
+          type: string
+          enum: [disabled, auto]
+          description: Seedream Lite/4.5 only.
+        sequential_image_generation_options:
+          type: object
+          properties:
+            max_images:
+              type: integer
+              minimum: 1
+              maximum: 15
+              description: References plus max_images must not exceed 15.
+        optimize_prompt_options:
+          type: object
+          additionalProperties: true
+        watermark:
+          type: boolean
+        background:
+          type: string
+          enum: [opaque, transparent]
+        stream:
+          type: boolean
+          const: false
+        n:
+          type: integer
+          minimum: 1
+          maximum: 15
+          default: 1
+        size:
+          type: string
+          description: Model-dependent. Seedream uses resolution levels (for example 2K) or supported widthxheight; consult the catalog.
+          example: 2K
+        quality:
+          type: string
+          enum:
+            - standard
+            - hd
+        style:
+          type: string
+          enum:
+            - vivid
+            - natural
+        response_format:
+          type: string
+          enum:
+            - url
+            - b64_json
+    ImageGenerationResponse:
+      type: object
+      properties:
+        usage:
+          type: object
+          additionalProperties: true
+          properties:
+            generated_images:
+              type: integer
+            input_images:
+              type: integer
+            cost:
+              type: number
+              description: Settled customer charge in USD.
+        created:
+          type: integer
+          format: int64
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              b64_json:
+                type: string
+              size:
+                type: string
+                example: 2048x2048
+              z_index:
+                type: integer
+                description: Decomposition stacking order; 0 is the base image.
+              bounding_box:
+                type: object
+                additionalProperties: true
+              name:
+                type: string
+              description:
+                type: string
+              error:
+                type: object
+                additionalProperties: true
+                description: An unsuccessful image is not billed.
+              revised_prompt:
+                type: string
+    VideoGenerationRequest:
+      type: object
+      required:
+        - model
+        - prompt
+      properties:
+        model:
+          type: string
+          example: veo-3
+        prompt:
+          type: string
+          example: A cinematic shot of a product reveal
+        seconds:
+          type: integer
+          minimum: 1
+          example: 5
+        size:
+          type: string
+          example: 1280x720
+        aspect_ratio:
+          type: string
+          example: "16:9"
+        quality:
+          type: string
+          example: hd
+        response_format:
+          type: string
+          enum:
+            - url
+            - b64_json
+        provider:
+          type: string
+          description: Optional provider hint.
+        artifact_file_id:
+          type: string
+          description: Optional existing Lazu file id to register without provider execution.
+        artifact_url:
+          type: string
+          format: uri
+          description: Optional existing artifact URL to register without provider execution.
+        upstream_job_id:
+          type: string
+    MediaJobObject:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          example: video
+        kind:
+          type: string
+          enum:
+            - image
+            - video
+        source:
+          type: string
+        model:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - running
+            - succeeded
+            - failed
+        created_at:
+          type: integer
+          format: int64
+        updated_at:
+          type: integer
+          format: int64
+        started_at:
+          type: integer
+          format: int64
+        completed_at:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+        agent_id:
+          type: string
+        request_id:
+          type: string
+        artifact:
+          type: object
+          properties:
+            file_id:
+              type: string
+            url:
+              type: string
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        request:
+          type: object
+          additionalProperties: true
+        cost_snapshot:
+          type: object
+          description: Customer billing only. Procurement costs and internal usage facts are never exposed.
+          additionalProperties: false
+          properties:
+            pricing_version:
+              type: integer
+            customer_charge_microusd:
+              type: integer
+            customer_charge_usd:
+              type: number
+            charged_microusd:
+              type: integer
+            line_items:
+              type: array
+              items:
+                type: object
+    MediaJobListResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaJobObject"
+    ResponsesRequest:
+      type: object
+      required:
+        - model
+        - input
+      properties:
+        model:
+          type: string
+        input:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                additionalProperties: true
+        instructions:
+          type: string
+        tools:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        stream:
+          type: boolean
+          default: false
+        metadata:
+          type: object
+          additionalProperties: true
+    ResponsesResponse:
+      type: object
+      additionalProperties: true
+    DecisionRequest:
+      oneOf:
+        - $ref: '#/components/schemas/LegacyDecisionRequest'
+        - $ref: '#/components/schemas/OpenAIDecisionRequest'
+    LegacyDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [model, state]
+      properties:
+        model:
+          type: string
+          examples: [jev-1.13, clef, clef-flash, gpt-6-luna-decisions]
+        state:
+          type: [string, object, array]
+          description: Material to judge. Empty state is allowed only with valid embedded images.
+        questions:
+          type: object
+          minProperties: 1
+          maxProperties: 64
+          propertyNames:
+            pattern: '^[A-Za-z0-9_.-]{1,100}$'
+          additionalProperties:
+            $ref: '#/components/schemas/DecisionQuestion'
+        images:
+          type: array
+          maxItems: 4
+          description: Clef or the OpenAI alias's legacy bridge. PNG/JPEG/WebP inline data URLs; at most 4 MiB and 16 million pixels per image, 8 MiB total decoded, 13 MiB total encoded request. Remote URLs, file IDs, audio and video are unsupported.
+          items:
+            oneOf:
+              - type: string
+                pattern: '^data:image/(png|jpeg|webp);base64,'
+              - type: object
+                additionalProperties: false
+                required: [url]
+                properties:
+                  url: {type: string, pattern: '^data:image/(png|jpeg|webp);base64,'}
+        stream:
+          type: boolean
+          const: false
+          default: false
+        question_generation:
+          type: object
+          additionalProperties: false
+          properties:
+            enabled: {type: boolean, default: false}
+            model: {type: string, maxLength: 200, examples: [gpt-6-luna]}
+    OpenAIDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [model, input, questions]
+      properties:
+        model: {type: string, enum: [gpt-6-luna, gpt-6-luna-decisions]}
+        input:
+          description: Lazu supports text or user-only messages. Input plus all questions is limited to 8192 estimated text tokens. Images use inline PNG/JPEG/WebP data URLs; at most 4 images, 4 MiB and 16 million pixels each, 8 MiB decoded total and 13 MiB encoded request total.
+          oneOf:
+            - type: string
+              minLength: 1
+            - type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [role, content]
+                properties:
+                  role: {type: string, const: user}
+                  type: {type: string, const: message}
+                  content:
+                    oneOf:
+                      - type: string
+                        minLength: 1
+                      - type: array
+                        minItems: 1
+                        items:
+                          oneOf:
+                            - type: object
+                              additionalProperties: false
+                              required: [type, text]
+                              properties:
+                                type: {type: string, const: input_text}
+                                text: {type: string, minLength: 1}
+                            - type: object
+                              additionalProperties: false
+                              required: [type, image_url]
+                              properties:
+                                type: {type: string, const: input_image}
+                                image_url: {type: string, pattern: '^data:image/(png|jpeg|webp);base64,'}
+                                detail: {type: [string, 'null'], enum: [low, high, auto, null]}
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 64
+          description: Ordered explicit questions. Optional names are preserved, including Unicode and empty strings. Lazu's initial release requires supplied names to be unique. Multiple unnamed questions remain separate by position.
+          items:
+            $ref: '#/components/schemas/OpenAIDecisionQuestion'
+      examples:
+        - model: gpt-6-luna
+          input: The customer cannot log in.
+          questions:
+            - name: login_issue
+              type: predicate
+              instructions: Is this a login problem?
+    OpenAIDecisionQuestion:
+      type: object
+      additionalProperties: false
+      required: [type, instructions]
+      properties:
+        name: {type: string}
+        type: {type: string, enum: [predicate, choice, score]}
+        instructions: {type: string, minLength: 1}
+        choices:
+          type: array
+          minItems: 2
+          maxItems: 255
+          description: Unique typed values. Boolean false and string "false" are different choices.
+          items:
+            type: object
+            additionalProperties: false
+            required: [value]
+            properties:
+              value: {type: [string, boolean]}
+              description: {type: [string, 'null']}
+        levels:
+          type: array
+          minItems: 2
+          maxItems: 10
+          description: Lazu launch limit of 2–10 ordered levels; score is the probability-weighted zero-based level index and may be fractional.
+          items:
+            type: object
+            additionalProperties: false
+            required: [label]
+            properties:
+              label: {type: string, minLength: 1}
+              description: {type: [string, 'null']}
+      allOf:
+        - if: {properties: {type: {const: predicate}}}
+          then:
+            not:
+              anyOf: [{required: [choices]}, {required: [levels]}]
+        - if: {properties: {type: {const: choice}}}
+          then:
+            required: [choices]
+            not: {required: [levels]}
+        - if: {properties: {type: {const: score}}}
+          then:
+            required: [levels]
+            not: {required: [choices]}
+    OpenAIDecisionResponse:
+      type: object
+      additionalProperties: true
+      required: [model, answers, usage]
+      properties:
+        model: {type: string, enum: [gpt-6-luna, gpt-6-luna-decisions]}
+        answers:
+          type: array
+          description: One answer per question, in the same order. A refusal is a valid result for that question; other answers and reported usage remain intact.
+          items:
+            type: object
+            additionalProperties: true
+            required: [name, type]
+            properties:
+              name: {type: [string, 'null']}
+              type: {type: string, enum: [predicate, choice, score, refusal]}
+              probability: {type: number, minimum: 0, maximum: 1}
+              confidence:
+                type: number
+                minimum: 0
+                maximum: 1
+                description: Separate from the probability of the selected choice.
+              choice: {type: [string, boolean]}
+              score: {type: number, minimum: 0}
+              probabilities:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                  required: [value, probability]
+                  properties:
+                    value: {type: [string, boolean, integer]}
+                    label: {type: string}
+                    probability: {type: number, minimum: 0, maximum: 1}
+        usage:
+          allOf:
+            - $ref: '#/components/schemas/DecisionUsage'
+            - type: object
+              properties:
+                total_tokens: {type: integer, minimum: 0}
+                input_tokens_details:
+                  type: object
+                  additionalProperties: true
+                  properties:
+                    image_tokens: {type: integer, minimum: 0}
+                    cached_tokens: {type: integer, minimum: 0}
+                    cache_write_tokens: {type: integer, minimum: 0}
+                output_tokens_details:
+                  type: object
+                  additionalProperties: true
+                  properties:
+                    reasoning_tokens: {type: integer, minimum: 0}
+    DecisionQuestion:
+      type: object
+      additionalProperties: false
+      required: [type, instructions]
+      properties:
+        type: {type: string, enum: [noul, choice, score]}
+        instructions:
+          type: [string, object, array]
+          description: Explicit judgment; business JSON is preserved.
+        criteria:
+          description: Choice uses an object with 2–255 option IDs and raw descriptions (including null). Score uses 2–10 ordered raw levels. Noul omits criteria.
+          oneOf:
+            - type: object
+              minProperties: 2
+              maxProperties: 255
+              additionalProperties: true
+            - type: array
+              minItems: 2
+              maxItems: 10
+              items: {}
+      allOf:
+        - if:
+            properties:
+              type: {const: noul}
+          then:
+            not: {required: [criteria]}
+        - if:
+            properties:
+              type: {const: choice}
+          then:
+            required: [criteria]
+            properties:
+              criteria: {type: object, minProperties: 2, maxProperties: 255}
+        - if:
+            properties:
+              type: {const: score}
+          then:
+            required: [criteria]
+            properties:
+              criteria: {type: array, minItems: 2, maxItems: 10}
+    DecisionUsage:
+      type: object
+      required: [input_tokens, output_tokens]
+      properties:
+        input_tokens: {type: integer, minimum: 0}
+        output_tokens:
+          type: integer
+          minimum: 0
+          description: Preserve reported output usage even when output price is zero.
+    DecisionResponse:
+      oneOf:
+        - $ref: '#/components/schemas/LegacyDecisionResponse'
+        - $ref: '#/components/schemas/OpenAIDecisionResponse'
+    LegacyDecisionResponse:
+      type: object
+      required: [id, object, created, model, answers, usage]
+      properties:
+        id: {type: string}
+        object: {type: string, const: decision}
+        created: {type: integer}
+        model: {type: string}
+        answers:
+          type: object
+          description: One answer per question ID. Provider extensions are preserved; answers are validated without coercion or repair.
+          additionalProperties:
+            type: object
+            required: [type]
+            additionalProperties: true
+            properties:
+              type: {type: string, enum: [noul, choice, score, refusal]}
+              refusal: {type: boolean, description: Present for a refused question in the OpenAI legacy bridge. No prediction is fabricated.}
+              confidence: {type: number, minimum: 0, maximum: 1}
+              noul: {type: number, minimum: 0, maximum: 1}
+              choice: {type: string}
+              probabilities:
+                type: object
+                additionalProperties: {type: number, minimum: 0, maximum: 1}
+              score: {type: number, minimum: 0}
+              legend: {type: object, additionalProperties: true}
+        usage: {$ref: '#/components/schemas/DecisionUsage'}
+        questions:
+          type: object
+          additionalProperties: {$ref: '#/components/schemas/DecisionQuestion'}
+        question_generation:
+          type: object
+          required: [model, request_id, prompt_version, usage]
+          properties:
+            model: {type: string}
+            request_id: {type: string}
+            prompt_version: {type: string}
+            usage: {$ref: '#/components/schemas/DecisionUsage'}
+        warnings: {type: array, items: {type: string}}
+    RerankRequest:
+      type: object
+      required:
+        - model
+        - query
+        - documents
+      properties:
+        model:
+          type: string
+        query:
+          type: string
+        documents:
+          type: array
+          items:
+            oneOf:
+              - type: string
+              - type: object
+                additionalProperties: true
+        top_n:
+          type: integer
+        return_documents:
+          type: boolean
+    RerankResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              relevance_score:
+                type: number
+                format: float
+              document:
+                oneOf:
+                  - type: string
+                  - type: object
+                    additionalProperties: true
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+            - type
+            - code
+          properties:
+            message:
+              type: string
+              description: English sentence for developers. May change; do not parse it.
+            type:
+              type: string
+              description: What to do next. OpenAI-aligned; see https://lazu.ai/docs/errors.
+              enum:
+                - invalid_request_error
+                - authentication_error
+                - permission_error
+                - not_found_error
+                - rate_limit_error
+                - api_error
+                - overloaded_error
+                - api_connection_error
+                - timeout_error
+                - content_policy_violation_error
+                - insufficient_quota
+            param:
+              type: string
+              description: The request field at fault, when there is one.
+            code:
+              description: What happened. Stable; branch on this. Provider codes may pass through unchanged for upstream errors.
+              oneOf:
+                - type: string
+                - type: integer
+            lazu:
+              type: string
+              pattern: "^LZ-[1-9][0-9]{3}$"
+              description: Lazu error number, stable. Also sent as the X-Lazu-Error header.
+            docs:
+              type: string
+              format: uri
+              description: Link to this error number in the docs reference.
+            request_id:
+              type: string
+              description: The request this error belongs to. Also sent as X-Lazu-Request-Id.
+            details:
+              type: object
+              additionalProperties: true
+              description: Structured values such as field, model or retry_after_seconds.

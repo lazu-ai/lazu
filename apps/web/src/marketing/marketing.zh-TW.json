@@ -1,0 +1,354 @@
+{
+  "brand": {
+    "name": "Lazu"
+  },
+  "privacy": {
+    "meta": {
+      "title": "隱私權政策 | Lazu",
+      "description": "瞭解 Lazu 如何蒐集、使用、保留、保護和分享帳戶、API 使用、Google OAuth、Stripe 及未來鏈上付款相關資訊。"
+    }
+  },
+  "terms": {
+    "meta": {
+      "title": "服務條款 | Lazu",
+      "description": "適用於 Lazu 帳戶、AI 閘道使用、計費、Google 登入、Stripe 付款及未來鏈上付款功能的服務條款。"
+    }
+  },
+  "landing": {
+    "meta": {
+      "title": "Lazu｜一把 Key 呼叫 Claude、GPT、Gemini API，儲值簡單、帳單清楚",
+      "description": "Claude API 付款失敗？在 Lazu 用信用卡或支付寶儲值一次，就能用同一把相容 OpenAI 的 Key 呼叫 Claude、GPT、Gemini、DeepSeek。穩定線路走官方 API，帳單逐筆可查，不拿你的資料訓練模型。"
+    },
+    "nav": {
+      "models": "模型",
+      "keyInspector": "Key 查詢",
+      "status": "狀態",
+      "faq": "常見問題",
+      "docs": "文件",
+      "changelog": "更新日誌",
+      "github": "GitHub",
+      "signIn": "登入",
+      "console": "主控台",
+      "getKey": "免費開始",
+      "toggleTheme": "切換主題",
+      "changeLanguage": "切換語言",
+      "menu": "選單"
+    },
+    "hero": {
+      "eyebrow": "AI API 網關 · 面向開發者和小團隊",
+      "headline": "所有模型一個帳戶，一張帳單",
+      "headlineEm": "看得懂。",
+      "whatBefore": "Lazu 是",
+      "whatBold": "給開發者和小團隊用的 AI API 網關",
+      "whatAfter": "。接入 Claude Code、Codex 或 SDK，從工作階段、請求明細到成員用量，核對每次任務的費用。",
+      "ctaPrimary": "免費註冊",
+      "ctaSecondary": "看看介面",
+      "free": "首次儲值送 10%,最多 $10"
+    },
+    "stats": {
+      "items": [
+        {
+          "key": "models",
+          "label": "可用模型"
+        },
+        {
+          "key": "vendors",
+          "label": "家上游供給"
+        },
+        {
+          "key": "available",
+          "label": "模型目前可用"
+        }
+      ],
+      "loading": "讀取中"
+    },
+    "shot": {
+      "title": "成員與額度",
+      "sub": "Acme Inc · 八月",
+      "balanceNote": "帳戶餘額　本月已用 $760.00",
+      "topUp": "儲值",
+      "colMember": "成員",
+      "colUsed": "本月已用",
+      "colQuota": "額度",
+      "edit": "改額度",
+      "unlimited": "不限額度",
+      "capHint": "已用 {{pct}}% · ${{cap}} 上限",
+      "navWorkspace": "工作台",
+      "navOverview": "總覽",
+      "navModels": "模型",
+      "navKeys": "API Keys",
+      "navUsage": "用量與帳單",
+      "navOrg": "組織",
+      "navMembers": "成員與額度",
+      "navSettings": "設定",
+      "roleAdmin": "管理員",
+      "roleMember": "成員",
+      "roleService": "腳本帳號",
+      "demo": "示意資料",
+      "catalog": "目錄",
+      "ready": "就緒",
+      "available": "可用",
+      "credentials": "憑證",
+      "active": "已啟用",
+      "protected": "受保護"
+    },
+    "features": {
+      "eyebrow": "它能解決什麼",
+      "title": "四件麻煩事，一個後台",
+      "lede": "這些是團隊開始用 AI 之後，幾乎一定會遇到的問題。",
+      "items": [
+        {
+          "title": "不用一家家開帳號儲值",
+          "body": "Claude、GPT、Gemini、DeepSeek 都在 lazu 裡。儲值一次，全公司都能用，不用每家單獨註冊、單獨儲值、單獨看帳單。",
+          "bullets": [
+            "新模型上線後直接在清單裡出現",
+            "價格公開標著，用多少扣多少"
+          ],
+          "panelTitle": "模型"
+        },
+        {
+          "title": "給每個人一份額度，用完就停",
+          "body": "新同事進來給他 $50，腳本給 $30。花到上限自動停，不會等到月底看帳單才發現有人跑飛了。",
+          "bullets": ["快到上限時先給你發提醒", "隨時能加、能減，改完立刻生效"],
+          "panelTitle": "改額度",
+          "panelMeta": "Wen"
+        },
+        {
+          "title": "一人一把 Key，出事只停一把",
+          "body": "不用全公司共用一把 Key。誰的 Key 傳到 GitHub 上了，停他那把就行，別人照常用。",
+          "bullets": [
+            "每把 Key 可以限定只能用哪幾個模型",
+            "人離職時一起回收，不用挨個找"
+          ],
+          "panelTitle": "API Keys",
+          "panelMeta": "7 把在用"
+        },
+        {
+          "title": "帳單能看懂，也能交給財務",
+          "body": "誰、用了哪個模型、什麼時候、花了多少，一條條列出來。可以按人或按模型彙總，匯出成表格。",
+          "bullets": ["逐條記錄，不是估算", "支援按部門或專案分組"],
+          "panelTitle": "用量與帳單",
+          "panelMeta": "八月 · 按人彙總"
+        }
+      ],
+      "quotaEditor": {
+        "thisMonth": "這個月給多少",
+        "used": "已經用掉",
+        "warn": "還剩 $9.00，快到上限了",
+        "unlimited": "不限"
+      },
+      "keyStatusOk": "正常",
+      "keyStatusOff": "已停用",
+      "modelAvailable": "可用",
+      "panelEmpty": "模型目錄讀取中…",
+      "panelCount": "共 {{count}} 個",
+      "panelUnavailable": "模型目錄暫時取不到"
+    },
+    "steps": {
+      "eyebrow": "怎麼開始",
+      "title": "三步，十分鐘內跑通",
+      "items": [
+        {
+          "title": "註冊並儲值",
+          "body": "註冊就有一個團隊帳戶。儲值 $10 起,第一次儲值多送 10%。"
+        },
+        {
+          "title": "設定閘道",
+          "body": "在控制台選擇要使用的模型和路由。"
+        },
+        {
+          "title": "建立 Key 開始用",
+          "body": "把 Key 填到工具裡即可呼叫，控制台會顯示用量。"
+        }
+      ]
+    },
+    "faq": {
+      "eyebrow": "常見問題",
+      "title": "開始之前你可能想問",
+      "items": [
+        {
+          "q": "要綁卡嗎？",
+          "a": "註冊不用。可以先看介面、建 Key；真正呼叫前要先儲值，最低 $10，第一次儲值多送 10%（最多 $10）。儲值後不退款。"
+        },
+        {
+          "q": "額度用完了會怎樣？",
+          "a": "那個人的請求會被拒絕，回傳明確的「額度已用完」，不會繼續扣錢。你在後台加一點，下一條請求就恢復。其他人不受影響。"
+        },
+        {
+          "q": "模型價格如何計算？",
+          "a": "模型用量按所選穩定線路或 Agent 專線的公示價計費；控制台會在傳送流量前顯示適用的通道價格。"
+        },
+        {
+          "q": "已經在用某一家，搬過來麻煩嗎？",
+          "a": "不用一次性搬。可以先拿一小批請求過來跑，兩邊的花費和延遲都能對比，覺得合適再多切一些。"
+        }
+      ]
+    },
+    "final": {
+      "title": "先把這個月的額度分出去",
+      "body": "兩分鐘註冊,首次儲值送 10%。",
+      "ctaPrimary": "免費註冊",
+      "ctaSecondary": "看文件"
+    }
+  },
+  "about": {
+    "meta": {
+      "title": "關於 Lazu：由 DUBRIO LLC 營運的大型語言模型 API 平台",
+      "description": "Lazu 是由 DUBRIO LLC（美國德拉瓦州公司）營運、相容 OpenAI 的 AI 閘道。誰在營運、如何聯絡我們，以及給程式讀的位址。"
+    },
+    "eyebrow": "About",
+    "title": "關於 Lazu",
+    "lede": "Lazu 是一個相容 OpenAI 的 AI 閘道：一把 Key 呼叫各家主流模型，給每個人發額度，帳單看得懂。Lazu 由 DUBRIO LLC 營運。",
+    "facts": [
+      {
+        "label": "營運主體",
+        "value": "DUBRIO LLC"
+      },
+      {
+        "label": "註冊地",
+        "value": "美國德拉瓦州"
+      },
+      {
+        "label": "上線時間",
+        "value": "2025"
+      },
+      {
+        "label": "聯絡",
+        "value": "support@lazu.ai"
+      },
+      {
+        "label": "發票",
+        "value": "付款後由 DUBRIO LLC 開立境外 Invoice，不是中國增值稅發票"
+      },
+      {
+        "label": "適用法律",
+        "value": "美國德拉瓦州法律，詳見[[terms]]"
+      }
+    ],
+    "termsLink": "服務條款",
+    "machineTitle": "給開發者和 AI 讀的入口",
+    "machineLede": "這些位址穩定，可以直接交給程式或 agent 讀取。",
+    "machine": [
+      {
+        "path": "/llms.txt",
+        "text": "全站索引：頁面、文件、模型"
+      },
+      {
+        "path": "/llms-full.txt",
+        "text": "全站內文，一個檔案讀完"
+      },
+      {
+        "path": "/api/pricing",
+        "text": "所有模型的即時價格與能力（JSON）"
+      },
+      {
+        "path": "/docs",
+        "text": "接入文件，每頁都有 .md 版本"
+      }
+    ]
+  },
+  "faq": {
+    "meta": {
+      "title": "Lazu 常見問題：Claude / GPT API 付款方式、價格與線路",
+      "description": "Claude、GPT、Gemini API 付款失敗怎麼辦、支援哪些付款方式、穩定線路和 Agent 專線有什麼差別、資料會不會被拿去訓練：Lazu 常見問題一次說清。"
+    },
+    "eyebrow": "FAQ",
+    "title": "常見問題",
+    "subtitle": "直接回答模型接入、遷移、價格、隱私和排障問題。",
+    "updatedLabel": "核對於 2026 年 10 月 1 日",
+    "getKey": "取得 API Key",
+    "readDocs": "閱讀文檔",
+    "changelog": "更新日誌",
+    "topics": "問題目錄",
+    "groups": {
+      "gateway": "閘道與接入",
+      "models": "模型與供應商",
+      "billing": "價格與計費",
+      "limits": "隱私與限制"
+    },
+    "tocLabel": "FAQ 目錄",
+    "items": [
+      {
+        "q": "可以自行部署 Lazu 嗎?",
+        "a": "Lazu 目前以 lazu.ai 託管服務的形式提供。如果你需要獨立部署或私有化部署,請聯絡我們,我們會與你討論可行方案。"
+      },
+      {
+        "q": "支援多少個模型？",
+        "a": "所有可呼叫的模型都列在 lazu.ai/models，附即時價格與最近 7 天的可用率，來自 OpenAI、Anthropic、Google、DeepSeek、月之暗面（Kimi）、智譜（GLM）、阿里（通義千問）和 MiniMax。用 Key 呼叫 GET /api/models/catalog 可以取得這把 Key 能用的同一份列表。"
+      },
+      {
+        "q": "支援哪些模型廠商？",
+        "a": "OpenAI、Anthropic、Google、DeepSeek、月之暗面（Kimi）、智譜（GLM）、阿里（通義千問）和 MiniMax。新模型上線後會出現在模型目錄與更新日誌中。"
+      },
+      {
+        "q": "如何從 OpenAI 遷移過來？",
+        "a": "改兩行程式碼：把 base_url 從 https://api.openai.com/v1 改成 https://api.lazu.ai/v1，再把 api_key 換成 Lazu key。業務程式碼可以繼續使用 OpenAI 官方 Python、JavaScript 或 Go SDK。"
+      },
+      {
+        "q": "在中國能直接用 Claude 和 GPT 嗎？",
+        "a": "可以。使用 Lazu 的介面位址 https://api.lazu.ai，國內 IP 可直連，無需 VPN 或代理。每個模型頁都有最近 7 天的可用率。"
+      },
+      {
+        "q": "價格怎麼算？",
+        "a": "輸入、輸出與快取 token 分別計量，依你所用線路的公開價格計費。無月費、無最低消費。"
+      },
+      {
+        "q": "穩定線路和 Agent 專線有什麼差別？",
+        "a": "穩定線路走各家官方 API，按標價計費，可用率最高，適合所有場景。Agent 專線由第三方訂閱池提供：透過官方客戶端接入，不是官方 API。價格低很多，但可用率會有波動，失敗時不會自動切到穩定線路，訂閱池還會附帶自己的預設上下文，所以只建議在對應的 Agent 工具裡使用：Claude 模型搭配 Claude Code，GPT 模型搭配 Codex，Gemini 模型搭配 Antigravity。自己寫的程式或需要精確控制輸出的場景，請用穩定線路。兩條線路用同一把 Key，可以在每把 Key 上按模型選線路。"
+      },
+      {
+        "q": "支援什麼付款方式？",
+        "a": "透過 Stripe 線上儲值，支援 Visa、Mastercard 等信用卡和支付寶。餘額以美元計價。"
+      },
+      {
+        "q": "會用我的資料訓練模型嗎？資料怎麼保存？",
+        "a": "不會，Lazu 不拿你的資料訓練模型。請求和回應的內容會記錄在請求日誌中，保留 180 天，方便我們與你一起回查具體請求，到期後刪除。用量紀錄只保存中繼資料（時間、模型、token 數、費用、狀態和 request_id），保留 90 天。"
+      },
+      {
+        "q": "支援串流回應嗎？",
+        "a": "支援。Chat completion 類 endpoint 支援 SSE 串流輸出，傳 stream: true 即可，行為與 OpenAI 相容。"
+      },
+      {
+        "q": "支援 Anthropic 原生 API 嗎？",
+        "a": "支援。除了 OpenAI 相容的 /v1/chat/completions，Lazu 還提供 /v1/messages，用 x-api-key 和 anthropic-version header 發起 Anthropic 相容請求。Extended Thinking、Prompt Caching 和 Tool Use 都走這條路徑。"
+      },
+      {
+        "q": "速率限制是多少？",
+        "a": "速率限制取決於模型與你的帳戶。可在主控台查看即時用量與限制；如需更高的 RPM 或 TPM，請聯絡 support@lazu.ai。"
+      },
+      {
+        "q": "如何監控我的使用量和成本？",
+        "a": "控制台提供按日、週、月彙總的使用儀表板，並可按模型、endpoint 和 token 類型拆解。每次請求都會返回 x-request-id，可在日誌頁檢索。"
+      },
+      {
+        "q": "出錯了怎麼排查？",
+        "a": "每個回應都會帶 x-request-id 標頭。在主控台的用量日誌中搜尋這個 ID，可以看到請求時間、使用的線路、狀態、token 計費明細與錯誤詳情。"
+      },
+      {
+        "q": "有新用戶優惠嗎？",
+        "a": "第一次儲值多送 10%，最多送 $10，和這筆儲值一起入帳。註冊本身不送額度，儲值後不退款。"
+      },
+      {
+        "q": "有推薦獎勵嗎？",
+        "a": "有。在錢包裡複製你的推薦連結（lazu.ai/?ref=你的名字），也可以在任何 lazu.ai 連結後面加 ?ref=你的名字。好友用它註冊後 30 天內，每筆實付儲值的 10% 歸你，每位好友最多 $30，每筆 7 天後入帳。每人最多算 100 位好友，同一個團隊裡的人不計入。獎勵是 Lazu 額度，不能提領。"
+      }
+    ]
+  },
+  "footer": {
+    "blurb": "相容 OpenAI 的 AI 閘道。一把 Key 呼叫所有模型，按人發額度，帳單看得懂。",
+    "product": "產品",
+    "developers": "開發者",
+    "company": "公司",
+    "legal": "法律",
+    "models": "模型目錄",
+    "faq": "常見問題",
+    "start": "免費註冊",
+    "docs": "文件",
+    "apiReference": "API 參考",
+    "changelog": "更新日誌",
+    "about": "關於",
+    "terms": "服務條款",
+    "privacy": "隱私政策",
+    "legalLine": "© 2025–2026 DUBRIO LLC · 美國德拉瓦州 · Lazu 由 DUBRIO LLC 營運"
+  }
+}

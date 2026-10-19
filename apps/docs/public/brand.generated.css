@@ -1,0 +1,420 @@
+/* GENERATED from brand/tokens. Run npm run brand:sync; do not edit. */
+@font-face{font-family:"Geist";font-style:normal;font-display:swap;font-weight:100 900;src:url("fonts/geist-latin-wght-normal.woff2") format("woff2-variations")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-display:swap;font-weight:400;src:url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-display:swap;font-weight:500;src:url("fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-display:swap;font-weight:600;src:url("fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2")}
+@font-face{font-family:"Instrument Serif";font-style:normal;font-display:swap;font-weight:400;src:url("fonts/instrument-serif-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+/* source: brand/tokens/colors.css */
+/* Lazu canonical color tokens — G1 (Console, public web, sign-in).
+   LOCKED 2026-10-06. Default theme = LIGHT.
+   Flat neutral ground, white sheets, one hairline. Primary action = ink.
+   Evidence = teal, the structural colour: links, current nav, focus, the
+   chart's measure. Vermilion is never a token — it is set on two pieces of
+   home-page type only. Semantic chroma remains state-only. */
+:root {
+  color-scheme: light;
+
+  /* ground: one flat neutral grey, no ambient light, no grid */
+  --lazu-page: #f5f5f6;
+  --lazu-page-top: #f5f5f6;
+  --lazu-page-bottom: #f5f5f6;
+  --lazu-ambient-cool: transparent;
+  --lazu-ambient-warm: transparent;
+  --lazu-grid-line: transparent;
+  --lazu-grid-opacity: 0;
+
+  --lazu-surface: #ffffff;
+  --lazu-surface-solid: #ffffff;
+  --lazu-surface-muted: rgb(20 22 28 / 4%);
+  /* raised = a second sheet (panels, popovers). */
+  --lazu-surface-raised: #ffffff;
+  /* selected = the neutral tint used for active nav and chips; never a panel. */
+  --lazu-surface-selected: rgb(20 22 28 / 6%);
+  /* The sidebar sits on the page's own ground, divided by one hairline. */
+  --lazu-sidebar: #f5f5f6;
+  --lazu-border: rgb(20 22 28 / 10%);
+  --lazu-border-strong: rgb(20 22 28 / 18%);
+
+  --lazu-ink: #1c1d21;
+  --lazu-text-muted: #6b6e76;
+  --lazu-text-faint: #696d75;
+
+  /* primary action = ink on paper */
+  --lazu-action: #202329;
+  --lazu-action-hover: #2c3038;
+  /* soft = the accent wash behind focus rings and picked chips; it follows
+     the teal of --ui-accent, not the ink of the button. */
+  --lazu-action-soft: rgb(31 111 107 / 14%);
+  --lazu-on-action: #f2f3f5;
+
+  /* evidence = teal, the structural colour: links, current nav, focus,
+     selected controls, the chart's measure */
+  --lazu-evidence: #1f6f6b;
+  --lazu-evidence-strong: #175855;
+  --lazu-evidence-soft: rgb(31 111 107 / 11%);
+
+  --lazu-on-success: #ffffff;
+  --lazu-on-danger: #ffffff;
+  --lazu-overlay-scrim: rgb(20 22 28 / 35%);
+  --lazu-control-knob: #fdfdfc;
+  --lazu-shadow-panel: 0 1px 2px rgb(50 56 70 / 6%);
+  --lazu-code-bg: #20242c;
+  --lazu-docs-code-string: #236846;
+  --lazu-docs-code-keyword: #365c96;
+  --lazu-code-text: #e6e8ec;
+  --lazu-code-muted: #878c96;
+  --lazu-code-border: rgb(255 255 255 / 8%);
+  --lazu-code-surface: rgb(255 255 255 / 7%);
+  --lazu-code-surface-selected: rgb(255 255 255 / 10%);
+  --lazu-code-surface-hover: rgb(255 255 255 / 14%);
+  --lazu-code-keyword: #9fb6f7;
+  --lazu-code-string: #e8c890;
+  --lazu-code-flag: #7ed3a7;
+  --lazu-code-strong: #ffffff;
+
+  /* Console charts: teal for the measure, grey for its companion line, a
+     pale neutral for volume. Only failure is red. */
+  --lazu-chart-1: #1f6f6b;
+  --lazu-chart-2: #8b9099;
+  --lazu-chart-3: #dcdcd7;
+
+  --lazu-success: #3f7957;
+  --lazu-success-soft: rgb(68 155 110 / 16%);
+  --lazu-warning: #b3821b;
+  --lazu-warning-soft: rgb(179 130 27 / 14%);
+  --lazu-warning-strong: #8f6813;
+  --lazu-danger: #b8443a;
+  --lazu-danger-soft: rgb(184 68 58 / 12%);
+  /* info is its own state color, never the chart blue: charts may be
+     recolored without silently restyling every neutral notice. */
+  --lazu-info: #4c78a0;
+  --lazu-info-soft: rgb(76 120 160 / 12%);
+  /* G1 notices sit on the page as a white sheet with an ink edge. */
+  --lazu-notice-edge: #1c1d21;
+
+  /* Feedback · toast reads as the ink/paper reversal of the primary button.
+     Semantic chroma survives on the inverted ground as a lifted icon only. */
+  --lazu-toast-bg: #202329;
+  --lazu-toast-fg: #fbfaf7;
+  --lazu-toast-fg-muted: rgb(251 250 247 / 62%);
+  --lazu-toast-control: rgb(255 255 255 / 12%);
+  --lazu-toast-danger: #f2978f;
+  --lazu-toast-warning: #e8c069;
+  --lazu-toast-success: #8fd8b0;
+  --lazu-toast-info: #a8c2e0;
+
+  --ui-bg: var(--lazu-page);
+  --ui-surface: var(--lazu-surface);
+  --ui-surface-muted: var(--lazu-surface-muted);
+  --ui-border: var(--lazu-border);
+  --ui-text: var(--lazu-ink);
+  --ui-text-muted: var(--lazu-text-muted);
+  --ui-accent: var(--lazu-evidence);
+  --ui-success: var(--lazu-success);
+  --ui-warning: var(--lazu-warning);
+  --ui-danger: var(--lazu-danger);
+  --ui-info: var(--lazu-info);
+}
+
+[data-theme="dark"],
+html.dark,
+body[theme-mode="dark"] {
+  color-scheme: dark;
+
+  /* G1 dark · B 中性近黑 (2026-10-07): a near-black neutral ground, sheets
+     one step up, hairlines in white alpha. The sidebar shares the ground. */
+  --lazu-page: #0f0f11;
+  --lazu-page-top: #0f0f11;
+  --lazu-page-bottom: #0f0f11;
+  --lazu-ambient-cool: transparent;
+  --lazu-ambient-warm: transparent;
+  --lazu-grid-line: transparent;
+  --lazu-grid-opacity: 0;
+
+  --lazu-surface: #18181b;
+  --lazu-surface-solid: #18181b;
+  --lazu-surface-muted: rgb(255 255 255 / 4%);
+  /* raised = dialogs and popovers, one more step up so they read as lifted */
+  --lazu-surface-raised: #1d1d21;
+  --lazu-surface-selected: rgb(255 255 255 / 7%);
+  --lazu-sidebar: #0f0f11;
+  --lazu-border: rgb(255 255 255 / 8%);
+  --lazu-border-strong: rgb(255 255 255 / 14%);
+
+  --lazu-ink: #ececee;
+  --lazu-text-muted: #9b9da4;
+  --lazu-text-faint: #85878e;
+
+  --lazu-action: #ececee;
+  --lazu-action-hover: #ffffff;
+  --lazu-action-soft: rgb(79 179 173 / 16%);
+  --lazu-on-action: #111113;
+
+  /* teal lifted for contrast on the near-black ground */
+  --lazu-evidence: #4fb3ad;
+  --lazu-evidence-strong: #7ccbc5;
+  --lazu-evidence-soft: rgb(79 179 173 / 13%);
+
+  --lazu-on-success: #101a14;
+  --lazu-on-danger: #21100f;
+  --lazu-overlay-scrim: rgb(0 0 0 / 54%);
+  --lazu-control-knob: #ececee;
+  /* Sheets separate by tone and hairline, not by shadow. */
+  --lazu-shadow-panel: none;
+  --lazu-code-bg: #0b0b0d;
+  --lazu-docs-code-string: #86efac;
+  --lazu-docs-code-keyword: #7dd3fc;
+  --lazu-code-text: #d8dade;
+  --lazu-code-muted: #767b84;
+
+  --lazu-chart-1: #4fb3ad;
+  --lazu-chart-2: #6b6e76;
+  --lazu-chart-3: #2a2b30;
+
+  --lazu-success: #7ed3a7;
+  --lazu-success-soft: rgb(105 205 155 / 15%);
+  --lazu-warning: #d8a53c;
+  --lazu-warning-soft: rgb(216 165 60 / 14%);
+  --lazu-warning-strong: #d8a53c;
+  --lazu-danger: #f06f62;
+  --lazu-danger-soft: rgb(240 111 98 / 14%);
+  --lazu-info: #7ea0be;
+  --lazu-info-soft: rgb(126 160 190 / 14%);
+  /* An ink (white) edge would read as a frame; dark notices keep a
+     stronger hairline instead. */
+  --lazu-notice-edge: rgb(255 255 255 / 14%);
+
+  /* Dark reverses the reversal: toast becomes the paper sheet, so semantic
+     chroma drops back to the light-theme values to stay legible on paper. */
+  --lazu-toast-bg: #f1f1f2;
+  --lazu-toast-fg: #1d1d1f;
+  --lazu-toast-fg-muted: rgb(29 29 31 / 62%);
+  --lazu-toast-control: rgb(0 0 0 / 8%);
+  --lazu-toast-danger: #b8443a;
+  --lazu-toast-warning: #b3821b;
+  --lazu-toast-success: #3f7957;
+  --lazu-toast-info: #4c78a0;
+  --lazu-shadow-toast: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
+}
+
+
+/* source: brand/tokens/data-viz.css */
+/* Kumo Native data grammar.
+   Teal (evidence) = current primary evidence; blue = secondary evidence.
+   Categories identify models/providers and never communicate health. */
+:root {
+  --lazu-data-orange: #f27828;
+  --lazu-data-blue: #4c78a0;
+  --lazu-data-teal: #4f807b;
+  --lazu-data-plum: #795f91;
+  --lazu-data-clay: #a46852;
+  --lazu-data-olive: #777a58;
+  --lazu-data-steel: #717b83;
+  --lazu-data-grid: #e4e4e7;
+  --lazu-data-area: rgb(31 111 107 / 11%);
+}
+
+[data-theme="dark"],
+body[theme-mode="dark"] {
+  --lazu-data-orange: #ff8a45;
+  --lazu-data-blue: #7ea0be;
+  --lazu-data-teal: #75a69f;
+  --lazu-data-plum: #a88eb8;
+  --lazu-data-clay: #c08d77;
+  --lazu-data-olive: #9da274;
+  --lazu-data-steel: #a0a4a7;
+  --lazu-data-grid: #26272b;
+  --lazu-data-area: rgb(79 179 173 / 14%);
+}
+
+
+/* source: brand/tokens/ui.css */
+/* Lazu product UI tokens — Kumo Native / Warm Utility. LOCKED 2026-07-11. */
+:root {
+  --lazu-font-sans:
+    "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Noto Sans SC", sans-serif; /* @kind font */
+  --lazu-font-mono:
+    "IBM Plex Mono", ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo,
+    Consolas, monospace; /* @kind font */
+  /* Display voice, LOCKED 2026-09-20 with the Seal logo: the wordmark's
+     typeface, used for public display headings and the large figures that sit
+     beside them. Never below 20px; UI text stays on --lazu-font-sans. */
+  --lazu-font-display:
+    "Instrument Serif", "Iowan Old Style", "Songti SC", "Noto Serif SC",
+    Georgia, serif; /* @kind font */
+
+  /* Yunmu 2026-08: controls 12 / cards 18 / overlays 20 — the console reads
+     as soft paper sheets, not squared panels. */
+  --lazu-radius-control: 12px;
+  --lazu-radius-surface: 18px;
+  --lazu-radius-overlay: 20px;
+  --lazu-radius-badge: 8px;
+  --lazu-radius-pill: 999px;
+  /* Data marks — heatmap cells, status dots, legend swatches. Small enough to
+     read as a plotted mark rather than a control, so it is its own step below
+     badge rather than a reuse of it. */
+  --lazu-radius-datamark: 2px;
+
+  --lazu-space-1: 4px;
+  --lazu-space-2: 8px;
+  --lazu-space-3: 12px;
+  --lazu-space-4: 16px;
+  --lazu-space-5: 20px;
+  --lazu-space-6: 24px;
+  --lazu-space-7: 28px;
+  --lazu-space-8: 32px;
+
+  --lazu-control-height-sm: 30px;
+  --lazu-control-height: 34px;
+  --lazu-control-height-lg: 38px;
+  --lazu-row-height: 40px;
+  --lazu-sidebar-width: 244px;
+
+  /* Compact account confirmation, approved in PR #247. */
+  --lazu-confirmation-width: 210px;
+  --lazu-confirmation-radius: 14px;
+  --lazu-confirmation-button-height: 28px;
+
+  /* One list row, everywhere — locked 2026-08-28.
+     Six specs had drifted apart (shared table 9/12, model ops 10/15,
+     announcements 11/14, wallet 10/16 + 14/18 + 16/20, organizations 13/17),
+     and none of them landed on the spacing scale above. These two are
+     space-3 and space-4, and every record list in the console uses them:
+     organizations, wallet, usage & logs, API keys, model ops, announcements.
+     Settings rows are NOT list rows — they keep their own locked 240/56
+     measurements from the settings surface spec. */
+  --lazu-row-padding-y: var(--lazu-space-3);
+  --lazu-row-padding-x: var(--lazu-space-4);
+  --lazu-row-text: 13px;
+  --lazu-row-label: 12px;
+
+  /* Model status C′ cards, owner-selected 2026-09-27. */
+  --lazu-health-model-text: 12.5px;
+  --lazu-health-meta-text: 11.5px;
+  --lazu-health-label-text: 11px;
+  --lazu-health-metric-text: 10.5px;
+
+  --lazu-icon-stroke: 1.5; /* @kind other */
+  --lazu-hairline: 1px;
+  --lazu-shadow-overlay: 0 18px 42px rgba(46, 43, 36, 0.12);
+  --lazu-shadow-drawer: -16px 0 40px rgb(20 25 35 / 14%);
+  --lazu-shadow-action: 0 6px 14px rgba(180, 83, 42, 0.16);
+
+  /* Feedback system — locked 2026-08-28, see foundations/feedback-system.md.
+     Notices sit on paper at control radius; toast is the inverted sheet and
+     keeps its own tighter radius so it never reads as a page surface. */
+  --lazu-radius-notice: 12px;
+  --lazu-radius-toast: 10px;
+  --lazu-notice-icon: 16px;
+  --lazu-shadow-toast:
+    0 12px 32px rgba(32, 35, 41, 0.12), 0 2px 6px rgba(32, 35, 41, 0.06);
+
+  /* Quiet Precision data display — locked 2026-07-19, see foundations/quiet-precision.md */
+  /* Selected September console / Docs heading scale. */
+  --lazu-heading-page: 28px;
+  --lazu-heading-docs: 38px;
+  --lazu-heading-section: 22px;
+  /* Seal Console continuation; Models and dense tables are excluded. */
+  --lazu-console-heading-size: clamp(26px, 3vw, 32px);
+  --lazu-console-money-size: 42px;
+  --lazu-display-kpi: 34px;
+  --lazu-display-stat: 26px;
+  --lazu-display-tracking: -0.02em;
+
+  --lazu-motion-fast: 120ms; /* @kind other */
+  --lazu-motion-base: 180ms; /* @kind other */
+  --lazu-motion-slow: 240ms; /* @kind other */
+  --lazu-motion-loading-cycle: 1500ms; /* @kind other */
+  --lazu-ease-direct: cubic-bezier(0.2, 0.8, 0.2, 1); /* @kind other */
+  --lazu-ease-mechanical: var(
+    --lazu-ease-direct
+  ); /* @kind other */ /* compatibility alias */
+}
+
+/* ---------------------------------------------------------------------------
+ * Silent scroll — LOCKED 2026-08-22, BRAND.md § "02 云母 Yunmu (Console)" 规则 9.
+ * Scroll containers never render a visible bar or track. A grey rail cutting
+ * down a floating paper panel breaks the sheet illusion the whole system rests
+ * on, and it is chrome the reader never asked for.
+ *
+ * Scrolling itself is untouched: wheel, trackpad, touch, keyboard (arrows /
+ * PageUp / PageDown / Home / End) and programmatic scrollIntoView all still
+ * work, and focus outlines still travel. Only the painted bar goes.
+ *
+ * This is the single canonical implementation — components must NOT re-declare
+ * `scrollbar-width` / `::-webkit-scrollbar` locally, and must never paint a
+ * thumb or track back in.
+ * ------------------------------------------------------------------------ */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+*::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}
+
+*::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Approved team-experience refinement, 2026-09-22. */
+:root {
+  --lazu-team-section-size: 18px;
+  --lazu-team-modal-radius: 16px;
+  --lazu-team-card-radius: 14px;
+  --lazu-team-control-radius: 8px;
+}
+
+
+/* source: brand/tokens/public-web.css */
+/* Lazu public web tokens — Yunmu / Seal editorial. LOCKED 2026-07-11, type scale amended 2026-09-20. */
+:root {
+  /* 01–03 · typography */
+  --lazu-web-font-display: var(--lazu-font-display); /* @kind font */
+  --lazu-web-font-reading: var(--lazu-font-sans); /* @kind font */
+  --lazu-web-display-size: clamp(42px, 4.6vw, 58px);
+  --lazu-web-display-line-height: 1.02; /* @kind other */
+  --lazu-web-display-tracking: -0.015em;
+  --lazu-web-h1-size: clamp(34px, 4.4vw, 56px);
+  --lazu-web-h2-size: clamp(30px, 3.6vw, 46px);
+  --lazu-web-h2-tracking: -0.012em;
+  --lazu-web-h3-size: 21px;
+  --lazu-web-body-size: 17px;
+  --lazu-web-body-line-height: 1.75; /* @kind other */
+  --lazu-web-reading-width: 720px;
+
+  /* 04–06 · layout */
+  --lazu-web-container: 1280px;
+  --lazu-web-columns: 12; /* @kind other */
+  --lazu-web-gutter: 24px;
+  --lazu-web-page-padding: clamp(20px, 4vw, 48px);
+  --lazu-web-section-gap: clamp(72px, 9vw, 120px);
+  --lazu-web-section-gap-compact: clamp(48px, 6vw, 80px);
+
+  /* 07–15 · public chrome */
+  --lazu-web-header-height: 58px;
+  --lazu-web-announcement-height: 32px;
+  --lazu-web-footer-columns: 4; /* @kind other */
+  --lazu-web-mobile-sheet-radius: 16px;
+  --lazu-web-mobile-sheet-max-height: 82dvh; /* @kind other */
+
+  /* 26–40 · public components */
+  --lazu-web-field-height: 44px;
+  --lazu-web-button-height: 40px;
+  --lazu-web-badge-radius: var(--lazu-radius-badge);
+  --lazu-web-table-row-height: 48px;
+  --lazu-web-side-sheet-width: min(520px, 92vw);
+  --lazu-web-toast-center-width: min(440px, calc(100vw - 32px));
+
+  /* The public landing runs on the canonical Yunmu tokens (BRAND.md § 02).
+     It used to carry its own colour layer here — warm-orange action on a tan
+     ground — which made the marketing site and the console two different
+     brands. That layer is gone; anything the landing still needs it aliases
+     from --lazu-* in pages/Home/lazu-landing.css. */
+}

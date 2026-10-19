@@ -1,0 +1,83 @@
+---
+title: "請求詳情 API：單次請求的用量、費用與耗時"
+description: "依請求 ID 查詢單次請求：標準化的 token 用量、實際扣費、快取欄位和公開耗時。"
+---
+
+import {
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="介面 / Usage"
+  method="GET"
+  path="/api/usage/requests/{request_id}"
+  sendable={false}
+  title="請求詳情"
+  description="查詢已完成請求的客戶憑據，包含標準化用量維度、計費明細和公開耗時。"
+  aside={
+    <EndpointRail
+      endpoint="usage-requests"
+      extra={
+        <MiniCard title="request_id 來源">
+          使用響應標頭 <code>X-Lazu-Request-Id</code>、錯誤響應裡的
+          <code>request_id</code>，或 gateway response request ID。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 路徑參數
+
+<FieldList>
+  <Field name="request_id" type="string" required>
+    同一把 API Key 發起的請求 ID。Lazu 不允許讀取其它 key 的請求詳情。
+  </Field>
+</FieldList>
+
+## 響應欄位
+
+<FieldList>
+  <Field name="id" type="string">
+    請求 ID。
+  </Field>
+  <Field name="model" type="string">
+    使用者請求的模型或 route 名稱。
+  </Field>
+  <Field name="usage.measurement" type="object" nullable>
+    分別表示輸入和輸出用量來源：`provider`（上游回報）、`local_estimate`（本地估算）、`unavailable`（無法確定）。歷史或未分類記錄可能沒有此欄位，缺省不能視為上游實測。
+  </Field>
+  <Field name="usage.dimensions" type="object[]">
+    標準化 usage 維度，例如 <code>input</code>、<code>output</code>、
+    <code>cache_read</code>、<code>cache_write_5m</code>、
+    <code>cache_write_1h</code>、<code>cache_miss</code>。
+  </Field>
+  <Field name="billing.line_items" type="object[]">
+    計費明細。
+  </Field>
+  <Field name="routing" type="object" nullable>
+    僅返回公開狀態和耗時，不暴露內部路由決策及供應商身分。
+  </Field>
+</FieldList>
+
+## Cache 欄位
+
+OpenAI-compatible 響應裡，cache read 可能出現在
+
+<code>usage.prompt_tokens_details.cached_tokens</code> 或
+<code>usage.input_tokens_details.cached_tokens</code>。cache write
+只有在上游返回時才會出現。
+
+如果要對帳或排查費用，以請求詳情 API 為準。
+
+## 相關頁面
+
+- [計費規則](/zh-TW/billing)
+- [模型目錄](/zh-TW/models/catalog)
+- [Chat completions](/zh-TW/endpoints/chat)
+
+</EndpointPage>

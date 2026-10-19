@@ -1,0 +1,39 @@
+---
+title: "Changelog: Lazu API, model and docs updates"
+description: "What changed in the Lazu API, the model catalog and these docs, newest first: new models, endpoints, pricing lanes and fixes."
+---
+
+# Changelog
+
+## 2026-09-30 — Agent sessions, receipts and long-context prices
+
+- Rebuilt Agent sessions around tasks, models and individual request receipts.
+- Added session activity views and subagent lanes. These show gateway activity; local tools are outside the observation boundary.
+- Connected long-context pricing to cost calculation, request receipts and public model pages. The actual tier depends on the configured model and lane.
+- Corrected sitemap modification dates to reflect actual content changes.
+
+These dates refer to changes merged into the source repository. A self-hosted installation's availability depends on its deployed version. [Reconcile a session's costs](/agent-session-costs) using the exported details.
+
+## 2026-05-28 — Usage metadata and cache fields
+
+- Added normalized cache usage fields for OpenAI-compatible responses:
+  `cached_tokens`, `cache_write_tokens`, `cache_write_5m_tokens`,
+  `cache_write_1h_tokens`, and `cache_miss_tokens`.
+- Added `usage_capabilities` to the model catalog so clients can discover
+  reported and billable dimensions before sending a request.
+- Added `GET /api/usage/requests/{request_id}` for request-level usage,
+  billing line items, provider raw cache fields, and routing metadata.
+- Documented Qwen/DashScope, DeepSeek, Anthropic, Gemini, OpenAI, and
+  OpenRouter cache reporting differences.
+
+## 2026-05-12 — Static docs return to the VPS
+
+- Restore Vocs as the active documentation app for `docs.lazu.ai`.
+- Serve docs as a standalone static nginx container.
+- Keep the product brand and API examples consistent across the website and docs.
+
+## 2026-05-09 — OpenAPI reference cleanup
+
+- Keep `packages/contracts/openapi/lazu-api-reference.v1.yaml` as the source of truth.
+- Sync OpenAPI JSON/YAML into the docs public assets during build.
+- Keep the interactive reference available for request and response field checks.

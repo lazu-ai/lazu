@@ -1,0 +1,140 @@
+---
+title: "Files API：上传 PDF 和图片给 Responses API 使用"
+description: 上传 PDF、图片和文档，然后在 Responses API 中通过 file_id 引用。
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="接口 / Storage"
+  method="POST"
+  path="/v1/files"
+  sendable={false}
+  title="Files API"
+  description="文档和图片可以先上传一次，再在 Responses API 中通过 file_id 引用。Files API 尽量保持 OpenAI-compatible，同时明确 Lazu 的保留期和 purpose 规则。"
+  aside={
+    <EndpointRail
+      endpoint="files"
+      extra={
+        <MiniCard title="保留期">
+          文件保留 30 天，然后由清理任务删除。存储免费，每个账户同时最多保存
+          10 GB。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## File endpoints
+
+| Method | Path                    | 用途     |
+| ------ | ----------------------- | -------- |
+| POST   | `/v1/files`             | 上传     |
+| GET    | `/v1/files`             | 列表     |
+| GET    | `/v1/files/:id`         | 元数据   |
+| GET    | `/v1/files/:id/content` | 下载内容 |
+| DELETE | `/v1/files/:id`         | 删除     |
+
+所有 endpoint 都使用 <code>Authorization: Bearer $LAZU_API_KEY</code>。
+
+## 上传请求
+
+<FieldList>
+  <Field name="purpose" type="string" required values={["user_data", "vision"]}>
+    声明文件用途。
+  </Field>
+  <Field name="file" type="multipart file" required>
+    上传的文件字节。
+  </Field>
+</FieldList>
+
+## 支持的 purpose
+
+<EndpointGrid>
+  <EndpointTile title="user_data">
+    最大 512 MB。用于 PDF、文本和结构化数据，通过 Responses 的
+    <code>input_file</code> 传入。
+  </EndpointTile>
+  <EndpointTile title="vision">
+    最大 20 MB。允许 <code>image/png</code>、<code>image/jpeg</code>、
+    <code>image/gif</code>、<code>image/webp</code>。
+  </EndpointTile>
+</EndpointGrid>
+
+OpenAI 的 <code>batch</code>、<code>fine-tune</code> 和
+
+<code>assistants</code> purpose 暂不支持。无论 purpose
+如何，都会拒绝可执行文件扩展名。
+
+## 上传响应
+
+<FieldList>
+  <Field name="id" type="string">
+    File ID，例如 <code>file-lazu-01KSBV4MC6THZ9TCZEM38KPYRX</code>。
+  </Field>
+  <Field name="object" type="string">
+    始终为 <code>file</code>。
+  </Field>
+  <Field name="bytes" type="integer">
+    上传字节数。
+  </Field>
+  <Field name="filename" type="string">
+    原始文件名。
+  </Field>
+  <Field name="purpose" type="string">
+    存储的 purpose。
+  </Field>
+  <Field name="status" type="string">
+    通常为 <code>processed</code>。
+  </Field>
+</FieldList>
+
+成功上传时 Lazu 返回 <code>201 Created</code>。如果客户端只接受 200，需要把
+201 也视作成功。
+
+## 在 Responses 中引用
+
+Lazu 只会在 [Responses](/zh/endpoints/responses) 中解引用 <code>file_id</code>。
+Chat completions 不会自动拉取文件内容。
+
+对于 <code>purpose=vision</code> 的图片文件，请使用 <code>input_image</code>
+而不是 <code>input_file</code>。
+
+## 限制
+
+| 限制                            | 值     |
+| ------------------------------- | ------ |
+| 单个 `purpose=user_data` 文件   | 512 MB |
+| 单个 `purpose=vision` 文件      | 20 MB  |
+| 单次 Responses 调用解引用总大小 | 64 MB  |
+| 每个账户免费保存的文件总量      | 10 GB  |
+
+上传后会超过 10 GB 时返回 `storage_quota_exceeded`。媒体任务生成的图片和视频
+计入这 10 GB，但不会因此被拒绝。
+
+## 错误
+
+<FieldList>
+  <Field name="missing_required_parameter" type="400">
+    缺少 <code>purpose</code> 或文件字节。
+  </Field>
+  <Field name="purpose_not_supported" type="400">
+    不支持的 purpose，例如 <code>batch</code> 或 <code>fine-tune</code>。
+  </Field>
+  <Field name="file_too_large" type="413">
+    单文件或解引用总大小超过限制。
+  </Field>
+  <Field name="file_not_found" type="404">
+    文件不存在，或不属于当前 API Key。
+  </Field>
+</FieldList>
+
+</EndpointPage>

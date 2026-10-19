@@ -1,0 +1,45 @@
+/* Lazu public web tokens — Yunmu / Seal editorial. LOCKED 2026-07-11, type scale amended 2026-09-20. */
+:root {
+  /* 01–03 · typography */
+  --lazu-web-font-display: var(--lazu-font-display); /* @kind font */
+  --lazu-web-font-reading: var(--lazu-font-sans); /* @kind font */
+  --lazu-web-display-size: clamp(42px, 4.6vw, 58px);
+  --lazu-web-display-line-height: 1.02; /* @kind other */
+  --lazu-web-display-tracking: -0.015em;
+  --lazu-web-h1-size: clamp(34px, 4.4vw, 56px);
+  --lazu-web-h2-size: clamp(30px, 3.6vw, 46px);
+  --lazu-web-h2-tracking: -0.012em;
+  --lazu-web-h3-size: 21px;
+  --lazu-web-body-size: 17px;
+  --lazu-web-body-line-height: 1.75; /* @kind other */
+  --lazu-web-reading-width: 720px;
+
+  /* 04–06 · layout */
+  --lazu-web-container: 1280px;
+  --lazu-web-columns: 12; /* @kind other */
+  --lazu-web-gutter: 24px;
+  --lazu-web-page-padding: clamp(20px, 4vw, 48px);
+  --lazu-web-section-gap: clamp(72px, 9vw, 120px);
+  --lazu-web-section-gap-compact: clamp(48px, 6vw, 80px);
+
+  /* 07–15 · public chrome */
+  --lazu-web-header-height: 58px;
+  --lazu-web-announcement-height: 32px;
+  --lazu-web-footer-columns: 4; /* @kind other */
+  --lazu-web-mobile-sheet-radius: 16px;
+  --lazu-web-mobile-sheet-max-height: 82dvh; /* @kind other */
+
+  /* 26–40 · public components */
+  --lazu-web-field-height: 44px;
+  --lazu-web-button-height: 40px;
+  --lazu-web-badge-radius: var(--lazu-radius-badge);
+  --lazu-web-table-row-height: 48px;
+  --lazu-web-side-sheet-width: min(520px, 92vw);
+  --lazu-web-toast-center-width: min(440px, calc(100vw - 32px));
+
+  /* The public landing runs on the canonical Yunmu tokens (BRAND.md § 02).
+     It used to carry its own colour layer here — warm-orange action on a tan
+     ground — which made the marketing site and the console two different
+     brands. That layer is gone; anything the landing still needs it aliases
+     from --lazu-* in pages/Home/lazu-landing.css. */
+}

@@ -1,0 +1,71 @@
+---
+title: "Authentication: one API key for OpenAI, Anthropic and Gemini formats"
+description: "How to authenticate to Lazu with one API key: the OpenAI-compatible Authorization header, the Anthropic x-api-key header, and Gemini native headers, plus storage and rotation."
+---
+
+# Authentication
+
+Every Lazu request needs an API key. Create one in the
+[console](https://lazu.ai/console/token). Keys look like `sk-lazu-…`.
+
+## Headers by API style
+
+| API style         | Header                                                      |
+| ----------------- | ----------------------------------------------------------- |
+| OpenAI-compatible | `Authorization: Bearer YOUR_API_KEY`                        |
+| Anthropic native  | `x-api-key: YOUR_API_KEY` + `anthropic-version: 2023-06-01` |
+| Gemini native     | `x-goog-api-key: YOUR_API_KEY` or query `?key=…`            |
+
+All three are accepted by Lazu — pick whichever your client SDK already speaks.
+
+## Recommended setup
+
+- **Use a dedicated key per app / environment**. A key compromised in CI
+  should not also let attackers into prod.
+- **Restrict the key.** Each key can scope to specific models, quota cap,
+  expiration time, IP allowlist and a per-vendor lane preference. See
+  [API keys settings](https://lazu.ai/console/token).
+- **Never commit keys to git**. Use environment variables, secret managers
+  or vendor-specific secret stores.
+
+## Storing the key
+
+Shell:
+
+```bash
+export LAZU_API_KEY=sk-lazu-...
+```
+
+`.env` file (gitignored):
+
+```
+LAZU_API_KEY=sk-lazu-...
+```
+
+Python / Node SDK code: read from env, do not hardcode.
+
+```python
+import os
+api_key = os.environ["LAZU_API_KEY"]
+```
+
+```ts
+const apiKey = process.env.LAZU_API_KEY!;
+```
+
+## Verifying
+
+```bash
+curl https://api.lazu.ai/v1/models \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+A 200 response with a JSON model list means the key is live. A 401 with
+`invalid_api_key` means it's been disabled, expired or never existed —
+check the console.
+
+## Rotation
+
+If a key leaks: open the console, **delete** the compromised key, create a
+fresh one, and update your deployments. There is no "rotate in place" — old
+key is dead the moment you delete it.

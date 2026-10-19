@@ -1,0 +1,39 @@
+---
+title: "Billing: prepaid balance, token prices and request receipts"
+description: "How Lazu bills each request: a prepaid USD balance, per-million-token prices by lane, separate cache, audio and image dimensions, and how to reconcile a charge with its receipt."
+---
+
+# Billing
+
+Lazu uses prepaid balance. Charges depend on the selected model, lane and billable dimensions. Read the current catalog before estimating cost and the request receipt after completion.
+
+## Prices and units
+
+Token prices are USD per million tokens; multiply the token quantity by the price and divide by 1,000,000. Per-call prices are USD per billable invocation; per-second prices are USD per billable second. Audio input and output, cache reads and writes, and image input and output may have separate prices. Only use dimensions reported for the selected model; a missing price is not a promise of free service.
+
+## Reservations and final charges
+
+A reservation is an estimate, not final usage or a maximum charge. Provider usage takes priority. Partial output with incomplete usage may include supported local estimates, with their provenance preserved. A failed or canceled request with no useful output or billable usage releases its reservation. HTTP status alone does not establish the charge after streaming starts. For asynchronous media, submission is not completion; repeated terminal checks must not charge twice.
+
+## Balance and top-ups
+
+Use the [wallet](https://lazu.ai/console/wallet) to see available payment methods, amounts and credited transactions. Credit is reflected after payment confirmation and processing; if it is missing, retain the order ID and contact support. Top-ups are not refundable. Review the amount before confirming a payment.
+
+## First top-up bonus and referrals
+
+- **First top-up bonus:** an account's first top-up gets 10% extra, up to $10, credited with the payment. Signing up adds no credit. The bonus does not stack with a promotion code.
+- **Referral reward:** copy your link from the wallet — `https://lazu.ai/?ref=<your-code>` — or add `?ref=<your-code>` to any lazu.ai link. For 30 days after a friend signs up through it, you get 10% of every top-up they pay, up to $30 per friend; each reward is credited to your wallet 7 days after the payment. Up to 100 friends count per person, and people in a team with you don't count. If a payment is refunded or disputed before its reward arrives, that reward is voided. A month's rewards past $300 are reviewed by us before they are credited.
+- **Your code:** you can rename it up to three times. Every name you used keeps working, so links you already shared never break.
+- Rewards and bonuses are Lazu credit. They can't be withdrawn or transferred, and they can be voided when abuse is found.
+- If you publish your referral link in an article or video, mark the link `rel="sponsored"`, as search engines ask for promoted links.
+
+## Reconcile a request
+
+Inspect `usage.dimensions`, `billing.line_items` and the pricing version in request details. Measurement fields may distinguish provider usage, local estimates and unavailable evidence; older receipts may omit them. Search can have its own billable units: check the configured price and receipt instead of assuming it is free. Report billing discrepancies with the request ID, not your secret key.
+
+```bash
+curl --fail-with-body "https://api.lazu.ai/api/usage/requests/$LAZU_REQUEST_ID" \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+[Pricing and lanes](/models/pricing) · [Images, video and audio](/endpoints/media)

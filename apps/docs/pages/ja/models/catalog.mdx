@@ -1,0 +1,59 @@
+---
+title: "モデルカタログ API：実行時に機能と料金を取得"
+description: /api/models/catalog で、現在の API Key が利用できるモデルと機能を実行時に検出する。
+---
+
+# モデルカタログ
+
+Lazu は現在の API Key がアクセスできるモデル集合を返します。本番クライアント、
+agent、スクリプトはモデル名を hard-code せず、実行時に catalog を読んでください。
+
+## GET `/api/models/catalog`
+
+```bash
+curl https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+レスポンスには次の情報が含まれます。
+
+- `id`、`provider`、`owned_by`
+- `modality.input` / `modality.output`
+- `capabilities`
+- `supported_endpoint_types`
+- `supported_endpoints`
+- `default_endpoint_type`
+- `context_length`、`max_output_tokens`
+- 現在の key に対する有効な `pricing`
+- `usage_capabilities`
+- `supported_parameters` と `parameters`
+
+## モデルの選び方
+
+| 目的             | 見る field                                        | 一般的な endpoint                             |
+| ---------------- | ------------------------------------------------- | --------------------------------------------- |
+| テキストチャット | `modality.output` に `text` がある                | `/v1/chat/completions`                        |
+| 画像入力         | `modality.input` に `image` がある                | `/v1/chat/completions` または `/v1/responses` |
+| reasoning        | `capabilities.supports_reasoning === true`        | `/v1/responses`                               |
+| embeddings       | `supported_endpoint_types` に `embeddings` がある | `/v1/embeddings`                              |
+| tool calling     | `capabilities.supports_function_calling === true` | `/v1/chat/completions`                        |
+
+SDK が明示的に Anthropic/Gemini ネイティブ endpoint を必要としない限り、
+`default_endpoint_type` を優先してください。
+
+## Usage と cache metadata
+
+`usage_capabilities` は、リクエスト前にどの usage dimension が返る可能性があるかを示します。
+`reported_dimensions` は出現可能な dimension、`billable_dimensions` は価格に影響する
+dimension です。
+
+## `/v1/models`
+
+OpenAI style の `models.list()` が必要な SDK には `/v1/models` もあります。ただし、
+routing、pricing、modality、parameter、usage metadata が必要なら `/api/models/catalog`
+を使ってください。
+
+## 関連ページ
+
+- [モデル一覧](/ja/endpoints/models)
+- [料金と経路](/ja/models/pricing)

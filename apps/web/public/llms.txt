@@ -1,0 +1,34 @@
+# Lazu
+
+> Call Claude, GPT, Gemini and DeepSeek with one OpenAI-compatible API key. Pay as you go, no subscription. The stable lane runs on official APIs, every request is itemized, and Lazu never trains on your data.
+
+## Key facts
+
+- OpenAI-compatible at `https://api.lazu.ai/v1/*` — change `base_url` and reuse official SDKs
+- Native provider endpoints also supported (Anthropic Messages and Gemini)
+- No more signing up with every provider
+- Give everyone a cap that actually stops
+- One key per person, so a leak costs one key
+- A bill you can read and hand to finance
+- Automatic failover on upstream error
+
+## Pages
+
+- [Home](https://lazu.ai/): product overview · [中文](https://lazu.ai/zh/) · [繁體](https://lazu.ai/zh-TW/) · [日本語](https://lazu.ai/ja/)
+- [FAQ](https://lazu.ai/faq): common questions about migration, payment, models
+- [About](https://lazu.ai/about): who operates Lazu (DUBRIO LLC, Delaware) and how to reach us
+- [Privacy Policy](https://lazu.ai/privacy): how Lazu handles account, API usage, OAuth, and payment information
+- [Terms of Service](https://lazu.ai/terms): terms for accounts, gateway usage, and billing
+
+## Models
+
+- [Model catalog](https://lazu.ai/models): every model with live prices on both lanes, context length and capabilities ([Markdown](https://lazu.ai/models.md))
+- Each model has its own page, e.g. `https://lazu.ai/models/anthropic/<model>`, with a `.md` and a `.json` sibling
+- Machine-readable models and prices: [https://lazu.ai/models.json](https://lazu.ai/models.json)
+
+## Documentation
+
+- [Docs](https://lazu.ai/docs): quickstart, examples, API reference
+- [API Reference](https://lazu.ai/docs/api-reference): interactive OpenAPI reference
+- [Examples](https://lazu.ai/docs/examples): cURL / Python / JavaScript / TypeScript / Go
+- [Changelog](https://lazu.ai/docs/changelog): API updates

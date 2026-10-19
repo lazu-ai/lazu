@@ -1,0 +1,30 @@
+---
+title: "API Explorer：在线调用 Lazu API"
+description: 在线试用 Lazu API —— 选择操作、粘贴密钥、直接发起真实请求。
+---
+
+import { ApiExplorer } from "../../components/mdx";
+
+# API Explorer
+
+选择一个操作、粘贴你的 Lazu API 密钥，直接对线上 API 发起**真实请求**。请求从浏览器直连
+`api.lazu.ai`，密钥只保留在当前标签页（勾选 _Remember_ 才会持久化）。
+
+## 兼容能力矩阵
+
+“OpenAI-compatible”表示已支持接口遵循兼容的请求与响应格式，不代表所有 OpenAI 产品接口均已实现。未实现的路由会返回 HTTP `501` 和 OpenAI 风格错误结构。
+
+| 能力                        | 状态            | 路由                                                |
+| --------------------------- | --------------- | --------------------------------------------------- |
+| Chat 与旧版 Completions     | 已支持          | `POST /v1/chat/completions`、`POST /v1/completions` |
+| Responses                   | 已支持          | `POST /v1/responses`                                |
+| Embeddings 与 Rerank        | 已支持          | `POST /v1/embeddings`、`POST /v1/rerank`            |
+| Images                      | 部分支持        | 支持生成与编辑，不支持 variations                   |
+| Audio                       | 已支持          | 语音、转录与翻译                                    |
+| Files 与 Models             | 已支持          | 文件生命周期、模型列表与查询                        |
+| Realtime、Anthropic、Gemini | 取决于 Provider | 需要配置具备对应能力的渠道                          |
+| Fine-tuning 与模型删除      | 未实现          | 返回 `501`                                          |
+
+长时间交互推理应使用流式响应；可能连续数分钟无输出的任务应采用异步提交与轮询，不应依赖无限空闲的 HTTP 连接。
+
+<ApiExplorer />

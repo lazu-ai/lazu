@@ -1,0 +1,79 @@
+---
+title: "Models list API: GET /v1/models"
+description: OpenAI-compatible /v1/models plus guidance on when to use the richer /api/models/catalog.
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../components/mdx";
+
+<EndpointPage
+  eyebrow="Endpoints / Discovery"
+  method="GET"
+  path="/v1/models"
+  title="Models list"
+  description="List models available to the current API key in the flat OpenAI-compatible shape. For routing, pricing, modality and usage metadata, use /api/models/catalog instead."
+  aside={
+    <EndpointRail
+      endpoint="models"
+      extra={
+
+<MiniCard title="Use this when">
+Your SDK calls <code>client.models.list()</code> and expects the
+OpenAI list shape.
+</MiniCard>
+}
+/>
+}
+
+>
+
+## Which model endpoint should I use?
+
+<EndpointGrid>
+  <EndpointTile title="/v1/models">
+    OpenAI-compatible model list for existing SDKs and tools.
+  </EndpointTile>
+  <EndpointTile title="/api/models/catalog">
+    Rich token-scoped catalog for agents, routing, pricing, modalities, endpoint
+    support, parameters and usage/cache metadata.
+  </EndpointTile>
+</EndpointGrid>
+
+## Response fields
+
+<FieldList>
+  <Field name="object" type="string">
+    Always <code>list</code>.
+  </Field>
+  <Field name="data" type="object[]">
+    Accessible model records for the current API key.
+  </Field>
+  <Field name="data[].id" type="string">
+    Model ID.
+  </Field>
+  <Field name="data[].object" type="string">
+    Usually <code>model</code>.
+  </Field>
+  <Field name="data[].owned_by" type="string">
+    Provider or owner label.
+  </Field>
+</FieldList>
+
+## Filtering behavior
+
+A model appears here only when:
+
+1. It is enabled on at least one usable Lazu channel.
+2. The current API key is allowed to access it.
+3. The token's model restrictions do not exclude it.
+
+If an agent needs to choose well, read [Model catalog](/models/catalog) first.
+
+</EndpointPage>

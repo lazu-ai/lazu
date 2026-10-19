@@ -1,0 +1,96 @@
+{
+  "purpose": "Reviewed administrative payload template; never loaded automatically at startup. Supply provider credentials only in the authorized administrative session.",
+  "publication_order": [
+    "Resolve and bind the canonical OpenAI vendor internal_id, then register the exact routing alias without modifying gpt-6-luna.",
+    "Create the source with status=2 (manually disabled), then read back its public ID.",
+    "Update that source with the channel_provider_cost_prices below; channel creation alone does not persist cost rows.",
+    "Publish sell_price through PUT /api/pricing/sell_prices and verify the pricing registry and catalog.",
+    "Probe the Decisions endpoint, then enable only the new source through its status endpoint and verify token-scoped discovery."
+  ],
+  "model_registration": {
+    "model_name": "gpt-6-luna-decisions",
+    "name_rule": 0,
+    "description_en": "OpenAI Decisions: ordered predicate, choice and score questions. Lazu launch limits: 8192 estimated text tokens, 64 questions and 4 inline images.",
+    "description_zh": "OpenAI 判别：按顺序返回命题、选择和评分结果。Lazu 首发限制为 8192 个估算文本 token、64 题、4 张内嵌图片。",
+    "maker": "openai",
+    "family": "gpt-6-luna",
+    "source": "manual",
+    "sync_official": 0,
+    "info_locked": true,
+    "context_length": 8192,
+    "input_limit": 8192,
+    "official_input_price": 1e-07,
+    "official_output_price": 0,
+    "official_cache_read_per_mtok": 0,
+    "official_cache_write_per_mtok": 0,
+    "modalities": {
+      "input": [
+        "text",
+        "image"
+      ],
+      "output": [
+        "decision"
+      ]
+    },
+    "capabilities": {
+      "supports_vision": true
+    },
+    "unsupported_params": [
+      "stream",
+      "tools",
+      "temperature",
+      "safety_identifier"
+    ],
+    "tags": "decisions,beta"
+  },
+  "channel_configuration_without_credentials": {
+    "type": 1,
+    "name": "OpenAI Decisions",
+    "source_type": "official",
+    "status": 2,
+    "base_url": "https://api.openai.com",
+    "models": "gpt-6-luna-decisions",
+    "group": "direct",
+    "test_model": "gpt-6-luna-decisions",
+    "model_mapping": "{\"gpt-6-luna-decisions\":\"gpt-6-luna\"}",
+    "setting": "{\"decision_dialect\":\"openai\",\"decision_timeout_ms\":5000,\"max_rps\":30,\"max_in_flight\":128,\"shared_limit_group\":\"openai-decisions\",\"shared_max_rps\":30,\"shared_max_in_flight\":128}"
+  },
+  "channel_provider_cost_prices": [
+    {
+      "model_name": "gpt-6-luna-decisions",
+      "provider": "openai",
+      "input_per_mtok": 0.1,
+      "output_per_mtok": 0,
+      "cache_read_per_mtok": 0,
+      "cache_write_5m_per_mtok": 0,
+      "cache_write_1h_per_mtok": 0,
+      "source": "manual",
+      "image_input_per_mtok": 0.1,
+      "image_output_per_mtok": 0
+    }
+  ],
+  "sell_price": {
+    "model_name": "gpt-6-luna-decisions",
+    "channel_group": "direct",
+    "input_per_mtok": 0.12,
+    "output_per_mtok": 0,
+    "cache_read_per_mtok": 0,
+    "cache_write_5m_per_mtok": 0,
+    "cache_write_1h_per_mtok": 0,
+    "follow_official": false,
+    "source": "manual",
+    "active": true,
+    "image_input_per_mtok": 0.12,
+    "image_output_per_mtok": 0
+  },
+  "wire_model": "gpt-6-luna",
+  "internal_routing_and_pricing_model": "gpt-6-luna-decisions",
+  "required_bindings": {
+    "model_registration.vendor_id": "Resolve the canonical OpenAI vendor and set its positive internal_id before registration; maker alone does not enforce vendor-scoped authorization."
+  },
+  "price_units": {
+    "model_registration.official_input_price": "USD per token; 0.0000001 equals USD 0.10 per million tokens.",
+    "channel_provider_cost_prices.*_per_mtok": "USD per million tokens.",
+    "sell_price.*_per_mtok": "USD per million tokens."
+  }
+}

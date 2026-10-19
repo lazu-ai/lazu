@@ -1,0 +1,179 @@
+/* Personal settings — one 760px reading column, head included.
+ *
+ * Selectors carry `.console-review` so they outrank the review pages' own
+ * `.console-page-shell.console-review .set-row` geometry.
+ *
+ * The locked settings row reads `label | value + action | explanation`, and
+ * personal settings keeps the explanation stacked under its label (brand/
+ * foundations/yunmu-console.md § Locked settings surfaces). At 1180px the
+ * shared row moves the explanation into a third column; in a 760px column that
+ * third column would squeeze the value, so this page keeps the stacked pair at
+ * every width above phone. Below 640px the shared single-column row applies. */
+
+.console-page-shell.console-review.personal-page--minimal
+  > .console-page-topbar,
+.personal-page--minimal .pm-container {
+  box-sizing: border-box;
+  margin-inline: auto;
+  max-width: 760px;
+  width: 100%;
+}
+
+.personal-page--minimal .pm-container {
+  display: grid;
+  gap: 20px;
+}
+
+.console-page-shell.console-review.personal-page--minimal
+  .set-card
+  + .set-card {
+  margin-top: 0;
+}
+
+/* Head: the account's initial beside the page title, the username under it. */
+.console-page-shell.console-review.personal-page--minimal
+  .console-page-topbar__copy {
+  min-height: 52px;
+  padding-left: 68px;
+  position: relative;
+}
+
+.pm-avatar {
+  align-items: center;
+  background: var(--lazu-action);
+  border-radius: 14px;
+  color: var(--lazu-on-action);
+  display: flex;
+  font-family: var(--lazu-font-sans);
+  font-size: 20px;
+  font-weight: 650;
+  height: 52px;
+  justify-content: center;
+  left: 0;
+  letter-spacing: 0;
+  position: absolute;
+  top: 0;
+  width: 52px;
+}
+
+.console-page-shell.console-review.personal-page--minimal
+  .console-page-topbar__description {
+  margin-top: 4px;
+}
+
+@media (min-width: 641px) {
+  .console-page-shell.console-review.personal-page--minimal .set-row {
+    align-items: center;
+    gap: 3px 32px;
+    grid-template-columns: minmax(0, 1fr) 288px;
+    padding: 16px 24px;
+  }
+
+  .console-page-shell.console-review.personal-page--minimal .set-row__lb {
+    font-size: 14px;
+  }
+
+  .console-page-shell.console-review.personal-page--minimal .set-row__hint {
+    grid-column: 1;
+    grid-row: 2;
+    max-width: none;
+  }
+
+  .console-page-shell.console-review.personal-page--minimal .set-row__vv {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .console-page-shell.console-review.personal-page--minimal .set-card__hd {
+    padding: 20px 24px 14px;
+  }
+}
+
+.pm-muted {
+  color: var(--lazu-text-faint);
+  font-size: 13px;
+}
+
+.pm-danger-label {
+  color: var(--lazu-danger);
+}
+
+/* Outlined, not filled: the weight belongs to the typed confirmation. */
+.personal-page .pm-delete {
+  border: 1px solid color-mix(in srgb, var(--lazu-danger) 45%, transparent);
+}
+
+/* The one line a card says about the mails nobody can switch off. */
+.pm-card-foot {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 24px 14px;
+}
+
+.console-page-shell.console-review.personal-page--minimal
+  .set-row__vv
+  .lazu-button--link,
+.pm-card-foot .lazu-button--link {
+  color: var(--lazu-evidence-strong);
+  font-size: 12.5px;
+  font-weight: 500;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.personal-setting-editor .set-ed {
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* Digest preview: the mail at its own 640px width, scrolled inside. */
+.personal-digest-preview {
+  max-width: 760px;
+  width: min(760px, calc(100vw - 32px));
+}
+
+.personal-digest-preview__frame {
+  background: var(--lazu-page);
+  border: 0;
+  border-radius: 12px;
+  display: block;
+  height: 720px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .pm-card-foot {
+    padding-inline: 16px;
+  }
+}
+
+/* 专属折扣: one neutral chip per rule, the 折 in ink. */
+.pm-plan-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pm-plan-rule {
+  align-items: baseline;
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-badge);
+  display: inline-flex;
+  font-size: 12.5px;
+  gap: 6px;
+  padding: 3px 8px;
+}
+
+.pm-plan-rule b {
+  color: var(--lazu-ink);
+  font-weight: 600;
+}

@@ -1,0 +1,176 @@
+/* 设置 › 速率限制 — two cards: the ceilings, and the accounts with their own. */
+
+.rl-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1000px;
+}
+
+.rl-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  overflow: clip;
+}
+
+.rl-card__head {
+  align-items: center;
+  display: flex;
+  font-size: 14px;
+  padding: 14px 20px;
+}
+
+.rl-card__head b {
+  font-weight: 600;
+}
+
+.rl-row {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  font-size: 13px;
+  gap: 16px;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 62px;
+  padding: 12px 20px;
+}
+
+.rl-row:first-child {
+  border-top: 0;
+}
+
+.rl-row__label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rl-row__label b {
+  font-weight: 600;
+}
+
+.rl-row__label small {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.rl-row__inputs {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.rl-limit {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.rl-limit input {
+  font-family: var(--lazu-font-mono);
+  text-align: right;
+  width: 130px;
+}
+
+/* Same box as the input it stands in for. */
+.rl-limit__pending {
+  align-items: center;
+  display: inline-flex;
+  height: 34px;
+  justify-content: flex-end;
+  width: 130px;
+}
+
+.rl-unit {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.rl-save {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px 20px;
+}
+
+.rl-error {
+  color: var(--lazu-danger);
+  font-size: 12px;
+  margin-right: auto;
+}
+
+.rl-trow {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  font-size: 13px;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 100px 110px minmax(0, 1fr) 60px;
+  min-height: 46px;
+  padding: 6px 20px;
+}
+
+.rl-trow--head {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  min-height: 36px;
+}
+
+.rl-num {
+  font-family: var(--lazu-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.rl-trow--head .rl-num {
+  font-family: inherit;
+}
+
+.rl-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rl-who > *,
+.rl-remark {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rl-who small,
+.rl-remark {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.rl-open {
+  font-size: 13px;
+  text-align: right;
+}
+
+.rl-none {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  padding: 16px 20px;
+}
+
+@media (max-width: 640px) {
+  .rl-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rl-trow {
+    grid-template-columns: minmax(0, 1fr) 70px 80px 44px;
+  }
+
+  .rl-trow > :nth-child(4) {
+    display: none;
+  }
+}

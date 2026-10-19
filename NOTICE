@@ -1,0 +1,19 @@
+Lazu
+Copyright (c) Lazu contributors.
+
+This repository contains code derived from upstream AI gateway projects,
+including:
+
+- new-api by QuantumNous, published at https://github.com/QuantumNous/new-api
+  under the GNU Affero General Public License v3.0.
+- one-api by songquanpeng / JustSong, published at
+  https://github.com/songquanpeng/one-api and part of the upstream lineage.
+
+The repository is distributed under the GNU Affero General Public License
+version 3 or later; see LICENSE. Keep any additional copyright, license, or
+attribution notices that appear in individual source files.
+
+new-api's AGPL-3.0 section 7 additional terms ask that modified versions keep
+the notice "Frontend design and development by New API contributors." and a
+visible link to https://github.com/QuantumNous/new-api in the user interface.
+Lazu shows both in the console's Help menu and the public site footer.

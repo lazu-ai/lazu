@@ -1,0 +1,15 @@
+{
+  "key_name_too_long": "Key 名称过长，最多 {{max_length}} 个字符。请缩短后再保存。",
+  "key_enable_blocked": "这把 Key 已过期或额度已用完，暂时不能启用。请先延长有效期或调高额度。",
+  "key_limit_reached": "你在这个项目里已有 {{limit}} 把 Key，达到上限。请删除不再使用的 Key 后再新建。",
+  "secret_unavailable": "这把 Key 只保存了摘要，无法显示完整密钥。如需完整密钥，请新建一把。",
+  "key_not_found": "找不到这把 Key，它可能已被删除。请刷新页面。",
+  "usage_range_invalid": "时间范围的结束早于开始。请调整时间范围后再试。",
+  "usage_range_too_long": "时间范围超过了 {{max_days}} 天。请缩短时间范围。",
+  "invalid_usage_summary_window": "用量汇总的时间窗口无效。请检查 since、until 和 granularity 参数。",
+  "request_not_found": "这把 Key 下没有找到这个请求。请检查请求 ID。",
+  "log_session_not_found": "在你可查看的日志里找不到这个会话。请刷新页面。",
+  "usage_export_format_unsupported": "不支持这种导出格式。请导出为 CSV 或 XLSX。",
+  "log_cleanup_cutoff_too_recent": "最近 {{min_days}} 天的日志要用于模型排行，不能清理。请选择更早的截止日期。",
+  "spend_budget_not_found": "找不到这条支出预算，它可能已被删除。请刷新页面。"
+}

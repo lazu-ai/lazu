@@ -1,0 +1,76 @@
+---
+title: "モデル一覧 API：GET /v1/models"
+description: OpenAI-compatible /v1/models と、より詳しい /api/models/catalog を使うべき場面。
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="エンドポイント / Discovery"
+  method="GET"
+  path="/v1/models"
+  title="モデル一覧"
+  description="現在の API Key で利用できるモデルを flat OpenAI-compatible shape で返します。routing、pricing、modality、usage metadata には /api/models/catalog を使ってください。"
+  aside={
+    <EndpointRail
+      endpoint="models"
+      extra={
+        <MiniCard title="使う場面">
+          SDK が <code>client.models.list()</code> を呼び、OpenAI list shape を期待する場合。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## どちらの endpoint を使うべきか
+
+<EndpointGrid>
+  <EndpointTile title="/v1/models">
+    既存 SDK や tools 向けの OpenAI-compatible model list。
+  </EndpointTile>
+  <EndpointTile title="/api/models/catalog">
+    agents、routing、pricing、modalities、endpoint support、parameters、
+    usage/cache metadata のための rich catalog。
+  </EndpointTile>
+</EndpointGrid>
+
+## Response fields
+
+<FieldList>
+  <Field name="object" type="string">
+    常に <code>list</code>。
+  </Field>
+  <Field name="data" type="object[]">
+    現在の API Key でアクセスできる model records。
+  </Field>
+  <Field name="data[].id" type="string">
+    Model ID。
+  </Field>
+  <Field name="data[].object" type="string">
+    通常 <code>model</code>。
+  </Field>
+  <Field name="data[].owned_by" type="string">
+    provider または owner label。
+  </Field>
+</FieldList>
+
+## Filtering behavior
+
+モデルが表示される条件：
+
+1. 少なくとも 1 つの usable Lazu channel で enabled。
+2. 現在の API Key がアクセス可能。
+3. token model restrictions により除外されていない。
+
+agent が適切に選ぶ必要がある場合は、先に [モデルカタログ](/ja/models/catalog) を読んでください。
+
+</EndpointPage>

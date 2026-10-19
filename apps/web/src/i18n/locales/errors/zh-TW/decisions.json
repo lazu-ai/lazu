@@ -1,0 +1,11 @@
+{
+  "missing_questions": "請提供 questions，或開啟自動生成判別問題。",
+  "invalid_decision_state": "請提供文字或 JSON 材料，或嵌入圖片。",
+  "invalid_decision_questions": "判別問題格式不正確。",
+  "unsupported_question_type": "暫不支援這種問題類型。",
+  "unsupported_decision_input": "該判別模型不支援這種輸入。",
+  "unsupported_decision_parameter": "暫不支援這個參數。判別介面不支援串流輸出。",
+  "question_generation_failed": "生成的問題未通過驗證，生成費用將退回。",
+  "upstream_decision_invalid": "判別模型傳回的結果格式不正確。",
+  "upstream_capacity": "上游容量已滿，請按提示時間稍後重試。"
+}

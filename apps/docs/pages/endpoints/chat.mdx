@@ -1,0 +1,265 @@
+---
+title: "Chat completions API (OpenAI-compatible)"
+description: OpenAI-compatible /v1/chat/completions with inline parameters, examples, streaming, tools and cache usage notes.
+---
+
+import {
+  CodeSample,
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+} from "../../components/mdx";
+
+<EndpointPage
+  eyebrow="Endpoints / OpenAI-compatible"
+  method="POST"
+  path="/v1/chat/completions"
+  title="Chat completions"
+  description="Send OpenAI-compatible chat requests through Lazu. Use this page as the working reference: base URL, auth, required body fields, examples, response usage, streaming and tool calling all live here."
+  aside={<EndpointRail endpoint="chat" />}
+>
+
+## Basic configuration
+
+<EndpointGrid>
+  <EndpointTile title="Base URL">
+    Use <code>https://api.lazu.ai/v1</code> with OpenAI SDKs, or call the full
+    path <code>https://api.lazu.ai/v1/chat/completions</code> directly.
+  </EndpointTile>
+  <EndpointTile title="Model discovery">
+    Read <code>GET /api/models/catalog</code> at runtime. Filter entries where
+    <code>supported_endpoint_types</code> contains <code>chat</code>.
+  </EndpointTile>
+</EndpointGrid>
+
+## Request body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    Model ID, route alias or future route policy name. For explicit models, pass
+    IDs from <code>GET /api/models/catalog</code>. For SDK compatibility,
+    <code>/v1/models</code> remains available as a flat list.
+  </Field>
+  <Field
+    name="messages"
+    type="object[]"
+    required
+    fields={[
+      {
+        name: "role",
+        type: "string",
+        description: "One of system, user, assistant or tool.",
+      },
+      {
+        name: "content",
+        type: "string | content_part[]",
+        description:
+          "Plain text, or an array of content parts for multimodal requests.",
+      },
+      {
+        name: "tool_call_id",
+        type: "string",
+        description:
+          "Required on tool messages so the model can associate the result with the earlier call.",
+      },
+    ]}
+  >
+    Ordered conversation messages. Roles follow the OpenAI shape:
+    <code>system</code>, <code>user</code>, <code>assistant</code>, and
+    <code>tool</code>.
+  </Field>
+  <Field name="stream" type="boolean" nullable>
+    When <code>true</code>, Lazu forwards a Server-Sent Events stream and ends
+    with <code>data: [DONE]</code>.
+  </Field>
+  <Field
+    name="tools"
+    type="object[]"
+    nullable
+    fields={[
+      {
+        name: "type",
+        type: '"function"',
+        description: "Only function tools are supported today.",
+      },
+      {
+        name: "function.name",
+        type: "string",
+        description: "Tool name the model will call.",
+      },
+      {
+        name: "function.parameters",
+        type: "object",
+        description: "JSON Schema describing the tool arguments.",
+      },
+    ]}
+  >
+    Function/tool definitions. Check <code>parameters.tools</code> in the model
+    catalog before sending tools to a model.
+  </Field>
+  <Field name="tool_choice" type="string | object" nullable>
+    OpenAI-compatible tool choice control. Use <code>auto</code>,
+    <code>none</code>, <code>required</code>, or a named tool object when the
+    selected model supports it.
+  </Field>
+  <Field name="response_format" type="object" nullable>
+    Structured output control. Use <code>{'{"type":"json_object"}'}</code>
+    or a JSON schema object when the model supports strict structured output.
+  </Field>
+  <Field name="temperature" type="number" nullable>
+    Sampling temperature. Most models accept <code>0</code> to <code>2</code>,
+    but provider-specific limits can differ.
+  </Field>
+  <Field name="max_tokens" type="integer" nullable>
+    Maximum generated tokens. The final cap is still bounded by the selected
+    model's context and output limits.
+  </Field>
+  <Field name="stream_options" type="object" nullable>
+    Use <code>{'{"include_usage":true}'}</code> when the upstream supports
+    streaming usage trailers.
+  </Field>
+</FieldList>
+
+## Message content
+
+<FieldList>
+  <Field
+    name="role"
+    type="string"
+    required
+    values={["system", "user", "assistant", "tool"]}
+  >
+    Message role.
+  </Field>
+  <Field name="content" type="string | content_part[]" required>
+    Plain text for text-only turns, or an array of content parts for multimodal
+    requests.
+  </Field>
+  <Field name="tool_calls" type="object[]" nullable>
+    Assistant tool calls returned by the model.
+  </Field>
+  <Field name="tool_call_id" type="string" nullable>
+    Required on <code>tool</code> messages so the model can associate a tool
+    result with the earlier tool call.
+  </Field>
+</FieldList>
+
+## Vision input
+
+For image input, send OpenAI-compatible content parts. Use either HTTPS image
+URLs or data URLs:
+
+<CodeSample title="Image input" language="json">
+  {`{
+  "model": "gpt-6-luna",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {"type": "text", "text": "What's in this image?"},
+        {
+          "type": "image_url",
+          "image_url": {"url": "data:image/png;base64,..."}
+        }
+      ]
+    }
+  ]
+}`}
+</CodeSample>
+
+For PDFs and large documents, upload through [Files](/endpoints/files) and use
+[Responses](/endpoints/responses). Chat completions does not automatically
+dereference <code>file_id</code>.
+
+## Tools
+
+<CodeSample title="Tool definition" language="json">
+  {`{
+  "model": "gpt-6-luna",
+  "messages": [{"role": "user", "content": "Weather in Tokyo?"}],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {"type": "string"}
+          },
+          "required": ["city"]
+        }
+      }
+    }
+  ]
+}`}
+</CodeSample>
+
+Tool support is not universal. Prefer <code>/api/models/catalog</code> and look
+at <code>parameters.tools</code> before routing agent traffic.
+
+## Response
+
+<FieldList>
+  <Field name="id" type="string">
+    Lazu or provider response ID. Use the response header
+    <code>X-Lazu-Request-Id</code> for request-level reconciliation.
+  </Field>
+  <Field name="choices" type="object[]">
+    Assistant output choices. Streaming responses send incremental
+    <code>delta</code> objects.
+  </Field>
+  <Field name="usage.prompt_tokens" type="integer">
+    Prompt input tokens.
+  </Field>
+  <Field name="usage.completion_tokens" type="integer">
+    Generated output tokens.
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cached_tokens"
+    type="integer"
+    nullable
+  >
+    Cache read tokens when the upstream reports them.
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cache_write_tokens"
+    type="integer"
+    nullable
+  >
+    Cache creation/write tokens when the upstream reports them.
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cache_miss_tokens"
+    type="integer"
+    nullable
+  >
+    Cache misses when the provider reports them separately, for example
+    DeepSeek-compatible usage.
+  </Field>
+</FieldList>
+
+For complete usage, billing line items, provider raw usage fields and routing
+metadata, call:
+
+<CodeSample title="Request detail" language="bash">
+  {`curl https://api.lazu.ai/api/usage/requests/req_lazu_01ABCDEF \\
+  -H "Authorization: Bearer $LAZU_API_KEY"`}
+</CodeSample>
+
+## Errors
+
+Relay errors use OpenAI-compatible error envelopes where possible and include a
+request ID. See [Errors](/errors) for code meanings and retry behavior.
+
+## See also
+
+- [Model catalog](/models/catalog)
+- [Responses API](/endpoints/responses)
+- [Billing and cache fields](/billing)
+- [Request details](/endpoints/usage-requests)
+
+</EndpointPage>

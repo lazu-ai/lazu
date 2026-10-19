@@ -6,14 +6,76 @@ upload
 build
 *.db-journal
 logs
-web/dist
+data/
+apps/web/dist
+apps/web/storybook-static
+**/bun.lockb
+mysql_data/
+redis_data/
+.runtime/
 .env
-one-api
-new-api
+.env.production
+# Local upstream credential hand-offs; never commit
+.api
+.dev.vars
+**/.dev.vars
+.wrangler/
+**/.wrangler/
+**/node_modules/
+lazu
 .DS_Store
 tiktoken_cache
 .eslintcache
 .gocache
+.local-results/
+design/
+designs/
+brand/preview.html
+brand/_ds_bundle.js
+brand/_ds_manifest.json
+brand/_adherence.oxlintrc.json
 
-electron/node_modules
-electron/dist
+# Personal / per-developer scratch — ad-hoc test scripts, scratch SQL,
+# local notes. Distinct from .local-results/ (which holds tool-produced
+# artifacts that get overwritten); local/ is hand-written source you
+# don't want to share with the team.
+local/
+
+apps/docs-mintlify/.mintlify/
+apps/docs-mintlify/node_modules/
+
+# Claude Code per-developer IDE config (preview server launch, etc.)
+.claude/launch.json
+**/.claude/launch.json
+# Claude Code per-developer permissions and machine-local settings
+.claude/settings.local.json
+**/.claude/settings.local.json
+# Claude Code scheduled-task runtime lock (sessionId + pid, regenerated each run)
+.claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.lock
+
+# Scripts - ignore local config with API keys, but keep scripts
+ops/scripts/config.local.yaml
+ops/scripts/__pycache__/
+ops/scripts/output_images/
+ops/benchmark/config.yaml
+ops/benchmark/results/
+ops/bench/config.yaml
+ops/bench/results/
+ops/bench/LiveCodeBench/
+ops/sandbox/assets/
+ops/sandbox/vectors.json
+ops/sandbox/tsinghua_dataset/
+apps/web/test-results/
+apps/web/.tmp-*
+tmp/
+output/
+
+# Deploy artifacts written into the repo root by the production deploy script
+.deploy.lock
+.deploy-state
+deploy.log
+failed-*.json
+
+# Local compose override with integration settings
+platform/docker/docker-compose.integrations.yml

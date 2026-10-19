@@ -1,0 +1,102 @@
+/*
+ * Warm Paper atmosphere.
+ *   1. (Removed 2026-10: G1 grounds are flat — no paper grain.)
+ *   2. Soft terracotta radial accent in hero sections of public pages.
+ *   3. Glass topbar (backdrop blur + translucent cream) in the console shell.
+ *
+ * Loaded after tokens.css / ui.css so it can layer on top without
+ * touching the underlying token definitions or component primitives.
+ */
+
+/* The app shell keeps its own stacking context (portals and the status
+   FAB rely on it), from when it sat above the retired paper-noise layer. */
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- 2. Hero radial accent glow ---------- */
+/* A single oversized soft terracotta gradient, top-left, low alpha.
+   Acts like ambient warm light spilling onto the page — does not violate
+   spec § "accent must always carry meaning" since it functions as
+   atmosphere, not as a UI signal. */
+
+.home-modern-hero,
+.pricing-modern-hero,
+.quickstart-docs-page {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-modern-hero::before,
+.pricing-modern-hero::before,
+.quickstart-docs-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(
+      720px 540px at 12% 8%,
+      rgba(160, 74, 31, 0.12) 0%,
+      rgba(160, 74, 31, 0.06) 35%,
+      transparent 70%
+    ),
+    radial-gradient(
+      560px 420px at 92% 88%,
+      rgba(160, 74, 31, 0.07) 0%,
+      transparent 60%
+    );
+}
+
+body[theme-mode='dark'] .home-modern-hero::before,
+body[theme-mode='dark'] .pricing-modern-hero::before,
+body[theme-mode='dark'] .quickstart-docs-page::before {
+  background:
+    radial-gradient(
+      720px 540px at 12% 8%,
+      rgba(232, 144, 96, 0.16) 0%,
+      rgba(232, 144, 96, 0.08) 35%,
+      transparent 70%
+    ),
+    radial-gradient(
+      560px 420px at 92% 88%,
+      rgba(232, 144, 96, 0.1) 0%,
+      transparent 60%
+    );
+}
+
+/* Pricing hero needs a touch more top padding for its eyebrow + h1
+   so the glow centerline sits behind the hero copy, not the cards. */
+.pricing-modern-hero {
+  padding-top: clamp(8px, 2vw, 16px);
+}
+
+/* ---------- 3. Console topbar glassmorphism ---------- */
+/* Sticky topbar sits above the page body with a backdrop blur, so dense
+   tables / dashboard data scroll under a translucent paper sheet. */
+
+.app-shell-v2--console .console-page-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(251, 248, 241, 0.78);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+}
+
+body[theme-mode='dark'] .app-shell-v2--console .console-page-topbar {
+  background: rgba(34, 27, 19, 0.72);
+}
+
+/* Fallback for browsers without backdrop-filter — fall back to opaque
+   surface so the topbar never disappears on top of scrolled content. */
+@supports not (backdrop-filter: blur(1px)) {
+  .app-shell-v2--console .console-page-topbar {
+    background: var(--ui-surface);
+  }
+  body[theme-mode='dark'] .app-shell-v2--console .console-page-topbar {
+    background: var(--ui-surface);
+  }
+}

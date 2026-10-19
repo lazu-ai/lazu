@@ -1,0 +1,81 @@
+---
+title: "Embeddings 向量 API（相容 OpenAI）"
+description: OpenAI-compatible /v1/embeddings，請求欄位、批次輸入、維度和響應說明。
+---
+
+import {
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="介面 / Vectors"
+  method="POST"
+  path="/v1/embeddings"
+  title="Embeddings"
+  description="使用 OpenAI-compatible 用戶端建立向量 embedding。透過模型目錄確認哪些模型支援 embeddings，以及是否支援自訂 dimensions。"
+  aside={
+    <EndpointRail
+      endpoint="embeddings"
+      extra={
+        <MiniCard title="Catalog filter">
+          <code>supported_endpoint_types</code> 包含 <code>embeddings</code>
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 請求 Body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    來自 <code>/api/models/catalog</code> 的 embedding 模型 ID。
+  </Field>
+  <Field name="input" type="string | string[]" required>
+    文字輸入，或有序文字批次輸入。響應會保持輸入順序。
+  </Field>
+  <Field name="dimensions" type="integer" nullable>
+    支援截斷的模型可使用可選向量維度。
+  </Field>
+  <Field
+    name="encoding_format"
+    type="string"
+    nullable
+    values={["float", "base64"]}
+  >
+    上游支援時可選擇輸出編碼格式。
+  </Field>
+</FieldList>
+
+## 響應
+
+<FieldList>
+  <Field name="object" type="string">
+    通常為 <code>list</code>。
+  </Field>
+  <Field name="data" type="object[]">
+    每個 input 對應一個 embedding item。
+  </Field>
+  <Field name="data[].embedding" type="number[] | string">
+    向量數值，或取決於 <code>encoding_format</code> 的 base64 編碼向量。
+  </Field>
+  <Field name="usage.prompt_tokens" type="integer">
+    embedding 使用的輸入 token 數。
+  </Field>
+</FieldList>
+
+## 批次建議
+
+小批次可以直接傳陣列。大規模資料任務建議在用戶端分塊，確保每個請求都不超過
+provider 的 body size 和 token 限制。
+
+## 相關頁面
+
+- [模型目錄](/zh-TW/models/catalog)
+- [定價與通道](/zh-TW/models/pricing)
+
+</EndpointPage>

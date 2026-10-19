@@ -1,0 +1,55 @@
+@import '../../components/ui/project-primitives.css';
+
+/* The mobile shell supplies the title, but project actions must stay reachable. */
+@media (max-width: 767px) {
+  .app-shell-v2--console
+    .pj-page
+    > .console-page-topbar:has(.console-page-topbar__actions) {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0;
+    margin-bottom: var(--lazu-space-4);
+  }
+
+  .app-shell-v2--console
+    .pj-page
+    > .console-page-topbar
+    > .console-page-topbar__copy {
+    display: none;
+  }
+
+  .pj-page .console-page-topbar__actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* 项目设置 uses the personal-settings cards (settings-surface.css); these are
+   the same measurements personal settings renders at: 22px between cards,
+   20/24/12 card header, 16/24 rows. */
+.pj-set-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.pj-set-stack .set-card + .set-card {
+  margin-top: 0;
+}
+.pj-set-stack .set-card__hd {
+  padding: 20px 24px 12px;
+}
+.pj-set-stack .set-row {
+  padding: 16px 24px;
+}
+.pj-invite-expiry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lazu-space-1);
+  font-variant-numeric: tabular-nums;
+}
+.pj-invite-expiry small {
+  color: var(--lazu-text-muted);
+  font-size: var(--lazu-row-label);
+}
+.pj-invite-expiry[data-soon] > span {
+  color: var(--lazu-warning-strong);
+}

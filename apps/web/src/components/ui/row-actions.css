@@ -1,0 +1,78 @@
+/* Row-actions cluster for the console data tables (channels / tokens /
+   users / access controls). One or two primary actions stay inline as soft
+   buttons; everything else — including the destructive disable/delete —
+   collapses into a trailing "⋯ More" dropdown so each row reads as a
+   single tidy control instead of a wall of seven buttons.
+   All colors come from --ui-* tokens so light + dark both hold up. */
+
+.lazu-row-actions {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* The "⋯ More" trigger reuses the soft icon-button look but stays compact
+   and square so it lines up with the inline xs primary buttons. */
+.lazu-row-actions__more {
+  flex: 0 0 auto;
+}
+
+/* Danger menu rows (disable / delete) read in --ui-danger and warm up on
+   hover so the destructive action is unmistakable without shouting. */
+.lazu-dropdown-item--danger {
+  color: var(--ui-danger);
+}
+
+.lazu-dropdown-item--danger[data-highlighted] {
+  background: color-mix(in srgb, var(--ui-danger) 12%, transparent);
+  color: var(--ui-danger);
+}
+
+.lazu-dropdown-item--danger svg {
+  color: var(--ui-danger);
+}
+
+.lazu-dropdown-item[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.lazu-dropdown-item__icon {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Hairline divider between the neutral menu actions and the destructive
+   group below it. */
+.lazu-dropdown-separator {
+  background: var(--ui-border-soft);
+  height: 1px;
+  margin: 5px -2px;
+}
+
+/* Mono, right-aligned numeric cells (response time, quota amounts,
+   balances). Tabular figures keep the digits vertically aligned. The
+   wrapping cell is right-aligned via :has so the header label can stay
+   left while the numbers stack flush-right under it. */
+.lazu-table__num {
+  display: inline-block;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lazu-table td:has(> .lazu-table__num) {
+  text-align: right;
+}
+
+/* On the mobile card view the actions footer should let the "⋯ More"
+   cluster sit naturally at the trailing edge. */
+.lazu-card-list__actions .lazu-row-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}

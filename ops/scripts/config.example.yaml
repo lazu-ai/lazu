@@ -1,0 +1,14 @@
+default_profile: local
+
+profiles:
+  local:
+    api_base: "http://localhost:3000/v1"
+    api_key: "sk-x"
+
+  prod:
+    api_base: "https://api.lazu.ai/v1"
+    api_key: "sk-x"
+
+  upstream:
+    api_base: "https://upstream.example/v1"
+    api_key: "sk-x"

@@ -1,0 +1,167 @@
+/*
+ * What's New panel.
+ *
+ * Desktop follows the locked Yunmu long-detail contract: a centred modal that
+ * is independent of sidebar width. Mobile keeps the bottom sheet so the list
+ * remains reachable without shrinking into a narrow floating card.
+ */
+
+.whats-new-panel.lazu-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  max-width: min(92vw, 680px);
+  overflow: hidden;
+  padding: 0;
+  width: min(680px, calc(100vw - 48px));
+}
+
+/* Sheet handle: only ever visible in the mobile bottom-sheet layout. */
+.whats-new-panel__grab {
+  display: none;
+}
+
+.whats-new-panel .lazu-modal-header {
+  margin: 0;
+  padding: 20px 56px 14px 22px;
+}
+
+.whats-new-panel .lazu-modal-close {
+  height: 40px;
+  right: 12px;
+  top: 12px;
+  width: 40px;
+}
+
+.whats-new-panel__heading {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+}
+
+.whats-new-panel__title {
+  align-items: center;
+  display: inline-flex;
+  gap: 9px;
+}
+
+.whats-new-panel__title svg {
+  color: var(--lazu-text-muted);
+  flex: none;
+}
+
+.whats-new-panel__meta {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+}
+
+.whats-new-panel .lazu-modal-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 18px 8px;
+}
+
+.whats-new-panel .lazu-modal-footer {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 13px 18px 17px;
+}
+
+/* Marking read is the completion action, so it takes the ink/paper primary and
+   the far edge — the old footer made "close" primary, which completed nothing.
+   Both footer controls are design-system buttons, so their surfaces come from
+   .lazu-button and only the placement lives here. */
+.whats-new-panel__mark-read {
+  margin-left: auto;
+}
+
+/* At the same breakpoint where the console sidebar leaves the viewport, the
+   centred modal becomes a bottom sheet with more usable reading height. */
+@media (max-width: 768px) {
+  .whats-new-panel.lazu-modal-content {
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 22px 22px 0 0;
+    border-right: 0;
+    bottom: 0;
+    left: 0;
+    max-height: 82vh;
+    max-width: none;
+    top: auto;
+    transform: none;
+    width: 100%;
+  }
+
+  @keyframes whats-new-sheet-motion {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes whats-new-sheet-exit {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+
+    to {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+  }
+
+  .whats-new-panel[data-open] {
+    animation: whats-new-sheet-motion var(--lazu-motion-slow)
+      var(--lazu-ease-direct) both;
+  }
+
+  .whats-new-panel[data-closed] {
+    animation: whats-new-sheet-exit var(--lazu-motion-base)
+      var(--lazu-ease-direct) both;
+  }
+
+  .whats-new-panel__grab {
+    background: var(--lazu-border-strong);
+    border-radius: 999px;
+    display: block;
+    height: 4px;
+    left: 50%;
+    position: absolute;
+    top: 9px;
+    transform: translateX(-50%);
+    width: 36px;
+  }
+
+  .whats-new-panel .lazu-modal-header {
+    padding: 18px 52px 12px 18px;
+  }
+
+  .whats-new-panel .lazu-modal-body {
+    padding-inline: 14px;
+  }
+
+  .whats-new-panel .lazu-modal-footer {
+    padding: 12px 14px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whats-new-panel[data-open],
+  .whats-new-panel[data-closed] {
+    animation: none;
+  }
+}

@@ -1,0 +1,56 @@
+---
+title: "認證：一把 API Key 通用 OpenAI、Anthropic、Gemini 格式"
+description: "Lazu 的 API Key 怎麼用：相容 OpenAI 的 Authorization 標頭、Anthropic 的 x-api-key、Gemini 原生標頭，以及 Key 的保存和輪換。"
+---
+
+# 認證
+
+所有 Lazu 請求都需要 API Key。你可以在
+[控制台](https://lazu.ai/console/token) 建立 key，key 通常以 `sk-lazu-` 開頭。
+
+## 不同 API 風格的認證方式
+
+| API 風格           | Header 或參數                                               |
+| ------------------ | ----------------------------------------------------------- |
+| OpenAI 相容介面    | `Authorization: Bearer YOUR_API_KEY`                        |
+| Anthropic 原生介面 | `x-api-key: YOUR_API_KEY` + `anthropic-version: 2023-06-01` |
+| Gemini 原生介面    | `x-goog-api-key: YOUR_API_KEY` 或 query `?key=...`          |
+
+三種方式都由 Lazu 接收。實際使用時，選擇目前 SDK 已支援的格式即可。
+
+## 建議設定
+
+- **每個應用和環境單獨建立 key**。CI、測試環境和生產環境不要共用同一把 key。
+- **限制 key 的權限**。Token 可以設定可存取模型、額度、過期時間、IP 白名單和 vendor lane 偏好。
+- **不要把 key 提交到 git**。使用環境變數、secret manager 或部署平台的密鑰存儲。
+
+## 儲存 key
+
+Shell:
+
+```bash
+export LAZU_API_KEY=sk-lazu-...
+```
+
+`.env` 檔案（確保已被 gitignore）:
+
+```txt
+LAZU_API_KEY=sk-lazu-...
+```
+
+SDK 程式碼中從環境變數讀取，不要硬編碼。
+
+## 驗證 key
+
+```bash
+curl https://api.lazu.ai/v1/models \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+如果返回 200 和 JSON 模型列表，表示 key 可用。若返回 401
+`invalid_api_key`，通常表示 key 被停用、過期、格式錯誤或不存在。
+
+## 更換外洩的 key
+
+如果 key 外洩，進入控制台刪除舊 key，建立新 key，再更新部署環境。刪除後舊 key
+立即失效；目前版本不提供原地 rotate。

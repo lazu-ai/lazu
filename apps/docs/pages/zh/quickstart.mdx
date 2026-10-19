@@ -1,0 +1,79 @@
+---
+title: "快速开始：一个 API Key 调用 Claude、GPT、Gemini"
+description: "创建 Lazu API Key，把任意 OpenAI SDK 的地址改成 https://api.lazu.ai/v1，几分钟内向 Claude、GPT、Gemini 或 DeepSeek 发出第一个请求，国内可直连。"
+---
+
+# 快速开始
+
+## 1. 创建密钥并选择模型
+
+在[控制台](https://lazu.ai/console/token)创建密钥。设置下面的环境变量，用该密钥查询目录，选择 `supported_endpoints` 包含 `/v1/chat/completions` 的模型，将其 ID 设置为 `LAZU_MODEL`。目录说明访问范围和能力，不代表一次真实上游请求一定成功。
+
+```bash
+export LAZU_API_ORIGIN="https://api.lazu.ai"
+export LAZU_API_KEY="YOUR_LAZU_KEY"
+curl --fail-with-body "$LAZU_API_ORIGIN/api/models/catalog" \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+export LAZU_MODEL="MODEL_ID_FROM_CATALOG"
+```
+
+## 2. 发起请求
+
+直接发送 HTTP 请求时，`LAZU_API_ORIGIN` 是不含 `/v1` 的域名地址；OpenAI SDK 的 base URL 需在其后加 `/v1`。自托管时替换为自己的地址。
+
+```bash
+# Requires jq. Inspect response headers in response.headers.
+jq -n --arg model "$LAZU_MODEL" \
+  '{model: $model, messages: [{role: "user", content: "Hello"}]}' \
+  | curl --fail-with-body -D response.headers \
+      "$LAZU_API_ORIGIN/v1/chat/completions" \
+      -H "Authorization: Bearer $LAZU_API_KEY" \
+      -H "Content-Type: application/json" --data-binary @-
+```
+
+### Python
+
+```bash
+python -m pip install openai
+```
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LAZU_API_KEY"],
+    base_url=os.environ["LAZU_API_ORIGIN"].rstrip("/") + "/v1",
+)
+response = client.chat.completions.create(
+    model=os.environ["LAZU_MODEL"],
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(response.choices[0].message.content)
+```
+
+### TypeScript
+
+```bash
+npm install openai
+```
+
+```ts
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LAZU_API_KEY,
+  baseURL: `${process.env.LAZU_API_ORIGIN}/v1`,
+});
+const response = await client.chat.completions.create({
+  model: process.env.LAZU_MODEL!,
+  messages: [{ role: "user", content: "Hello" }],
+});
+console.log(response.choices[0].message.content);
+```
+
+## 3. 查看结果与用量
+
+读取返回文本，并保存响应头中的 `X-Request-Id`。在控制台“用量与日志”中找到请求，核对用量和费用；也可用同一密钥调用 `GET /api/usage/requests/{request_id}`。不要将上游响应正文的 ID 直接当作 Lazu 请求 ID。
+
+[图片、视频与音频](/zh/endpoints/media) · [价格与线路](/zh/models/pricing)

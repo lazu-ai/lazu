@@ -1,0 +1,1527 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+
+/* Landing surface. Runs on the canonical G1 tokens over the body's flat
+   ground — the page no longer carries its own colour layer. These local aliases exist only because the
+   shared <PublicHeader /> reads them. */
+.lazu-landing {
+  --bg: var(--lazu-page);
+  --paper: var(--lazu-surface-solid);
+  --ink: var(--lazu-ink);
+  --ink-2: var(--lazu-ink);
+  --mute: var(--lazu-text-muted);
+  --mute-2: var(--lazu-text-faint);
+  --line: var(--lazu-border);
+  --line-strong: var(--lazu-border-strong);
+  --grid: var(--lazu-grid-line);
+  --accent: var(--lazu-action);
+  --accent-2: var(--lazu-action-hover);
+  --accent-ink: var(--lazu-on-action);
+  /* --accent is the ink action here, so its wash stays neutral. */
+  --accent-soft: var(--lazu-surface-selected);
+  --accent-glow: transparent;
+  --good: var(--lazu-success);
+  --warn: var(--lazu-warning);
+  --bad: var(--lazu-danger);
+  --evi: var(--lazu-evidence);
+  --evi-soft: var(--lazu-evidence-soft);
+  --evi-strong: var(--lazu-evidence-strong);
+  --card: var(--lazu-surface-solid);
+  --card-edge: var(--lazu-border);
+  --surface: var(--lazu-surface);
+  --surface-muted: var(--lazu-surface-muted);
+  --shadow-1: 0 1px 2px rgb(50 56 70 / 6%), 0 18px 44px rgb(20 25 35 / 9%);
+  --shadow-2: 0 2px 4px rgb(50 56 70 / 6%), 0 40px 90px rgb(20 25 35 / 16%);
+  --lazu-public-header-height: var(--lazu-web-header-height);
+
+  position: relative;
+  color: var(--ink);
+  font-family: var(--lazu-font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizelegibility;
+  line-height: 1.6;
+  min-height: 0;
+}
+
+[data-theme='dark'] .lazu-landing,
+body[theme-mode='dark'] .lazu-landing {
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%), 0 20px 50px rgb(0 0 0 / 34%);
+  --shadow-2: 0 2px 4px rgb(0 0 0 / 45%), 0 44px 96px rgb(0 0 0 / 50%);
+}
+
+/* When .lazu-landing is reused as a token scope for the shared
+   <PublicHeader /> (rendered above / and /faq by MarketingLayout),
+   it must stay a thin top bar rather than a viewport-filling page. */
+.lazu-public-header,
+.lazu-public-header.lazu-landing {
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+}
+
+.lazu-landing *,
+.lazu-landing *::before,
+.lazu-landing *::after {
+  box-sizing: border-box;
+}
+
+/* ============== Page wrapper ============== */
+.lazu-landing__page {
+  position: relative;
+  z-index: 1;
+}
+
+.lazu-landing__main {
+  display: block;
+}
+
+.lazu-landing__wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 44px);
+}
+
+.lazu-landing__eyebrow {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute-2);
+}
+
+/* Vermilion is not a token: G1 sets it on the hero eyebrow and the headline
+   emphasis only. The eyebrow is 11px text, so it takes a deeper shade in
+   light and a lifted one in dark to clear 4.5:1 on each ground; the
+   headline is display-sized and keeps #c9452a. */
+.lazu-landing__hero .lazu-landing__eyebrow {
+  color: #b83e24;
+}
+
+[data-theme='dark'] .lazu-landing__hero .lazu-landing__eyebrow,
+body[theme-mode='dark'] .lazu-landing__hero .lazu-landing__eyebrow {
+  color: #e0603f;
+}
+
+/* ============== Nav ============== */
+.lazu-landing__nav {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 40px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+  flex-shrink: 0;
+  /* The nav and the hero below it are each wrapped by a Reveal whose
+   * `transform` creates an isolated stacking context. Both sit at
+   * z-index: auto inside .lazu-landing__page, so they stack in
+   * source order — the hero ends up painted ON TOP of the nav, and
+   * its router-canvas SVG covers the dropdown items down its hit
+   * test region (only the first item — English — sat above the SVG).
+   * Giving the nav an explicit z-index escapes the source-order
+   * tiebreak so its descendants (the lang menu, the theme dropdown)
+   * are reliably above the hero. */
+  position: relative;
+  z-index: 30;
+}
+
+.lazu-landing__brand {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.lazu-landing__brand .brand-logo {
+  width: auto;
+  height: 32px;
+}
+
+.lazu-landing__nav-links {
+  display: flex;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.lazu-landing__nav-links a {
+  align-items: center;
+  color: var(--ink-2);
+  display: inline-flex;
+  gap: 4px;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  opacity: 0.85;
+  transition:
+    opacity 0.2s,
+    color 0.2s;
+}
+
+.lazu-landing__nav-links a {
+  border-radius: 7px;
+  padding: 6px 10px;
+}
+
+.lazu-landing__nav-links a:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* Current section: neutral fill + weight + foreground (Yunmu rule 6). */
+.lazu-landing__nav-links a[aria-current='page'],
+.lazu-landing__menu a[aria-current='page'] {
+  background: var(--lazu-surface-selected);
+  color: var(--ink);
+  opacity: 1;
+}
+
+/* The nav links fold into this menu wherever they no longer fit. */
+.lazu-landing__icon-btn.lazu-landing__menu-trigger {
+  display: none;
+}
+
+.lazu-landing__menu {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 11px;
+  box-shadow: var(--lazu-shadow-overlay);
+  display: flex;
+  flex-direction: column;
+  left: 12px;
+  padding: 6px;
+  position: absolute;
+  right: 12px;
+  top: calc(100% + 4px);
+}
+
+.lazu-landing__menu[hidden] {
+  display: none;
+}
+
+.lazu-landing__menu a {
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.lazu-landing__nav-spacer {
+  flex: 1;
+}
+
+.lazu-landing__nav-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.lazu-landing__signin {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.lazu-landing__signin:hover {
+  color: var(--accent);
+}
+
+/* ============== Buttons ============== */
+.lazu-landing__btn {
+  --b-bg: var(--ink);
+  --b-fg: var(--paper);
+  --b-edge: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 7px;
+  background: var(--b-bg);
+  color: var(--b-fg);
+  border: 1px solid var(--b-edge);
+  font-family: var(--lazu-font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.25s ease,
+    background 0.2s,
+    border-color 0.2s;
+  box-shadow: var(--shadow-1);
+  white-space: nowrap;
+}
+
+.lazu-landing__btn:active {
+  transform: translateY(0);
+}
+
+.lazu-landing__btn-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-ink) 18%, transparent);
+  transition: transform 0.25s ease;
+  font-size: 11px;
+}
+
+/* Ink on paper (paper on ink in the dark theme). Hover only lifts; it never
+   recolours or glows — BRAND.md § 02 rule 2. */
+.lazu-landing__btn--primary {
+  --b-bg: var(--accent);
+  --b-edge: var(--accent);
+  --b-fg: var(--accent-ink);
+  box-shadow: var(--lazu-shadow-action);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lazu-landing__btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+  }
+
+  .lazu-landing__btn:hover .lazu-landing__btn-arrow {
+    transform: translateX(2px);
+  }
+
+  .lazu-landing__btn--primary:hover {
+    box-shadow: var(--shadow-2);
+  }
+}
+
+.lazu-landing__btn--ghost {
+  --b-bg: transparent;
+  --b-fg: var(--ink);
+  --b-edge: var(--line-strong);
+}
+
+.lazu-landing__btn--ghost:hover {
+  border-color: var(--ink);
+}
+
+.lazu-landing__btn--sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  border-radius: 7px;
+}
+
+.lazu-landing__btn--sm.lazu-landing__btn--primary {
+  padding: 0 14px;
+}
+
+.lazu-landing__icon-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.25s;
+}
+
+.lazu-landing__icon-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.lazu-landing__icon-btn:active {
+  transform: scale(0.95);
+}
+
+/* ============== Reveal ============== */
+.lazu-landing__reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--lazu-motion-slow) var(--lazu-ease-direct),
+    transform var(--lazu-motion-slow) var(--lazu-ease-direct);
+}
+
+.lazu-landing__reveal.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lazu-landing__reveal--d1 {
+  transition-delay: 30ms;
+}
+.lazu-landing__reveal--d2 {
+  transition-delay: 60ms;
+}
+.lazu-landing__reveal--d3 {
+  transition-delay: 90ms;
+}
+.lazu-landing__reveal--d4 {
+  transition-delay: 120ms;
+}
+
+/* The motion is the only thing that goes: the prerendered HTML and anyone who
+   asked for less movement get every section painted, in place, at once. */
+@media (prefers-reduced-motion: reduce) {
+  .lazu-landing__reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .lazu-landing__shot {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 1080px) {
+  .lazu-landing {
+    --lazu-public-header-height: 54px;
+  }
+
+  /* On the stacked layout the hero is a normal top-to-bottom scroll. Letting
+     __main stretch to the viewport-tall __page and centering the hero inside
+     it floats the content into the middle and leaves dead bands above and
+     below on tall / narrow viewports. Keep it natural-height and top-aligned;
+     the page background fills any leftover space below. */
+  .lazu-landing__main {
+    flex: 0 0 auto;
+    align-items: flex-start;
+  }
+
+  .lazu-landing__hero {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 20px 24px 32px;
+  }
+
+  .lazu-landing__router {
+    max-width: 560px;
+    justify-self: center;
+    aspect-ratio: 1 / 0.78;
+  }
+
+  .lazu-landing__nav-links {
+    display: none;
+  }
+
+  .lazu-landing__icon-btn.lazu-landing__menu-trigger {
+    display: inline-flex;
+  }
+
+  .lazu-landing__nav {
+    padding: 12px 20px;
+  }
+
+  .lazu-landing__nav-actions {
+    gap: 10px;
+  }
+
+  .lazu-landing__stats {
+    gap: 28px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+
+  .lazu-landing__feat-strip-inner {
+    padding: 12px 20px;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .lazu-landing__features {
+    gap: 14px;
+    font-size: 10px;
+  }
+}
+
+/* ============== Language Switcher ==============
+ * Sits in the top-right nav next to the theme toggle. Same height /
+ * border radius as `.lazu-landing__icon-btn` so the row stays
+ * visually aligned, but wider to fit `🌐 EN` etc. The dropdown is a
+ * paper card with our standard borders + shadow.
+ */
+.lazu-landing__lang-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.lazu-landing__lang-trigger {
+  width: auto;
+  padding: 0 10px;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.lazu-landing__lang-trigger[aria-expanded='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.lazu-landing__lang-trigger span {
+  line-height: 1;
+}
+
+.lazu-landing__lang-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 144px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-2);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: lazu-lang-menu-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes lazu-lang-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lazu-landing__lang-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.lazu-landing__lang-item:hover,
+.lazu-landing__lang-item:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+  outline: 0;
+}
+
+.lazu-landing__lang-item[aria-checked='true'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.lazu-landing__lang-menu[hidden] {
+  display: none;
+}
+
+/* Signed-out and signed-in actions are both in the markup (the static copy
+   on API-rendered pages flips them without React); only one shows. */
+.lazu-landing__nav-actions [data-chrome-account][hidden] {
+  display: none !important;
+}
+
+a.lazu-landing__lang-item {
+  text-decoration: none;
+}
+
+.lazu-landing__lang-check {
+  visibility: hidden;
+}
+
+.lazu-landing__lang-item[aria-checked='true'] .lazu-landing__lang-check {
+  visibility: visible;
+}
+
+/* Both glyphs are in the markup; the theme decides which one shows, so a
+   static copy of the chrome needs no script to draw the right icon. */
+.lazu-theme-toggle .lazu-theme-toggle__sun,
+html.dark .lazu-theme-toggle .lazu-theme-toggle__moon,
+body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__moon {
+  display: none;
+}
+
+html.dark .lazu-theme-toggle .lazu-theme-toggle__sun,
+body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
+  display: inline;
+}
+
+/* ============== Editorial layer (LOCKED 2026-09-20) ==============
+   The home page is set like the first page of a report: one reading column,
+   a serif display headline, long sentences, a rule, and figures under it.
+   Surfaces are hairlines on the ground, not cards. The serif is the wordmark's
+   own typeface, never used under 20px. */
+/* One left edge for the whole page: the reading column shares the ledger's
+   1160px frame and simply stops at 760px, so the hero, the section heads and
+   the numbered entries all begin on the same line. */
+.lazu-landing__column {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 44px);
+}
+
+.lazu-landing__column > * {
+  max-width: 760px;
+}
+
+.lazu-landing__display,
+.lazu-landing__headline,
+.lazu-landing__sec-head h2,
+.lazu-landing__final h2,
+.lazu-landing__stat b,
+.lazu-landing__feat-n,
+.lazu-landing__step-n,
+.lazu-landing__money--sum,
+.lazu-landing__spent b {
+  font-family: var(--lazu-web-font-display);
+  font-weight: 400;
+  font-variant-numeric: lining-nums proportional-nums;
+}
+
+/* ---- Hero ---- */
+.lazu-landing__hero {
+  padding: clamp(44px, 6vw, 84px) 0 clamp(36px, 4.5vw, 60px);
+}
+
+/* The statement reads across the top, with the sentence that explains it and
+   the two actions set beside it, so the console below still lands in view. */
+.lazu-landing__hero-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: clamp(24px, 4vw, 64px);
+  align-items: end;
+  margin-top: 14px;
+}
+
+.lazu-landing__headline {
+  font-size: var(--lazu-web-display-size);
+  line-height: var(--lazu-web-display-line-height);
+  letter-spacing: var(--lazu-web-display-tracking);
+  margin: 0;
+  /* 17ch of Instrument Serif, in em: ch is the width of the current font's
+     "0", so a ch width shrank when the display font arrived and re-wrapped a
+     CJK headline onto another line, pushing the hero down (CLS 0.11 on /ja/). */
+  max-width: 7.83em;
+  text-wrap: balance;
+}
+
+.lazu-landing__hero-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 4px;
+}
+
+/* Vermilion: see the hero eyebrow above. */
+.lazu-landing__headline em {
+  font-style: italic;
+  color: #c9452a;
+}
+
+/* Chinese breaks only between phrases: keep-all stops a line ending inside
+   a word (「一张账 / 单」), and the measure is wide enough for the first
+   clause to sit on one line, so the statement reads in two lines —
+   「所有模型一个账户，/ 一张账单看得懂。」. Japanese keeps the default
+   breaking: its sentence has no comma to break at. */
+:lang(zh) .lazu-landing__headline {
+  line-break: strict;
+  max-width: 9.6em;
+  word-break: keep-all;
+}
+
+/* CJK has no italic; the emphasis is carried by the vermilion alone. */
+:lang(zh) .lazu-landing__headline em,
+:lang(zh-TW) .lazu-landing__headline em,
+:lang(ja) .lazu-landing__headline em {
+  font-style: normal;
+}
+
+.lazu-landing__what {
+  color: var(--ink-2);
+  font-size: 15.5px;
+  line-height: 1.7;
+  max-width: 54ch;
+  margin: 0;
+}
+
+.lazu-landing__what b {
+  color: var(--ink);
+  font-weight: 560;
+}
+
+.lazu-landing__cta-row {
+  display: flex;
+  gap: 10px 14px;
+  margin: 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.lazu-landing__final .lazu-landing__cta-row {
+  margin-top: 28px;
+}
+
+.lazu-landing__free {
+  font-size: 12.5px;
+  color: var(--mute-2);
+}
+
+/* ---- Figures under the rule ---- */
+.lazu-landing__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 880px;
+  margin: clamp(30px, 3.6vw, 44px) auto 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--ink);
+}
+
+.lazu-landing__stats[hidden] {
+  display: none;
+}
+
+.lazu-landing__stat b {
+  display: block;
+  font-size: clamp(28px, 2.6vw, 36px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.lazu-landing__stat span {
+  display: block;
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--mute);
+}
+
+/* Shown while the live figure is still being fetched, and left in place if the
+   fetch fails — the landing never falls back to a number we made up. */
+.lazu-landing__stat-wait {
+  font-family: var(--lazu-font-sans);
+  font-size: 14px;
+  color: var(--mute-2);
+  letter-spacing: 0;
+}
+
+/* ---- The console shot ----
+   880px of drawn console: the window bar, the sidebar it really has, and the
+   members-and-quota page. It leans back and settles flat as it scrolls into
+   place; that tilt is the only movement tied to the scroll. */
+.lazu-landing__shot-wrap {
+  max-width: 880px;
+  margin: clamp(32px, 4vw, 52px) auto 0;
+  perspective: 1800px;
+}
+
+.lazu-landing__shot {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgb(35 38 42 / 5%),
+    0 40px 80px -44px rgb(20 25 35 / 32%);
+  transform-origin: 50% 0;
+  will-change: transform;
+}
+
+.lazu-landing__shot-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lazu-landing__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.lazu-landing__dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.lazu-landing__shot-url {
+  margin-left: auto;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  color: var(--mute);
+}
+
+.lazu-landing__shot-demo {
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--mute);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.lazu-landing__console {
+  display: grid;
+  grid-template-columns: 178px minmax(0, 1fr);
+}
+
+.lazu-landing__side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px 16px;
+  border-right: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.lazu-landing__side-brand {
+  margin: 2px 8px 8px;
+}
+
+.lazu-landing__side-grp {
+  margin: 10px 8px 4px;
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.lazu-landing__side-item {
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.lazu-landing__side-item.is-on {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.lazu-landing__body {
+  padding: 18px 20px 16px;
+}
+
+.lazu-landing__body-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+}
+
+.lazu-landing__body-title h4 {
+  margin: 0;
+  font-family: var(--lazu-web-font-display);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.lazu-landing__body-sub {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.lazu-landing__balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+
+.lazu-landing__balance b {
+  font-family: var(--lazu-web-font-display);
+  font-weight: 400;
+  font-size: 25px;
+  line-height: 1;
+  font-variant-numeric: lining-nums proportional-nums;
+}
+
+.lazu-landing__balance span {
+  font-size: 10.5px;
+  color: var(--mute);
+}
+
+.lazu-landing__th,
+.lazu-landing__tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 168px 52px;
+  gap: 12px;
+  align-items: center;
+}
+
+.lazu-landing__th {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.lazu-landing__th span:nth-child(2) {
+  text-align: right;
+}
+
+.lazu-landing__tr {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lazu-landing__tr:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.lazu-landing__who {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.lazu-landing__av {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lazu-web-font-display);
+  font-size: 14px;
+}
+
+/* A service account is not a person: its mark is an outline, and its name is
+   set in the mono face the console uses for machine objects. */
+.lazu-landing__av--service {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  color: var(--mute);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+}
+
+.lazu-landing__who b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lazu-landing__av--service + span b {
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.lazu-landing__who > span > span {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--mute);
+}
+
+.lazu-landing__num {
+  font-family: var(--lazu-web-font-display);
+  font-size: 19px;
+  text-align: right;
+  font-variant-numeric: lining-nums proportional-nums;
+}
+
+.lazu-landing__barwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.lazu-landing__barwrap > span:last-child {
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  color: var(--mute);
+}
+
+.lazu-landing__meter {
+  display: block;
+  height: 2px;
+  background: var(--line);
+}
+
+.lazu-landing__meter i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ink);
+  transition: width 900ms var(--lazu-ease-direct);
+}
+
+.lazu-landing__meter i.is-hot {
+  background: var(--warn);
+}
+
+.lazu-landing__act {
+  text-align: right;
+}
+
+.lazu-landing__linkish {
+  font-size: 11.5px;
+  color: var(--evi-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---- Sections ---- */
+.lazu-landing__section {
+  padding: clamp(56px, 7vw, 96px) 0 0;
+}
+
+.lazu-landing__sec-head {
+  max-width: 760px;
+  margin: 0 0 8px;
+}
+
+.lazu-landing__sec-head h2 {
+  font-size: var(--lazu-web-h2-size);
+  line-height: 1.06;
+  letter-spacing: var(--lazu-web-h2-tracking);
+  margin: 10px 0 0;
+  text-wrap: balance;
+}
+
+.lazu-landing__sec-head p {
+  color: var(--mute);
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 14px 0 0;
+  max-width: 56ch;
+}
+
+/* ---- The ledger ---- */
+.lazu-landing__feat {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 24px clamp(20px, 3vw, 40px);
+  padding: clamp(28px, 3.4vw, 44px) 0;
+  border-top: 1px solid var(--line);
+}
+
+/* The heading and each entry are sibling Reveal <div>s, so :first-of-type
+   would match the heading; the opening rule belongs to the first entry. */
+.lazu-landing__sec-head + .lazu-landing__feat {
+  margin-top: clamp(28px, 3.4vw, 44px);
+  border-top-color: var(--ink);
+}
+
+.lazu-landing__feat-n {
+  font-size: 30px;
+  line-height: 1;
+  color: var(--mute-2);
+  padding-top: 4px;
+}
+
+.lazu-landing__feat h3 {
+  font-size: var(--lazu-web-h3-size);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+.lazu-landing__feat p {
+  color: var(--mute);
+  font-size: 15px;
+  line-height: 1.75;
+  margin-top: 10px;
+  max-width: 52ch;
+}
+
+.lazu-landing__feat ul {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.lazu-landing__feat li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.lazu-landing__feat li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.72em;
+  width: 6px;
+  height: 1px;
+  background: var(--ink);
+}
+
+/* Panels are lines on the page: a heading rule, hairline rows, no card. */
+.lazu-landing__panel {
+  align-self: start;
+  padding-top: 2px;
+}
+
+.lazu-landing__panel-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.lazu-landing__panel-h b {
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.lazu-landing__panel-h span {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  color: var(--mute-2);
+  letter-spacing: 0.02em;
+}
+
+.lazu-landing__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.lazu-landing__row-g {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lazu-landing__row b {
+  font-family: var(--lazu-font-mono);
+  font-weight: 500;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lazu-landing__row-s {
+  color: var(--mute-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.lazu-landing__row--wait {
+  color: var(--mute-2);
+  font-size: 13px;
+}
+
+.lazu-landing__money {
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 96px;
+  text-align: right;
+}
+
+/* Declared after .lazu-landing__money so the modifier wins the cascade. */
+.lazu-landing__money--sum {
+  font-family: var(--lazu-web-font-display);
+  font-variant-numeric: lining-nums proportional-nums;
+  font-size: 20px;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.lazu-landing__pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.lazu-landing__pill--ok {
+  color: var(--good);
+  border-color: color-mix(in srgb, var(--good) 40%, transparent);
+}
+
+.lazu-landing__pill--off {
+  color: var(--mute-2);
+  border-style: dashed;
+}
+
+.lazu-landing__pill--pick {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.lazu-landing__quota-edit {
+  padding-top: 14px;
+}
+
+.lazu-landing__lbl {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute-2);
+}
+
+.lazu-landing__lbl--gap {
+  margin-top: 20px;
+}
+
+.lazu-landing__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.lazu-landing__spent {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lazu-landing__spent b {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.lazu-landing__spent span {
+  font-size: 12.5px;
+  color: var(--warn);
+}
+
+.lazu-landing__bar {
+  height: 2px;
+  margin-top: 12px;
+  background: var(--line);
+}
+
+.lazu-landing__bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ink);
+  transition: width 900ms var(--lazu-ease-direct);
+}
+
+.lazu-landing__bar i.is-hot {
+  background: var(--warn);
+}
+
+/* ---- Steps ---- */
+.lazu-landing__steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(20px, 3vw, 40px);
+  margin-top: clamp(28px, 3.4vw, 44px);
+  padding-top: 24px;
+  border-top: 1px solid var(--ink);
+}
+
+.lazu-landing__step-n {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--mute-2);
+}
+
+.lazu-landing__step b {
+  display: block;
+  margin-top: 14px;
+  font-size: 16px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.lazu-landing__step p {
+  color: var(--mute);
+  font-size: 14px;
+  line-height: 1.7;
+  margin-top: 6px;
+}
+
+/* ---- FAQ ---- */
+.lazu-landing__faq {
+  margin-top: clamp(28px, 3.4vw, 44px);
+  border-top: 1px solid var(--ink);
+}
+
+.lazu-landing__faq-q {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: 8px 40px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lazu-landing__faq-q b {
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.lazu-landing__faq-q p {
+  color: var(--mute);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+/* ---- Final ---- */
+.lazu-landing__final {
+  padding: clamp(72px, 9vw, 128px) 0 clamp(64px, 8vw, 112px);
+}
+
+.lazu-landing__final h2 {
+  font-size: var(--lazu-web-h1-size);
+  line-height: 1.04;
+  letter-spacing: var(--lazu-web-h2-tracking);
+  text-wrap: balance;
+}
+
+.lazu-landing__final p {
+  color: var(--mute);
+  font-size: 16px;
+  margin: 16px 0 0;
+  max-width: 48ch;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .lazu-landing__hero-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 22px;
+  }
+
+  .lazu-landing__console {
+    grid-template-columns: 1fr;
+  }
+
+  .lazu-landing__side {
+    display: none;
+  }
+
+  .lazu-landing__feat {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .lazu-landing__panel {
+    grid-column: 2;
+  }
+
+  .lazu-landing__steps {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .lazu-landing__faq-q {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .lazu-landing__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Two columns of table is all a phone can hold; the head stacks with it so
+     the balance is not squeezed against the page title. */
+  .lazu-landing__body-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .lazu-landing__balance {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .lazu-landing__th,
+  .lazu-landing__tr {
+    grid-template-columns: minmax(0, 1fr) 76px;
+  }
+
+  .lazu-landing__th span:nth-child(3),
+  .lazu-landing__th span:nth-child(4),
+  .lazu-landing__barwrap,
+  .lazu-landing__act {
+    display: none;
+  }
+
+  .lazu-landing__feat {
+    grid-template-columns: 1fr;
+  }
+
+  .lazu-landing__panel {
+    grid-column: 1;
+  }
+
+  .lazu-landing__feat-n {
+    font-size: 22px;
+  }
+
+  .lazu-landing__money {
+    min-width: 0;
+  }
+}
+
+/* On narrow phones the four actions no longer fit beside the Primary lockup,
+   especially once Chinese or Japanese labels are active. Let the action
+   children join the nav grid so utilities stay on the first row and the two
+   account actions sit below them. */
+@media (max-width: 420px) {
+  .lazu-landing {
+    --lazu-public-header-height: 98px;
+  }
+
+  .lazu-landing__nav {
+    display: grid;
+    grid-template-columns: minmax(96px, 1fr) auto auto;
+    grid-template-rows: 38px 38px;
+    column-gap: 4px;
+    row-gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .lazu-landing__brand {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .lazu-landing__brand .brand-logo {
+    height: 28px;
+  }
+
+  .lazu-landing__nav-spacer {
+    display: none;
+  }
+
+  .lazu-landing__nav-actions {
+    display: contents;
+  }
+
+  .lazu-landing__lang-wrapper {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .lazu-landing__nav-actions > .lazu-landing__icon-btn {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .lazu-landing__signin {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .lazu-landing__nav-actions
+    > .lazu-landing__icon-btn.lazu-landing__menu-trigger {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .lazu-landing__nav-actions > .lazu-landing__btn--sm {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lazu-landing__meter i {
+    transition: none;
+  }
+}
+
+.brand-logo.lazu-logo--dark,
+html.dark .brand-logo.lazu-logo--light,
+body[theme-mode='dark'] .brand-logo.lazu-logo--light {
+  display: none;
+}
+
+html.dark .brand-logo.lazu-logo--dark,
+body[theme-mode='dark'] .brand-logo.lazu-logo--dark {
+  display: block;
+}

@@ -1,0 +1,203 @@
+---
+title: "Search API：網頁與新聞檢索"
+description: 透過 Lazu search backends 呼叫 provider-neutral 的 POST /v1/search。
+---
+
+import {
+  CodeSample,
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="介面 / Retrieval"
+  method="POST"
+  path="/v1/search"
+  title="Search"
+  description="透過 Lazu 統一呼叫 Web 或 News 搜尋。託管版 api.lazu.ai 目前啟用了 Tavily、Serper 和 Jina；自部署管理員也可以透過同一套 Search Backend 系統接入 Exa 或 Brave。"
+  aside={
+    <EndpointRail
+      endpoint="search"
+      extra={
+        <MiniCard title="控制台">
+          管理員在{" "}
+          <a href="https://lazu.ai/console/search-backend">Search backends</a>
+          設定 provider。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 返回什麼
+
+<EndpointGrid>
+  <EndpointTile title="標準化結果">
+    不同 provider 都會映射成 <code>title</code>、<code>url</code>、
+    <code>snippet</code>、可選的 <code>content</code>、<code>published_at</code>
+    、<code>score</code> 和 <code>source</code>。
+  </EndpointTile>
+  <EndpointTile title="可稽核路由">
+    響應會返回實際選中的 backend 和 route receipt。請求日誌中也會保存同樣的
+    routing metadata，方便排障和對帳。
+  </EndpointTile>
+</EndpointGrid>
+
+## 託管版設定
+
+`/v1/search` 的實作支援 Tavily、Serper、Exa、Jina 和 Brave，但請查看目前顯示的搜尋價格，並在請求詳情核對 `web_search` 計費明細；不要根據舊示例或部署設定推斷搜尋免費。
+
+| Backend     | 託管版狀態 | 能力                                | 說明                                                                  |
+| ----------- | ---------- | ----------------------------------- | --------------------------------------------------------------------- |
+| Tavily      | 已啟用     | `web_search`、`web_fetch`、`answer` | 支援 `include_answer` 和 `search_depth`；`advanced` 按 2 units 計算。 |
+| Serper      | 已啟用     | `web_search`                        | 會映射 `country` / `region`、`language` 和 `time_range`。             |
+| Jina        | 已啟用     | `web_search`、`web_fetch`           | 使用 `https://s.jina.ai`，較適合 retrieval 風格的 snippet。           |
+| Exa / Brave | 程式支援   | 管理員設定後支援 `web_search`       | 適用於自部署或管理員後續設定的託管環境。                              |
+
+目前託管版 backend 使用預設策略：每次請求最多返回 10 筆結果，上游 timeout 為
+8s。如果請求裡的 `max_results` 更大，Lazu 會按選中的 backend policy 截斷。
+
+## 請求 Body
+
+<FieldList>
+  <Field name="query" type="string" required>
+    搜尋 query。當前 MVP 每次請求支援一個 query。
+  </Field>
+  <Field name="type" type="string" nullable values={["web", "news"]}>
+    搜尋類型，預設 <code>web</code>。
+  </Field>
+  <Field name="backend" type="string" nullable>
+    <code>auto</code>、provider 名稱如 <code>tavily</code> 或{" "}
+    <code>serper</code>， 或已設定的 backend ID/name。預設 <code>auto</code>。
+  </Field>
+  <Field name="region" type="string" nullable>
+    地區 hint。Serper 會映射到 <code>gl</code>。
+  </Field>
+  <Field name="language" type="string" nullable>
+    語言 hint，例如 <code>en</code> 或 <code>zh-TW</code>。
+  </Field>
+  <Field
+    name="time_range"
+    type="string"
+    nullable
+    values={["day", "week", "month", "year"]}
+  >
+    時間範圍 hint。provider 不支援時可能忽略。
+  </Field>
+  <Field name="max_results" type="integer" nullable>
+    返回結果數。預設 <code>10</code>，並受 backend policy 上限約束。
+  </Field>
+  <Field
+    name="search_depth"
+    type="string"
+    nullable
+    values={["basic", "advanced"]}
+  >
+    provider 深度 hint。Tavily <code>advanced</code> 會消耗 2 個計費 unit。
+  </Field>
+  <Field name="include_answer" type="boolean" nullable>
+    selected backend 返回 answer 時一併返回。Lazu 不會在這個 endpoint
+    內生成最終答案。
+  </Field>
+  <Field name="include_raw_content" type="boolean" nullable>
+    provider 返回原文或清洗正文時是否透出，預設 <code>false</code>。
+  </Field>
+  <Field name="include_domains" type="string[]" nullable>
+    限制搜尋網域。token 級 domain allowlist 仍會生效。
+  </Field>
+  <Field name="exclude_domains" type="string[]" nullable>
+    排除網域，取決於 selected backend 是否支援。
+  </Field>
+  <Field name="include_provider_payload" type="boolean" nullable>
+    返回 provider 原始 payload，主要用於排障。預設 <code>false</code>。
+  </Field>
+  <Field name="provider_options" type="object" nullable>
+    進階 provider passthrough。只會使用當前 provider 對應物件，例如{" "}
+    <code>{'{"serper":{"tbs":"qdr:d"}}'}</code>。
+  </Field>
+</FieldList>
+
+## 響應
+
+<CodeSample title="Search response" language="json">
+  {`{
+  "query": "latest OpenAI web search API changes",
+  "results": [
+    {
+      "title": "Web search - OpenAI API",
+      "url": "https://platform.openai.com/docs/guides/tools-web-search",
+      "snippet": "Use web search in the Responses API...",
+      "content": null,
+      "published_at": null,
+      "score": 0.91,
+      "source": "web"
+    }
+  ],
+  "usage": {
+    "web_search_requests": 1,
+    "web_search_billable_units": 1
+  },
+  "provider_trace": {
+    "backend": "tavily"
+  },
+  "route_receipt": {
+    "selection": "auto",
+    "selected_backend": "tavily",
+    "chose_provider": "tavily",
+    "candidates": ["tavily:Tavily"],
+    "rejected": [],
+    "downgraded": false,
+    "fallback_count": 0,
+    "decision_reason": "selected"
+  }
+}`}
+</CodeSample>
+
+<FieldList>
+  <Field name="results[]" type="object[]">
+    標準化搜尋結果。只有請求了 raw content 且 backend 返回時，
+    <code>content</code> 才會填充。
+  </Field>
+  <Field name="usage.web_search_requests" type="integer">
+    Lazu 搜尋請求次數，通常為 <code>1</code>。
+  </Field>
+  <Field name="usage.web_search_billable_units" type="integer">
+    實際計費使用的 provider unit。Tavily basic 為 1，Tavily advanced 為 2，
+    Serper 和 Jina 通常為 1 個成功 query。
+  </Field>
+  <Field name="provider_trace.backend" type="string">
+    路由後實際選中的 provider。
+  </Field>
+  <Field name="route_receipt" type="object" nullable>
+    候選、fallback、拒絕原因等路由 metadata，同步寫入請求日誌。
+  </Field>
+</FieldList>
+
+## 計費
+
+Search backend 的價格來自設定中的 <code>search_price</code>。這個值表示每個
+provider billing unit 的 USD 價格，不一定等同於每個 HTTP request 的價格。
+目前託管版 Tavily、Serper 和 Jina 沒有明確設定 <code>search_price</code>，
+所以 Lazu 會記錄 <code>web_search</code> usage，但 search line item 費用為
+$0；後續管理員設定價格或 provider-cost passthrough 後才會按設定收費。
+
+| Backend | Unit 映射                                                        |
+| ------- | ---------------------------------------------------------------- |
+| Tavily  | <code>basic</code> = 1 credit；<code>advanced</code> = 2 credits |
+| Serper  | 1 個成功 query = 1 unit                                          |
+| Jina    | 1 個成功 query = 1 unit                                          |
+
+上游失敗、timeout、參數錯誤會按 Lazu 常規計費規則 refund。
+
+## 相關頁面
+
+- [計費規則](/zh-TW/billing)
+- [請求詳情](/zh-TW/endpoints/usage-requests)
+- [模型目錄](/zh-TW/models/catalog)
+
+</EndpointPage>

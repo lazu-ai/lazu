@@ -1,0 +1,162 @@
+---
+title: "Chat Completions API（OpenAI 兼容）"
+description: OpenAI 兼容的 /v1/chat/completions，同页包含参数、示例、流式、工具调用和 cache usage 字段。
+---
+
+import {
+  CodeSample,
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="接口 / OpenAI 兼容"
+  method="POST"
+  path="/v1/chat/completions"
+  title="Chat completions"
+  description="通过 Lazu 发送 OpenAI 兼容的对话请求。本页直接包含 base URL、鉴权、请求字段、响应 usage、流式输出、工具调用和请求详情查询，不需要跳到单独的 OpenAPI Explorer 页面。"
+  aside={<EndpointRail endpoint="chat" />}
+
+>
+
+## 基础配置
+
+<EndpointGrid>
+  <EndpointTile title="SDK base_url">
+    OpenAI SDK 使用 <code>https://api.lazu.ai/v1</code>。
+  </EndpointTile>
+  <EndpointTile title="模型发现">
+    生产代码应先读取 <code>GET /api/models/catalog</code>，筛选
+    <code>supported_endpoint_types</code> 包含 <code>chat</code> 的模型。
+  </EndpointTile>
+</EndpointGrid>
+
+## 请求 Body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    模型 ID，来自 <code>GET /api/models/catalog</code>。后续也可以承载
+    <code>auto</code> 或 route policy 名称。
+  </Field>
+  <Field name="messages" type="object[]" required>
+    对话消息数组。role 使用 OpenAI 兼容格式：
+    <code>system</code>、<code>user</code>、<code>assistant</code>、
+    <code>tool</code>。
+  </Field>
+  <Field name="stream" type="boolean" nullable>
+    设置为 <code>true</code> 时返回 SSE 流式响应，结尾为
+    <code>data: [DONE]</code>。
+  </Field>
+  <Field name="tools" type="object[]" nullable>
+    工具/函数定义。发送前建议检查模型目录里的
+    <code>parameters.tools</code>。
+  </Field>
+  <Field name="response_format" type="object" nullable>
+    结构化输出控制，例如 <code>{'{"type":"json_object"}'}</code>。
+  </Field>
+  <Field name="temperature" type="number" nullable>
+    采样温度。不同 provider 的有效范围可能不同。
+  </Field>
+  <Field name="max_tokens" type="integer" nullable>
+    最大输出 token，仍受模型上下文和输出限制约束。
+  </Field>
+</FieldList>
+
+## 消息格式
+
+<FieldList>
+  <Field
+    name="role"
+    type="string"
+    required
+    values={["system", "user", "assistant", "tool"]}
+  >
+    消息角色。
+  </Field>
+  <Field name="content" type="string | content_part[]" required>
+    文本消息可直接传字符串；多模态请求可传 content parts。
+  </Field>
+  <Field name="tool_calls" type="object[]" nullable>
+    assistant 消息里的工具调用。
+  </Field>
+  <Field name="tool_call_id" type="string" nullable>
+    <code>tool</code> 消息需要带这个字段，用来对应上一轮 tool call。
+  </Field>
+</FieldList>
+
+## 图片输入
+
+<CodeSample title="Vision input" language="json">
+  {`{
+  "model": "gpt-6-luna",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {"type": "text", "text": "What's in this image?"},
+        {
+          "type": "image_url",
+          "image_url": {"url": "data:image/png;base64,..."}
+        }
+      ]
+    }
+  ]
+}`}
+</CodeSample>
+
+PDF 和大文件应该使用 [Files](/zh/endpoints/files) +
+[Responses](/zh/endpoints/responses)。Chat completions 不会自动读取
+
+<code>file_id</code>。
+
+## 响应 usage 和 cache 字段
+
+<FieldList>
+  <Field name="usage.prompt_tokens" type="integer">
+    输入 token。
+  </Field>
+  <Field name="usage.completion_tokens" type="integer">
+    输出 token。
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cached_tokens"
+    type="integer"
+    nullable
+  >
+    cache read tokens。
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cache_write_tokens"
+    type="integer"
+    nullable
+  >
+    provider 上报时返回的 cache write tokens。
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cache_miss_tokens"
+    type="integer"
+    nullable
+  >
+    provider 明确上报 cache miss 时返回，例如 DeepSeek 兼容字段。
+  </Field>
+</FieldList>
+
+完整对账信息使用请求详情 API：
+
+<CodeSample title="Request detail" language="bash">
+  {`curl https://api.lazu.ai/api/usage/requests/req_lazu_01ABCDEF \\
+  -H "Authorization: Bearer $LAZU_API_KEY"`}
+</CodeSample>
+
+## 相关页面
+
+- [模型目录](/zh/models/catalog)
+- [Responses API](/zh/endpoints/responses)
+- [计费规则](/zh/billing)
+- [请求详情](/zh/endpoints/usage-requests)
+
+</EndpointPage>

@@ -1,0 +1,90 @@
+---
+title: "Embeddings 向量 API（OpenAI 兼容）"
+description: OpenAI-compatible /v1/embeddings，请求字段、批量输入、维度和响应说明。
+---
+
+import {
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="接口 / Vectors"
+  method="POST"
+  path="/v1/embeddings"
+  title="Embeddings"
+  description="使用 OpenAI-compatible 客户端创建向量 embedding。通过模型目录确认哪些模型支持 embeddings，以及是否支持自定义 dimensions。"
+  aside={
+    <EndpointRail
+      endpoint="embeddings"
+      extra={
+        <MiniCard title="Catalog filter">
+          <code>supported_endpoint_types</code> 包含 <code>embeddings</code>
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 请求 Body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    来自 <code>/api/models/catalog</code> 的 embedding 模型 ID。
+  </Field>
+  <Field name="input" type="string | string[]" required>
+    文本输入，或有序文本批量输入。响应会保持输入顺序。
+  </Field>
+  <Field name="dimensions" type="integer" nullable>
+    支持截断的模型可使用可选向量维度。
+  </Field>
+  <Field
+    name="encoding_format"
+    type="string"
+    nullable
+    values={["float", "base64"]}
+  >
+    上游支持时可选择输出编码格式。
+  </Field>
+</FieldList>
+
+## 响应
+
+<FieldList>
+  <Field name="object" type="string">
+    通常为 <code>list</code>。
+  </Field>
+  <Field name="data" type="object[]">
+    每个 input 对应一个 embedding item。
+  </Field>
+  <Field name="data[].embedding" type="number[] | string">
+    向量数值，或取决于 <code>encoding_format</code> 的 base64 编码向量。
+  </Field>
+  <Field name="usage.prompt_tokens" type="integer">
+    embedding 使用的输入 token 数。
+  </Field>
+</FieldList>
+
+## 批量建议
+
+小批量可以直接传数组。大规模数据任务建议在客户端分块，确保每个请求都不超过
+provider 的 body size 和 token 限制。
+
+## 常见模型
+
+| Model                    | Dim  | Notes                |
+| ------------------------ | ---- | -------------------- |
+| `BAAI/bge-m3`            | 1024 | Multilingual         |
+| `text-embedding-3-small` | 1536 | OpenAI cheap default |
+| `text-embedding-3-large` | 3072 | OpenAI high quality  |
+| `gemini-embedding-001`   | 768  | Google default       |
+
+## 相关页面
+
+- [模型目录](/zh/models/catalog)
+- [定价与渠道](/zh/models/pricing)
+
+</EndpointPage>

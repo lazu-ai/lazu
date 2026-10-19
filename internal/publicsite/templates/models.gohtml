@@ -1,0 +1,86 @@
+{{define "lane"}}
+<div class="lazu-lane{{if .Off}} lazu-lane--off{{end}}">
+  <div class="lazu-lane__head">
+    <span class="lazu-lane__label">{{.Label}}</span>
+    {{- if .Off}}<span class="lazu-lane__off">{{.OffText}}</span>
+    {{- else}}
+    {{- if .MarkText}}<span class="lazu-chip{{if eq .MarkKind "off"}} lazu-chip--ink{{end}}">{{.MarkText}}</span>{{end}}
+    <span class="lazu-lane__spacer"></span>
+    <span class="lazu-dot lazu-dot--{{.StatusDot}}" aria-hidden="true"></span>
+    <span class="lazu-lane__uptime">{{.Uptime}}</span>
+    {{- end}}
+  </div>
+  {{- if not .Off}}
+  {{- if .Price}}
+  <div class="lazu-lane__price"><b>{{.Price}}</b> <span class="lazu-lane__unit">{{.Unit}}{{if .OutText}} {{.OutText}}{{end}}</span></div>
+  {{- end}}
+  {{template "bars" (barsOf .Label .Bars)}}
+  <span class="lazu-lane__figures">{{.Figures}}</span>
+  {{- end}}
+</div>
+{{end}}
+
+{{define "main"}}
+{{$page := .Page}}
+<main class="lazu-catalog" data-catalog>
+  <div class="lazu-catalog__head">
+    <div class="lazu-catalog__intro">
+      <div class="lazu-site-eyebrow">{{$page.Eyebrow}}</div>
+      <h1 class="lazu-site-display">{{$page.Title}}</h1>
+      <p class="lazu-catalog__lede">{{$page.Lede}}</p>
+    </div>
+    <div class="lazu-catalog__meta">
+      <span>{{$page.Updated}} <span class="lazu-site-mono lazu-catalog__stamp">{{$page.UpdatedAt}}</span></span>
+      <span class="lazu-catalog__machine">
+        <a class="lazu-chip lazu-site-mono" href="{{$page.JSONHref}}">JSON</a>
+        <a class="lazu-chip lazu-site-mono" href="{{$page.MDHref}}">Markdown</a>
+      </span>
+    </div>
+  </div>
+
+  <div class="lazu-catalog__tools">
+    <label class="lazu-catalog__search">
+      {{template "icon-search"}}
+      <input type="search" data-catalog-search placeholder="{{t "models.search"}}" aria-label="{{t "models.search"}}" />
+    </label>
+    <nav class="lazu-catalog__vendors" aria-label="{{t "models.all"}}">
+      <a href="#" data-vendor-chip="" aria-current="true">{{t "models.all"}} <span>{{$page.Total}}</span></a>
+      {{- range $page.Vendors}}
+      <a href="#{{.Slug}}" data-vendor-chip="{{.Slug}}" aria-current="false">{{.Name}} <span>{{.Count}}</span></a>
+      {{- end}}
+    </nav>
+  </div>
+
+  <div class="lazu-legend">
+    <span>{{t "legend.caption"}}</span>
+    <span class="lazu-legend__items">
+      <span><i class="lazu-bars__key ok"></i>{{t "legend.ok"}}</span>
+      <span><i class="lazu-bars__key warn"></i>{{t "legend.warn"}}</span>
+      <span><i class="lazu-bars__key bad"></i>{{t "legend.bad"}}</span>
+      <span><i class="lazu-bars__key none"></i>{{t "legend.none"}}</span>
+    </span>
+  </div>
+
+  {{- range $page.Groups}}
+  <section class="lazu-catalog__group" id="{{.Slug}}" data-vendor-group="{{.Slug}}">
+    <div class="lazu-catalog__group-head">
+      <h2>{{.Name}}</h2>
+      <span>{{.Count}}</span>
+    </div>
+    <div class="lazu-catalog__grid">
+      {{- range .Cards}}
+      <a class="lazu-card" href="{{.Href}}" data-model-card data-search="{{.Search}}">
+        <span class="lazu-card__title">
+          <span class="lazu-card__id">{{.Name}}</span>
+          {{- if .IsNew}}<span class="lazu-chip">{{t "models.new"}}</span>{{end}}
+        </span>
+        <span class="lazu-card__meta">{{.Meta}}</span>
+        {{- range .Lanes}}{{template "lane" .}}{{end}}
+      </a>
+      {{- end}}
+    </div>
+  </section>
+  {{- end}}
+  <p class="lazu-catalog__empty" data-catalog-empty hidden>{{t "models.empty"}}</p>
+</main>
+{{end}}

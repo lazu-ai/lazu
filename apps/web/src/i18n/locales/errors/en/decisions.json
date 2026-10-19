@@ -1,0 +1,11 @@
+{
+  "missing_questions": "Supply questions or enable automatic question generation.",
+  "invalid_decision_state": "Supply text or JSON state, or embedded images.",
+  "invalid_decision_questions": "The decision questions are invalid.",
+  "unsupported_question_type": "This question type is not supported.",
+  "unsupported_decision_input": "This input is not supported by the decision model.",
+  "unsupported_decision_parameter": "This parameter is not supported. Decisions do not support streaming.",
+  "question_generation_failed": "Question generation failed validation. The generation charge will be refunded.",
+  "upstream_decision_invalid": "The decision provider returned an invalid response.",
+  "upstream_capacity": "Upstream capacity is exhausted. Retry after the indicated delay."
+}

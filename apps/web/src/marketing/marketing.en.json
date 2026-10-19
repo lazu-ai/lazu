@@ -1,0 +1,360 @@
+{
+  "brand": {
+    "name": "Lazu"
+  },
+  "privacy": {
+    "meta": {
+      "title": "Privacy Policy | Lazu",
+      "description": "How Lazu collects, uses, retains, protects, and shares account, API usage, Google OAuth, Stripe, and future onchain payment information."
+    }
+  },
+  "terms": {
+    "meta": {
+      "title": "Terms of Service | Lazu",
+      "description": "The terms governing Lazu accounts, AI gateway usage, billing, Google sign-in, Stripe payments, and any future onchain payment features."
+    }
+  },
+  "landing": {
+    "meta": {
+      "title": "Lazu — One API key for every LLM: Claude, GPT, Gemini, DeepSeek",
+      "description": "Call Claude, GPT, Gemini and DeepSeek with one OpenAI-compatible API key. Pay as you go, no subscription. The stable lane runs on official APIs, every request is itemized, and Lazu never trains on your data."
+    },
+    "nav": {
+      "models": "Models",
+      "keyInspector": "Key lookup",
+      "status": "Status",
+      "faq": "FAQ",
+      "docs": "Docs",
+      "changelog": "Changelog",
+      "github": "GitHub",
+      "signIn": "Sign in",
+      "console": "Console",
+      "getKey": "Start free",
+      "toggleTheme": "Toggle theme",
+      "changeLanguage": "Change language",
+      "menu": "Menu"
+    },
+    "hero": {
+      "eyebrow": "AI gateway · for developers and small teams",
+      "headline": "One account for every model. One bill ",
+      "headlineEm": "you can actually read.",
+      "whatBefore": "Lazu is the ",
+      "whatBold": "AI gateway for developers and small teams",
+      "whatAfter": ". Connect Claude Code, Codex or an SDK, then trace each task through its session, request receipts and team spend.",
+      "ctaPrimary": "Sign up free",
+      "ctaSecondary": "See the console",
+      "free": "10% extra on your first top-up, up to $10"
+    },
+    "stats": {
+      "items": [
+        {
+          "key": "models",
+          "label": "models available"
+        },
+        {
+          "key": "vendors",
+          "label": "upstream providers"
+        },
+        {
+          "key": "available",
+          "label": "healthy right now"
+        }
+      ],
+      "loading": "loading"
+    },
+    "shot": {
+      "title": "Members and quota",
+      "sub": "Acme Inc · August",
+      "balanceNote": "Account balance　$760.00 spent this month",
+      "topUp": "Add funds",
+      "colMember": "Member",
+      "colUsed": "Spent",
+      "colQuota": "Quota",
+      "edit": "Change",
+      "unlimited": "No cap",
+      "capHint": "{{pct}}% used · ${{cap}} cap",
+      "navWorkspace": "Workspace",
+      "navOverview": "Overview",
+      "navModels": "Models",
+      "navKeys": "API keys",
+      "navUsage": "Usage and billing",
+      "navOrg": "Organization",
+      "navMembers": "Members and quota",
+      "navSettings": "Settings",
+      "roleAdmin": "Admin",
+      "roleMember": "Member",
+      "roleService": "Service account",
+      "demo": "demo data",
+      "catalog": "catalog",
+      "ready": "ready",
+      "available": "available",
+      "credentials": "credentials",
+      "active": "active",
+      "protected": "protected"
+    },
+    "features": {
+      "eyebrow": "What it solves",
+      "title": "Four headaches, one back office",
+      "lede": "These show up in every team that starts using AI seriously.",
+      "items": [
+        {
+          "title": "No more signing up with every provider",
+          "body": "Claude, GPT, Gemini and DeepSeek all live in lazu. Fund it once and the whole company can use any of them — no separate accounts, top-ups or invoices.",
+          "bullets": [
+            "New models appear in the list on release day",
+            "Prices are published; you pay for what you use"
+          ],
+          "panelTitle": "Models"
+        },
+        {
+          "title": "Give everyone a cap that actually stops",
+          "body": "$50 for a new hire, $30 for a script. When the cap is reached the requests stop — you do not find out from next month's invoice.",
+          "bullets": [
+            "You get a heads-up before someone hits the cap",
+            "Raise or lower it any time; it applies to the next request"
+          ],
+          "panelTitle": "Change quota",
+          "panelMeta": "Wen"
+        },
+        {
+          "title": "One key per person, so a leak costs one key",
+          "body": "No shared company key. If someone's key ends up in a public repo, disable that one — everyone else keeps working.",
+          "bullets": [
+            "Each key can be limited to specific models",
+            "Revoke everything a leaver held in one action"
+          ],
+          "panelTitle": "API keys",
+          "panelMeta": "7 active"
+        },
+        {
+          "title": "A bill you can read and hand to finance",
+          "body": "Who, which model, when, how much — line by line. Group by person or model and export it as a spreadsheet.",
+          "bullets": [
+            "Every call recorded, nothing sampled",
+            "Group by team or project"
+          ],
+          "panelTitle": "Usage and billing",
+          "panelMeta": "August · by member"
+        }
+      ],
+      "quotaEditor": {
+        "thisMonth": "Cap for this month",
+        "used": "Spent so far",
+        "warn": "$9.00 left — close to the cap",
+        "unlimited": "No cap"
+      },
+      "keyStatusOk": "Active",
+      "keyStatusOff": "Disabled",
+      "modelAvailable": "Available",
+      "panelEmpty": "Loading the catalogue…",
+      "panelCount": "{{count}} total",
+      "panelUnavailable": "Catalogue unavailable right now"
+    },
+    "steps": {
+      "eyebrow": "Getting started",
+      "title": "Three steps, running in ten minutes",
+      "items": [
+        {
+          "title": "Sign up and fund",
+          "body": "Signing up creates a team account. Top up from $10; your first top-up gets 10% extra."
+        },
+        {
+          "title": "Configure your gateway",
+          "body": "Choose the models and routes you want to use in the console."
+        },
+        {
+          "title": "Create a key",
+          "body": "Paste the key into your tool and see its usage in the console."
+        }
+      ]
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Before you start",
+      "items": [
+        {
+          "q": "Do I need a card?",
+          "a": "Not to sign up. You can look around and create Keys first; before making calls you top up, from $10, and your first top-up gets 10% extra (up to $10). Top-ups aren't refundable."
+        },
+        {
+          "q": "What happens when a cap is reached?",
+          "a": "That person's requests are rejected with a clear “quota exhausted”, and nothing more is charged. Raise the cap and the next request goes through. Nobody else is affected."
+        },
+        {
+          "q": "How are model prices set?",
+          "a": "Model usage is billed at the published price for the selected stable or agent lane. The console shows the applicable lane price before you send traffic."
+        },
+        {
+          "q": "We already use another provider — is moving painful?",
+          "a": "You do not have to move all at once. Send a small slice of traffic through lazu, compare cost and latency, then shift more if it holds up."
+        }
+      ]
+    },
+    "final": {
+      "title": "Hand out this month's quota",
+      "body": "Two minutes to sign up, 10% extra on your first top-up.",
+      "ctaPrimary": "Sign up free",
+      "ctaSecondary": "Read the docs"
+    }
+  },
+  "about": {
+    "meta": {
+      "title": "About Lazu: the LLM API platform run by DUBRIO LLC",
+      "description": "Lazu is an OpenAI-compatible AI gateway operated by DUBRIO LLC, a Delaware company. Who runs it, how to reach us, and the addresses machines can read."
+    },
+    "eyebrow": "About",
+    "title": "About Lazu",
+    "lede": "Lazu is an OpenAI-compatible AI gateway: one key for the major models, a quota for every person, and a bill you can read. Lazu is operated by DUBRIO LLC.",
+    "facts": [
+      {
+        "label": "Operator",
+        "value": "DUBRIO LLC"
+      },
+      {
+        "label": "Registered in",
+        "value": "Delaware, United States"
+      },
+      {
+        "label": "Online since",
+        "value": "2025"
+      },
+      {
+        "label": "Contact",
+        "value": "support@lazu.ai"
+      },
+      {
+        "label": "Invoices",
+        "value": "Issued by DUBRIO LLC after payment — an overseas invoice, not a Chinese VAT fapiao"
+      },
+      {
+        "label": "Governing law",
+        "value": "Laws of the State of Delaware; see the [[terms]]"
+      }
+    ],
+    "termsLink": "Terms of Service",
+    "machineTitle": "Addresses for developers and AI",
+    "machineLede": "These addresses are stable. Hand them to a program or an agent.",
+    "machine": [
+      {
+        "path": "/llms.txt",
+        "text": "Site index: pages, docs and models"
+      },
+      {
+        "path": "/llms-full.txt",
+        "text": "The whole site in one file"
+      },
+      {
+        "path": "/api/pricing",
+        "text": "Live prices and capabilities of every model (JSON)"
+      },
+      {
+        "path": "/docs",
+        "text": "Integration docs; every page has a .md version"
+      }
+    ]
+  },
+  "faq": {
+    "meta": {
+      "title": "Lazu FAQ: one API key for Claude, GPT and Gemini: pricing, lanes, privacy",
+      "description": "How to call Claude, GPT and Gemini through one OpenAI-compatible key, how pay-as-you-go pricing and the stable and agent lanes work, which payment methods work, and why Lazu never trains on your data."
+    },
+    "eyebrow": "FAQ",
+    "title": "Frequently asked questions",
+    "subtitle": "Direct answers about model access, migration, pricing, privacy, and troubleshooting.",
+    "updatedLabel": "Reviewed October 1, 2026",
+    "getKey": "Get an API key",
+    "readDocs": "Read the docs",
+    "changelog": "Changelog",
+    "topics": "Topics",
+    "groups": {
+      "gateway": "Gateway and access",
+      "models": "Models and providers",
+      "billing": "Pricing and billing",
+      "limits": "Privacy and limits"
+    },
+    "tocLabel": "FAQ topics",
+    "items": [
+      {
+        "q": "Can I self-host Lazu?",
+        "a": "Lazu is offered as a hosted service at lazu.ai. If you need a dedicated or on-premise deployment, contact us and we will walk through the options."
+      },
+      {
+        "q": "How many models are supported?",
+        "a": "Every model you can call is listed at lazu.ai/models with live prices and the last 7 days of availability: models from OpenAI, Anthropic, Google, DeepSeek, Moonshot (Kimi), Zhipu (GLM), Alibaba (Qwen) and MiniMax. With a key, GET /api/models/catalog returns the same list for that key."
+      },
+      {
+        "q": "Which model makers are available?",
+        "a": "OpenAI, Anthropic, Google, DeepSeek, Moonshot (Kimi), Zhipu (GLM), Alibaba (Qwen) and MiniMax. New models are added to the model catalog and the changelog as they become available."
+      },
+      {
+        "q": "How to migrate from OpenAI?",
+        "a": "Change two lines: set base_url from https://api.openai.com/v1 to https://api.lazu.ai/v1, then replace api_key with your Lazu key. Your application code can keep using the official OpenAI Python, JavaScript, or Go SDKs."
+      },
+      {
+        "q": "Can I use Claude and GPT directly from China?",
+        "a": "Yes. Use the Lazu endpoint at https://api.lazu.ai and connect directly from domestic IP addresses without a VPN or proxy. Each model page shows its availability over the last 7 days."
+      },
+      {
+        "q": "How is pricing calculated?",
+        "a": "Input, output and cache tokens are counted separately and billed at the published price of the lane you use. There is no monthly fee and no minimum spend."
+      },
+      {
+        "q": "What is the difference between the stable and agent lanes?",
+        "a": "The stable lane runs on each maker's official API, is billed at the list price, has the highest availability and suits every use. The agent lane runs on third-party subscription pools that serve the model through its official client, not the official API. It costs far less, but availability varies, a failed request does not fall back to the stable lane, and the pool adds its own preset context. So use it only inside the matching agent tool: Claude models in Claude Code, GPT models in Codex, Gemini models in Antigravity. For your own code, or anywhere the output must be controlled exactly, use the stable lane. Both lanes work with the same key, and each key picks the lane per model."
+      },
+      {
+        "q": "Which payment methods are supported?",
+        "a": "Top up online through Stripe with a card (Visa, Mastercard and others) or Alipay. Balances are in US dollars."
+      },
+      {
+        "q": "Does Lazu train on my data? How is it stored?",
+        "a": "No. Lazu never trains on your data. Request and response content is recorded in request logs and kept for 180 days, so we can look into a specific request with you, and is then deleted. Usage records keep metadata only (time, model, token counts, cost, status and request_id) for 90 days."
+      },
+      {
+        "q": "Are streaming responses supported?",
+        "a": "Yes. Chat completion endpoints support SSE streaming with stream: true, matching OpenAI-compatible behavior."
+      },
+      {
+        "q": "Is the native Anthropic API supported?",
+        "a": "Yes. In addition to OpenAI-compatible /v1/chat/completions, Lazu exposes /v1/messages for Anthropic-compatible requests using x-api-key and anthropic-version headers. Extended Thinking, Prompt Caching, and Tool Use are supported through that path."
+      },
+      {
+        "q": "What are the rate limits?",
+        "a": "Rate limits depend on the model and your account. You can see live usage and limits in the console; for higher RPM or TPM, contact support@lazu.ai."
+      },
+      {
+        "q": "How can I monitor usage and cost?",
+        "a": "The console provides usage dashboards by day, week, and month, with breakdowns by model, endpoint, and token type. Every request includes an x-request-id that can be searched in the logs page."
+      },
+      {
+        "q": "How should I troubleshoot errors?",
+        "a": "Every response includes an x-request-id header. Search that ID in the console's usage log to see when the request ran, which lane served it, its status, the token billing and any error details."
+      },
+      {
+        "q": "Is there a new-customer offer?",
+        "a": "Your first top-up gets 10% extra, up to $10, credited with the payment. Signing up itself adds no credit, and top-ups aren't refundable."
+      },
+      {
+        "q": "Is there a referral reward?",
+        "a": "Yes. Copy your referral link from the wallet (lazu.ai/?ref=your-name), or add ?ref=your-name to any lazu.ai link. For 30 days after a friend signs up with it, you get 10% of every top-up they pay, up to $30 per friend, each credited after 7 days. Up to 100 friends count per person, and people in a team with you don't count. Rewards are Lazu credit and can't be withdrawn."
+      }
+    ]
+  },
+  "footer": {
+    "blurb": "An OpenAI-compatible AI gateway. One key for every model, a quota per person, and a bill you can read.",
+    "product": "Product",
+    "developers": "Developers",
+    "company": "Company",
+    "legal": "Legal",
+    "models": "Model catalog",
+    "faq": "FAQ",
+    "start": "Sign up free",
+    "docs": "Docs",
+    "apiReference": "API reference",
+    "changelog": "Changelog",
+    "about": "About",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "legalLine": "© 2025–2026 DUBRIO LLC · Delaware, USA · Lazu is operated by DUBRIO LLC"
+  }
+}

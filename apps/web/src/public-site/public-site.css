@@ -1,0 +1,1284 @@
+/* Pages the API renders: /models, /models/<maker>/<id>.
+   Drawn from lazu-ops:brand/explorations/seo-surfaces-2026-09 (Models, ModelA,
+   ModelPhone, Blog, BlogPost). Colours, type and radii come from the Yunmu
+   tokens only. */
+
+body.lazu-site {
+  background: var(--lazu-page);
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-sans);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lazu-site__ground {
+  background:
+    radial-gradient(
+      900px 520px at 0% 0%,
+      var(--lazu-ambient-cool, rgb(197 216 255 / 52%)),
+      transparent 70%
+    ),
+    radial-gradient(
+      760px 480px at 100% 0%,
+      var(--lazu-ambient-warm, rgb(247 219 184 / 24%)),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      var(--lazu-page-top) 0%,
+      var(--lazu-page) 50%,
+      var(--lazu-page-bottom) 100%
+    );
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.lazu-site__ground > main {
+  flex: 1 0 auto;
+}
+
+.lazu-site a {
+  color: var(--lazu-evidence);
+  text-decoration: none;
+}
+
+.lazu-site a:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+/* The shared header's sign-in link and its button are chrome, not prose
+   links: the evidence colour above would paint teal type on the ink button. */
+.lazu-site a.lazu-landing__btn,
+.lazu-site a.lazu-landing__btn:hover {
+  color: var(--b-fg);
+}
+
+.lazu-site a.lazu-landing__signin {
+  color: var(--ink-2);
+}
+
+.lazu-site a.lazu-landing__signin:hover {
+  color: var(--accent);
+}
+
+.lazu-site-eyebrow {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lazu-site-display {
+  font-family: var(--lazu-font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+  margin: 0;
+}
+
+.lazu-site-h2 {
+  font-family: var(--lazu-font-display);
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.lazu-site-mono {
+  font-family: var(--lazu-font-mono);
+}
+
+.lazu-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- chips and buttons ----------------------------------------------- */
+
+.lazu-chip {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: 5px;
+  box-sizing: border-box;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  flex: none;
+  font-size: 12px;
+  font-weight: 400;
+  height: 22px;
+  line-height: 1;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+
+.lazu-site a.lazu-chip {
+  color: var(--lazu-ink);
+}
+
+.lazu-chip--lg {
+  font-size: 13px;
+  height: 26px;
+  padding: 0 9px;
+}
+
+.lazu-chip--sm {
+  font-size: 12px;
+  height: 22px;
+}
+
+.lazu-chip--ink {
+  background: var(--lazu-action);
+  border-color: var(--lazu-action);
+  color: var(--lazu-on-action, var(--lazu-surface-solid));
+}
+
+.lazu-chip--success {
+  background: var(--lazu-success-soft);
+  border-color: color-mix(in srgb, var(--lazu-success) 25%, transparent);
+  color: var(--lazu-success);
+}
+
+.lazu-chip--warning {
+  background: var(--lazu-warning-soft);
+  border-color: color-mix(in srgb, var(--lazu-warning) 25%, transparent);
+  color: var(--lazu-warning-strong);
+}
+
+.lazu-chip--danger {
+  background: var(--lazu-danger-soft);
+  border-color: color-mix(in srgb, var(--lazu-danger) 25%, transparent);
+  color: var(--lazu-danger);
+}
+
+.lazu-chip--muted {
+  color: var(--lazu-text-faint);
+}
+
+.lazu-btn {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+  white-space: nowrap;
+}
+
+.lazu-site a.lazu-btn--ink,
+.lazu-btn--ink {
+  background: var(--lazu-action);
+  border-color: var(--lazu-action);
+  color: var(--lazu-on-action, var(--lazu-surface-solid));
+}
+
+.lazu-btn--ink:hover {
+  box-shadow: 0 6px 16px rgb(32 35 41 / 16%);
+  transform: translateY(-1px);
+}
+
+.lazu-site a.lazu-btn--line,
+.lazu-btn--line {
+  background: var(--lazu-surface-raised);
+  border-color: var(--lazu-border-strong);
+  color: var(--lazu-ink);
+}
+
+.lazu-btn--line:hover {
+  transform: translateY(-1px);
+}
+
+.lazu-btn--ghost {
+  background: transparent;
+  color: var(--lazu-ink);
+}
+
+.lazu-dot {
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 6px;
+  width: 6px;
+}
+
+.lazu-dot--success {
+  background: var(--lazu-success);
+}
+
+.lazu-dot--warning {
+  background: var(--lazu-warning);
+}
+
+.lazu-dot--danger {
+  background: var(--lazu-danger);
+}
+
+.lazu-dot--neutral {
+  background: var(--lazu-border-strong);
+}
+
+/* ----- week bars (status-bars.css tones) ------------------------------- */
+
+.lazu-bars {
+  display: flex;
+  gap: 1px;
+  height: 10px;
+  min-width: 0;
+}
+
+.lazu-bars > i,
+.lazu-bars__key {
+  border-radius: var(--lazu-radius-datamark, 1px);
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lazu-bars > .ok,
+.lazu-bars__key.ok {
+  background: color-mix(in srgb, var(--lazu-success) 82%, transparent);
+}
+
+.lazu-bars > .warn,
+.lazu-bars__key.warn {
+  background: color-mix(in srgb, var(--lazu-warning) 85%, transparent);
+}
+
+.lazu-bars > .bad,
+.lazu-bars__key.bad {
+  background: color-mix(in srgb, var(--lazu-danger) 90%, transparent);
+}
+
+.lazu-bars > .none,
+.lazu-bars__key.none {
+  background: var(--lazu-surface-selected);
+}
+
+/* ----- catalog -------------------------------------------------------- */
+
+.lazu-catalog {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin: 0 auto;
+  max-width: 1280px;
+  padding: 56px 0 96px;
+  width: calc(100% - 80px);
+}
+
+.lazu-catalog__head {
+  align-items: flex-end;
+  display: flex;
+  gap: 48px;
+}
+
+.lazu-catalog__intro {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lazu-catalog__intro h1 {
+  font-size: 56px;
+}
+
+.lazu-catalog__lede {
+  font-size: 17px;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 720px;
+}
+
+.lazu-catalog__meta {
+  align-items: flex-end;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 10px;
+}
+
+.lazu-catalog__stamp {
+  color: var(--lazu-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.lazu-catalog__machine {
+  display: flex;
+  gap: 8px;
+}
+
+.lazu-catalog__tools {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.lazu-catalog__search {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 7px;
+  box-sizing: border-box;
+  color: var(--lazu-text-faint);
+  display: flex;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  width: 300px;
+}
+
+.lazu-catalog__search input {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  min-width: 0;
+  outline: none;
+}
+
+.lazu-catalog__search:focus-within {
+  border-color: var(--lazu-evidence);
+}
+
+.lazu-catalog__vendors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lazu-site .lazu-catalog__vendors a {
+  align-items: center;
+  border-radius: 7px;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+}
+
+.lazu-catalog__vendors a span {
+  color: var(--lazu-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lazu-site .lazu-catalog__vendors a[aria-current='true'] {
+  background: var(--lazu-surface-selected);
+  font-weight: 500;
+}
+
+.lazu-legend {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.lazu-legend__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.lazu-legend__items span {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.lazu-legend__items .lazu-bars__key {
+  flex: none;
+  height: 10px;
+  width: 4px;
+}
+
+.lazu-catalog__group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-margin-top: 24px;
+}
+
+.lazu-catalog__group[hidden] {
+  display: none;
+}
+
+.lazu-catalog__group-head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.lazu-catalog__group-head h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.lazu-catalog__group-head span {
+  color: var(--lazu-text-muted);
+  font-size: 14px;
+}
+
+.lazu-catalog__grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.lazu-site a.lazu-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 11px;
+  color: var(--lazu-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  transition: border-color 150ms ease;
+}
+
+.lazu-site a.lazu-card:hover {
+  border-color: var(--lazu-border-strong);
+  color: var(--lazu-ink);
+}
+
+.lazu-card[hidden] {
+  display: none;
+}
+
+.lazu-card__title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lazu-card__id {
+  flex: 1;
+  font-family: var(--lazu-font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-decoration: underline;
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--lazu-evidence) 35%,
+    transparent
+  );
+  text-overflow: ellipsis;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+}
+
+.lazu-card__meta {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.lazu-lane {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.lazu-lane__head {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  min-height: 22px;
+}
+
+.lazu-lane__label {
+  color: var(--lazu-ink);
+}
+
+.lazu-lane__spacer {
+  flex: 1;
+}
+
+.lazu-lane__uptime {
+  font-variant-numeric: tabular-nums;
+}
+
+.lazu-lane__off {
+  color: var(--lazu-text-faint);
+}
+
+.lazu-lane__price {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lazu-lane__price b {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.lazu-lane__unit {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.lazu-lane__figures {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+}
+
+.lazu-catalog__empty {
+  color: var(--lazu-text-muted);
+  margin: 0;
+}
+
+/* ----- model page ------------------------------------------------------ */
+
+.lazu-model {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  margin: 0 auto;
+  max-width: 960px;
+  padding: 40px 0 0;
+  width: calc(100% - 80px);
+}
+
+.lazu-model__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.lazu-crumbs {
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.lazu-crumbs [aria-current='page'] {
+  color: var(--lazu-ink);
+}
+
+.lazu-model__titlebar {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.lazu-model__title {
+  flex: 1;
+  font-size: 58px;
+  min-width: 0;
+}
+
+.lazu-model__titlebar .lazu-chip {
+  font-size: 13px;
+  height: 26px;
+  margin-bottom: 10px;
+  padding: 0 9px;
+}
+
+.lazu-model__id {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.lazu-model__idbox {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: 7px;
+  font-size: 15px;
+  padding: 6px 10px;
+}
+
+.lazu-model__ghost {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  height: 32px;
+  padding: 0 8px;
+}
+
+.lazu-model__ghost:hover {
+  color: var(--lazu-ink);
+}
+
+.lazu-model__lede {
+  font-size: 19px;
+  line-height: 1.7;
+  margin: 6px 0 0;
+  max-width: 800px;
+}
+
+.lazu-model__lede b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lazu-model__lede .lazu-site-mono {
+  font-size: 17px;
+}
+
+.lazu-model__desc {
+  color: var(--lazu-text-muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 800px;
+}
+
+.lazu-model__actions {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.lazu-copymenu {
+  position: relative;
+}
+
+.lazu-copymenu > summary {
+  list-style: none;
+}
+
+.lazu-copymenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lazu-copymenu__panel {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 11px;
+  box-shadow: var(--lazu-shadow-overlay);
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  padding: 6px;
+  position: absolute;
+  top: calc(100% + 6px);
+  width: 300px;
+  z-index: 10;
+}
+
+.lazu-copymenu__panel > button,
+.lazu-site .lazu-copymenu__panel > a {
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 14px;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.lazu-copymenu__panel > button:hover,
+.lazu-site .lazu-copymenu__panel > a:hover {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+.lazu-copymenu__panel b {
+  font-weight: 500;
+}
+
+.lazu-copymenu__panel span {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.lazu-model__facts {
+  column-gap: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lazu-fact {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 0;
+}
+
+.lazu-fact__big {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lazu-fact__text {
+  font-size: 16px;
+}
+
+.lazu-fact__mono {
+  font-size: 14px;
+}
+
+.lazu-model__section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.lazu-model__note {
+  color: var(--lazu-text-muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.lazu-model__stamp {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.lazu-prices {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.lazu-prices__row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 2.2fr;
+}
+
+.lazu-prices--nocache .lazu-prices__row {
+  grid-template-columns: 1.4fr 1fr 1fr 2.2fr;
+}
+
+.lazu-prices--flat .lazu-prices__row {
+  grid-template-columns: 1.4fr 1fr 2.2fr;
+}
+
+.lazu-prices__row > span {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  font-size: 14px;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 12px;
+}
+
+.lazu-prices__row--head > span {
+  background: var(--lazu-surface-muted);
+  border-top: 0;
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 12px;
+}
+
+.lazu-prices__row--muted > span {
+  color: var(--lazu-text-muted);
+}
+
+/* Long-context line: belongs to the row above, so it drops the divider and
+   reads as a sub-row. */
+.lazu-prices__row--tier > span {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.lazu-prices__row--tier > .lazu-prices__lane {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  padding-left: 24px;
+}
+
+.lazu-prices__strong {
+  font-weight: 600;
+}
+
+.lazu-prices__health {
+  align-items: stretch !important;
+  flex-direction: column;
+  gap: 6px !important;
+  justify-content: center;
+}
+
+.lazu-prices__health .lazu-num {
+  font-size: 13px;
+}
+
+.lazu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lazu-model__traits {
+  display: grid;
+  font-size: 15px;
+  grid-template-columns: 200px 1fr;
+  margin: 8px 0 0;
+  row-gap: 14px;
+}
+
+.lazu-model__traits dt {
+  color: var(--lazu-text-muted);
+}
+
+.lazu-model__traits dd {
+  margin: 0;
+}
+
+.lazu-model__traits dd.lazu-site-mono,
+.lazu-model__traits dd .lazu-site-mono {
+  font-size: 14px;
+}
+
+/* Code: dark ink in both themes, like the docs workbench. */
+.lazu-code {
+  background: var(--lazu-code-bg);
+  border-radius: 11px;
+  color: #e6e7ea;
+  overflow: hidden;
+  position: relative;
+}
+
+.lazu-code__bar {
+  align-items: center;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  display: flex;
+  font-size: 13px;
+  gap: 4px;
+  padding: 10px 14px;
+}
+
+.lazu-code__bar [role='tab'] {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #a4a4a7;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 10px;
+}
+
+.lazu-code__bar [role='tab'][aria-selected='true'] {
+  background: rgb(255 255 255 / 10%);
+  color: #f1f1f2;
+}
+
+.lazu-code__spacer {
+  flex: 1;
+}
+
+.lazu-code__endpoint {
+  color: #a4a4a7;
+  font-size: 12px;
+  margin-right: 56px;
+}
+
+.lazu-code__copy {
+  background: transparent;
+  border: 0;
+  color: #e6e7ea;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  position: absolute;
+  right: 12px;
+  top: 10px;
+}
+
+.lazu-code [role='tabpanel'][hidden] {
+  display: none;
+}
+
+.lazu-code pre {
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+  line-height: 1.75;
+  margin: 0;
+  overflow-x: auto;
+  padding: 18px 20px;
+  white-space: pre;
+}
+
+.lazu-code__str {
+  color: #b7c9fa;
+}
+
+.lazu-code__kw {
+  color: #f1c27d;
+}
+
+.lazu-code__cm {
+  color: #8b8b8e;
+}
+
+.lazu-code__flag {
+  color: #9fd3b4;
+}
+
+.lazu-qa {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lazu-qa h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.lazu-qa p {
+  color: var(--lazu-ink);
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+  opacity: 0.86;
+}
+
+.lazu-related {
+  display: flex;
+  flex-direction: column;
+}
+
+.lazu-site a.lazu-related__row {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-ink);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1.4fr 1fr 1.6fr 24px;
+  padding: 16px 0;
+}
+
+.lazu-site a.lazu-related__row:hover {
+  color: var(--lazu-ink);
+}
+
+.lazu-related__id {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.lazu-related__date {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+}
+
+.lazu-related__row svg {
+  color: var(--lazu-text-muted);
+}
+
+.lazu-cta {
+  align-items: center;
+  border-top: 1px solid var(--lazu-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  padding: 36px 0 80px;
+}
+
+.lazu-cta__title {
+  flex: 1;
+  font-size: 34px;
+}
+
+.lazu-site-notfound {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0 auto;
+  max-width: 560px;
+  padding: 120px 16px;
+  text-align: center;
+}
+
+.lazu-site-notfound__mark {
+  font-family: var(--lazu-font-display);
+  font-size: 72px;
+  line-height: 1;
+}
+
+.lazu-site-notfound h1 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.lazu-site-notfound p {
+  color: var(--lazu-text-muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.lazu-site-notfound__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ----- responsive ------------------------------------------------------ */
+
+@media (max-width: 1200px) {
+  .lazu-catalog__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .lazu-catalog__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lazu-catalog__head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .lazu-catalog__meta {
+    align-items: flex-start;
+  }
+
+  .lazu-model__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .lazu-catalog,
+  .lazu-model {
+    width: calc(100% - 32px);
+  }
+
+  .lazu-catalog {
+    padding-top: 32px;
+  }
+
+  .lazu-catalog__intro h1 {
+    font-size: 42px;
+  }
+
+  .lazu-catalog__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lazu-catalog__search {
+    width: 100%;
+  }
+
+  .lazu-model {
+    gap: 32px;
+    padding-top: 20px;
+  }
+
+  .lazu-model__hero {
+    gap: 12px;
+  }
+
+  .lazu-model__title {
+    font-size: 42px;
+    flex-basis: 100%;
+  }
+
+  .lazu-model__titlebar .lazu-chip {
+    margin-bottom: 0;
+  }
+
+  .lazu-model__lede {
+    font-size: 16px;
+  }
+
+  .lazu-model__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lazu-model__actions .lazu-btn {
+    height: 44px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .lazu-copymenu__panel {
+    width: 100%;
+  }
+
+  .lazu-site-h2 {
+    font-size: 28px;
+  }
+
+  .lazu-model__facts {
+    grid-template-columns: 1fr;
+  }
+
+  .lazu-fact {
+    align-items: baseline;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 110px 1fr;
+    padding: 10px 0;
+  }
+
+  .lazu-fact__big {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  /* Each lane becomes a stacked block: name + uptime, price, bars. */
+  .lazu-prices {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .lazu-prices__row,
+  .lazu-prices--nocache .lazu-prices__row,
+  .lazu-prices--flat .lazu-prices__row {
+    border-top: 1px solid var(--lazu-border);
+    grid-template-columns: 1fr 1fr;
+    padding: 12px 0;
+    row-gap: 6px;
+  }
+
+  .lazu-prices__row > span {
+    border-top: 0;
+    padding: 0;
+  }
+
+  .lazu-prices__row--head {
+    display: none;
+  }
+
+  .lazu-prices__row > [data-label]::before {
+    color: var(--lazu-text-muted);
+    content: attr(data-label);
+    font-size: 12px;
+    font-weight: 400;
+    margin-right: 6px;
+  }
+
+  .lazu-prices__row > .lazu-prices__cache {
+    display: none;
+  }
+
+  .lazu-prices__lane {
+    grid-column: 1 / -1;
+  }
+
+  .lazu-prices__row.lazu-prices__row--tier {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .lazu-prices__row--tier > .lazu-prices__lane {
+    padding-left: 0;
+  }
+
+  .lazu-prices__health {
+    grid-column: 1 / -1;
+  }
+
+  .lazu-model__traits {
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+
+  .lazu-model__traits dd {
+    margin-bottom: 10px;
+  }
+
+  .lazu-code__endpoint {
+    display: none;
+  }
+
+  .lazu-code pre {
+    font-size: 12px;
+    padding: 14px;
+  }
+
+  /* The id on one line, its prices under it, the arrow beside both —
+     the prices used to land in the 24px arrow column. */
+  .lazu-site a.lazu-related__row {
+    grid-template-areas:
+      'id go'
+      'price go';
+    grid-template-columns: minmax(0, 1fr) 24px;
+    row-gap: 4px;
+  }
+
+  .lazu-related__row > .lazu-related__id {
+    grid-area: id;
+  }
+
+  .lazu-related__row > .lazu-num {
+    color: var(--lazu-text-muted);
+    font-size: 13px;
+    grid-area: price;
+  }
+
+  .lazu-related__row > svg {
+    grid-area: go;
+  }
+
+  .lazu-related__date {
+    display: none;
+  }
+
+  .lazu-cta {
+    padding-bottom: 48px;
+  }
+
+  .lazu-cta__title {
+    flex-basis: 100%;
+    font-size: 28px;
+  }
+}

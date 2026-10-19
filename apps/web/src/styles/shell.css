@@ -1,0 +1,1413 @@
+@import './header-controls.css';
+
+:root {
+  --shell-header-height: 64px;
+  --mobile-console-top-height: 56px;
+  --mobile-console-tab-height: 64px;
+  --sidebar-expanded-width: 254px;
+  --sidebar-current-width: var(--sidebar-expanded-width);
+  --shell-top-offset: var(--shell-header-height);
+}
+
+.app-shell-v2 {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  min-height: 100vh;
+}
+
+.app-shell-body-v2 {
+  display: flex;
+  min-height: 100vh;
+  padding-top: var(--shell-top-offset);
+}
+
+.app-shell-sidebar {
+  background: var(--ui-bg-raised);
+  border-right: 1px solid var(--ui-border);
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: var(--shell-top-offset);
+  width: var(--sidebar-current-width);
+  z-index: 45;
+}
+
+.app-shell-sidebar--split {
+  width: 254px;
+}
+
+.app-shell-sidebar__scrim {
+  background: color-mix(in srgb, #000 42%, transparent);
+  border: 0;
+  inset: var(--shell-top-offset) 0 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition:
+    opacity var(--ui-motion-base) var(--ui-ease-direct),
+    visibility 0s linear var(--ui-motion-base);
+  visibility: hidden;
+  z-index: 40;
+}
+
+.app-shell-sidebar__scrim[data-state='open'] {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+  visibility: visible;
+}
+
+.app-shell-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-left: var(--shell-main-offset, 0);
+  min-width: 0;
+  transition:
+    filter var(--ui-motion-base) var(--ui-ease-direct),
+    transform var(--ui-motion-base) var(--ui-ease-direct);
+}
+
+.app-shell-main[data-mobile-drawer-open='true'] {
+  filter: saturate(0.82);
+  transform: scale(0.995);
+}
+
+.app-shell-content {
+  flex: 1;
+  min-height: calc(100vh - var(--shell-top-offset));
+  overflow: auto;
+  padding: var(--shell-content-padding, 0);
+}
+
+.app-shell-content:focus {
+  outline: none;
+}
+
+.app-route-stage {
+  min-height: 100%;
+}
+
+.app-route-stage[data-transition='cross-surface'] {
+  animation: lazu-route-crossfade var(--ui-motion-base) var(--ui-ease-direct)
+    both;
+}
+
+.app-route-stage[data-transition='drill-forward'] {
+  animation: lazu-route-drill-forward var(--ui-motion-fast)
+    var(--ui-ease-direct) both;
+}
+
+.app-route-stage[data-transition='drill-back'] {
+  animation: lazu-route-drill-back var(--ui-motion-fast) var(--ui-ease-direct)
+    both;
+}
+
+/* Route loading shapes — skeleton inheritance.
+ *
+ * The old non-console fallback was a bordered box on a `fixed inset-0 z-50`
+ * curtain, painted on a flat --ui-bg that did not match the gradient ground of
+ * the page it covered. These shapes sit in normal flow instead: the chrome
+ * that is already painted stays visible, the ground never changes, and each
+ * outline lands where the real content will. */
+.route-loading {
+  box-sizing: border-box;
+  min-height: 60dvh;
+  width: 100%;
+}
+
+/* On the bare ground these blocks need more contrast than the console's, where
+   they sit on a panel. Mid-stop is the hairline border colour, same as the
+   ground's own grid. */
+.route-loading .lazu-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--lazu-surface-muted),
+    var(--lazu-border),
+    var(--lazu-surface-muted)
+  );
+  background-size: 220% 100%;
+}
+
+/* The door lands centred in the viewport, so its outline does too. */
+.route-loading--door {
+  display: grid;
+  min-height: 100dvh;
+  padding: clamp(24px, 5vw, 64px) clamp(20px, 4vw, 44px);
+  place-items: center;
+}
+
+/* A document starts at the top; centring its outline would drop the real
+   heading in from below. */
+.route-loading--content {
+  display: flex;
+  justify-content: center;
+  padding: clamp(72px, 12vh, 132px) clamp(20px, 4vw, 44px) 0;
+}
+
+/* The door outline: same column width, same gaps, same control heights as the
+   form it precedes, so the swap to the real thing moves nothing. */
+.auth-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(352px, 100%);
+}
+
+/* The outline draws on the Yunmu ground whether it is the route fallback or
+   the door waiting for its configuration, and the default skeleton surface is
+   nearly invisible there — so it carries the ground's own contrast with it
+   rather than inheriting it from `.route-loading`, which is only one of the
+   two places it appears. */
+.auth-skeleton .lazu-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--lazu-surface-muted),
+    var(--lazu-border),
+    var(--lazu-surface-muted)
+  );
+  background-size: 220% 100%;
+  border-radius: var(--lazu-radius-control);
+}
+
+.auth-skeleton__mark {
+  align-self: center;
+  /* Cleared like the real mark: the column's own 18px gap plus 14px. */
+  margin-bottom: 14px;
+}
+
+.auth-skeleton__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The rows below carry the door's own measurements: the rule sits in an 18px
+   row, the form stacks at 14px, the field's label clears its input by 7px, and
+   the consent line trails the column by 8px the way the notice does. */
+.auth-skeleton__divider {
+  align-items: center;
+  display: flex;
+  height: 18px;
+  justify-content: center;
+}
+
+.auth-skeleton__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-skeleton__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.auth-skeleton__labelrow {
+  align-items: center;
+  display: flex;
+  height: 20.5px;
+}
+
+.route-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(720px, 100%);
+}
+
+.route-skeleton__gap {
+  height: 10px;
+}
+
+/* Outside the console shell — /models,
+/key,
+/keyusage — the page these rows
+   stand in for is a `.console-page-shell`,
+which clears the header with a top
+   margin of its own. The outline takes the same margin,
+so the two occupy the
+   same line and the page does not drop 60px when its chunk lands. Inside the
+   console shell that margin is zero {
+  margin-top: calc(var(--header-height) - 4px);
+}
+
+/* No padding of its own: the console stage already pads by
+   `--shell-content-padding` (24px, 12px on mobile), and adding 24px here put
+   the outline's first row 24px below the first row of the page it precedes —
+   so every console page hopped up by that much when it arrived. */
+.console-route-loading {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-5);
+  min-height: calc(100dvh - var(--shell-top-offset));
+  width: 100%;
+}
+
+.console-route-loading__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-2);
+}
+
+.console-route-loading__toolbar {
+  display: flex;
+  gap: var(--ui-space-2);
+  justify-content: flex-end;
+}
+
+.console-route-loading__body {
+  background: var(--ui-bg-elevated);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  padding: 1px;
+}
+
+.console-route-loading__body .lazu-skeleton {
+  border-radius: 0;
+}
+
+@keyframes lazu-route-crossfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lazu-route-drill-forward {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lazu-route-drill-back {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.app-shell-v2--console {
+  background: var(--ui-bg);
+}
+
+.app-shell-global-controls {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  top: max(14px, env(safe-area-inset-top));
+  z-index: 58;
+}
+
+.app-shell-status-center {
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  position: fixed;
+  right: calc(20px + env(safe-area-inset-right));
+  z-index: 58;
+}
+
+.mobile-console-topbar {
+  background: var(--ui-bg);
+  border-bottom: 1px solid var(--ui-border);
+  color: var(--ui-text);
+  height: var(--mobile-console-top-height);
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 55;
+}
+
+.mobile-console-status {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  font-weight: 720;
+  height: 44px;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.mobile-console-status__notch {
+  background: var(--ui-text);
+  border-radius: 999px;
+  height: 20px;
+  opacity: 0.95;
+  width: 96px;
+}
+
+body[theme-mode='dark'] .mobile-console-status__notch {
+  opacity: 0;
+}
+
+.mobile-console-status__system {
+  align-items: center;
+  display: inline-flex;
+  font-size: 10px;
+  gap: 5px;
+}
+
+.mobile-console-status__battery {
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  display: inline-flex;
+  height: 11px;
+  padding: 1px;
+  width: 22px;
+}
+
+.mobile-console-status__battery span {
+  background: currentColor;
+  border-radius: 1px;
+  width: 78%;
+}
+
+.mobile-console-toolbar {
+  align-items: center;
+  display: flex;
+  height: 56px;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 10px;
+}
+
+.mobile-console-menu-trigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-text);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  width: 36px;
+}
+
+.mobile-console-menu-trigger:hover,
+.mobile-console-menu-trigger[aria-expanded='true'] {
+  background: var(--ui-bg-muted);
+  border-color: var(--ui-border-strong);
+}
+
+.mobile-console-title,
+.mobile-console-actions {
+  align-items: center;
+  display: inline-flex;
+}
+
+.mobile-console-title {
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-console-title__icon {
+  color: var(--ui-text-secondary);
+  display: inline-flex;
+}
+
+.mobile-console-title span:last-child {
+  color: var(--ui-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-console-actions {
+  color: var(--lazu-ink);
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.mobile-console-actions button {
+  color: inherit;
+  display: inline-flex;
+  padding: 0;
+}
+
+/* Service status, in the bar rather than floating over the page. Its count
+   shrinks to a dot-sized badge so it reads like the updates bell beside it. */
+.mobile-console-actions .lazu-status-center__trigger--inline {
+  align-items: center;
+  border-radius: 10px;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.mobile-console-actions
+  .lazu-status-center__trigger--inline
+  .lazu-status-center__count {
+  right: 3px;
+  top: 3px;
+}
+
+.mobile-console-avatar {
+  align-items: center;
+  background: var(--lazu-action);
+  border-radius: 50%;
+  color: var(--lazu-on-action);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  height: 30px;
+  justify-content: center;
+  margin-left: 6px;
+  text-decoration: none;
+  width: 30px;
+}
+
+.mobile-console-avatar:hover {
+  color: var(--lazu-on-action);
+}
+
+.mobile-console-tabbar {
+  align-items: flex-start;
+  background: var(--lazu-page);
+  border-top: 1px solid var(--ui-border);
+  bottom: 0;
+  display: flex;
+  height: calc(var(--mobile-console-tab-height) + env(safe-area-inset-bottom));
+  justify-content: space-around;
+  left: 0;
+  padding: 8px 8px env(safe-area-inset-bottom);
+  position: fixed;
+  right: 0;
+  z-index: 55;
+}
+
+.mobile-console-tabbar__item {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 3px;
+  justify-content: flex-start;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.mobile-console-tabbar__item.is-active {
+  color: var(--lazu-evidence);
+  font-weight: 500;
+}
+
+/* Touch targets: keep the mobile console chrome controls >= 44px so the
+   bell / menu / tab items are comfortably tappable (was 17 / 36 / 39px). */
+.mobile-console-menu-trigger {
+  height: 44px;
+  width: 44px;
+}
+
+.mobile-console-tabbar__item {
+  min-height: 44px;
+  justify-content: center;
+}
+
+.mobile-console-actions > button {
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.app-shell-v2--bare .app-shell-content {
+  min-height: 100vh;
+}
+
+.chrome-controls {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.chrome-controls--compact {
+  gap: 7px;
+}
+
+.chrome-controls__language-trigger {
+  min-width: 58px;
+  padding: 0 9px;
+}
+
+.chrome-controls--compact .chrome-controls__language-trigger {
+  min-width: 50px;
+  padding: 0 7px;
+}
+
+.chrome-controls__language-menu {
+  min-width: 156px;
+}
+
+.chrome-controls__language-item {
+  justify-content: space-between;
+}
+
+.chrome-controls__language-check {
+  color: var(--ui-accent);
+  flex: 0 0 auto;
+}
+
+.sidebar-v2 {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 10px;
+}
+
+/* D · Product rail. The rail owns product switching while
+   the secondary column owns the active product's task navigation. */
+.sidebar-v2--split {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  min-width: 0;
+  padding: 0;
+}
+
+.sidebar-v2__product-rail {
+  align-items: center;
+  background: var(--ui-text);
+  color: var(--ui-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 17px 9px;
+}
+
+.sidebar-v2__product-rail-mark {
+  align-items: center;
+  background: var(--ui-bg);
+  border-radius: var(--ui-radius-sm);
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  margin-bottom: 24px;
+  width: 28px;
+}
+
+.sidebar-v2__product-rail-mark .brand-logo {
+  height: 24px;
+  width: 24px;
+}
+
+.sidebar-v2__product-rail-item {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  color: color-mix(in srgb, var(--ui-bg) 60%, transparent);
+  display: inline-flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 760;
+  gap: 4px;
+  justify-content: center;
+  height: 42px;
+  min-height: 42px;
+  text-decoration: none;
+  width: 42px;
+}
+
+.sidebar-v2__product-rail-item span {
+  display: none;
+}
+
+.sidebar-v2__product-rail-item:hover,
+.sidebar-v2__product-rail-item.is-active {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.sidebar-v2__product-rail-help {
+  color: color-mix(in srgb, var(--ui-bg) 52%, transparent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: auto;
+}
+
+.sidebar-v2__secondary {
+  background: var(--ui-bg-raised);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  padding: 20px 12px 14px;
+}
+
+.sidebar-v2__secondary .sidebar-v2__brand-row {
+  padding: 0 8px 18px;
+}
+
+.sidebar-v2__brand-row {
+  align-items: flex-start;
+}
+
+.sidebar-v2__brand--title {
+  display: grid;
+  gap: 4px;
+}
+
+.sidebar-v2__brand-kicker {
+  color: var(--ui-text-tertiary);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sidebar-v2__secondary .sidebar-v2__scope-rail {
+  margin-bottom: 14px;
+}
+
+.sidebar-v2__secondary .sidebar-v2__content {
+  align-content: start;
+  grid-auto-rows: max-content;
+  min-height: 0;
+}
+
+.sidebar-v2--split .sidebar-v2__item-icon {
+  display: none;
+}
+
+.sidebar-v2--split .sidebar-v2__item {
+  min-height: 36px;
+  padding-inline: 10px;
+}
+
+.sidebar-v2--split .sidebar-v2__label {
+  display: none;
+}
+
+.sidebar-v2__scope-rail--compact {
+  border: 0;
+  margin-bottom: 12px;
+}
+
+.sidebar-v2__scope-rail--compact .sidebar-v2__scope-tabs {
+  background: transparent;
+  border-bottom: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0;
+}
+
+.sidebar-v2__scope-rail--compact .sidebar-v2__scope-tab {
+  flex: 0 1 auto;
+  font-size: 10px;
+  height: 24px;
+  justify-content: flex-start;
+  padding: 0 7px;
+}
+
+.sidebar-v2__tools {
+  margin-top: 10px;
+}
+
+.sidebar-v2__tools-summary {
+  align-items: center;
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text-tertiary);
+  cursor: pointer;
+  display: flex;
+  font-size: 10px;
+  font-weight: 720;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 28px;
+  padding: 0 9px;
+  user-select: none;
+}
+
+.sidebar-v2__tools-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar-v2__tools-summary:hover,
+.sidebar-v2__tools[open] .sidebar-v2__tools-summary {
+  background: var(--ui-bg-muted);
+  color: var(--ui-text);
+}
+
+.sidebar-v2__tools-summary span:last-child {
+  color: var(--ui-text-faint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sidebar-v2__tools[open] .sidebar-v2__tools-summary span:last-child {
+  transform: rotate(45deg);
+}
+
+.sidebar-v2__tools-items {
+  display: grid;
+  gap: 2px;
+  margin-top: 3px;
+}
+
+.sidebar-v2__brand-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 0 4px 12px;
+}
+
+.sidebar-v2__secondary .sidebar-v2__brand-row {
+  align-items: flex-start;
+}
+
+.sidebar-v2__brand {
+  align-items: center;
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-text);
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.sidebar-v2__brand:hover {
+  background: var(--ui-bg-muted);
+}
+
+.sidebar-v2__brand--title {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.sidebar-v2__command {
+  align-items: center;
+  background: var(--ui-text);
+  border: 1px solid var(--ui-text);
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-bg);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 650;
+  gap: 6px;
+  height: 30px;
+  justify-content: center;
+  min-width: 58px;
+  padding: 0 8px;
+}
+
+.sidebar-v2__command:hover {
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--ui-accent-contrast, var(--ui-bg));
+  transform: translateY(-1px);
+}
+
+.sidebar-v2__scope-menu {
+  min-width: 222px;
+}
+
+.sidebar-v2__scope-option {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sidebar-v2__scope-option strong {
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.sidebar-v2__scope-option small {
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+}
+
+.sidebar-v2__scope-menu .is-selected {
+  background: var(--ui-surface-muted);
+}
+
+/* E · Persistent scope rail: Plane and Workspace stay visible together. */
+.sidebar-v2__scope-rail {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.sidebar-v2__scope-rail--compact {
+  margin-bottom: 12px;
+}
+
+.sidebar-v2__scope-tabs {
+  background: var(--ui-bg-muted);
+  border-bottom: 1px solid var(--ui-border);
+  display: grid;
+  gap: 2px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  padding: 4px;
+}
+
+.sidebar-v2__scope-tab {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 620;
+  height: 28px;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    background-color var(--ui-motion-fast) var(--ui-ease-direct),
+    border-color var(--ui-motion-fast) var(--ui-ease-direct),
+    color var(--ui-motion-fast) var(--ui-ease-direct);
+  white-space: nowrap;
+}
+
+.sidebar-v2__scope-tab:hover:not(:disabled) {
+  color: var(--ui-text);
+}
+
+.sidebar-v2__scope-tab.is-active {
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+  color: var(--ui-text);
+  font-weight: 700;
+}
+
+.sidebar-v2__scope-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.sidebar-v2__scope-list {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+}
+
+.sidebar-v2__scope-row {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text);
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  min-height: 42px;
+  padding: 6px 7px;
+  text-align: left;
+  transition:
+    background-color var(--ui-motion-fast) var(--ui-ease-direct),
+    border-color var(--ui-motion-fast) var(--ui-ease-direct);
+}
+
+.sidebar-v2__scope-row:hover,
+.sidebar-v2__scope-row.is-selected {
+  background: var(--ui-bg-muted);
+}
+
+.sidebar-v2__scope-row.is-selected {
+  border-color: var(--ui-border);
+}
+
+.sidebar-v2__scope-row:focus-visible,
+.sidebar-v2__scope-tab:focus-visible,
+.sidebar-v2__scope-personal:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.sidebar-v2__scope-avatar {
+  align-items: center;
+  background: var(--ui-text);
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-bg);
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.sidebar-v2__scope-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sidebar-v2__scope-copy strong,
+.sidebar-v2__scope-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-v2__scope-copy strong {
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.sidebar-v2__scope-copy small {
+  color: var(--ui-text-tertiary);
+  font-size: 9px;
+}
+
+.sidebar-v2__scope-current {
+  color: var(--ui-text-tertiary);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.sidebar-v2__scope-personal {
+  align-items: center;
+  border-top: 1px solid var(--ui-border);
+  color: var(--ui-text-tertiary);
+  display: flex;
+  font-size: 12px;
+  justify-content: space-between;
+  padding: 9px 12px;
+  text-decoration: none;
+}
+
+.sidebar-v2__scope-personal:hover {
+  background: var(--ui-bg-muted);
+  color: var(--ui-text);
+}
+
+.sidebar-v2__content {
+  display: grid;
+  flex: 1;
+  gap: 0;
+  overflow: auto;
+  padding-bottom: 12px;
+}
+
+.sidebar-v2__section {
+  display: grid;
+  gap: 3px;
+}
+
+.sidebar-v2__section + .sidebar-v2__section {
+  border-top: 1px solid var(--ui-border);
+  padding-top: 12px;
+}
+
+.sidebar-v2__label {
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+  padding: 0 10px 3px;
+  text-transform: uppercase;
+}
+
+.sidebar-v2__item {
+  align-items: center;
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-text-secondary);
+  display: flex;
+  gap: 9px;
+  min-height: 32px;
+  padding: 0 8px;
+  text-decoration: none;
+}
+
+.sidebar-v2__item:hover {
+  background: var(--ui-bg-muted);
+  color: var(--ui-text);
+}
+
+.console-scope-bar {
+  align-items: center;
+  background: var(--ui-bg);
+  border-bottom: 1px solid var(--ui-border);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 8px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.console-scope-bar--gateway {
+  min-height: 64px;
+  padding: 0 30px;
+}
+
+.console-scope-bar--gateway .console-scope-bar__label {
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+}
+
+.console-scope-bar--gateway .console-scope-bar__current {
+  color: var(--ui-text);
+  font-size: 13px;
+}
+
+.console-scope-bar--gateway .console-scope-bar__meta {
+  display: none;
+}
+
+.console-scope-bar__gateway-status {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.console-scope-bar__gateway-status span {
+  align-items: center;
+  background: var(--ui-bg-muted);
+  border-radius: var(--ui-radius-pill);
+  color: var(--ui-text-secondary);
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 650;
+  min-height: 28px;
+  padding: 0 9px;
+}
+
+.console-scope-bar__gateway-status span:first-child {
+  background: var(--ui-success-soft);
+  color: var(--ui-success);
+}
+
+.console-scope-bar__copy {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.console-scope-bar__label {
+  color: var(--ui-text-tertiary);
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.console-scope-bar__copy strong {
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: 730;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-scope-bar__meta {
+  color: var(--ui-text-tertiary);
+  flex: 0 0 auto;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-scope-bar__trigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text-secondary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 9px;
+  width: auto;
+}
+
+.console-scope-bar__trigger:hover,
+.console-scope-bar__trigger[aria-expanded='true'] {
+  background: var(--ui-bg-muted);
+  color: var(--ui-text);
+}
+
+.console-scope-bar__trigger:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.console-scope-bar__menu {
+  background: var(--ui-bg-elevated);
+  border: 1px solid var(--ui-border-strong);
+  border-radius: var(--ui-radius-md);
+  box-shadow: var(--ui-shadow-overlay);
+  min-width: 244px;
+  padding: 6px;
+}
+
+.console-scope-bar__option {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 6px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.console-scope-bar__option:hover,
+.console-scope-bar__option[data-highlighted],
+.console-scope-bar__option[data-selected] {
+  background: var(--ui-bg-muted);
+}
+
+.console-scope-bar__option:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.console-scope-bar__option-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.console-scope-bar__option-copy strong {
+  font-size: 12px;
+  font-weight: 680;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-scope-bar__option-copy small {
+  color: var(--ui-text-tertiary);
+  font-size: 10px;
+}
+
+.sidebar-v2__item-icon {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 18px;
+  justify-content: center;
+}
+
+.sidebar-v2__item-label {
+  font-size: 12px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-v2__footer {
+  border-top: 1px solid var(--ui-border);
+  display: grid;
+  gap: 11px;
+  padding: 12px 8px 2px;
+}
+
+.sidebar-v2__chrome-controls {
+  justify-content: space-between;
+}
+
+.sidebar-v2__status {
+  align-items: center;
+  color: var(--ui-text-tertiary);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 620;
+  gap: 7px;
+  text-decoration: none;
+}
+
+.sidebar-v2__logout,
+.sidebar-v2__docs-link {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 8px;
+  justify-content: center;
+  padding: 8px 10px;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.sidebar-v2__logout:hover,
+.sidebar-v2__logout:focus-visible,
+.sidebar-v2__docs-link:hover,
+.sidebar-v2__docs-link:focus-visible {
+  background-color: var(--ui-bg-raised);
+  border-color: var(--ui-border-strong, var(--ui-border));
+  color: var(--ui-text-primary);
+  outline: none;
+}
+
+@media (max-width: 768px) {
+  .console-scope-bar {
+    padding: 8px 16px;
+  }
+
+  .console-scope-bar__copy {
+    gap: 5px;
+    overflow: hidden;
+  }
+
+  .console-scope-bar__label,
+  .console-scope-bar__meta {
+    display: none;
+  }
+
+  .console-scope-bar__gateway-status {
+    display: none;
+  }
+
+  .app-shell-sidebar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-100%);
+    transition:
+      opacity var(--ui-motion-base) var(--ui-ease-direct),
+      transform var(--ui-motion-slow) var(--ui-ease-direct),
+      visibility 0s linear var(--ui-motion-slow);
+    visibility: hidden;
+    width: min(86vw, var(--sidebar-expanded-width));
+  }
+
+  .app-shell-sidebar[data-state='open'] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+    transition-delay: 0s;
+    visibility: visible;
+  }
+
+  .app-shell-sidebar[data-mobile='true'] .sidebar-v2__footer {
+    padding-bottom: calc(var(--mobile-console-tab-height) + 12px);
+  }
+
+  .app-shell-main {
+    margin-left: 0;
+  }
+
+  .app-shell-content {
+    overflow: visible;
+  }
+
+  .app-shell-v2--console .app-shell-content {
+    min-height: calc(
+      100vh - var(--mobile-console-top-height) -
+        var(--mobile-console-tab-height)
+    );
+    padding-bottom: calc(
+      var(--shell-content-padding, 0px) + var(--mobile-console-tab-height) +
+        env(safe-area-inset-bottom)
+    );
+  }
+
+  .app-shell-status-center {
+    bottom: calc(
+      var(--mobile-console-tab-height) + env(safe-area-inset-bottom) + 12px
+    );
+    right: 12px;
+  }
+
+  /* Lift page-level sticky/fixed action bars (settings save bar, models bulk
+     bar) above the fixed bottom tab bar so they are never covered on mobile. */
+  .app-shell-v2--console .console-sticky-actions {
+    bottom: calc(
+      var(--mobile-console-tab-height) + env(safe-area-inset-bottom) + 12px
+    );
+  }
+}
+
+@media (max-width: 767px) {
+  .console-scope-bar {
+    top: var(--mobile-console-top-height);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-route-stage,
+  .app-shell-sidebar,
+  .app-shell-sidebar__scrim {
+    animation: none;
+    transition-duration: 0.01ms;
+  }
+}
+
+/* The way out of the door, in the footer's voice rather than the form's.
+   The outline draws the same element, and its container's gap is 14px
+   tighter, so the exits carry that difference back — otherwise the column
+   grows when the door arrives and the page moves under the reader. */
+.auth-column__exits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.auth-skeleton > .auth-column__exits {
+  margin-top: 44px;
+}
+
+.auth-column__exits a {
+  color: var(--ui-text-tertiary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.auth-column__exits a:hover {
+  color: var(--ui-text);
+}

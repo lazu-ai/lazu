@@ -1,0 +1,178 @@
+---
+title: "Responses API（相容 OpenAI）"
+description: OpenAI-compatible /v1/responses，支援 file_id 解引用、reasoning 控制、請求欄位和範例。
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="介面 / OpenAI-compatible"
+  method="POST"
+  path="/v1/responses"
+  title="Responses API"
+  description="Responses 適合 reasoning 模型、多模態輸入和 Lazu file_id 解引用。上傳檔案或使用較新的 OpenAI response 特性時，優先使用這個 endpoint。"
+  aside={
+    <EndpointRail
+      endpoint="responses"
+      extra={
+        <MiniCard title="適合場景">
+          <ul>
+            <li>Reasoning 模型</li>
+            <li>已上傳的 PDF 或圖片</li>
+            <li>結構化多模態輸入</li>
+          </ul>
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 何時使用
+
+<EndpointGrid>
+  <EndpointTile title="使用 Responses">
+    上傳檔案、reasoning 控制、文件 workflow，以及需要服務端標準化的多模態輸入。
+  </EndpointTile>
+  <EndpointTile title="使用 Chat completions">
+    簡單聊天、SDK 相容、tool calling，以及已經圍繞
+    <code>/v1/chat/completions</code> 建構的應用。
+  </EndpointTile>
+</EndpointGrid>
+
+## 請求 Body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    來自 <code>/api/models/catalog</code> 的模型 ID。優先選擇
+    <code>supported_endpoints</code> 包含 <code>/v1/responses</code> 路径 的模型。
+  </Field>
+  <Field name="input" type="string | object[]" required>
+    文字輸入，或 response input messages 陣列。
+  </Field>
+  <Field name="instructions" type="string" nullable>
+    response 的系統級 instructions。
+  </Field>
+  <Field name="reasoning" type="object" nullable>
+    支援 reasoning 的模型可使用 effort 控制，例如
+    <code>{'{"effort":"medium"}'}</code>。
+  </Field>
+  <Field name="tools" type="object[]" nullable>
+    OpenAI-compatible Responses shape 的工具定義。
+  </Field>
+  <Field name="stream" type="boolean" nullable>
+    當模型支援時，返回 response events stream。
+  </Field>
+  <Field name="max_output_tokens" type="integer" nullable>
+    生成輸出 token 的上限。
+  </Field>
+</FieldList>
+
+## File 解引用
+
+先透過 [Files](/zh-TW/endpoints/files) 上傳檔案，再引用返回的
+
+<code>file_id</code>。如果請求中發生了解引用，Lazu 會加入
+<code>X-Lazu-File-Dereference: 1</code>。
+
+限制：
+
+- 單檔案仍受 purpose 對應大小限制。
+- 單次 Responses 呼叫中解引用的檔案總大小必須低於 64 MB。
+- Chat completions 不會自動解引用 <code>file_id</code>。
+
+## 無狀態相容橋接
+
+部分 catalog 項目會透過無損 Chat 橋接提供 Responses；可查看
+<code>supported_endpoints[].mode</code>。走這類路由時，省略
+<code>store</code> 可以正常請求，並回傳
+<code>X-Lazu-Warning: stateless_bridge</code>；明確指定
+<code>store: false</code> 正常請求且不產生 warning。明確指定
+<code>store: true</code>、無法保真的狀態欄位或未知跨協議欄位，會在呼叫上游前回傳
+<code>400 protocol_bridge_unsupported</code>。標準 Responses body 不會增加
+Lazu 私有欄位。
+
+## 響應
+
+<FieldList>
+  <Field name="id" type="string">
+    Response ID。
+  </Field>
+  <Field name="output" type="object[]">
+    輸出訊息、reasoning items、tool calls 或其它 response events。
+  </Field>
+  <Field name="usage.input_tokens" type="integer" nullable>
+    上游返回 usage 時的輸入 token 數。
+  </Field>
+  <Field name="usage.output_tokens" type="integer" nullable>
+    上游返回 usage 時的輸出 token 數。
+  </Field>
+  <Field
+    name="usage.input_tokens_details.cached_tokens"
+    type="integer"
+    nullable
+  >
+    支援 response-level cache usage 的 provider 返回的 cache read tokens。
+  </Field>
+</FieldList>
+
+完整對帳請使用同一把 API Key 呼叫：
+
+<code>GET /api/usage/requests/{"{request_id}"}</code>
+
+## 相關頁面
+
+- [Files API](/zh-TW/endpoints/files)
+- [Chat completions](/zh-TW/endpoints/chat)
+- [模型目錄](/zh-TW/models/catalog)
+
+## 完整工具續輪範例
+
+先從目前 Key 的目錄選擇支援 Responses 和函式工具的模型，再設定 `LAZU_API_KEY`、`LAZU_MODEL`。無狀態續輪要保留全部 output item（包括 reasoning），再用原 `call_id` 附加工具結果。橋接無法保留的加密或供應商私有 reasoning 狀態仍只能走原生路徑。
+
+```python
+import json
+import os
+from openai import OpenAI, APIStatusError
+
+client = OpenAI(
+    api_key=os.environ["LAZU_API_KEY"],
+    base_url=os.environ.get("LAZU_BASE_URL", "https://api.lazu.ai/v1"),
+    max_retries=0,
+)
+model = os.environ["LAZU_MODEL"]
+tools = [{"type": "function", "name": "add", "description": "Add two integers",
+          "parameters": {"type": "object", "properties": {
+              "a": {"type": "integer"}, "b": {"type": "integer"}},
+              "required": ["a", "b"], "additionalProperties": False}}]
+history = [{"role": "user", "content": "Use add to calculate 2 + 3."}]
+try:
+    first = client.responses.create(model=model, input=history, tools=tools,
+        tool_choice={"type": "function", "name": "add"}, store=False,
+        max_output_tokens=1024)
+    history.extend(item.model_dump(exclude_unset=True) for item in first.output)
+    for item in first.output:
+        if item.type == "function_call":
+            if item.name != "add":
+                raise ValueError("Unexpected tool")
+            args = json.loads(item.arguments)
+            history.append({"type": "function_call_output", "call_id": item.call_id,
+                            "output": json.dumps({"result": args["a"] + args["b"]})})
+    final = client.responses.create(model=model, input=history, tools=tools,
+        tool_choice="none", store=False, max_output_tokens=1024)
+    print(final.output_text)
+except APIStatusError as exc:
+    print(exc.status_code, exc.response.headers.get("x-lazu-request-id"), exc.body)
+    raise
+```
+
+收到輸出後不要自動重播。413 `request_body_too_large` 應縮小請求；503 `gateway_overloaded` 可稍後退避重試，它不表示供應商故障。部分用量透過請求詳情對帳。
+
+</EndpointPage>

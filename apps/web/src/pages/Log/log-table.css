@@ -1,0 +1,1384 @@
+/* Request log table — locked Yunmu console IA (brand/foundations/yunmu-console.md).
+   Filter chips sit on the page ground; the table is one floating paper card. */
+
+.usage-log-page .lazu-data-surface:has(.logv2-card) {
+  backdrop-filter: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.usage-log-page
+  .lazu-data-surface:has(.logv2-card)
+  > .lazu-data-surface__header {
+  padding: 0 0 12px;
+}
+
+.usage-log-page .lazu-data-surface:has(.logv2-card) > .lazu-data-surface__body {
+  padding: 0;
+}
+
+.usage-log-page .lazu-data-surface:has(.logv2-card) .lazu-filter-bar {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+.logv2-filters {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.logv2-filters__row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.logv2-filters__spacer {
+  margin-left: auto;
+}
+
+.logv2-chip-field {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px 12px;
+}
+
+.logv2-chip-field__label {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.logv2-chip-field :is(input, button, select) {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--lazu-ink);
+  font-size: 12.5px;
+  height: 24px;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.logv2-chip-field input::placeholder {
+  color: var(--lazu-text-faint);
+}
+
+.logv2-chip-field .lazu-date-picker,
+.logv2-chip-field .lazu-select {
+  min-width: 0;
+}
+
+.logv2-chip-field .lazu-date-trigger {
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.logv2-chip-field--search {
+  min-width: 200px;
+}
+
+.logv2-chip-field--search input {
+  width: 100%;
+}
+
+.logv2-filters__more {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.logv2-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  box-shadow: var(--yunmu-shadow);
+  padding: 10px 16px;
+}
+
+.logv2-scroll {
+  overflow-x: auto;
+  width: 100%;
+}
+
+/* A page of rows, reserved in every state.
+ *
+ * Before this the table was one "加载中…" row tall and then ten rows tall, and
+ * everything under it — the pager, the investigation panel — was thrown down
+ * the page when the rows arrived (0.17 layout shift, the worst in the
+ * console). Reserving the height in both states also keeps the window's
+ * scrollbar from appearing halfway through the wait, which was re-wrapping the
+ * filter row above the table. */
+.logv2-desktop-master .logv2-scroll {
+  min-height: calc(44px + var(--logv2-page-rows, 10) * 55px);
+}
+
+.logv2-mobile-master {
+  display: none;
+}
+
+.logv2-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  .logv2-desktop-master {
+    display: none;
+  }
+
+  .logv2-mobile-master {
+    display: block;
+  }
+
+  .logv2-mobile-foot {
+    align-items: flex-start;
+    padding: 0 2px 2px;
+  }
+}
+
+.logv2-table th {
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-faint);
+  font-size: var(--lazu-row-label);
+  font-weight: 550;
+  letter-spacing: 0.08em;
+  padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.logv2-table td {
+  border-bottom: 1px solid var(--lazu-border);
+  font-size: var(--lazu-row-text);
+  padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
+  vertical-align: middle;
+}
+
+.logv2-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.logv2-row {
+  cursor: pointer;
+}
+
+.logv2-table tbody tr:hover td {
+  background: var(--lazu-surface-muted);
+}
+
+.logv2-row[data-selected='true'] td {
+  background: var(--lazu-surface-selected);
+}
+
+.logv2-row:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: -2px;
+}
+
+.logv2-table th.logv2-num,
+.logv2-table td.logv2-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.logv2-table td.logv2-num {
+  font-family: var(--font-mono, monospace);
+}
+
+.logv2-time {
+  color: var(--lazu-ink);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.logv2-model {
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+}
+
+.logv2-soft {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.logv2-faint {
+  color: var(--lazu-text-faint);
+}
+
+.logv2-credit {
+  color: var(--lazu-success);
+}
+
+.logv2-link {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  text-underline-offset: 4px;
+}
+
+.logv2-link:hover {
+  text-decoration: underline;
+}
+
+.logv2-chip {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: 999px;
+  color: var(--lazu-text-faint);
+  display: inline-flex;
+  font-size: 10.5px;
+  font-weight: 600;
+  gap: 5px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.logv2-chip--ok {
+  background: var(--lazu-success-soft);
+  color: var(--lazu-success);
+}
+
+.logv2-chip--bad {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+.logv2-chip--warn {
+  background: var(--lazu-warning-soft);
+  color: var(--lazu-warning-strong);
+}
+
+.logv2-chip--filter {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence);
+  font-size: 11.5px;
+  padding: 3px 6px 3px 11px;
+}
+
+.logv2-chip__close {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+/* Segmented control — pill track, the active pane floats on paper.
+   Used for 范围 (platform / self) and 明细 / 用户. */
+.logv2-seg {
+  background: var(--lazu-surface-selected);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.logv2-seg__button {
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 4px 12px;
+  transition:
+    background var(--lazu-motion-fast, 150ms) ease,
+    color var(--lazu-motion-fast, 150ms) ease;
+  white-space: nowrap;
+}
+
+.logv2-seg__button:hover {
+  color: var(--lazu-ink);
+}
+
+.logv2-seg__button[data-active='true'] {
+  background: var(--lazu-surface);
+  box-shadow: var(--yunmu-shadow);
+  color: var(--lazu-ink);
+}
+
+.logv2-scope {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  gap: 8px;
+}
+
+.logv2-scope__label {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Identity cell — initials disc + name over #uid. */
+.logv2-who {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.logv2-avatar {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: 50%;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 600;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.logv2-who__copy {
+  display: grid;
+  min-width: 0;
+}
+
+.logv2-who__name {
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.logv2-who__uid {
+  color: var(--lazu-text-faint);
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+.logv2-table th.logv2-rank,
+.logv2-table td.logv2-rank {
+  color: var(--lazu-text-faint);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  width: 40px;
+}
+
+.logv2-warn {
+  color: var(--lazu-warning-strong);
+}
+
+.logv2-bar {
+  background: var(--lazu-surface-selected);
+  border-radius: 3px;
+  display: block;
+  height: 6px;
+  min-width: 90px;
+  overflow: hidden;
+}
+
+.logv2-bar i {
+  background: var(--lazu-evidence);
+  border-radius: 3px;
+  display: block;
+  height: 100%;
+}
+
+.logv2-state {
+  color: var(--lazu-text-muted);
+  padding: 28px 10px;
+  text-align: center;
+}
+
+.logv2-foot {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.logv2-foot .lazu-pagination {
+  margin: 0;
+}
+
+/* A deep-linked request off the current page renders as its own card. */
+.logv2-receipt {
+  padding: 16px 20px;
+}
+
+/* J1 — the detail opens under the row it belongs to.
+   It used to render after the table and the pagination, with a smooth
+   scrollIntoView that moved the reader to the page bottom and lost their
+   place in the list. */
+.logv2-detail-row > td {
+  background: var(--lazu-surface-selected);
+  padding: 0;
+}
+
+.logv2-detail-row .logv2-receipt {
+  padding: 6px 26px 20px;
+}
+
+/* The open row and its detail read as one tinted band. */
+.logv2-row[data-selected='true'] td {
+  border-bottom-color: transparent;
+  font-weight: 600;
+}
+
+/* A deep-linked request that is not on the current page has no row to expand
+   under, so it reads as its own panel above the list. */
+.logv2-receipt--offpage {
+  margin-bottom: 12px;
+  padding: 16px 18px;
+}
+
+/* Approved filter rhythm: view first, date/control row below, compact summary. */
+.usage-log-page .logv2-view-tabs {
+  flex-basis: 100%;
+  border-bottom: 1px solid var(--lazu-border);
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+}
+.usage-log-page .logv2-chip-field {
+  border-radius: var(--lazu-radius-control);
+  min-height: 38px;
+  padding: 0 12px;
+}
+.usage-log-page .logv2-chip-field :is(input, button, select) {
+  height: 36px;
+}
+.usage-log-page .logv2-filters__row {
+  gap: 12px;
+}
+.usage-log-page .console-compact-stats {
+  padding: 12px 0;
+  margin-bottom: 12px;
+}
+/* One task strip, one primary filter row; detailed model/key fields expand below. */
+.usage-page--log-first .logv2-view-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+.usage-page--log-first .logv2-view-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.usage-page--log-first .logv2-view-tabs > .logv2-seg {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  gap: 24px;
+}
+.usage-page--log-first .logv2-view-tabs > .logv2-seg .logv2-seg__button {
+  border-radius: 0;
+  padding: 10px 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.usage-page--log-first
+  .logv2-view-tabs
+  > .logv2-seg
+  .logv2-seg__button[data-active='true'] {
+  border-bottom-color: var(--lazu-text);
+  background: transparent;
+}
+.usage-page--log-first .logv2-filters {
+  width: 100%;
+}
+.usage-page--log-first .logv2-filters__row {
+  gap: 10px;
+  align-items: center;
+}
+.usage-page--log-first .logv2-chip-field--search {
+  margin-left: 0;
+  flex: 1 1 180px;
+  min-width: 160px;
+  max-width: 300px;
+}
+.usage-page--log-first .logv2-filters__more .logv2-chip-field {
+  width: 100%;
+  min-width: 0;
+}
+.usage-page--log-first .console-compact-stats {
+  padding: 4px 0 14px;
+}
+.usage-page--log-first .lazu-filter-bar {
+  margin-bottom: 8px;
+}
+
+/* The chip row that names an active project deep-link filter (project,
+   result, reason, member, Key) and lets each one be dropped. Without it a
+   filtered table reads as "this project barely gets any traffic". */
+.logv2-scopechips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+
+.logv2-scopechips__lb {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.logv2-scopechip {
+  align-items: center;
+  background: var(--lazu-evidence-soft);
+  border: 0;
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-evidence-strong);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+}
+
+.logv2-scopechip:hover {
+  background: color-mix(in srgb, var(--lazu-evidence) 22%, transparent);
+}
+
+/* Long-context billing (2026-09): a quiet tag on the cost, a one-line
+   explanation under the receipt. Neutral paper, never a warning tint — the
+   price is correct, it is only a different price. */
+.logv2-cost {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.logv2-chip--plan {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+}
+
+.logv2-chip--tier {
+  color: var(--lazu-text-muted);
+}
+
+.logv2-receipt__tier {
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+.logv2-receipt__tiernote {
+  background: var(--lazu-surface-muted);
+  border-radius: 12px;
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 10px 0 0;
+  padding: 10px 14px;
+}
+
+.logv2-receipt__tiernote a {
+  color: var(--lazu-evidence);
+}
+
+/* Usage log redesign (2026-09, canvas M3 + L1). */
+.usage-log-page .logv2-desktop-master .logv2-table th {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.logv2-summary {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 16px 20px;
+  width: 100%;
+}
+
+.logv2-summary__cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.logv2-summary__cell > span {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.logv2-summary__cell > b {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 767px) {
+  .logv2-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.logv2-modelcell {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.logv2-modelcell .logv2-model {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logv2-lane {
+  align-items: center;
+  border-radius: 7px;
+  display: inline-flex;
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 500;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+
+.logv2-lane--stable {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+.logv2-lane--eco {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+}
+
+.logv2-lane--fallback {
+  background: var(--lazu-warning-soft);
+  color: var(--lazu-warning-strong);
+  cursor: help;
+}
+
+.logv2-lane__dot {
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.logv2-lane--stable .logv2-lane__dot {
+  background: currentColor;
+}
+
+.logv2-lane--eco .logv2-lane__dot {
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.logv2-status {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.logv2-status__dot {
+  background: var(--lazu-success);
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.logv2-status--bad {
+  color: var(--lazu-danger);
+  font-weight: 500;
+}
+
+.logv2-status--bad .logv2-status__dot {
+  background: var(--lazu-danger);
+}
+
+.logv2-mono {
+  font-family: var(--font-mono, monospace);
+}
+
+.logv2-m3 {
+  display: flex;
+  flex-direction: column;
+  font-weight: 400;
+  gap: 18px;
+}
+
+.logv2-m3__standalone {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.logv2-m3__eyebrow {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.logv2-m3__main {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 220px minmax(0, 1fr) 380px;
+}
+
+.logv2-m3__charge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.logv2-m3__amount {
+  font-family: var(--font-mono, monospace);
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.logv2-m3__official {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.logv2-m3__official s {
+  font-family: var(--font-mono, monospace);
+}
+
+.logv2-m3__saved {
+  color: var(--lazu-success);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.logv2-m3__fallback {
+  color: var(--lazu-warning-strong);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.logv2-m3__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding-top: 6px;
+}
+
+.logv2-m3__bar {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+
+.logv2-m3__track {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.logv2-m3__seg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.logv2-m3__seg i {
+  border-radius: 2px;
+  display: block;
+  height: 10px;
+}
+
+/* One colour per kind of charge, shared by the cost bar and the ledger
+   swatches so a segment can be traced to its line. */
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='input'] {
+  background: var(--lazu-ink);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='wait'] {
+  background: color-mix(in srgb, var(--lazu-text-faint) 60%, transparent);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='cacheRead'] {
+  background: color-mix(in srgb, var(--lazu-text-faint) 50%, transparent);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='cacheWrite'] {
+  background: color-mix(in srgb, var(--lazu-text-faint) 88%, transparent);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='cacheWrite1h'] {
+  background: var(--lazu-text-muted);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='output'] {
+  background: var(--lazu-evidence);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='image'] {
+  background: var(--lazu-data-plum);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='audio'] {
+  background: var(--lazu-data-teal);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='tool'] {
+  background: color-mix(in srgb, var(--lazu-evidence) 35%, transparent);
+}
+
+:is(.logv2-m3__seg i, .logv2-ledger__label i)[data-tone='min'] {
+  background: var(--lazu-border-strong);
+}
+
+.logv2-m3__seg span {
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.logv2-m3__seg b,
+.logv2-m3__facts b {
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+.logv2-m3__seg b {
+  font-family: var(--font-mono, monospace);
+}
+
+.logv2-m3__note {
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+  margin: 0 0 0 58px;
+}
+
+.logv2-m3__content {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.logv2-m3__facts {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: 10px 22px;
+  padding-top: 12px;
+}
+
+.logv2-m3__fact {
+  white-space: nowrap;
+}
+
+.logv2-m3__spacer {
+  flex-grow: 1;
+}
+
+.logv2-m3__rid {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.logv2-m3__fail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logv2-m3__failtitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.logv2-m3__failbody {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.logv2-m3__error {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: 10px;
+  color: var(--lazu-text-muted);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.55;
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 767px) {
+  .logv2-m3__main,
+  .logv2-m3__bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .logv2-m3__bar {
+    gap: 6px;
+  }
+
+  .logv2-m3__note {
+    margin-left: 0;
+  }
+
+  .logv2-m3__seg span {
+    white-space: normal;
+  }
+
+  /* A name-only label on a thin segment would stack a letter per line; the
+     line under the bars already names it. */
+  .logv2-m3__segname {
+    display: none;
+  }
+
+  .logv2-m3__rid {
+    flex-wrap: wrap;
+  }
+
+  .logv2-m3__rid b {
+    word-break: break-all;
+  }
+
+  .logv2-m3__fact {
+    white-space: normal;
+  }
+}
+
+/* The summary strip reads before the filters, as on the approved canvas. */
+.usage-log-page .lazu-data-surface > .lazu-data-surface__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.console-page-shell.usage-log-page .console-compact-stats:has(.logv2-summary) {
+  margin: 0;
+  order: -1;
+  padding: 0 0 16px;
+}
+
+/* Time, lane, type, more, search and the two actions share one line at
+   console width; the search box is the part that gives way. */
+.usage-log-page .logv2-filters__row {
+  gap: 10px;
+}
+
+.console-page-shell.usage-log-page
+  .logv2-filters__row
+  .logv2-chip-field--search {
+  flex: 1 1 160px;
+  max-width: 300px;
+  min-width: 140px;
+}
+
+/* One line per request. Long Key and channel names end in an ellipsis
+   instead of tripling the row height. */
+.logv2-desktop-master .logv2-row td {
+  white-space: nowrap;
+}
+
+.logv2-desktop-master
+  .logv2-row
+  td
+  > :is(.logv2-link, .logv2-soft):not(.logv2-time) {
+  display: inline-block;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+/* Canvas cell rhythm: 10px sides, so the platform view's ten columns fit
+   the card without a sideways scroll. */
+.logv2-desktop-master .logv2-table > * > tr > :is(th, td) {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.logv2-desktop-master .logv2-table > tbody > tr.logv2-detail-row > td {
+  padding: 0;
+}
+
+/* F2 price ledger (canvas AhofMZpvkcdzABHogRGEMq): 数量 × 单价 = 金额 per
+   line, the operators written once in the header, numbers right-aligned. */
+.logv2-ledger {
+  align-self: start;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 16px 12px;
+}
+
+.logv2-ledger__row {
+  align-items: center;
+  column-gap: 8px;
+  display: grid;
+  font-size: 12.5px;
+  grid-template-columns: minmax(0, 1fr) 62px 72px 70px;
+  min-height: 28px;
+}
+
+.logv2-ledger__row > span:not(:first-child) {
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.logv2-ledger__row--head {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+  min-height: 22px;
+}
+
+.logv2-ledger__row--head > span:not(:first-child) {
+  font-family: inherit;
+}
+
+.logv2-ledger__label {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.logv2-ledger__label i {
+  border-radius: 2px;
+  display: inline-block;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+.logv2-ledger__label--sum {
+  padding-left: 16px;
+}
+
+.logv2-ledger__unit {
+  color: var(--lazu-text-muted);
+}
+
+.logv2-ledger__off {
+  color: var(--lazu-success);
+}
+
+.logv2-ledger__surcharge {
+  color: var(--lazu-warning-strong);
+}
+
+.logv2-ledger__tag {
+  align-items: center;
+  background: var(--lazu-warning-soft);
+  border-radius: 6px;
+  color: var(--lazu-warning-strong);
+  display: inline-flex;
+  font-size: 10.5px;
+  font-weight: 500;
+  height: 18px;
+  padding: 0 6px;
+}
+
+.logv2-ledger__rule {
+  background: var(--lazu-border-strong);
+  height: 1px;
+  margin: 4px 0;
+  opacity: 0.7;
+}
+
+.logv2-ledger__rule--strong {
+  background: var(--lazu-ink);
+  opacity: 1;
+}
+
+.logv2-ledger__row--total {
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 34px;
+}
+
+.logv2-ledger__foot {
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin: 0;
+  padding-top: 6px;
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .logv2-m3__main {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .logv2-m3__main > .logv2-ledger {
+    grid-column: 1 / -1;
+    max-width: 480px;
+  }
+}
+
+/* A phone has no room for four columns: each line becomes its name over
+   "数量 × 单价 = 金额", the operators written inline instead of in a header. */
+@media (max-width: 767px) {
+  .logv2-m3__main > .logv2-ledger {
+    max-width: none;
+  }
+
+  .logv2-ledger__row--head {
+    display: none;
+  }
+
+  .logv2-ledger__row {
+    column-gap: 6px;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+  }
+
+  .logv2-ledger__row--item {
+    padding-bottom: 4px;
+  }
+
+  .logv2-ledger__row--item .logv2-ledger__label {
+    grid-column: 1 / -1;
+    padding-bottom: 0;
+  }
+
+  .logv2-ledger__row--item > span:nth-child(2) {
+    grid-column: 2;
+  }
+
+  .logv2-ledger__row--item > span:nth-child(3):not(:empty)::before {
+    color: var(--lazu-text-faint);
+    content: '× ';
+  }
+
+  .logv2-ledger__row--item > span:nth-child(4)::before {
+    color: var(--lazu-text-faint);
+    content: '= ';
+  }
+}
+
+/* ---- One filter row (canvas 2026-10-14) ------------------------------------
+   Time, lane, search and one 筛选 button; everything else lives in the
+   popover, and what is set shows as removable chips above the table. The
+   page head carries 列 and 导出. */
+.usage-head-tools {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.usage-head-tools:empty {
+  display: none;
+}
+
+.logv2-search {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-faint);
+  display: inline-flex;
+  flex: 1 1 220px;
+  gap: 8px;
+  height: 36px;
+  max-width: 340px;
+  min-width: 160px;
+  padding: 0 12px;
+}
+
+.logv2-search:focus-within {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}
+
+.logv2-search input {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  min-width: 0;
+  outline: 0;
+}
+
+.logv2-search input::placeholder {
+  color: var(--lazu-text-faint);
+}
+
+.logv2-filters__view {
+  margin-left: auto;
+}
+
+.logv2-filter-count {
+  align-items: center;
+  background: var(--lazu-evidence);
+  border-radius: 9px;
+  color: var(--lazu-on-action, #fff);
+  display: inline-flex;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  height: 18px;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 5px;
+}
+
+.logv2-filter-pop {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  width: 320px;
+}
+
+.logv2-filter-pop__field {
+  display: grid;
+  gap: 6px;
+}
+
+.logv2-filter-pop__label {
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.logv2-filter-pop__foot {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.logv2-filter-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.logv2-filter-chip {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-radius: 8px;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-size: 12.5px;
+  gap: 4px;
+  height: 28px;
+  padding: 0 4px 0 10px;
+}
+
+.logv2-filter-chip button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 20px;
+  justify-content: center;
+  padding: 0;
+  width: 20px;
+}
+
+.logv2-filter-chip button:hover {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+.logv2-filter-clear {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-evidence);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 0 4px;
+}
+
+/* On a phone the search and the 筛选 button share one line, and the page
+   head's 列 / 导出 stay on the desktop: cards have no columns to pick and a
+   CSV is not something a phone opens. */
+@media (max-width: 767px) {
+  .logv2-search {
+    flex: 1 1 0;
+    max-width: none;
+    min-width: 0;
+  }
+  .logv2-filters__date {
+    flex-basis: 100%;
+  }
+  .usage-head-tools {
+    display: none;
+  }
+}

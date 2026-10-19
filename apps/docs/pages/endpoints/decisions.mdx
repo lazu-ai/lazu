@@ -1,0 +1,96 @@
+---
+title: Decisions
+description: Evaluate predicate, choice and score questions with OpenAI Decisions, Jev and Clef.
+---
+
+# Decisions
+
+`POST /v1/decisions` evaluates explicit questions over text, JSON or embedded images. Discover available models and their `decision_capabilities` through the [model catalog](/models/catalog). This endpoint returns one JSON response and does not support streaming.
+
+## OpenAI Decisions
+
+Use the official request model `gpt-6-luna` with `/v1/decisions`; switching the base URL preserves the native request and response shape within Lazu's supported limits. Its Chat and Responses endpoints remain available separately. The catalog lists Decisions under `gpt-6-luna-decisions`, with `request_model: "gpt-6-luna"`, so endpoint-specific routing, authorization and prices remain distinct. Check this Decisions catalog item for your Key's access and current rate. The alias is also accepted as a compatibility request name.
+
+```bash
+curl https://api.lazu.ai/v1/decisions \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-6-luna",
+    "input": "The screen is broken.",
+    "questions": [
+      {"name": "damaged", "type": "predicate", "instructions": "Is the screen broken?"},
+      {"type": "choice", "instructions": "Which action fits?", "choices": [{"value": "repair"}, {"value": false}]},
+      {"type": "score", "instructions": "Rate the damage.", "levels": [{"label": "none"}, {"label": "severe"}]}
+    ]
+  }'
+```
+
+`input` accepts a string or an array of user messages. Message content can be a string or `input_text` / `input_image` parts; images use inline data URLs. Lazu currently supports image detail `low`, `high` or `auto`, with the size limits below. Remote image URLs, file IDs and non-user roles are rejected.
+
+`questions` and `answers` are ordered arrays. Names are optional; unnamed answers have a null name. Lazu's initial release requires supplied names to be unique, including an explicitly empty name. String and boolean choice values retain their types: `false` differs from `"false"`. A predicate returns `probability`; a score is the probability-weighted average of zero-based level indices and may be fractional. `confidence` is separate from a chosen option's probability.
+
+A per-question `refusal` is a valid HTTP 200 result. It does not discard other answers or trigger a whole-request retry or refund. Keep the returned usage, including output, cached and cache-write token details, even when those dimensions have a zero price.
+
+Lazu's launch limits are **8192 estimated text tokens across input and all questions, 64 questions, 4 inline images, and 2–10 score levels**. These are gateway limits, not the official API's advertised maximums. Streaming, tools, `safety_identifier` and question generation are outside this native format. Regional endpoints and long-context multipliers are not offered by this initial configuration.
+
+The internal Decisions alias also accepts the existing `state` plus keyed `questions` format as a compatibility bridge and returns the existing keyed answer shape. Use `gpt-6-luna-decisions` when choosing this legacy bridge; do not mix `input` with `state`, or change Jev/Clef requests without explicitly choosing the bridge. The bridge preserves ordered score criteria and maps `noul` to a predicate; a refusal remains an explicit refusal rather than an invented probability. Native arrays are recommended for new integrations. See the [official guide](https://developers.openai.com/api/docs/guides/decisions) for the provider protocol and [pricing](/models/pricing) for your Lazu rate.
+
+## Jev, Clef and the legacy format
+
+```bash
+curl https://api.lazu.ai/v1/decisions \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "jev-1.13",
+    "state": {"ticket": "The checkout service is down."},
+    "questions": {
+      "urgent": {"type": "noul", "instructions": "Does this need immediate attention?"},
+      "owner": {"type": "choice", "instructions": "Choose the responsible team.", "criteria": {"engineering": "Service reliability", "billing": "Payment reconciliation"}},
+      "severity": {"type": "score", "instructions": "Rate operational impact.", "criteria": ["No impact", "Degraded service", "Service unavailable"]}
+    }
+  }'
+```
+
+`state` is the material to judge. `questions` defines what to judge: `noul` returns a probability from 0 to 1; `choice` returns an option ID and probabilities; `score` returns a score against your ordered rubric. Business JSON inside instructions and criteria is preserved. Supply 1–64 questions with unique ASCII IDs using letters, numbers, `_`, `.` or `-`. Choice allows 2–255 options; score allows 2–10 levels. Answers include confidence and preserve additional provider fields.
+
+## Images
+
+`clef` and `clef-flash` accept `images` containing PNG, JPEG or WebP data URLs, either as strings or `{ "url": "data:image/png;base64,..." }`. State must still be supplied; it may be empty when images are valid. Remote URLs, uploaded file IDs, audio and video are unsupported. Jev accepts text and JSON.
+
+Each image may contain at most 4 MiB decoded data and 16 million pixels. At most 4 images and 8 MiB total decoded data are allowed; the entire encoded upstream request may not exceed 13 MiB. Clef currently applies a **conservative 2000 UTF-8 byte limit to state**, in addition to token estimates, to prevent silent upstream truncation. Check `max_state_bytes` and token limits in the catalog.
+
+## Optional question generation
+
+Question generation is disabled by default. When your operator enables it, opt in per request or in your API Key settings:
+
+```json
+{
+  "model": "jev-1.13",
+  "state": "Checkout is down. Customers cannot pay.",
+  "question_generation": {"enabled": true, "model": "gpt-6-luna"}
+}
+```
+
+You may omit the generation model to use the Key's model or the platform default. Specifying a model alone does not enable generation. Explicit `questions` always take precedence. Automatically inferred questions can change with the material; use explicit questions when stable business rules are required.
+
+Generation uses an independently authorized Responses call. Your Key and temporary credential must allow both models. The gateway checks pricing, Key, project, member and account budgets before generation, with a separate 2 requests/minute generation limit per Key and account. There is no questions cache. Generation may take up to 15 seconds; native evaluation has a total 10-second budget and at most two provider attempts; both stages share a 25-second budget.
+
+## Usage and failures
+
+Native `usage` contains only the decision model's input and output tokens. `question_generation` includes its own model, request ID, prompt version and usage; `questions` contains the generated questions. Each stage has a separate usage record and charge. Upstream output tokens remain visible even when configured output pricing is zero.
+
+Unusable generated questions are refunded to the original wallet and Key with an auditable refund record. If valid generation is followed by a native failure, the generation charge is retained and `error.details.questions` contains reusable questions. Retry those explicitly to avoid another generation charge. [Request details](/endpoints/usage-requests) and Console logs link the parent and generation requests.
+
+When the decision API is disabled it returns 404 and decision models are hidden from the catalog. Use `error.code` and `Retry-After` for machine handling; see [errors](/errors).
+
+## Operator configuration
+
+Select a decision dialect on each source: OpenAI Decisions, TypeSafe, OpenRouter, Cloudflare AI Gateway, or Cloudflare Workers AI. Cloudflare sources also require the account ID. Register decision models separately from text-generation models, configure input and image-input pricing and set other dimensions explicitly where applicable. Set channel and shared account RPS/in-flight caps; a shared group uses the smallest positive configured member limit. **Multiple API replicas require Redis** for shared admission. With Redis unavailable, the gateway retains local in-flight protection and emits an operational error; shared multi-replica capacity is temporarily unavailable.
+
+For OpenAI, the source's model list contains only `gpt-6-luna-decisions`, mapped upstream to `gpt-6-luna`, with decision dialect `openai`. Use the default global endpoint for this launch. The credential-free administrative template is `ops/references/openai-decisions-listing.json`; it does not publish anything at startup. Create the source manually disabled, save its provider cost through the source update endpoint, publish the alias's sell price through the pricing endpoint, and verify both runtime snapshots before enabling the source. Do not reuse the text model's output/cache prices. Initial capacity is 30 RPS and 128 in-flight requests, including a dedicated shared group; raise it only after gateway-side load and financial reconciliation. A direct-provider capacity test does not measure the gateway server's capacity.
+
+The generator model must declare structured-output support in the model catalog, plus vision support for image requests. Native and generation permissions are checked before the paid generation call.
+
+Enable `/v1/decisions` and automatic generation separately in upstream settings. Both switches default to off. Use the source health test with endpoint type `decisions` before exposing a model.

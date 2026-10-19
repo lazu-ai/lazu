@@ -1,0 +1,170 @@
+---
+title: "Chat Completions API（OpenAI 互換）"
+description: OpenAI-compatible /v1/chat/completions。parameters、stream、tools、usage/cache fields。
+---
+
+import {
+  CodeSample,
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="エンドポイント / OpenAI-compatible"
+  method="POST"
+  path="/v1/chat/completions"
+  title="Chat completions"
+  description="Lazu 経由で OpenAI-compatible chat request を送ります。Base URL、認証、必須 body fields、stream、tools、response usage、troubleshooting をこのページで確認できます。"
+  aside={<EndpointRail endpoint="chat" />}
+>
+
+## 基本設定
+
+<EndpointGrid>
+  <EndpointTile title="Base URL">
+    OpenAI SDK では <code>https://api.lazu.ai/v1</code>{" "}
+    を使います。直接呼ぶ場合は
+    <code>https://api.lazu.ai/v1/chat/completions</code> です。
+  </EndpointTile>
+  <EndpointTile title="モデル検出">
+    実行時に <code>GET /api/models/catalog</code> を読み、
+    <code>supported_endpoint_types</code> に <code>chat</code>{" "}
+    を含むモデルを選びます。
+  </EndpointTile>
+</EndpointGrid>
+
+## Request body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    model ID、route alias、または route policy name。明示的な model は
+    <code>GET /api/models/catalog</code> から選びます。
+  </Field>
+  <Field
+    name="messages"
+    type="object[]"
+    required
+    fields={[
+      {
+        name: "role",
+        type: "string",
+        description: "system、user、assistant、tool のいずれか。",
+      },
+      {
+        name: "content",
+        type: "string | content_part[]",
+        description: "plain text または multimodal content parts。",
+      },
+      {
+        name: "tool_call_id",
+        type: "string",
+        description: "tool message を先行 tool call と関連付けます。",
+      },
+    ]}
+  >
+    OpenAI shape の会話メッセージ配列です。
+  </Field>
+  <Field name="stream" type="boolean" nullable>
+    <code>true</code> の場合、Server-Sent Events stream を返し、最後に
+    <code>data: [DONE]</code> を送ります。
+  </Field>
+  <Field
+    name="tools"
+    type="object[]"
+    nullable
+    fields={[
+      {
+        name: "type",
+        type: '"function"',
+        description: "現在は function tools を扱います。",
+      },
+      {
+        name: "function.name",
+        type: "string",
+        description: "モデルが呼べる tool name。",
+      },
+      {
+        name: "function.parameters",
+        type: "object",
+        description: "tool arguments の JSON Schema。",
+      },
+    ]}
+  >
+    tool 定義です。送信前に catalog の <code>parameters.tools</code>{" "}
+    を確認してください。
+  </Field>
+  <Field name="tool_choice" type="string | object" nullable>
+    <code>auto</code>、<code>none</code>、指定 tool object など。
+  </Field>
+  <Field name="response_format" type="object" nullable>
+    structured output control。例：<code>{'{"type":"json_object"}'}</code>。
+  </Field>
+  <Field name="temperature" type="number" nullable>
+    sampling temperature。多くの model は <code>0</code> から <code>2</code>{" "}
+    を受け付けます。
+  </Field>
+  <Field name="max_tokens" type="integer" nullable>
+    生成 token の上限です。
+  </Field>
+</FieldList>
+
+## Vision input
+
+画像入力は OpenAI-compatible content parts を使います。HTTPS image URL または data URL
+を送れます。
+
+<CodeSample title="Image input" language="json">
+  {`{
+  "model": "gpt-6-luna",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {"type": "text", "text": "What's in this image?"},
+        {
+          "type": "image_url",
+          "image_url": {"url": "data:image/png;base64,..."}
+        }
+      ]
+    }
+  ]
+}`}
+</CodeSample>
+
+PDF や大きな document は [Files](/ja/endpoints/files) で upload し、
+[Responses](/ja/endpoints/responses) で参照してください。Chat completions は
+
+<code>file_id</code> を自動 dereference しません。
+
+## Response
+
+<FieldList>
+  <Field name="id" type="string">
+    Lazu または provider response ID。
+  </Field>
+  <Field name="choices" type="object[]">
+    assistant output choices。Streaming では incremental <code>delta</code>{" "}
+    です。
+  </Field>
+  <Field name="usage.prompt_tokens" type="integer">
+    input token count。
+  </Field>
+  <Field name="usage.completion_tokens" type="integer">
+    generated output token count。
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cached_tokens"
+    type="integer"
+    nullable
+  >
+    provider が報告した cache read tokens。
+  </Field>
+</FieldList>
+
+完全な照合には [リクエスト詳細](/ja/endpoints/usage-requests) を使ってください。
+
+</EndpointPage>

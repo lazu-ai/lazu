@@ -1,0 +1,18 @@
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "write a short release note"
+    }
+  ],
+  "stream": true,
+  "temperature": 0.2,
+  "metadata": {
+    "tenant": "acme"
+  },
+  "x_future_flag": {
+    "enabled": true,
+    "version": "2026-02"
+  }
+}

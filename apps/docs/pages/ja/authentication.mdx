@@ -1,0 +1,49 @@
+---
+title: "認証：1 つの API キーで OpenAI・Anthropic・Gemini 形式に対応"
+description: "Lazu の API キーの使い方：OpenAI 互換の Authorization ヘッダー、Anthropic の x-api-key、Gemini ネイティブのヘッダー、キーの保管とローテーション。"
+---
+
+# 認証
+
+すべての Lazu リクエストには API Key が必要です。
+[コンソール](https://lazu.ai/console/token)で作成できます。key は通常
+`sk-lazu-` で始まります。
+
+## API スタイルごとの認証
+
+| API スタイル         | Header またはパラメータ                                     |
+| -------------------- | ----------------------------------------------------------- |
+| OpenAI 互換          | `Authorization: Bearer YOUR_API_KEY`                        |
+| Anthropic ネイティブ | `x-api-key: YOUR_API_KEY` + `anthropic-version: 2023-06-01` |
+| Gemini ネイティブ    | `x-goog-api-key: YOUR_API_KEY` または query `?key=...`      |
+
+Lazu は 3 つの形式を受け付けます。利用中の SDK が既に扱える形式を選んでください。
+
+## 推奨設定
+
+- **アプリと環境ごとに key を分ける**。ローカル開発、CI、本番で同じ key を共有しないでください。
+- **key を制限する**。モデル、quota、期限、IP allowlist、vendor lane preference を設定できます。
+- **git に key をコミットしない**。環境変数や secret manager を使ってください。
+
+## key の保存
+
+```bash
+export LAZU_API_KEY=sk-lazu-...
+```
+
+`.env` ファイルを使う場合は必ず gitignore してください。
+
+## key の確認
+
+```bash
+curl https://api.lazu.ai/v1/models \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+200 と JSON のモデル一覧が返れば key は有効です。401 `invalid_api_key` は、key が
+無効、期限切れ、形式不正、または存在しないことを意味します。
+
+## 漏洩時の対応
+
+key が漏洩した場合は、コンソールで古い key を削除し、新しい key を作成してデプロイ先を更新してください。
+削除後、古い key は即座に無効になります。

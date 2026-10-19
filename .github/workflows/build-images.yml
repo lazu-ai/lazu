@@ -1,0 +1,395 @@
+name: Images
+
+# Publishes the container images that self-hosters run and lazu.ai deploys.
+#
+#   push to main  -> ghcr.io/lazu-ai/lazu/{api,frontend,docs}:<sha> and :main
+#                    for the services the push changed. Unchanged services get
+#                    a :<sha> alias of their last build, so every built commit
+#                    has a complete set.
+#   push vX.Y.Z   -> all three rebuilt at that tag, the API stamped with the
+#                    version, tagged :vX.Y.Z, plus :latest when it is the
+#                    newest stable release. Pre-release tags (v1.2.0-rc.1) get
+#                    their own tag only.
+#   run by hand   -> on main: all three rebuilt for its head, as for a push
+#                    (recovers a push that started no run). On a tag: that
+#                    release rebuilt. Other branches are refused.
+#
+# When the images are published (or a build fails) the result is handed to
+# lazu-ai/lazu-ops, which builds lazu.ai's own images from the same commit and
+# decides what reaches lazu.ai.
+# Every job runs only in the lazu-ai organisation: forks and mirrors build
+# nothing and publish nothing.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+# No concurrency group: a dropped pending run would leave its commit without
+# images, and the next run only builds what its own push changed.
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_PREFIX: ghcr.io/lazu-ai/lazu
+
+jobs:
+  changes:
+    if: github.repository_owner == 'lazu-ai'
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.detect.outputs.api }}
+      frontend: ${{ steps.detect.outputs.frontend }}
+      docs: ${{ steps.detect.outputs.docs }}
+      any_build: ${{ steps.detect.outputs.any_build }}
+      services: ${{ steps.detect.outputs.services }}
+      matrix: ${{ steps.detect.outputs.matrix }}
+      commit_sha: ${{ steps.detect.outputs.commit_sha }}
+      app_version: ${{ steps.detect.outputs.app_version }}
+      release: ${{ steps.detect.outputs.release }}
+      stable: ${{ steps.detect.outputs.stable }}
+      latest: ${{ steps.detect.outputs.latest }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect images to build
+        id: detect
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          api=false
+          frontend=false
+          docs=false
+          release=false
+          stable=false
+          latest=false
+          commit_sha="$(git rev-parse "${GITHUB_REF}^{commit}")"
+          app_version="$commit_sha"
+
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            if [[ ! "$REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Release tags look like v1.2.3 or v1.2.3-rc.1; got ${REF_NAME}"
+              exit 1
+            fi
+            release=true
+            app_version="$REF_NAME"
+            api=true
+            frontend=true
+            docs=true
+            if [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              stable=true
+              newest=""
+              while IFS= read -r tag; do
+                if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  newest="$tag"
+                  break
+                fi
+              done < <(git tag --list 'v[0-9]*' --sort=-version:refname)
+              [[ "$newest" == "$REF_NAME" ]] && latest=true
+            fi
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "::error::A manual run rebuilds main or a release tag; got ${GITHUB_REF}"
+              exit 1
+            fi
+            echo "Manual run: rebuilding every image for ${commit_sha}"
+            api=true
+            frontend=true
+            docs=true
+          else
+            if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+              changed_files="$(git diff-tree --root --no-commit-id --name-only -r "$commit_sha")"
+            else
+              changed_files="$(git diff --name-only "$BEFORE_SHA" "$commit_sha")"
+            fi
+            echo "Changed files:"
+            printf '%s\n' "$changed_files"
+
+            # Keep in step with affects_image in the alias job below, and with
+            # the API paths lazu-ops checks before an automatic frontend deploy.
+            while IFS= read -r file; do
+              [[ -z "$file" ]] && continue
+              case "$file" in
+                apps/api/*|apps/migrate/*|apps/worker/*|internal/*|pkg/*|packages/domain/*|go.mod|go.sum|platform/docker/Dockerfile|platform/docker/Dockerfile.dockerignore|platform/docker/entrypoint.sh|config/backend/*)
+                  api=true ;;
+              esac
+              case "$file" in
+                apps/web/*) frontend=true ;;
+              esac
+              case "$file" in
+                apps/docs/*|packages/contracts/openapi/*) docs=true ;;
+              esac
+              case "$file" in
+                .github/workflows/build-images.yml) api=true; frontend=true; docs=true ;;
+              esac
+            done <<< "$changed_files"
+          fi
+
+          services=()
+          [[ "$api" == "true" ]] && services+=("api")
+          [[ "$frontend" == "true" ]] && services+=("frontend")
+          [[ "$docs" == "true" ]] && services+=("docs")
+          services_csv="$(IFS=,; echo "${services[*]}")"
+          any_build=false
+          (( ${#services[@]} > 0 )) && any_build=true
+          matrix="$(printf '%s\n' "${services[@]}" | jq -R . | jq -cs 'map(select(length > 0))')"
+
+          {
+            echo "api=$api"
+            echo "frontend=$frontend"
+            echo "docs=$docs"
+            echo "any_build=$any_build"
+            echo "services=$services_csv"
+            echo "matrix=$matrix"
+            echo "commit_sha=$commit_sha"
+            echo "app_version=$app_version"
+            echo "release=$release"
+            echo "stable=$stable"
+            echo "latest=$latest"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Images to build: ${services_csv:-<none>}"
+          echo "Version stamped into the API: $app_version"
+          echo "Release: $release (stable: $stable, latest: $latest)"
+
+  build:
+    needs: changes
+    if: github.repository_owner == 'lazu-ai' && needs.changes.outputs.any_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Choose Dockerfile and tags
+        id: plan
+        env:
+          SERVICE: ${{ matrix.service }}
+          COMMIT_SHA: ${{ needs.changes.outputs.commit_sha }}
+          APP_VERSION: ${{ needs.changes.outputs.app_version }}
+          RELEASE: ${{ needs.changes.outputs.release }}
+          LATEST: ${{ needs.changes.outputs.latest }}
+        run: |
+          set -euo pipefail
+          case "$SERVICE" in
+            api) dockerfile=platform/docker/Dockerfile ;;
+            frontend) dockerfile=apps/web/Dockerfile ;;
+            docs) dockerfile=apps/docs/Dockerfile ;;
+            *) echo "::error::Unknown service ${SERVICE}"; exit 1 ;;
+          esac
+          image="${IMAGE_PREFIX}/${SERVICE}"
+          if [[ "$RELEASE" == "true" ]]; then
+            tags="${image}:${APP_VERSION}"
+            [[ "$LATEST" == "true" ]] && tags+=$'\n'"${image}:latest"
+          else
+            tags="${image}:${COMMIT_SHA}"$'\n'"${image}:main"
+          fi
+          build_args=""
+          [[ "$SERVICE" == "api" ]] && build_args="APP_VERSION=${APP_VERSION}"
+          {
+            echo "dockerfile=$dockerfile"
+            echo "tags<<EOF"
+            echo "$tags"
+            echo "EOF"
+            echo "build_args=$build_args"
+          } >> "$GITHUB_OUTPUT"
+          echo "Publishing:"
+          echo "$tags"
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ steps.plan.outputs.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.plan.outputs.tags }}
+          build-args: ${{ steps.plan.outputs.build_args }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.changes.outputs.commit_sha }}
+            org.opencontainers.image.version=${{ needs.changes.outputs.app_version }}
+            org.opencontainers.image.licenses=AGPL-3.0
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,scope=${{ matrix.service }},mode=max
+
+  alias:
+    needs: [changes, build]
+    if: ${{ always() && github.repository_owner == 'lazu-ai' && needs.changes.result == 'success' && needs.changes.outputs.release != 'true' && needs.changes.outputs.any_build == 'true' && needs.build.result == 'success' && (needs.changes.outputs.api != 'true' || needs.changes.outputs.frontend != 'true' || needs.changes.outputs.docs != 'true') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Give unchanged images a SHA tag
+        env:
+          BUILT_API: ${{ needs.changes.outputs.api }}
+          BUILT_FRONTEND: ${{ needs.changes.outputs.frontend }}
+          BUILT_DOCS: ${{ needs.changes.outputs.docs }}
+          COMMIT_SHA: ${{ needs.changes.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+
+          # Same path rules as the changes job.
+          affects_image() {
+            local service="$1" commit="$2" changed_files file parent
+            if parent="$(git rev-parse "${commit}^" 2>/dev/null)"; then
+              changed_files="$(git diff --name-only "$parent" "$commit")" || return 0
+            else
+              changed_files="$(git diff-tree --root --no-commit-id --name-only -r "$commit")" || return 0
+            fi
+            while IFS= read -r file; do
+              [[ -z "$file" ]] && continue
+              [[ "$file" == .github/workflows/build-images.yml ]] && return 0
+              case "$service" in
+                api)
+                  case "$file" in
+                    apps/api/*|apps/migrate/*|apps/worker/*|internal/*|pkg/*|packages/domain/*|go.mod|go.sum|platform/docker/Dockerfile|platform/docker/Dockerfile.dockerignore|platform/docker/entrypoint.sh|config/backend/*) return 0 ;;
+                  esac ;;
+                frontend)
+                  case "$file" in apps/web/*) return 0 ;; esac ;;
+                docs)
+                  case "$file" in apps/docs/*|packages/contracts/openapi/*) return 0 ;; esac ;;
+              esac
+            done <<< "$changed_files"
+            return 1
+          }
+
+          tag_exists() {
+            docker buildx imagetools inspect "$1" >/dev/null 2>&1
+          }
+
+          # Walk first parents to the newest commit that has an image. A
+          # commit on the way that changed this service must have its own
+          # image; its run may still be building, so wait for it, and refuse
+          # to alias an older image if it never appears.
+          source_ref() {
+            local service="$1" image="${IMAGE_PREFIX}/$1" candidate
+            candidate="$(git rev-parse "${COMMIT_SHA}^" 2>/dev/null)" || return 1
+            while [[ -n "$candidate" ]]; do
+              if tag_exists "${image}:${candidate}"; then
+                printf '%s' "${image}:${candidate}"
+                return 0
+              fi
+              if affects_image "$service" "$candidate"; then
+                echo "Waiting for ${image}:${candidate}; that commit changed ${service}." >&2
+                for _ in $(seq 1 40); do
+                  sleep 30
+                  if tag_exists "${image}:${candidate}"; then
+                    printf '%s' "${image}:${candidate}"
+                    return 0
+                  fi
+                done
+                echo "::error::${image}:${candidate} never appeared; refusing to alias an older ${service} image." >&2
+                return 1
+              fi
+              candidate="$(git rev-parse "${candidate}^" 2>/dev/null)" || break
+            done
+            echo "::error::No earlier ${service} image is reachable from ${COMMIT_SHA}." >&2
+            return 1
+          }
+
+          alias_unchanged() {
+            local service="$1" built="$2" from
+            if [[ "$built" == "true" ]]; then
+              echo "${service} was built for ${COMMIT_SHA}."
+              return 0
+            fi
+            from="$(source_ref "$service")"
+            echo "Aliasing ${from} -> ${IMAGE_PREFIX}/${service}:${COMMIT_SHA}"
+            docker buildx imagetools create -t "${IMAGE_PREFIX}/${service}:${COMMIT_SHA}" "$from"
+          }
+
+          alias_unchanged api "$BUILT_API"
+          alias_unchanged frontend "$BUILT_FRONTEND"
+          alias_unchanged docs "$BUILT_DOCS"
+
+  hand-off:
+    # Tell lazu-ops what was published, or that publishing failed.
+    needs: [changes, build, alias]
+    if: ${{ always() && github.repository_owner == 'lazu-ai' && needs.changes.result == 'success' && needs.changes.outputs.any_build == 'true' && (needs.changes.outputs.release != 'true' || needs.changes.outputs.stable == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise the build
+        id: result
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          ALIAS_RESULT: ${{ needs.alias.result }}
+        run: |
+          result=success
+          [[ "$BUILD_RESULT" == "success" ]] || result=failure
+          [[ "$ALIAS_RESULT" == "success" || "$ALIAS_RESULT" == "skipped" ]] || result=failure
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "Build: ${BUILD_RESULT}, alias: ${ALIAS_RESULT} -> ${result}"
+
+      - name: Mint a token for lazu-ops
+        id: token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.LAZU_RELEASE_APP_ID }}
+          private-key: ${{ secrets.LAZU_RELEASE_APP_PRIVATE_KEY }}
+          owner: lazu-ai
+          repositories: lazu-ops
+          permission-actions: write
+
+      - name: Hand off to lazu-ops
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TRIGGER: ${{ needs.changes.outputs.release == 'true' && 'tag' || 'push' }}
+          COMMIT_SHA: ${{ needs.changes.outputs.commit_sha }}
+          SERVICES: ${{ needs.changes.outputs.services }}
+          RELEASE: ${{ needs.changes.outputs.release }}
+          APP_VERSION: ${{ needs.changes.outputs.app_version }}
+          BUILD_RESULT: ${{ steps.result.outputs.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          version=""
+          if [[ "$RELEASE" == "true" ]]; then
+            version="$APP_VERSION"
+          fi
+          gh workflow run hosted-images.yml --repo lazu-ai/lazu-ops --ref main \
+            -f trigger="$TRIGGER" \
+            -f sha="$COMMIT_SHA" \
+            -f services="$SERVICES" \
+            -f version="$version" \
+            -f build_result="$BUILD_RESULT" \
+            -f build_run_url="$RUN_URL"
+          echo "Handed off to lazu-ops hosted-images.yml: ${TRIGGER} ${COMMIT_SHA} (${SERVICES}, ${BUILD_RESULT})"

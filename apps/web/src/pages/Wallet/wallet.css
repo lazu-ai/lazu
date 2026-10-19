@@ -1,0 +1,387 @@
+/* 钱包 — Billing 对账 + TopUp 充值合并页。
+   Implements the composition locked in brand/foundations/yunmu-console.md.
+   Palette and elevation come from the locked Yunmu brand tokens. */
+
+/* The pinned payment record (Stripe return, payment e-mails) sits above the
+   whole layout, full width, with the page's own gap below it. */
+.wal-record {
+  margin-bottom: 24px;
+}
+
+.wal-layout {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.wal-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Hairline-joined metric band: one sheet split by 1px gaps, not four cards. */
+.wal-band {
+  background: var(--lazu-border);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  box-shadow: var(--yunmu-shadow);
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  overflow: hidden;
+}
+
+.wal-band__cell {
+  background: var(--lazu-surface-solid);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 18px;
+}
+
+.wal-band__cell > span {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wal-band__cell > strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.wal-band__cell > small {
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+}
+
+/* Floating paper sheets — the plaza card recipe. */
+.wal-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  box-shadow: var(--yunmu-shadow);
+}
+
+.wal-chart-card {
+  padding: 16px 20px;
+}
+
+.wal-chart-card__head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  justify-content: space-between;
+}
+
+.wal-chart-card__head > b {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.wal-chart-card__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.wal-chart-card__figures span {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.wal-chart-card__figures b {
+  color: var(--lazu-ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.wal-chart-card__canvas {
+  height: 190px;
+  margin-top: 12px;
+}
+
+.wal-chart-card__foot {
+  color: var(--lazu-text-faint);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.wal-ledger-card {
+  padding: 10px 16px;
+}
+
+.wal-ledger {
+  border-collapse: collapse;
+  font-size: 12.5px;
+  width: 100%;
+}
+
+.wal-ledger th {
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-faint);
+  font-size: var(--lazu-row-label);
+  font-weight: 550;
+  letter-spacing: 0.08em;
+  padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wal-ledger td {
+  border-bottom: 1px solid var(--lazu-border);
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-row-text);
+  padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
+  vertical-align: middle;
+}
+
+.wal-ledger tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.wal-ledger tbody tr:hover td {
+  background: var(--lazu-surface-muted);
+}
+
+.wal-ledger .wal-ledger__num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  text-align: right;
+}
+
+.wal-ledger th.wal-ledger__num {
+  text-align: right;
+}
+
+.wal-ledger__credit {
+  color: var(--lazu-success);
+}
+
+.wal-ledger__date-link {
+  color: var(--lazu-evidence);
+  font-family: var(--lazu-font-mono);
+  text-decoration: none;
+}
+
+.wal-ledger__date-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wal-ledger__idle {
+  color: var(--lazu-text-faint);
+}
+
+.wal-ledger__empty,
+.wal-chart-card__empty {
+  color: var(--lazu-text-faint);
+  display: grid;
+  font-size: 12.5px;
+  min-height: 120px;
+  place-items: center;
+  text-align: center;
+}
+
+.wal-chart-card__empty {
+  min-height: 190px;
+}
+.wal-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wal-method {
+  background: var(--lazu-surface-selected);
+  border: 0;
+  border-radius: 999px;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 13px;
+}
+
+.wal-method[aria-pressed='true'] {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence);
+}
+
+.wal-summary {
+  align-items: baseline;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  font-size: 12.5px;
+  padding-bottom: 10px;
+}
+
+.wal-summary span {
+  color: var(--lazu-text-muted);
+}
+
+.wal-summary b small {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  margin-top: 2px;
+  text-align: right;
+}
+.wal-summary b {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  margin-left: auto;
+}
+
+.wal-note {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+}
+
+@media (max-width: 1020px) {
+  .wal-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Approved balance-first wallet: two top panels, full-width ledger below. */
+.wallet-page .wal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+.wallet-page .wal-main {
+  display: contents;
+}
+.wallet-page .wal-balance-summary {
+  grid-column: 1/-1;
+  grid-row: 1;
+  padding: 24px;
+}
+/* Top-up is the full-width row right under the balance (option C). */
+.wallet-page .wal-topup-bar {
+  grid-column: 1/-1;
+  grid-row: 2;
+}
+/* 推荐好友 sits under the top-up it pays out of. */
+.wallet-page .wal-aside {
+  grid-column: 1/-1;
+  grid-row: 3;
+}
+/* Spend trend before the ledger: the curve explains the movement the ledger
+   then itemises. */
+.wallet-page .wal-chart-card {
+  grid-column: 1/-1;
+  grid-row: 4;
+}
+.wallet-page .wal-ledger-card {
+  grid-column: 1/-1;
+  grid-row: 5;
+}
+.wal-balance-value {
+  display: block;
+  font-size: 44px;
+  font-weight: 600;
+  margin: 14px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.wal-balance-summary > p {
+  font-size: 12px;
+  color: var(--lazu-text-muted);
+}
+.wal-balance-equation {
+  align-items: baseline;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.wal-balance-equation > div {
+  align-items: baseline;
+  display: flex;
+  flex: 1;
+  gap: 14px;
+  min-width: 0;
+}
+.wal-balance-cell {
+  display: block;
+  min-width: 0;
+}
+.wal-balance-operator {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 17px;
+  flex: none;
+}
+.wal-balance-equation small {
+  color: var(--lazu-text-muted);
+  display: block;
+  font-size: 12px;
+}
+.wal-balance-equation strong {
+  display: block;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.wal-ledger-card > h2 {
+  font-size: 18px;
+  margin: 8px 0 20px;
+}
+
+/* No payment method: a dashed slot across the top-up's own row. */
+.wal-topup-empty {
+  align-items: center;
+  border: 1.5px dashed var(--lazu-border-strong);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  justify-content: space-between;
+  padding: 18px 22px;
+}
+
+.wal-topup-empty__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.wal-topup-empty__copy strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.wal-topup-empty__copy span {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 800px) {
+  .wallet-page .wal-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wal-balance-equation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

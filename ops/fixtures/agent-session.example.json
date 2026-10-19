@@ -1,0 +1,27 @@
+{
+  "example": "Synthetic arithmetic fixture, not a customer session or current price quote.",
+  "requests_complete": true,
+  "session": { "request_count": 3, "amount_microusd": 15000 },
+  "requests": [
+    {
+      "request_id": "example-1",
+      "model_name": "example-model",
+      "amount_microusd": 12000,
+      "official_microusd": 16000,
+      "failed": false
+    },
+    {
+      "request_id": "example-2",
+      "model_name": "example-model",
+      "amount_microusd": 2500,
+      "official_microusd": 4000,
+      "failed": false
+    },
+    {
+      "request_id": "example-3",
+      "model_name": "example-model",
+      "amount_microusd": 500,
+      "failed": true
+    }
+  ]
+}

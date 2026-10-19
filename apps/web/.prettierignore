@@ -1,0 +1,7 @@
+dist/
+storybook-static/
+test-results/
+.local-results/
+src/styles/brand.generated.css
+# Exact third-party source and its reviewed security patch retain upstream style.
+vendor/braces/

@@ -1,0 +1,32 @@
+---
+title: "判別モデル"
+description: "判別モデル: OpenAI Decisions, Jev, Clef"
+---
+
+# 判別モデル
+
+`POST /v1/decisions` でテキスト、JSON、埋め込み画像を確率・選択・スコアとして評価します。質問の自動生成は既定で無効です。生成と判別はそれぞれ認証・課金され、個別のリクエスト ID を持ちます。
+
+## OpenAI Decisions
+
+公式リクエスト名 `gpt-6-luna` を `/v1/decisions` に送信します。Lazu の対応範囲内では base URL の変更で公式リクエストとレスポンス形式を維持できます。Chat と Responses は独立した経路です。カタログ項目 `gpt-6-luna-decisions` は `request_model: "gpt-6-luna"` を示し、権限・ルーティング・価格を個別に管理します。互換名として alias も使えます。
+
+```json
+{"model":"gpt-6-luna","input":"画面が壊れています。","questions":[{"name":"damaged","type":"predicate","instructions":"画面は壊れていますか？"}]}
+```
+
+質問と回答は順序付き配列です。名前は省略できますが、初期版では明示した名前の重複を拒否します。名前のない質問も位置で保持します。選択値の文字列・真偽値の型を維持し、スコアはゼロ始まりのレベル番号の確率加重平均です。信頼度は選択確率とは別の情報です。質問単位の `refusal` は有効な HTTP 200 結果であり、他の回答と実際の usage を保持し、全体の再試行や返金を起こしません。
+
+Lazu 初期版の制限は入力と質問を合わせて推定 8192 テキスト token、64 問、4 枚の埋め込み PNG/JPEG/WebP 画像、2–10 スコアレベルです。公式 API の最大能力を示すものではありません。user メッセージと埋め込み画像のみ対応し、遠隔 URL、ストリーミング、tools、`safety_identifier`、ネイティブの質問自動生成は対象外です。旧 `state`/質問辞書形式は `gpt-6-luna-decisions` で橋渡しできますが、`input` と `state` を混在できません。入力・画像入力はカタログの Decisions 価格を使い、出力・キャッシュの usage も保持しますが初期価格はゼロです。
+
+## Jev / Clef の互換形式
+
+```json
+{
+  "model": "jev-1.13",
+  "state": {"ticket": "服务中断，需要立即处理。"},
+  "questions": {"urgent": {"type": "noul", "instructions": "是否需要立即处理？"}}
+}
+```
+
+パラメータ、画像制限、自動生成、課金と再試行の詳細は [英語の仕様](/endpoints/decisions) を参照してください。Clef の state は保守的に 2000 UTF-8 バイトに制限されます。画像は埋め込み PNG/JPEG/WebP のみ、ストリーミングは非対応です。

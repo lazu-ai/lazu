@@ -1,0 +1,134 @@
+/* Locked public footer (public-web-system #15), drawn from
+   lazu-ops:brand/explorations/seo-surfaces-2026-09/Footer.dc.html. */
+.lazu-public-footer {
+  position: relative;
+  z-index: 1;
+  background: var(--lazu-page);
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-sans);
+}
+
+.lazu-public-footer__inner {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  margin: 0 auto;
+  max-width: 1160px;
+  padding: 56px 0 0;
+}
+
+.lazu-public-footer__grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.lazu-public-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  grid-column: span 2;
+}
+
+.lazu-public-footer__brand a {
+  align-self: flex-start;
+  display: inline-flex;
+}
+
+.lazu-public-footer__brand .brand-logo {
+  height: 30px;
+  width: auto;
+}
+
+.lazu-public-footer__brand p {
+  color: var(--lazu-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 300px;
+}
+
+.lazu-public-footer__col {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  gap: 12px;
+}
+
+.lazu-public-footer__eyebrow {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lazu-public-footer a {
+  color: var(--lazu-ink);
+  text-decoration: none;
+}
+
+.lazu-public-footer a:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+.lazu-public-footer a.is-mono {
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+}
+
+.lazu-public-footer__legal {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 13px;
+  gap: 16px;
+  min-height: 64px;
+}
+
+.lazu-public-footer__line {
+  flex: 1;
+}
+
+/* Upstream notice required by the upstream project's license terms; kept verbatim. It
+   reads as part of the legal line, so it keeps that line's muted colour. */
+.lazu-public-footer .lazu-public-footer__upstream {
+  color: var(--lazu-text-muted);
+}
+
+.lazu-public-footer .lazu-public-footer__upstream:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+@media (max-width: 1240px) {
+  .lazu-public-footer__inner {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+
+@media (max-width: 900px) {
+  .lazu-public-footer__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 32px;
+  }
+}
+
+@media (max-width: 600px) {
+  .lazu-public-footer__inner {
+    gap: 36px;
+    padding: 40px 16px 0;
+  }
+
+  .lazu-public-footer__legal {
+    flex-wrap: wrap;
+    padding: 16px 0;
+  }
+
+  .lazu-public-footer__line {
+    flex-basis: 100%;
+  }
+}

@@ -1,0 +1,32 @@
+---
+title: "Pricing and lanes: stable lane vs agent lane"
+description: "How Lazu prices each model: the stable lane on official APIs, the agent lane for agent tools such as Claude Code, Codex and Antigravity, per-key lane choice, and how to read live prices."
+---
+
+# Pricing and lanes
+
+Available lanes and prices are shown in the model catalog. A model may expose one or more available lanes. The API values `direct` (stable lane) and `cheap` (agent lane) identify routing-price lanes; they do not by themselves certify a provider identity, compliance status, uptime or latency guarantee.
+
+## Stable lane and agent lane
+
+The stable lane runs on each maker's official API, is billed at the list price, has the highest availability and suits every use. The agent lane runs on third-party subscription pools that serve the model through its official client, not the official API. It costs far less, but availability varies, a failed request does not fall back to the stable lane, and the pool adds its own preset context. So use it only inside the matching agent tool: Claude models in Claude Code, GPT models in Codex, Gemini models in Antigravity. For your own code, or anywhere the output must be controlled exactly, use the stable lane. Both lanes work with the same key, and each key picks the lane per model.
+
+## Read current prices
+
+Use `/api/models/catalog` with your API key: its `pricing` object is the adjusted catalog price for that key, while `lanes` describes published lane prices and availability. Do not substitute the public `/v1/models` or session-based catalog pricing shape for this route. Check the serving lane and any applicable peak schedule when estimating. Missing price fields do not mean zero. The final request receipt records the charge.
+
+```bash
+curl --fail-with-body https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  | jq '.data[] | {id, supported_endpoints, pricing, lanes}'
+```
+
+## Selection and fallback
+
+Inspect your API key settings and the model’s current lanes. Choosing the agent lane (`cheap`) is strict: if its price or a compatible channel is unavailable, the request fails. Once an agent-lane channel is selected, an upstream failure is returned without retrying another channel or falling back to direct. Select direct explicitly if you want stable-lane pricing and retries. Reference prices, when present, are for comparison only and are not the charge. Do not treat example prices or a past catalog response as a current quote.
+
+## Price changes
+
+Prices and available routes can change. Refresh the catalog before estimating a new workload; preserve the request ID and receipt for reconciliation. Do not infer a new price for an old request from today’s catalog.
+
+[Billing](/billing)

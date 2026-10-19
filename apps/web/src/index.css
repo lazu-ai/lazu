@@ -1,0 +1,2507 @@
+/* ==================== Tailwind CSS 配置 ==================== */
+@layer tailwind-base, semi, tailwind-components, tailwind-utils;
+
+@layer tailwind-base {
+  @tailwind base;
+}
+
+@layer tailwind-components {
+  @tailwind components;
+}
+
+@layer tailwind-utils {
+  @tailwind utilities;
+}
+
+/* ==================== 设计系统 - Design Tokens ==================== */
+:root {
+  /* ===== 间距系统 ===== */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ===== 圆角系统 ===== */
+  --radius-none: 0px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ===== 字体大小系统 ===== */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+
+  /* ===== 动画时间系统 ===== */
+  --duration-instant: 50ms;
+  --duration-fast: 100ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 400ms;
+  --duration-slowest: 500ms;
+
+  /* ===== 缓动函数系统 ===== */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-sharp: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ===== z-index 层级系统 ===== */
+  --z-base: 0;
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-fixed: 200;
+  --z-drawer: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-notification: 800;
+  --z-max: 9999;
+
+  /* ===== 阴影系统 ===== */
+  --shadow-none: none;
+  --shadow-xs: 0 1px 2px rgba(35, 31, 26, 0.05);
+  --shadow-sm: 0 2px 4px rgba(35, 31, 26, 0.06);
+  --shadow-md: 0 4px 12px rgba(35, 31, 26, 0.08);
+  --shadow-lg: 0 8px 24px rgba(35, 31, 26, 0.1);
+  --shadow-xl: 0 16px 40px rgba(35, 31, 26, 0.12);
+  --shadow-2xl: 0 24px 56px rgba(35, 31, 26, 0.16);
+  --shadow-inner: inset 0 2px 4px rgba(35, 31, 26, 0.06);
+
+  /* ===== 布局尺寸 ===== */
+  --header-height: 64px;
+  --sidebar-width: 180px;
+  --sidebar-width-collapsed: 60px;
+  --sidebar-current-width: var(--sidebar-width);
+  --max-content-width: 1680px;
+
+  /* ===== 颜色系统 - 亮色模式 (Warm Paper) ===== */
+  /* These app-* / glass tokens are early defaults — `styles/tokens.css` loads
+     after this file and overrides --app-* with the official Warm Paper palette.
+     Values here are kept consistent so a brief flash-of-unstyled paint matches. */
+  --app-bg: #f6f3ec;
+  --app-bg-soft: #efeadf;
+  --app-surface: #fbf8f1;
+  --app-surface-muted: #efeadf;
+  --app-border: rgba(35, 31, 26, 0.1);
+  --app-border-strong: rgba(35, 31, 26, 0.18);
+  --app-text-strong: #231f1a;
+  --app-text-muted: #5e564a;
+  --app-text-disabled: #9a907e;
+  --app-accent: #a04a1f;
+  --app-accent-hover: #7a3614;
+  --app-accent-soft: rgba(160, 74, 31, 0.12);
+  --app-success: #16a34a;
+  --app-warning: #d97706;
+  --app-error: #dc2626;
+  --app-info: #a04a1f;
+
+  /* ===== 毛玻璃效果 ===== */
+  --glass-bg: rgba(251, 248, 241, 0.72);
+  --glass-bg-light: rgba(251, 248, 241, 0.62);
+  --glass-bg-heavy: rgba(251, 248, 241, 0.86);
+  --glass-border: rgba(226, 220, 205, 0.45);
+  --glass-blur: 20px;
+  --glass-blur-light: 16px;
+  --glass-blur-heavy: 24px;
+  --glass-shadow: 0 8px 32px rgba(35, 31, 26, 0.12);
+
+  /* Interaction aliases are defined once in styles/tokens.css. */
+
+  /* ===== 品牌颜色（第三方登录等） ===== */
+  --color-github: #24292f;
+  --color-facebook: #1877f2;
+  --color-google: #ea4335;
+}
+
+/* ===== 暗黑模式变量覆盖 ===== */
+body[theme-mode='dark'] {
+  /* 暗黑模式阴影 - 更柔和 */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.18);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.32);
+  --shadow-2xl: 0 24px 56px rgba(0, 0, 0, 0.4);
+
+  /* 暗黑模式毛玻璃 */
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-bg-light: rgba(35, 31, 26, 0.6);
+  --glass-bg-heavy: rgba(30, 41, 59, 0.85);
+  --glass-border: rgba(251, 248, 241, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  color: var(--app-text-strong);
+  background: var(--app-bg);
+}
+
+body.sidebar-collapsed {
+  --sidebar-current-width: var(--sidebar-width-collapsed);
+}
+
+/* ==================== 全局基础样式 ==================== */
+body {
+  font-family: var(--font-ui), 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: var(--font-size-base);
+  font-weight: 400;
+  color: var(--app-text-strong);
+  background: var(--app-bg);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-brand), 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--app-text-strong);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+/* Buttons rendered as links through Base UI composition must keep the primary button's
+   contrast color; the unlayered `a { color: inherit }` above otherwise wins
+   over the layered button styles and the label turns low-contrast on the
+   accent fill (e.g. 404 "back home"). */
+a.lazu-button--primary,
+a.lazu-icon-button--primary {
+  color: var(--ui-accent-contrast);
+}
+
+/* Same shape of collision, on the heading side: the unlayered `h1` rule above
+   sets its own family and letter-spacing, and unlayered always beats a layer,
+   so the status page's title spec never applied. Restated here so the 404 /
+   403 / crash titles keep the type they are designed with. */
+h1.lazu-status-page__title {
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+/* The same collision for every console page title and the overview heading:
+   the unlayered `h1` rule above would put them back on the sans. */
+h1.lazu-page-header__title,
+h1.console-page-topbar__title,
+.gateway-overview__head-copy h1 {
+  font-family: var(--lazu-font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Settings page — task-first vertical navigation keeps the section,
+   explanation and local save action in one stable reading path. */
+.settings-task-layout {
+  align-items: start;
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(210px, 0.28fr) minmax(0, 1fr);
+}
+
+/* Keep the selected task and its form on one reading axis at desktop widths.
+   The previous two-column treatment made the settings screen compete with
+   its own navigation before the task content had started. */
+.app-shell-v2--console .console-page-shell--form .settings-task-layout {
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-tabbar {
+  border-right: 1px solid var(--ui-border);
+  display: grid;
+  gap: 4px;
+  padding-right: 18px;
+  position: sticky;
+  top: calc(var(--shell-top-offset, 0px) + 18px);
+}
+
+.app-shell-v2--console .console-page-shell--form .settings-tabbar {
+  border-bottom: 1px solid var(--ui-border);
+  border-right: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 0 0 12px;
+  position: static;
+}
+
+.app-shell-v2--console .console-page-shell--form .settings-tabbar__label {
+  grid-column: 1 / -1;
+}
+
+.settings-tabbar__label,
+.settings-task-panel__heading > span {
+  color: var(--ui-text-tertiary);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  padding: 0 10px 8px;
+  text-transform: uppercase;
+}
+
+.settings-tab {
+  appearance: none;
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-lg);
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 10px;
+  text-align: left;
+  transition:
+    background-color var(--ui-motion-fast) var(--ui-ease-direct),
+    border-color var(--ui-motion-fast) var(--ui-ease-direct),
+    color var(--ui-motion-fast) var(--ui-ease-direct);
+}
+
+.settings-tab svg {
+  margin-top: 2px;
+  color: var(--ui-text-tertiary);
+}
+
+.settings-tab strong,
+.settings-tab small {
+  display: block;
+}
+
+.settings-tab strong {
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.settings-tab small {
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.settings-tab:hover {
+  background: var(--ui-bg-muted);
+  color: var(--ui-text);
+}
+
+.settings-tab.is-active {
+  background: var(--ui-bg-raised);
+  border-color: var(--ui-border);
+  color: var(--ui-text);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.settings-tab.is-active svg {
+  color: var(--ui-accent);
+}
+
+.settings-task-panel__heading {
+  border-bottom: 1px solid var(--ui-border);
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+}
+
+.settings-task-panel__heading > span {
+  padding: 0;
+}
+
+.settings-task-panel__heading h2 {
+  color: var(--ui-text);
+  font-size: 20px;
+  margin: 5px 0 0;
+}
+
+@media (max-width: 820px) {
+  .settings-task-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-tabbar {
+    border-bottom: 1px solid var(--ui-border);
+    border-right: 0;
+    display: flex;
+    overflow-x: auto;
+    padding: 0 0 12px;
+    position: static;
+  }
+
+  .app-shell-v2--console .console-page-shell--form .settings-tabbar {
+    display: flex;
+    grid-template-columns: none;
+  }
+
+  .settings-tabbar__label {
+    display: none;
+  }
+
+  .app-shell-v2--console .console-page-shell--form .settings-tabbar__label {
+    display: none;
+  }
+
+  .settings-tab {
+    flex: 0 0 min(220px, 70vw);
+  }
+}
+
+/* Settings D · continuous sections with a B · change-review sidebar. */
+.app-shell-v2--console .console-page-shell--form .settings-change-layout {
+  align-items: start;
+  gap: 24px;
+  grid-template-columns: minmax(200px, 0.26fr) minmax(0, 1fr);
+}
+
+.app-shell-v2--console .console-page-shell--form .settings-change-sidebar {
+  align-content: start;
+  border-bottom: 0;
+  border-right: 1px solid var(--ui-border);
+  grid-template-columns: 1fr;
+  padding: 0 16px 0 0;
+  position: sticky;
+  top: calc(var(--shell-top-offset, 0px) + 18px);
+}
+
+.app-shell-v2--console
+  .console-page-shell--form
+  .settings-change-sidebar
+  .settings-tabbar__label {
+  grid-column: auto;
+}
+
+.settings-scope-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.settings-scope-pill {
+  align-items: center;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-pill);
+  color: var(--ui-text-secondary);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 650;
+  gap: 6px;
+  line-height: 1;
+  padding: 6px 12px;
+}
+
+.settings-scope-pill.is-active {
+  background: var(--ui-accent-soft);
+  border-color: color-mix(in srgb, var(--ui-accent) 40%, var(--ui-border));
+  color: var(--ui-accent-text);
+}
+
+.settings-scope-pill.is-disabled {
+  color: var(--ui-text-tertiary);
+  cursor: not-allowed;
+}
+
+.settings-scope-pill.is-disabled small {
+  background: var(--ui-bg-raised);
+  border-radius: var(--ui-radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+
+.settings-scope-bar__hint {
+  color: var(--ui-text-tertiary);
+  font-size: 12px;
+}
+
+.settings-scope-bar__hint a {
+  color: var(--ui-accent-text);
+}
+
+.settings-scope-bar__hint a:hover {
+  text-decoration: underline;
+}
+
+.settings-continuous-section {
+  border-top: 1px solid var(--ui-border);
+  padding-top: 18px;
+}
+
+.settings-continuous-section + .settings-continuous-section {
+  margin-top: 26px;
+}
+
+.settings-continuous-section h3 {
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 1100px) {
+  .app-shell-v2--console .console-page-shell--form .settings-change-layout {
+    grid-template-columns: minmax(170px, 0.3fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 820px) {
+  .app-shell-v2--console .console-page-shell--form .settings-change-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell-v2--console .console-page-shell--form .settings-change-sidebar {
+    border-bottom: 1px solid var(--ui-border);
+    border-right: 0;
+    display: flex;
+    overflow-x: auto;
+    padding: 0 0 12px;
+    position: static;
+  }
+}
+
+/* 内容区域（文章、markdown、关于页面）的链接保留蓝色 */
+.about-content a,
+.notice-content-scroll a,
+.card-content-scroll a,
+.custom-footer a {
+  color: var(--app-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.about-content a:hover,
+.notice-content-scroll a:hover,
+.card-content-scroll a:hover,
+.custom-footer a:hover {
+  color: var(--app-accent-hover);
+}
+
+/* Native button reset — leave Lazu UI buttons alone so the design-system
+   variants (.lazu-button--primary / --secondary etc.) can paint their
+   own background and border. Primitive controls (.lazu-checkbox,
+   .lazu-switch) also render as <button>, so they must be excluded too
+   or the reset wipes their checked/track styling. Bespoke controls that paint
+   their own surface — the version plate, the announcement workbench's chips —
+   opt out with data-owns-chrome rather than growing this selector one class at
+   a time. Without these exceptions the reset wipes them and every Warm Paper
+   button renders as transparent text. */
+button:not(.lazu-button):not(.lazu-icon-button):not(
+    .lazu-pagination-button
+  ):not(.lazu-toolbar-button):not(.lazu-tabs-trigger):not(.lazu-checkbox):not(
+    .lazu-switch
+  ):not(.lazu-select-trigger):not(.lazu-date-trigger):not([data-owns-chrome]) {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+button:not(.lazu-button):not(.lazu-icon-button):not(
+    .lazu-pagination-button
+  ):not(.lazu-toolbar-button):not(.lazu-tabs-trigger):not(.lazu-checkbox):not(
+    .lazu-switch
+  ):not(.lazu-select-trigger):not(.lazu-date-trigger):not(
+    [data-owns-chrome]
+  ):focus {
+  outline: none;
+}
+
+::selection {
+  background: var(--app-accent-soft);
+  color: var(--app-text-strong);
+}
+
+code {
+  font-family:
+    var(--font-mono), 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  font-size: var(--font-size-sm);
+}
+
+.dashv3-drill-link {
+  color: inherit;
+  display: block;
+  text-decoration: none;
+}
+
+.dashv3-drill-link:hover .dashv3-dim-row {
+  background: var(--ui-surface-muted);
+}
+
+.dashv3-drill-link:focus-visible {
+  border-radius: var(--ui-radius-md);
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.usage-responsibility-path {
+  align-items: center;
+  display: flex;
+  gap: var(--ui-space-4);
+  justify-content: space-between;
+  padding: var(--ui-space-3) var(--ui-space-4);
+}
+
+.usage-responsibility-path__scope,
+.usage-responsibility-path__steps,
+.usage-responsibility-path__steps span {
+  align-items: center;
+  display: flex;
+}
+
+.usage-responsibility-path__scope {
+  gap: var(--ui-space-2);
+}
+
+.usage-responsibility-path__scope > span,
+.usage-responsibility-path__scope small {
+  color: var(--ui-text-faint);
+  font-size: 12px;
+}
+
+.usage-responsibility-path__steps {
+  color: var(--ui-text-faint);
+  gap: var(--ui-space-2);
+  min-width: 0;
+}
+
+.usage-responsibility-path__steps span {
+  color: var(--ui-text-muted);
+  font-size: 12px;
+  gap: var(--ui-space-1);
+  min-width: 0;
+}
+
+.usage-page--log-first > .console-page-body {
+  gap: 10px;
+}
+
+.usage-tabs-strip {
+  border-bottom: 1px solid var(--ui-border-soft);
+  padding: 0 0 8px;
+}
+
+.usage-page--log-first .usage-log-page .console-page-topbar {
+  padding-inline: 0;
+}
+
+.usage-page--log-first .usage-log-page .console-page-body {
+  padding: 12px 0 0;
+}
+
+.usage-page--log-first .usage-log-page .lazu-data-surface {
+  border-radius: var(--ui-radius-lg);
+}
+
+.usage-page--log-first .usage-log-page .lazu-data-surface__title {
+  display: none;
+}
+
+.usage-page--log-first .usage-log-page .lazu-data-surface__header {
+  min-height: 0;
+  padding-bottom: 10px;
+}
+
+.usage-page--log-first .usage-log-page .lazu-filter-bar {
+  border-bottom: 1px solid var(--ui-border-soft);
+  padding-bottom: 12px;
+}
+
+.usage-page--log-first .usage-log-page .usage-investigation__master {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .usage-page--log-first .usage-log-page .console-page-topbar__actions {
+    width: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .usage-responsibility-path {
+    align-items: flex-start;
+    display: grid;
+  }
+
+  .usage-responsibility-path__steps {
+    overflow-x: auto;
+  }
+}
+
+/* ===== 减少动画偏好 ===== */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within,
+  * {
+    scroll-behavior: auto;
+  }
+
+  /* Keep semantic color/opacity feedback. Spatial motion is disabled by the
+     owning component stylesheet so reduced-motion users still see state
+     changes instead of losing every transition globally. Loading indicators
+     remain active because they communicate ongoing work. */
+}
+
+/* 文本截断 */
+.text-truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 多行截断 */
+.text-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.text-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==================== 布局相关样式 ==================== */
+
+/* ==================== 应用框架样式 ==================== */
+.app-shell {
+  background: transparent !important;
+}
+
+.app-content {
+  background: transparent;
+}
+
+.console-page-shell {
+  width: 100%;
+  max-width: var(--max-content-width);
+  margin: calc(var(--header-height) - 4px) auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.console-route-shell {
+  width: 100%;
+  max-width: var(--max-content-width);
+  margin: calc(var(--header-height) - 4px) auto 0;
+  padding-inline: var(--space-2);
+}
+
+.app-shell-v2--console .console-page-shell {
+  gap: 0;
+  margin: 0;
+  max-width: none;
+}
+
+/* Form-style console pages (e.g. settings) read better as a centred,
+   width-capped column instead of stretching edge-to-edge on wide screens.
+   The tab bar, field rows and sticky action bar all share this width so
+   labels, controls and buttons stay vertically aligned. */
+.app-shell-v2--console .console-page-shell.console-page-shell--form {
+  max-width: 868px;
+  margin-inline: auto;
+}
+
+.app-shell-v2--console .console-route-shell {
+  margin: 0;
+  max-width: none;
+  padding: 24px;
+}
+
+.console-page-topbar {
+  align-items: center;
+  border-bottom: 1px solid var(--ui-border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 10px 24px;
+}
+
+.console-page-topbar__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.console-page-topbar__title-row,
+.console-page-topbar__actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.console-page-topbar__title {
+  color: var(--ui-text);
+  font-family: var(--font-brand);
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.console-page-topbar__badge,
+.console-page-topbar__description {
+  color: var(--ui-text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.console-page-topbar__badge {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.console-page-topbar__description {
+  margin: 0;
+}
+
+.console-page-body {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+/* Dashboard visual-first layout: one dominant chart, then a compact budget
+   and model reading rail. The layout deliberately avoids a wall of equal
+   cards so the spending story has a clear first read. */
+.dashboard-visual-layout {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr);
+}
+
+.dashboard-visual-main,
+.dashboard-visual-aside {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dashboard-visual-trend-surface .lazu-data-surface__body {
+  padding-top: 4px;
+}
+
+.dashboard-visual-trend-surface__summary {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.dashboard-visual-trend-surface__summary > span {
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+}
+
+.dashboard-visual-trend-surface__summary b {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-weight: 650;
+}
+
+.dashboard-visual-trend-surface__total {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-right: 4px;
+}
+
+.dashboard-visual-trend-surface__summary + div {
+  min-height: 236px;
+}
+
+.dashboard-visual-legend {
+  border-top: 1px solid var(--ui-border-soft);
+  color: var(--ui-text-tertiary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 11px;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.dashboard-visual-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.dashboard-visual-legend__line {
+  border-radius: 999px;
+  display: inline-block;
+  height: 3px;
+  width: 14px;
+}
+
+.dashboard-visual-legend__line--spend {
+  background: var(--ui-accent);
+}
+
+.dashboard-visual-legend__line--budget {
+  background: var(--ui-text-tertiary);
+  border-top: 1px dashed var(--ui-text-tertiary);
+}
+
+.dashboard-visual-empty {
+  align-items: center;
+  color: var(--ui-text-tertiary);
+  display: flex;
+  justify-content: center;
+  min-height: 236px;
+}
+
+.dashboard-visual-budget__body {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+}
+
+.dashboard-visual-budget__body > div:first-child {
+  color: var(--ui-text-secondary);
+  font-size: 11px;
+  text-align: center;
+}
+
+.dashboard-visual-budget__percent {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 22px;
+}
+
+.dashboard-visual-budget__stats {
+  display: grid;
+  flex: 1;
+  gap: 10px;
+  margin: 0;
+}
+
+.dashboard-visual-budget__stats div {
+  align-items: baseline;
+  border-bottom: 1px solid var(--ui-border-soft);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.dashboard-visual-budget__stats div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.dashboard-visual-budget__stats dt {
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+}
+
+.dashboard-visual-budget__stats dd {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin: 0;
+}
+
+.dashboard-visual-composition .lazu-data-card__body {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-visual-composition__row {
+  align-items: baseline;
+  border-bottom: 1px solid var(--ui-border-soft);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.dashboard-visual-composition__row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.dashboard-visual-composition__row span {
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+}
+
+.dashboard-visual-composition__row b {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .app-shell-v2--console .console-route-shell {
+    padding: 12px;
+  }
+
+  .console-page-topbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+    align-items: flex-start;
+  }
+
+  .console-page-topbar__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .console-page-body {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .dashboard-visual-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-visual-budget__body {
+    align-items: flex-start;
+  }
+}
+
+.dashboard-visual-chart {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  height: 100%;
+  min-height: 220px;
+}
+
+.dashboard-visual-chart__axis {
+  color: var(--ui-text-tertiary);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  justify-content: space-between;
+  padding: 10px 0 30px;
+}
+
+.dashboard-visual-chart__plot {
+  align-items: end;
+  background-image: linear-gradient(
+    to bottom,
+    var(--ui-border-soft) 1px,
+    transparent 1px
+  );
+  background-size: 100% 25%;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(7, minmax(24px, 1fr));
+  min-width: 0;
+  padding: 12px 0 30px;
+}
+
+.dashboard-visual-chart__bar {
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: end;
+  min-width: 0;
+  position: relative;
+}
+
+.dashboard-visual-chart__bar span {
+  background: var(--ui-accent);
+  border-radius: 4px 4px 0 0;
+  display: block;
+  min-height: 18px;
+}
+
+.dashboard-visual-chart__bar small {
+  bottom: -24px;
+  color: var(--ui-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.dashboard-overview-surface.lazu-data-surface .lazu-data-surface__body {
+  padding: 0;
+}
+
+.dashboard-overview {
+  align-items: stretch;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 38%),
+    linear-gradient(315deg, rgba(5, 150, 105, 0.08), transparent 40%),
+    var(--ui-bg-raised);
+  border-radius: inherit;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.72fr);
+  min-height: 132px;
+  padding: 18px;
+}
+
+.dashboard-overview__copy {
+  align-content: center;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dashboard-overview__eyebrow {
+  align-items: center;
+  color: var(--ui-text-tertiary);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 760;
+  gap: 7px;
+  letter-spacing: 0;
+}
+
+.dashboard-overview__copy h2 {
+  color: var(--ui-text);
+  font-family: var(--font-brand);
+  font-size: 30px;
+  font-weight: 780;
+  letter-spacing: 0;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.dashboard-overview__copy p {
+  color: var(--ui-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 62ch;
+}
+
+.dashboard-overview__stats {
+  align-self: stretch;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-overview__stats div {
+  align-content: center;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.dashboard-overview__stats span,
+.dashboard-metric-card__label {
+  color: var(--ui-text-tertiary);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.dashboard-overview__stats strong {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 780;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-metric-card {
+  --dashboard-metric-accent: #64748b;
+  --dashboard-metric-accent-soft: rgba(100, 116, 139, 0.12);
+  --dashboard-metric-accent-line: rgba(100, 116, 139, 0.42);
+  min-height: 136px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dashboard-metric-card::before {
+  background: var(--dashboard-metric-accent-line);
+  content: '';
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.dashboard-metric-card--blue {
+  --dashboard-metric-accent: #2563eb;
+  --dashboard-metric-accent-soft: rgba(37, 99, 235, 0.1);
+  --dashboard-metric-accent-line: rgba(37, 99, 235, 0.48);
+}
+
+.dashboard-metric-card--green {
+  --dashboard-metric-accent: #059669;
+  --dashboard-metric-accent-soft: rgba(5, 150, 105, 0.11);
+  --dashboard-metric-accent-line: rgba(5, 150, 105, 0.5);
+}
+
+.dashboard-metric-card--amber {
+  --dashboard-metric-accent: #b45309;
+  --dashboard-metric-accent-soft: rgba(180, 83, 9, 0.11);
+  --dashboard-metric-accent-line: rgba(180, 83, 9, 0.5);
+}
+
+.dashboard-metric-card__header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.dashboard-metric-card__icon {
+  align-items: center;
+  background: var(--dashboard-metric-accent-soft);
+  border: 1px solid var(--dashboard-metric-accent-line);
+  border-radius: 8px;
+  color: var(--dashboard-metric-accent);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.dashboard-metric-card__value {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 780;
+  letter-spacing: 0;
+  line-height: 1.12;
+  margin-top: 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-metric-card__meta {
+  align-items: center;
+  color: var(--ui-text-secondary);
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+  justify-content: space-between;
+  line-height: 1.35;
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.dashboard-metric-card__meta span {
+  min-width: 0;
+}
+
+.dashboard-metric-card__meta strong,
+.dashboard-card-kpi {
+  background: var(--ui-bg-muted);
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 999px;
+  color: var(--ui-text-secondary);
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 760;
+  padding: 3px 7px;
+}
+
+.dashboard-chart-panel .lazu-data-card__body {
+  padding-top: 8px;
+}
+
+.dashboard-rank-card .lazu-data-card__body {
+  padding-top: 8px;
+}
+
+.dashboard-rank-list {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-rank-row {
+  align-items: center;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(112px, auto);
+  min-height: 64px;
+  padding: 10px 12px;
+}
+
+.dashboard-rank-row__index {
+  align-items: center;
+  background: var(--ui-bg-muted);
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 8px;
+  color: var(--ui-text-tertiary);
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 780;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.dashboard-rank-row__main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dashboard-rank-row__title {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.dashboard-rank-row__title span {
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: 760;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-rank-row__title small,
+.dashboard-rank-row__metric span {
+  color: var(--ui-text-tertiary);
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.dashboard-rank-row__bar {
+  background: var(--ui-bg-muted);
+  border-radius: 999px;
+  height: 4px;
+  overflow: hidden;
+}
+
+.dashboard-rank-row__bar span {
+  background: linear-gradient(90deg, #2563eb, #059669);
+  border-radius: 999px;
+  display: block;
+  height: 4px;
+}
+
+.dashboard-rank-row__metric {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  min-width: 0;
+}
+
+.dashboard-rank-row__metric strong {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.15;
+}
+
+body[theme-mode='dark'] .dashboard-overview {
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.13), transparent 42%),
+    linear-gradient(315deg, rgba(16, 185, 129, 0.12), transparent 42%),
+    var(--ui-bg-raised);
+}
+
+body[theme-mode='dark'] .dashboard-overview__stats div {
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.models-market-page {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: calc(100vh - var(--shell-top-offset, 0px));
+}
+
+.models-market-sidebar {
+  border-right: 1px solid var(--ui-border);
+  padding: 20px 18px;
+}
+
+.models-filter-group {
+  color: var(--ui-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 4px 0 8px;
+  text-transform: uppercase;
+}
+
+.models-filter-group:not(:first-child) {
+  margin-top: 22px;
+}
+
+.models-market-sidebar button {
+  align-items: center;
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text-secondary);
+  display: flex;
+  font-size: 12.5px;
+  justify-content: space-between;
+  padding: 5px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.models-market-sidebar button:hover,
+.models-market-sidebar button.is-active {
+  background: var(--ui-bg-muted);
+  color: var(--ui-text);
+}
+
+.models-market-sidebar button > span:last-child {
+  color: var(--ui-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.models-provider-name {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.models-provider-name span {
+  align-items: center;
+  background: var(--ui-bg-muted);
+  border-radius: 3px;
+  color: var(--ui-text-tertiary);
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  height: 14px;
+  justify-content: center;
+  width: 14px;
+}
+
+.models-check-row {
+  align-items: center;
+  color: var(--ui-text-secondary);
+  display: flex;
+  font-size: 12.5px;
+  gap: 8px;
+  padding: 5px 8px;
+}
+
+.models-market-content {
+  min-width: 0;
+  overflow: auto;
+  padding: 20px 24px 48px;
+}
+
+.models-market-heading {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.models-market-heading h1 {
+  color: var(--ui-text);
+  font-size: 22px;
+  font-weight: 760;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.models-market-heading p,
+.models-market-subtitle {
+  color: var(--ui-text-secondary);
+  font-size: 13px;
+  margin: 5px 0 0;
+}
+
+.models-market-heading p {
+  color: var(--ui-text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.models-market-subtitle {
+  margin-bottom: 20px;
+}
+
+.models-market-subtitle code {
+  background: var(--ui-bg-muted);
+  border-radius: 3px;
+  color: var(--ui-text);
+  padding: 1px 5px;
+}
+
+.models-market-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.models-market-search {
+  align-items: center;
+  background: var(--ui-bg-raised);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-text-tertiary);
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+}
+
+.models-market-search .lazu-input {
+  border: 0;
+  box-shadow: none;
+  height: 30px;
+  padding: 0;
+}
+
+.models-card-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.models-card {
+  background: var(--ui-bg-raised);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 184px;
+  padding: 14px;
+  position: relative;
+}
+
+.models-card-hot {
+  background: var(--ui-accent-soft);
+  border-radius: 3px;
+  color: var(--ui-accent);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 4px 6px;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+.models-card-head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 68px;
+}
+
+.models-card-logo {
+  align-items: center;
+  background: var(--ui-bg-muted);
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text-secondary);
+  display: inline-flex;
+  flex: 0 0 28px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 760;
+  height: 28px;
+  justify-content: center;
+}
+
+.models-card h2 {
+  color: var(--ui-text);
+  font-size: 13.5px;
+  font-weight: 760;
+  line-height: 1.25;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.models-card p {
+  color: var(--ui-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  margin: 2px 0 0;
+}
+
+.models-card-metrics {
+  border-bottom: 1px solid var(--ui-border);
+  border-top: 1px solid var(--ui-border);
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.models-card-metrics div {
+  flex: 1;
+  min-width: 0;
+}
+
+.models-card-metrics span {
+  color: var(--ui-text-tertiary);
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.models-card-metrics strong {
+  color: var(--ui-text);
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.models-card-metrics small {
+  color: var(--ui-text-tertiary);
+  font-size: 10px;
+  margin-left: 1px;
+}
+
+.models-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+@media (max-width: 980px) {
+  .models-market-page {
+    grid-template-columns: 1fr;
+  }
+
+  .models-market-sidebar {
+    border-bottom: 1px solid var(--ui-border);
+    border-right: 0;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 12px 16px;
+  }
+
+  .models-filter-group,
+  .models-check-row,
+  .models-market-sidebar button > span:last-child {
+    display: none;
+  }
+
+  .models-market-sidebar button {
+    border: 1px solid var(--ui-border);
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .models-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .models-market-content {
+    padding: 18px 16px 42px;
+  }
+
+  .models-market-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .models-market-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .models-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pricing-modern-page {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: clamp(36px, 5vw, 56px) 24px 64px;
+}
+
+.pricing-modern-hero {
+  margin: 0 auto 28px;
+  max-width: 720px;
+  text-align: center;
+}
+
+.pricing-modern-eyebrow {
+  color: #a04a1f;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+}
+
+.pricing-modern-hero h1 {
+  color: var(--ui-text);
+  font-family: var(--font-brand);
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1.08;
+  margin: 0;
+}
+
+.pricing-modern-hero p:not(.pricing-modern-eyebrow) {
+  color: var(--ui-text-secondary);
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 12px auto 0;
+  max-width: 620px;
+}
+
+.pricing-plan-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 28px;
+}
+
+.pricing-plan-card {
+  background: var(--ui-bg-raised);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-lg);
+  display: grid;
+  min-height: 324px;
+  padding: 22px;
+  position: relative;
+}
+
+.pricing-plan-card.is-featured {
+  border-color: #a04a1f;
+}
+
+.pricing-plan-card__badge {
+  background: #a04a1f;
+  border-radius: var(--ui-radius-sm);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 760;
+  left: 20px;
+  line-height: 1;
+  padding: 5px 10px;
+  position: absolute;
+  text-transform: uppercase;
+  top: -9px;
+}
+
+.pricing-plan-card h2 {
+  color: var(--ui-text);
+  font-size: 15px;
+  font-weight: 760;
+  margin: 0 0 8px;
+}
+
+.pricing-plan-card__rate {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 38px;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.pricing-plan-card p {
+  border-bottom: 1px solid var(--ui-border);
+  color: var(--ui-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 12px 0 16px;
+  padding-bottom: 16px;
+}
+
+.pricing-plan-card ul {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+}
+
+.pricing-plan-card li {
+  align-items: center;
+  color: var(--ui-text-secondary);
+  display: flex;
+  font-size: 13px;
+  gap: 9px;
+}
+
+.pricing-plan-card li svg {
+  color: #a04a1f;
+}
+
+.pricing-plan-card__action {
+  align-self: end;
+  justify-content: center;
+  width: 100%;
+}
+
+.pricing-live-surface.lazu-data-surface .lazu-data-surface__body {
+  padding: 0;
+}
+
+.pricing-live-header {
+  align-items: center;
+  border-bottom: 1px solid var(--ui-border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+
+.pricing-live-header h2 {
+  color: var(--ui-text);
+  font-size: 15px;
+  font-weight: 760;
+  margin: 0;
+}
+
+.pricing-live-header span,
+.pricing-live-table__row.is-head span {
+  color: var(--ui-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.pricing-live-filters {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  padding: 14px 18px;
+}
+
+.pricing-live-table {
+  overflow-x: auto;
+}
+
+.pricing-live-table__row {
+  align-items: center;
+  border-top: 1px solid var(--ui-border-soft);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(120px, 1fr));
+  min-width: 820px;
+  padding: 13px 18px;
+}
+
+.pricing-live-table__row:first-child {
+  border-top: 0;
+}
+
+.pricing-live-table__row span {
+  color: var(--ui-text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.pricing-live-table__row span:last-child {
+  color: #a04a1f;
+  font-weight: 760;
+}
+
+@media (max-width: 900px) {
+  .console-page-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 14px 16px;
+  }
+
+  .console-page-topbar__actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .console-page-body,
+  .app-shell-v2--console .console-route-shell {
+    padding: 16px;
+  }
+
+  .app-shell-v2--console .console-page-topbar {
+    display: none;
+  }
+
+  .app-shell-v2--console .console-page-body {
+    gap: 12px;
+    padding: 16px 12px;
+  }
+
+  .app-shell-v2--console .dashboard-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-shell-v2--console .dashboard-metric-card {
+    min-height: 112px;
+  }
+
+  .app-shell-v2--console .dashboard-metric-card .lazu-data-card__body {
+    padding: 11px;
+  }
+
+  .dashboard-overview {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .dashboard-overview__copy h2 {
+    font-size: 24px;
+  }
+
+  .dashboard-overview__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-overview__stats div {
+    padding: 10px;
+  }
+
+  .dashboard-overview__stats strong {
+    font-size: 16px;
+  }
+
+  .dashboard-metric-card__value {
+    font-size: 20px;
+    margin-top: 12px;
+  }
+
+  .dashboard-metric-card__meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 9px;
+  }
+
+  .dashboard-rank-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .dashboard-rank-row__metric {
+    grid-column: 2;
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-items: start;
+  }
+
+  .dashboard-mobile-summary {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 6px 0 2px;
+  }
+
+  .dashboard-mobile-summary div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  /* Without an explicit align rule the badge stretched to the balance
+     column's height (~80px), turning the LIVE STATUS pill into a giant
+     rectangle. Pin it to the top so it stays a compact chip. */
+  .dashboard-mobile-summary > .lazu-badge {
+    align-self: flex-start;
+    flex-shrink: 0;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    padding: 4px 8px;
+    text-transform: uppercase;
+  }
+
+  .dashboard-mobile-summary span,
+  .dashboard-mobile-metric span {
+    color: var(--ui-text-tertiary);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-mobile-summary strong {
+    color: var(--ui-text);
+    font-family: var(--font-mono);
+    font-size: 34px;
+    line-height: 1.05;
+  }
+
+  .dashboard-mobile-summary small {
+    color: #008f47;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .dashboard-mobile-metric-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-mobile-metric {
+    align-items: flex-start;
+    background: var(--ui-bg-card);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    min-height: 78px;
+    padding: 10px;
+  }
+
+  .dashboard-mobile-metric div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dashboard-mobile-metric strong {
+    color: var(--ui-text);
+    font-family: var(--font-mono);
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  .dashboard-mobile-metric small {
+    color: var(--ui-text-secondary);
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .dashboard-mobile-metric svg {
+    color: var(--ui-text-tertiary);
+    flex: 0 0 auto;
+  }
+
+  .dashboard-mobile-chart-card .lazu-data-card__header,
+  .dashboard-mobile-recent-card .lazu-data-card__header {
+    padding: 11px 12px 0;
+  }
+
+  .dashboard-mobile-chart-card .lazu-data-card__body {
+    padding: 4px 12px 12px;
+  }
+
+  .dashboard-mobile-chart-frame {
+    height: 142px;
+    overflow: hidden;
+  }
+
+  .dashboard-mobile-chart-frame .dashboard-visual-chart {
+    grid-template-columns: 0 minmax(0, 1fr);
+    min-height: 132px;
+  }
+
+  .dashboard-mobile-chart-frame .dashboard-visual-chart__axis {
+    display: none;
+  }
+
+  .dashboard-mobile-chart-frame .dashboard-visual-chart__plot {
+    gap: 7px;
+    padding-bottom: 22px;
+  }
+
+  .dashboard-mobile-chart-total {
+    color: var(--ui-text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .dashboard-mobile-recent-list {
+    display: grid;
+    gap: 0;
+  }
+
+  .dashboard-mobile-recent-card .lazu-data-card__body {
+    padding: 8px 12px 12px;
+  }
+
+  .dashboard-mobile-recent-row {
+    align-items: center;
+    border-top: 1px solid var(--ui-border-soft);
+    display: flex;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 11px 0;
+  }
+
+  .dashboard-mobile-recent-row:first-child {
+    border-top: 0;
+  }
+
+  .dashboard-mobile-recent-row span:first-child {
+    color: var(--ui-text);
+    font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-recent-row span:last-child {
+    color: var(--ui-text-secondary);
+    flex: 0 0 auto;
+  }
+
+  .app-shell-v2--console .lazu-data-card,
+  .app-shell-v2--console .lazu-data-surface {
+    border-radius: 10px;
+  }
+
+  .app-shell-v2--console .lazu-data-card__header,
+  .app-shell-v2--console .lazu-data-surface__header,
+  .app-shell-v2--console .lazu-data-card__body,
+  .app-shell-v2--console .lazu-data-surface__body {
+    padding: 12px;
+  }
+
+  .pricing-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-live-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==================== 导航和侧边栏样式 ==================== */
+
+/* 自定义侧边栏样式 */
+.sidebar-container {
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  transition: width var(--duration-slow) var(--ease-out);
+}
+
+.sidebar-nav {
+  flex: 1 1 auto;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  background: var(--ui-surface);
+  min-height: 0;
+  height: auto;
+  overflow-x: hidden;
+  overflow: hidden;
+  border-right: none;
+  overflow-y: auto;
+}
+
+/* 侧边栏导航项样式 */
+.sidebar-nav-item {
+  border-radius: var(--radius-sm);
+  margin: var(--space-1) var(--space-2);
+  transition: all var(--duration-base) var(--ease-out);
+  padding: var(--space-2) var(--space-3);
+}
+
+.sidebar-nav-item:hover {
+  background-color: color-mix(in srgb, var(--ui-info) 10%, transparent);
+  color: var(--ui-accent);
+  transform: translateX(2px);
+}
+
+.sidebar-nav-item-selected {
+  background-color: color-mix(in srgb, var(--ui-info) 18%, transparent);
+  color: var(--ui-accent);
+  font-weight: 500;
+}
+
+/* 图标容器样式 */
+.sidebar-icon-container {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--space-3);
+  transition: all var(--duration-base) var(--ease-out);
+}
+
+.sidebar-sub-icon-container {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--space-3);
+  margin-left: 1px;
+  transition: all var(--duration-base) var(--ease-out);
+}
+
+/* 分割线样式 */
+.sidebar-divider {
+  margin: var(--space-1) var(--space-2);
+  opacity: 0.15;
+}
+
+/* 分组标签样式 */
+.sidebar-group-label {
+  padding: var(--space-1) 15px var(--space-2);
+  color: var(--ui-text-faint);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+/* 底部折叠按钮 */
+.sidebar-collapse-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-2)
+    calc(var(--space-3) + env(safe-area-inset-bottom));
+  margin-top: auto;
+  background: linear-gradient(
+    180deg,
+    rgba(251, 248, 241, 0.35) 0%,
+    var(--ui-surface) 36%
+  );
+  border-top: 1px solid color-mix(in srgb, var(--ui-text) 8%, transparent);
+}
+
+.sidebar-collapse-toggle {
+  width: 100% !important;
+  min-height: 32px;
+  display: inline-flex !important;
+  justify-content: center;
+  border-radius: var(--radius-full) !important;
+  border: 1px solid color-mix(in srgb, var(--ui-text) 18%, transparent) !important;
+  background: var(--ui-surface-muted) !important;
+}
+
+.sidebar-collapse-toggle-collapsed {
+  width: 40px;
+  min-width: 40px;
+  padding: 0 !important;
+}
+
+.sidebar-collapse-toggle-text {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ui-text-muted);
+}
+
+body[theme-mode='dark'] .sidebar-collapse-button {
+  background: linear-gradient(
+    180deg,
+    rgba(35, 31, 26, 0.32) 0%,
+    var(--ui-surface) 36%
+  );
+  border-top-color: rgba(148, 163, 184, 0.18);
+}
+
+body[theme-mode='dark'] .sidebar-collapse-toggle {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: rgba(35, 31, 26, 0.62) !important;
+}
+
+.sidebar-collapse-button-inner {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--ui-surface-muted);
+  transition: all var(--duration-base) var(--ease-out);
+}
+
+.sidebar-collapse-icon-container {
+  display: inline-block;
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+
+/* 侧边栏区域容器 */
+.sidebar-section {
+  padding-top: var(--space-3);
+}
+
+/* ==================== 聊天界面样式 ==================== */
+
+/* ==================== Usage Logs readability ==================== */
+.usage-logs-stat-pill {
+  border-radius: 12px;
+  color: #f8fafc;
+}
+
+.usage-logs-stat-pill svg {
+  color: inherit;
+  opacity: 0.96;
+}
+
+.usage-logs-filter-field input::placeholder {
+  color: #9a907e;
+  opacity: 1;
+}
+
+body[theme-mode='dark'] .usage-logs-filter-field input::placeholder {
+  color: #9a907e;
+}
+
+/* 隐藏所有聊天相关区域的滚动条 */
+
+/* ==================== 组件特定样式 ==================== */
+/* SelectableButtonGroup */
+
+.sbg-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
+}
+
+.sbg-ellipsis {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Tabs组件样式 */
+
+/* 表格样式 */
+.tableShow {
+  display: revert;
+}
+
+.tableHiddle {
+  display: none !important;
+}
+
+/* 页脚样式 */
+.custom-footer {
+  font-size: 1.1em;
+}
+
+/* 卡片内容容器通用样式 */
+.card-content-container {
+  position: relative;
+}
+
+.card-content-fade-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: linear-gradient(transparent, var(--ui-surface-muted));
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+/* ==================== 调试面板特定样式 ==================== */
+
+/* ==================== 滚动条样式 ==================== */
+/* 表格滚动条样式 */
+
+/* 侧边抽屉滚动条样式 */
+
+/* ==================== 渠道选择器 ==================== */
+.components-transfer-source-item,
+.components-transfer-selected-item {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2);
+}
+
+.components-transfer-source-item .info,
+.components-transfer-selected-item .info {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.components-transfer-source-item .name,
+.components-transfer-selected-item .name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.components-transfer-source-item .email,
+.components-transfer-selected-item .email {
+  font-size: var(--font-size-sm);
+  color: var(--ui-text-faint);
+  display: flex;
+  align-items: center;
+}
+
+/* ==================== 未读通知闪光效果 ==================== */
+@keyframes sweep-shine {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.shine-text {
+  background: linear-gradient(
+    90deg,
+    currentColor 0%,
+    currentColor 40%,
+    rgba(251, 248, 241, 0.9) 50%,
+    currentColor 60%,
+    currentColor 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: sweep-shine 4s linear infinite;
+}
+
+.dark .shine-text {
+  background: linear-gradient(
+    90deg,
+    currentColor 0%,
+    currentColor 40%,
+    #facc15 50%,
+    currentColor 60%,
+    currentColor 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ==================== ScrollList 定制样式 ==================== */
+
+/* ==================== Banner 背景模糊球 ==================== */
+.blur-ball {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ==================== 卡片马卡龙模糊球（类封装） ==================== */
+.with-pastel-balls {
+  position: relative;
+  overflow: hidden;
+  --pb1: #ffd1dc;
+  --pb2: #e5d4ff;
+  --pb3: #fbe8d8;
+  --pb4: #ffe5d9;
+  --pb-opacity: 0.55;
+  --pb-blur: 60px;
+}
+
+.with-pastel-balls::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-base);
+  background:
+    radial-gradient(circle at -5% -10%, var(--pb1) 0%, transparent 60%),
+    radial-gradient(circle at 105% -10%, var(--pb2) 0%, transparent 55%),
+    radial-gradient(circle at 5% 110%, var(--pb3) 0%, transparent 55%),
+    radial-gradient(circle at 105% 110%, var(--pb4) 0%, transparent 50%);
+  filter: blur(var(--pb-blur));
+  opacity: var(--pb-opacity);
+  transform: translateZ(0);
+}
+
+html.dark .with-pastel-balls {
+  --pb-opacity: 0.36;
+  --pb-blur: 65px;
+}
+
+html.dark .with-pastel-balls::before {
+  mix-blend-mode: screen;
+}
+
+/* ==================== 表格卡片滚动设置 ==================== */
+.table-scroll-card {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 110px);
+  max-height: calc(100vh - 110px);
+}
+
+@media (max-width: 767px) {
+  .table-scroll-card {
+    height: calc(100vh - 77px);
+    max-height: calc(100vh - 77px);
+  }
+}

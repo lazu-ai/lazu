@@ -1,227 +1,190 @@
-<p align="right">
-   <strong>中文</strong> | <a href="./README.en.md">English</a> | <a href="./README.fr.md">Français</a> | <a href="./README.ja.md">日本語</a>
-</p>
-<div align="center">
+# Lazu
 
-![new-api](/web/public/logo.png)
+> **👤 Looking to use Lazu?** → **[lazu.ai/docs](https://lazu.ai/docs)** for the user-facing API documentation (Quickstart, Pricing, Endpoints, Examples).
+>
+> **🛠 Working on Lazu itself?** → keep reading, you're in the right place.
 
-# New API
+---
 
-🍥新一代大模型网关与AI资产管理系统
+Lazu is an AGPL-3.0-or-later OpenAI-compatible AI gateway, operations console, and developer documentation site. It provides approved model access, automatic failover, API Key policy, usage and request receipts, quota and billing controls, public Route health, and protected upstream operations.
 
-<a href="https://trendshift.io/repositories/8227" target="_blank"><img src="https://trendshift.io/api/badge/repositories/8227" alt="Calcium-Ion%2Fnew-api | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+The current product boundary is the reliable gateway core. Intelligent-routing experiments may remain in the codebase, but they are deferred from default navigation and the primary product story. The canonical visual and product design reference is [`brand/`](./brand/README.md).
 
-<p align="center">
-  <a href="https://raw.githubusercontent.com/Calcium-Ion/new-api/main/LICENSE">
-    <img src="https://img.shields.io/github/license/Calcium-Ion/new-api?color=brightgreen" alt="license">
-  </a>
-  <a href="https://github.com/Calcium-Ion/new-api/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Calcium-Ion/new-api?color=brightgreen&include_prereleases" alt="release">
-  </a>
-  <a href="https://github.com/users/Calcium-Ion/packages/container/package/new-api">
-    <img src="https://img.shields.io/badge/docker-ghcr.io-blue" alt="docker">
-  </a>
-  <a href="https://hub.docker.com/r/CalciumIon/new-api">
-    <img src="https://img.shields.io/badge/docker-dockerHub-blue" alt="docker">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/Calcium-Ion/new-api">
-    <img src="https://goreportcard.com/badge/github.com/Calcium-Ion/new-api" alt="GoReportCard">
-  </a>
-</p>
-</div>
+- **API endpoint**: `https://api.lazu.ai`
+- **Public docs (users)**: [`https://lazu.ai/docs`](https://lazu.ai/docs)
+- **Maintainer notes (this repo)**: [`docs/`](./docs)
 
-## 📝 项目说明
+Self-hosted deployments should configure their own API, web, docs, database, storage, and email settings through environment variables and backend config templates.
 
-> [!NOTE]  
-> 本项目为开源项目，在[One API](https://github.com/songquanpeng/one-api)的基础上进行二次开发
+## Workspace
 
-> [!IMPORTANT]  
-> - 本项目仅供个人学习使用，不保证稳定性，且不提供任何技术支持。
-> - 使用者必须在遵循 OpenAI 的[使用条款](https://openai.com/policies/terms-of-use)以及**法律法规**的情况下使用，不得用于非法用途。
-> - 根据[《生成式人工智能服务管理暂行办法》](http://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm)的要求，请勿对中国地区公众提供一切未经备案的生成式人工智能服务。
+| Path              | Purpose                                                                                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/`       | API server entrypoint                                                                                                                                             |
+| `apps/web/`       | Web console                                                                                                                                                       |
+| `apps/docs/`      | Active Vocs documentation source (en/zh/zh-TW/ja)                                                                                                                 |
+| `apps/worker/`    | Background jobs                                                                                                                                                   |
+| `internal/`       | Backend controllers, services, models, relay adapters, middleware, settings                                                                                       |
+| `packages/`       | Shared contracts and pure domain rules                                                                                                                            |
+| `config/`         | Backend config, env templates, seed data                                                                                                                          |
+| `ops/`            | Operational scripts and deployment helpers                                                                                                                        |
+| `docs/`           | Maintainer notes, deployment guidance, architecture notes, and glossary material                                                                                  |
+| `.local-results/` | （仅本地，已 gitignore）Playwright 截图 / trace / 报告、本地构建副本等"跑出来的产物"统一存放，约定见 [CONTRIBUTING.md](./CONTRIBUTING.md#本地产物local-artifacts) |
 
-<h2>🤝 我们信任的合作伙伴</h2>
-<p id="premium-sponsors">&nbsp;</p>
-<p align="center"><strong>排名不分先后</strong></p>
-<p align="center">
-  <a href="https://www.cherry-ai.com/" target=_blank><img
-    src="./docs/images/cherry-studio.png" alt="Cherry Studio" height="120"
-  /></a>
-  <a href="https://bda.pku.edu.cn/" target=_blank><img
-    src="./docs/images/pku.png" alt="北京大学" height="120"
-  /></a>
-  <a href="https://www.compshare.cn/?ytag=GPU_yy_gh_newapi" target=_blank><img
-    src="./docs/images/ucloud.png" alt="UCloud 优刻得" height="120"
-  /></a>
-  <a href="https://www.aliyun.com/" target=_blank><img
-    src="./docs/images/aliyun.png" alt="阿里云" height="120"
-  /></a>
-  <a href="https://io.net/" target=_blank><img
-    src="./docs/images/io-net.png" alt="IO.NET" height="120"
-  /></a>
-</p>
-<p>&nbsp;</p>
+Shared package sources:
 
-## 📚 文档
+- `packages/contracts/openapi/lazu-api-reference.v1.yaml`: developer API reference used by the docs site
 
-详细文档请访问我们的官方Wiki：[https://docs.newapi.pro/](https://docs.newapi.pro/)
+Error codes, envelopes and the rules for adding errors are documented in [docs/ERRORS.md](./docs/ERRORS.md).
 
-也可访问AI生成的DeepWiki:
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/QuantumNous/new-api)
+## Quick start (Docker)
 
-## ✨ 主要特性
-
-New API提供了丰富的功能，详细特性请参考[特性说明](https://docs.newapi.pro/wiki/features-introduction)：
-
-1. 🎨 全新的UI界面
-2. 🌍 多语言支持
-3. 💰 支持在线充值功能，当前支持易支付和Stripe
-4. 🔍 支持用key查询使用额度（配合[neko-api-key-tool](https://github.com/Calcium-Ion/neko-api-key-tool)）
-5. 🔄 兼容原版One API的数据库
-6. 💵 支持模型按次数收费
-7. ⚖️ 支持渠道加权随机
-8. 📈 数据看板（控制台）
-9. 🔒 令牌分组、模型限制
-10. 🤖 支持更多授权登陆方式（LinuxDO,Telegram、OIDC）
-11. 🔄 支持Rerank模型（Cohere和Jina），[接口文档](https://docs.newapi.pro/api/jinaai-rerank)
-12. ⚡ 支持OpenAI Realtime API（包括Azure渠道），[接口文档](https://docs.newapi.pro/api/openai-realtime)
-13. ⚡ 支持 **OpenAI Responses** 格式，[接口文档](https://docs.newapi.pro/api/openai-responses)
-14. ⚡ 支持 **Claude Messages** 格式，[接口文档](https://docs.newapi.pro/api/anthropic-chat)
-15. ⚡ 支持 **Google Gemini** 格式，[接口文档](https://docs.newapi.pro/api/google-gemini-chat/)
-16. 🧠 支持通过模型名称后缀设置 reasoning effort：
-    1. OpenAI o系列模型
-        - 添加后缀 `-high` 设置为 high reasoning effort (例如: `o3-mini-high`)
-        - 添加后缀 `-medium` 设置为 medium reasoning effort (例如: `o3-mini-medium`)
-        - 添加后缀 `-low` 设置为 low reasoning effort (例如: `o3-mini-low`)
-    2. Claude 思考模型
-        - 添加后缀 `-thinking` 启用思考模式 (例如: `claude-3-7-sonnet-20250219-thinking`)
-17. 🔄 思考转内容功能
-18. 🔄 针对用户的模型限流功能
-19. 🔄 请求格式转换功能，支持以下三种格式转换：
-    1. OpenAI Chat Completions => Claude Messages （OpenAI格式调用Claude模型）
-    2. Clade Messages => OpenAI Chat Completions (可用于Claude Code调用第三方模型)
-    3. OpenAI Chat Completions => Gemini Chat （OpenAI格式调用Gemini模型）
-20. 💰 缓存计费支持，开启后可以在缓存命中时按照设定的比例计费：
-    1. 在 `系统设置-运营设置` 中设置 `提示缓存倍率` 选项
-    2. 在渠道中设置 `提示缓存倍率`，范围 0-1，例如设置为 0.5 表示缓存命中时按照 50% 计费
-    3. 支持的渠道：
-        - [x] OpenAI
-        - [x] Azure
-        - [x] DeepSeek
-        - [x] Claude
-
-## 模型支持
-
-此版本支持多种模型，详情请参考[接口文档-中继接口](https://docs.newapi.pro/api)：
-
-1. 第三方模型 **gpts** （gpt-4-gizmo-*）
-2. 第三方渠道[Midjourney-Proxy(Plus)](https://github.com/novicezk/midjourney-proxy)接口，[接口文档](https://docs.newapi.pro/api/midjourney-proxy-image)
-3. 第三方渠道[Suno API](https://github.com/Suno-API/Suno-API)接口，[接口文档](https://docs.newapi.pro/api/suno-music)
-4. 自定义渠道，支持填入完整调用地址
-5. Rerank模型（[Cohere](https://cohere.ai/)和[Jina](https://jina.ai/)），[接口文档](https://docs.newapi.pro/api/jinaai-rerank)
-6. Claude Messages 格式，[接口文档](https://docs.newapi.pro/api/anthropic-chat)
-7. Google Gemini格式，[接口文档](https://docs.newapi.pro/api/google-gemini-chat/)
-8. Dify，当前仅支持chatflow
-9. 更多接口请参考[接口文档](https://docs.newapi.pro/api)
-
-## 环境变量配置
-
-详细配置说明请参考[安装指南-环境变量配置](https://docs.newapi.pro/installation/environment-variables)：
-
-- `GENERATE_DEFAULT_TOKEN`：是否为新注册用户生成初始令牌，默认为 `false`
-- `STREAMING_TIMEOUT`：流式回复超时时间，默认300秒
-- `DIFY_DEBUG`：Dify渠道是否输出工作流和节点信息，默认 `true`
-- `GET_MEDIA_TOKEN`：是否统计图片token，默认 `true`
-- `GET_MEDIA_TOKEN_NOT_STREAM`：非流情况下是否统计图片token，默认 `true`
-- `UPDATE_TASK`：是否更新异步任务（Midjourney、Suno），默认 `true`
-- `GEMINI_VISION_MAX_IMAGE_NUM`：Gemini模型最大图片数量，默认 `16`
-- `MAX_FILE_DOWNLOAD_MB`: 最大文件下载大小，单位MB，默认 `20`
-- `CRYPTO_SECRET`：加密密钥，用于加密Redis数据库内容
-- `AZURE_DEFAULT_API_VERSION`：Azure渠道默认API版本，默认 `2025-04-01-preview`
-- `NOTIFICATION_LIMIT_DURATION_MINUTE`：邮件等通知限制持续时间，默认 `10`分钟
-- `NOTIFY_LIMIT_COUNT`：用户通知在指定持续时间内的最大数量，默认 `2`
-- `ERROR_LOG_ENABLED=true`: 是否记录并显示错误日志，默认`false`
-
-## 部署
-
-详细部署指南请参考[安装指南-部署方式](https://docs.newapi.pro/installation)：
-
-> [!TIP]
-> 最新版Docker镜像：`calciumion/new-api:latest`  
-
-### 多机部署注意事项
-- 必须设置环境变量 `SESSION_SECRET`，否则会导致多机部署时登录状态不一致
-- 如果公用Redis，必须设置 `CRYPTO_SECRET`，否则会导致多机部署时Redis内容无法获取
-
-### 部署要求
-- 本地数据库（默认）：SQLite（Docker部署必须挂载`/data`目录）
-- 远程数据库：MySQL版本 >= 5.7.8，PgSQL版本 >= 9.6
-
-### 部署方式
-
-#### 使用宝塔面板Docker功能部署
-安装宝塔面板（**9.2.0版本**及以上），在应用商店中找到**New-API**安装即可。
-[图文教程](./docs/BT.md)
-
-#### 使用Docker Compose部署（推荐）
-```shell
-# 下载项目源码
-git clone https://github.com/QuantumNous/new-api.git
-
-# 进入项目目录
-cd new-api
-
-# 根据需要编辑 docker-compose.yml 文件
-# 使用nano编辑器
-nano docker-compose.yml
-# 或使用vim编辑器
-# vim docker-compose.yml
-
+```bash
+cp .env.example .env        # set ROOT_PASSWORD and the database passwords
+docker compose --env-file .env -f platform/docker/docker-compose.yml up --build -d
 ```
 
-#### 直接使用Docker镜像
-```shell
-# 使用SQLite
-docker run --name new-api -d --restart always -p 3000:3000 -e TZ=Asia/Shanghai -v /home/ubuntu/data/new-api:/data calciumion/new-api:latest
+Open <http://localhost:3000> and sign in with `ROOT_USERNAME` / `ROOT_PASSWORD`
+(`root` / `change-me-local-root` if you left them empty).
+Then add an upstream under 模型运营 / Model operations, create an API key, and
+call `http://localhost:3001/v1/chat/completions` with it.
 
-# 使用MySQL
-docker run --name new-api -d --restart always -p 3000:3000 -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" -e TZ=Asia/Shanghai -v /home/ubuntu/data/new-api:/data calciumion/new-api:latest
+The stack runs the gateway (port `3001`), its background jobs, the web console
+(port `3000`), separate Core and Telemetry PostgreSQL stores and Redis. On first
+start the gateway creates its schema and opens its financial ledger; later
+starts leave both alone. There is no browser-based install step.
+
+Everything beyond the gateway is optional and stays off until configured:
+
+| Feature | Configure |
+| --- | --- |
+| Mail (sign-up codes, receipts, alerts) | `RESEND_API_KEY` and `ADMIN_EMAIL`, or `smtp` in `config/backend/config.yaml` |
+| Card top-ups | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` |
+| Files API and request captures | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without them the Files API answers `503 storage_not_configured` |
+| Links in mail and payments | `FRONTEND_BASE_URL`, and `site` in `config/backend/config.yaml` |
+| Probes against client-restricted upstreams | `probe_identities` in `config/backend/config.yaml` |
+
+Integration variables reach the containers through
+`platform/docker/docker-compose.integrations.example.yml`; copy it to
+`docker-compose.integrations.yml` and pass it as a second `-f`.
+
+The bundled public pages (home, models, blog, legal) are lazu.ai's. Replace the
+legal documents under 设置 / Settings before you open your deployment to others.
+
+For the full deployment checklist, see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+
+## Local Development
+
+```bash
+./run.sh
 ```
 
-## 渠道重试与缓存
-渠道重试功能已经实现，可以在`设置->运营设置->通用设置->失败重试次数`设置重试次数，**建议开启缓存**功能。
+`./run.sh` is the fast path: it starts the existing local services without
+clearing caches or reinstalling dependencies. When dependencies or build
+caches need a clean reset, use:
 
-### 缓存设置方法
-1. `REDIS_CONN_STRING`：设置Redis作为缓存
-2. `MEMORY_CACHE_ENABLED`：启用内存缓存（设置了Redis则无需手动设置）
+```bash
+./rebuild.sh
+```
 
-## 接口文档
+The local development stack reads `.env`; keep production values in your
+deployment's own secret store. The local stack uses PostgreSQL on
+`127.0.0.1:10000`, Redis on `127.0.0.1:10001`, the API on `3000`, the web app
+on `5173`, and docs on `3002`.
 
-详细接口文档请参考[接口文档](https://docs.newapi.pro/api)：
+Other repository commands:
 
-- [聊天接口（Chat Completions）](https://docs.newapi.pro/api/openai-chat)
-- [响应接口 （Responses）](https://docs.newapi.pro/api/openai-responses)
-- [图像接口（Image）](https://docs.newapi.pro/api/openai-image)
-- [重排序接口（Rerank）](https://docs.newapi.pro/api/jinaai-rerank)
-- [实时对话接口（Realtime）](https://docs.newapi.pro/api/openai-realtime)
-- [Claude聊天接口](https://docs.newapi.pro/api/anthropic-chat)
-- [Google Gemini聊天接口](https://docs.newapi.pro/api/google-gemini-chat)
+```bash
+make help
+```
 
-## 相关项目
-- [One API](https://github.com/songquanpeng/one-api)：原版项目
-- [Midjourney-Proxy](https://github.com/novicezk/midjourney-proxy)：Midjourney接口支持
-- [neko-api-key-tool](https://github.com/Calcium-Ion/neko-api-key-tool)：用key查询使用额度
+Local development intentionally has only two user-facing entrypoints:
+`./run.sh` for a fast start and `./rebuild.sh` for a clean dependency/cache
+rebuild followed by startup. The Docker stack and scripts under `ops/scripts/`
+are deployment or maintenance internals, not additional local startup paths.
 
-其他基于New API的项目：
-- [new-api-horizon](https://github.com/Calcium-Ion/new-api-horizon)：New API高性能优化版
+## Docker Stack
 
-## 帮助支持
+```bash
+./ops/scripts/stack.sh up --build
+```
 
-如有问题，请参考[帮助支持](https://docs.newapi.pro/support)：
-- [社区交流](https://docs.newapi.pro/support/community-interaction)
-- [反馈问题](https://docs.newapi.pro/support/feedback-issues)
-- [常见问题](https://docs.newapi.pro/support/faq)
+## Docs
 
-## 🌟 Star History
+Public docs source lives in `apps/docs/` (Vocs).
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Calcium-Ion/new-api&type=Date)](https://star-history.com/#Calcium-Ion/new-api&Date)
+Start with [the maintainer index](docs/README.md) for current contracts and
+operations.
+
+Current docs layout:
+
+- `apps/docs/vocs.config.ts`: Vocs site configuration, sidebar, search, theme
+- `apps/docs/pages/index.mdx`: docs home (English default)
+- `apps/docs/pages/examples.mdx`: public code examples
+- `apps/docs/pages/changelog.mdx`: public documentation changelog
+- `apps/docs/pages/api-reference.mdx`: Scalar-rendered OpenAPI reference
+- `apps/docs/pages/{zh,zh-TW,ja}/*`: per-locale variants
+- `docs/i18n.md`: translation glossary
+
+API reference source lives in `packages/contracts/openapi/lazu-api-reference.v1.yaml`.
+
+Docs preview:
+
+```bash
+cd apps/docs
+npm install
+npm run dev -- --port 3002
+```
+
+Docs build:
+
+```bash
+cd apps/docs
+npm run build
+```
+
+Canonical docs path: `https://lazu.ai/docs` (the web app proxies `/docs` to the docs container; `docs.lazu.ai` 301s there).
+
+Project docs should stay flat and focused. Prefer code, tests, OpenAPI, and generated docs over new Markdown.
+
+## Config
+
+Backend config resolution order:
+
+1. `APP_CONFIG_FILE`
+2. `config/backend/config.yaml`
+3. `config/backend/config.yml`
+4. `/app/config/backend/config.yaml`
+5. `/app/config/backend/config.yml`
+
+Credentials and startup settings belong in env or `config/backend/config.yaml`; changing them requires a backend container restart. Daily operational values such as pricing, notices, ratios, and toggles are changed in the console UI.
+
+Features a deployment compiles in on top of this repository attach through the hooks in [docs/EXTENSIONS.md](./docs/EXTENSIONS.md).
+
+## Security
+
+- Do not commit real config secrets.
+- Keep `config/backend/config.yaml` local or environment-provided.
+- Rotate any credential that was ever committed or pasted into logs.
+- Production deployments must use strong `SESSION_SECRET` and `CRYPTO_SECRET` values.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the workflow and the sign-off
+rule, [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards, and
+[SECURITY.md](./SECURITY.md) to report a vulnerability privately.
+
+## License
+
+Lazu is distributed under the GNU Affero General Public License v3.0 or later;
+see [LICENSE](./LICENSE). If you run a modified version as a network service,
+the license requires you to offer its source to the people who use it: set
+`site.source_url` in `config/backend/config.yaml` and the console links to it.
+
+Lazu is based on [new-api](https://github.com/QuantumNous/new-api)
+(AGPL-3.0), which is based on [one-api](https://github.com/songquanpeng/one-api)
+(MIT). Their copyright and attribution are kept in [NOTICE](./NOTICE) and the
+applicable source-file headers, and the console carries the attribution the
+upstream's additional license terms require. Preserve all of these when
+distributing modified copies. Third-party licenses are listed in
+[THIRD_PARTY.md](./THIRD_PARTY.md).

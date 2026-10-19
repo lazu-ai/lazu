@@ -1,0 +1,162 @@
+{
+  "info": {
+    "description": "Lazu API is a unified gateway for major AI models, fully OpenAI-compatible. Supports GPT, Claude, Gemini and other leading providers, plus Sora and Grok for video generation.\n\n## Authentication\nEvery API request must carry an API key in the `Authorization` header:\n```\nAuthorization: Bearer YOUR_API_KEY\n```\n\n## Base URL\n- Primary: `https://api.lazu.ai`\n"
+  },
+  "tags": {
+    "Models": "Model listing, catalog, and capability-discovery endpoints.",
+    "Files": "OpenAI-compatible file upload, listing, download, and deletion APIs.",
+    "Discovery": "Model discovery, catalog inspection, and pricing metadata.",
+    "Chat": "OpenAI-compatible chat completion APIs.",
+    "Anthropic": "Anthropic-native message format.",
+    "Gemini": "Gemini-native request format and discovery APIs.",
+    "Embeddings": "Embedding generation APIs.",
+    "Images": "Image generation APIs.",
+    "Responses": "OpenAI Responses-style inference APIs.",
+    "Rerank": "Rerank APIs for retrieval workflows.",
+    "Audio": "Text-to-speech, speech-to-text, and audio translation.",
+    "Account": "Usage statistics, billing, and API key introspection."
+  },
+  "paths": {
+    "/models.json": {
+      "get": {
+        "summary": "Get the public static model catalog.",
+        "description": "Returns the same public list-price model discovery payload as unauthenticated `/v1/models`. This endpoint never accepts personalized API-key pricing fields and is intended for CDN caching, crawlers, and agent discovery.\n"
+      }
+    },
+    "/api/models/catalog": {
+      "get": {
+        "summary": "Get the available model catalog",
+        "description": "Returns the model catalog reachable by the current API key. Best consulted before any production call so you can discover capabilities, supported endpoints, pricing, and example requests.\n\nResults are auto-filtered to what the active API key can use, and additionally include:\n- input / output modalities\n- supported endpoint types\n- directly callable endpoint paths\n- pricing information\n- parameter hints\n- copy-paste curl examples\n"
+      }
+    },
+    "/api/pricing": {
+      "get": {
+        "summary": "Get public pricing and marketplace metadata.",
+        "description": "Public pricing view for enabled models. Use `/api/models/catalog` when you need token-scoped discovery for a specific API key.\n"
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "summary": "Discover available models",
+        "description": "Returns the rich model discovery catalog in an OpenAI-compatible `{object:\"list\",data:[...]}` envelope. Authentication is optional: without a key the response includes every public enabled model with list pricing; with a key the same items also include `your_price`, `accessible`, and top-level `your_pricing_context`.\n\nUse `include=health` to opt into best-effort runtime health fields. There is no `view` parameter; the default response is already rich.\n"
+      }
+    },
+    "/v1/models/{model}": {
+      "get": {
+        "summary": "Discover one model",
+        "description": "Returns the same rich catalog item shape as `/v1/models` for one model ID."
+      }
+    },
+    "/v1/files": {
+      "get": {
+        "summary": "List uploaded files",
+        "description": "Lists files uploaded by the current API key owner. Use `purpose` to filter by supported file purpose.\n"
+      },
+      "post": {
+        "summary": "Upload a file",
+        "description": "Uploads a file for later retrieval or for `file_id` references in `/v1/responses` input items.\n\nSelf-hosted deployments must configure `artifact_storage` with Cloudflare R2 or another S3-compatible bucket. Tencent COS exposes a partially compatible S3 endpoint, but Lazu has not verified it. Without object storage, this endpoint returns `503 storage_not_configured`.\n\nSupported purposes:\n- `user_data`: non-executable files up to 512 MiB\n- `vision`: PNG, JPEG, GIF, or WebP images up to 20 MiB\n"
+      }
+    },
+    "/v1/files/{file_id}": {
+      "get": {
+        "summary": "Retrieve file metadata",
+        "description": "Returns metadata for a file owned by the current API key owner."
+      },
+      "delete": {
+        "summary": "Delete a file",
+        "description": "Deletes a file and its object-storage content. Remaining TTL storage charges are refunded according to the backend accounting rules."
+      }
+    },
+    "/v1/files/{file_id}/content": {
+      "get": {
+        "summary": "Download file content",
+        "description": "Downloads the raw file bytes for a file owned by the current API key owner."
+      }
+    },
+    "/v1beta/models": {
+      "get": {
+        "summary": "List models in Gemini-compatible format."
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "summary": "Create a chat completion",
+        "description": "Generate a model response from the supplied message list. Supports streaming output and multi-turn conversations."
+      }
+    },
+    "/v1/messages": {
+      "post": {
+        "summary": "Create a message using Anthropic-native format.",
+        "description": "Use this endpoint when the selected model includes `anthropic` in `supported_endpoint_types`.\n\nAuthentication supports either:\n- `Authorization: Bearer <api-key>`\n- `x-api-key: <api-key>`\n"
+      }
+    },
+    "/v1beta/models/{model}:generateContent": {
+      "post": {
+        "summary": "Generate content using Gemini-native format.",
+        "description": "Use this endpoint when the selected model includes `gemini` in `supported_endpoint_types`.\n\nAuthentication supports:\n- `Authorization: Bearer <api-key>`\n- `x-goog-api-key: <api-key>`\n- `?key=<api-key>`\n"
+      }
+    },
+    "/v1/embeddings": {
+      "post": {
+        "summary": "Generate embeddings."
+      }
+    },
+    "/v1/images/generations": {
+      "post": {
+        "summary": "Generate images from text prompts."
+      }
+    },
+    "/v1/responses": {
+      "post": {
+        "summary": "Create a response using the OpenAI Responses-style API."
+      }
+    },
+    "/v1/rerank": {
+      "post": {
+        "summary": "Rerank candidate documents for a query."
+      }
+    },
+    "/v1/audio/speech": {
+      "post": {
+        "summary": "Text to speech",
+        "description": "OpenAI-compatible TTS. Returns audio bytes."
+      }
+    },
+    "/v1/audio/transcriptions": {
+      "post": {
+        "summary": "Transcribe audio",
+        "description": "Whisper-compatible speech-to-text. Accepts multipart audio upload."
+      }
+    },
+    "/v1/audio/translations": {
+      "post": {
+        "summary": "Translate audio to English",
+        "description": "Whisper-compatible translation. Output is always English."
+      }
+    },
+    "/v1/images/edits": {
+      "post": {
+        "summary": "Edit image",
+        "description": "Edit an existing image given a prompt. OpenAI-compatible."
+      }
+    },
+    "/v1/completions": {
+      "post": {
+        "summary": "Legacy text completions",
+        "description": "OpenAI legacy /v1/completions — prefer /v1/chat/completions for new code."
+      }
+    },
+    "/api/usage/summary": {
+      "get": {
+        "summary": "Current usage summary",
+        "description": "Total spend, request count, and token count over a window."
+      }
+    },
+    "/api/token/inspect": {
+      "get": {
+        "summary": "Inspect the current API key",
+        "description": "Returns metadata: tier, quota, lane preferences, has_topped_up flag."
+      }
+    }
+  }
+}

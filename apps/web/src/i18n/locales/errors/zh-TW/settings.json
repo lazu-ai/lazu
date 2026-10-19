@@ -1,0 +1,23 @@
+{
+  "setting_invalid": "有一項設定的值不符合要求，這次沒有儲存。請檢查它的格式和取值後再儲存。",
+  "content_limit_exceeded": "這個清單最多只能有 {{limit}} 項。請刪掉一些後再儲存。",
+  "announcement_not_found": "這則公告已不存在。請重新整理清單。",
+  "email_test_failed": "測試郵件沒有寄出。請檢查 SMTP 設定；郵件伺服器的回覆已記入伺服器日誌。",
+  "email_test_recipient_missing": "你的帳號還沒有電子郵件，測試郵件無處可寄。請先為帳號綁定電子郵件。",
+  "email_recipients_required": "還沒有選擇收件人，郵件沒有寄出。請選擇使用者，或選擇寄給全部使用者。",
+  "announcement_email_content_missing": "沒有可以寄送的公告。請填寫標題和內容，或先發布一則公告。",
+  "translation_token_missing": "翻譯需要用你自己的 API Key 呼叫模型，但你名下沒有可用的 Key。請新增或啟用一把 Key 後再試。",
+  "feedback_request_not_found": "你的帳號下沒有這個請求編號。請檢查請求編號。",
+  "database_unreachable": "伺服器連不上資料庫。請檢查資料庫服務後再試。",
+  "email_domain_not_allowed": "這個電子郵件網域不在允許範圍內。請改用允許網域下的電子郵件。",
+  "email_alias_not_allowed": "不接受 @ 前帶有「+」或「.」的電子郵件地址。請使用不帶別名的地址。",
+  "password_invalid": "密碼需為 8 到 64 個字元，且不超過 72 位元組。請換一組密碼。",
+  "password_reset_link_invalid": "重設連結無效或已過期。請重新申請一封重設郵件。",
+  "password_reset_client_upgrade_required": "頁面版本過舊，重設連結尚未使用。請重新整理頁面後重新設定密碼。",
+  "mail_not_found": "找不到封存郵件。",
+  "mail_resend_failed": "封存郵件重發失敗，請查看投遞詳情。",
+  "admin_email_missing": "傳送預覽前，請先為帳戶新增電子郵件地址。",
+  "mail_regenerate_failed": "郵件重新產生失敗；草稿請從用量回顧頁面重新產生。",
+  "digest_settings_invalid": "用量回顧設定無效。",
+  "mail_send_failed": "郵件傳送失敗，請查看投遞詳情。"
+}

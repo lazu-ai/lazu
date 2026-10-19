@@ -1,0 +1,1238 @@
+/* 通道健康 — two readings of one window: a by-upstream ledger (admin) and a
+   by-model time matrix, sharing one summary strip and one filter shelf.
+   Implements the locked "Locked channel health surface (2026-09-01)" rules in
+   brand/foundations/yunmu-console.md.
+   Token-only: this surface paints no colour of its own and no page ground —
+   both come from the shared ConsolePage shell. */
+
+/* ---------------------------------------------------------------------------
+   Summary strip — hairline-separated figures, not cards. Quiet Precision's
+   de-carded KPI rule: the numbers are the hierarchy, the boxes were noise. */
+
+.chealth-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 0;
+  margin-bottom: 12px;
+}
+
+.chealth-tile {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 20px;
+  border-right: 1px solid var(--lazu-border);
+}
+
+.chealth-tile:first-child {
+  padding-left: 0;
+}
+
+.chealth-tile:last-of-type {
+  border-right: 0;
+}
+
+.chealth-tile__label {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+}
+
+.chealth-tile__value {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.chealth-tile__value--warn {
+  color: var(--lazu-warning-strong);
+}
+
+.chealth-tile__value-note {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.chealth-tile__note {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+/* ---------------------------------------------------------------------------
+   Filter shelf — a plain row on the page ground, as on a status page. */
+
+.chealth-filters {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.chealth-filters > .lazu-select-trigger {
+  flex: 0 0 132px;
+  width: 132px;
+}
+
+/* The search box is the one control that can give way: with the kind switch
+   beside the view switch, a wider floor pushed the lane filter onto a second
+   line at ordinary desktop widths. */
+.chealth-filters__search {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+/* View toggle. Selection is background + weight + foreground only — no rule,
+   no arrow, no glow (Yunmu rule 5). */
+
+.chealth-viewseg {
+  background: var(--lazu-surface-muted);
+  border: 0;
+  border-radius: 10px;
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+}
+
+/* The shared segmented box: the picked segment is a white sheet with a
+   hairline, never an ink pill. */
+.chealth-viewseg__item {
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  height: 30px;
+  padding: 0 12px;
+  transition:
+    background 150ms cubic-bezier(0.22, 0.9, 0.28, 1),
+    color 150ms cubic-bezier(0.22, 0.9, 0.28, 1);
+}
+
+.chealth-viewseg__item.is-active {
+  background: var(--lazu-surface-solid);
+  box-shadow: 0 0 0 1px var(--lazu-border);
+  color: var(--lazu-ink);
+}
+
+/* More kinds than a phone is wide: the switch scrolls inside its own pill
+   rather than pushing past the filter card. */
+.chealth-kindseg {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.chealth-kindseg .chealth-viewseg__item {
+  flex: none;
+  white-space: nowrap;
+}
+
+.chealth-viewseg__item:focus-visible {
+  box-shadow: 0 0 0 2px var(--lazu-evidence-soft);
+  outline: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Layout: ledger/matrix beside the detail panel */
+
+.chealth-layout {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+
+/* ---------------------------------------------------------------------------
+   Provider ledger */
+
+.chealth-providers {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.chealth-provider {
+  background: var(--lazu-surface);
+  position: relative;
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 10px;
+  padding: 14px 16px;
+  text-align: left;
+  transition:
+    border-color 150ms cubic-bezier(0.22, 0.9, 0.28, 1),
+    box-shadow 150ms cubic-bezier(0.22, 0.9, 0.28, 1);
+  width: 100%;
+}
+
+.chealth-provider:hover {
+  border-color: var(--lazu-border-strong);
+}
+
+.chealth-provider--selected {
+  border-color: var(--lazu-border-strong);
+  box-shadow: 0 0 0 2px var(--lazu-evidence-soft);
+}
+
+.chealth-provider .chealth-cells,
+.chealth-provider__models {
+  position: relative;
+  z-index: 1;
+}
+
+.chealth-provider:focus-visible {
+  border-radius: var(--lazu-radius-datamark);
+  box-shadow: 0 0 0 2px var(--lazu-evidence-soft);
+  outline: none;
+}
+
+.chealth-provider__head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.chealth-provider__name {
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0;
+  text-align: left;
+  font-weight: 650;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chealth-provider__head > .lazu-badge {
+  flex: none;
+}
+
+.chealth-provider__status {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  flex: none;
+  font-size: 11.5px;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.chealth-provider__figures {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+}
+
+.chealth-provider__rate {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.chealth-provider__meta {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.chealth-provider__p95 {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.chealth-provider__weight {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+}
+
+.chealth-provider__models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.chealth-provider__model--more {
+  color: var(--lazu-text-faint);
+}
+
+.chealth-provider__model {
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  padding: 2px 8px;
+}
+
+/* Shared status tones. Semantic colour carries the verdict; it never fills a
+   container (Yunmu feedback rule). */
+
+.chealth-tone--warn {
+  color: var(--lazu-warning-strong);
+}
+
+.chealth-tone--bad {
+  color: var(--lazu-danger);
+}
+
+.chealth-tone--none {
+  color: var(--lazu-text-faint);
+}
+
+.chealth-cell:focus-visible {
+  box-shadow: 0 0 0 2px var(--lazu-evidence-soft);
+  outline: none;
+}
+
+.chealth-lane-dot {
+  border-radius: var(--lazu-radius-datamark);
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+.chealth-lane-dot--stable {
+  background: var(--lazu-success);
+}
+
+.chealth-lane-dot--eco {
+  background: var(--lazu-evidence);
+}
+
+.chealth-row__pct {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: grid;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  gap: 5px;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  padding-right: 6px;
+}
+
+.chealth-row__pct--warn {
+  color: var(--lazu-warning-strong);
+}
+
+.chealth-row__pct--bad {
+  color: var(--lazu-danger);
+}
+
+.chealth-status-mark {
+  background: currentColor;
+  display: inline-block;
+  flex: none;
+  height: 7px;
+  position: relative;
+  width: 7px;
+}
+
+.chealth-status-mark--operational {
+  border-radius: 50%;
+}
+
+.chealth-status-mark--degraded {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.chealth-status-mark--outage {
+  background: transparent;
+}
+
+.chealth-status-mark--outage::before,
+.chealth-status-mark--outage::after {
+  background: currentColor;
+  content: '';
+  height: 1.5px;
+  left: 0;
+  position: absolute;
+  top: 3px;
+  width: 8px;
+}
+
+.chealth-status-mark--outage::before {
+  transform: rotate(45deg);
+}
+
+.chealth-status-mark--outage::after {
+  transform: rotate(-45deg);
+}
+
+.chealth-status-mark--unknown {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.chealth-row__status-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chealth-row__rate {
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------------------
+   Heat cells */
+
+.chealth-cells {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+}
+
+/* A model row stacks two of these, so each lane's band is shorter than the
+   single band a provider card carries. */
+.chealth-cells--lane {
+  height: 9px;
+}
+
+.chealth-cell {
+  appearance: none;
+  border: 0;
+  border-radius: var(--lazu-radius-datamark);
+  cursor: help;
+  flex: 1;
+  min-width: 3px;
+  padding: 0;
+  position: relative;
+}
+
+.chealth-cell::after {
+  background: var(--lazu-ink);
+  border-radius: var(--lazu-radius-badge);
+  bottom: calc(100% + 6px);
+  color: var(--lazu-surface-solid);
+  content: attr(data-label);
+  display: none;
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  left: 50%;
+  padding: 5px 7px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 3;
+}
+
+.chealth-cell:hover::after,
+.chealth-cell:focus-visible::after {
+  display: block;
+}
+
+.chealth-cell--ok {
+  background: var(--lazu-success);
+  opacity: 0.72;
+}
+
+.chealth-cell--warn {
+  background: var(--lazu-warning);
+  opacity: 0.72;
+}
+
+.chealth-cell--bad {
+  background: var(--lazu-danger);
+  opacity: 0.72;
+}
+
+.chealth-cell--none {
+  background: var(--lazu-surface-selected);
+}
+
+/* A route we cannot check at all is hatched rather than coloured: the mark
+   describes our own blind spot, so it must not read as a measurement. */
+.chealth-cell--blocked {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--lazu-border) 0,
+    var(--lazu-border) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Inline row detail. Reading a lane's detail continues scanning the matrix, so
+   it expands under its own row instead of moving the reader elsewhere
+   (yunmu-console.md rule 7). */
+
+.chealth-detail {
+  background: var(--lazu-surface-raised);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  display: grid;
+  gap: 12px;
+  margin: 4px 6px 8px 34px;
+  padding: 14px 18px;
+}
+
+.chealth-detail__head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+/* Lane switch inside an open row. Same selection language as everything else:
+   ground, weight and foreground, nothing drawn. */
+.chealth-detail__lanes {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px;
+}
+
+.chealth-detail__lane {
+  background: none;
+  border: 0;
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+  padding: 3px 10px;
+}
+
+.chealth-detail__lane.is-active {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.chealth-detail__lane:focus-visible {
+  box-shadow: 0 0 0 2px var(--lazu-evidence-soft);
+  outline: none;
+}
+
+.chealth-detail__title {
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.chealth-detail__stats {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  justify-content: start;
+}
+
+.chealth-detail__stat {
+  border-left: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 18px;
+}
+
+.chealth-detail__stat:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.chealth-detail__stat-label {
+  color: var(--lazu-text-faint);
+  font-size: 10px;
+}
+
+.chealth-detail__stat-value {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------------
+   Detail panel (provider view) */
+
+.chealth-panel {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  position: sticky;
+  top: 20px;
+}
+
+.chealth-panel__title {
+  align-items: center;
+  display: flex;
+  font-size: 13.5px;
+  font-weight: 650;
+  gap: 8px;
+}
+
+.chealth-panel__section-label {
+  color: var(--lazu-text-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.chealth-panel__note {
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.chealth-panel__hint {
+  color: var(--lazu-text-faint);
+  font-size: 10.5px;
+  margin: 6px 0 0;
+}
+
+.chealth-panel__probe {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.chealth-pool {
+  display: grid;
+  margin-top: 6px;
+}
+
+.chealth-pool__row {
+  align-items: center;
+  border-bottom: 1px dashed var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 11.5px;
+  gap: 8px;
+  padding: 6px 0;
+  text-align: left;
+  width: 100%;
+}
+
+.chealth-pool__row--link {
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+}
+
+.chealth-pool__row--link:hover .chealth-pool__name {
+  color: var(--lazu-evidence);
+}
+
+/* Why we cannot see this route. It is our own configuration gap, so it reads
+   as a note to the operator rather than as a status. */
+.chealth-pool__blocked {
+  color: var(--lazu-text-faint);
+  flex-basis: 100%;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+}
+
+.chealth-pool__actions {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.chealth-pool__row--link:focus-visible {
+  box-shadow: 0 0 0 2px var(--lazu-evidence-soft);
+  outline: none;
+}
+
+.chealth-pool__row:last-child {
+  border-bottom: 0;
+}
+
+.chealth-pool__row--disabled {
+  color: var(--lazu-text-faint);
+}
+
+.chealth-pool__name {
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chealth-pool__name--link {
+  background: none;
+  border: 0;
+  color: var(--lazu-evidence);
+  cursor: pointer;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  padding: 0;
+  text-align: left;
+}
+
+.chealth-pool__name--link:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+.chealth-pool__name--link:focus-visible {
+  box-shadow: 0 0 0 2px var(--lazu-evidence-soft);
+  border-radius: var(--lazu-radius-datamark);
+  outline: none;
+}
+
+.chealth-pool__meta {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.chealth-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.chealth-panel__actions .lazu-button {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Responsive */
+
+@media (max-width: 1240px) {
+  .chealth-providers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .chealth-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chealth-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .chealth-providers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chealth-tile {
+    border-right: 0;
+    padding: 0 16px 0 0;
+  }
+
+  .chealth-pool__actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .chealth-detail {
+    margin-left: 6px;
+  }
+
+  /* On a phone the panel is in the page flow, so anything inside it that
+     refuses to shrink pushes the whole console sideways. Cap the children to
+     the panel and let the few genuinely wide things scroll themselves. */
+  .chealth-detail {
+    overflow-x: hidden;
+  }
+
+  .chealth-detail > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .chealth-pool__row {
+    flex-wrap: wrap;
+  }
+
+  .chealth-detail__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 10px;
+  }
+
+  .chealth-detail__stat:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Status board — the by-model reading, drawn the way public status pages are:
+   a banner that says what is wrong, then one block per lane with a week of
+   thin bars, a status word, and the week's availability underneath. */
+
+.chealth-board-meta {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* A notice on the paper (BRAND.md G1 rule 7): white, one ink edge, and the
+   state carried only by the dot and the lead's colour — never a tinted box. */
+.chealth-banner {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-notice-edge);
+  border-radius: var(--lazu-radius-notice, 12px);
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+}
+
+.chealth-banner--ok {
+  --chealth-banner-tone: var(--lazu-success);
+}
+
+.chealth-banner--warn {
+  --chealth-banner-tone: var(--lazu-warning);
+}
+
+.chealth-banner--bad {
+  --chealth-banner-tone: var(--lazu-danger);
+}
+
+.chealth-banner__dot {
+  background: var(--chealth-banner-tone);
+  border-radius: 50%;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+.chealth-banner__text {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.chealth-banner__lead {
+  color: var(--chealth-banner-lead, var(--lazu-ink));
+  font-weight: 600;
+}
+
+.chealth-banner--warn {
+  --chealth-banner-lead: var(--lazu-warning-strong);
+}
+
+.chealth-banner--bad {
+  --chealth-banner-lead: var(--lazu-danger);
+}
+
+.chealth-board {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.chealth-bsection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chealth-bsection__head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 2px;
+}
+
+.chealth-bsection__title {
+  color: var(--lazu-ink);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.chealth-bsection__count {
+  color: var(--lazu-text-faint);
+  font-size: var(--lazu-health-meta-text);
+}
+
+.chealth-board-legend {
+  align-self: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--lazu-health-meta-text);
+  gap: 12px;
+  margin-left: auto;
+}
+
+.chealth-board-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
+.chealth-board-legend .chealth-bar {
+  flex: none;
+  height: 11px;
+  width: 4px;
+}
+
+/* A model family: a quiet label ruled off from the next, then its cards. */
+.chealth-family {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chealth-family__head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.chealth-family__name {
+  color: var(--lazu-ink);
+  font-size: var(--lazu-health-model-text);
+  font-weight: 600;
+  margin: 0;
+}
+
+.chealth-family__count {
+  color: var(--lazu-text-faint);
+  font-size: var(--lazu-health-label-text);
+}
+
+.chealth-family__rule {
+  background: var(--lazu-border);
+  flex: 1 1 auto;
+  height: 1px;
+}
+
+.chealth-family__summary {
+  font-size: var(--lazu-health-meta-text);
+}
+
+/* A card is as tall as the lanes it has: a one-lane model beside a two-lane
+   one keeps its own height instead of padding out to its neighbour's. */
+.chealth-mgrid {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* One model. Its lanes stack inside it, each carrying its own verdict and
+   figures; a card holds only the lanes the model really has. */
+.chealth-mcard {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.chealth-mcard__head {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chealth-mcard__name {
+  color: var(--lazu-ink);
+  flex: 1 1 auto;
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-model-text);
+  font-weight: 500;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chealth-mcard__name--plain {
+  font-family: inherit;
+}
+
+.chealth-mcard__tag {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-size: var(--lazu-health-label-text);
+}
+
+.chealth-lane {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chealth-lane__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chealth-lane__label {
+  color: var(--lazu-text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--lazu-health-label-text);
+}
+
+.chealth-lane__flag {
+  color: var(--lazu-warning-strong);
+  flex: none;
+  font-size: var(--lazu-health-label-text);
+}
+
+.chealth-lane__spacer {
+  flex: 1 1 auto;
+}
+
+.chealth-lane__status {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  font-size: 12px;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.chealth-lane__status--operational {
+  color: var(--lazu-success);
+}
+
+.chealth-lane__status--degraded {
+  color: var(--lazu-warning-strong);
+}
+
+.chealth-lane__status--outage {
+  color: var(--lazu-danger);
+}
+
+.chealth-lane__status--unknown {
+  color: var(--lazu-text-faint);
+}
+
+.chealth-lane__uptime {
+  color: var(--lazu-ink);
+  flex: none;
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-label-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chealth-lane__track {
+  position: relative;
+}
+
+.chealth-bars {
+  display: flex;
+  gap: 1px;
+  height: 12px;
+}
+
+.chealth-bars > .chealth-bar {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.chealth-lane__figures {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-metric-text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.chealth-lane__figures > span {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.chealth-bar {
+  border-radius: var(--lazu-radius-datamark);
+  display: block;
+}
+
+.chealth-bar--ok {
+  background: color-mix(in srgb, var(--lazu-success) 82%, transparent);
+}
+
+.chealth-bar--warn {
+  background: color-mix(in srgb, var(--lazu-warning) 85%, transparent);
+}
+
+.chealth-bar--bad {
+  background: color-mix(in srgb, var(--lazu-danger) 90%, transparent);
+}
+
+.chealth-bar--none {
+  background: var(--lazu-surface-selected);
+}
+
+.chealth-bar--blocked {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--lazu-border) 0,
+    var(--lazu-border) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.chealth-bars > button {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.chealth-bars > button:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+.chealth-banner--unknown {
+  --chealth-banner-tone: var(--lazu-text-muted);
+}
+
+.chealth-bar--ok.is-hovered {
+  background: var(--lazu-success);
+}
+
+.chealth-bar--warn.is-hovered {
+  background: var(--lazu-warning-strong);
+}
+
+.chealth-bar--bad.is-hovered {
+  background: var(--lazu-danger);
+}
+
+.chealth-bar--none.is-hovered {
+  background: var(--lazu-border-strong);
+}
+
+.chealth-tip {
+  background: var(--lazu-ink);
+  border-radius: var(--lazu-radius-badge);
+  bottom: calc(100% + 10px);
+  box-shadow: var(--lazu-shadow-overlay);
+  color: var(--lazu-surface-solid);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: absolute;
+  width: 212px;
+  z-index: 3;
+}
+
+.chealth-tip__when,
+.chealth-tip__note {
+  color: color-mix(in srgb, var(--lazu-surface-solid) 78%, transparent);
+  font-size: 12px;
+}
+
+.chealth-tip__when {
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-label-text);
+}
+
+.chealth-tip__verdict {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The tooltip sits on ink, so its verdict is lifted toward the paper colour:
+   the light theme's own danger red is too dark to read on ink. */
+.chealth-tip__verdict--bad {
+  color: color-mix(in srgb, var(--lazu-danger) 62%, var(--lazu-surface-solid));
+}
+
+.chealth-tip__verdict--warn {
+  color: color-mix(in srgb, var(--lazu-warning) 70%, var(--lazu-surface-solid));
+}
+
+.chealth-tip__verdict--ok {
+  color: color-mix(in srgb, var(--lazu-success) 60%, var(--lazu-surface-solid));
+}
+
+@media (max-width: 1100px) {
+  .chealth-mgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .chealth-banner {
+    align-items: flex-start;
+  }
+
+  .chealth-banner__dot {
+    margin-top: 6px;
+  }
+
+  .chealth-board-legend {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .chealth-mgrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.chealth-lane__norecord {
+  color: var(--lazu-text-muted);
+  font-size: var(--lazu-health-meta-text, 12px);
+  line-height: 1.5;
+}
+
+/* The maker rides on the card now that the board is one grid per kind. */
+.chealth-mcard__maker {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-size: var(--lazu-health-label-text);
+}
+
+.chealth-mcard__maker + .chealth-mcard__tag::before {
+  content: '· ';
+}

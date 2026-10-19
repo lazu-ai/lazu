@@ -1,0 +1,114 @@
+/* A2 「填线」 reasoning-effort cap. Spec: brand/foundations/team-projects-2026-09.md
+   § Reasoning-effort cap. Words above, an ink line filled to the cap below. */
+.lazu-effort {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+  width: 360px;
+}
+
+.lazu-effort--lg {
+  width: 470px;
+}
+
+.lazu-effort__words {
+  display: flex;
+}
+
+.lazu-effort__word {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  flex: 1;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  line-height: 20px;
+  padding: 0 2px;
+  text-align: center;
+  transition: color var(--lazu-motion-base, 140ms) var(--lazu-ease-direct, ease);
+  white-space: nowrap;
+}
+
+.lazu-effort--lg .lazu-effort__word {
+  font-size: 12.5px;
+}
+
+.lazu-effort__word[data-state='on'] {
+  color: var(--lazu-ink);
+}
+
+.lazu-effort__word[data-state='cap'] {
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.lazu-effort__word[data-state='out'] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.lazu-effort__word:not(:disabled):hover {
+  color: var(--lazu-ink);
+}
+
+.lazu-effort__word:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 1px;
+}
+
+.lazu-effort[aria-disabled='true'] .lazu-effort__word {
+  cursor: default;
+}
+
+.lazu-effort__track {
+  background: var(--lazu-surface-selected);
+  border-radius: 999px;
+  height: 4px;
+  position: relative;
+}
+
+.lazu-effort__fill {
+  background: var(--lazu-action);
+  border-radius: 999px;
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transition: width var(--lazu-motion-base, 140ms) var(--lazu-ease-direct, ease);
+}
+
+.lazu-effort__knob {
+  background: var(--lazu-surface-solid);
+  border: 2px solid var(--lazu-action);
+  border-radius: 50%;
+  height: 12px;
+  margin-left: -6px;
+  position: absolute;
+  top: -4px;
+  transition: left var(--lazu-motion-base, 140ms) var(--lazu-ease-direct, ease);
+  width: 12px;
+}
+
+.lazu-effort-badge {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: 7px;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  height: 22px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.lazu-effort-badge[data-all] {
+  color: var(--lazu-text-muted);
+  font-family: inherit;
+  font-weight: 400;
+}

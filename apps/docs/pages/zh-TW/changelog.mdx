@@ -1,0 +1,39 @@
+---
+title: "更新日誌：Lazu API、模型與文件更新"
+description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序：新模型上線、新介面、線路價格調整和問題修正。"
+---
+
+# 更新日誌
+
+## 2026-09-30 — Agent 工作階段、請求明細與長上下文价格
+
+- 以任務、模型及逐請求明細重做 Agent 工作階段。
+- 新增工作階段活動視圖與子代理路線，觀測範圍為網關活動，不含本機工具。
+- 長上下文價格接入成本計算、請求明細與公開模型頁；實際階梯依模型與路線設定。
+- sitemap 修改日期採用真實內容變更時間。
+
+日期為原始碼合併時間，自部署實例以部署版本為準。另見[工作階段費用核對指南](/zh-TW/agent-session-costs)。
+
+## 2026-05-28 — Usage 中繼資料與快取欄位
+
+- OpenAI-compatible 回應新增標準化快取欄位：`cached_tokens`、
+  `cache_write_tokens`、`cache_write_5m_tokens`、`cache_write_1h_tokens`
+  和 `cache_miss_tokens`。
+- 模型目錄新增 `usage_capabilities`，呼叫前即可查詢模型可能回報的
+  usage 維度與可計費維度。
+- 新增 `GET /api/usage/requests/{request_id}`，可查詢單次請求的
+  usage 維度、帳單明細、provider 原始快取欄位和路由資訊。
+- 補充 Qwen/DashScope、DeepSeek、Anthropic、Gemini、OpenAI 和
+  OpenRouter 的快取回報差異。
+
+## 2026-05-12 — 靜態文件回到 VPS
+
+- 恢復 Vocs 作為 `docs.lazu.ai` 的活躍文件站。
+- 透過獨立 nginx 靜態容器服務文件。
+- 統一官網和文件裡的產品品牌與 API 範例。
+
+## 2026-05-09 — OpenAPI Reference 整理
+
+- `packages/contracts/openapi/lazu-api-reference.v1.yaml` 繼續作為事實來源。
+- 構建時同步 OpenAPI JSON/YAML 到 docs public assets。
+- 保留互動式 reference，用於查請求和回應欄位。

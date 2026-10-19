@@ -1,0 +1,143 @@
+---
+title: "Image, video and audio generation API"
+description: "Generate images, submit and poll video jobs, and create or transcribe speech through Lazu with the same API key: request fields, results and errors."
+---
+
+# Images, video and audio
+
+For images and video, query the [model catalog](/models/catalog) with your key and inspect the exact endpoint, parameters and example. For audio, use the model-selection guidance below. Availability and options depend on the model and deployment; one model need not support all media types. Examples require Python 3 and the `requests` package (`python -m pip install requests`). Set `LAZU_API_KEY` and the model variables below.
+
+## Generate an image
+
+Set `LAZU_IMAGE_MODEL` to a model supporting `/v1/images/generations`. The response can include `data[].url` or `data[].b64_json`; handle the actual returned form. Size, quality and output format depend on the model. Do not assume generated URLs are permanent.
+
+```python
+import os
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+response = requests.post(origin + "/v1/images/generations",
+    headers={"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]},
+    json={"model": os.environ["LAZU_IMAGE_MODEL"], "prompt": "A blue ceramic cup"},
+    timeout=180)
+response.raise_for_status()
+print(response.json()["data"])
+```
+
+## Seedream images, edits and layers
+
+Use `POST /v1/images/generations` for both generation and editing. Send references in the JSON `image` field as a URL, data URL, or array. Seedream does not use multipart `/v1/images/edits` in Lazu. Responses are non-streaming. Studio supports ordinary generation and reference editing; use the API for native batch generation and decomposition.
+
+Published standard prices at launch (USD; the authenticated catalog is authoritative for your current price):
+
+| Model | USD / successful output |
+| --- | --- |
+| `seedream-5.0-flash` | $0.018 |
+| `seedream-5.0-lite` | $0.035 |
+| `seedream-4.5` | $0.040 |
+| `seedream-5.0-pro` | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
+
+For Pro decomposition, every returned image **including the base image** costs $0.0225 at ≤ 2,610,000 pixels or $0.045 above that threshold. Pro's first reference is free; each additional reference costs $0.003 per successful request. References are free on Flash, Lite and 4.5. Flash decomposition uses its normal $0.018 per returned image. Successful images alone are charged, even if a batch is incomplete; failed or moderated outputs are not charged. `data[].size` determines each image's pixel tier. Output tokens reported by the provider are not an additional token charge.
+
+Pro/Flash accept `1K`, `1.5K`, `2K` or valid dimensions and up to 10 references. Lite accepts `2K`, `3K`, `4K`; 4.5 accepts `2K`, `4K`; both accept up to 14 references. Legacy `1024x1024` is too small for Lite/4.5. Read `parameters` from the catalog for the selected model.
+
+Lite/4.5 support `sequential_image_generation: "auto"` with `max_images`. References plus the requested maximum cannot exceed 15. `n > 1` is a convenience alias for this native batch operation. Pro/Flash generate one ordinary image per request.
+
+```json
+{
+  "model": "seedream-5.0-lite",
+  "prompt": "Create two matching blue ceramic cup designs",
+  "size": "2K",
+  "sequential_image_generation": "auto",
+  "sequential_image_generation_options": {"max_images": 2}
+}
+```
+
+For Pro/Flash layers, send `layer_decomposition: true`, exactly one `image`, and optionally `prompt`; `size` defaults to `auto`. The response may contain a base image and up to 16 layers. Preserve `z_index`, `bounding_box`, `name`, `description` and each image's size. Decomposition reserves up to 17 outputs, then releases the difference after settlement.
+
+Prices are exposed in `pricing.image_pricing` (also per lane): `output_usd`, `pixel_threshold`, `high_resolution_output_usd`, `layer_usd`, `high_resolution_layer_usd`, `reference_usd`, `free_references`. Reconcile the returned `usage.cost` and `usage.generated_images` using the request's usage record. The gateway reserves the maximum possible charge first, then settles successful outputs at their actual sizes; keep enough key/project balance for that reservation.
+
+Official references: [image API](https://docs.byteplus.com/en/docs/modelark/image-generation-api), [pricing](https://docs.byteplus.com/en/docs/modelark/model-pricing).
+
+
+## Submit and poll a video
+
+Set `LAZU_VIDEO_MODEL` to a model supporting `/v1/videos`. A successful submission returns HTTP 202 and a job ID. Poll the same job with the same key: `pending` and `running` are not final; `succeeded` provides artifact information, and `failed` includes an error. A local wait timeout does not cancel or fail the job. Save the ID and resume polling; do not submit another paid job just because the wait ended.
+
+```python
+import os
+import time
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+response = requests.post(origin + "/v1/videos", headers=headers,
+    json={"model": os.environ["LAZU_VIDEO_MODEL"], "prompt": "Ocean waves at sunrise"},
+    timeout=180)
+response.raise_for_status()
+job_id = response.json()["id"]
+print("Save job ID:", job_id, flush=True)
+deadline = time.monotonic() + 600
+while time.monotonic() < deadline:
+    response = requests.get(origin + "/v1/videos/" + job_id,
+                            headers=headers, timeout=30)
+    if response.status_code in (429, 503):
+        retry_after = response.headers.get("Retry-After", "5")
+        delay = float(retry_after) if retry_after.isdecimal() else 5
+        if delay >= deadline - time.monotonic():
+            print("Still waiting; resume GET for job:", job_id)
+            break
+        time.sleep(max(1, delay))
+        continue
+    response.raise_for_status()
+    job = response.json()
+    if job["status"] == "succeeded":
+        print(job.get("artifact", {}))
+        break
+    if job["status"] == "failed":
+        raise RuntimeError(job.get("error", {"message": "Video failed"}))
+    time.sleep(5)
+else:
+    print("Still waiting; resume GET for job:", job_id)
+# A local timeout does not cancel the remote job. Keep job_id for later GETs.
+```
+
+## Generate speech or transcribe audio
+
+Set `LAZU_AUDIO_MODEL` to a speech model and `LAZU_VOICE` to a supported voice. `/v1/audio/speech` returns binary audio, not JSON. For transcription, choose a compatible model and upload a local audio file to `/v1/audio/transcriptions` as multipart data. These are separate model capabilities.
+
+The catalog currently has no speech/transcription endpoint types. Audio modality alone cannot identify either capability. Obtain the exact model ID, endpoint and supported voice from your deployment operator or Lazu support, and confirm that the model is accessible to your API key. Do not select these models by audio modality alone. Set `LAZU_TRANSCRIPTION_MODEL` to the confirmed transcription model and `LAZU_AUDIO_FILE` to your local audio path.
+
+```python
+import os
+from pathlib import Path
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+response = requests.post(origin + "/v1/audio/speech", headers=headers,
+    json={"model": os.environ["LAZU_AUDIO_MODEL"], "input": "Hello from Lazu",
+          "voice": os.environ["LAZU_VOICE"], "response_format": "mp3"}, timeout=180)
+response.raise_for_status()
+Path("speech.mp3").write_bytes(response.content)
+```
+
+```python
+import os
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+with open(os.environ["LAZU_AUDIO_FILE"], "rb") as audio:
+    response = requests.post(origin + "/v1/audio/transcriptions",
+        headers={"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]},
+        data={"model": os.environ["LAZU_TRANSCRIPTION_MODEL"]},
+        files={"file": audio}, timeout=180)
+response.raise_for_status()
+print(response.json())
+```
+
+## Errors and results
+
+On failure, preserve the request or job ID and inspect the error code. If submission times out before a job ID arrives, check the video job list (`GET /v1/videos`) or contact support before resubmitting. For a succeeded job, use `artifact.url` when available; if only `artifact.file_id` is returned, retrieve it through the [Files API](/endpoints/files). Reconcile charges through [Billing](/billing).
+
+[API Explorer](/api-reference)

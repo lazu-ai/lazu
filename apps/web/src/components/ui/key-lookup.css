@@ -1,0 +1,66 @@
+/* Key lookup — the page a visitor who is not signed in lands on.
+   One reading column on the paper: eyebrow, serif title, a sentence, and the
+   fields in a row. The card and the icon-in-a-rounded-box it replaced said
+   nothing the title did not. */
+
+/* The page holds a screen of height so the footer lands at the bottom of the
+   window rather than halfway up it, the way every short public page does. */
+.key-lookup {
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 880px;
+  width: 100%;
+  min-height: calc(100dvh - var(--lazu-web-header-height, 64px) - 220px);
+  padding: clamp(40px, 6vw, 88px) clamp(20px, 4vw, 44px) 64px;
+}
+
+.key-lookup__head {
+  display: flex;
+  flex-direction: column;
+}
+
+.key-lookup__eyebrow {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.key-lookup__title {
+  font-family: var(--lazu-web-font-display, var(--lazu-font-display));
+  font-size: clamp(34px, 4.2vw, 50px);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.04;
+  margin: 12px 0 0;
+  max-width: 20ch;
+  text-wrap: balance;
+}
+
+.key-lookup__lede {
+  color: var(--lazu-ink);
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 16px 0 0;
+  max-width: 58ch;
+}
+
+/* An ink rule opens the form the way it opens every other table on the site;
+   the fields sit on the paper under it, not in a panel. */
+.key-lookup__form {
+  align-items: end;
+  border-bottom: 1px solid var(--lazu-border);
+  border-top: 1px solid var(--lazu-ink);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) auto;
+  margin-top: 28px;
+  padding: 22px 0;
+}
+
+@media (max-width: 760px) {
+  .key-lookup__form {
+    grid-template-columns: 1fr;
+  }
+}

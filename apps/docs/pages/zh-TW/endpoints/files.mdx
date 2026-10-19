@@ -1,0 +1,120 @@
+---
+title: "Files API：上傳 PDF 和圖片給 Responses API 使用"
+description: 上傳 PDF、圖片和文件，然後在 Responses API 中透過 file_id 引用。
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="介面 / Storage"
+  method="POST"
+  path="/v1/files"
+  sendable={false}
+  title="Files API"
+  description="文件和圖片可以先上傳一次，再在 Responses API 中透過 file_id 引用。Files API 盡量保持 OpenAI-compatible，同時明確 Lazu 的保留期和 purpose 規則。"
+  aside={
+    <EndpointRail
+      endpoint="files"
+      extra={
+        <MiniCard title="保留期">
+          檔案保留 30 天，然後由清理任務刪除。儲存免費，每個帳戶同時最多保存
+          10 GB。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## File endpoints
+
+| Method | Path                    | 用途     |
+| ------ | ----------------------- | -------- |
+| POST   | `/v1/files`             | 上傳     |
+| GET    | `/v1/files`             | 列表     |
+| GET    | `/v1/files/:id`         | metadata |
+| GET    | `/v1/files/:id/content` | 下載內容 |
+| DELETE | `/v1/files/:id`         | 刪除     |
+
+所有 endpoint 都使用 <code>Authorization: Bearer $LAZU_API_KEY</code>。
+
+## 上傳請求
+
+<FieldList>
+  <Field name="purpose" type="string" required values={["user_data", "vision"]}>
+    宣告檔案用途。
+  </Field>
+  <Field name="file" type="multipart file" required>
+    上傳的檔案位元組。
+  </Field>
+</FieldList>
+
+## 支援的 purpose
+
+<EndpointGrid>
+  <EndpointTile title="user_data">
+    最大 512 MB。用於 PDF、文字和結構化資料，透過 Responses 的
+    <code>input_file</code> 傳入。
+  </EndpointTile>
+  <EndpointTile title="vision">
+    最大 20 MB。允許 <code>image/png</code>、<code>image/jpeg</code>、
+    <code>image/gif</code>、<code>image/webp</code>。
+  </EndpointTile>
+</EndpointGrid>
+
+OpenAI 的 <code>batch</code>、<code>fine-tune</code> 和
+
+<code>assistants</code> purpose 暫不支援。無論 purpose
+如何，都會拒絕可執行檔副檔名。
+
+## 上傳響應
+
+<FieldList>
+  <Field name="id" type="string">
+    File ID，例如 <code>file-lazu-01KSBV4MC6THZ9TCZEM38KPYRX</code>。
+  </Field>
+  <Field name="object" type="string">
+    始終為 <code>file</code>。
+  </Field>
+  <Field name="bytes" type="integer">
+    上傳位元組數。
+  </Field>
+  <Field name="filename" type="string">
+    原始檔名。
+  </Field>
+  <Field name="purpose" type="string">
+    儲存的 purpose。
+  </Field>
+  <Field name="status" type="string">
+    通常為 <code>processed</code>。
+  </Field>
+</FieldList>
+
+成功上傳時 Lazu 返回 <code>201 Created</code>。如果用戶端只接受 200，需要把
+201 也視作成功。
+
+## 在 Responses 中引用
+
+Lazu 只會在 [Responses](/zh-TW/endpoints/responses) 中解引用 <code>file_id</code>。
+Chat completions 不會自動拉取檔案內容。
+
+## 限制
+
+| 限制                            | 值     |
+| ------------------------------- | ------ |
+| 單個 `purpose=user_data` 檔案   | 512 MB |
+| 單個 `purpose=vision` 檔案      | 20 MB  |
+| 單次 Responses 呼叫解引用總大小 | 64 MB  |
+| 每個帳戶免費保存的檔案總量      | 10 GB  |
+
+上傳後會超過 10 GB 時回傳 `storage_quota_exceeded`。媒體任務產生的圖片和影片
+計入這 10 GB，但不會因此被拒絕。
+
+</EndpointPage>

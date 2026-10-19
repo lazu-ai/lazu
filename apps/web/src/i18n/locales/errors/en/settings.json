@@ -1,0 +1,23 @@
+{
+  "setting_invalid": "A setting value was not accepted, so it was not saved. Check its format and value, then save again.",
+  "content_limit_exceeded": "This list can hold at most {{limit}} items. Remove some and save again.",
+  "announcement_not_found": "This announcement no longer exists. Refresh the list.",
+  "email_test_failed": "The test email could not be sent. Check the SMTP settings; the mail server's reply is in the server log.",
+  "email_test_recipient_missing": "Your account has no email address, so there is nowhere to send the test. Add an email address to your account first.",
+  "email_recipients_required": "No recipients were chosen, so nothing was sent. Choose users or send to everyone.",
+  "announcement_email_content_missing": "There is no announcement to send. Enter a title and content, or publish an announcement first.",
+  "translation_token_missing": "Translation needs an API key of your own, and you have none that works. Create or enable a key, then try again.",
+  "feedback_request_not_found": "No request with this ID was found for your account. Check the request ID.",
+  "database_unreachable": "The server cannot reach its database. Check the database service and try again.",
+  "email_domain_not_allowed": "This email domain is not accepted here. Use an address from an allowed domain.",
+  "email_alias_not_allowed": "Addresses with “+” or “.” before the @ are not accepted. Use your plain address.",
+  "password_invalid": "The password must be 8 to 64 characters and no more than 72 bytes. Choose another password.",
+  "password_reset_link_invalid": "This reset link is invalid or has expired. Request a new one.",
+  "password_reset_client_upgrade_required": "This page is out of date and your link has not been used. Reload the page and set the password again.",
+  "mail_not_found": "The archived mail was not found.",
+  "mail_resend_failed": "The archived mail could not be resent. Check the delivery details.",
+  "admin_email_missing": "Add an email address to your account before sending a preview.",
+  "mail_regenerate_failed": "The mail could not be regenerated. Regenerate drafts from the usage digest page.",
+  "digest_settings_invalid": "The digest settings are invalid.",
+  "mail_send_failed": "The mail could not be sent. Check the delivery details."
+}

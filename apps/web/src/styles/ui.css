@@ -1,0 +1,4167 @@
+/* Wrap the entire Lazu UI component layer in `tailwind-components` so the
+   tailwind-utils layer (e.g. `pl-9` on a setup wizard input) can override
+   default component padding without bumping specificity at every callsite. */
+@layer tailwind-components {
+  .lazu-button,
+  .lazu-icon-button,
+  .lazu-input,
+  .lazu-textarea,
+  .lazu-select-trigger,
+  .lazu-date-trigger,
+  .lazu-checkbox,
+  .lazu-switch,
+  .lazu-pagination-button,
+  .lazu-tag-remove,
+  .lazu-modal-close,
+  .lazu-drawer-close,
+  .lazu-toolbar-button {
+    transition:
+      background-color var(--ui-motion-base) var(--ui-ease-direct),
+      border-color var(--ui-motion-base) var(--ui-ease-direct),
+      color var(--ui-motion-base) var(--ui-ease-direct),
+      box-shadow var(--ui-motion-base) var(--ui-ease-direct),
+      transform var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .lazu-button,
+  .lazu-icon-button,
+  .lazu-select-trigger,
+  .lazu-date-trigger,
+  .lazu-pagination-button,
+  .lazu-toolbar-button {
+    align-items: center;
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    cursor: pointer;
+    display: inline-flex;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    gap: var(--ui-space-2);
+    justify-content: center;
+    line-height: 1;
+    outline: none;
+    white-space: nowrap;
+  }
+
+  .lazu-button:focus-visible,
+  .lazu-icon-button:focus-visible,
+  .lazu-input:focus-visible,
+  .lazu-textarea:focus-visible,
+  .lazu-select-trigger:focus-visible,
+  .lazu-date-trigger:focus-visible,
+  .lazu-checkbox:focus-visible,
+  .lazu-switch:focus-visible,
+  .lazu-pagination-button:focus-visible,
+  .lazu-tag-remove:focus-visible,
+  .lazu-modal-close:focus-visible,
+  .lazu-drawer-close:focus-visible,
+  .lazu-toolbar-button:focus-visible {
+    box-shadow: var(--ui-focus-ring);
+  }
+
+  .lazu-button:disabled,
+  .lazu-icon-button:disabled,
+  .lazu-input:disabled,
+  .lazu-textarea:disabled,
+  .lazu-select-trigger:disabled,
+  .lazu-date-trigger:disabled,
+  .lazu-pagination-button:disabled,
+  .lazu-toolbar-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+  }
+
+  .lazu-button--xs,
+  .lazu-icon-button--xs {
+    height: 26px;
+    min-width: 26px;
+    padding: 0 var(--ui-space-2);
+    font-size: 12px;
+  }
+
+  .lazu-button--sm,
+  .lazu-icon-button--sm,
+  .lazu-select-trigger--sm {
+    height: var(--ui-control-height-sm);
+    min-width: var(--ui-control-height-sm);
+    padding: 0 var(--ui-space-3);
+    font-size: 13px;
+  }
+
+  .lazu-button--md,
+  .lazu-icon-button--md,
+  .lazu-select-trigger--md,
+  .lazu-date-trigger {
+    height: var(--ui-control-height);
+    min-width: var(--ui-control-height);
+    padding: 0 var(--ui-space-4);
+    font-size: 14px;
+  }
+
+  .lazu-button--lg,
+  .lazu-icon-button--lg,
+  .lazu-select-trigger--lg {
+    height: var(--ui-control-height-lg);
+    min-width: var(--ui-control-height-lg);
+    padding: 0 var(--ui-space-5);
+    font-size: 15px;
+  }
+
+  .lazu-icon-button {
+    padding: 0;
+  }
+
+  /* The primary action is ink everywhere, not only inside console pages:
+     --ui-accent is the teal evidence colour, never a button fill. */
+  .lazu-button--primary,
+  .lazu-icon-button--primary {
+    background: var(--lazu-action);
+    color: var(--ui-accent-contrast);
+  }
+
+  .lazu-button--primary:hover,
+  .lazu-icon-button--primary:hover {
+    background: var(--lazu-action-hover);
+  }
+
+  /* Kumo secondary actions stay on the base surface with a hairline border. */
+  .lazu-button--secondary,
+  .lazu-icon-button--secondary {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+  }
+
+  .lazu-button--secondary:hover,
+  .lazu-icon-button--secondary:hover,
+  .lazu-toolbar-button:hover {
+    background: var(--ui-bg);
+    border-color: var(--ui-text-secondary);
+  }
+
+  .lazu-button--ghost,
+  .lazu-icon-button--ghost,
+  .lazu-toolbar-button {
+    background: transparent;
+    color: var(--ui-text-secondary);
+  }
+
+  .lazu-button--ghost:hover,
+  .lazu-icon-button--ghost:hover {
+    background: var(--ui-bg-muted);
+    color: var(--ui-text);
+  }
+
+  .lazu-button--ghost-danger,
+  .lazu-icon-button--ghost-danger {
+    background: transparent;
+    color: var(--ui-danger);
+  }
+
+  .lazu-button--ghost-danger:hover,
+  .lazu-icon-button--ghost-danger:hover {
+    background: color-mix(in srgb, var(--ui-danger) 12%, transparent);
+    color: var(--ui-danger);
+  }
+
+  .lazu-button--soft,
+  .lazu-icon-button--soft {
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+  }
+
+  .lazu-button--soft:hover,
+  .lazu-icon-button--soft:hover {
+    background: var(--ui-bg-muted);
+    border-color: var(--ui-border-strong);
+  }
+
+  .lazu-button--soft-danger,
+  .lazu-icon-button--soft-danger {
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-danger);
+  }
+
+  .lazu-button--soft-danger:hover,
+  .lazu-icon-button--soft-danger:hover {
+    background: color-mix(in srgb, var(--ui-danger) 8%, var(--ui-bg-raised));
+    border-color: color-mix(in srgb, var(--ui-danger) 38%, var(--ui-border));
+    color: var(--ui-danger);
+  }
+
+  .lazu-button--danger,
+  .lazu-icon-button--danger {
+    background: var(--ui-danger);
+    color: var(--lazu-on-danger);
+  }
+
+  .lazu-button--danger:hover,
+  .lazu-icon-button--danger:hover {
+    filter: brightness(0.94);
+  }
+
+  .lazu-button--success,
+  .lazu-icon-button--success {
+    background: var(--ui-success);
+    color: var(--lazu-on-success);
+  }
+
+  .lazu-button--link {
+    background: transparent;
+    color: var(--ui-accent);
+    height: auto;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .lazu-button--full {
+    width: 100%;
+  }
+
+  .lazu-button svg {
+    flex: 0 0 auto;
+  }
+
+  .lazu-button:active:not(:disabled),
+  .lazu-icon-button:active:not(:disabled),
+  .lazu-toolbar-button:active:not(:disabled) {
+    transform: scale(0.97);
+    transition-duration: var(--ui-motion-fast);
+  }
+
+  .lazu-button[data-status='success'] {
+    border-color: color-mix(in srgb, var(--ui-success) 42%, transparent);
+  }
+
+  .lazu-button[data-status='error'] {
+    border-color: color-mix(in srgb, var(--ui-danger) 42%, transparent);
+  }
+
+  .lazu-spin-icon {
+    animation: lazu-spin 0.8s linear infinite;
+  }
+
+  @keyframes lazu-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .lazu-badge,
+  .lazu-tag,
+  .lazu-status-dot {
+    align-items: center;
+    display: inline-flex;
+    font-family: var(--font-ui);
+    white-space: nowrap;
+  }
+
+  .lazu-badge {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-text-secondary);
+    font-size: 12px;
+    font-weight: 650;
+    gap: 6px;
+    line-height: 1;
+    padding: 5px 8px;
+  }
+
+  .lazu-badge--neutral {
+    background: var(--ui-bg-muted);
+  }
+
+  .lazu-badge--success {
+    background: color-mix(in srgb, var(--ui-success) 12%, transparent);
+    border-color: color-mix(in srgb, var(--ui-success) 30%, transparent);
+    color: var(--ui-success);
+  }
+
+  .lazu-badge--warning {
+    background: color-mix(in srgb, var(--ui-warning) 14%, transparent);
+    border-color: color-mix(in srgb, var(--ui-warning) 30%, transparent);
+    color: var(--ui-warning);
+  }
+
+  .lazu-badge--danger {
+    background: color-mix(in srgb, var(--ui-danger) 12%, transparent);
+    border-color: color-mix(in srgb, var(--ui-danger) 30%, transparent);
+    color: var(--ui-danger);
+  }
+
+  .lazu-card {
+    overflow: hidden;
+  }
+
+  .lazu-card__header--plain {
+    border-bottom: 0;
+  }
+
+  .lazu-card__body {
+    min-width: 0;
+  }
+
+  .lazu-space,
+  .lazu-row {
+    min-width: 0;
+  }
+
+  .lazu-row {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .lazu-col {
+    min-width: 0;
+    padding: 0 var(--ui-space-2);
+  }
+
+  .lazu-divider {
+    border: 0;
+    border-top: 1px solid var(--ui-border);
+  }
+
+  .lazu-spin-wrap {
+    position: relative;
+  }
+
+  .lazu-spin-overlay {
+    align-items: center;
+    background: color-mix(in srgb, var(--ui-surface) 72%, transparent);
+    border-radius: inherit;
+    color: var(--ui-text-secondary);
+    display: flex;
+    gap: var(--ui-space-2);
+    inset: 0;
+    justify-content: center;
+    min-height: 80px;
+    position: absolute;
+    z-index: 20;
+  }
+
+  .lazu-tag {
+    gap: 6px;
+  }
+
+  .lazu-tag--small {
+    font-size: 11px;
+    padding-block: 3px;
+  }
+
+  .lazu-badge-wrap {
+    display: inline-flex;
+    position: relative;
+  }
+
+  .lazu-badge-dot,
+  .lazu-badge-count {
+    position: absolute;
+    right: -4px;
+    top: -4px;
+  }
+
+  .lazu-badge-dot {
+    background: var(--ui-danger);
+    border: 2px solid var(--ui-surface);
+    border-radius: 999px;
+    height: 10px;
+    width: 10px;
+  }
+
+  .lazu-badge-count {
+    align-items: center;
+    background: var(--ui-danger);
+    border-radius: 999px;
+    color: white;
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 700;
+    min-height: 18px;
+    min-width: 18px;
+    padding: 0 5px;
+  }
+
+  .lazu-avatar {
+    align-items: center;
+    background: var(--ui-bg-muted);
+    border-radius: 999px;
+    color: var(--ui-text);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 700;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .lazu-avatar img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  .lazu-illustration {
+    align-items: center;
+    background:
+      radial-gradient(
+        circle at 35% 30%,
+        color-mix(in srgb, var(--ui-accent) 18%, transparent),
+        transparent 46%
+      ),
+      var(--ui-bg-muted);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    color: var(--ui-text-tertiary);
+    display: inline-flex;
+    justify-content: center;
+    min-height: 90px;
+    min-width: 90px;
+  }
+
+  /* Feedback · 纸上批注. LOCKED 2026-08-28, brand/foundations/feedback-system.md.
+     The sheet never changes color: semantics live in the icon and the title,
+     never in a fill, a thick rule, or a dashed edge. `.lazu-banner` is a legacy
+     alias kept so old markup keeps rendering the one canonical notice.
+     G1 (2026-10-06): a white sheet with a 1px ink edge, so it reads as a
+     note set on the page rather than another hairline card. */
+  .lazu-inline-notice,
+  .lazu-banner {
+    align-items: start;
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--lazu-notice-edge);
+    border-radius: var(--lazu-radius-notice);
+    color: var(--ui-text);
+    display: grid;
+    gap: 10px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: var(--ui-space-3) 14px;
+  }
+
+  .lazu-inline-notice__icon,
+  .lazu-banner__icon {
+    align-items: center;
+    color: var(--ui-text-tertiary);
+    display: inline-flex;
+    justify-content: center;
+    margin-top: 1px;
+  }
+
+  .lazu-inline-notice__icon > svg,
+  .lazu-banner__icon > svg {
+    height: var(--lazu-notice-icon);
+    width: var(--lazu-notice-icon);
+  }
+
+  .lazu-inline-notice--danger .lazu-inline-notice__icon,
+  .lazu-banner--danger .lazu-banner__icon,
+  .lazu-banner--error .lazu-banner__icon {
+    color: var(--ui-danger);
+  }
+
+  .lazu-inline-notice--warning .lazu-inline-notice__icon,
+  .lazu-banner--warning .lazu-banner__icon {
+    color: var(--ui-warning);
+  }
+
+  .lazu-inline-notice--success .lazu-inline-notice__icon,
+  .lazu-banner--success .lazu-banner__icon {
+    color: var(--ui-success);
+  }
+
+  .lazu-inline-notice--info .lazu-inline-notice__icon,
+  .lazu-banner--info .lazu-banner__icon {
+    color: var(--ui-info);
+  }
+
+  .lazu-inline-notice__copy,
+  .lazu-inline-notice__copy > strong,
+  .lazu-inline-notice__copy > span {
+    display: block;
+    min-width: 0;
+  }
+
+  .lazu-inline-notice__copy > strong,
+  .lazu-banner__title {
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.4;
+  }
+
+  /* Only the states that ask for action tint their title. Success and info
+     stay ink so a healthy page never shouts. */
+  .lazu-inline-notice--danger .lazu-inline-notice__copy > strong,
+  .lazu-banner--danger .lazu-banner__title,
+  .lazu-banner--error .lazu-banner__title {
+    color: var(--ui-danger);
+  }
+
+  .lazu-inline-notice--warning .lazu-inline-notice__copy > strong,
+  .lazu-banner--warning .lazu-banner__title {
+    color: var(--ui-warning);
+  }
+
+  .lazu-inline-notice__copy > span,
+  .lazu-banner__description {
+    color: var(--ui-text-secondary);
+    font-size: 12.5px;
+    line-height: 1.5;
+    margin-top: 2px;
+  }
+
+  .lazu-inline-notice__actions {
+    align-items: center;
+    align-self: center;
+    display: flex;
+    gap: var(--ui-space-2);
+  }
+
+  .lazu-banner--full {
+    border-radius: 0;
+    border-inline: 0;
+  }
+
+  /* Full-bleed announcement rail for the public site and Status page. Same
+     grammar as the in-page notice, only stretched edge to edge. */
+  .lazu-public-notice {
+    align-items: center;
+    background: var(--ui-bg-raised);
+    border-block: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    gap: 10px;
+    justify-content: center;
+    line-height: 1.5;
+    padding: 9px 20px;
+    text-align: center;
+  }
+
+  .lazu-public-notice__icon {
+    color: var(--ui-info);
+    flex: none;
+    height: var(--lazu-notice-icon);
+    width: var(--lazu-notice-icon);
+  }
+
+  .lazu-public-notice--danger .lazu-public-notice__icon {
+    color: var(--ui-danger);
+  }
+
+  .lazu-public-notice--warning .lazu-public-notice__icon {
+    color: var(--ui-warning);
+  }
+
+  .lazu-public-notice a {
+    color: var(--ui-text);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: var(--ui-border-strong);
+    text-underline-offset: 3px;
+  }
+
+  @media (max-width: 680px) {
+    .lazu-inline-notice,
+    .lazu-banner {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .lazu-inline-notice__actions {
+      grid-column: 2;
+    }
+  }
+
+  .lazu-progress {
+    align-items: center;
+    display: flex;
+    gap: var(--ui-space-2);
+    min-width: 120px;
+  }
+
+  .lazu-progress__track {
+    background: var(--ui-bg-muted);
+    border-radius: 999px;
+    flex: 1;
+    height: 8px;
+    overflow: hidden;
+  }
+
+  .lazu-progress__bar {
+    background: var(--ui-accent);
+    height: 100%;
+  }
+
+  .lazu-progress__label {
+    color: var(--ui-text-secondary);
+    font-size: 12px;
+    min-width: 34px;
+  }
+
+  .lazu-popover {
+    display: inline-flex;
+    position: relative;
+  }
+
+  .lazu-popover__content {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    box-shadow: var(--ui-shadow-lg);
+    color: var(--ui-text);
+    left: 0;
+    min-width: 220px;
+    padding: var(--ui-space-3);
+    position: absolute;
+    top: calc(100% + 8px);
+    z-index: 60;
+  }
+
+  .lazu-input-affix {
+    align-items: center;
+    display: inline-flex;
+    min-width: 0;
+    position: relative;
+    width: 100%;
+  }
+
+  .lazu-input-affix__prefix,
+  .lazu-input-affix__suffix {
+    color: var(--ui-text-tertiary);
+    display: inline-flex;
+    position: absolute;
+    z-index: 1;
+  }
+
+  .lazu-input-affix__prefix {
+    left: 10px;
+  }
+
+  .lazu-input-affix__suffix {
+    right: 10px;
+  }
+
+  .lazu-input-affix__prefix + .lazu-input {
+    padding-left: 34px;
+  }
+
+  .lazu-textarea {
+    min-height: 92px;
+    resize: vertical;
+  }
+
+  .lazu-input-group {
+    display: flex;
+    gap: var(--ui-space-2);
+  }
+
+  .lazu-select {
+    width: 100%;
+  }
+
+  .lazu-checkbox-input {
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    width: 1px;
+  }
+
+  .lazu-checkbox-label,
+  .lazu-switch-label,
+  .lazu-radio,
+  .lazu-radio-group {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--ui-space-2);
+  }
+
+  .lazu-checkbox-input:checked + .lazu-checkbox {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+    color: var(--ui-accent-contrast);
+  }
+
+  .lazu-radio-group {
+    flex-wrap: wrap;
+  }
+
+  .lazu-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-4);
+  }
+
+  .lazu-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-3);
+  }
+
+  .lazu-form-section__title {
+    color: var(--ui-text);
+    font-size: 15px;
+    font-weight: 750;
+    margin: 0 0 var(--ui-space-1);
+  }
+
+  .lazu-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+    min-width: 0;
+  }
+
+  .lazu-form-field__label {
+    color: var(--ui-text);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .lazu-form-field__help {
+    color: var(--ui-text-tertiary);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .lazu-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-4);
+  }
+
+  .lazu-tabs__list {
+    width: max-content;
+  }
+
+  .lazu-tabs__content {
+    min-width: 0;
+  }
+
+  .lazu-collapse {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    overflow: hidden;
+  }
+
+  .lazu-collapse-panel + .lazu-collapse-panel {
+    border-top: 1px solid var(--ui-border);
+  }
+
+  .lazu-collapse-panel summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    gap: var(--ui-space-2);
+    font-weight: 650;
+    list-style: none;
+    padding: var(--ui-space-3);
+  }
+
+  .lazu-collapse-panel__body {
+    color: var(--ui-text-secondary);
+    padding: 0 var(--ui-space-3) var(--ui-space-3);
+  }
+
+  .lazu-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .lazu-modal-overlay {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    position: fixed;
+    z-index: 80;
+  }
+
+  .lazu-modal-content {
+    position: relative;
+  }
+
+  .lazu-modal-title {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    margin-bottom: var(--ui-space-3);
+  }
+
+  .lazu-modal-title__icon {
+    flex: none;
+  }
+
+  .lazu-modal-content--danger .lazu-modal-title__icon {
+    color: var(--ui-danger);
+  }
+
+  .lazu-modal-content--warning .lazu-modal-title__icon {
+    color: var(--ui-warning);
+  }
+
+  .lazu-image-preview {
+    display: block;
+    max-height: 80vh;
+    max-width: 80vw;
+    object-fit: contain;
+  }
+
+  .lazu-typography-text,
+  .lazu-typography-paragraph {
+    color: var(--ui-text-secondary);
+  }
+
+  .lazu-text--tertiary {
+    color: var(--ui-text-tertiary);
+  }
+
+  .lazu-typography-title {
+    color: var(--ui-text);
+    margin: 0;
+  }
+
+  .lazu-descriptions {
+    display: grid;
+    gap: var(--ui-space-3);
+  }
+
+  .lazu-descriptions__item {
+    border-bottom: 1px solid var(--ui-border);
+    padding-bottom: var(--ui-space-2);
+  }
+
+  .lazu-descriptions dt {
+    color: var(--ui-text-tertiary);
+    font-size: 12px;
+  }
+
+  .lazu-descriptions dd {
+    color: var(--ui-text);
+    margin: 3px 0 0;
+  }
+
+  .lazu-steps {
+    display: flex;
+    gap: var(--ui-space-3);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .lazu-steps__item {
+    align-items: center;
+    color: var(--ui-text-tertiary);
+    display: flex;
+    gap: var(--ui-space-2);
+  }
+
+  .lazu-steps__item > span {
+    align-items: center;
+    border: 1px solid var(--ui-border);
+    border-radius: 999px;
+    display: inline-flex;
+    height: 24px;
+    justify-content: center;
+    width: 24px;
+  }
+
+  .lazu-steps__item--active {
+    color: var(--ui-text);
+  }
+
+  .lazu-skeleton {
+    min-height: 16px;
+  }
+
+  .lazu-skeleton--avatar {
+    border-radius: 999px;
+    height: 36px;
+    width: 36px;
+  }
+
+  .lazu-skeleton--button {
+    height: 32px;
+    width: 92px;
+  }
+
+  .lazu-skeleton--title {
+    height: 18px;
+    width: 140px;
+  }
+
+  .lazu-skeleton-paragraph {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+  }
+
+  .lazu-icon {
+    display: inline-flex;
+  }
+
+  .lazu-badge--info {
+    background: color-mix(in srgb, var(--ui-accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--ui-accent) 30%, transparent);
+    color: var(--ui-accent);
+  }
+
+  .lazu-tag {
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-text);
+    font-size: 12px;
+    font-weight: 600;
+    gap: 6px;
+    height: 26px;
+    padding: 0 8px;
+  }
+
+  .lazu-tag-remove {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-text-tertiary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 18px;
+    justify-content: center;
+    padding: 0;
+    width: 18px;
+  }
+
+  .lazu-tag-remove:hover {
+    background: var(--ui-bg-muted);
+    color: var(--ui-text);
+  }
+
+  .lazu-status-dot {
+    gap: 7px;
+  }
+
+  .lazu-status-dot__dot {
+    border-radius: var(--ui-radius-pill);
+    height: 8px;
+    width: 8px;
+  }
+
+  .lazu-status-dot--success .lazu-status-dot__dot {
+    background: var(--ui-success);
+  }
+
+  .lazu-status-dot--warning .lazu-status-dot__dot {
+    background: var(--ui-warning);
+    border-radius: 1px;
+    transform: rotate(45deg);
+  }
+
+  .lazu-status-dot--danger .lazu-status-dot__dot {
+    background: transparent;
+    border-radius: 0;
+    position: relative;
+  }
+
+  .lazu-status-dot--danger .lazu-status-dot__dot::before,
+  .lazu-status-dot--danger .lazu-status-dot__dot::after {
+    background: var(--ui-danger);
+    border-radius: var(--ui-radius-pill);
+    content: '';
+    height: 2px;
+    left: 0;
+    position: absolute;
+    top: 3px;
+    width: 8px;
+  }
+
+  .lazu-status-dot--danger .lazu-status-dot__dot::before {
+    transform: rotate(45deg);
+  }
+
+  .lazu-status-dot--danger .lazu-status-dot__dot::after {
+    transform: rotate(-45deg);
+  }
+
+  .lazu-status-dot--info .lazu-status-dot__dot {
+    background: var(--ui-accent);
+  }
+
+  .lazu-status-dot--neutral .lazu-status-dot__dot {
+    background: var(--ui-text-tertiary);
+  }
+
+  .lazu-field {
+    display: grid;
+    gap: 7px;
+  }
+
+  .lazu-label {
+    color: var(--ui-text-secondary);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  /* Inputs retain their base field recipe; Select owns its surface below. */
+  .lazu-input,
+  .lazu-textarea,
+  .lazu-select-trigger {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    outline: none;
+    width: 100%;
+  }
+
+  .lazu-input {
+    height: 38px;
+    padding: 0 12px;
+  }
+
+  .lazu-textarea {
+    min-height: 92px;
+    padding: 10px 12px;
+    resize: vertical;
+  }
+
+  .lazu-input::placeholder,
+  .lazu-textarea::placeholder {
+    color: var(--ui-text-tertiary);
+  }
+
+  .lazu-input:hover,
+  .lazu-textarea:hover,
+  .lazu-select-trigger:hover {
+    border-color: var(--ui-border-strong);
+  }
+
+  .lazu-input:focus-visible,
+  .lazu-textarea:focus-visible,
+  .lazu-select-trigger:focus-visible {
+    border-color: var(--ui-accent);
+  }
+
+  .lazu-input[aria-invalid='true'],
+  .lazu-textarea[aria-invalid='true'],
+  .lazu-select-trigger[aria-invalid='true'] {
+    border-color: var(--ui-danger);
+  }
+
+  /* The invalid ring wins over the accent ring, otherwise focusing a broken
+     field makes the error disappear. */
+  .lazu-input[aria-invalid='true']:focus-visible,
+  .lazu-textarea[aria-invalid='true']:focus-visible,
+  .lazu-select-trigger[aria-invalid='true']:focus-visible {
+    border-color: var(--ui-danger);
+    box-shadow: 0 0 0 3px var(--ui-danger-soft);
+  }
+
+  .lazu-field-message {
+    color: var(--ui-text-tertiary);
+    font-size: 12px;
+  }
+
+  .lazu-field-message--error {
+    align-items: center;
+    color: var(--ui-danger);
+    display: flex;
+    gap: 6px;
+  }
+
+  .lazu-field-message__icon {
+    flex: none;
+    height: var(--lazu-notice-icon);
+    width: var(--lazu-notice-icon);
+  }
+
+  .lazu-checkbox {
+    align-items: center;
+    appearance: none;
+    background: var(--ui-bg);
+    border: 1.5px solid var(--ui-text-secondary);
+    border-radius: 5px;
+    color: var(--ui-accent-contrast);
+    cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 18px;
+    height: 18px;
+    justify-content: center;
+    outline: none;
+    padding: 0;
+    width: 18px;
+  }
+
+  /* Auth surfaces (login / register / reset) want the terms checkbox to
+   read as "you must click this" — accent fill + halo. Other contexts
+   (settings, tables, model cards) need the checkbox to look like a
+   neutral optional control, so the accent treatment is scoped to
+   .auth-terms only. */
+  .auth-terms .lazu-checkbox,
+  .auth-terms .lazu-checkbox:not([data-checked]) {
+    background: var(--ui-accent-soft);
+    border: 1.5px solid var(--ui-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ui-accent) 8%, transparent);
+    transition:
+      border-color var(--ui-motion-base) var(--ui-ease-direct),
+      box-shadow var(--ui-motion-base) var(--ui-ease-direct),
+      color var(--ui-motion-base) var(--ui-ease-direct),
+      transform var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .auth-terms .lazu-checkbox:not([data-checked]):hover {
+    background: var(--ui-bg);
+    border-color: var(--ui-accent-hover);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent) 12%, transparent);
+  }
+
+  .auth-terms .lazu-checkbox[data-checked]:hover {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+    box-shadow: none;
+  }
+
+  .lazu-checkbox[data-checked],
+  .lazu-checkbox[data-indeterminate] {
+    background: var(--ui-accent);
+    border: 1.5px solid var(--ui-accent);
+    box-shadow: none;
+  }
+
+  .lazu-checkbox-label,
+  .lazu-switch-label {
+    align-items: center;
+    color: var(--ui-text);
+    display: inline-flex;
+    gap: 9px;
+    font-size: 14px;
+  }
+
+  /* Switch off-state needs an explicit border so it's distinguishable
+   from a same-tone Warm Paper card surface. Track bg drops to page bg
+   (--ui-bg) so the pill is visibly inset rather than blending in. */
+  .lazu-switch {
+    align-items: center;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-pill);
+    box-sizing: border-box;
+    cursor: pointer;
+    display: inline-flex;
+    flex-shrink: 0;
+    height: 24px;
+    outline: none;
+    padding: 1px;
+    position: relative;
+    width: 42px;
+  }
+
+  .lazu-switch[data-checked] {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+  }
+
+  .lazu-switch__thumb {
+    background: var(--lazu-control-knob);
+    border-radius: var(--ui-radius-pill);
+    box-shadow: var(--ui-shadow-sm);
+    display: block;
+    height: 20px;
+    transform: translateX(0);
+    transition: transform var(--ui-motion-base) var(--ui-ease-direct);
+    width: 20px;
+  }
+
+  /* The knob has to contrast with the track it sits on, and the checked track
+     is --lazu-action. In dark that token is #f1f1f2 — the same near-white as
+     --lazu-control-knob — so an enabled switch rendered as a blank white pill
+     with no knob in it. --lazu-on-action is the colour that pairs with the
+     track by definition, in both themes. */
+  .lazu-switch[data-checked] .lazu-switch__thumb {
+    background: var(--lazu-on-action);
+    transform: translateX(18px);
+  }
+
+  .lazu-select-trigger {
+    background: var(--lazu-surface);
+    border-color: var(--lazu-border);
+    justify-content: space-between;
+  }
+
+  .lazu-multi-select-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+  }
+
+  .lazu-multi-select-value--empty {
+    color: var(--ui-text-tertiary);
+  }
+
+  /* A floating surface is opaque. --ui-bg-elevated resolves to
+     --lazu-surface-raised, which is 78% alpha: it is meant to sit ON the page
+     and let the warm ground through, so menus rendered over page content
+     showed the rows they were covering straight through the options. */
+  .lazu-select-content,
+  .lazu-dropdown-content,
+  .lazu-tooltip-content,
+  .lazu-popover-content {
+    background: var(--lazu-surface-solid);
+    border: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow-lg);
+    color: var(--ui-text);
+    z-index: 110;
+  }
+
+  .lazu-popup-positioner,
+  .lazu-tooltip-positioner {
+    z-index: 110;
+  }
+
+  .lazu-select-content,
+  .lazu-dropdown-content,
+  .lazu-popover-content {
+    border-radius: var(--ui-radius-lg);
+    min-width: 180px;
+    padding: 6px;
+    transform-origin: var(--transform-origin, center);
+  }
+
+  .lazu-select-content[data-open],
+  .lazu-dropdown-content[data-open],
+  .lazu-popover-content[data-open] {
+    animation: lazu-popover-motion var(--ui-motion-base) var(--ui-ease-direct)
+      both;
+  }
+
+  .lazu-select-content[data-closed],
+  .lazu-dropdown-content[data-closed],
+  .lazu-popover-content[data-closed] {
+    animation: lazu-popover-exit var(--ui-motion-base) var(--ui-ease-direct)
+      both;
+  }
+
+  .lazu-select-content[data-side='top'],
+  .lazu-dropdown-content[data-side='top'],
+  .lazu-popover-content[data-side='top'] {
+    --lazu-popover-motion-x: 0;
+    --lazu-popover-motion-y: 3px;
+  }
+
+  .lazu-select-content[data-side='bottom'],
+  .lazu-dropdown-content[data-side='bottom'],
+  .lazu-popover-content[data-side='bottom'] {
+    --lazu-popover-motion-x: 0;
+    --lazu-popover-motion-y: -3px;
+  }
+
+  .lazu-select-content[data-side='left'],
+  .lazu-dropdown-content[data-side='left'],
+  .lazu-popover-content[data-side='left'] {
+    --lazu-popover-motion-x: 3px;
+    --lazu-popover-motion-y: 0;
+  }
+
+  .lazu-select-content[data-side='right'],
+  .lazu-dropdown-content[data-side='right'],
+  .lazu-popover-content[data-side='right'] {
+    --lazu-popover-motion-x: -3px;
+    --lazu-popover-motion-y: 0;
+  }
+
+  @keyframes lazu-popover-motion {
+    from {
+      opacity: 0;
+      transform: translate(
+          var(--lazu-popover-motion-x, 0),
+          var(--lazu-popover-motion-y, -3px)
+        )
+        scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes lazu-popover-exit {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(
+          var(--lazu-popover-motion-x, 0),
+          var(--lazu-popover-motion-y, -3px)
+        )
+        scale(0.98);
+    }
+  }
+
+  .lazu-select-content {
+    max-height: min(320px, var(--available-height, 320px));
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .lazu-select-item,
+  .lazu-dropdown-item {
+    align-items: center;
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-text);
+    cursor: pointer;
+    display: flex;
+    font-size: 13px;
+    gap: 8px;
+    min-height: 32px;
+    outline: none;
+    padding: 0 9px;
+    user-select: none;
+  }
+
+  .lazu-select-item[data-highlighted],
+  .lazu-dropdown-item[data-highlighted] {
+    background: var(--ui-bg-muted);
+  }
+
+  .lazu-multi-select-content {
+    max-height: min(320px, var(--available-height, 320px));
+    overflow: auto;
+    overscroll-behavior: contain;
+    width: var(--anchor-width);
+  }
+
+  .lazu-multi-select-list {
+    display: grid;
+    gap: 2px;
+  }
+
+  .lazu-multi-select-item {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    font-family: var(--font-ui);
+    justify-content: flex-start;
+    text-align: left;
+    width: 100%;
+  }
+
+  .lazu-multi-select-item[data-selected] {
+    background: var(--ui-bg-muted);
+  }
+
+  .lazu-multi-select-item:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .lazu-multi-select-check {
+    align-items: center;
+    color: var(--ui-accent);
+    display: inline-flex;
+    flex: 0 0 16px;
+    justify-content: center;
+  }
+
+  .lazu-multi-select-option-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lazu-multi-select-empty {
+    color: var(--ui-text-tertiary);
+    font-size: 13px;
+    padding: 8px 9px;
+  }
+
+  .lazu-tooltip-content {
+    border-radius: var(--ui-radius-md);
+    font-size: 12px;
+    max-width: 280px;
+    padding: 7px 9px;
+  }
+
+  .lazu-tabs-list {
+    align-items: center;
+    background: var(--ui-bg-muted);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .lazu-tabs-trigger {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    flex-shrink: 0;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 650;
+    gap: 7px;
+    height: 30px;
+    padding: 0 12px;
+    white-space: nowrap;
+    transition:
+      background-color var(--ui-motion-fast) var(--ui-ease-direct),
+      box-shadow var(--ui-motion-fast) var(--ui-ease-direct),
+      color var(--ui-motion-fast) var(--ui-ease-direct),
+      transform var(--ui-motion-fast) var(--ui-ease-direct);
+  }
+
+  .lazu-tabs-trigger[data-active] {
+    background: var(--ui-bg-raised);
+    box-shadow: var(--ui-shadow-sm);
+    color: var(--ui-text);
+  }
+
+  .lazu-accordion-item {
+    background: var(--ui-bg-elevated);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    overflow: hidden;
+  }
+
+  .lazu-accordion-header {
+    display: flex;
+  }
+
+  .lazu-accordion-trigger {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: var(--ui-text);
+    cursor: pointer;
+    display: flex;
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 700;
+    gap: 14px;
+    justify-content: space-between;
+    line-height: 1.4;
+    padding: 18px 20px;
+    text-align: left;
+    width: 100%;
+  }
+
+  .lazu-accordion-trigger:hover {
+    background: var(--ui-bg-muted);
+  }
+
+  .lazu-accordion-trigger:focus-visible {
+    outline: 2px solid var(--ui-focus);
+    outline-offset: -2px;
+  }
+
+  .lazu-accordion-trigger-label {
+    min-width: 0;
+  }
+
+  .lazu-accordion-trigger-icon {
+    color: var(--ui-text-tertiary);
+    flex: 0 0 auto;
+    transition: transform var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .lazu-accordion-trigger[data-panel-open] .lazu-accordion-trigger-icon {
+    transform: rotate(180deg);
+  }
+
+  .lazu-accordion-content {
+    color: var(--ui-text-secondary);
+    font-size: 14px;
+    line-height: 1.7;
+    overflow: hidden;
+  }
+
+  .lazu-accordion-content[data-open] {
+    animation: lazu-accordion-motion var(--ui-motion-base) var(--ui-ease-direct)
+      both;
+  }
+
+  .lazu-accordion-content:not([data-open]) {
+    animation: lazu-accordion-exit var(--ui-motion-base) var(--ui-ease-direct)
+      both;
+  }
+
+  @keyframes lazu-accordion-motion {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--accordion-panel-height);
+      opacity: 1;
+    }
+  }
+
+  @keyframes lazu-accordion-exit {
+    from {
+      height: var(--accordion-panel-height);
+      opacity: 1;
+    }
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  .lazu-accordion-content-inner {
+    border-top: 1px solid var(--ui-border-subtle);
+    padding: 16px 20px 20px;
+  }
+
+  .lazu-modal-overlay,
+  .lazu-drawer-overlay {
+    background: var(--lazu-overlay-scrim);
+    inset: 0;
+    position: fixed;
+    z-index: 80;
+  }
+
+  .lazu-modal-viewport,
+  .lazu-drawer-viewport {
+    inset: 0;
+    position: fixed;
+    z-index: 90;
+  }
+
+  /* A dialog opened from inside another (a save confirmation over an edit
+     dialog) portals beside it at the same level; it has to paint above. */
+  .lazu-modal-viewport[data-nested] {
+    z-index: 95;
+  }
+
+  .lazu-modal-overlay[data-open],
+  .lazu-drawer-overlay[data-open] {
+    animation: lazu-overlay-motion var(--ui-motion-base) var(--ui-ease-direct)
+      both;
+  }
+
+  .lazu-modal-overlay[data-closed],
+  .lazu-drawer-overlay[data-closed] {
+    animation: lazu-overlay-exit var(--ui-motion-base) var(--ui-ease-direct)
+      both;
+  }
+
+  .lazu-modal-content,
+  .lazu-drawer-content {
+    background: var(--ui-bg-elevated);
+    border: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow-lg);
+    color: var(--ui-text);
+    position: fixed;
+    z-index: 90;
+  }
+
+  .lazu-modal-content {
+    border-radius: var(--ui-radius-xl);
+    left: 50%;
+    max-height: calc(100vh - 48px);
+    max-width: min(92vw, 560px);
+    overflow: auto;
+    padding: 22px;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+  }
+
+  .lazu-modal-content[data-open] {
+    animation: lazu-modal-motion var(--ui-motion-base) var(--ui-ease-direct)
+      both;
+  }
+
+  .lazu-modal-content[data-closed] {
+    animation: lazu-modal-exit var(--ui-motion-base) var(--ui-ease-direct) both;
+  }
+
+  .lazu-modal-content--wide {
+    max-width: min(94vw, 720px);
+  }
+
+  .lazu-modal-content--xwide {
+    max-width: min(96vw, 920px);
+  }
+
+  .lazu-drawer-content {
+    bottom: 0;
+    max-width: min(92vw, 420px);
+    overflow: auto;
+    top: 0;
+    width: 100%;
+  }
+
+  .lazu-drawer-content--wide {
+    max-width: min(96vw, 680px);
+  }
+
+  .lazu-drawer-content--right {
+    right: 0;
+  }
+
+  .lazu-drawer-content--left {
+    left: 0;
+  }
+
+  .lazu-drawer-content--right[data-open] {
+    animation: lazu-drawer-right-motion var(--ui-motion-slow)
+      var(--ui-ease-direct) both;
+  }
+
+  .lazu-drawer-content--right[data-closed] {
+    animation: lazu-drawer-right-exit var(--ui-motion-slow)
+      var(--ui-ease-direct) both;
+  }
+
+  .lazu-drawer-content--left[data-open] {
+    animation: lazu-drawer-left-motion var(--ui-motion-slow)
+      var(--ui-ease-direct) both;
+  }
+
+  .lazu-drawer-content--left[data-closed] {
+    animation: lazu-drawer-left-exit var(--ui-motion-slow) var(--ui-ease-direct)
+      both;
+  }
+
+  @keyframes lazu-overlay-motion {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes lazu-overlay-exit {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes lazu-modal-motion {
+    from {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% + 5px)) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes lazu-modal-exit {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% + 5px)) scale(0.97);
+    }
+  }
+
+  @keyframes lazu-drawer-right-motion {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes lazu-drawer-right-exit {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes lazu-drawer-left-motion {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes lazu-drawer-left-exit {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-100%);
+    }
+  }
+
+  .lazu-modal-header,
+  .lazu-drawer-header {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 18px;
+    padding-right: 34px;
+  }
+
+  .lazu-modal-title,
+  .lazu-drawer-title {
+    color: var(--ui-text);
+    font-family: var(--font-brand);
+    font-size: 18px;
+    font-weight: 720;
+    line-height: 1.25;
+  }
+
+  .lazu-modal-description,
+  .lazu-drawer-description {
+    color: var(--ui-text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .lazu-modal-body,
+  .lazu-drawer-body {
+    color: var(--ui-text);
+  }
+
+  .lazu-modal-footer,
+  .lazu-drawer-footer {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+
+  .lazu-modal-close,
+  .lazu-drawer-close {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-text-tertiary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 30px;
+    justify-content: center;
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    width: 30px;
+  }
+
+  .lazu-modal-close:hover,
+  .lazu-drawer-close:hover {
+    background: var(--ui-bg-muted);
+    color: var(--ui-text);
+  }
+
+  .lazu-status-center__trigger {
+    position: relative;
+  }
+
+  .lazu-status-center__count {
+    align-items: center;
+    background: var(--ui-danger);
+    border: 2px solid var(--ui-bg-raised);
+    border-radius: 999px;
+    color: var(--lazu-on-danger);
+    display: inline-flex;
+    font-size: 9px;
+    font-weight: 750;
+    height: 17px;
+    justify-content: center;
+    min-width: 17px;
+    padding: 0 3px;
+    position: absolute;
+    right: -6px;
+    top: -6px;
+  }
+
+  .lazu-status-center__list {
+    display: grid;
+    gap: var(--ui-space-2);
+  }
+
+  .lazu-status-center__issue {
+    align-items: flex-start;
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    display: grid;
+    gap: var(--ui-space-3);
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: var(--ui-space-3);
+  }
+
+  .lazu-status-center__issue[data-kind='error'] > svg {
+    color: var(--ui-danger);
+  }
+
+  .lazu-status-center__issue[data-kind='warning'] > svg {
+    color: var(--ui-warning);
+  }
+
+  .lazu-status-center__issue[data-kind='unavailable'] > svg {
+    color: var(--ui-text-tertiary);
+  }
+
+  .lazu-status-center__issue strong,
+  .lazu-status-center__issue span {
+    display: block;
+  }
+
+  .lazu-status-center__issue strong {
+    color: var(--ui-text);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .lazu-status-center__issue span {
+    color: var(--ui-text-tertiary);
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  /* ---------------------------------------------------------------------
+     Status page — 404 / 403 / crash / off / one-shot outcomes. A large mark,
+     one title, one sentence, one pill, two actions. See status-page.tsx.
+     --------------------------------------------------------------------- */
+  .lazu-status-page {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    min-height: min(720px, calc(100vh - var(--shell-top-offset, 0px)));
+    padding: var(--ui-space-5);
+    position: relative;
+  }
+
+  /* Standalone routes sit on the Yunmu ground themselves: three warm-paper
+     layers, two ambient lights and the masked 64px grid, exactly as the
+     console shell paints it. */
+  .lazu-status-page--ground {
+    background:
+      radial-gradient(
+        circle at 6% 4%,
+        var(--lazu-ambient-cool),
+        transparent 46%
+      ),
+      radial-gradient(
+        circle at 86% 8%,
+        var(--lazu-ambient-warm),
+        transparent 40%
+      ),
+      linear-gradient(
+        180deg,
+        var(--lazu-page-top) 0%,
+        var(--lazu-page) 56%,
+        var(--lazu-page-bottom) 100%
+      );
+    background-attachment: fixed;
+    /* The route stage begins below the shell header. A full 100vh here makes
+       every 404 / 403 surface one header taller than its available viewport. */
+    min-height: calc(100vh - var(--shell-top-offset, 0px));
+    min-height: calc(100dvh - var(--shell-top-offset, 0px));
+  }
+
+  .lazu-status-page--ground::before {
+    background:
+      linear-gradient(var(--lazu-grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--lazu-grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    content: '';
+    inset: 0;
+    mask-image: radial-gradient(circle at center, black 28%, transparent 78%);
+    opacity: var(--lazu-grid-opacity);
+    pointer-events: none;
+    position: fixed;
+  }
+
+  .lazu-status-page__body {
+    display: grid;
+    gap: 12px;
+    isolation: isolate;
+    justify-items: center;
+    position: relative;
+    text-align: center;
+    width: min(100%, 420px);
+    z-index: 1;
+  }
+
+  /* A faint evidence-blue light behind the mark; the only colour on the
+     page besides the ink button. */
+  .lazu-status-page__body::before {
+    background: radial-gradient(
+      closest-side,
+      var(--lazu-evidence-soft),
+      transparent
+    );
+    content: '';
+    height: 190px;
+    left: 50%;
+    pointer-events: none;
+    position: absolute;
+    top: -44px;
+    transform: translateX(-50%);
+    width: min(340px, 100%);
+    z-index: -1;
+  }
+
+  .lazu-status-page__mark {
+    background: linear-gradient(
+      180deg,
+      var(--lazu-ink) 30%,
+      var(--lazu-text-faint)
+    );
+    background-clip: text;
+    color: transparent;
+    font-family: var(--lazu-font-display);
+    font-size: clamp(80px, 16vw, 120px);
+    font-variant-numeric: lining-nums;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 0.9;
+    margin-bottom: 8px;
+    /* Room for the italic overhang, which background-clip would crop. */
+    padding-inline: 0.08em;
+    -webkit-background-clip: text;
+  }
+
+  .lazu-status-page__mark--word {
+    font-style: italic;
+  }
+
+  .lazu-status-page__title {
+    color: var(--lazu-ink);
+    font-family: var(--lazu-font-sans);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 1.3;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .lazu-status-page__description {
+    color: var(--lazu-text-muted);
+    display: grid;
+    font-size: 14px;
+    gap: 6px;
+    line-height: 1.7;
+    margin: 0;
+    max-width: 380px;
+    text-wrap: pretty;
+  }
+
+  .lazu-status-page__pill {
+    background: var(--lazu-surface-muted);
+    border: 1px solid var(--lazu-border);
+    border-radius: var(--lazu-radius-pill);
+    color: var(--lazu-text-muted);
+    font-family: var(--lazu-font-mono);
+    font-size: 12px;
+    line-height: 1.4;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    padding: 5px 12px;
+  }
+
+  .lazu-status-page__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  .lazu-status-page__hint {
+    border-top: 1px solid var(--lazu-border);
+    color: var(--lazu-text-muted);
+    font-size: 13px;
+    margin-top: 12px;
+    padding-top: 14px;
+    width: 100%;
+  }
+
+  .lazu-status-page__hint a {
+    color: var(--lazu-evidence);
+    text-underline-offset: 3px;
+  }
+
+  .lazu-auth-progress {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    list-style: none;
+    margin: 8px 0 20px;
+    padding: 0;
+  }
+
+  .lazu-auth-progress li {
+    align-items: center;
+    color: var(--ui-text-tertiary);
+    display: flex;
+    font-size: 11px;
+    gap: 7px;
+    min-width: 0;
+    position: relative;
+  }
+
+  .lazu-auth-progress li::after {
+    background: var(--ui-border);
+    content: '';
+    height: 1px;
+    left: 30px;
+    position: absolute;
+    right: 7px;
+    top: 11px;
+  }
+
+  .lazu-auth-progress li:last-child::after {
+    display: none;
+  }
+
+  .lazu-auth-progress li > span {
+    align-items: center;
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: 999px;
+    display: inline-flex;
+    flex: 0 0 22px;
+    height: 22px;
+    justify-content: center;
+    position: relative;
+    width: 22px;
+    z-index: 1;
+  }
+
+  .lazu-auth-progress li.is-current {
+    color: var(--ui-text);
+  }
+
+  .lazu-auth-progress li.is-current > span {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+    color: var(--ui-accent-contrast);
+  }
+
+  .lazu-auth-progress li.is-complete > span {
+    border-color: var(--ui-success);
+    color: var(--ui-success);
+  }
+
+  .usage-investigation {
+    align-items: start;
+    display: grid;
+    gap: var(--ui-space-4);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .usage-investigation__master {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .usage-investigation__detail {
+    background: var(--ui-bg-elevated);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-xl);
+    max-height: none;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--ui-space-4);
+    scroll-margin-top: calc(var(--shell-top-offset, 0px) + var(--ui-space-4));
+  }
+
+  .usage-investigation__detail:focus-visible {
+    box-shadow: 0 0 0 2px var(--ui-focus);
+    outline: none;
+  }
+
+  [data-refreshing='true'] .lazu-table-wrap,
+  .dashv3-root[data-refreshing='true']
+    > :not(.dashv3-filter-strip):not(.console-page-topbar) {
+    opacity: 0.72;
+    transition: opacity var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  @media (max-width: 980px) {
+    .usage-investigation {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .usage-investigation__detail {
+      max-height: none;
+      position: static;
+    }
+  }
+
+  .lazu-skeleton {
+    animation: lazu-pulse var(--lazu-motion-loading-cycle) ease-in-out infinite;
+    background: linear-gradient(
+      90deg,
+      var(--ui-bg-muted),
+      color-mix(in srgb, var(--ui-bg-muted) 64%, var(--ui-bg-raised)),
+      var(--ui-bg-muted)
+    );
+    background-size: 220% 100%;
+    border-radius: var(--ui-radius-md);
+  }
+
+  @keyframes lazu-pulse {
+    0% {
+      background-position: 220% 0;
+    }
+    100% {
+      background-position: -220% 0;
+    }
+  }
+
+  /* An unanswered figure, holding the line box its answer will take. `ch`
+     rather than `px` because the reservation has to track the type size it
+     stands in: the same bar reads a 34px metric and a 12px footnote. */
+  /* The working state keeps the idle width: the spinner is laid over the
+     label instead of pushing it along. `opacity` rather than `visibility` so
+     the button keeps its accessible name while it works. */
+  .lazu-button__working {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    position: relative;
+  }
+
+  .lazu-button__working-label {
+    opacity: 0;
+  }
+
+  .lazu-button__working-spinner {
+    inset: 0;
+    margin: auto;
+    position: absolute;
+  }
+
+  /* The ground's contrast, not the panel's: a pending figure most often sits
+     on the de-carded paper (the overview's metric strip), where the default
+     skeleton surface is almost invisible. Measured against a card too — the
+     log table's rows read correctly at this weight. */
+  .lazu-pending {
+    animation: lazu-pulse var(--lazu-motion-loading-cycle) ease-in-out infinite;
+    background: linear-gradient(
+      90deg,
+      var(--lazu-surface-muted),
+      var(--lazu-border),
+      var(--lazu-surface-muted)
+    );
+    background-size: 220% 100%;
+    border-radius: var(--ui-radius-sm);
+    display: inline-block;
+    height: 0.72em;
+    vertical-align: baseline;
+    width: var(--lazu-pending-chars, 4ch);
+  }
+
+  /* The same reservation for something taller than a line: a chart, a panel,
+     a document. Nothing below it moves when the answer lands. */
+  .lazu-pending-block {
+    animation: lazu-pulse var(--lazu-motion-loading-cycle) ease-in-out infinite;
+    background: linear-gradient(
+      90deg,
+      var(--lazu-surface-muted),
+      var(--lazu-border),
+      var(--lazu-surface-muted)
+    );
+    background-size: 220% 100%;
+    border-radius: var(--ui-radius-md);
+    width: 100%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lazu-pending,
+    .lazu-pending-block {
+      animation: none;
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     Card states — loading, empty, error inside a surface.
+     These appear dozens of times a day, so they carry no figure at all:
+     a hairline spinner, a dashed slot, a broken rule. The paper vocabulary
+     (folded / sealed / torn) belongs to the full-screen states only.
+     --------------------------------------------------------------------- */
+  .lazu-empty,
+  .lazu-loading,
+  .lazu-error {
+    align-items: center;
+    color: var(--lazu-text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  .lazu-state-title {
+    color: var(--lazu-ink);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .lazu-state-description {
+    color: var(--lazu-text-muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+    max-width: 42ch;
+  }
+
+  .lazu-state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  /* Loading · a 15px hairline ring and one line of text. The 44px outlined
+     box this replaced was the loudest thing in a view that is, by
+     definition, not ready to be looked at. */
+  .lazu-loading__row {
+    align-items: center;
+    display: inline-flex;
+    gap: 9px;
+  }
+
+  .lazu-loading__spinner {
+    animation: lazu-spin var(--lazu-motion-loading-cycle) linear infinite;
+    border: 1.5px solid var(--lazu-border-strong);
+    border-radius: var(--lazu-radius-pill);
+    border-top-color: var(--lazu-text-muted);
+    display: inline-block;
+    flex: none;
+    height: 15px;
+    width: 15px;
+  }
+
+  /* Row-level loading (loading more records) is the same object laid out
+     inline, so a view never shows two different waits. */
+  .lazu-loading--inline {
+    flex-direction: row;
+    font-size: 13px;
+    gap: 9px;
+    min-height: 0;
+    padding: 26px 24px;
+  }
+
+  .lazu-loading--inline .lazu-state-title {
+    color: var(--lazu-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  /* Empty · actionable states use a slot with the first action inside it;
+     read-only results stay as plain text. The slot itself is not a control,
+     so it takes no hover state — only its button responds to the pointer. */
+  .lazu-empty__plain,
+  .lazu-empty__slot {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+  }
+
+  .lazu-empty__slot {
+    border: 1.5px dashed var(--lazu-border-strong);
+    border-radius: 14px;
+    padding: 24px 28px;
+    width: min(340px, 100%);
+  }
+
+  /* Error · a hairline broken in the middle, one danger dot at the break.
+     The only semantic colour in the card states, and it is 5px wide. */
+  .lazu-error__break {
+    align-items: center;
+    display: flex;
+    gap: 9px;
+    margin: 2px 0 8px;
+    width: min(280px, 76%);
+  }
+
+  .lazu-error__break::before,
+  .lazu-error__break::after {
+    background: var(--lazu-border-strong);
+    content: '';
+    flex: 1;
+    height: 1px;
+  }
+
+  .lazu-error__dot {
+    background: var(--lazu-danger);
+    border-radius: var(--lazu-radius-pill);
+    flex: none;
+    height: 5px;
+    width: 5px;
+  }
+
+  .lazu-state-fine {
+    color: var(--lazu-text-faint);
+    font-family: var(--lazu-font-mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  /* The spinner keeps turning under reduced motion on purpose — index.css
+     owns that policy for every loading indicator, because a wait that has
+     stopped moving reads as a wait that has failed. */
+
+  .lazu-pagination {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .lazu-pagination__summary {
+    color: var(--ui-text-tertiary);
+    font-size: 12px;
+    margin-right: auto;
+  }
+
+  .lazu-pagination-button {
+    background: var(--ui-bg);
+    border-color: var(--ui-border-strong);
+    color: var(--ui-text-secondary);
+    height: 30px;
+    min-width: 30px;
+    padding: 0 9px;
+  }
+
+  .lazu-pagination-button[data-active='true'] {
+    background: var(--ui-text);
+    border-color: var(--ui-text);
+    color: var(--ui-bg);
+  }
+
+  .lazu-page-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .lazu-page-header__content {
+    display: grid;
+    gap: 5px;
+  }
+
+  .lazu-page-header__eyebrow {
+    color: var(--ui-text-tertiary);
+    font-family: var(--lazu-font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* The console's page titles are set in the display serif, like the money
+     below them — the same face the wordmark uses. Never under 20px, so the
+     clamp floor stays above the serif's legibility floor. */
+  .lazu-page-header__title {
+    color: var(--ui-text);
+    font-family: var(--lazu-font-display);
+    font-size: var(--lazu-console-heading-size);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+    margin: 0;
+  }
+
+  .lazu-page-header__description {
+    color: var(--ui-text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 720px;
+  }
+
+  .lazu-page-header__actions,
+  .lazu-toolbar,
+  .lazu-filter-bar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .lazu-data-surface,
+  .lazu-data-card {
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    box-shadow: var(--ui-shadow-sm);
+    color: var(--ui-text);
+  }
+
+  .lazu-data-surface {
+    overflow: hidden;
+  }
+
+  .lazu-data-surface__header,
+  .lazu-data-card__header {
+    align-items: flex-start;
+    border-bottom: 1px solid var(--ui-border);
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 16px;
+  }
+
+  .lazu-data-surface__title,
+  .lazu-data-card__title {
+    font-family: var(--font-brand);
+    font-size: 15px;
+    font-weight: 720;
+  }
+
+  .lazu-data-surface__description,
+  .lazu-data-card__description {
+    color: var(--ui-text-secondary);
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 4px;
+  }
+
+  .lazu-data-surface__body,
+  .lazu-data-card__body {
+    padding: 16px;
+  }
+
+  .lazu-data-card__footer {
+    border-top: 1px solid var(--ui-border);
+    padding: 14px 16px;
+  }
+
+  .lazu-table-wrap {
+    overflow: auto;
+    width: 100%;
+  }
+
+  .lazu-table {
+    border-collapse: collapse;
+    min-width: 100%;
+    width: 100%;
+  }
+
+  /* One row measurement for the whole console — see the locked list-row rules
+     in brand/foundations/yunmu-console.md. Pages must not restate these. */
+  .lazu-table th,
+  .lazu-table td {
+    border-bottom: 1px solid var(--ui-border);
+    padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
+    text-align: left;
+    vertical-align: middle;
+    /* Keep headers/dates on one line; wide tables scroll horizontally inside
+       their card (actions column is pinned) instead of shattering CJK text
+       one character per line when columns get squeezed. */
+    white-space: nowrap;
+  }
+
+  .lazu-table th {
+    background: var(--ui-bg-muted);
+    color: var(--ui-text-tertiary);
+    font-size: var(--lazu-row-label);
+    font-weight: 760;
+  }
+
+  .lazu-table td {
+    color: var(--ui-text);
+    font-size: var(--lazu-row-text);
+  }
+
+  .lazu-table tr:hover td {
+    background: color-mix(in srgb, var(--ui-bg-muted) 58%, transparent);
+  }
+
+  /* Pin the row-actions column so it stays reachable when a wide table
+     scrolls horizontally inside its card instead of pushing the actions
+     off the right edge (channels / tokens / users). */
+  .lazu-table th.lazu-table__actions-col,
+  .lazu-table td.lazu-table__actions-col {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+  }
+
+  .lazu-table td.lazu-table__actions-col {
+    background: var(--ui-bg-raised);
+    box-shadow: -10px 0 8px -8px
+      color-mix(in srgb, var(--ui-text) 16%, transparent);
+  }
+
+  /* The muted tone is translucent ink, so stack the row's hover wash on
+     an opaque sheet: the pinned cell must hide what scrolls beneath it. */
+  .lazu-table tr:hover td.lazu-table__actions-col {
+    background:
+      linear-gradient(
+        color-mix(in srgb, var(--ui-bg-muted) 58%, transparent),
+        color-mix(in srgb, var(--ui-bg-muted) 58%, transparent)
+      ),
+      var(--ui-bg-raised);
+  }
+
+  .lazu-table--clickable tbody tr {
+    cursor: pointer;
+    transition: background-color var(--ui-motion-fast) var(--ui-ease-direct);
+  }
+
+  .lazu-table__expand-toggle-cell {
+    padding: 0 4px 0 8px !important;
+    width: 32px;
+  }
+
+  .lazu-table__expand-toggle {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-text-tertiary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 26px;
+    justify-content: center;
+    padding: 0;
+    transition:
+      background-color var(--ui-motion-base) var(--ui-ease-direct),
+      border-color var(--ui-motion-base) var(--ui-ease-direct),
+      color var(--ui-motion-base) var(--ui-ease-direct);
+    width: 26px;
+  }
+
+  .lazu-table__expand-toggle:hover {
+    background: var(--ui-bg-muted);
+    color: var(--ui-text);
+  }
+
+  .lazu-table__expand-toggle:focus-visible {
+    border-color: var(--ui-accent);
+    outline: none;
+  }
+
+  .lazu-table__expand-toggle-icon {
+    transition: transform var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .lazu-table__expand-toggle-icon--open {
+    transform: rotate(180deg);
+  }
+
+  .lazu-card-list__chevron-button {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-text-tertiary);
+    cursor: pointer;
+    display: inline-flex;
+    flex-shrink: 0;
+    height: 30px;
+    justify-content: center;
+    padding: 0;
+    transition:
+      background-color var(--ui-motion-base) var(--ui-ease-direct),
+      border-color var(--ui-motion-base) var(--ui-ease-direct),
+      color var(--ui-motion-base) var(--ui-ease-direct);
+    width: 30px;
+  }
+
+  .lazu-card-list__chevron-button:hover {
+    background: var(--ui-bg-muted);
+    color: var(--ui-text);
+  }
+
+  .lazu-card-list__chevron-button:focus-visible {
+    border-color: var(--ui-accent);
+    outline: none;
+  }
+
+  .lazu-table__row--expanded td {
+    background: color-mix(in srgb, var(--ui-bg-muted) 72%, transparent);
+  }
+
+  /* The pinned actions cell paints an opaque sheet, so it carries the
+     expanded wash on top of it instead of breaking the row with white. */
+  .lazu-table__row--expanded td.lazu-table__actions-col {
+    background:
+      linear-gradient(
+        color-mix(in srgb, var(--ui-bg-muted) 72%, transparent),
+        color-mix(in srgb, var(--ui-bg-muted) 72%, transparent)
+      ),
+      var(--ui-bg-raised);
+  }
+
+  /* Mobile card-list mode for DataTableShell — replaces the wide
+   horizontal-scroll table on narrow viewports so users can read
+   each row's fields without panning sideways. */
+  .lazu-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 2px 2px;
+  }
+
+  .lazu-card-list__item {
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 14px 12px;
+    transition:
+      border-color var(--ui-motion-base) var(--ui-ease-direct),
+      background-color var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .lazu-card-list__item--interactive {
+    cursor: pointer;
+  }
+
+  .lazu-card-list__item--interactive:hover {
+    border-color: var(--ui-border-strong);
+  }
+
+  .lazu-card-list__item--expanded {
+    border-color: var(--ui-border-strong);
+    background:
+      linear-gradient(
+        color-mix(in srgb, var(--ui-bg-muted) 36%, transparent),
+        color-mix(in srgb, var(--ui-bg-muted) 36%, transparent)
+      ),
+      var(--ui-bg-raised);
+  }
+
+  .lazu-card-list__header {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .lazu-card-list__select {
+    flex-shrink: 0;
+  }
+
+  .lazu-card-list__title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .lazu-card-list__title > * {
+    min-width: 0;
+  }
+
+  .lazu-card-list__status {
+    flex-shrink: 0;
+  }
+
+  .lazu-card-list__chevron {
+    color: var(--ui-text-tertiary);
+    flex-shrink: 0;
+    transition: transform var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .lazu-card-list__chevron--open {
+    transform: rotate(180deg);
+  }
+
+  .lazu-card-list__fields {
+    display: grid;
+    gap: 8px 18px;
+    grid-template-columns: 1fr 1fr;
+    margin: 0;
+    padding-top: 4px;
+    border-top: 1px dashed var(--ui-border);
+  }
+
+  .lazu-card-list__field {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .lazu-card-list__field dt {
+    color: var(--ui-text-tertiary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0;
+    text-transform: none;
+  }
+
+  .lazu-card-list__field dd {
+    color: var(--ui-text);
+    font-size: 13px;
+    margin: 0;
+    min-width: 0;
+    width: 100%;
+    word-break: break-word;
+  }
+
+  /* Inside cards: TextStack should not enforce its desktop min-width */
+  .lazu-card-list__field dd > div,
+  .lazu-card-list__title > div {
+    min-width: 0;
+  }
+
+  .lazu-card-list__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px dashed var(--ui-border);
+  }
+
+  .lazu-card-list__actions > * {
+    flex: 1 1 auto;
+  }
+
+  .lazu-card-list__actions .flex {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .lazu-card-list__expanded {
+    border-top: 1px solid var(--ui-border);
+    padding-top: 12px;
+  }
+
+  .lazu-table__expand-grid {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      clip-path var(--ui-motion-base) var(--ui-ease-direct),
+      opacity var(--ui-motion-fast) var(--ui-ease-direct),
+      transform var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .lazu-table__expand-row[data-state='open'] .lazu-table__expand-grid {
+    clip-path: inset(0);
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .lazu-table__expand-content {
+    min-height: 0;
+    overflow: hidden;
+    padding: 14px 16px 18px;
+  }
+
+  .lazu-table__expand-row > td {
+    background: var(--ui-bg-elevated);
+    border-bottom: 1px solid var(--ui-border);
+    padding: 0;
+    /* Detail panels (e.g. LogDetailPanel) must wrap long paths / tokens /
+       raw metadata; undo the table-cell nowrap used for header/data rows. */
+    white-space: normal;
+  }
+
+  .lazu-table__expand-row:hover > td {
+    background: var(--ui-bg-elevated);
+  }
+
+  /* Explicit opt-in density, one step down the same scale. */
+  .lazu-table--compact th,
+  .lazu-table--compact td {
+    padding: var(--lazu-space-2) var(--lazu-space-3);
+    font-size: 12.5px;
+  }
+
+  .lazu-detail-stat {
+    align-items: baseline;
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    display: inline-flex;
+    font-size: 12px;
+    gap: 8px;
+    padding: 4px 10px;
+  }
+
+  .lazu-detail-stat__label {
+    color: var(--ui-text-tertiary);
+    font-weight: 500;
+  }
+
+  .lazu-detail-stat__value {
+    color: var(--ui-text);
+    font-family: var(
+      --font-mono,
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace
+    );
+    font-weight: 600;
+  }
+
+  .lazu-guide-list {
+    color: var(--ui-text);
+    display: grid;
+    font-size: 13.5px;
+    gap: 8px;
+    line-height: 1.55;
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  .lazu-guide-list li {
+    list-style: disc;
+  }
+
+  .lazu-guide-list--ordered li {
+    list-style: decimal;
+  }
+
+  .lazu-inline-code {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-accent-text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 1px 6px;
+  }
+
+  .card-pro-v2 .lazu-data-surface__body {
+    display: grid;
+    gap: 16px;
+  }
+
+  .card-pro-v2__header,
+  .card-pro-v2__controls {
+    display: grid;
+    gap: 12px;
+  }
+
+  .card-pro-v2__primary,
+  .card-pro-v2__tabs,
+  .card-pro-v2__search,
+  .card-pro-v2__action-row {
+    min-width: 0;
+  }
+
+  .card-pro-v2__controls.is-hidden {
+    display: none;
+  }
+
+  .card-pro-v2__body {
+    min-width: 0;
+  }
+
+  .card-pro-v2__footer {
+    border-top: 1px solid var(--ui-border);
+    padding-top: 14px;
+  }
+
+  .card-table-v2__desktop,
+  .card-table-v2__mobile-list,
+  .card-table-v2__mobile-fields,
+  .card-table-v2__skeleton-card {
+    display: grid;
+    gap: 10px;
+  }
+
+  .card-table-v2__mobile-row {
+    align-items: flex-start;
+    border-bottom: 1px dashed var(--ui-border);
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(88px, 0.38fr) minmax(0, 1fr);
+    padding: 7px 0;
+  }
+
+  .card-table-v2__mobile-row:last-child {
+    border-bottom: 0;
+  }
+
+  .card-table-v2__mobile-label {
+    color: var(--ui-text-tertiary);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .card-table-v2__mobile-value {
+    color: var(--ui-text);
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+  .card-table-v2__mobile-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  .card-table-v2__details {
+    border-top: 1px solid var(--ui-border);
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+
+  .card-table-v2__details-body {
+    margin-top: 10px;
+  }
+
+  .lazu-filter-bar {
+    background: var(--ui-bg-raised);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    padding: 10px;
+  }
+
+  .lazu-date-picker {
+    align-items: center;
+    display: inline-flex;
+    gap: 4px;
+    min-width: 0;
+    position: relative;
+  }
+
+  .lazu-date-trigger {
+    background: var(--ui-bg);
+    border-color: var(--ui-border-strong);
+    color: var(--ui-text);
+    justify-content: flex-start;
+    min-width: 210px;
+    padding: 0 12px;
+  }
+
+  .lazu-date-trigger:hover {
+    background: var(--ui-bg-muted);
+    border-color: var(--ui-border-strong);
+  }
+
+  .lazu-date-trigger span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lazu-date-picker__clear {
+    flex: 0 0 auto;
+  }
+
+  .lazu-calendar-popover {
+    width: auto;
+  }
+
+  /* Holds the grid's footprint while its module arrives, so an opening
+     popover is one size rather than two. 284px is `.lazu-calendar`'s own
+     min-width; the height is a six-week grid plus its caption. */
+  .lazu-calendar-fallback {
+    height: 300px;
+    min-width: 284px;
+  }
+
+  .lazu-calendar {
+    --rdp-accent-color: var(--ui-accent);
+    --rdp-day_button-border-radius: var(--ui-radius-sm);
+    color: var(--ui-text);
+    font-family: var(--font-ui);
+    min-width: 284px;
+    position: relative;
+  }
+
+  .lazu-calendar__months,
+  .lazu-calendar__month {
+    display: grid;
+    gap: 10px;
+  }
+
+  .lazu-calendar__caption {
+    font-size: 13px;
+    font-weight: 760;
+  }
+
+  .lazu-calendar__month-caption {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    min-height: 28px;
+    padding: 0 38px;
+  }
+
+  .lazu-calendar__nav {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  .lazu-calendar__nav-button {
+    align-items: center;
+    background: transparent;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-text-secondary);
+    display: inline-flex;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+  }
+
+  .lazu-calendar__nav-button:hover {
+    background: var(--ui-bg-muted);
+    color: var(--ui-text);
+  }
+
+  .lazu-calendar__chevron {
+    fill: currentColor;
+    height: 14px;
+    width: 14px;
+  }
+
+  .lazu-calendar__grid {
+    border-collapse: separate;
+    border-spacing: 2px;
+    width: 100%;
+  }
+
+  .lazu-calendar__weekday {
+    color: var(--ui-text-tertiary);
+    font-size: 11px;
+    font-weight: 760;
+    height: 28px;
+    text-align: center;
+  }
+
+  .lazu-calendar__day {
+    padding: 0;
+    text-align: center;
+  }
+
+  .lazu-calendar__day-button {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-text);
+    font: inherit;
+    height: 32px;
+    width: 32px;
+  }
+
+  .lazu-calendar__day-button:hover {
+    background: var(--ui-bg-muted);
+  }
+
+  .lazu-calendar__day--today .lazu-calendar__day-button {
+    border-color: var(--ui-border-strong);
+    color: var(--ui-accent);
+    font-weight: 760;
+  }
+
+  .lazu-calendar__day--selected .lazu-calendar__day-button,
+  .lazu-calendar__day--range-start .lazu-calendar__day-button,
+  .lazu-calendar__day--range-end .lazu-calendar__day-button {
+    background: var(--ui-accent);
+    color: var(--ui-accent-contrast);
+  }
+
+  .lazu-calendar__day--range-middle .lazu-calendar__day-button {
+    background: color-mix(in srgb, var(--ui-accent) 12%, transparent);
+    color: var(--ui-accent);
+  }
+
+  .lazu-calendar__day--outside,
+  .lazu-calendar__day--disabled {
+    color: var(--ui-text-tertiary);
+    opacity: 0.55;
+  }
+
+  .lazu-calendar__day--hidden {
+    visibility: hidden;
+  }
+
+  .lazu-date-picker__footer {
+    border-top: 1px solid var(--ui-border);
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+    padding-top: 10px;
+  }
+
+  .lazu-upload {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .lazu-upload__dropzone {
+    align-items: center;
+    background: var(--ui-bg-raised);
+    border: 1px dashed var(--ui-border-strong);
+    border-radius: var(--ui-radius-lg);
+    color: var(--ui-text);
+    cursor: pointer;
+    display: flex;
+    gap: 12px;
+    min-height: 104px;
+    padding: 16px;
+  }
+
+  .lazu-upload__dropzone:hover,
+  .lazu-upload__dropzone.is-active {
+    background: color-mix(in srgb, var(--ui-accent) 7%, var(--ui-bg-raised));
+    border-color: var(--ui-accent);
+  }
+
+  .lazu-upload__dropzone.is-rejected {
+    background: color-mix(in srgb, var(--ui-danger) 7%, var(--ui-bg-raised));
+    border-color: var(--ui-danger);
+  }
+
+  .lazu-upload__dropzone.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+  }
+
+  .lazu-upload__icon {
+    align-items: center;
+    background: var(--ui-bg-muted);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    color: var(--ui-accent);
+    display: inline-flex;
+    height: 40px;
+    justify-content: center;
+    width: 40px;
+  }
+
+  .lazu-upload__copy {
+    display: grid;
+    flex: 1;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .lazu-upload__title {
+    font-size: 14px;
+    font-weight: 760;
+  }
+
+  .lazu-upload__description,
+  .lazu-upload__file-size {
+    color: var(--ui-text-tertiary);
+    font-size: 12px;
+  }
+
+  .lazu-upload__list {
+    display: grid;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .lazu-upload__list li {
+    align-items: center;
+    background: var(--ui-bg-muted);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px 8px 7px 10px;
+  }
+
+  .lazu-upload__file-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 650;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lazu-toolbar {
+    justify-content: space-between;
+  }
+
+  .lazu-toolbar__group {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .lazu-toolbar-button {
+    border-color: var(--ui-border);
+    height: 32px;
+    min-width: 32px;
+    padding: 0 9px;
+  }
+
+  /* Feedback · 墨条 toast. LOCKED 2026-08-28.
+     A toast is a receipt floating over the page, not another sheet of it, so it
+     borrows the primary button's ink/paper reversal. Semantic chroma survives
+     only in the icon, lifted (light) or darkened (dark) to stay legible on the
+     inverted ground. sonner ships inline styles, hence the !important. */
+  .app-toast {
+    align-items: center !important;
+    background: var(--lazu-toast-bg) !important;
+    border: 0 !important;
+    border-radius: var(--lazu-radius-toast) !important;
+    box-shadow: var(--lazu-shadow-toast) !important;
+    color: var(--lazu-toast-fg) !important;
+    font-family: var(--font-ui) !important;
+    gap: 10px !important;
+    padding: 11px 14px !important;
+  }
+
+  .app-toast [data-icon] {
+    height: var(--lazu-notice-icon);
+    margin: 0;
+    width: var(--lazu-notice-icon);
+  }
+
+  .app-toast [data-icon] > svg {
+    height: 100%;
+    width: 100%;
+  }
+
+  .app-toast[data-type='error'] [data-icon] {
+    color: var(--lazu-toast-danger);
+  }
+
+  .app-toast[data-type='warning'] [data-icon] {
+    color: var(--lazu-toast-warning);
+  }
+
+  .app-toast[data-type='success'] [data-icon] {
+    color: var(--lazu-toast-success);
+  }
+
+  .app-toast[data-type='info'] [data-icon] {
+    color: var(--lazu-toast-info);
+  }
+
+  .app-toast__title {
+    color: var(--lazu-toast-fg);
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.4;
+  }
+
+  .app-toast__description {
+    color: var(--lazu-toast-fg-muted) !important;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .app-toast__action,
+  .app-toast__cancel {
+    background: var(--lazu-toast-control) !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    color: var(--lazu-toast-fg) !important;
+    font-family: var(--font-ui) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    height: auto !important;
+    padding: 4px 10px !important;
+  }
+
+  .app-toast [data-close-button] {
+    background: var(--lazu-toast-bg) !important;
+    border-color: var(--lazu-toast-control) !important;
+    color: var(--lazu-toast-fg-muted) !important;
+  }
+
+  .app-toast [data-close-button]:hover {
+    color: var(--lazu-toast-fg) !important;
+  }
+
+  @media (max-width: 720px) {
+    .lazu-page-header {
+      display: grid;
+    }
+
+    .lazu-page-header__actions {
+      width: 100%;
+    }
+
+    .lazu-page-header__actions > * {
+      flex: 1;
+    }
+
+    .lazu-data-surface__header,
+    .lazu-data-card__header {
+      display: grid;
+    }
+
+    /* Tighter table padding so admin pages aren't choked on phone widths */
+    .lazu-table th,
+    .lazu-table td {
+      padding: var(--lazu-space-2) var(--lazu-space-3);
+    }
+
+    /* Lift primary tap targets toward a comfortable ~44px on phones. Mobile
+       console data renders as cards (DataTableShell card-list mode), not dense
+       tables, so taller controls don't crowd rows. Desktop sizing is unchanged. */
+    .lazu-button--xs,
+    .lazu-icon-button--xs {
+      height: 36px;
+      min-width: 36px;
+      font-size: 12px;
+    }
+
+    .lazu-button--xs {
+      padding: 0 10px;
+    }
+
+    .lazu-button--sm,
+    .lazu-icon-button--sm,
+    .lazu-select-trigger--sm {
+      height: 40px;
+      min-width: 40px;
+    }
+
+    .lazu-button--md,
+    .lazu-icon-button--md {
+      height: 44px;
+      min-width: 44px;
+    }
+
+    .lazu-tabs-trigger {
+      height: 40px;
+    }
+
+    .lazu-pagination-button {
+      height: 40px;
+      min-width: 40px;
+    }
+
+    .lazu-modal-content,
+    .lazu-drawer-content {
+      padding: 16px;
+    }
+
+    .lazu-modal-content--wide,
+    .lazu-modal-content--xwide {
+      max-width: 96vw;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lazu-button,
+    .lazu-icon-button {
+      transition-property: background-color, border-color, color, box-shadow;
+    }
+
+    .lazu-select-content,
+    .lazu-dropdown-content,
+    .lazu-popover-content,
+    .lazu-modal-overlay,
+    .lazu-drawer-overlay,
+    .lazu-modal-content,
+    .lazu-drawer-content,
+    .lazu-accordion-content {
+      animation: none;
+    }
+
+    .lazu-table__expand-grid {
+      transition-duration: 0.01ms;
+    }
+
+    .lazu-accordion-trigger-icon,
+    .lazu-tabs-trigger {
+      transition-duration: var(--ui-motion-fast);
+      transition-property: background-color, border-color, color, opacity;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------
+   Top-up record · one payment inside the wallet (components/ui/topup-record).
+   One sheet, four bands separated by hairlines: amount, facts, documents,
+   footnote. Money is display serif; ids are mono; the only chroma is a 5px
+   state dot and the hairline loading ring.
+   --------------------------------------------------------------- */
+@layer tailwind-components {
+  .lazu-topup-record {
+    background: var(--lazu-surface);
+    border: 1px solid var(--lazu-border);
+    border-radius: var(--lazu-radius-surface);
+    box-shadow: var(--lazu-shadow-panel);
+    color: var(--lazu-ink);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .lazu-topup-record__notice {
+    border-radius: 0;
+    border-width: 0 0 1px;
+  }
+
+  .lazu-topup-record__head {
+    align-items: flex-start;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    padding: 22px 24px 20px;
+  }
+
+  .lazu-topup-record__lead {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .lazu-topup-record__eyebrow {
+    color: var(--lazu-text-faint);
+    font-family: var(--lazu-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .lazu-topup-record__amount {
+    width: 10ch;
+    max-width: 100%;
+    min-height: 1em;
+    font-family: var(--lazu-font-display);
+    font-size: var(--lazu-console-money-size);
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+
+  .lazu-topup-record__status {
+    align-items: center;
+    display: flex;
+    font-size: 13.5px;
+    gap: 9px;
+    margin: 4px 0 0;
+  }
+
+  .lazu-topup-record__hint,
+  .lazu-topup-record__foot,
+  .lazu-topup-record__nodocs {
+    color: var(--lazu-text-muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .lazu-topup-record__nodocs {
+    border-top: 1px solid var(--lazu-border);
+    padding: 16px 24px 20px;
+  }
+
+  .lazu-topup-record__close {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    color: var(--lazu-text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    flex: none;
+    height: 32px;
+    justify-content: center;
+    margin: -6px -8px 0 0;
+    width: 32px;
+  }
+
+  .lazu-topup-record__close:hover {
+    background: var(--lazu-surface-muted);
+    color: var(--lazu-ink);
+  }
+
+  .lazu-topup-record__dot {
+    background: var(--lazu-success);
+    border-radius: var(--lazu-radius-pill);
+    display: inline-block;
+    flex: none;
+    height: 5px;
+    width: 5px;
+  }
+
+  .lazu-topup-record__dot--danger {
+    background: var(--lazu-danger);
+  }
+
+  .lazu-topup-record__ring {
+    height: 11px;
+    width: 11px;
+  }
+
+  .lazu-topup-record__facts {
+    border-top: 1px solid var(--lazu-border);
+    display: grid;
+    gap: 18px 24px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    padding: 18px 24px 20px;
+  }
+
+  .lazu-topup-record__fact {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .lazu-topup-record__fact dt {
+    color: var(--lazu-text-faint);
+    font-size: 12px;
+  }
+
+  .lazu-topup-record__fact dd {
+    font-size: 13.5px;
+    line-height: 1.45;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .lazu-topup-record__mono {
+    font-family: var(--lazu-font-mono);
+    font-size: 12.5px;
+  }
+
+  .lazu-topup-record__aside {
+    color: var(--lazu-text-muted);
+    font-family: var(--lazu-font-sans);
+    font-size: 12px;
+    margin-left: 8px;
+  }
+
+  .lazu-topup-record__docs {
+    border-top: 1px solid var(--lazu-border);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 24px 20px;
+  }
+
+  .lazu-topup-record__docs-head {
+    align-items: baseline;
+    display: flex;
+    font-size: 13.5px;
+    font-weight: 600;
+    justify-content: space-between;
+    padding-bottom: 4px;
+  }
+
+  .lazu-topup-record__docs-head > span:last-child {
+    color: var(--lazu-text-faint);
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .lazu-topup-record__doc {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+    padding: var(--lazu-row-padding-y) 0;
+  }
+
+  .lazu-topup-record__doc + .lazu-topup-record__doc {
+    border-top: 1px solid var(--lazu-border);
+  }
+
+  .lazu-topup-record__doc-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .lazu-topup-record__doc-name {
+    align-items: baseline;
+    display: flex;
+    font-size: 13.5px;
+    font-weight: 550;
+    gap: 10px;
+  }
+
+  .lazu-topup-record__doc-name .lazu-topup-record__mono {
+    color: var(--lazu-text-muted);
+  }
+
+  .lazu-topup-record__doc-sub {
+    align-items: center;
+    color: var(--lazu-text-muted);
+    display: flex;
+    font-size: 12px;
+    gap: 7px;
+  }
+
+  .lazu-topup-record__foot {
+    margin-top: 10px;
+  }
+
+  .lazu-topup-record__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 640px) {
+    .lazu-topup-record__facts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .lazu-topup-record__doc {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .lazu-topup-record__doc .lazu-button {
+      justify-content: center;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------
+   Top-up bar · the wallet's full-width row under the balance
+   (components/ui/topup-bar). Presets and the amount field share one grid;
+   the field spans two cells so a typed amount reads as a choice of its own.
+   --------------------------------------------------------------- */
+@layer tailwind-components {
+  .lazu-topup-bar {
+    background: var(--lazu-surface);
+    border: 1px solid var(--lazu-border);
+    border-radius: var(--lazu-radius-surface);
+    box-shadow: var(--lazu-shadow-panel);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 24px 28px 22px;
+  }
+
+  .lazu-topup-bar__head {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    justify-content: space-between;
+  }
+
+  .lazu-topup-bar__title {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+  }
+
+  .lazu-topup-bar__title h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .lazu-topup-bar__balance-slot {
+    display: inline-block;
+    width: 28ch;
+    max-width: 100%;
+    min-height: 1.5em;
+  }
+
+  .lazu-topup-bar__title span,
+  .lazu-topup-bar__note {
+    color: var(--lazu-text-muted);
+    font-size: 13px;
+  }
+
+  .lazu-topup-bar__note {
+    font-size: 12px;
+  }
+
+  .lazu-topup-bar__amounts {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .lazu-topup-bar__preset {
+    align-items: center;
+    background: var(--lazu-surface-solid);
+    border: 1px solid var(--lazu-border-strong);
+    border-radius: var(--lazu-radius-control);
+    color: var(--lazu-ink);
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    font-size: 17px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    height: 52px;
+    justify-content: center;
+    min-width: 0;
+    transition:
+      background var(--ui-motion-base) var(--ui-ease-direct),
+      border-color var(--ui-motion-base) var(--ui-ease-direct);
+  }
+
+  .lazu-topup-bar__preset:hover {
+    background: var(--lazu-surface-muted);
+  }
+
+  .lazu-topup-bar__preset[aria-pressed='true'] {
+    background: var(--lazu-surface-selected);
+    border-color: var(--lazu-ink);
+  }
+
+  .lazu-topup-bar__field {
+    align-items: center;
+    background: var(--lazu-surface-solid);
+    border: 1px solid var(--lazu-border-strong);
+    border-radius: var(--lazu-radius-control);
+    cursor: text;
+    display: flex;
+    font-size: 17px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    gap: 6px;
+    grid-column: span 2;
+    height: 52px;
+    min-width: 0;
+    padding: 0 16px;
+  }
+
+  .lazu-topup-bar__field > span {
+    color: var(--lazu-text-muted);
+  }
+
+  .lazu-topup-bar__field:focus-within,
+  .lazu-topup-bar__field[data-active] {
+    border-color: var(--lazu-ink);
+    box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+  }
+
+  .lazu-topup-bar__field[data-invalid] {
+    border-color: var(--lazu-danger);
+    box-shadow: 0 0 0 3px var(--lazu-danger-soft);
+  }
+
+  .lazu-topup-bar__field input {
+    background: transparent;
+    border: 0;
+    color: var(--lazu-ink);
+    font: inherit;
+    min-width: 0;
+    outline: 0;
+    padding: 0;
+    width: 100%;
+  }
+
+  .lazu-topup-bar__field input::placeholder {
+    color: var(--lazu-text-faint);
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .lazu-topup-bar__error {
+    color: var(--lazu-danger);
+    font-size: 12.5px;
+    margin: -8px 0 0;
+  }
+
+  .lazu-topup-bar__foot {
+    align-items: center;
+    border-top: 1px solid var(--lazu-border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 28px;
+    padding-top: 16px;
+  }
+
+  .lazu-topup-bar__fact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .lazu-topup-bar__fact:first-child {
+    min-width: 170px;
+  }
+
+  .lazu-topup-bar__fact > span {
+    color: var(--lazu-text-faint);
+    font-size: 12px;
+  }
+
+  .lazu-topup-bar__fact > b {
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .lazu-topup-bar__fact > div {
+    font-size: 14px;
+  }
+
+  .lazu-topup-bar__pay.lazu-button {
+    font-size: 15px;
+    height: 48px;
+    margin-left: auto;
+    padding: 0 28px;
+  }
+
+  @media (max-width: 900px) {
+    .lazu-topup-bar__amounts {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .lazu-topup-bar__field {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .lazu-topup-bar {
+      padding: 20px 18px;
+    }
+
+    .lazu-topup-bar__pay.lazu-button {
+      margin-left: 0;
+      width: 100%;
+    }
+  }
+}
+
+/* Agent monogram (components/ui/agent-badge.tsx). */
+@layer tailwind-components {
+  .lz-agent-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 26px;
+    height: 22px;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: var(--lazu-ink);
+    color: var(--lazu-surface-solid);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+  .lz-agent-badge[data-size='sm'] {
+    min-width: 22px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 5px;
+    font-size: 10px;
+  }
+  .lz-agent-badge[data-ghost] {
+    background: transparent;
+    color: var(--lazu-text-faint);
+    border: 1px dashed color-mix(in srgb, var(--lazu-ink) 35%, transparent);
+  }
+  /* English agent vocabulary (main / subagent / compact / review) reads as a
+     term, not as English leaking into a Chinese sentence. */
+  .lz-kind-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 19px;
+    padding: 0 6px;
+    border-radius: 4px;
+    border: 1px solid color-mix(in srgb, var(--lazu-ink) 18%, transparent);
+    font-family: var(--lazu-font-mono);
+    font-size: 10.5px;
+    color: var(--lazu-text-muted);
+    white-space: nowrap;
+  }
+  .lz-kind-tag[data-fill] {
+    background: var(--lazu-ink);
+    border-color: var(--lazu-ink);
+    color: var(--lazu-surface-solid);
+  }
+}
+
+/* ComboChart (components/ui/combo-chart.tsx): bars on the left axis, lines
+   on the right; the console overview locked 2026-09-30. */
+@layer tailwind-components {
+  .lz-combo {
+    position: relative;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-variant-numeric: tabular-nums;
+    color: var(--lazu-ink);
+  }
+  .lz-combo__legend {
+    min-height: 24px;
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lazu-space-1) var(--lazu-space-4);
+    align-items: center;
+    justify-content: flex-end;
+    font-size: 12px;
+    color: var(--lazu-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  /* The latest full bucket, read out in words beside the legend, so the
+     current value is on the page without a tip pinned over the plot. */
+  .lz-combo__readout {
+    margin-right: auto;
+    color: var(--lazu-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .lz-combo__key {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+  }
+  .lz-combo__swatch {
+    display: inline-block;
+    border-radius: 2px;
+  }
+  .lz-combo__swatch[data-kind='bar'] {
+    width: 10px;
+    height: 10px;
+  }
+  .lz-combo__swatch[data-kind='line'] {
+    width: 14px;
+    height: 3px;
+  }
+  .lz-combo__swatch[data-kind='dash'] {
+    width: 14px;
+    height: 0;
+    border-top: 2px dashed currentColor;
+  }
+  .lz-combo__swatch[data-kind='bar'][data-tone='ink'] {
+    background: var(--lazu-chart-1);
+  }
+  /* An ink-tone line sits a step darker than the bars it rides over. */
+  .lz-combo__swatch[data-kind='line'][data-tone='ink'] {
+    background: var(--lazu-evidence-strong);
+  }
+  .lz-combo__swatch[data-kind='bar'][data-tone='grey'],
+  .lz-combo__swatch[data-kind='line'][data-tone='grey'] {
+    background: var(--lazu-chart-2);
+  }
+  .lz-combo__swatch[data-kind='bar'][data-tone='pale'] {
+    background: var(--lazu-chart-3);
+  }
+  .lz-combo__swatch[data-tone='danger'] {
+    background: var(--lazu-danger);
+  }
+  .lz-combo__swatch[data-kind='dash'][data-tone='ink'] {
+    color: var(--lazu-chart-1);
+  }
+  .lz-combo__swatch[data-kind='dash'][data-tone='grey'] {
+    color: var(--lazu-chart-2);
+  }
+  .lz-combo__swatch[data-kind='dash'][data-tone='danger'] {
+    color: var(--lazu-danger);
+    background: transparent;
+  }
+  .lz-combo__frame {
+    position: relative;
+    width: 100%;
+  }
+  .lz-combo__svg {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+  }
+  .lz-combo__hover {
+    fill: color-mix(in srgb, var(--lazu-ink) 5.5%, transparent);
+  }
+  .lz-combo__grid {
+    fill: none;
+    stroke: color-mix(in srgb, var(--lazu-ink) 11%, transparent);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+  .lz-combo__axis {
+    fill: none;
+    stroke: color-mix(in srgb, var(--lazu-ink) 22%, transparent);
+    stroke-width: 1;
+  }
+  .lz-combo__bar[data-tone='ink'] {
+    fill: var(--lazu-chart-1);
+  }
+  .lz-combo__bar[data-tone='grey'] {
+    fill: var(--lazu-chart-2);
+  }
+  .lz-combo__bar[data-tone='pale'] {
+    fill: var(--lazu-chart-3);
+  }
+  .lz-combo__bar[data-tone='danger'] {
+    fill: color-mix(in srgb, var(--lazu-danger) 30%, transparent);
+  }
+  .lz-combo__bar--partial {
+    fill: var(--lazu-chart-3);
+    fill-opacity: 0.42;
+    stroke: var(--lazu-chart-2);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+  }
+  .lz-combo__area[data-tone='ink'] {
+    fill: color-mix(in srgb, var(--lazu-chart-1) 12%, transparent);
+  }
+  .lz-combo__area[data-tone='grey'] {
+    fill: color-mix(in srgb, var(--lazu-chart-2) 18%, transparent);
+  }
+  .lz-combo__line {
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .lz-combo__line[data-tone='ink'] {
+    stroke: var(--lazu-evidence-strong);
+  }
+  .lz-combo__line[data-tone='grey'] {
+    stroke: var(--lazu-chart-2);
+  }
+  .lz-combo__line[data-dashed] {
+    stroke-width: 1.6;
+    stroke-dasharray: 5 4;
+  }
+  .lz-combo__threshold {
+    fill: none;
+    stroke: var(--lazu-danger);
+    stroke-width: 1;
+    stroke-dasharray: 5 4;
+    opacity: 0.7;
+  }
+  .lz-combo__threshold-label {
+    position: absolute;
+    font-size: 11px;
+    color: var(--lazu-danger);
+    pointer-events: none;
+  }
+  .lz-combo__alert {
+    fill: var(--lazu-danger);
+    stroke: var(--lazu-surface-solid);
+    stroke-width: 1.5;
+  }
+  .lz-combo__tick {
+    position: absolute;
+    width: 42px;
+    font-size: 11px;
+    color: var(--lazu-text-faint);
+    text-align: right;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .lz-combo__tick--right {
+    text-align: left;
+  }
+  .lz-combo__xlabel {
+    position: absolute;
+    width: 60px;
+    margin-left: -30px;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--lazu-text-faint);
+    pointer-events: none;
+  }
+  .lz-combo__xlabel[data-active] {
+    color: var(--lazu-ink);
+  }
+  .lz-combo__slot {
+    position: absolute;
+    top: 0;
+    height: 100%;
+  }
+  .lz-combo__tip {
+    position: absolute;
+    top: 8px;
+    width: 176px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+    background: var(--lazu-surface-solid);
+    border: 1px solid color-mix(in srgb, var(--lazu-ink) 12%, transparent);
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgb(20 24 32 / 9%);
+    pointer-events: none;
+  }
+  .lz-combo__tip strong {
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .lz-combo__tip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .lz-combo__tip-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--lazu-text-faint);
+  }
+  .lz-combo__tip-key i {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--lazu-chart-3);
+  }
+  .lz-combo__tip-key i[data-tone='ink'] {
+    background: var(--lazu-chart-1);
+  }
+  .lz-combo__tip-key i[data-tone='grey'] {
+    background: var(--lazu-chart-2);
+  }
+  .lz-combo__tip-key i[data-tone='danger'] {
+    background: var(--lazu-danger);
+  }
+  .lz-combo__tip [data-alert] {
+    color: var(--lazu-danger);
+  }
+}

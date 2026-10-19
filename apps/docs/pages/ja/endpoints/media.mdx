@@ -1,0 +1,141 @@
+---
+title: "画像・動画・音声の生成 API"
+description: "同じ API キーで画像を生成し、動画ジョブを送信・ポーリングし、音声を合成・文字起こしできます。リクエスト項目、結果、エラーを解説します。"
+---
+
+# 画像・動画・音声
+
+画像と動画はキーで[モデルカタログ](/ja/models/catalog)を取得し、対象エンドポイント、パラメータと例を確認します。音声モデルは下記の手順で選択してください。利用可否はモデルとデプロイに依存し、一つのモデルが全メディアに対応するとは限りません。例には Python 3 と `requests`（`python -m pip install requests`）が必要です。`LAZU_API_KEY` と下記モデル変数を設定してください。
+
+## 画像を生成する
+
+`LAZU_IMAGE_MODEL` に `/v1/images/generations` 対応モデルを設定します。返り値は `data[].url` または `data[].b64_json` の場合があるため実際の形式を処理してください。サイズ、品質、形式はモデルに依存します。生成 URL が恒久的とは限りません。
+
+```python
+import os
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+response = requests.post(origin + "/v1/images/generations",
+    headers={"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]},
+    json={"model": os.environ["LAZU_IMAGE_MODEL"], "prompt": "A blue ceramic cup"},
+    timeout=180)
+response.raise_for_status()
+print(response.json()["data"])
+```
+
+## Seedream の生成・参照画像・レイヤー
+
+生成と参照画像による編集はどちらも `POST /v1/images/generations` を使い、JSON の `image` に URL、data URL または配列を指定します。multipart の `/v1/images/edits` は使用せず、非ストリーミングのみ対応します。Studio は通常の生成・参照画像編集に対応し、ネイティブのバッチとレイヤー分解は API で利用します。
+
+公開時の標準料金（USD）は次のとおりです。適用料金はキー付きカタログで確認してください。
+
+| Model | USD / successful output |
+| --- | --- |
+| `seedream-5.0-flash` | $0.018 |
+| `seedream-5.0-lite` | $0.035 |
+| `seedream-4.5` | $0.040 |
+| `seedream-5.0-pro` | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
+
+Pro のレイヤー分解はベース画像も含め、1 枚あたり 2,610,000 ピクセル以下が $0.0225、それを超える場合は $0.045 です。Pro の参照画像は最初の 1 枚が無料、追加は成功したリクエストごとに 1 枚 $0.003。他の 3 モデルでは参照画像は無料です。Flash の分解は通常の $0.018/枚です。成功した出力だけを課金し、失敗・ブロックされた画像は課金しません。各 `data[].size` で料金区分を決め、返された output tokens に別途トークン料金はかかりません。
+
+Pro/Flash は `1K`、`1.5K`、`2K` と最大 10 枚の参照、Lite は `2K`、`3K`、`4K`、4.5 は `2K`、`4K` と最大 14 枚の参照に対応します。Lite/4.5 に旧来の `1024x1024` は使えません。寸法制約はカタログを参照してください。Lite/4.5 のバッチは次の形式で、参照枚数と最大出力枚数の合計は 15 以下です。`n > 1` はこの形式に変換されます。Pro/Flash の通常生成は 1 回 1 枚です。
+
+```json
+{
+  "model": "seedream-5.0-lite",
+  "prompt": "Create two matching blue ceramic cup designs",
+  "size": "2K",
+  "sequential_image_generation": "auto",
+  "sequential_image_generation_options": {"max_images": 2}
+}
+```
+
+Pro/Flash の分解では `layer_decomposition: true` と 1 枚の `image` を指定します。`prompt` は任意、`size` の既定値は `auto`。ベース画像と最大 16 レイヤーが返り、`z_index`、`bounding_box`、`name`、`description`、寸法を保持してください。
+
+`pricing.image_pricing` に `output_usd`、`pixel_threshold`、`high_resolution_output_usd`、`layer_usd`、`high_resolution_layer_usd`、`reference_usd`、`free_references` を公開します。最大料金を先に予約し（分解は最大 17 枚）、成功した実際の出力で精算して差額を解放します。キー・プロジェクト残高は予約額を満たす必要があります。`usage.cost`、`usage.generated_images` とリクエスト使用量で照合してください。
+
+公式：[画像 API](https://docs.byteplus.com/en/docs/modelark/image-generation-api)、[料金](https://docs.byteplus.com/en/docs/modelark/model-pricing)。
+
+
+## 動画を送信してポーリングする
+
+`LAZU_VIDEO_MODEL` に `/v1/videos` 対応モデルを設定します。受付成功時は HTTP 202 とジョブ ID が返ります。同じキーで同じジョブを取得してください。`pending` と `running` は未完了、`succeeded` は成果物情報、`failed` はエラーを示します。ローカル待機のタイムアウトはジョブのキャンセルや失敗ではありません。ID を保存して取得を再開し、待機終了だけを理由に有料ジョブを再作成しないでください。
+
+```python
+import os
+import time
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+response = requests.post(origin + "/v1/videos", headers=headers,
+    json={"model": os.environ["LAZU_VIDEO_MODEL"], "prompt": "Ocean waves at sunrise"},
+    timeout=180)
+response.raise_for_status()
+job_id = response.json()["id"]
+print("Save job ID:", job_id, flush=True)
+deadline = time.monotonic() + 600
+while time.monotonic() < deadline:
+    response = requests.get(origin + "/v1/videos/" + job_id,
+                            headers=headers, timeout=30)
+    if response.status_code in (429, 503):
+        retry_after = response.headers.get("Retry-After", "5")
+        delay = float(retry_after) if retry_after.isdecimal() else 5
+        if delay >= deadline - time.monotonic():
+            print("Still waiting; resume GET for job:", job_id)
+            break
+        time.sleep(max(1, delay))
+        continue
+    response.raise_for_status()
+    job = response.json()
+    if job["status"] == "succeeded":
+        print(job.get("artifact", {}))
+        break
+    if job["status"] == "failed":
+        raise RuntimeError(job.get("error", {"message": "Video failed"}))
+    time.sleep(5)
+else:
+    print("Still waiting; resume GET for job:", job_id)
+# A local timeout does not cancel the remote job. Keep job_id for later GETs.
+```
+
+## 音声の生成と文字起こし
+
+`LAZU_AUDIO_MODEL` に音声生成モデル、`LAZU_VOICE` に対応する声を設定します。`/v1/audio/speech` は JSON ではなく音声バイナリを返します。文字起こしは別の対応モデルを選び、`/v1/audio/transcriptions` にローカル音声ファイルを multipart で送信します。両者は別の機能です。
+
+現在のカタログには音声生成・文字起こしのエンドポイント型がなく、音声モダリティだけでは判別できません。デプロイ管理者または Lazu サポートから確認済みのモデル ID、エンドポイント、対応する声を取得し、現在の API キーでアクセスできることを確認してください。`LAZU_TRANSCRIPTION_MODEL` に確認済みの文字起こしモデル、`LAZU_AUDIO_FILE` にローカル音声ファイルのパスを設定します。
+
+```python
+import os
+from pathlib import Path
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+response = requests.post(origin + "/v1/audio/speech", headers=headers,
+    json={"model": os.environ["LAZU_AUDIO_MODEL"], "input": "Hello from Lazu",
+          "voice": os.environ["LAZU_VOICE"], "response_format": "mp3"}, timeout=180)
+response.raise_for_status()
+Path("speech.mp3").write_bytes(response.content)
+```
+
+```python
+import os
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+with open(os.environ["LAZU_AUDIO_FILE"], "rb") as audio:
+    response = requests.post(origin + "/v1/audio/transcriptions",
+        headers={"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]},
+        data={"model": os.environ["LAZU_TRANSCRIPTION_MODEL"]},
+        files={"file": audio}, timeout=180)
+response.raise_for_status()
+print(response.json())
+```
+
+## エラーと成果物
+
+失敗時はリクエストまたはジョブ ID とエラーコードを保存します。送信がタイムアウトし ID がない場合、再送前に動画一覧（`GET /v1/videos`）やサポートで確認してください。成功したジョブは `artifact.url` を使用し、`artifact.file_id` のみの場合は [Files API](/ja/endpoints/files) で取得します。請求は[料金説明](/ja/billing)で照合してください。
+
+[API Explorer](/ja/api-reference)

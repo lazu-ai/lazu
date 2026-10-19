@@ -1,0 +1,143 @@
+---
+title: "图片、视频与音频生成 API"
+description: "用同一个 API Key 在 Lazu 上生成图片、提交并轮询视频任务、合成或转写语音：请求字段、返回结果和错误处理。"
+---
+
+# 图片、视频与音频
+
+图片和视频先用密钥查询[模型目录](/zh/models/catalog)，检查具体端点、参数与示例；音频模型按下方说明选择。可用性和选项取决于模型及部署，一个模型不一定支持所有媒体类型。示例需要 Python 3 和 `requests`（`python -m pip install requests`）；请设置 `LAZU_API_KEY` 及下文模型变量。
+
+## 生成图片
+
+将 `LAZU_IMAGE_MODEL` 设为支持 `/v1/images/generations` 的模型。响应可能包含 `data[].url` 或 `data[].b64_json`，按实际形式读取。尺寸、质量和格式由模型决定，不要假设生成链接永久有效。
+
+```python
+import os
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+response = requests.post(origin + "/v1/images/generations",
+    headers={"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]},
+    json={"model": os.environ["LAZU_IMAGE_MODEL"], "prompt": "A blue ceramic cup"},
+    timeout=180)
+response.raise_for_status()
+print(response.json()["data"])
+```
+
+## Seedream 生图、参考图与分层
+
+生图和参考图编辑都使用 `POST /v1/images/generations`，参考图放在 JSON 的 `image` 字段（URL、data URL 或数组）。Lazu 的 Seedream 不使用 multipart `/v1/images/edits`，当前只支持非流式响应。Studio 支持普通生图与参考图编辑；原生批量和分层通过 API 使用。
+
+上线时的标准美元价格如下；个人实际价格以带密钥查询的模型目录为准：
+
+| Model | USD / successful output |
+| --- | --- |
+| `seedream-5.0-flash` | $0.018 |
+| `seedream-5.0-lite` | $0.035 |
+| `seedream-4.5` | $0.040 |
+| `seedream-5.0-pro` | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
+
+Pro 分层按每张返回图片（**包括底图**）收费：像素数 ≤ 2,610,000 为 $0.0225，超过为 $0.045。Pro 首张参考图免费，每增加一张参考图，每次成功请求另收 $0.003；其余三款参考图免费。Flash 分层仍按 $0.018/张计算。批量不足或部分图片被拦截，只收成功返回的图片；失败和拦截图片不计费。每张 `data[].size` 决定其像素档位，返回的 output tokens 不另收 token 费用。
+
+Pro/Flash 支持 `1K`、`1.5K`、`2K` 或有效宽高，最多 10 张参考图。Lite 支持 `2K`、`3K`、`4K`；4.5 支持 `2K`、`4K`，两者最多 14 张参考图。旧的 `1024x1024` 对 Lite/4.5 太小，请查看目录中具体模型的 `parameters`。
+
+Lite/4.5 使用 `sequential_image_generation: "auto"` 与 `max_images` 开启批量；参考图数量加最大输出数量不能超过 15。`n > 1` 会转换为该原生批量参数。Pro/Flash 的普通生成每次一张。
+
+```json
+{
+  "model": "seedream-5.0-lite",
+  "prompt": "Create two matching blue ceramic cup designs",
+  "size": "2K",
+  "sequential_image_generation": "auto",
+  "sequential_image_generation_options": {"max_images": 2}
+}
+```
+
+Pro/Flash 分层传入 `layer_decomposition: true` 和恰好一张 `image`，`prompt` 可选，`size` 默认 `auto`。最多返回底图加 16 层；保留 `z_index`、`bounding_box`、`name`、`description` 和各图尺寸。分层最多预留 17 张费用，再按实际成功结果结算、释放差额。
+
+目录 `pricing.image_pricing`（也位于各渠道价格内）包含 `output_usd`、`pixel_threshold`、`high_resolution_output_usd`、`layer_usd`、`high_resolution_layer_usd`、`reference_usd`、`free_references`。用返回的 `usage.cost`、`usage.generated_images` 和请求用量记录对账。网关先预留最大可能费用，再按实际尺寸结算；密钥与项目余额需覆盖预留。
+
+官方参考：[图片 API](https://docs.byteplus.com/en/docs/modelark/image-generation-api)、[价格](https://docs.byteplus.com/en/docs/modelark/model-pricing)。
+
+
+## 提交并轮询视频
+
+将 `LAZU_VIDEO_MODEL` 设为支持 `/v1/videos` 的模型。提交成功返回 HTTP 202 和任务 ID；用同一密钥查询同一任务。`pending`、`running` 均未完成；`succeeded` 提供产物信息，`failed` 提供错误。本地等待超时不会取消任务或令任务失败，应保存 ID 并继续查询，不要因等待结束重复创建付费任务。
+
+```python
+import os
+import time
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+response = requests.post(origin + "/v1/videos", headers=headers,
+    json={"model": os.environ["LAZU_VIDEO_MODEL"], "prompt": "Ocean waves at sunrise"},
+    timeout=180)
+response.raise_for_status()
+job_id = response.json()["id"]
+print("Save job ID:", job_id, flush=True)
+deadline = time.monotonic() + 600
+while time.monotonic() < deadline:
+    response = requests.get(origin + "/v1/videos/" + job_id,
+                            headers=headers, timeout=30)
+    if response.status_code in (429, 503):
+        retry_after = response.headers.get("Retry-After", "5")
+        delay = float(retry_after) if retry_after.isdecimal() else 5
+        if delay >= deadline - time.monotonic():
+            print("Still waiting; resume GET for job:", job_id)
+            break
+        time.sleep(max(1, delay))
+        continue
+    response.raise_for_status()
+    job = response.json()
+    if job["status"] == "succeeded":
+        print(job.get("artifact", {}))
+        break
+    if job["status"] == "failed":
+        raise RuntimeError(job.get("error", {"message": "Video failed"}))
+    time.sleep(5)
+else:
+    print("Still waiting; resume GET for job:", job_id)
+# A local timeout does not cancel the remote job. Keep job_id for later GETs.
+```
+
+## 语音生成与转写
+
+将 `LAZU_AUDIO_MODEL` 设为语音生成模型，`LAZU_VOICE` 设为其支持的音色。`/v1/audio/speech` 返回二进制音频而非 JSON。转写需另选兼容模型，通过 multipart 向 `/v1/audio/transcriptions` 上传本地音频；两者是独立能力。
+
+目录目前没有语音生成或转写端点类型，仅凭音频模态无法判断这两种能力。请向部署管理员或 Lazu 支持获取已确认的模型 ID、端点与支持的音色，并确认该模型对当前 Key 可用，不要只按音频模态选模型。将 `LAZU_TRANSCRIPTION_MODEL` 设置为已确认的转写模型，`LAZU_AUDIO_FILE` 设置为本地音频路径。
+
+```python
+import os
+from pathlib import Path
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+response = requests.post(origin + "/v1/audio/speech", headers=headers,
+    json={"model": os.environ["LAZU_AUDIO_MODEL"], "input": "Hello from Lazu",
+          "voice": os.environ["LAZU_VOICE"], "response_format": "mp3"}, timeout=180)
+response.raise_for_status()
+Path("speech.mp3").write_bytes(response.content)
+```
+
+```python
+import os
+import requests
+
+origin = os.environ.get("LAZU_API_ORIGIN", "https://api.lazu.ai").rstrip("/")
+with open(os.environ["LAZU_AUDIO_FILE"], "rb") as audio:
+    response = requests.post(origin + "/v1/audio/transcriptions",
+        headers={"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]},
+        data={"model": os.environ["LAZU_TRANSCRIPTION_MODEL"]},
+        files={"file": audio}, timeout=180)
+response.raise_for_status()
+print(response.json())
+```
+
+## 错误与结果
+
+失败时保存请求或任务 ID 并查看错误码。若提交超时且未拿到任务 ID，先查询视频任务列表（`GET /v1/videos`）或联系支持，再决定是否重提。成功任务优先使用 `artifact.url`；如只返回 `artifact.file_id`，通过 [Files API](/zh/endpoints/files)获取。费用按[计费说明](/zh/billing)对账。
+
+[API Explorer](/zh/api-reference)

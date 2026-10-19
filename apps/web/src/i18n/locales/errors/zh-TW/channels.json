@@ -1,0 +1,20 @@
+{
+  "channel_not_found": "這個渠道已不存在，可能已被刪除。請重新整理列表。",
+  "channel_search_backend_managed": "這個渠道是檢索後端，不能在這裡修改。請到「檢索後端」頁面管理。",
+  "channel_lane_invalid": "檔位「{{lane}}」不存在。每個渠道只屬於一個既有檔位，請從列表中選擇。",
+  "channel_settings_invalid": "渠道額外設定無法解析，沒有儲存。請檢查 JSON 格式和取值。",
+  "channel_model_name_too_long": "有模型名稱超過 255 個字元，渠道沒有儲存。請縮短或刪除它。",
+  "channel_not_multi_key": "這個渠道只有一個金鑰，不能逐一管理金鑰。",
+  "channel_key_index_invalid": "這個金鑰已不在渠道中。請重新整理金鑰列表後再試。",
+  "channel_last_key": "這是渠道的最後一個金鑰，不能刪除。請先新增其他金鑰，或直接刪除渠道。",
+  "channel_keys_none_eligible": "沒有符合這個操作的金鑰，渠道沒有變化。",
+  "channel_balance_unsupported": "這類渠道或多金鑰渠道不支援查詢餘額。",
+  "channel_balance_query_failed": "上游沒有回傳餘額。請檢查渠道金鑰和位址後再試。",
+  "channel_upstream_models_failed": "上游沒有回傳模型列表。請檢查金鑰和位址，或手動填寫模型。",
+  "channel_task_running": "同類維護工作正在執行，這次沒有啟動。請等它完成後再試。",
+  "channel_test_failed": "渠道測試沒有通過，上游回傳了錯誤。請檢查金鑰、位址和測試模型後再測一次。",
+  "channel_test_not_sent": "無法為這個渠道建立測試請求，沒有送往上游。請檢查渠道類型、模型對應和定價。",
+  "channel_route_not_found": "這個渠道沒有在該檔位下提供這個模型。請重新整理頁面查看最新線路。",
+  "route_observation_incomplete": "這個來源還在觀察期。滿 7 天且各項檢查都通過後才能上線。",
+  "route_observation_none": "這個來源沒有觀察中的模型。請重新整理頁面查看最新狀態。"
+}

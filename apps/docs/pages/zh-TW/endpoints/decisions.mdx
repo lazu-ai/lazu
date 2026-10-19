@@ -1,0 +1,32 @@
+---
+title: "判別模型"
+description: "判別模型: OpenAI Decisions, Jev, Clef"
+---
+
+# 判別模型
+
+透過 `POST /v1/decisions` 對文字、JSON 和內嵌圖片進行機率、選擇和評分判斷。可選的問題自動產生預設關閉；原生判別與問題產生分別驗證、計費及記錄請求 ID。
+
+## OpenAI Decisions
+
+以官方請求名稱 `gpt-6-luna` 呼叫 `/v1/decisions`；在 Lazu 支援範圍內，更換 base URL 即可保留官方請求與回應格式。Chat 與 Responses 路徑維持獨立。目錄項目 `gpt-6-luna-decisions` 以 `request_model: "gpt-6-luna"` 指示呼叫名稱，並獨立管理權限、路由及價格；相容呼叫仍可使用 alias。
+
+```json
+{"model":"gpt-6-luna","input":"螢幕已經損壞。","questions":[{"name":"damaged","type":"predicate","instructions":"螢幕是否損壞？"}]}
+```
+
+問題與答案是有序陣列，名稱可省略；首發版本要求明確提供的名稱唯一，未命名問題依位置保留。選項保留字串或布林型別；評分為以機率加權、從零開始的等級索引，信心值與選項機率不同。逐題 `refusal` 是合法 HTTP 200 結果，保留其他答案及實際 usage，不觸發整筆重試或退款。
+
+Lazu 首發限制為輸入與問題合計 8192 個估算文字 token、64 題、4 張內嵌 PNG/JPEG/WebP 圖片、2–10 個評分等級；這不是官方 API 最大能力聲明。僅支援 user 訊息與內嵌圖片，不支援遠端 URL、串流、tools、`safety_identifier` 或原生自動產生問題。舊 `state`/問題字典格式可透過 `gpt-6-luna-decisions` 橋接，不可混用 `input` 與 `state`。輸入及圖片輸入採目錄中的 Decisions 價格，輸出與快取保留用量，首發價格為零。
+
+## Jev / Clef 相容格式
+
+```json
+{
+  "model": "jev-1.13",
+  "state": {"ticket": "服务中断，需要立即处理。"},
+  "questions": {"urgent": {"type": "noul", "instructions": "是否需要立即处理？"}}
+}
+```
+
+完整參數、圖片限制、自動產生、獨立計費與錯誤重試請參閱 [英文協定文件](/endpoints/decisions)。Clef 目前限制 state 為保守的 2000 UTF-8 位元組；圖片僅接受內嵌 PNG/JPEG/WebP，不支援串流。

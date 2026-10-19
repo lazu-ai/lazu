@@ -1,0 +1,8 @@
+---
+title: "Handling request errors: retries, timeouts and limits"
+description: "How to handle Lazu API request errors in production: which failures to retry, backoff, timeouts, rate limits and interrupted streams."
+---
+
+# Handling request errors
+
+If a request returns `429`, inspect the error body and respect `Retry-After` when present. Use bounded backoff instead of an immediate retry loop. A `429` can arise from gateway or upstream controls; it is not evidence of a published account plan. Do not automatically replay a stream after output has arrived. See [Errors](/errors) for authentication, request and upstream failures.

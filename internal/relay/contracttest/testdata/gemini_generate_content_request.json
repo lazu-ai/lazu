@@ -1,0 +1,21 @@
+{
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "generate three taglines for an ai gateway"
+        }
+      ]
+    }
+  ],
+  "generationConfig": {
+    "temperature": 0.4,
+    "maxOutputTokens": 128
+  },
+  "x_gemini_future": {
+    "grounding": {
+      "enabled": true
+    }
+  }
+}

@@ -1,0 +1,79 @@
+'use strict';
+
+// Lazu security patch for GHSA-vfj7-8cjw-p6xm. String parsing and callers that
+// supply ASTs directly share one non-configurable recursion bound. Existing
+// MAX_LENGTH bounds parsed strings; the node budget also bounds caller ASTs.
+const { MAX_LENGTH } = require('./constants');
+const MAX_DEPTH = 100;
+const MAX_NODES = 2 * MAX_LENGTH + 3;
+
+const reject = (message, code) => {
+  const error = new SyntaxError(message);
+  error.code = code;
+  throw error;
+};
+
+// expand follows parent links to its enclosing brace/root independently of
+// child traversal. Validate that chain separately: legitimate parent back-links
+// are not child cycles, but a malformed chain must not loop forever.
+const assertParentChain = node => {
+  const ancestors = new WeakSet();
+  let depth = 0;
+  while (node) {
+    if (typeof node !== 'object') {
+      throw new TypeError('Expected a brace AST parent node');
+    }
+    if (ancestors.has(node)) {
+      reject('Cyclic brace AST parent chain is not supported', 'ERR_BRACES_AST_CYCLE');
+    }
+    if (depth++ > MAX_DEPTH) {
+      reject('Brace AST parent chain exceeds maximum depth (100)', 'ERR_BRACES_NESTING_DEPTH');
+    }
+    ancestors.add(node);
+    node = node.parent;
+  }
+};
+
+exports.assertParserDepth = stackLength => {
+  if (stackLength >= MAX_DEPTH) {
+    reject('Brace pattern exceeds maximum AST nesting depth (100)', 'ERR_BRACES_NESTING_DEPTH');
+  }
+};
+
+exports.assertAstDepth = ast => {
+  const active = new WeakSet();
+  const stack = [{ node: ast, depth: 0, index: -1 }];
+  let visited = 0;
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    const node = frame.node;
+    if (frame.index === -1) {
+      if (node === null || typeof node !== 'object') {
+        throw new TypeError('Expected a brace AST node');
+      }
+      if (active.has(node)) {
+        reject('Cyclic brace AST is not supported', 'ERR_BRACES_AST_CYCLE');
+      }
+      if (++visited > MAX_NODES) {
+        reject('Brace AST exceeds maximum node count', 'ERR_BRACES_AST_SIZE');
+      }
+      if (frame.depth > MAX_DEPTH) {
+        reject('Brace pattern exceeds maximum AST nesting depth (100)', 'ERR_BRACES_NESTING_DEPTH');
+      }
+      if (node.nodes !== undefined && !Array.isArray(node.nodes)) {
+        throw new TypeError('Expected brace AST nodes to be an array');
+      }
+      assertParentChain(node);
+      active.add(node);
+      frame.index = 0;
+    }
+    if (!node.nodes || frame.index >= node.nodes.length) {
+      active.delete(node);
+      stack.pop();
+    } else {
+      // Walk one child at a time: a wide malformed AST cannot allocate an
+      // unbounded traversal stack before the finite node budget is checked.
+      stack.push({ node: node.nodes[frame.index++], depth: frame.depth + 1, index: -1 });
+    }
+  }
+};

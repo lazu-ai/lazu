@@ -1,0 +1,3169 @@
+/* API Keys page — 浮纸表格 + 编辑界面.
+   List head cluster, in-card toolbar, and the sectioned key editor.
+   Every colour here comes from the brand tokens; the floating paper card
+   itself is the shared .lazu-data-surface sheet. */
+
+.tokv2-chip {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: 999px;
+  color: var(--lazu-text-faint);
+  display: inline-flex;
+  font-size: 10.5px;
+  font-weight: 600;
+  gap: 5px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.tokv2-chip--evi {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence);
+}
+
+.tokv2-chip--mono {
+  font-family: var(--lazu-font-mono);
+  letter-spacing: 0;
+}
+
+button.tokv2-chip {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button.tokv2-chip.tokv2-chip--mono {
+  font-family: var(--lazu-font-mono);
+}
+
+button.tokv2-chip:hover {
+  color: var(--lazu-ink);
+}
+
+button.tokv2-chip.tokv2-chip--evi:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+.tokv2-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.tokv2-quota {
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+}
+
+.tokv2-quota small {
+  color: var(--lazu-text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+/* --- list ------------------------------------------------------------- */
+
+.tokv2-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Selects stretch to their container by default; in one filter row they take
+   only the width their label needs. */
+.tokv2-toolbar .lazu-select-trigger,
+.tokv2-toolbar .lazu-toolbar-button {
+  width: auto;
+}
+
+.tokv2-toolbar__search {
+  min-width: 13rem;
+}
+
+.tokv2-toolbar__key {
+  min-width: 10rem;
+}
+
+.tokv2-toolbar-right {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tokv2-th-r,
+.tokv2-cell-r {
+  display: block;
+  text-align: right;
+}
+
+.tokv2-cell-r {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.tokv2-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 18rem;
+}
+
+.tokv2-editlink {
+  background: none;
+  border: 0;
+  color: var(--lazu-evidence);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  padding: 0;
+}
+
+.tokv2-editlink:hover {
+  text-decoration: underline;
+}
+
+.tokv2-rowactions {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+/* One shape for all three row actions. They differ by icon, not by weight:
+   an outlined pill on every row turns a list of Keys into a wall of CTAs,
+   and the page already has one primary button, at the top. */
+.tokv2-act {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  white-space: nowrap;
+}
+
+.tokv2-act svg {
+  flex: none;
+}
+
+.tokv2-act--icon {
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+/* Pointing at the row lights the whole group; pointing at one control tints
+   only that one. */
+.lazu-table tbody tr:hover .tokv2-act,
+.lazu-table__row--selected .tokv2-act {
+  color: var(--lazu-ink);
+}
+
+.tokv2-act:hover,
+.tokv2-act:focus-visible {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+  outline: none;
+}
+
+.tokv2-act--danger:hover,
+.tokv2-act--danger:focus-visible {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+/* --- editor: fields shared by create and edit -------------------------- */
+
+.tokv2-sec {
+  border-top: 1px solid var(--lazu-border);
+  padding: 13px 0 4px;
+}
+
+.tokv2-sec__title {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 650;
+  margin-bottom: 9px;
+}
+
+.tokv2-grid {
+  display: grid;
+  gap: 12px 14px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.tokv2-f {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tokv2-f--full {
+  grid-column: 1 / -1;
+}
+
+.tokv2-f__label {
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.tokv2-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tokv2-row--nowrap {
+  flex-wrap: nowrap;
+}
+
+.tokv2-row__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.tokv2-quota-input {
+  padding-left: 1.75rem;
+}
+
+.tokv2-quota-prefix {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  display: flex;
+  inset-block: 0;
+  left: 12px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.tokv2-meter {
+  background: var(--lazu-surface-selected);
+  border-radius: 999px;
+  height: 6px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.tokv2-meter__fill {
+  background: var(--lazu-evidence);
+  border-radius: 999px;
+  display: block;
+  height: 100%;
+}
+
+.tokv2-meter__line {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tokv2-seg {
+  background: var(--lazu-surface-selected);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.tokv2-seg__btn {
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 13px;
+  white-space: nowrap;
+}
+
+.tokv2-seg__btn.is-on {
+  background: var(--lazu-surface-solid);
+  box-shadow: 0 1px 2px var(--lazu-border-strong);
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.tokv2-hint {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+}
+
+.tokv2-form .tokv2-sec:last-child {
+  padding-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .tokv2-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tokv2-row--nowrap {
+    flex-wrap: wrap;
+  }
+
+  .tokv2-toolbar-right {
+    justify-content: flex-start;
+  }
+}
+
+/* I1 — one search field, with the icon inside it so the box says what it is
+   without needing a label or a button next to it. */
+.tokv2-search {
+  align-items: center;
+  display: flex;
+  flex: 1 1 320px;
+  max-width: 380px;
+  min-width: 0;
+  position: relative;
+}
+
+.tokv2-search__icon {
+  color: var(--lazu-text-faint);
+  left: 12px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.tokv2-search__input {
+  padding-left: 34px;
+  padding-right: 32px;
+  width: 100%;
+}
+
+.tokv2-search__clear {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: 3px;
+  position: absolute;
+  right: 8px;
+}
+
+.tokv2-search__clear:hover {
+  color: var(--lazu-ink);
+}
+
+.tokv2-search__clear:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 1px;
+}
+
+/* --- connect redesign (brand/foundations/api-keys-2026-09.md) ---------- */
+
+/* The two- or three-letter stand-in for a tool logo. */
+.tok-mono {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  display: inline-grid;
+  flex: none;
+  font-family: var(--lazu-font-mono);
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 700;
+  height: 20px;
+  justify-items: center;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  width: 20px;
+}
+
+.tok-mono--sm {
+  font-size: 8px;
+  height: 18px;
+  width: 18px;
+}
+
+.tok-mono--lg {
+  font-size: 8.5px;
+  height: 22px;
+  width: 22px;
+}
+
+.tok-mono--xl {
+  font-size: 9px;
+  height: 24px;
+  width: 24px;
+}
+
+.tok-mono.is-active {
+  background: var(--lazu-action);
+  color: var(--lazu-on-action);
+}
+
+.token-page-table .console-page-topbar__copy {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.token-page-table .console-page-topbar__description {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.tok-name {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  max-width: 15rem;
+  min-width: 0;
+}
+
+/* The public id under the name is long and rarely read; let it ellipsize so
+   the eight default columns fit at desktop widths. */
+.tok-name > div {
+  min-width: 0;
+}
+
+.tok-name > div > div {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-key {
+  align-items: center;
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tok-key__value {
+  color: var(--lazu-ink);
+  letter-spacing: 0.01em;
+  max-width: 7.75rem;
+  overflow-x: auto;
+}
+
+/* A revealed value keeps the column width: it scrolls inside the cell and
+   selects as one piece. */
+.tok-key__value--full {
+  user-select: all;
+}
+
+.tok-key--legacy .tok-key__value {
+  color: var(--lazu-text-faint);
+}
+
+.tok-key__copy {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.tok-key__copy:hover:not(:disabled) {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+.tok-key__copy:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.tok-key__copy:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 1px;
+}
+
+/* Shared modal chrome: the console-review control geometry, which the
+   portaled dialogs do not inherit from the page shell. */
+.tok-create-modal .lazu-button,
+.tok-connect .lazu-button {
+  border-radius: var(--lazu-radius-control);
+  font-size: var(--lazu-row-label);
+  gap: 8px;
+  line-height: 1.3;
+  min-height: var(--lazu-control-height-lg);
+  padding: 0 14px;
+}
+
+.tok-create-modal .lazu-button--primary,
+.tok-connect .lazu-button--primary {
+  background: var(--lazu-ink);
+  border: 1px solid var(--lazu-ink);
+  color: var(--lazu-surface-solid);
+}
+
+.tok-create-modal .lazu-button--secondary,
+.tok-connect .lazu-button--secondary {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+}
+
+.tok-modal-foot {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.tok-modal-foot__hint {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  margin-right: auto;
+}
+
+.tok-modal-foot__hint a {
+  color: var(--lazu-evidence);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.tok-modal-foot__hint a:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+/* --- create: one screen ------------------------------------------------ */
+
+.tok-create-modal.lazu-modal-content {
+  max-width: min(92vw, 560px);
+}
+
+.tok-create-modal .lazu-modal-title {
+  font-size: 18px;
+  font-weight: 720;
+}
+
+.tok-create {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tok-create__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tok-create__label {
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.tok-create .lazu-input {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  font-size: 12px;
+  height: auto;
+  min-height: var(--lazu-control-height-lg);
+}
+
+.tok-connect__tool:focus-visible,
+.tok-connect__format:focus-visible,
+.tok-create__more:focus-visible,
+.tok-connect__copy:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+/* The page's one primary action gets a taller button than the row controls. */
+.console-page-shell.console-review .tok-create-cta.lazu-button {
+  font-size: 13px;
+  min-height: 40px;
+  padding: 0 18px;
+}
+
+/* Batch controls appear in place of the filters once rows are ticked. */
+.tok-selection {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-control);
+  margin: -4px -6px;
+  padding: 6px 10px;
+}
+
+.tok-selection__count {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.tok-selection__clear {
+  margin-left: auto;
+  color: var(--lazu-text-muted);
+}
+
+.tok-toolbar__total {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Quota is the field people came to set, so it reads as its own block. */
+.tok-create__quota {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.tok-create__head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.tok-create__quota-label {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.tok-create__hint {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.tok-create__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tok-create__presets .tokv2-chip {
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.tok-create__quota .tok-create__money {
+  flex: 0 0 168px;
+}
+
+.tok-create__quota .lazu-input {
+  background: var(--lazu-surface-solid);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  min-height: 44px;
+  padding-left: 28px;
+}
+
+.tok-create__quota .tok-create__money > span {
+  font-size: 16px;
+  left: 12px;
+}
+
+/* One row per vendor: the lane choice is a default, not an advanced knob. */
+.tok-create__lanes {
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  background: var(--lazu-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.tok-create__lane {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 6px 8px 6px 12px;
+}
+
+.tok-create__lane + .tok-create__lane {
+  border-top: 1px solid var(--lazu-border);
+}
+
+.tok-create__lane-name {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tok-create__row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.tok-create__money {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.tok-create__money > span {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  display: flex;
+  font-size: 12px;
+  inset-block: 0;
+  left: 12px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.tok-create__money .lazu-input {
+  padding-left: 24px;
+}
+
+.tok-create .tokv2-chip {
+  align-self: center;
+}
+
+.tok-create__seg {
+  align-self: flex-start;
+}
+
+.tok-create__seg .tokv2-seg__btn {
+  font-size: 12px;
+  padding: 4px 13px;
+}
+
+.tok-create__more {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 12.5px;
+  gap: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.tok-create__more svg {
+  flex: none;
+  transition: transform var(--lazu-motion-base) var(--lazu-ease-direct);
+}
+
+.tok-create__more.is-open svg {
+  transform: rotate(90deg);
+}
+
+.tok-create__more:hover {
+  border-color: var(--lazu-border-strong);
+  color: var(--lazu-ink);
+}
+
+.tok-create__more-hint {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  margin-left: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-create__advanced {
+  margin-top: -4px;
+}
+
+/* --- connect ----------------------------------------------------------- */
+
+.tok-connect.lazu-modal-content {
+  max-width: min(94vw, 880px);
+  display: flex;
+  flex-direction: column;
+  height: min(680px, 85dvh);
+  overflow: hidden;
+  padding: 0;
+}
+
+.tok-connect__grid {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.tok-connect__mobile-tool {
+  display: none;
+}
+
+.tok-connect > .tok-modal-foot {
+  border-top: 1px solid var(--lazu-border);
+  flex-shrink: 0;
+  padding: 14px 24px;
+}
+
+.tok-connect__rail {
+  background: var(--lazu-surface-muted);
+  border-right: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px 10px;
+  overflow-y: auto;
+}
+
+.tok-connect__rail-head {
+  display: grid;
+  gap: 2px;
+  padding: 0 8px 10px;
+}
+
+.tok-connect__rail-head b {
+  font-size: 16px;
+  font-weight: 720;
+}
+
+.tok-connect__rail-head span {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-connect__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tok-connect__group-label {
+  color: var(--lazu-text-muted);
+  font-size: 10.5px;
+  font-weight: 550;
+  letter-spacing: 0.06em;
+  padding: 10px 8px 3px;
+  text-transform: uppercase;
+}
+
+.tok-connect__tool {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 9px;
+  padding: 6px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.tok-connect__tool:hover {
+  background: var(--lazu-surface-muted);
+}
+
+.tok-connect__tool.is-on {
+  background: var(--lazu-surface-selected);
+}
+
+.tok-connect__main {
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 22px 24px;
+}
+
+.tok-connect__head {
+  display: grid;
+  gap: 6px;
+  padding-right: 34px;
+}
+
+.tok-connect__title {
+  align-items: center;
+  color: var(--lazu-ink);
+  display: flex;
+  font-size: 18px;
+  font-weight: 720;
+  gap: 8px;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.tok-connect__desc {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.tok-connect__controls {
+  display: grid;
+  gap: 14px 24px;
+  /* Model fields side by side; each one carries its own lane underneath, so
+     no column is reserved for a Key-wide switch any more. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tok-connect__controls--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tok-connect__controls--one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Claude Code's four model slots sit two by two. */
+.tok-connect__controls--slots {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The list of extra models takes a row of its own under the fields. */
+.tok-connect__extras {
+  grid-column: 1 / -1;
+}
+
+.tok-model__multi {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: var(--lazu-control-height-sm);
+}
+
+.tok-model__chip {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 0 4px 0 10px;
+}
+
+.tok-model__chip-x {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: inline-flex;
+  height: 18px;
+  justify-content: center;
+  padding: 0;
+  width: 18px;
+}
+
+.tok-model__chip-x:hover:not(:disabled) {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+.tok-model__add {
+  align-items: center;
+  background: transparent;
+  border: 1px dashed var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 11.5px;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 10px 0 8px;
+}
+
+.tok-model__add:hover:not(:disabled),
+.tok-model__add[aria-expanded='true'] {
+  border-color: var(--lazu-ink);
+  color: var(--lazu-ink);
+}
+
+.tok-model__add:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tok-connect__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tok-connect__label {
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.tok-connect__select.lazu-select-trigger {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  min-height: var(--lazu-control-height-sm);
+  padding: 0 10px;
+}
+
+.tok-connect .tokv2-seg {
+  align-self: flex-start;
+}
+
+.tok-connect__muted {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  display: flex;
+  font-size: 12px;
+  min-height: var(--lazu-control-height-sm);
+}
+
+.tok-connect__quick {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-ink);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.tok-connect__quick .lazu-button {
+  flex: none;
+  min-height: 34px;
+}
+
+.tok-connect__quick-hint {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.tok-connect__quick-hint a {
+  color: var(--lazu-evidence);
+  text-decoration: none;
+}
+
+.tok-connect__code-area {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 0;
+}
+
+/* The shared line tabs carry the keyboard behaviour; the modal only tightens
+   them, since this strip sits inside a dialog rather than under a page title. */
+.lazu-tabs-list.tok-connect__formats {
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 0;
+  overflow-x: visible;
+}
+
+.lazu-tabs-list .tok-connect__format {
+  font-size: 12px;
+  font-weight: 550;
+  margin-bottom: -1px;
+  min-height: 0;
+  padding: 6px 2px 8px;
+}
+
+.lazu-tabs-list .tok-connect__format[data-active] {
+  font-weight: 650;
+}
+
+.tok-connect__code {
+  background: var(--lazu-code-bg);
+  border: 1px solid var(--lazu-code-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-code-text);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 110px;
+  padding: 12px 14px;
+}
+
+.tok-connect__code-head {
+  align-items: center;
+  color: var(--lazu-code-muted);
+  display: flex;
+  font-size: 10.5px;
+  font-weight: 600;
+  gap: 8px;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+
+.tok-connect__copy {
+  align-items: center;
+  background: var(--lazu-code-surface);
+  border: 0;
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-code-text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 9px;
+}
+
+.tok-connect__copy:hover:not(:disabled) {
+  background: var(--lazu-code-surface-hover);
+}
+
+.tok-connect__copy:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tok-connect__code pre {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  margin: 0;
+  overflow: auto;
+  white-space: pre;
+}
+
+.tok-connect__code--wrap pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tok-connect__toggles {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+}
+
+.tok-connect__toggles .lazu-switch-label {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  gap: 10px;
+}
+
+.tok-connect .lazu-modal-close {
+  z-index: 2;
+}
+
+@media (max-width: 760px) {
+  .tok-connect__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tok-connect__grid {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .tok-connect__rail {
+    display: none;
+  }
+  .tok-connect__mobile-tool {
+    display: block;
+    padding: 16px 52px 0 20px;
+  }
+  .tok-connect__mobile-tool .lazu-select-trigger {
+    width: 100%;
+  }
+  .tok-connect__main {
+    padding: 16px 20px;
+  }
+  .tok-connect > .tok-modal-foot {
+    padding: 12px 20px;
+  }
+
+  .tok-connect__controls,
+  .tok-connect__controls--two,
+  .tok-connect__controls--slots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tok-create__lane {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tok-create__row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tok-create__quota .tok-create__money {
+    flex: 1 1 auto;
+  }
+
+  .tok-connect__quick,
+  .tok-modal-foot {
+    flex-wrap: wrap;
+  }
+}
+
+/* --- tags: key / value rows, never raw JSON --------------------------- */
+.tok-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tok-tags__row {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.tok-tags__row .lazu-input {
+  font-size: 12px;
+  height: auto;
+  min-height: var(--lazu-control-height-sm);
+}
+
+.tok-connect__label-note {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+/* Keep the default create form and its actions visible on laptop screens. */
+body:has(.console-review)
+  .tok-create-modal.lazu-modal-content:not(.whats-new-panel)
+  .lazu-modal-header {
+  padding: 16px 24px 12px;
+}
+body:has(.console-review)
+  .tok-create-modal.lazu-modal-content:not(.whats-new-panel)
+  .lazu-modal-body {
+  padding: 16px 24px;
+}
+body:has(.console-review)
+  .tok-create-modal.lazu-modal-content:not(.whats-new-panel)
+  .lazu-modal-footer {
+  padding: 12px 24px;
+}
+body:has(.console-review)
+  .tok-create-modal.lazu-modal-content:not(.whats-new-panel) {
+  max-height: calc(100dvh - 48px);
+}
+
+/* ---- connect dialog: the model field ----
+   A searchable list grouped by vendor, newest first, in place of a flat
+   select that held the whole catalog in catalog order. The rules are
+   unlayered on purpose, the same as the rest of this file, so they land on
+   top of the shared .lazu-popover-content base. */
+
+.tok-model__trigger {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  gap: 6px;
+  min-height: var(--lazu-control-height-sm);
+  padding: 0 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.tok-model__trigger:hover:not(:disabled) {
+  border-color: var(--lazu-border-strong);
+}
+
+.tok-model__trigger[aria-expanded='true'] {
+  border-color: var(--lazu-ink);
+  box-shadow: 0 0 0 1px var(--lazu-ink);
+}
+
+.tok-model__trigger:disabled {
+  color: var(--lazu-text-faint);
+  cursor: not-allowed;
+}
+
+.tok-model__trigger svg {
+  color: var(--lazu-text-faint);
+  flex: none;
+  margin-left: auto;
+}
+
+.tok-model__id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-model__tier {
+  align-items: center;
+  border-radius: var(--lazu-radius-badge);
+  display: inline-flex;
+  flex: none;
+  font-family: var(--lazu-font-sans, inherit);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  padding: 1px 6px;
+}
+
+.tok-model__tier.is-flagship {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence);
+}
+
+.tok-model__tier.is-balanced {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-text-muted);
+}
+
+.tok-model__tier.is-light {
+  background: var(--lazu-success-soft);
+  color: var(--lazu-success);
+}
+
+.lazu-popover-content.tok-model__pop {
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-overlay);
+  overflow: hidden;
+  padding: 0;
+  width: min(560px, calc(100vw - 32px));
+}
+
+.tok-model__search {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-faint);
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.tok-model__search kbd {
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+}
+
+.tok-model__search input {
+  background: none;
+  border: 0;
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-ink);
+  flex: 1;
+  font: inherit;
+  font-size: 12.5px;
+  min-width: 0;
+}
+
+.tok-model__search input:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+.tok-model__list {
+  max-height: min(440px, 52dvh);
+  overflow-y: auto;
+  padding-bottom: 6px;
+}
+
+.tok-model__none {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  margin: 0;
+  padding: 16px 12px;
+}
+
+.tok-model__section {
+  background: var(--lazu-surface-solid);
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 10px 12px 4px;
+  position: sticky;
+  text-transform: uppercase;
+  top: 0;
+  z-index: 1;
+}
+
+.tok-model__vendor {
+  align-items: center;
+  color: var(--lazu-ink);
+  display: flex;
+  font-size: 11.5px;
+  font-weight: 650;
+  gap: 6px;
+  padding: 8px 12px 2px;
+}
+
+.tok-model__row {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-size: 12px;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto 74px 96px;
+  padding: 7px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.tok-model__row[data-active='true'] {
+  background: var(--lazu-surface-muted);
+}
+
+.tok-model__row.is-variant .tok-model__row-id {
+  padding-left: 14px;
+}
+
+.tok-model__row.is-variant .tok-model__row-id span {
+  color: var(--lazu-text-muted);
+}
+
+.tok-model__row:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: -2px;
+}
+
+.tok-model__row.is-on {
+  background: var(--lazu-surface-selected);
+}
+
+.tok-model__row-id {
+  align-items: center;
+  display: flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tok-model__row-id > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-model__check {
+  color: var(--lazu-ink);
+  flex: none;
+  opacity: 0;
+}
+
+.tok-model__row.is-on .tok-model__check {
+  opacity: 1;
+}
+
+.tok-model__date {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.tok-model__price {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tok-model__more {
+  background: none;
+  border: 0;
+  color: var(--lazu-evidence);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 12px 8px 34px;
+  text-align: left;
+  width: 100%;
+}
+
+.tok-model__more:hover {
+  color: var(--lazu-evidence-strong, var(--lazu-evidence));
+}
+
+@media (max-width: 640px) {
+  .tok-model__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .tok-model__date,
+  .tok-model__price {
+    display: none;
+  }
+}
+
+/* One model, one lane. The control sits under its model field, so a slot is
+   read top to bottom: which model, then which lane it takes. */
+.tok-lane {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.tok-lane__seg {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  white-space: nowrap;
+  width: fit-content;
+}
+
+.tok-lane__seg.is-conflict {
+  background: var(--lazu-warning-soft);
+}
+
+.tok-lane__btn {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.tok-lane__btn:disabled {
+  color: var(--lazu-text-faint);
+  cursor: not-allowed;
+}
+
+.tok-lane__btn.is-on {
+  background: var(--lazu-surface-solid);
+  box-shadow: 0 1px 2px var(--lazu-border-strong);
+  color: var(--lazu-ink);
+}
+
+.tok-lane__seg.is-conflict .tok-lane__btn.is-on {
+  color: var(--lazu-warning-strong);
+}
+
+.tok-lane__price {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.tok-lane__btn.is-on .tok-lane__price {
+  color: var(--lazu-text-muted);
+}
+
+.tok-lane__note {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.tok-lane__note.is-warn {
+  color: var(--lazu-warning-strong);
+}
+
+/* A model with nothing to choose keeps the slot's height and says why. */
+.tok-lane__only {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.tok-lane__dot {
+  background: var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-pill);
+  height: 8px;
+  width: 8px;
+}
+
+/* The model list: one row per model, its lane beside it. */
+.tok-connect__label-row {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.tok-connect__note {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.tok-model__rows {
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tok-model__row {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 14px;
+  min-height: 44px;
+  padding: 4px 14px;
+}
+
+.tok-model__rows > .tok-model__row:last-child {
+  border-bottom: 0;
+}
+
+.tok-model__row.is-off .tok-model__row-id {
+  color: var(--lazu-text-muted);
+}
+
+.tok-model__row-check {
+  flex-shrink: 0;
+  height: 16px;
+  margin: 0;
+  width: 16px;
+}
+
+.tok-model__row-id {
+  flex-grow: 1;
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-model__row-lane {
+  flex-shrink: 0;
+}
+
+.tok-model__row-price {
+  color: var(--lazu-text-muted);
+  flex-shrink: 0;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  text-align: right;
+  width: 118px;
+}
+
+/* The add button keeps its own row under the list. */
+.tok-model__rows > .tok-model__add {
+  align-self: flex-start;
+  margin: 8px 14px;
+}
+
+.tok-model__group-head {
+  align-items: baseline;
+  background: var(--lazu-surface);
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 10px;
+  min-height: 32px;
+  padding: 6px 14px;
+}
+
+.tok-model__group-default {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+}
+
+/* What this import writes, and what everything else still follows. */
+.tok-connect__summary {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-md);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 13px;
+  gap: 16px;
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  padding: 10px 16px;
+}
+
+.tok-connect__summary-link {
+  background: none;
+  border: 0;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 13px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .tok-model__row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tok-model__row-price {
+    text-align: left;
+    width: auto;
+  }
+
+  .tok-connect__summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* --- editor: 更多设置 --------------------------------------------------- */
+
+/* Every question here is a header first and a form second: nine open sections
+   would be a second page, nine headers is a menu. */
+.tok-more {
+  display: flex;
+  flex-direction: column;
+  margin-top: -4px;
+}
+
+.tok-more__sec {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 4px;
+}
+
+.tok-more__sec:first-child {
+  border-top: 0;
+}
+
+.tok-more__head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tok-more__title {
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.tok-more__hint {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-more__switch {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.tok-more__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* --- editor: periodic spend cap ---------------------------------------- */
+
+/* One line inside the quota block, because it answers the same question at a
+   different scale. Wrapping it would make it look like a separate setting. */
+.tok-create__cap {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 10px;
+  white-space: nowrap;
+}
+
+.tok-create__cap-label {
+  flex: none;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.tok-create__quota .tok-create__cap-money {
+  flex: 0 0 96px;
+}
+
+.tok-create__quota .tok-create__cap-money .lazu-input {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  min-height: 32px;
+  padding-left: 22px;
+}
+
+.tok-create__quota .tok-create__cap-money > span {
+  font-size: 13px;
+  left: 10px;
+}
+
+.tok-create__cap .tokv2-seg {
+  flex: none;
+}
+
+.tok-create__cap .tokv2-seg__btn {
+  padding: 3px 10px;
+}
+
+.tok-create__cap-spent {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- editor: model scope, two panes ------------------------------------ */
+
+/* Vendors on the left, the open vendor's models on the right. The left box
+   takes a vendor whole; the name opens it. One click per question, instead
+   of a checkbox and a caret sharing one row. */
+.tok-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tok-scope__filters {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.tok-scope__search {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.tok-scope__icon {
+  color: var(--lazu-text-faint);
+  left: 14px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.tok-scope .tok-scope__input {
+  min-height: 44px;
+  padding-left: 40px;
+  width: 100%;
+}
+
+.tok-scope__tiers {
+  flex: none;
+}
+
+.tok-scope__panes {
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 14px;
+  display: grid;
+  grid-template-columns: minmax(200px, 272px) minmax(0, 1fr);
+  height: 400px;
+  overflow: hidden;
+}
+
+.tok-scope__vendors {
+  background: var(--lazu-surface-muted);
+  border-right: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.tok-scope__vrow {
+  align-items: center;
+  border-radius: 10px;
+  display: flex;
+  flex: none;
+  gap: 10px;
+  min-height: 46px;
+  padding-left: 10px;
+}
+
+.tok-scope__vrow:hover {
+  background: var(--lazu-surface-selected);
+}
+
+/* The open vendor is a sheet lifted off the rail — whole-row fill, never a
+   side bar. */
+.tok-scope__vrow.is-active {
+  background: var(--lazu-surface-solid);
+  box-shadow: inset 0 0 0 1px var(--lazu-border);
+}
+
+.tok-scope__vpick {
+  align-items: center;
+  align-self: stretch;
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px 0 0;
+  text-align: left;
+}
+
+.tok-scope__vpick:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: -2px;
+}
+
+.tok-scope__vname {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-scope__vrow.is-active .tok-scope__vname {
+  font-weight: 600;
+}
+
+.tok-scope__vcount {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tok-scope__vrow.is-on .tok-scope__vcount {
+  color: var(--lazu-evidence-strong);
+}
+
+.tok-scope__models {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.tok-scope__mhead {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.tok-scope__mtitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tok-scope__mhead .tokv2-hint {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* The edit dialog is wide and tall enough to give the panes their full
+   height; the compact create dialog keeps 400px so its button stays near. */
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-scope__panes {
+  height: 540px;
+}
+
+.tok-scope .tok-scope__whole {
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  gap: 8px;
+  height: 36px;
+  margin-left: auto;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.tok-scope__mlist {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+
+.tok-scope__mrow {
+  align-items: center;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 10px;
+}
+
+.tok-scope__mrow:hover {
+  background: var(--lazu-surface-muted);
+}
+
+/* The shared checkbox label wraps its text in one span; here that span is
+   the name and the price, spread across the row. */
+.tok-scope__mrow > span:last-child {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tok-scope__mname {
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-scope__price {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tok-scope__empty {
+  border: 1px solid var(--lazu-border);
+  border-radius: 14px;
+  color: var(--lazu-text-faint);
+  font-size: 13px;
+  padding: 28px 12px;
+  text-align: center;
+}
+
+.tok-scope__warn {
+  align-items: center;
+  background: var(--lazu-warning-soft);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  display: flex;
+  font-size: 14px;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.tok-scope__warn.is-error {
+  background: var(--lazu-danger-soft);
+}
+
+.tok-scope__warn.is-error svg {
+  color: var(--lazu-danger);
+}
+
+.tok-scope__warn svg {
+  color: var(--lazu-warning-strong);
+  flex: none;
+}
+
+.tok-scope__clear {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .tok-scope__filters {
+    flex-wrap: wrap;
+  }
+
+  .tok-scope__panes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 200px minmax(0, 1fr);
+  }
+
+  .tok-scope__vendors {
+    border-bottom: 1px solid var(--lazu-border);
+    border-right: 0;
+  }
+}
+
+/* Edit adds one line under the title: the Key, which is the one thing the
+   editor cannot change. */
+.tok-create-modal--edit .lazu-modal-description {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  gap: 4px 8px;
+}
+
+@media (max-width: 720px) {
+  .tok-create__cap {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .tok-create__cap-spent {
+    margin-left: 0;
+  }
+}
+
+.tok-create__team-context {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lazu-space-4);
+  border-bottom: 1px solid var(--lazu-border);
+  padding-bottom: var(--lazu-space-4);
+  font-size: var(--lazu-row-label);
+}
+.tok-create__team-context small {
+  display: block;
+  color: var(--lazu-text-muted);
+  margin-top: var(--lazu-space-1);
+}
+.tok-create-modal--team .tok-create {
+  gap: var(--lazu-space-4);
+}
+.tok-create-modal--team .tok-create__quota > .tok-create__hint {
+  display: block;
+  margin-top: var(--lazu-space-2);
+}
+
+/* The approved team refinement retains the shared form controls and layout. */
+body:has(.console-review)
+  .tok-create-modal--team.lazu-modal-content:not(.whats-new-panel):not(
+    .lazu-modal-content--wide
+  ):not(.lazu-modal-content--xwide) {
+  width: min(560px, calc(100vw - 32px));
+}
+body:has(.console-review)
+  .tok-create-modal--team.lazu-modal-content:not(.whats-new-panel)
+  .lazu-modal-header {
+  padding-top: var(--lazu-space-6);
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.tok-create-modal--team .tok-create__quota {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.tok-create-modal--team .tok-create__label,
+.tok-create-modal--team .tok-create__quota-label {
+  font-size: var(--lazu-row-label);
+  font-weight: 400;
+  color: var(--lazu-text-muted);
+}
+.tok-create-modal--team .tok-create__head {
+  justify-content: space-between;
+}
+.tok-create-modal--team .tok-create__quota .tok-create__money {
+  flex: 0 0 120px;
+}
+.tok-create-modal--team .tok-create__quota .lazu-input {
+  min-height: var(--lazu-control-height-lg);
+  font-size: var(--lazu-row-text);
+  font-weight: 400;
+  background: var(--lazu-surface);
+}
+.tok-create-modal--team .tokv2-chip {
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-badge);
+  background: var(--lazu-surface);
+  color: var(--lazu-ink);
+}
+.tok-create-modal--team .tokv2-chip--evi,
+.tok-create-modal--team .tokv2-seg__btn.is-on {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+.tok-create-modal--team .tokv2-seg {
+  border-radius: var(--lazu-radius-badge);
+}
+.tok-create-modal--team .tokv2-seg__btn {
+  border-radius: var(--lazu-radius-badge);
+}
+.tok-create-modal--team .tok-create__more {
+  border: 0;
+  padding: var(--lazu-space-2) 0;
+}
+@media (max-width: 640px) {
+  .tok-create__team-context {
+    flex-direction: column;
+    gap: var(--lazu-space-2);
+  }
+}
+
+/* Project pages use the same modal scroll discipline as the personal page. */
+.tok-create-modal.lazu-modal-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tok-create-modal > .lazu-modal-body {
+  min-height: 0;
+  overflow: auto;
+}
+.tok-create-modal > :is(.lazu-modal-header, .lazu-modal-footer) {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .tok-create-modal--team .tok-create__row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .tok-create-modal--team .tok-create__presets {
+    display: contents;
+  }
+  .tok-create-modal--team .tok-create__lane {
+    flex-direction: row;
+    align-items: center;
+  }
+  .tok-create-modal--team .tok-create__lane-name .tok-create__hint {
+    display: none;
+  }
+}
+
+body:has(.console-review)
+  .tok-create-modal--team.lazu-modal-content:not(.whats-new-panel) {
+  border-radius: var(--lazu-team-modal-radius);
+}
+body:has(.console-review)
+  .tok-create-modal--team.lazu-modal-content
+  .lazu-input {
+  border-radius: var(--lazu-team-control-radius);
+}
+.tok-create-modal--team .tok-create__quota .tok-create__money {
+  display: flex;
+  align-items: center;
+  gap: var(--lazu-space-2);
+}
+.tok-create-modal--team .tok-create__quota .tok-create__money > span {
+  position: static;
+  font-size: var(--lazu-row-text);
+  color: var(--lazu-ink);
+}
+.tok-create-modal--team .tok-create__quota .lazu-input {
+  padding-left: var(--lazu-space-3);
+  min-width: 0;
+}
+.tok-create-modal--team .tok-create__lane {
+  padding: 7px var(--lazu-space-3);
+}
+.tok-create-modal--team .tok-create__lane-name {
+  font-size: var(--lazu-row-label);
+  font-weight: 400;
+}
+
+/* Explanation under a control rather than beside its label. */
+.tok-create__hint--below {
+  display: block;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+/* --- editor at reading size (2026-09-30) ------------------------------- */
+
+/* Editing is where a Key's limits are set, and at 600px with 11-12px labels
+   it read as fine print. It now opens at the connect dialog's width with the
+   console's reading sizes. Creation stays compact — it has to fit a laptop
+   screen with its button in view — and the team form keeps its own
+   refinement above, so every rule here is edit-only. */
+body:has(.console-review)
+  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
+    .whats-new-panel
+  ):not(.lazu-modal-content--wide):not(.lazu-modal-content--xwide) {
+  max-width: calc(100vw - 32px);
+  width: min(880px, calc(100vw - 32px));
+}
+
+body:has(.console-review)
+  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
+    .whats-new-panel
+  )
+  .lazu-modal-header {
+  padding: 30px 44px 20px;
+}
+
+body:has(.console-review)
+  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
+    .whats-new-panel
+  )
+  .lazu-modal-body {
+  padding: 26px 44px;
+}
+
+body:has(.console-review)
+  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
+    .whats-new-panel
+  )
+  .lazu-modal-footer {
+  padding: 18px 44px 22px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .lazu-modal-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .lazu-modal-description {
+  font-size: 13px;
+  gap: 4px 10px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create {
+  gap: 24px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__field {
+  gap: 10px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__label,
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__quota-label {
+  color: var(--lazu-ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__hint,
+.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-hint {
+  font-size: 13px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create .lazu-input {
+  background: var(--lazu-surface-solid);
+  border-color: var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  font-size: 15px;
+  min-height: 46px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__quota {
+  border-radius: 16px;
+  gap: 12px;
+  padding: 20px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__quota
+  .tok-create__money {
+  flex: 0 0 170px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__quota
+  .lazu-input {
+  font-family: var(--lazu-font-mono);
+  font-size: 20px;
+  min-height: 48px;
+  padding-left: 30px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__quota
+  .tok-create__money
+  > span {
+  font-size: 18px;
+  left: 14px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__presets {
+  gap: 8px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__presets
+  .tokv2-chip {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border-strong);
+  color: var(--lazu-ink);
+  font-size: 14px;
+  font-weight: 500;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__presets
+  .tokv2-chip.tokv2-chip--evi {
+  background: var(--lazu-ink);
+  border-color: var(--lazu-ink);
+  color: var(--lazu-surface-solid);
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-meter {
+  height: 6px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__cap {
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__cap-label {
+  font-size: 14px;
+  font-weight: 500;
+  width: 72px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__quota
+  .tok-create__cap-money {
+  flex: 0 0 120px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__quota
+  .tok-create__cap-money
+  .lazu-input {
+  font-size: 15px;
+  min-height: 40px;
+  padding-left: 26px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__cap-spent {
+  font-size: 13px;
+}
+
+/* Segmented controls: 36px targets on a 12px tray, the size the rest of the
+   editor's controls now share. */
+.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-seg {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  padding: 3px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-seg__btn,
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__seg
+  .tokv2-seg__btn {
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  height: 36px;
+  padding: 0 16px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-seg__btn.is-on {
+  font-weight: 500;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__lanes {
+  background: transparent;
+  border-radius: 14px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__lane {
+  padding: 10px 14px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__lane-name {
+  font-size: 15px;
+  font-weight: 500;
+  gap: 12px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-create__lane-name
+  .tok-create__hint {
+  font-family: var(--lazu-font-mono);
+}
+
+/* 更多设置 is a heading over a rule, not a second button competing with the
+   footer's two. */
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__more {
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-ink);
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 56px;
+  padding: 18px 0 0;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__more:hover {
+  border-color: var(--lazu-border);
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__more-hint {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__sec {
+  gap: 14px;
+  padding: 14px 0 12px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__head {
+  gap: 12px;
+  min-height: 32px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__hint {
+  font-size: 14px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team)
+  .tok-modal-foot
+  .lazu-button {
+  font-size: 15px;
+  min-height: 44px;
+  padding: 0 20px;
+}
+
+.tok-create-modal--edit:not(.tok-create-modal--team) .tok-modal-foot__hint {
+  font-size: 13px;
+}
+
+/* --- list head (2026-10-02) -------------------------------------------- */
+
+/* The API address strip: only for an account opened to an extra address.
+   A label column, then one cell per address — kind, address and copy, and
+   one line on when to pick it. */
+.tok-address {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 112px repeat(
+      var(--tok-address-count, 2),
+      minmax(0, 1fr)
+    );
+  margin-bottom: 6px;
+}
+
+.tok-address__label {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  padding: 18px 20px;
+}
+
+.tok-address__cell {
+  border-left: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 20px;
+}
+
+.tok-address__head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.tok-address__kind {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tok-address__default {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  padding: 1px 7px;
+}
+
+.tok-address__url-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tok-address__url {
+  font-family: var(--lazu-font-mono);
+  font-size: 13.5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-page-shell.console-review .tok-address__copy.lazu-button {
+  border-color: var(--lazu-border);
+  border-radius: var(--lazu-radius-badge);
+  flex: none;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  width: 28px;
+}
+
+.tok-address__note {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .tok-address {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tok-address__label {
+    padding-bottom: 0;
+  }
+
+  .tok-address__cell {
+    border-left: 0;
+    border-top: 1px solid var(--lazu-border);
+  }
+}
+
+/* The toolbar stands on the page above the table card, not inside it: the
+   status tabs on the left, search, order and 创建密钥 on the right, 14px
+   above the card so it never reads as the table's own header row. */
+.console-page-shell.console-review.token-page-table > .console-page-body {
+  gap: 14px;
+}
+
+.console-page-toolbar {
+  min-width: 0;
+}
+
+.tok-bar {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.console-page-shell.console-review.token-page-table
+  .tok-bar
+  .tokv2-search
+  input {
+  border-color: var(--lazu-border-strong);
+}
+
+.console-page-shell.console-review.token-page-table .tok-bar .tokv2-search {
+  background: var(--lazu-surface);
+  border-radius: var(--lazu-radius-control);
+  flex: 0 1 220px;
+  min-width: 140px;
+}
+
+.console-page-shell.console-review.token-page-table
+  .tok-bar
+  .lazu-select-trigger.tok-sort {
+  background: var(--lazu-surface);
+  border-color: var(--lazu-border-strong);
+  min-height: 40px;
+  width: auto;
+}
+
+.tok-sort .lazu-select-icon,
+.tok-sort > [class*='Icon'],
+.lazu-select-trigger.tok-sort > span:last-child:not(.tok-sort__value) {
+  display: none;
+}
+
+.tok-sort__value {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.console-page-shell.console-review.token-page-table
+  .tok-bar
+  .tok-create-cta.lazu-button {
+  flex: none;
+}
+
+.console-page-shell.console-review.token-page-table .tok-selection {
+  margin: 0;
+}
+
+/* The column picker sits in the table's own header row, over the actions. */
+.console-page-shell.console-review .lazu-column-menu-icon.lazu-button {
+  color: var(--lazu-text-muted);
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  width: 26px;
+}
+
+@media (max-width: 900px) {
+  .tok-bar {
+    flex-wrap: wrap;
+  }
+
+  .tok-bar .tok-toolbar__spacer {
+    display: none;
+  }
+}
+
+/* The toolbar, the table and the pager share one sheet and one left edge:
+   20px in from the card, the same inset as the first column's content. */
+.console-page-shell.console-review.token-page-table .lazu-data-surface {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.console-page-shell.console-review.token-page-table .lazu-filter-bar {
+  margin: 0;
+  min-height: 72px;
+  padding: 16px 20px;
+}
+
+.console-page-shell.console-review.token-page-table .lazu-table-wrap {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--lazu-border);
+}
+
+/* Nine columns share 1100px at a 1440 window; 12px sides are what lets the
+   expiry column clear the sticky actions instead of sliding under them. */
+.console-page-shell.console-review.token-page-table .lazu-table th,
+.console-page-shell.console-review.token-page-table .lazu-table td {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.console-page-shell.console-review.token-page-table .lazu-table th:first-child,
+.console-page-shell.console-review.token-page-table .lazu-table td:first-child {
+  padding-left: 20px;
+}
+
+.console-page-shell.console-review.token-page-table .lazu-table th:last-child,
+.console-page-shell.console-review.token-page-table .lazu-table td:last-child {
+  padding-right: 20px;
+}
+
+.console-page-shell.console-review.token-page-table .lazu-table td {
+  vertical-align: middle;
+}
+
+.console-page-shell.console-review.token-page-table
+  .lazu-data-surface
+  .lazu-pagination {
+  border-top: 1px solid var(--lazu-border);
+  margin: 0;
+  padding: 12px 20px;
+}
+
+/* Controls in the toolbar all stand 40px tall. */
+.console-page-shell.console-review.token-page-table .tokv2-toolbar {
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+
+.console-page-shell.console-review.token-page-table
+  .tokv2-toolbar
+  .lazu-select-trigger,
+.console-page-shell.console-review.token-page-table
+  .tokv2-toolbar
+  .lazu-toolbar-button,
+.console-page-shell.console-review.token-page-table .tokv2-search {
+  min-height: 40px;
+}
+
+.console-page-shell.console-review.token-page-table .tokv2-search {
+  flex: 0 1 300px;
+  min-width: 180px;
+}
+
+.tok-toolbar__spacer {
+  flex: 1;
+}
+
+.tok-tabs {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  height: 40px;
+  padding: 3px;
+}
+
+.tok-tabs__btn {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 7px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.tok-tabs__btn:hover {
+  color: var(--lazu-ink);
+}
+
+.tok-tabs__btn.is-on {
+  background: var(--lazu-surface-solid);
+  box-shadow: 0 0 0 1px var(--lazu-border);
+  color: var(--lazu-ink);
+}
+
+.tok-tabs__btn:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: -2px;
+}
+
+.tok-tabs__n {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status as a dot and a word: five coloured pills down one column shouted
+   louder than the Keys they describe. */
+.tok-status {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.tok-status__dot {
+  background: currentColor;
+  border-radius: 50%;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+.tok-status--1 {
+  color: var(--lazu-success);
+}
+
+.tok-status--3,
+.tok-status--4 {
+  color: var(--lazu-danger);
+}
+
+/* Used on the left, the budget on the right, the bar under both: every row
+   draws the same three things, so the column reads straight down. */
+.tok-quota {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 140px;
+}
+
+.tok-quota__line {
+  align-items: baseline;
+  display: flex;
+  font-family: var(--lazu-font-mono);
+  font-variant-numeric: tabular-nums;
+  justify-content: space-between;
+}
+
+.tok-quota__used {
+  color: var(--lazu-ink);
+  font-size: 13px;
+}
+
+.tok-quota__total {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.tok-quota__meter {
+  appearance: none;
+  background: var(--lazu-border);
+  border: 0;
+  border-radius: 999px;
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.tok-quota__meter::-webkit-progress-bar {
+  background: var(--lazu-border);
+  border-radius: 999px;
+}
+
+.tok-quota__meter::-webkit-progress-value {
+  background: var(--lazu-ink);
+  border-radius: 999px;
+}
+
+.tok-quota__meter::-moz-progress-bar {
+  background: var(--lazu-ink);
+  border-radius: 999px;
+}
+
+.tok-quota.is-high .tok-quota__meter::-webkit-progress-value {
+  background: var(--lazu-danger);
+}
+
+.tok-quota.is-high .tok-quota__meter::-moz-progress-bar {
+  background: var(--lazu-danger);
+}
+
+/* No budget still draws the track, dashed, so the row keeps its height. */
+.tok-quota.is-unlimited .tok-quota__meter,
+.tok-quota.is-unlimited .tok-quota__meter::-webkit-progress-bar {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--lazu-border-strong) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+.tok-scopecell {
+  display: flex;
+  gap: 6px;
+  max-width: 13rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tok-scopecell__chip {
+  align-items: center;
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  display: inline-block;
+  flex: none;
+  font-size: 12px;
+  height: 24px;
+  line-height: 24px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.tok-scopecell__chip.is-model {
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-mono);
+}
+
+.tok-scopecell__chip.is-vendor {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+}
+
+.tok-expiry {
+  color: var(--lazu-text-faint);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.tok-expiry.is-soon {
+  color: var(--lazu-warning-strong);
+  font-weight: 500;
+}
+
+.tok-expiry.is-past {
+  color: var(--lazu-danger);
+}
+
+/* The pinned actions column sits over whatever scrolls beneath it on a
+   narrow window, so it paints an opaque sheet — the shared raised tone is
+   translucent, and the dates showed through 接入 and 编辑. */
+.console-page-shell.console-review.token-page-table
+  .lazu-table
+  td.lazu-table__actions-col {
+  background: var(--lazu-surface-solid);
+}
+
+.console-page-shell.console-review.token-page-table
+  .lazu-table
+  tr.lazu-table__row--expanded
+  td.lazu-table__actions-col {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--lazu-surface-muted) 72%, transparent),
+      color-mix(in srgb, var(--lazu-surface-muted) 72%, transparent)
+    ),
+    var(--lazu-surface-solid);
+}
+
+.console-page-shell.console-review.token-page-table
+  .lazu-table
+  tr:hover
+  td.lazu-table__actions-col {
+  background:
+    linear-gradient(var(--lazu-surface-selected), var(--lazu-surface-selected)),
+    var(--lazu-surface-solid);
+}
+
+.console-page-shell.console-review.token-page-table
+  .lazu-table
+  th.lazu-table__actions-col {
+  background:
+    linear-gradient(var(--lazu-surface-muted), var(--lazu-surface-muted)),
+    var(--lazu-surface-solid);
+}
+
+/* Keep default Key creation and its advanced-settings entry visible on laptops. */
+@media (max-height: 760px) {
+  body:has(.console-review)
+    .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    .lazu-modal-header {
+    padding-block: 6px;
+  }
+  body:has(.console-review)
+    .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    .lazu-modal-footer {
+    padding-block: 12px;
+  }
+  body:has(.console-review)
+    .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    .lazu-modal-body {
+    padding-block: 8px;
+  }
+  .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    .tok-create {
+    gap: 4px;
+  }
+  .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    .tok-create__quota {
+    padding-block: 6px;
+  }
+  .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    .tok-create__lane {
+    padding-block: 2px;
+  }
+}
+
+@media (max-height: 760px) {
+  .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    :is(.lazu-modal-title, .lazu-modal-description) {
+    margin-block: 0;
+  }
+  .tok-create-modal:not(.tok-create-modal--edit):not(.tok-create-modal--team)
+    .tok-create__hint--below {
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 800px) and (max-height: 760px) {
+  body:has(.console-review)
+    .tok-create-modal.lazu-modal-content:not(.tok-create-modal--edit):not(
+      .tok-create-modal--team
+    ) {
+    width: 720px;
+    max-width: calc(100vw - 48px);
+    max-height: calc(100dvh - 24px);
+  }
+}

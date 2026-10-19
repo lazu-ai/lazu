@@ -1,0 +1,77 @@
+---
+title: "模型列表 API：GET /v1/models"
+description: OpenAI-compatible /v1/models，以及什么时候应该改用更完整的 /api/models/catalog。
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="接口 / Discovery"
+  method="GET"
+  path="/v1/models"
+  title="模型列表"
+  description="以扁平 OpenAI-compatible shape 列出当前 API Key 可访问的模型。需要路由、价格、模态和 usage metadata 时，请使用 /api/models/catalog。"
+  aside={
+    <EndpointRail
+      endpoint="models"
+      extra={
+        <MiniCard title="适合场景">
+          你的 SDK 调用 <code>client.models.list()</code>，并期望 OpenAI
+          list shape。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## 应该使用哪个模型 endpoint？
+
+<EndpointGrid>
+  <EndpointTile title="/v1/models">
+    面向现有 SDK 和工具的 OpenAI-compatible 模型列表。
+  </EndpointTile>
+  <EndpointTile title="/api/models/catalog">
+    面向 agent、路由、计费、模态、endpoint 支持、参数和 usage/cache metadata
+    的完整目录。
+  </EndpointTile>
+</EndpointGrid>
+
+## 响应字段
+
+<FieldList>
+  <Field name="object" type="string">
+    始终为 <code>list</code>。
+  </Field>
+  <Field name="data" type="object[]">
+    当前 API Key 可访问的模型记录。
+  </Field>
+  <Field name="data[].id" type="string">
+    模型 ID。
+  </Field>
+  <Field name="data[].object" type="string">
+    通常为 <code>model</code>。
+  </Field>
+  <Field name="data[].owned_by" type="string">
+    provider 或 owner 标签。
+  </Field>
+</FieldList>
+
+## 过滤行为
+
+模型只会在满足以下条件时出现在这里：
+
+1. 至少有一个可用 Lazu channel 启用了该模型。
+2. 当前 API Key 被允许访问该模型。
+3. Token 的模型限制没有排除该模型。
+
+如果 agent 需要做可靠选择，请优先读取 [模型目录](/zh/models/catalog)。
+
+</EndpointPage>

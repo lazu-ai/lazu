@@ -1,0 +1,137 @@
+{{define "main"}}
+{{$m := .Page}}
+<main class="lazu-model">
+  <section class="lazu-model__hero">
+    <nav class="lazu-crumbs" aria-label="Breadcrumb">
+      <a href="{{$m.ModelsHref}}">{{t "model.breadcrumb"}}</a><span>/</span><a href="{{$m.MakerHref}}">{{$m.MakerName}}</a><span>/</span><span class="lazu-site-mono" aria-current="page">{{$m.ID}}</span>
+    </nav>
+    <div class="lazu-site-eyebrow">{{$m.Eyebrow}}</div>
+    <div class="lazu-model__titlebar">
+      <h1 class="lazu-site-display lazu-model__title">{{$m.Name}}</h1>
+      <span class="lazu-chip lazu-chip--{{$m.StatusKind}}">{{$m.Status}}</span>
+      {{- if $m.IsNew}}<span class="lazu-chip">{{t "models.new"}}</span>{{end}}
+    </div>
+    <div class="lazu-model__id">
+      <span class="lazu-site-mono lazu-model__idbox">{{$m.ID}}</span>
+      <button type="button" class="lazu-model__ghost" data-copy="{{$m.ID}}" data-copied-label="{{t "model.copied"}}">{{t "model.copyId"}}</button>
+    </div>
+    <p class="lazu-model__lede">{{$m.Lede}}</p>
+    {{- if $m.Description}}<p class="lazu-model__desc">{{$m.Description}}</p>{{end}}
+    <div class="lazu-model__actions">
+      <a class="lazu-btn lazu-btn--ink" href="/register">{{t "model.getKey"}}</a>
+      {{- range $m.Actions}}
+      <a class="lazu-btn lazu-btn--line" href="{{.Href}}">{{.Label}}</a>
+      {{- end}}
+      <details class="lazu-copymenu">
+        <summary class="lazu-btn lazu-btn--ghost">{{t "model.copyPage"}} {{template "icon-chevron-down"}}</summary>
+        <div class="lazu-copymenu__panel" role="menu">
+          <button type="button" role="menuitem" data-copy-url="{{$m.MDHref}}" data-copied-label="{{t "model.copied"}}"><b>{{t "model.copyMarkdown"}}</b><span>{{t "model.copyMarkdownHint"}}</span></button>
+          <button type="button" role="menuitem" data-copy="{{$m.AgentPrompt}}" data-copied-label="{{t "model.copied"}}"><b>{{t "model.copyAgent"}}</b><span>{{t "model.copyAgentHint"}}</span></button>
+          <a role="menuitem" href="{{$m.JSONHref}}"><b>{{t "model.openJSON"}}</b><span class="lazu-site-mono">{{$m.JSONHref}}</span></a>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  {{- if $m.Facts}}
+  <section class="lazu-model__facts">
+    {{- range $m.Facts}}
+    <div class="lazu-fact"><span class="lazu-site-eyebrow">{{.Label}}</span><span class="{{if .Big}}lazu-fact__big{{else if .Mono}}lazu-site-mono lazu-fact__mono{{else}}lazu-fact__text{{end}}">{{.Value}}</span></div>
+    {{- end}}
+  </section>
+  {{- end}}
+
+  <section class="lazu-model__section">
+    <h2 class="lazu-site-h2">{{t "prices.title"}}</h2>
+    <p class="lazu-model__note">{{$m.PricesNote}}</p>
+    <div class="lazu-prices{{if not $m.PerToken}} lazu-prices--flat{{else if not $m.HasCache}} lazu-prices--nocache{{end}}" role="table">
+      <div class="lazu-prices__row lazu-prices__row--head" role="row">
+        <span role="columnheader">{{t "prices.lane"}}</span>
+        {{- if $m.PerToken}}
+        <span role="columnheader">{{t "prices.input"}}</span><span role="columnheader">{{t "prices.output"}}</span>
+        {{- if $m.HasCache}}<span role="columnheader">{{t "prices.cacheRead"}}</span><span role="columnheader">{{t "prices.cacheWrite"}}</span>{{end}}
+        {{- else}}
+        <span role="columnheader">{{if $m.PerImage}}{{t "prices.perImage"}}{{else}}{{t "prices.perCall"}}{{end}}</span>
+        {{- end}}
+        <span role="columnheader">{{t "prices.availability"}}</span>
+      </div>
+      {{- range $m.PriceRows}}
+      <div class="lazu-prices__row{{if .Muted}} lazu-prices__row--muted{{end}}{{if .Tier}} lazu-prices__row--tier{{end}}" role="row">
+        <span role="cell" class="lazu-prices__lane">{{.Label}}{{if .Chip}} <span class="lazu-chip lazu-chip--sm{{if eq .ChipKind "ink"}} lazu-chip--ink{{end}}">{{.Chip}}</span>{{end}}</span>
+        {{- if $m.PerToken}}
+        <span role="cell" data-label="{{t "prices.input"}}" class="lazu-num{{if not .Muted}} lazu-prices__strong{{end}}">{{.Input}}</span>
+        <span role="cell" data-label="{{t "prices.output"}}" class="lazu-num{{if not .Muted}} lazu-prices__strong{{end}}">{{.Output}}</span>
+        {{- if $m.HasCache}}<span role="cell" data-label="{{t "prices.cacheRead"}}" class="lazu-num lazu-prices__cache">{{.CacheRead}}</span><span role="cell" data-label="{{t "prices.cacheWrite"}}" class="lazu-num lazu-prices__cache">{{.CacheWrite}}</span>{{end}}
+        {{- else}}
+        <span role="cell" data-label="{{t "prices.perCall"}}" class="lazu-num lazu-prices__strong">{{.Flat}}</span>
+        {{- end}}
+        <span role="cell" class="lazu-prices__health">
+          {{- if .Bars}}<span class="lazu-num">{{.Uptime}}</span>{{template "bars" (barsOf .Label .Bars)}}{{else if not .Tier}}—{{end}}
+        </span>
+      </div>
+      {{- end}}
+    </div>
+    {{if $m.ImagePriceRows}}<dl class="lazu-model__traits">{{range $m.ImagePriceRows}}<dt>{{.Label}}</dt><dd class="lazu-num">{{.Price}}</dd>{{end}}</dl>{{end}}
+    <p class="lazu-model__stamp">{{$m.Updated}} · <a href="{{docs "pricing"}}">{{t "prices.howToChoose"}}</a> · <a class="lazu-site-mono" href="{{$m.JSONHref}}">{{base $m.JSONHref}}</a> · <a class="lazu-site-mono" href="{{$m.MDHref}}">{{base $m.MDHref}}</a></p>
+  </section>
+
+  {{- if or $m.Capabilities $m.Efforts $m.Unsupported}}
+  <section class="lazu-model__section">
+    <h2 class="lazu-site-h2">{{t "caps.title"}}</h2>
+    {{- if $m.Capabilities}}
+    <div class="lazu-chips">{{range $m.Capabilities}}<span class="lazu-chip lazu-chip--lg">{{.}}</span>{{end}}</div>
+    {{- end}}
+    {{- if or $m.Efforts $m.Unsupported}}
+    <dl class="lazu-model__traits">
+      {{- if $m.Efforts}}<dt>{{t "caps.reasoning"}}</dt><dd class="lazu-site-mono">{{join $m.Efforts " · "}}</dd>{{end}}
+      {{- if $m.Unsupported}}<dt>{{t "caps.unsupported"}}</dt><dd><span class="lazu-site-mono">{{join $m.Unsupported ", "}}</span> — {{t "caps.unsupportedNote"}}</dd>{{end}}
+    </dl>
+    {{- end}}
+  </section>
+  {{- end}}
+
+  <section class="lazu-model__section">
+    <h2 class="lazu-site-h2">{{t "sample.title"}}</h2>
+    <div class="lazu-code" data-tabs>
+      <div class="lazu-code__bar" role="tablist">
+        {{- range $m.Samples}}
+        <button type="button" role="tab" aria-selected="{{if .Selected}}true{{else}}false{{end}}" aria-controls="{{.ID}}">{{.Label}}</button>
+        {{- end}}
+        <span class="lazu-code__spacer"></span>
+        <span class="lazu-site-mono lazu-code__endpoint">{{$m.Endpoint}}</span>
+      </div>
+      {{- range $m.Samples}}
+      <div role="tabpanel" id="{{.ID}}"{{if not .Selected}} hidden{{end}}>
+        <button type="button" class="lazu-code__copy" data-copy-from="{{.ID}}-code" data-copied-label="{{t "model.copied"}}">{{t "sample.copy"}}</button>
+        <pre><code id="{{.ID}}-code">{{.Code}}</code></pre>
+      </div>
+      {{- end}}
+    </div>
+    <p class="lazu-model__note">{{$m.SampleNote}} <a href="{{$m.DocsHref}}">{{t "sample.docs"}}</a></p>
+  </section>
+
+  <section class="lazu-model__section">
+    <h2 class="lazu-site-h2">{{t "faq.title"}}</h2>
+    {{- range $m.FAQs}}
+    <div class="lazu-qa"><h3>{{.Q}}</h3><p>{{.A}}</p></div>
+    {{- end}}
+  </section>
+
+  {{- if $m.Related}}
+  <section class="lazu-model__section">
+    <h2 class="lazu-site-h2">{{t "related.title"}}</h2>
+    <div class="lazu-related">
+      {{- range $m.Related}}
+      <a href="{{.Href}}" class="lazu-related__row"><span class="lazu-site-mono lazu-related__id">{{.ID}}</span><span class="lazu-related__date">{{.Date}}</span><span class="lazu-num">{{.Prices}}</span>{{template "icon-chevron-right"}}</a>
+      {{- end}}
+    </div>
+  </section>
+  {{- end}}
+
+  <section class="lazu-cta">
+    <h2 class="lazu-site-display lazu-cta__title">{{t "cta.title"}}</h2>
+    <a class="lazu-btn lazu-btn--ink" href="/register">{{t "cta.start"}}</a>
+    <a class="lazu-btn lazu-btn--line" href="{{$m.DocsHref}}">{{t "cta.docs"}}</a>
+  </section>
+</main>
+{{end}}

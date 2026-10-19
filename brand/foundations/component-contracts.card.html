@@ -1,0 +1,185 @@
+<!-- @dsCard group="Foundations" viewport="700x360" name="Component contracts · Kumo 7" subtitle="Production states, semantic status shapes and accessibility" -->
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    padding: 18px;
+    color: var(--lazu-ink);
+    background: var(--lazu-page);
+    font-family: var(--lazu-font-sans);
+  }
+  .shell {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 12px;
+  }
+  .panel {
+    padding: 16px;
+    border: 1px solid var(--lazu-border);
+    border-radius: var(--lazu-radius-surface);
+    background: var(--lazu-surface);
+  }
+  .eyebrow {
+    color: var(--lazu-action);
+    font: 700 8px var(--lazu-font-mono);
+    letter-spacing: 0.12em;
+  }
+  h1 {
+    margin: 7px 0 14px;
+    font-size: 20px;
+    letter-spacing: -0.035em;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 8px 0;
+  }
+  .button,
+  .field,
+  .badge {
+    height: 28px;
+    border: 1px solid var(--lazu-border);
+    border-radius: var(--lazu-radius-control);
+    background: var(--lazu-surface);
+    font-size: 9px;
+  }
+  .button {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    font-weight: 650;
+  }
+  .button.primary {
+    border-color: var(--lazu-action);
+    color: var(--lazu-on-action);
+    background: var(--lazu-action);
+  }
+  .button.focus {
+    box-shadow: 0 0 0 3px var(--lazu-action-soft);
+  }
+  .button.disabled {
+    opacity: 0.5;
+  }
+  .field {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    padding: 0 9px;
+    color: var(--lazu-text-muted);
+  }
+  .field.error {
+    border-color: var(--lazu-danger);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: var(--lazu-radius-badge);
+  }
+  .states {
+    display: grid;
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--lazu-border);
+    border-radius: var(--lazu-radius-surface);
+    background: var(--lazu-border);
+  }
+  .state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px;
+    background: var(--lazu-surface);
+  }
+  .state span {
+    font-size: 9px;
+  }
+  .mark {
+    width: 8px;
+    height: 8px;
+    background: var(--c);
+  }
+  .healthy {
+    border-radius: 50%;
+  }
+  .degraded {
+    border-radius: 1px;
+    transform: rotate(45deg);
+  }
+  .down {
+    position: relative;
+    background: transparent;
+  }
+  .down:before,
+  .down:after {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    width: 8px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--c);
+    content: "";
+  }
+  .down:before {
+    transform: rotate(45deg);
+  }
+  .down:after {
+    transform: rotate(-45deg);
+  }
+  .rule {
+    margin-top: 12px;
+    color: var(--lazu-text-muted);
+    font-size: 8px;
+    line-height: 1.5;
+  }
+</style>
+<div class="shell">
+  <section class="panel">
+    <div class="eyebrow">INTERACTION STATES</div>
+    <h1>One shared control language</h1>
+    <div class="row">
+      <span class="button primary">Create key</span
+      ><span class="button">Secondary</span
+      ><span class="button focus">Focused</span>
+    </div>
+    <div class="row">
+      <span class="field">owner@example.com</span
+      ><span class="badge">production</span>
+    </div>
+    <div class="row">
+      <span class="field error">Invalid network rule</span
+      ><span class="button disabled">Loading…</span>
+    </div>
+    <p class="rule">
+      Default · hover · focus-visible · selected · disabled · error · loading.
+      Direct motion only, 120–180ms.
+    </p>
+  </section>
+  <section class="panel">
+    <div class="eyebrow">SHAPE + TEXT + COLOR</div>
+    <h1>Operational status</h1>
+    <div class="states">
+      <div class="state">
+        <span>Healthy</span
+        ><i class="mark healthy" style="--c: var(--lazu-success)"></i>
+      </div>
+      <div class="state">
+        <span>Degraded</span
+        ><i class="mark degraded" style="--c: var(--lazu-warning)"></i>
+      </div>
+      <div class="state">
+        <span>Down</span
+        ><i class="mark down" style="--c: var(--lazu-danger)"></i>
+      </div>
+    </div>
+    <p class="rule">
+      Status is never encoded by color alone. Tables use subtle headers and
+      hairline rows; overlays appear only for real context changes.
+    </p>
+  </section>
+</div>

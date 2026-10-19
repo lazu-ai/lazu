@@ -1,0 +1,15 @@
+{
+  "key_name_too_long": "API キーの名前が長すぎます。{{max_length}} 文字以内にしてください。",
+  "key_enable_blocked": "この API キーは有効期限切れか利用枠を使い切っているため、有効にできません。先に有効期限を延ばすか、利用枠を増やしてください。",
+  "key_limit_reached": "このプロジェクトで保有できる API キーは {{limit}} 本までで、上限に達しています。使っていないキーを削除してから作成してください。",
+  "secret_unavailable": "この API キーはダイジェストのみ保存されているため、完全なキーを表示できません。完全なキーが必要な場合は新しく作成してください。",
+  "key_not_found": "この API キーが見つかりません。削除された可能性があります。ページを再読み込みしてください。",
+  "usage_range_invalid": "期間の終了が開始より前になっています。期間を調整してもう一度お試しください。",
+  "usage_range_too_long": "期間が {{max_days}} 日を超えています。期間を短くしてください。",
+  "invalid_usage_summary_window": "使用量サマリーの期間指定が無効です。since、until、granularity を確認してください。",
+  "request_not_found": "この API キーではこのリクエストが見つかりませんでした。リクエスト ID を確認してください。",
+  "log_session_not_found": "閲覧できるログの中にこのセッションが見つかりません。ページを再読み込みしてください。",
+  "usage_export_format_unsupported": "このエクスポート形式には対応していません。CSV または XLSX でエクスポートしてください。",
+  "log_cleanup_cutoff_too_recent": "直近 {{min_days}} 日のログはモデルランキングに使うため削除できません。より前の日付を選んでください。",
+  "spend_budget_not_found": "この支出予算が見つかりません。削除された可能性があります。ページを再読み込みしてください。"
+}

@@ -1,0 +1,191 @@
+/* Lazu canonical color tokens — G1 (Console, public web, sign-in).
+   LOCKED 2026-10-06. Default theme = LIGHT.
+   Flat neutral ground, white sheets, one hairline. Primary action = ink.
+   Evidence = teal, the structural colour: links, current nav, focus, the
+   chart's measure. Vermilion is never a token — it is set on two pieces of
+   home-page type only. Semantic chroma remains state-only. */
+:root {
+  color-scheme: light;
+
+  /* ground: one flat neutral grey, no ambient light, no grid */
+  --lazu-page: #f5f5f6;
+  --lazu-page-top: #f5f5f6;
+  --lazu-page-bottom: #f5f5f6;
+  --lazu-ambient-cool: transparent;
+  --lazu-ambient-warm: transparent;
+  --lazu-grid-line: transparent;
+  --lazu-grid-opacity: 0;
+
+  --lazu-surface: #ffffff;
+  --lazu-surface-solid: #ffffff;
+  --lazu-surface-muted: rgb(20 22 28 / 4%);
+  /* raised = a second sheet (panels, popovers). */
+  --lazu-surface-raised: #ffffff;
+  /* selected = the neutral tint used for active nav and chips; never a panel. */
+  --lazu-surface-selected: rgb(20 22 28 / 6%);
+  /* The sidebar sits on the page's own ground, divided by one hairline. */
+  --lazu-sidebar: #f5f5f6;
+  --lazu-border: rgb(20 22 28 / 10%);
+  --lazu-border-strong: rgb(20 22 28 / 18%);
+
+  --lazu-ink: #1c1d21;
+  --lazu-text-muted: #6b6e76;
+  --lazu-text-faint: #696d75;
+
+  /* primary action = ink on paper */
+  --lazu-action: #202329;
+  --lazu-action-hover: #2c3038;
+  /* soft = the accent wash behind focus rings and picked chips; it follows
+     the teal of --ui-accent, not the ink of the button. */
+  --lazu-action-soft: rgb(31 111 107 / 14%);
+  --lazu-on-action: #f2f3f5;
+
+  /* evidence = teal, the structural colour: links, current nav, focus,
+     selected controls, the chart's measure */
+  --lazu-evidence: #1f6f6b;
+  --lazu-evidence-strong: #175855;
+  --lazu-evidence-soft: rgb(31 111 107 / 11%);
+
+  --lazu-on-success: #ffffff;
+  --lazu-on-danger: #ffffff;
+  --lazu-overlay-scrim: rgb(20 22 28 / 35%);
+  --lazu-control-knob: #fdfdfc;
+  --lazu-shadow-panel: 0 1px 2px rgb(50 56 70 / 6%);
+  --lazu-code-bg: #20242c;
+  --lazu-docs-code-string: #236846;
+  --lazu-docs-code-keyword: #365c96;
+  --lazu-code-text: #e6e8ec;
+  --lazu-code-muted: #878c96;
+  --lazu-code-border: rgb(255 255 255 / 8%);
+  --lazu-code-surface: rgb(255 255 255 / 7%);
+  --lazu-code-surface-selected: rgb(255 255 255 / 10%);
+  --lazu-code-surface-hover: rgb(255 255 255 / 14%);
+  --lazu-code-keyword: #9fb6f7;
+  --lazu-code-string: #e8c890;
+  --lazu-code-flag: #7ed3a7;
+  --lazu-code-strong: #ffffff;
+
+  /* Console charts: teal for the measure, grey for its companion line, a
+     pale neutral for volume. Only failure is red. */
+  --lazu-chart-1: #1f6f6b;
+  --lazu-chart-2: #8b9099;
+  --lazu-chart-3: #dcdcd7;
+
+  --lazu-success: #3f7957;
+  --lazu-success-soft: rgb(68 155 110 / 16%);
+  --lazu-warning: #b3821b;
+  --lazu-warning-soft: rgb(179 130 27 / 14%);
+  --lazu-warning-strong: #8f6813;
+  --lazu-danger: #b8443a;
+  --lazu-danger-soft: rgb(184 68 58 / 12%);
+  /* info is its own state color, never the chart blue: charts may be
+     recolored without silently restyling every neutral notice. */
+  --lazu-info: #4c78a0;
+  --lazu-info-soft: rgb(76 120 160 / 12%);
+  /* G1 notices sit on the page as a white sheet with an ink edge. */
+  --lazu-notice-edge: #1c1d21;
+
+  /* Feedback · toast reads as the ink/paper reversal of the primary button.
+     Semantic chroma survives on the inverted ground as a lifted icon only. */
+  --lazu-toast-bg: #202329;
+  --lazu-toast-fg: #fbfaf7;
+  --lazu-toast-fg-muted: rgb(251 250 247 / 62%);
+  --lazu-toast-control: rgb(255 255 255 / 12%);
+  --lazu-toast-danger: #f2978f;
+  --lazu-toast-warning: #e8c069;
+  --lazu-toast-success: #8fd8b0;
+  --lazu-toast-info: #a8c2e0;
+
+  --ui-bg: var(--lazu-page);
+  --ui-surface: var(--lazu-surface);
+  --ui-surface-muted: var(--lazu-surface-muted);
+  --ui-border: var(--lazu-border);
+  --ui-text: var(--lazu-ink);
+  --ui-text-muted: var(--lazu-text-muted);
+  --ui-accent: var(--lazu-evidence);
+  --ui-success: var(--lazu-success);
+  --ui-warning: var(--lazu-warning);
+  --ui-danger: var(--lazu-danger);
+  --ui-info: var(--lazu-info);
+}
+
+[data-theme="dark"],
+html.dark,
+body[theme-mode="dark"] {
+  color-scheme: dark;
+
+  /* G1 dark · B 中性近黑 (2026-10-07): a near-black neutral ground, sheets
+     one step up, hairlines in white alpha. The sidebar shares the ground. */
+  --lazu-page: #0f0f11;
+  --lazu-page-top: #0f0f11;
+  --lazu-page-bottom: #0f0f11;
+  --lazu-ambient-cool: transparent;
+  --lazu-ambient-warm: transparent;
+  --lazu-grid-line: transparent;
+  --lazu-grid-opacity: 0;
+
+  --lazu-surface: #18181b;
+  --lazu-surface-solid: #18181b;
+  --lazu-surface-muted: rgb(255 255 255 / 4%);
+  /* raised = dialogs and popovers, one more step up so they read as lifted */
+  --lazu-surface-raised: #1d1d21;
+  --lazu-surface-selected: rgb(255 255 255 / 7%);
+  --lazu-sidebar: #0f0f11;
+  --lazu-border: rgb(255 255 255 / 8%);
+  --lazu-border-strong: rgb(255 255 255 / 14%);
+
+  --lazu-ink: #ececee;
+  --lazu-text-muted: #9b9da4;
+  --lazu-text-faint: #85878e;
+
+  --lazu-action: #ececee;
+  --lazu-action-hover: #ffffff;
+  --lazu-action-soft: rgb(79 179 173 / 16%);
+  --lazu-on-action: #111113;
+
+  /* teal lifted for contrast on the near-black ground */
+  --lazu-evidence: #4fb3ad;
+  --lazu-evidence-strong: #7ccbc5;
+  --lazu-evidence-soft: rgb(79 179 173 / 13%);
+
+  --lazu-on-success: #101a14;
+  --lazu-on-danger: #21100f;
+  --lazu-overlay-scrim: rgb(0 0 0 / 54%);
+  --lazu-control-knob: #ececee;
+  /* Sheets separate by tone and hairline, not by shadow. */
+  --lazu-shadow-panel: none;
+  --lazu-code-bg: #0b0b0d;
+  --lazu-docs-code-string: #86efac;
+  --lazu-docs-code-keyword: #7dd3fc;
+  --lazu-code-text: #d8dade;
+  --lazu-code-muted: #767b84;
+
+  --lazu-chart-1: #4fb3ad;
+  --lazu-chart-2: #6b6e76;
+  --lazu-chart-3: #2a2b30;
+
+  --lazu-success: #7ed3a7;
+  --lazu-success-soft: rgb(105 205 155 / 15%);
+  --lazu-warning: #d8a53c;
+  --lazu-warning-soft: rgb(216 165 60 / 14%);
+  --lazu-warning-strong: #d8a53c;
+  --lazu-danger: #f06f62;
+  --lazu-danger-soft: rgb(240 111 98 / 14%);
+  --lazu-info: #7ea0be;
+  --lazu-info-soft: rgb(126 160 190 / 14%);
+  /* An ink (white) edge would read as a frame; dark notices keep a
+     stronger hairline instead. */
+  --lazu-notice-edge: rgb(255 255 255 / 14%);
+
+  /* Dark reverses the reversal: toast becomes the paper sheet, so semantic
+     chroma drops back to the light-theme values to stay legible on paper. */
+  --lazu-toast-bg: #f1f1f2;
+  --lazu-toast-fg: #1d1d1f;
+  --lazu-toast-fg-muted: rgb(29 29 31 / 62%);
+  --lazu-toast-control: rgb(0 0 0 / 8%);
+  --lazu-toast-danger: #b8443a;
+  --lazu-toast-warning: #b3821b;
+  --lazu-toast-success: #3f7957;
+  --lazu-toast-info: #4c78a0;
+  --lazu-shadow-toast: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
+}

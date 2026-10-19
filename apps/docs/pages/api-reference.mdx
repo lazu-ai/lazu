@@ -1,0 +1,82 @@
+---
+title: "API Explorer: send live Lazu API requests"
+description: Try the Lazu API live — pick an operation, paste your key, send a real request from the docs.
+---
+
+import { ApiExplorer } from "../components/mdx";
+
+# API Explorer
+
+Pick an operation, paste your Lazu API key, and send a **real request** against
+the live API. Requests go straight from your browser to `api.lazu.ai` — your
+key stays in this tab (and is only persisted if you tick _Remember_).
+
+The embedded explorer below covers the most common JSON operations. For the
+complete contract, including binary upload/download APIs and provider-native
+paths, use the generated `openapi.json` or `openapi.yaml` assets shipped with
+the docs build.
+
+## Compatibility matrix
+
+"OpenAI-compatible" describes the supported request and response shapes; it
+does not mean every OpenAI product endpoint exists. Unsupported routes return
+HTTP `501` with an OpenAI-style error envelope.
+
+| Capability                     | Status             | Routes                                                                    |
+| ------------------------------ | ------------------ | ------------------------------------------------------------------------- |
+| Chat and legacy completions    | Supported          | `POST /v1/chat/completions`, `POST /v1/completions`                       |
+| Responses                      | Supported          | `POST /v1/responses`                                                      |
+| Embeddings and rerank          | Supported          | `POST /v1/embeddings`, `POST /v1/rerank`                                  |
+| Images                         | Partial            | Generations and edits are supported; variations are not                   |
+| Audio                          | Supported          | Speech, transcription, and translation                                    |
+| Files and models               | Supported          | File lifecycle and model list/retrieve                                    |
+| Realtime, Anthropic, Gemini    | Provider-dependent | WebSocket and native provider routes require a capable configured channel |
+| Fine-tuning and model deletion | Not implemented    | Fine-tune routes and `DELETE /v1/models/:model` return `501`              |
+
+Long-running interactive inference should use streaming. Work that can remain
+silent for many minutes should use an asynchronous job endpoint and polling
+instead of relying on an indefinitely idle HTTP connection.
+
+<h2 id="tag/audio">Audio</h2>
+
+OpenAI-compatible audio endpoints:
+
+| Endpoint                        | Use for                           |
+| ------------------------------- | --------------------------------- |
+| `POST /v1/audio/speech`         | Text-to-speech audio bytes        |
+| `POST /v1/audio/transcriptions` | Whisper-compatible speech-to-text |
+| `POST /v1/audio/translations`   | Translate audio to English        |
+
+<h2 id="tag/images">Images</h2>
+
+Image generation and edit endpoints:
+
+| Endpoint                      | Use for                   |
+| ----------------------------- | ------------------------- |
+| `POST /v1/images/generations` | Generate images from text |
+| `POST /v1/images/edits`       | Edit an input image       |
+
+<h2 id="tag/videos">Videos</h2>
+
+Async video generation job endpoints:
+
+| Endpoint             | Use for                       |
+| -------------------- | ----------------------------- |
+| `POST /v1/videos`    | Create a video generation job |
+| `GET /v1/videos`     | List video jobs               |
+| `GET /v1/videos/:id` | Retrieve a video job          |
+
+<h2 id="tag/anthropic">Anthropic</h2>
+
+Anthropic-native requests use `POST /v1/messages` with `x-api-key` and
+`anthropic-version` headers. Model availability is still scoped by the active
+Lazu API key; check [Model catalog](/models/catalog) before calling native
+provider paths.
+
+<h2 id="tag/gemini">Gemini</h2>
+
+Gemini-native requests use
+`POST /v1beta/models/{model}:generateContent`. API keys can be supplied through
+the OpenAI-compatible bearer header, `?key=...`, or `x-goog-api-key`.
+
+<ApiExplorer />

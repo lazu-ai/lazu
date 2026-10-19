@@ -1,0 +1,81 @@
+---
+title: "リクエスト詳細 API：1 件ごとの使用量・料金・所要時間"
+description: "リクエスト ID で 1 件のリクエストを照会：正規化されたトークン使用量、実際の請求額、キャッシュ項目、公開タイミング。"
+---
+
+import {
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="エンドポイント / Usage"
+  method="GET"
+  path="/api/usage/requests/{request_id}"
+  sendable={false}
+  title="リクエスト詳細"
+  description="完了したリクエストの使用量、請求明細、公開タイミングを確認します。"
+  aside={
+    <EndpointRail
+      endpoint="usage-requests"
+      extra={
+        <MiniCard title="request_id の取得元">
+          <code>X-Lazu-Request-Id</code>、error payload の
+          <code>request_id</code>、または gateway response request ID。
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## Path parameters
+
+<FieldList>
+  <Field name="request_id" type="string" required>
+    同じ API Key が発行した request ID。別 key の request details は読めません。
+  </Field>
+</FieldList>
+
+## Response fields
+
+<FieldList>
+  <Field name="id" type="string">
+    requested request ID。
+  </Field>
+  <Field name="model" type="string">
+    requested model または route name。
+  </Field>
+  <Field name="usage.measurement" type="object" nullable>
+    入力と出力それぞれの根拠です。`provider` は報告値、`local_estimate` はローカル推計、`unavailable` は不明です。過去の記録などでは省略されます。省略を実測値の証拠と解釈しないでください。
+  </Field>
+  <Field name="usage.dimensions" type="object[]">
+    normalized dimensions。例：<code>input</code>、<code>output</code>、
+    <code>cache_read</code>、<code>cache_write_5m</code>、
+    <code>cache_miss</code>。
+  </Field>
+  <Field name="billing.line_items" type="object[]">
+    price、quantity、total charge を含む billable usage lines。
+  </Field>
+  <Field name="routing" type="object" nullable>
+    公開ステータスとタイミングのみ。内部ルーティング判断やプロバイダーの識別情報は公開しません。
+  </Field>
+</FieldList>
+
+## Cache field guidance
+
+OpenAI-compatible responses では cache read が
+
+<code>usage.prompt_tokens_details.cached_tokens</code> または
+<code>usage.input_tokens_details.cached_tokens</code> に出る場合があります。
+billing と reconciliation では、この endpoint がより完全な source です。
+
+## See also
+
+- [料金体系](/ja/billing)
+- [モデルカタログ](/ja/models/catalog)
+- [Chat completions](/ja/endpoints/chat)
+
+</EndpointPage>

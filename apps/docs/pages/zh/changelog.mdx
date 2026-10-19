@@ -1,0 +1,39 @@
+---
+title: "更新日志：Lazu API、模型与文档更新"
+description: "Lazu API、模型目录和文档的更新记录，按时间倒序：新模型上线、新接口、线路价格调整和问题修复。"
+---
+
+# 更新日志
+
+## 2026-09-30 — Agent 会话、请求回执与长上下文价格
+
+- 围绕任务、模型和逐请求回执重做 Agent 会话。
+- 增加会话活动视图与子代理线路；展示范围是网关活动，不包含本地工具执行。
+- 将长上下文价格接入成本计算、请求回执与公开模型页；实际阶梯取决于模型与线路配置。
+- sitemap 的修改日期改为真实内容变更时间。
+
+以上日期指源码合并时间，自部署实例是否可用取决于部署版本。可按[会话费用核对指南](/zh/agent-session-costs)复算导出的明细。
+
+## 2026-05-28 — Usage 元数据与缓存字段
+
+- OpenAI-compatible 响应新增标准化缓存字段：`cached_tokens`、
+  `cache_write_tokens`、`cache_write_5m_tokens`、`cache_write_1h_tokens`
+  和 `cache_miss_tokens`。
+- 模型目录新增 `usage_capabilities`，调用前即可发现模型可能上报的
+  usage 维度和可计费维度。
+- 新增 `GET /api/usage/requests/{request_id}`，用于查询单次请求的
+  usage 维度、账单行项目、provider 原始缓存字段和路由信息。
+- 补充 Qwen/DashScope、DeepSeek、Anthropic、Gemini、OpenAI 和
+  OpenRouter 的缓存上报差异。
+
+## 2026-05-12 — 静态文档回到 VPS
+
+- 恢复 Vocs 作为 `docs.lazu.ai` 的活跃文档站。
+- 通过独立 nginx 静态容器服务文档。
+- 统一官网和文档里的产品品牌与 API 示例。
+
+## 2026-05-09 — OpenAPI Reference 整理
+
+- `packages/contracts/openapi/lazu-api-reference.v1.yaml` 继续作为事实来源。
+- 构建时同步 OpenAPI JSON/YAML 到 docs public assets。
+- 保留交互式 reference，用于查请求和响应字段。

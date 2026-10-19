@@ -1,0 +1,20 @@
+{
+  "channel_not_found": "This channel no longer exists. It may have been deleted; refresh the list.",
+  "channel_search_backend_managed": "This channel is a search backend, so it cannot be changed here. Manage it on the Search backends page.",
+  "channel_lane_invalid": "Lane “{{lane}}” does not exist. A channel belongs to exactly one existing lane; pick one from the list.",
+  "channel_settings_invalid": "The channel's extra settings could not be read, so nothing was saved. Check the JSON format and values.",
+  "channel_model_name_too_long": "A model name is longer than 255 characters, so the channel was not saved. Shorten or remove it.",
+  "channel_not_multi_key": "This channel uses a single key, so its keys cannot be managed one by one.",
+  "channel_key_index_invalid": "That key is no longer in this channel. Refresh the key list and try again.",
+  "channel_last_key": "This is the channel's last key, so it cannot be deleted. Add another key first, or delete the channel.",
+  "channel_keys_none_eligible": "No key matches this action, so nothing changed.",
+  "channel_balance_unsupported": "Balance lookup is not available for this channel type or for multi-key channels.",
+  "channel_balance_query_failed": "The upstream did not return a balance. Check the channel's key and base URL, then try again.",
+  "channel_upstream_models_failed": "The upstream did not return a model list. Check the key and base URL, or add models by hand.",
+  "channel_task_running": "The same maintenance task is already running, so a new one was not started. Try again when it finishes.",
+  "channel_test_failed": "The channel test failed: the upstream returned an error. Check the key, base URL and test model, then test again.",
+  "channel_test_not_sent": "The test could not be built for this channel, so nothing was sent upstream. Check its type, model mapping and pricing.",
+  "channel_route_not_found": "This channel does not serve that model in that lane. Refresh the page to see its current routes.",
+  "route_observation_incomplete": "This source is still under observation. It can go live after seven days, once every check has passed.",
+  "route_observation_none": "This source has no models under observation. Refresh the page to see its current state."
+}

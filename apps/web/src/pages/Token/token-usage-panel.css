@@ -1,0 +1,88 @@
+/* In-row Key usage. Read-only detail for exactly one row, so it expands in
+   place instead of opening a drawer (yunmu-console.md rule 7). */
+
+.tok-usage {
+  align-items: start;
+  display: grid;
+  gap: 20px 28px;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+  padding: 4px 2px 6px;
+}
+
+.tok-usage__label {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.tok-usage__value {
+  color: var(--lazu-ink);
+  display: block;
+  font-size: var(--lazu-display-stat);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: var(--lazu-display-tracking);
+  line-height: 1.2;
+  margin: 2px 0 8px;
+}
+
+.tok-usage__meter {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  height: 6px;
+  overflow: hidden;
+}
+
+.tok-usage__meter span {
+  background: var(--lazu-chart-1);
+  display: block;
+  height: 100%;
+}
+
+.tok-usage__meter-line {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 5px;
+}
+
+.tok-usage__facts {
+  display: grid;
+  gap: 8px 24px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin: 0;
+}
+
+.tok-usage__facts dt {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.tok-usage__facts dd {
+  color: var(--lazu-ink);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  margin: 1px 0 0;
+}
+
+/* Says which Keys the numbers above cover when a name is not unique. */
+.tok-usage__note {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  grid-column: 1 / -1;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.tok-usage__actions {
+  display: flex;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .tok-usage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

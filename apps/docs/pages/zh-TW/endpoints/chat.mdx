@@ -1,0 +1,173 @@
+---
+title: "Chat Completions API（相容 OpenAI）"
+description: OpenAI-compatible /v1/chat/completions，包含參數、stream、tools、usage 和 cache 欄位。
+---
+
+import {
+  CodeSample,
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="介面 / OpenAI-compatible"
+  method="POST"
+  path="/v1/chat/completions"
+  title="Chat completions"
+  description="透過 Lazu 發送 OpenAI-compatible chat 請求。Base URL、認證、必要 body 欄位、stream、tools、response usage 和排障入口都在這一頁。"
+  aside={<EndpointRail endpoint="chat" />}
+>
+
+## 基本設定
+
+<EndpointGrid>
+  <EndpointTile title="Base URL">
+    使用 <code>https://api.lazu.ai/v1</code> 搭配 OpenAI SDK，或直接呼叫完整
+    path <code>https://api.lazu.ai/v1/chat/completions</code>。
+  </EndpointTile>
+  <EndpointTile title="模型發現">
+    執行時讀取 <code>GET /api/models/catalog</code>，並篩選
+    <code>supported_endpoint_types</code> 包含 <code>chat</code> 的模型。
+  </EndpointTile>
+</EndpointGrid>
+
+## 請求 Body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    模型 ID、route alias 或未來的 route policy 名稱。建議從
+    <code>GET /api/models/catalog</code> 讀取。
+  </Field>
+  <Field
+    name="messages"
+    type="object[]"
+    required
+    fields={[
+      {
+        name: "role",
+        type: "string",
+        description: "system、user、assistant 或 tool。",
+      },
+      {
+        name: "content",
+        type: "string | content_part[]",
+        description: "純文字，或多模態 content parts。",
+      },
+      {
+        name: "tool_call_id",
+        type: "string",
+        description: "tool message 用於關聯先前的 tool call。",
+      },
+    ]}
+  >
+    有序對話訊息。角色遵循 OpenAI shape。
+  </Field>
+  <Field name="stream" type="boolean" nullable>
+    為 <code>true</code> 時返回 Server-Sent Events stream，最後以
+    <code>data: [DONE]</code> 結束。
+  </Field>
+  <Field
+    name="tools"
+    type="object[]"
+    nullable
+    fields={[
+      {
+        name: "type",
+        type: '"function"',
+        description: "目前支援 function tools。",
+      },
+      {
+        name: "function.name",
+        type: "string",
+        description: "模型可呼叫的工具名稱。",
+      },
+      {
+        name: "function.parameters",
+        type: "object",
+        description: "描述參數的 JSON Schema。",
+      },
+    ]}
+  >
+    Function/tool 定義。送出前先檢查模型 catalog 中的{" "}
+    <code>parameters.tools</code>。
+  </Field>
+  <Field name="tool_choice" type="string | object" nullable>
+    OpenAI-compatible tool choice 控制，例如 <code>auto</code>、
+    <code>none</code>
+    或指定工具物件。
+  </Field>
+  <Field name="response_format" type="object" nullable>
+    Structured output 控制，例如 <code>{'{"type":"json_object"}'}</code>。
+  </Field>
+  <Field name="temperature" type="number" nullable>
+    取樣溫度，多數模型接受 <code>0</code> 到 <code>2</code>。
+  </Field>
+  <Field name="max_tokens" type="integer" nullable>
+    產生 token 上限，仍受模型 context 和 output limit 限制。
+  </Field>
+</FieldList>
+
+## Vision input
+
+圖片輸入使用 OpenAI-compatible content parts。可以傳 HTTPS 圖片 URL 或 data URL：
+
+<CodeSample title="Image input" language="json">
+  {`{
+  "model": "gpt-6-luna",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {"type": "text", "text": "What's in this image?"},
+        {
+          "type": "image_url",
+          "image_url": {"url": "data:image/png;base64,..."}
+        }
+      ]
+    }
+  ]
+}`}
+</CodeSample>
+
+PDF 和大型文件請透過 [Files](/zh-TW/endpoints/files) 上傳，並使用
+[Responses](/zh-TW/endpoints/responses)。Chat completions 不會自動解引用
+
+<code>file_id</code>。
+
+## Response
+
+<FieldList>
+  <Field name="id" type="string">
+    Lazu 或 provider response ID。
+  </Field>
+  <Field name="choices" type="object[]">
+    Assistant output choices。Streaming response 會送出增量 <code>delta</code>。
+  </Field>
+  <Field name="usage.prompt_tokens" type="integer">
+    輸入 token 數。
+  </Field>
+  <Field name="usage.completion_tokens" type="integer">
+    輸出 token 數。
+  </Field>
+  <Field
+    name="usage.prompt_tokens_details.cached_tokens"
+    type="integer"
+    nullable
+  >
+    上游回報時的 cache read token。
+  </Field>
+</FieldList>
+
+完整對帳請使用 [請求詳情](/zh-TW/endpoints/usage-requests)。
+
+## 相關頁面
+
+- [模型目錄](/zh-TW/models/catalog)
+- [Responses API](/zh-TW/endpoints/responses)
+- [錯誤碼](/zh-TW/errors)
+
+</EndpointPage>

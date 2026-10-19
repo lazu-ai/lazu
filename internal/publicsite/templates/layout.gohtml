@@ -1,0 +1,65 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Meta.Lang}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" href="/favicon-graphite.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#20201d" />
+    <title>{{.Meta.Title}}</title>
+    <meta name="description" content="{{.Meta.Description}}" />
+    <meta name="robots" content="{{.Meta.Robots}}" />
+    <link rel="canonical" href="{{.Meta.Canonical}}" />
+    {{- range .Meta.Alternates}}
+    <link rel="alternate" hreflang="{{.Hreflang}}" href="{{.Href}}" />
+    {{- end}}
+    {{- range .Meta.MachineLinks}}
+    <link rel="alternate" type="{{.Type}}" href="{{.Href}}" />
+    {{- end}}
+    <meta property="og:type" content="{{.Meta.OGType}}" />
+    <meta property="og:url" content="{{.Meta.Canonical}}" />
+    <meta property="og:title" content="{{.Meta.Title}}" />
+    <meta property="og:description" content="{{.Meta.Description}}" />
+    <meta property="og:image" content="{{.Meta.OGImage}}" />
+    {{- if .Meta.OGImageW}}
+    <meta property="og:image:width" content="{{.Meta.OGImageW}}" />
+    <meta property="og:image:height" content="{{.Meta.OGImageH}}" />
+    {{- end}}
+    {{- if .Meta.OGImageAlt}}
+    <meta property="og:image:alt" content="{{.Meta.OGImageAlt}}" />
+    {{- end}}
+    <meta property="og:site_name" content="Lazu" />
+    <meta property="og:locale" content="{{.Meta.OGLocale}}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@try_lazu" />
+    <meta name="twitter:title" content="{{.Meta.Title}}" />
+    <meta name="twitter:description" content="{{.Meta.Description}}" />
+    <meta name="twitter:image" content="{{.Meta.OGImage}}" />
+    <script type="application/ld+json">{{.Meta.JSONLD}}</script>
+    {{- if .Meta.MediaOrigin}}
+    <link rel="preconnect" href="{{.Meta.MediaOrigin}}" />
+    {{- end}}
+    {{- if .Meta.HeadScript}}
+    <script>{{.Meta.HeadScript}}</script>
+    {{- end}}
+    {{ssi "head.html"}}
+  </head>
+  <body class="{{if .Meta.BodyClass}}{{.Meta.BodyClass}}{{else}}lazu-site{{end}}">
+    {{ssi "boot.html"}}
+    <div class="lazu-site__ground">
+      {{ssi (printf "header.%s.%s.html" .Meta.Locale .Meta.Section)}}
+      {{template "main" .}}
+      {{ssi (printf "footer.%s.%s.html" .Meta.Locale .Meta.Section)}}
+    </div>
+  </body>
+</html>
+{{end}}
+
+{{define "bars"}}<span class="lazu-bars" role="img" aria-label="{{.Label}}">{{range .Bars}}<i class="{{.Tone}}"{{if .Title}} title="{{.Title}}"{{end}}></i>{{end}}</span>{{end}}
+
+{{define "icon-chevron-right"}}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>{{end}}
+{{define "icon-chevron-down"}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>{{end}}
+{{define "icon-search"}}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>{{end}}

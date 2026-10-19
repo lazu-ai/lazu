@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link id="app-favicon" rel="icon" href="/favicon-graphite.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="msapplication-TileColor" content="#20201d" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#20201d" />
+
+    <!-- Primary Meta Tags -->
+    <!-- The build replaces this block per page (scripts/generate-static-pages.mjs):
+         prerendered routes get their own title, description, canonical,
+         hreflang and JSON-LD; the SPA shell (app.html) gets noindex. -->
+    <title>Lazu</title>
+    <meta
+      name="description"
+      content="Lazu is an OpenAI-compatible AI gateway: one key for every model, a quota per person, and a bill you can read."
+    />
+
+    <!-- SSG Head Anchor -->
+  </head>
+
+  <body>
+    <script>
+      (() => {
+        try {
+          const stored =
+            localStorage.getItem('lazu.theme') ||
+            localStorage.getItem('theme-mode') ||
+            'auto';
+          const systemDark =
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const actualTheme =
+            stored === 'auto' ? (systemDark ? 'dark' : 'light') : stored;
+          document.body.setAttribute('theme-mode', actualTheme);
+          document.documentElement.classList.toggle(
+            'dark',
+            actualTheme === 'dark',
+          );
+          const favicon = document.getElementById('app-favicon');
+          if (favicon) {
+            favicon.setAttribute(
+              'href',
+              actualTheme === 'dark'
+                ? '/favicon-paper.svg'
+                : '/favicon-graphite.svg',
+            );
+          }
+          // Deliberately NOT touching document.title here: the SSG bakes a
+          // per-route title and this ran on every load, so JS-rendering
+          // crawlers saw "Lazu" on every page. Console routes set their own
+          // titles after mount.
+        } catch (_) {
+          document.body.setAttribute('theme-mode', 'light');
+        }
+      })();
+    </script>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

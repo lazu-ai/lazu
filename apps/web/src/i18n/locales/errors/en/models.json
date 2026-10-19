@@ -1,0 +1,22 @@
+{
+  "model_name_taken": "A model named {{model}} already exists. Choose another name or edit the existing model.",
+  "vendor_name_taken": "A vendor named {{vendor}} already exists. Choose another name or edit the existing vendor.",
+  "prefill_group_name_taken": "A prefill group named {{name}} already exists. Choose another name.",
+  "model_sync_not_configured": "Model metadata sync is not set up on this server. Set the metadata endpoint URLs in the server environment and restart it.",
+  "model_sync_source_unavailable": "The {{source}} catalog could not be read, so nothing was synced. Try again later.",
+  "lane_not_found": "Lane {{lane}} does not exist. Refresh to see the current lanes.",
+  "lane_builtin_locked": "Lane {{lane}} is built in, so it cannot be stopped or deleted.",
+  "lane_ever_enabled": "Lane {{lane}} has carried traffic before, so it cannot be deleted. Stop it instead.",
+  "lane_has_no_sources": "Lane {{lane}} has no sources yet; enabling it would drop every request sent to it. Move a source into it first.",
+  "lane_in_use": "Lane {{lane}} still has sources, prices or discounts. Move or remove them before deleting the lane.",
+  "tier_not_found": "Tier {{tier}} does not exist. Refresh to see the current tiers.",
+  "tier_exists": "A tier named {{tier}} already exists. Choose another name or edit that tier.",
+  "tier_builtin_locked": "Tier {{tier}} is built in, so it cannot be deleted.",
+  "tier_has_accounts": "Tier {{tier}} still has accounts in it. Move them to another tier on the Users page, then delete it.",
+  "sell_price_missing": "No sell price was entered. Enter at least one price before saving.",
+  "sell_price_model_listed": "{{model}} is still listed, so its price cannot be removed. Unlist the model first.",
+  "sell_price_model_served": "Enabled channels still serve {{model}}; without a price its requests would be refused. Disable those channels first.",
+  "sell_price_model_discounted": "{{model}} still has an active discount. Remove the discount before removing the price.",
+  "model_listing_unpriced": "These models have no sell price on any lane and would be billed at $0: {{models}}. Set a price before listing them.",
+  "model_listing_no_source": "These models have no enabled source on lane {{lane}}: {{models}}. Add a source before listing them."
+}

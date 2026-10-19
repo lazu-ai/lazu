@@ -1,0 +1,214 @@
+---
+title: "Search API：Web とニュースの検索"
+description: configured Lazu search backends を通じた provider-neutral POST /v1/search。
+---
+
+import {
+  CodeSample,
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../../components/mdx";
+
+<EndpointPage
+  eyebrow="エンドポイント / Retrieval"
+  method="POST"
+  path="/v1/search"
+  title="Search"
+  description="Lazu 経由で provider-neutral な web/news search を実行します。Hosted api.lazu.ai では現在 Tavily、Serper、Jina が有効です。self-hosted の operator は同じ Search Backend 仕組みで Exa や Brave も追加できます。"
+  aside={
+    <EndpointRail
+      endpoint="search"
+      extra={
+        <MiniCard title="Console">
+          Admins configure providers in{" "}
+          <a href="https://lazu.ai/console/search-backend">Search backends</a>.
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## What it returns
+
+<EndpointGrid>
+  <EndpointTile title="Normalized results">
+    backend ごとに <code>title</code>、<code>url</code>、<code>snippet</code>、
+    optional <code>content</code>、<code>published_at</code>、<code>score</code>
+    、<code>source</code> へ mapping します。
+  </EndpointTile>
+  <EndpointTile title="Auditable routing">
+    response は selected backend と route receipt を含みます。同じ routing
+    metadata が request logs に保存され、support と billing reconciliation
+    に使えます。
+  </EndpointTile>
+</EndpointGrid>
+
+## Hosted configuration
+
+`/v1/search` の実装は Tavily、Serper、Exa、Jina、Brave を support しますが、
+現在表示される検索価格と、リクエスト詳細の `web_search` 明細を照合してください。過去の例やデプロイ設定から無料と推測しないでください。
+
+| Backend     | Hosted status | Capabilities                        | Notes                                                                  |
+| ----------- | ------------- | ----------------------------------- | ---------------------------------------------------------------------- |
+| Tavily      | Enabled       | `web_search`, `web_fetch`, `answer` | `include_answer` と `search_depth` を support。`advanced` は 2 units。 |
+| Serper      | Enabled       | `web_search`                        | `country` / `region`、`language`、`time_range` を mapping します。     |
+| Jina        | Enabled       | `web_search`, `web_fetch`           | `https://s.jina.ai` を使い、retrieval 形式の snippet に向いています。  |
+| Exa / Brave | Supported     | operator 設定後に `web_search` 対応 | self-hosted または admin-configured deployment 向けです。              |
+
+Hosted backends は現在 default policy を使っています。1 request あたり最大
+10 results、upstream timeout は 8s です。`max_results` がそれより大きい場合、
+Lazu は selected backend policy に合わせて切り詰めます。
+
+## Request body
+
+<FieldList>
+  <Field name="query" type="string" required>
+    search query。MVP は 1 request につき 1 query を support します。
+  </Field>
+  <Field name="type" type="string" nullable values={["web", "news"]}>
+    search vertical。default は <code>web</code>。
+  </Field>
+  <Field name="backend" type="string" nullable>
+    <code>auto</code>、provider name（例：<code>tavily</code>）、または
+    configured backend ID/name。default は <code>auto</code>。
+  </Field>
+  <Field name="region" type="string" nullable>
+    region hint。Serper は <code>gl</code> に mapping します。
+  </Field>
+  <Field name="language" type="string" nullable>
+    language hint。例：<code>en</code>、<code>ja</code>。
+  </Field>
+  <Field
+    name="time_range"
+    type="string"
+    nullable
+    values={["day", "week", "month", "year"]}
+  >
+    freshness hint。provider が mapping できない value
+    は無視されることがあります。
+  </Field>
+  <Field name="max_results" type="integer" nullable>
+    結果数。default は <code>10</code> で、selected backend policy
+    の上限が適用されます。
+  </Field>
+  <Field
+    name="search_depth"
+    type="string"
+    nullable
+    values={["basic", "advanced"]}
+  >
+    provider depth hint。Tavily <code>advanced</code> は 2 billable credits。
+  </Field>
+  <Field name="include_answer" type="boolean" nullable>
+    selected backend が answer を返す場合に含めます。Lazu はこの endpoint
+    内で最終回答を生成しません。
+  </Field>
+  <Field name="include_raw_content" type="boolean" nullable>
+    provider が raw content または cleaned content を返す場合に透過します。
+    default は <code>false</code>。
+  </Field>
+  <Field name="include_domains" type="string[]" nullable>
+    検索対象 domain を制限します。token-level domain allowlist
+    は引き続き適用されます。
+  </Field>
+  <Field name="exclude_domains" type="string[]" nullable>
+    selected backend が support する場合に domain を除外します。
+  </Field>
+  <Field name="include_provider_payload" type="boolean" nullable>
+    provider-native payload を debugging 用に返します。default は{" "}
+    <code>false</code>。
+  </Field>
+  <Field name="provider_options" type="object" nullable>
+    advanced provider passthrough。selected provider の object
+    だけが使われます。 例：<code>{'{"serper":{"tbs":"qdr:d"}}'}</code>。
+  </Field>
+</FieldList>
+
+## Response
+
+<CodeSample title="Search response" language="json">
+  {`{
+  "query": "latest OpenAI web search API changes",
+  "results": [
+    {
+      "title": "Web search - OpenAI API",
+      "url": "https://platform.openai.com/docs/guides/tools-web-search",
+      "snippet": "Use web search in the Responses API...",
+      "content": null,
+      "published_at": null,
+      "score": 0.91,
+      "source": "web"
+    }
+  ],
+  "usage": {
+    "web_search_requests": 1,
+    "web_search_billable_units": 1
+  },
+  "provider_trace": {
+    "backend": "tavily"
+  },
+  "route_receipt": {
+    "selection": "auto",
+    "selected_backend": "tavily",
+    "chose_provider": "tavily",
+    "candidates": ["tavily:Tavily"],
+    "rejected": [],
+    "downgraded": false,
+    "fallback_count": 0,
+    "decision_reason": "selected"
+  }
+}`}
+</CodeSample>
+
+<FieldList>
+  <Field name="results[]" type="object[]">
+    normalized search result list。raw content を request し、backend
+    が返した場合だけ
+    <code>content</code> が入ります。
+  </Field>
+  <Field name="usage.web_search_requests" type="integer">
+    Lazu search request count。通常は <code>1</code>。
+  </Field>
+  <Field name="usage.web_search_billable_units" type="integer">
+    charge に使われる provider unit。Tavily basic は 1、Tavily advanced は 2、
+    Serper と Jina は通常 1 successful query です。
+  </Field>
+  <Field name="provider_trace.backend" type="string">
+    routing 後に実際に選ばれた provider。
+  </Field>
+  <Field name="route_receipt" type="object" nullable>
+    candidates、fallback、rejection metadata。同じ情報が request log
+    に保存されます。
+  </Field>
+</FieldList>
+
+## Billing
+
+Search backend は configured <code>search_price</code> から課金されます。これは
+provider billing unit あたりの USD 価格であり、常に HTTP request 単位とは限りません。
+現在の hosted Tavily、Serper、Jina backends には明示的な
+
+<code>search_price</code> が設定されていないため、Lazu は<code>web_search</code>
+usage を記録しますが、search line item は $0 です。 operator が価格または
+provider-cost passthrough を設定したあとに、その設定で課金されます。
+
+| Backend | Unit mapping                                                     |
+| ------- | ---------------------------------------------------------------- |
+| Tavily  | <code>basic</code> = 1 credit、<code>advanced</code> = 2 credits |
+| Serper  | 1 successful query = 1 unit                                      |
+| Jina    | 1 successful query = 1 unit                                      |
+
+upstream failure、timeout、invalid request は通常の Lazu billing rules に従って refund されます。
+
+## See also
+
+- [料金体系](/ja/billing)
+- [リクエスト詳細](/ja/endpoints/usage-requests)
+- [モデルカタログ](/ja/models/catalog)
+
+</EndpointPage>

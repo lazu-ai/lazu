@@ -1,0 +1,94 @@
+---
+title: "Embeddings API (OpenAI-compatible)"
+description: OpenAI-compatible /v1/embeddings with request fields, batch inputs, dimensions and examples.
+---
+
+import {
+  EndpointPage,
+  EndpointRail,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../components/mdx";
+
+<EndpointPage
+  eyebrow="Endpoints / Vectors"
+  method="POST"
+  path="/v1/embeddings"
+  title="Embeddings"
+  description="Create vector embeddings with OpenAI-compatible clients. Use the model catalog to discover which models support embeddings and whether they accept custom dimensions."
+  aside={
+    <EndpointRail
+      endpoint="embeddings"
+      extra={
+
+<MiniCard title="Catalog filter">
+<code>supported_endpoint_types</code> includes{" "}
+<code>embeddings</code>
+</MiniCard>
+}
+/>
+}
+
+>
+
+## Request body
+
+<FieldList>
+  <Field name="model" type="string" required>
+    Embedding model ID from <code>/api/models/catalog</code>.
+  </Field>
+  <Field name="input" type="string | string[]" required>
+    Text input or ordered batch of text inputs. The response preserves order.
+  </Field>
+  <Field name="dimensions" type="integer" nullable>
+    Optional vector dimension for models that support truncation.
+  </Field>
+  <Field
+    name="encoding_format"
+    type="string"
+    nullable
+    values={["float", "base64"]}
+  >
+    Output encoding format when supported by the upstream provider.
+  </Field>
+</FieldList>
+
+## Response
+
+<FieldList>
+  <Field name="object" type="string">
+    Usually <code>list</code>.
+  </Field>
+  <Field name="data" type="object[]">
+    One embedding item per input.
+  </Field>
+  <Field name="data[].embedding" type="number[] | string">
+    Vector values or base64-encoded vector depending on
+    <code>encoding_format</code>.
+  </Field>
+  <Field name="usage.prompt_tokens" type="integer">
+    Input tokens used for embedding.
+  </Field>
+</FieldList>
+
+## Batch guidance
+
+Pass an array for small batches. For large data jobs, chunk client-side so each
+request stays within provider body-size and token limits.
+
+## Common models
+
+| Model                    | Dim  | Notes                |
+| ------------------------ | ---- | -------------------- |
+| `BAAI/bge-m3`            | 1024 | Multilingual         |
+| `text-embedding-3-small` | 1536 | OpenAI cheap default |
+| `text-embedding-3-large` | 3072 | OpenAI high quality  |
+| `gemini-embedding-001`   | 768  | Google default       |
+
+## See also
+
+- [Model catalog](/models/catalog)
+- [Pricing & lanes](/models/pricing)
+
+</EndpointPage>

@@ -1,0 +1,61 @@
+.dub-docs-cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin: 24px 0;
+}
+
+.dub-docs-card {
+  background: var(--dub-paper, var(--vocs-color_background2));
+  border: 1px solid var(--dub-line, var(--vocs-color_border));
+  border-radius: 8px;
+  color: inherit;
+  display: grid;
+  gap: 9px;
+  min-height: 126px;
+  padding: 16px;
+  text-decoration: none;
+  transition:
+    border-color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.dub-docs-card:hover {
+  border-color: var(--dub-accent, var(--vocs-color_borderAccent));
+  box-shadow: 0 10px 28px -22px var(--vocs-color_shadow2);
+  transform: translateY(-1px);
+}
+
+.dub-docs-card strong {
+  color: var(--dub-ink, var(--vocs-color_heading));
+  font-size: 15px;
+}
+
+.dub-docs-card span {
+  color: var(--dub-mute, var(--vocs-color_text2));
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Feedback · 纸上批注, shared with the console.
+   See brand/foundations/feedback-system.md: the sheet stays paper, the semantic
+   lives in the label. The old 4px left rule and tinted fills are retired so a
+   callout reads the same here as it does inside the product. */
+/* `.dub-docs-callout` is defined in `public/styles.css` alongside the rest of
+ * the shipped docs skin. An older copy lived here too and lost every cascade,
+ * which is why edits to it appeared to do nothing. */
+
+/* `.dub-docs-api-reference`, `.dub-docs-api-header` and `.dub-docs-api-loading`
+ * are now defined in `public/styles.css` as part of the full-bleed
+ * OpenAPI Explorer layout. An older copy here used `position: sticky; z-index: 10`
+ * on the header which created its own stacking context — the language dropdown
+ * inside the header was then trapped at the header's z-index and got covered
+ * by Scalar's high-z-index elements (z-1000, z-tooltip=99999) below. */
+
+.dub-docs-redirect {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  justify-content: center;
+}

@@ -1,0 +1,694 @@
+/* Yunmu auth surface — 落纸 (on the paper).
+ *
+ * The card is gone. A門 does not need a box: the mark, the heading and the
+ * controls sit directly on the living ground, and the only bordered things on
+ * screen are the controls themselves. That removes the one visual that made
+ * this page read as a pop-up dialog — a 40px/90px drop shadow plus a 16px
+ * backdrop blur floating over an animated WebGL ground — and it lets the
+ * loading state occupy the same column, in the same place, with the same mark,
+ * so "finished loading" no longer moves anything.
+ *
+ * Control geometry is uniform on purpose. The previous screen stacked a 40px
+ * pill SSO button, a 38px 12px-radius input and a 34px primary button in one
+ * column, which made the most important control the shortest thing on the page.
+ * Everything here is 40px tall with a 12px radius.
+ */
+
+.auth-page-shell {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--lazu-ink);
+}
+
+.auth-page-inner {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 44px);
+}
+
+/* The top bar keeps only the theme/language chrome. The wordmark moved into
+   the column, where it anchors both the door and the loading skeleton. */
+.auth-page-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  flex: none;
+}
+
+.auth-page-controls {
+  margin-left: auto;
+}
+
+.auth-page-card-wrap {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 5vw, 64px) 0 clamp(48px, 8vw, 96px);
+}
+
+/* ── The column ─────────────────────────────────────────────────────── */
+
+/* 22px between mark, heading and body was the rhythm of a three-part column.
+   The door has no heading any more, so an even gap glued the wordmark to the
+   first provider button. 32px below the mark makes it read as the column's
+   header instead of its first row. */
+.auth-column {
+  width: min(352px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.auth-column__mark {
+  display: flex;
+  justify-content: center;
+}
+
+/* The horizontal lockup, not the tile. With the heading gone the mark is the
+   only thing naming the site, and a bare 40px square did not say which site. */
+.auth-column__mark .brand-logo {
+  height: 30px;
+  width: auto;
+}
+
+.auth-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  text-align: center;
+}
+
+/* The door itself carries no heading; the screens either side of it do, and
+   they are set in the display serif like every other title on the site. */
+.auth-title {
+  color: var(--ui-text);
+  font-family: var(--lazu-font-display);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* A screen you were sent to, not one you opened: the code step follows a
+   button you just pressed, so it states where the code went and gets out of
+   the way of the six boxes. */
+.auth-heading--step {
+  gap: 6px;
+}
+
+.auth-heading--step .auth-title {
+  font-family: var(--lazu-font-display);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.008em;
+  line-height: 1.16;
+}
+
+.auth-heading--step .auth-description {
+  font-size: 13.2px;
+}
+
+.auth-description {
+  color: var(--ui-text-secondary);
+  font-size: 13.6px;
+  line-height: 1.58;
+  margin: 0;
+  max-width: 30em;
+}
+
+/* Arriving from a project invitation: one line naming where the code leads. */
+.auth-invite {
+  align-items: center;
+  background: var(--lazu-evidence-soft);
+  border-radius: 12px;
+  color: var(--lazu-evidence-strong);
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  line-height: 1.45;
+  margin: 0;
+  padding: 10px 14px;
+}
+
+.auth-invite svg {
+  flex: none;
+}
+
+.auth-description strong {
+  color: var(--ui-text);
+  font-weight: 560;
+  /* An address with one long unbroken label would otherwise push the column
+     past 352px — the identity pill that used to ellipsize it is gone. */
+  overflow-wrap: anywhere;
+}
+
+.auth-footer {
+  color: var(--ui-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.auth-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Height morph ───────────────────────────────────────────────────── */
+
+/* Switching credential or step swaps the body content. AuthMorph animates the
+   box from its old height to its new one so the swap does not read as a flash,
+   and the incoming content fades up behind it.
+
+   Overflow is clipped only while that height is moving — AuthMorph toggles it
+   — because leaving it hidden would cut the focus ring off a full-width
+   field. */
+.auth-morph {
+  overflow: visible;
+}
+
+.auth-morph__inner {
+  animation: auth-fade-up var(--lazu-motion-slow) var(--lazu-ease-direct) both;
+}
+
+@keyframes auth-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Uniform control geometry ───────────────────────────────────────── */
+
+.auth-page-shell .lazu-input,
+.auth-page-shell .lazu-button {
+  border-radius: var(--lazu-radius-control);
+  height: 40px;
+}
+
+/* Primary action is ink on paper (BRAND.md § 02), not the evidence hue that
+   --ui-accent aliases. */
+.auth-page-shell .lazu-button--primary {
+  background: var(--lazu-action);
+  color: var(--lazu-on-action);
+  font-weight: 560;
+}
+
+.auth-page-shell .lazu-button--primary:hover:not(:disabled) {
+  background: var(--lazu-action-hover);
+}
+
+/* ── Provider buttons ───────────────────────────────────────────────── */
+
+.auth-sso-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-sso-button {
+  align-items: center;
+  background: var(--lazu-surface-raised);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 520;
+  gap: 9px;
+  height: 40px;
+  justify-content: center;
+  transition:
+    background-color var(--lazu-motion-base) var(--lazu-ease-direct),
+    border-color var(--lazu-motion-base) var(--lazu-ease-direct);
+  width: 100%;
+}
+
+.auth-sso-button:hover:not(:disabled) {
+  background: var(--lazu-surface-muted);
+  border-color: var(--ui-text-secondary);
+}
+
+.auth-sso-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.auth-sso-mark {
+  flex: none;
+  height: 16px;
+  width: 16px;
+}
+
+/* ── Segmented credential switch ────────────────────────────────────── */
+
+/* The active half takes the neutral "selected" surface rather than the accent:
+   this control routes between two ways in, it is not the thing you press to
+   get in, and it must not outrank the primary button below it. */
+.auth-seg {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: grid;
+  gap: 2px;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+}
+
+.auth-seg__option {
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.8px;
+  font-weight: 520;
+  height: 30px;
+  transition:
+    background-color var(--lazu-motion-fast) var(--lazu-ease-direct),
+    color var(--lazu-motion-fast) var(--lazu-ease-direct),
+    box-shadow var(--lazu-motion-fast) var(--lazu-ease-direct);
+}
+
+.auth-seg__option[aria-selected='true'] {
+  background: var(--lazu-surface-solid);
+  box-shadow: 0 1px 2px rgb(50 56 70 / 8%);
+  color: var(--ui-text);
+  font-weight: 580;
+}
+
+[data-theme='dark'] .auth-seg__option[aria-selected='true'],
+body[theme-mode='dark'] .auth-seg__option[aria-selected='true'] {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 35%);
+}
+
+.auth-seg__option:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────── */
+
+/* Slightly lighter than the console default: on a page with no card behind
+   it, a 650-weight label competes with the heading. */
+.auth-page-shell .lazu-label {
+  font-size: 12.8px;
+  font-weight: 560;
+}
+
+.auth-field-control {
+  position: relative;
+}
+
+.auth-field-icon {
+  color: var(--ui-text-tertiary);
+  left: 13px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lazu-input.auth-field-input--with-icon {
+  padding-left: 38px;
+}
+
+.lazu-input.auth-field-input--with-trailing {
+  padding-right: 38px;
+}
+
+.auth-field-trailing-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ui-text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+}
+
+.auth-field-trailing-button:hover,
+.auth-field-trailing-button:focus-visible {
+  color: var(--ui-text-primary);
+  outline: none;
+}
+
+.auth-field-trailing-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--ui-accent);
+}
+
+/* The label row carries the tertiary action, so "forgot password" reads as a
+   footnote to the field it belongs to rather than as a second primary button
+   the width of the form. */
+.auth-field-labelrow {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.auth-field-aside {
+  background: none;
+  border: 0;
+  color: var(--ui-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 0;
+  text-decoration: none;
+}
+
+.auth-field-aside:hover {
+  text-decoration: underline;
+}
+
+.auth-divider {
+  align-items: center;
+  color: var(--ui-text-tertiary);
+  display: grid;
+  font-size: 11.5px;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.auth-divider span:first-child,
+.auth-divider span:last-child {
+  background: var(--ui-border);
+  height: 1px;
+}
+
+/* ── One-time code ──────────────────────────────────────────────────── */
+
+.auth-otp {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.auth-otp__box {
+  aspect-ratio: 1 / 1.12;
+  background: var(--lazu-surface-raised);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--ui-text);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 19px;
+  font-weight: 500;
+  padding: 0;
+  text-align: center;
+  transition:
+    background-color var(--lazu-motion-fast) var(--lazu-ease-direct),
+    border-color var(--lazu-motion-fast) var(--lazu-ease-direct),
+    box-shadow var(--lazu-motion-fast) var(--lazu-ease-direct);
+  width: 100%;
+}
+
+.auth-otp__box:focus {
+  background: var(--ui-bg);
+  border-color: var(--ui-accent);
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.auth-otp__box--filled {
+  background: var(--ui-bg);
+  border-color: var(--ui-text-secondary);
+}
+
+.auth-otp__box:disabled {
+  opacity: 0.55;
+}
+
+.auth-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.auth-meta__row {
+  align-items: baseline;
+  color: var(--ui-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: 6px;
+  justify-content: center;
+  line-height: 1.5;
+  margin: 0;
+  text-align: center;
+}
+
+.auth-meta__row button {
+  background: none;
+  border: 0;
+  color: var(--ui-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 0;
+}
+
+.auth-meta__row button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* index.css strips the outline from bare buttons, so the only way out of this
+   screen without a pointer needs to paint its own focus ring. */
+.auth-meta__row button:focus-visible {
+  border-radius: var(--lazu-radius-badge);
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.auth-meta__row button:disabled {
+  color: var(--ui-text-tertiary);
+  cursor: not-allowed;
+}
+
+/* The second way out is one rank below the first: two accent-coloured words
+   on one screen weaken each other, and neither should outrank the code the
+   visitor is here to type. */
+.auth-meta__row--quiet {
+  color: var(--ui-text-tertiary);
+}
+
+.auth-meta__row--quiet button,
+.auth-meta__row--quiet a {
+  color: var(--ui-text-secondary);
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-decoration-color: var(--lazu-border-strong);
+  text-underline-offset: 2px;
+}
+
+.auth-meta__row--quiet button:hover,
+.auth-meta__row--quiet a:hover {
+  color: var(--ui-text);
+  text-decoration-color: currentcolor;
+}
+
+/* Under the code boxes the block is a control plus one line, so it breathes
+   a little more than the old three stacked text rows did. */
+.auth-meta--code {
+  gap: 12px;
+}
+
+/* ── Consent ────────────────────────────────────────────────────────── */
+
+/* Consent sits under the control it qualifies, on an uncluttered background,
+   with the agreement links in the accent colour. That proximity, plus the
+   version and timestamp the server writes onto the account, is what the
+   enforceability of the notice rests on. */
+.auth-terms-notice {
+  color: var(--ui-text-tertiary);
+  font-size: 12.4px;
+  line-height: 1.62;
+  margin: 0;
+  text-align: center;
+}
+
+/* 18px of body gap plus 8px here: the notice trails the column rather than
+   joining the stack of controls. */
+.auth-page-shell .auth-terms-notice {
+  margin-top: 8px;
+}
+
+/* Conspicuousness comes from the underline and from sitting next to the
+   button, not from being the one coloured thing on an otherwise ink page. */
+.auth-page-shell .auth-terms-notice .auth-link {
+  color: var(--ui-text-secondary);
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--lazu-border-strong);
+  text-underline-offset: 2px;
+}
+
+.auth-page-shell .auth-terms-notice .auth-link:hover {
+  color: var(--ui-text);
+  text-decoration-color: currentcolor;
+}
+
+.auth-link {
+  color: var(--ui-accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .auth-page-card-wrap {
+    padding: clamp(20px, 6vw, 36px) 0
+      calc(clamp(28px, 8vw, 44px) + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-morph__inner {
+    animation: none;
+  }
+}
+
+/* ── Field reveal ───────────────────────────────────────────────────── */
+
+/* The password field opens as a grid row going 0fr → 1fr, so the button and
+   the consent notice under it are pushed down by the same curve instead of
+   jumping. See AuthReveal for why the door no longer repaints as a whole. */
+.auth-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--lazu-motion-slow) var(--lazu-ease-direct),
+    opacity var(--lazu-motion-base) var(--lazu-ease-direct);
+}
+
+.auth-reveal[data-state='closed'] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.auth-reveal__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.auth-reveal[data-settled] .auth-reveal__inner {
+  overflow: visible;
+}
+
+/* ── Resend ─────────────────────────────────────────────────────────── */
+
+/* The wait before a resend used to be a 12.5px grey line sharing a row with
+   "use another address". It is now the one control under the code boxes: a
+   40px secondary button whose fill creeps left to right as the seconds go,
+   so the wait is visible at a glance and the button is obviously the thing
+   that becomes pressable when it ends. */
+.auth-resend {
+  align-items: center;
+  background: var(--lazu-surface-raised);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 520;
+  gap: 8px;
+  height: 40px;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  transition:
+    background-color var(--lazu-motion-base) var(--lazu-ease-direct),
+    border-color var(--lazu-motion-base) var(--lazu-ease-direct),
+    color var(--lazu-motion-base) var(--lazu-ease-direct);
+  width: 100%;
+}
+
+.auth-resend:hover:not(:disabled) {
+  background: var(--lazu-surface-muted);
+  border-color: var(--ui-text-secondary);
+}
+
+.auth-resend:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.auth-resend:disabled {
+  background: var(--lazu-surface-muted);
+  border-color: var(--lazu-border);
+  color: var(--ui-text-secondary);
+  cursor: default;
+}
+
+.auth-resend::before {
+  background: var(--lazu-surface-selected);
+  content: '';
+  inset: 0 auto 0 0;
+  position: absolute;
+  transition: width 1s linear;
+  width: var(--auth-resend-progress, 0%);
+}
+
+.auth-resend:not(:disabled)::before {
+  display: none;
+}
+
+.auth-resend > * {
+  position: relative;
+}
+
+.auth-resend__count {
+  color: var(--ui-text-tertiary);
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-reveal,
+  .auth-resend::before {
+    transition: none;
+  }
+}

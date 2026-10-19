@@ -1,0 +1,143 @@
+---
+title: "Files API: upload PDFs and images for the Responses API"
+description: Upload PDFs, images and documents, then reference file_id values from the Responses API.
+---
+
+import {
+  EndpointGrid,
+  EndpointPage,
+  EndpointRail,
+  EndpointTile,
+  Field,
+  FieldList,
+  MiniCard,
+} from "../../components/mdx";
+
+<EndpointPage
+  eyebrow="Endpoints / Storage"
+  method="POST"
+  path="/v1/files"
+  sendable={false}
+  title="Files API"
+  description="Upload documents and images once, then reference them by file_id from the Responses API. The file API is OpenAI-compatible where possible, with explicit Lazu retention and purpose rules."
+  aside={
+    <EndpointRail
+      endpoint="files"
+      extra={
+        <MiniCard title="Retention">
+          Files are kept for 30 days, then removed by the cleanup job. Storage
+          is free; each account may keep up to 10 GB at a time.
+        </MiniCard>
+      }
+    />
+  }
+>
+
+## File endpoints
+
+| Method | Path                    | Purpose        |
+| ------ | ----------------------- | -------------- |
+| POST   | `/v1/files`             | Upload         |
+| GET    | `/v1/files`             | List           |
+| GET    | `/v1/files/:id`         | Metadata       |
+| GET    | `/v1/files/:id/content` | Download bytes |
+| DELETE | `/v1/files/:id`         | Delete         |
+
+All endpoints use <code>Authorization: Bearer $LAZU_API_KEY</code>.
+
+## Upload request
+
+<FieldList>
+  <Field name="purpose" type="string" required values={["user_data", "vision"]}>
+    Declares how the file can be used.
+  </Field>
+  <Field name="file" type="multipart file" required>
+    Uploaded file bytes.
+  </Field>
+</FieldList>
+
+## Supported purposes
+
+<EndpointGrid>
+  <EndpointTile title="user_data">
+    Up to 512 MB. Use for PDFs, text and structured data passed through
+    Responses as <code>input_file</code>.
+  </EndpointTile>
+  <EndpointTile title="vision">
+    Up to 20 MB. Allowed mime types: <code>image/png</code>,
+    <code>image/jpeg</code>, <code>image/gif</code>, <code>image/webp</code>.
+  </EndpointTile>
+</EndpointGrid>
+
+OpenAI's <code>batch</code>, <code>fine-tune</code> and
+
+<code>assistants</code> purposes are not yet supported. Executable file
+extensions are rejected regardless of purpose.
+
+## Upload response
+
+<FieldList>
+  <Field name="id" type="string">
+    File ID, for example <code>file-lazu-01KSBV4MC6THZ9TCZEM38KPYRX</code>.
+  </Field>
+  <Field name="object" type="string">
+    Always <code>file</code>.
+  </Field>
+  <Field name="bytes" type="integer">
+    Uploaded byte size.
+  </Field>
+  <Field name="filename" type="string">
+    Original filename.
+  </Field>
+  <Field name="purpose" type="string">
+    Stored purpose.
+  </Field>
+  <Field name="status" type="string">
+    Usually <code>processed</code>.
+  </Field>
+</FieldList>
+
+Lazu returns <code>201 Created</code> for successful uploads. Treat it as
+success if your client SDK expects <code>200</code>.
+
+## Reference from Responses
+
+Lazu dereferences <code>file_id</code> only on
+[Responses](/endpoints/responses). Chat completions does not pull file content
+automatically.
+
+For images uploaded with <code>purpose=vision</code>, use
+
+<code>input_image</code> instead of <code>input_file</code>.
+
+## Limits
+
+| Limit                                          | Value  |
+| ---------------------------------------------- | ------ |
+| Single file with `purpose=user_data`           | 512 MB |
+| Single file with `purpose=vision`              | 20 MB  |
+| Total bytes dereferenced in one Responses call | 64 MB  |
+| Files kept per account, free of charge         | 10 GB  |
+
+An upload that would take the account past 10 GB returns
+`storage_quota_exceeded`. Images and videos that media jobs generate count
+toward the 10 GB but are never refused for it.
+
+## Errors
+
+<FieldList>
+  <Field name="missing_required_parameter" type="400">
+    Missing <code>purpose</code> or file bytes.
+  </Field>
+  <Field name="purpose_not_supported" type="400">
+    Unsupported purpose such as <code>batch</code> or <code>fine-tune</code>.
+  </Field>
+  <Field name="file_too_large" type="413">
+    Single file or total dereferenced files exceed limits.
+  </Field>
+  <Field name="file_not_found" type="404">
+    File does not exist or is not owned by the current API key.
+  </Field>
+</FieldList>
+
+</EndpointPage>

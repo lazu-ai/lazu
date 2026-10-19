@@ -1,0 +1,7 @@
+interface:
+  display_name: "Lazu API"
+  short_description: "Discover models and choose the right Lazu endpoint."
+  default_prompt: "Use $lazu-api to inspect the Lazu catalog and pick the correct endpoint for this task."
+
+policy:
+  allow_implicit_invocation: true

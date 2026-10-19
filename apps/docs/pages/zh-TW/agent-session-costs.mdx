@@ -1,0 +1,32 @@
+---
+title: "Agent 工作階段費用：從任務核對到請求明細"
+description: "核對程式代理的完整費用、快取計費及官方價格比較，避免以部分明細推算全程。"
+---
+
+# 核對 Agent 工作階段費用
+
+Lazu 依客戶端傳送的工作階段識別碼彙整網關請求。它呈現 API 活動，無法觀察本機工具、編輯器耗時或代理的所有動作。沒有工作階段識別碼時，不能把同一 Key 的所有請求視為同一任務。
+
+## 從任務核對到明細
+
+1. 依 [Claude Code 指南](https://lazu.ai/blog/claude-code-custom-api)或 [Codex 指南](https://lazu.ai/blog/codex-custom-provider)接入。
+2. 執行小任務，在控制台的用量頁開啟 Agent 工作階段，核對客戶端、時間和模型。
+3. 查看總額及逐請求明細，核對輸入、輸出、快取讀寫、路線、長上下文和專屬價格條件。失敗不自動代表零費用。
+4. 匯出 JSON 前載入所有可讀取的批次。已載入、仍保留和工作階段總數是不同數字；到期明細不能透過翻頁恢復。
+
+## 可重現的算術示例
+
+[核對腳本](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py)附有**合成示例**，不是客戶實測或目前報價。
+
+```sh
+python3 ops/scripts/summarize-agent-session.py ops/fixtures/agent-session.example.json
+python3 ops/scripts/summarize-agent-session.py session.json
+```
+
+三次請求合計 $0.015。其中兩次具有可比官方價格：實收 $0.0145，官方 $0.020，差額 $0.0055。第三次不在比較範圍，不能套用該比例推算整個工作階段。不完整或加總不一致時，腳本返回失敗並省略節省比較。輸出不含提示詞或請求編號，但模型名及費用仍可能需要保密。
+
+## 分析範圍
+
+並發以完成時間減去耗時估算，精度為整秒；同一執行緒兩次請求之間的空檔不算執行時間。明細不完整時不作全程分析。壓縮前後的平均費用差異只是相鄰樣本觀察，不能證明因果關係。
+
+明細到期後可保留費用合計。首條訊息僅在已擷取且未超過內容保留期時可用。分享前請移除私有資料並取得所有者授權。另見[計費規則](/zh-TW/billing)及[請求明細](/zh-TW/endpoints/usage-requests)。

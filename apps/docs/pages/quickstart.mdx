@@ -1,0 +1,79 @@
+---
+title: "Quickstart: call Claude, GPT and Gemini with one API key"
+description: "Create a Lazu API key, point any OpenAI SDK at https://api.lazu.ai/v1, and send your first request to Claude, GPT, Gemini or DeepSeek in a few minutes."
+---
+
+# Quickstart
+
+## 1. Create a key and select a model
+
+Create a key in the [console](https://lazu.ai/console/token). Set the environment variables below, then query the catalog with that key. Choose a model whose `supported_endpoints` includes `/v1/chat/completions` and set `LAZU_MODEL` to its ID. A catalog entry describes access and capabilities; it does not prove a live upstream request will succeed.
+
+```bash
+export LAZU_API_ORIGIN="https://api.lazu.ai"
+export LAZU_API_KEY="YOUR_LAZU_KEY"
+curl --fail-with-body "$LAZU_API_ORIGIN/api/models/catalog" \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+export LAZU_MODEL="MODEL_ID_FROM_CATALOG"
+```
+
+## 2. Send a request
+
+For raw HTTP, `LAZU_API_ORIGIN` is the origin without `/v1`. OpenAI SDKs use that origin plus `/v1`. For self-hosting, replace the origin with your own.
+
+```bash
+# Requires jq. Inspect response headers in response.headers.
+jq -n --arg model "$LAZU_MODEL" \
+  '{model: $model, messages: [{role: "user", content: "Hello"}]}' \
+  | curl --fail-with-body -D response.headers \
+      "$LAZU_API_ORIGIN/v1/chat/completions" \
+      -H "Authorization: Bearer $LAZU_API_KEY" \
+      -H "Content-Type: application/json" --data-binary @-
+```
+
+### Python
+
+```bash
+python -m pip install openai
+```
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LAZU_API_KEY"],
+    base_url=os.environ["LAZU_API_ORIGIN"].rstrip("/") + "/v1",
+)
+response = client.chat.completions.create(
+    model=os.environ["LAZU_MODEL"],
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(response.choices[0].message.content)
+```
+
+### TypeScript
+
+```bash
+npm install openai
+```
+
+```ts
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LAZU_API_KEY,
+  baseURL: `${process.env.LAZU_API_ORIGIN}/v1`,
+});
+const response = await client.chat.completions.create({
+  model: process.env.LAZU_MODEL!,
+  messages: [{ role: "user", content: "Hello" }],
+});
+console.log(response.choices[0].message.content);
+```
+
+## 3. Check the result
+
+Read the returned text and save `X-Request-Id` from the response headers. In Console → Usage, find the request and inspect usage and billing. Use the same API key for `GET /api/usage/requests/{request_id}`. Do not assume an upstream response body ID is the Lazu request ID.
+
+[Images, video and audio](/endpoints/media) · [Pricing and lanes](/models/pricing)

@@ -1,0 +1,132 @@
+/*
+ * Version plate — the What's New entry point.
+ *
+ * A gateway is versioned infrastructure, so the build itself is the label; the
+ * unread state rides on it as a teal dot rather than as a separate bell.
+ * Yunmu rule 6: evidence colour only in small areas, so the dot and the pulse
+ * ring are the entire chroma budget here.
+ */
+
+.version-plate {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  line-height: 1;
+  min-height: 22px;
+  padding: 0 7px;
+  position: relative;
+  transition:
+    background var(--lazu-motion-base) var(--lazu-ease-direct),
+    border-color var(--lazu-motion-base) var(--lazu-ease-direct),
+    color var(--lazu-motion-base) var(--lazu-ease-direct);
+  white-space: nowrap;
+}
+
+.version-plate:hover {
+  border-color: var(--lazu-border);
+  color: var(--lazu-ink);
+}
+
+.version-plate:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+/* Read state: the plate stops asking for attention and becomes a signature. */
+.version-plate.is-read {
+  color: var(--lazu-text-faint);
+}
+
+.version-plate.is-read:hover {
+  color: var(--lazu-ink);
+}
+
+.version-plate__dot {
+  background: var(--lazu-evidence);
+  border-radius: 50%;
+  flex: none;
+  height: 6px;
+  margin-right: 6px;
+  transition:
+    margin-right var(--lazu-motion-slow) var(--lazu-ease-direct),
+    opacity var(--lazu-motion-slow) var(--lazu-ease-direct),
+    transform var(--lazu-motion-slow) var(--lazu-ease-direct),
+    width var(--lazu-motion-slow) var(--lazu-ease-direct);
+  width: 6px;
+}
+
+/* Collapsing the dot's own width (not just its opacity) keeps the plate from
+   holding a 6px hole after everything is read. */
+.version-plate.is-read .version-plate__dot {
+  margin-right: 0;
+  opacity: 0;
+  transform: scale(0);
+  width: 0;
+}
+
+/* One pulse pair per user per day, throttled by the same storage key that used
+   to gate the daily popup — see whatsNewAutoOpen.ts. */
+@keyframes version-plate-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--lazu-evidence-soft);
+  }
+
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.version-plate.is-pulsing {
+  animation: version-plate-pulse 2.4s var(--lazu-ease-direct) 2;
+}
+
+/* Sidebar brand row: the plate is pushed to the far edge, opposite the mark. */
+.version-plate--sidebar {
+  margin-left: auto;
+}
+
+/* Mobile topbar: shell.css zeroes the padding of every button in the action
+   row, so this pair of selectors has to out-specify it. */
+.mobile-console-actions .version-plate--mobile {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  width: 40px;
+}
+
+.mobile-console-actions .version-plate--mobile .version-plate__dot {
+  border: 2px solid var(--lazu-page);
+  box-sizing: content-box;
+  margin-right: 0;
+  position: absolute;
+  right: 9px;
+  top: 9px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .version-plate,
+  .version-plate__dot {
+    transition: none;
+  }
+
+  .version-plate.is-pulsing {
+    animation: none;
+  }
+}

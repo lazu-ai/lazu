@@ -1,0 +1,156 @@
+/*
+ * Production compatibility aliases for the canonical Lazu Brand tokens.
+ *
+ * Canonical values are generated into brand.generated.css from brand/tokens/*.
+ * Do not add literal brand colors, font families, radii, shadows, or motion here.
+ * New code should prefer --lazu-*; --ui-* and --app-* remain migration aliases.
+ */
+
+:root {
+  --brand-ink: var(--lazu-ink);
+  --brand-paper: var(--lazu-page);
+  --brand-cream: var(--lazu-surface);
+  --brand-ash: var(--lazu-text-muted);
+  --brand-blue: var(--lazu-action);
+
+  --font-ui: var(--lazu-font-sans);
+  --font-brand: var(--lazu-font-sans);
+  --font-mono: var(--lazu-font-mono);
+  --ui-font-mono: var(--lazu-font-mono);
+
+  --ui-bg: var(--lazu-page);
+  --ui-bg-card: var(--lazu-surface);
+  --ui-surface: var(--lazu-surface);
+  --ui-surface-2: var(--lazu-surface-muted);
+  --ui-surface-muted: var(--lazu-surface-muted);
+  --ui-surface-raised: var(--lazu-surface-raised);
+  --ui-surface-hover: var(--lazu-surface-muted);
+  --ui-bg-muted: var(--lazu-surface-muted);
+  --ui-bg-raised: var(--lazu-surface-raised);
+  --ui-bg-elevated: var(--lazu-surface-raised);
+  --ui-bg-control: var(--lazu-surface);
+  --ui-border: var(--lazu-border);
+  --ui-border-soft: var(--lazu-border);
+  --ui-border-subtle: var(--lazu-border);
+  --ui-border-strong: var(--lazu-border-strong);
+  --ui-text: var(--lazu-ink);
+  --ui-text-primary: var(--lazu-ink);
+  --ui-text-muted: var(--lazu-text-muted);
+  --ui-text-subtle: var(--lazu-text-faint);
+  --ui-text-faint: var(--lazu-text-faint);
+  --ui-text-secondary: var(--lazu-text-muted);
+  --ui-text-tertiary: var(--lazu-text-faint);
+  /* G1: the accent is the teal evidence colour — switches, checkboxes,
+     selected tabs, focus, progress, links. Buttons never read it: the
+     primary action is --lazu-action (ink). */
+  --ui-focus: var(--lazu-evidence);
+  --ui-focus-ring: 0 0 0 3px var(--lazu-action-soft);
+  --ui-accent: var(--lazu-evidence);
+  --ui-accent-hover: var(--lazu-evidence-strong);
+  --ui-accent-contrast: var(--lazu-on-action);
+  --ui-accent-on: var(--lazu-on-action);
+  --ui-accent-soft: var(--lazu-action-soft);
+  --ui-accent-mute: var(--lazu-action-soft);
+  --ui-accent-text: var(--lazu-evidence);
+  --ui-success: var(--lazu-success);
+  --ui-success-soft: var(--lazu-success-soft);
+  --ui-warning: var(--lazu-warning);
+  --ui-warning-soft: var(--lazu-warning-soft);
+  --ui-danger: var(--lazu-danger);
+  --ui-danger-soft: var(--lazu-danger-soft);
+  --ui-info: var(--lazu-info);
+  --ui-info-soft: var(--lazu-info-soft);
+
+  --ui-space-1: var(--lazu-space-1);
+  --ui-space-2: var(--lazu-space-2);
+  --ui-space-3: var(--lazu-space-3);
+  --ui-space-4: var(--lazu-space-4);
+  --ui-space-5: var(--lazu-space-5);
+  --ui-space-6: var(--lazu-space-6);
+  --ui-radius-xs: var(--lazu-radius-badge);
+  --ui-radius-sm: var(--lazu-radius-badge);
+  --ui-radius-md: var(--lazu-radius-control);
+  --ui-radius-lg: var(--lazu-radius-surface);
+  --ui-radius-xl: var(--lazu-radius-overlay);
+  --ui-radius-pill: var(--lazu-radius-pill);
+  --ui-shadow-subtle: none;
+  --ui-shadow-sm: none;
+  --ui-shadow-lg: var(--lazu-shadow-overlay);
+  --ui-shadow-floating: var(--lazu-shadow-overlay);
+  --ui-control-height-sm: var(--lazu-control-height-sm);
+  --ui-control-height: var(--lazu-control-height);
+  --ui-control-height-lg: var(--lazu-control-height-lg);
+  --ui-motion-fast: var(--lazu-motion-fast);
+  --ui-motion-base: var(--lazu-motion-base);
+  --ui-motion-slow: var(--lazu-motion-slow);
+  --ui-ease-direct: var(--lazu-ease-direct);
+
+  --app-bg: var(--lazu-page);
+  --app-bg-soft: var(--lazu-surface-muted);
+  --app-surface: var(--lazu-surface);
+  --app-surface-muted: var(--lazu-surface-muted);
+  --app-border: var(--lazu-border);
+  --app-border-strong: var(--lazu-border-strong);
+  --app-text-strong: var(--lazu-ink);
+  --app-text-muted: var(--lazu-text-muted);
+  --app-text-disabled: var(--lazu-text-faint);
+  --app-accent: var(--lazu-action);
+  --app-accent-hover: var(--lazu-action-hover);
+  --app-accent-soft: var(--lazu-action-soft);
+  --app-success: var(--lazu-success);
+  --app-warning: var(--lazu-warning);
+  --app-error: var(--lazu-danger);
+  --app-info: var(--lazu-data-blue);
+  --app-focus-ring: 0 0 0 3px var(--lazu-action-soft);
+  --app-row-hover: var(--lazu-surface-muted);
+  --app-row-active: var(--lazu-action-soft);
+
+  --c-blue: var(--lazu-data-blue);
+  --c-green: var(--lazu-data-teal);
+  --c-amber: var(--lazu-warning);
+  --c-terra: var(--lazu-data-clay);
+  --bar-grad: linear-gradient(
+    90deg,
+    var(--lazu-data-blue) 0%,
+    var(--lazu-data-teal) 100%
+  );
+  --grid-line: var(--lazu-data-grid);
+  --lit-bloom-soft: color-mix(in srgb, var(--lazu-action) 7%, transparent);
+  --lit-bloom-mid: color-mix(in srgb, var(--lazu-action) 16%, transparent);
+  --lit-bloom-hot: color-mix(in srgb, var(--lazu-action) 28%, transparent);
+}
+
+.brand-logo {
+  display: block;
+  flex: 0 0 auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* Primary lockup heights. The serif wordmark's cap height is 55% of the seal,
+   so 32px keeps the letters above the 17px floor set in logo-system.md. */
+.brand-logo--header {
+  width: auto;
+  height: 32px;
+}
+
+.brand-logo--sidebar {
+  width: auto;
+  height: 30px;
+}
+
+.brand-logo--compact {
+  width: 24px;
+  height: 24px;
+}
+
+.brand-logo--hero {
+  width: auto;
+  height: 44px;
+}
+
+/* 28px is the Primary lockup's floor (logo-system.md § 5). */
+.brand-logo--footer {
+  width: auto;
+  height: 28px;
+}

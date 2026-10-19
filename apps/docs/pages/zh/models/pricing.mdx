@@ -1,0 +1,32 @@
+---
+title: "价格与线路：稳定线路和 Agent 专线的区别"
+description: "Lazu 每个模型怎么定价：稳定线路走官方 API，Agent 专线由第三方订阅池提供、只用于 Claude Code、Codex、Antigravity 等 Agent 工具；每把 Key 按模型选线路，以及怎么读实时价格。"
+---
+
+# 价格与线路
+
+模型目录展示当前可用通道与价格，一个模型可能有一个或多个可用通道。API／内部值 `direct`（稳定线路）和 `cheap`（Agent 专线）表示路由计价通道，本身不构成供应商身份、合规资质、可用率或延迟保证。
+
+## 稳定线路和 Agent 专线
+
+稳定线路走各家官方 API，按标价计费，可用率最高，适合所有场景。Agent 专线由第三方订阅池提供：通过官方客户端接入，不是官方 API。价格低很多，但可用率会有波动，失败时不会自动切到稳定线路，订阅池还会附带自己的预设上下文，所以只建议在对应的 Agent 工具里使用：Claude 模型配 Claude Code，GPT 模型配 Codex，Gemini 模型配 Antigravity。自己写的程序或需要精确控制输出的场景，请用稳定线路。两条线路用同一个 Key，可以在每把 Key 上按模型选线路。
+
+## 读取当前价格
+
+使用 API Key 查询 `/api/models/catalog`：此入口的 `pricing` 是按当前 Key 上下文调整的目录价格，`lanes` 描述已发布通道价格和可用状态。不要混用公开 `/v1/models` 或会话目录的价格结构。估算时核对实际服务通道和适用的峰时安排；缺失价格字段不代表零价，最终费用按请求回执核对。
+
+```bash
+curl --fail-with-body https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  | jq '.data[] | {id, supported_endpoints, pricing, lanes}'
+```
+
+## 选择与回退
+
+查看 API Key 的设置及模型当前通道。选择 Agent 专线（`cheap`）后，仅使用这条线路：没有对应售价或可用渠道时直接报错；选定渠道后，上游失败也不会切换其他渠道重试或回落 direct。如需稳定档价格和重试，请主动选择 direct。官方参考价仅用于比较，不是扣费价格。不要把示例数字或旧目录响应当成当前报价。
+
+## 价格变化
+
+价格与可用路由可能调整。估算新工作负载前刷新目录，保留请求 ID 和回执用于对账；不要用今天的目录价格重新推算旧请求账单。
+
+[计费说明](/zh/billing)

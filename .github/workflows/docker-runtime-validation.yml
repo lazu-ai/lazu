@@ -1,0 +1,91 @@
+name: Docker Runtime Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "platform/docker/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/docker-runtime-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "platform/docker/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/docker-runtime-validation.yml"
+  schedule:
+    # Re-scan the production image after vulnerability feeds change.
+    - cron: "47 4 * * 1"
+
+concurrency:
+  group: docker-runtime-validation-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  API_IMAGE: ghcr.io/lazu-ai/lazu/api
+
+jobs:
+  validate:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build production runtime image for validation
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: platform/docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          build-args: APP_VERSION=${{ github.sha }}
+          tags: ${{ env.API_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha,scope=api
+
+      - name: Test legacy volume ownership and runtime user
+        run: platform/docker/test-entrypoint.sh ${{ env.API_IMAGE }}:${{ github.sha }}
+
+      - name: Scan runtime image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.API_IMAGE }}:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+  rescan:
+    # Only the organisation's own repository publishes the image this rescans;
+    # forks and the pre-switch private repository have nothing at that name.
+    if: github.event_name == 'schedule' && github.repository_owner == 'lazu-ai'
+    permissions:
+      packages: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Re-scan the published production runtime image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.API_IMAGE }}:latest
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL

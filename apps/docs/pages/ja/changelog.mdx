@@ -1,0 +1,39 @@
+---
+title: "更新履歴：Lazu API・モデル・ドキュメントの更新"
+description: "Lazu API、モデルカタログ、ドキュメントの変更を新しい順に掲載：新モデル、新しいエンドポイント、ライン料金の変更、修正。"
+---
+
+# 更新履歴
+
+## 2026-09-30 — Agent セッション、明細と長文脈料金
+
+- タスク、モデル、個別請求明細を中心に Agent セッションを再構成しました。
+- セッションの活動表示とサブエージェントのレーンを追加しました。ローカルツールの実行は観測対象外です。
+- 長文脈料金を原価計算、請求明細、公開モデルページに接続しました。適用条件はモデルとレーンの設定によります。
+- sitemap の更新日時を実際の内容変更日に修正しました。
+
+日付はソースへのマージ日です。セルフホスト環境では導入バージョンを確認してください。[セッション費用の照合](/ja/agent-session-costs)も参照してください。
+
+## 2026-05-28 — Usage メタデータとキャッシュフィールド
+
+- OpenAI-compatible レスポンスに標準化されたキャッシュフィールド
+  `cached_tokens`、`cache_write_tokens`、`cache_write_5m_tokens`、
+  `cache_write_1h_tokens`、`cache_miss_tokens` を追加。
+- モデルカタログに `usage_capabilities` を追加し、リクエスト前に
+  報告可能な usage ディメンションと課金対象ディメンションを確認可能に。
+- `GET /api/usage/requests/{request_id}` を追加し、リクエスト単位の
+  usage、課金明細、provider raw cache fields、routing metadata を確認可能に。
+- Qwen/DashScope、DeepSeek、Anthropic、Gemini、OpenAI、OpenRouter
+  のキャッシュ報告差異をドキュメント化。
+
+## 2026-05-12 — 静的ドキュメントを VPS に戻す
+
+- `docs.lazu.ai` のアクティブなドキュメントアプリとして Vocs を復元。
+- ドキュメントを独立した静的 nginx コンテナとして配信。
+- Web サイトとドキュメントのプロダクトブランドと API 例を統一。
+
+## 2026-05-09 — OpenAPI リファレンスの整理
+
+- `packages/contracts/openapi/lazu-api-reference.v1.yaml` を信頼できる唯一のソースとして維持。
+- build 時に OpenAPI JSON/YAML を docs の public assets に同期。
+- リクエストとレスポンスのフィールド確認に使えるインタラクティブリファレンスを維持。

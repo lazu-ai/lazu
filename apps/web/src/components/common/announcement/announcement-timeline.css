@@ -1,0 +1,285 @@
+/*
+ * Announcement timeline cards.
+ *
+ * Previously these carried raw Tailwind palette hexes (#3b82f6 / #10b981 /
+ * #f59e0b), a `border-white/70` icon frame and a hardcoded rgba shadow — all
+ * three are wrong in dark mode and none of them are Yunmu colours. Type is now
+ * a `data-tone` that resolves to a brand token pair, and chroma is confined to
+ * the hairline, the mark and the type chip, per Yunmu's small-area rule.
+ */
+
+.announcement-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.announcement-card {
+  --announcement-tone: var(--lazu-text-faint);
+  --announcement-tone-soft: var(--lazu-surface-selected);
+
+  background: linear-gradient(
+    180deg,
+    var(--lazu-surface-muted),
+    var(--lazu-surface)
+  );
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  flex: none;
+  overflow: hidden;
+  padding: 16px 18px;
+  position: relative;
+}
+
+.announcement-card--compact {
+  padding: 14px 16px;
+}
+
+.announcement-card[data-tone='feature'] {
+  --announcement-tone: var(--lazu-evidence);
+  --announcement-tone-soft: var(--lazu-evidence-soft);
+}
+
+.announcement-card[data-tone='success'] {
+  --announcement-tone: var(--lazu-success);
+  --announcement-tone-soft: var(--lazu-success-soft);
+}
+
+.announcement-card[data-tone='notice'] {
+  --announcement-tone: var(--lazu-warning);
+  --announcement-tone-soft: var(--lazu-warning-soft);
+}
+
+.announcement-card[data-tone='danger'] {
+  --announcement-tone: var(--lazu-danger);
+  --announcement-tone-soft: var(--lazu-danger-soft);
+}
+
+.announcement-card__hairline {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--announcement-tone),
+    transparent
+  );
+  height: 1px;
+  inset: 0 0 auto;
+  opacity: 0.55;
+  position: absolute;
+}
+
+.announcement-card__row {
+  display: flex;
+  gap: 13px;
+}
+
+.announcement-card__rail {
+  align-items: center;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+}
+
+.announcement-card__mark {
+  align-items: center;
+  background: var(--announcement-tone-soft);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  flex: none;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.announcement-card__mark i {
+  background: var(--announcement-tone);
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.announcement-card__line {
+  background: linear-gradient(180deg, var(--announcement-tone), transparent);
+  flex: 1;
+  margin-top: 8px;
+  min-height: 12px;
+  opacity: 0.35;
+  width: 1px;
+}
+
+.announcement-card__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.announcement-card__chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.announcement-card__type {
+  background: var(--announcement-tone-soft);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--announcement-tone);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 9px;
+}
+
+.announcement-card__unread {
+  background: var(--lazu-evidence-soft);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-evidence);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  padding: 2px 8px;
+}
+
+.announcement-card__title {
+  color: var(--lazu-ink);
+  font-size: 14px;
+  font-weight: 640;
+  line-height: 1.45;
+  margin: 10px 0 0;
+}
+
+.announcement-card__time {
+  color: var(--lazu-text-faint);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 11px;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.announcement-card__time b {
+  color: var(--lazu-text-muted);
+  font-weight: 500;
+}
+
+.announcement-card__time span {
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+}
+
+.announcement-card__body {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  line-height: 1.7;
+  margin-top: 9px;
+  max-width: 62ch;
+}
+
+.announcement-card__body strong {
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.announcement-card__pending {
+  color: var(--lazu-text-faint);
+}
+
+.announcement-card__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 11px 0 0;
+}
+
+.announcement-card__metadata > div {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.announcement-card__metadata dt {
+  color: var(--lazu-text-faint);
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+}
+
+.announcement-card__metadata dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+}
+
+.announcement-card__metadata code,
+.announcement-card__metadata time {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  padding: 2px 7px;
+}
+
+.announcement-card__extra {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  margin-top: 12px;
+  padding: 10px 13px;
+}
+
+.announcement-card__extra b {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+/* Entrance: cards rise in sequence, then every unread mark pings once so the
+   eye lands on what is actually new rather than on the whole list. */
+@keyframes announcement-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes announcement-mark-ping {
+  from {
+    box-shadow: 0 0 0 0 var(--announcement-tone-soft);
+  }
+
+  to {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+
+.announcement-timeline--animated .announcement-card {
+  animation: announcement-card-rise 300ms var(--lazu-ease-direct) both;
+  animation-delay: calc(var(--announcement-index, 0) * 55ms + 70ms);
+}
+
+.announcement-timeline--animated
+  .announcement-card[data-unread]
+  .announcement-card__mark {
+  animation: announcement-mark-ping 900ms var(--lazu-ease-direct) 1;
+  animation-delay: calc(var(--announcement-index, 0) * 55ms + 300ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-timeline--animated .announcement-card,
+  .announcement-timeline--animated
+    .announcement-card[data-unread]
+    .announcement-card__mark {
+    animation: none;
+  }
+}

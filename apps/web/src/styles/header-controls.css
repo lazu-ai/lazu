@@ -1,0 +1,287 @@
+.headerbar-icon-btn,
+.headerbar-pill-btn,
+.headerbar-user-btn {
+  border: 1px solid var(--app-border);
+  background: rgba(251, 248, 241, 0.86);
+  color: var(--app-text-strong);
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.headerbar-icon-btn {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.headerbar-pill-btn {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.headerbar-user-btn {
+  min-height: 34px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+}
+
+.headerbar-icon-btn:hover,
+.headerbar-pill-btn:hover,
+.headerbar-user-btn:hover {
+  border-color: var(--app-border-strong);
+  background: var(--app-surface);
+  transform: translateY(-1px);
+}
+
+.headerbar-pill-label {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.headerbar-pill-chevron {
+  opacity: 0.65;
+}
+
+.headerbar-theme-menu {
+  min-width: 260px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.headerbar-theme-item {
+  border-radius: 10px;
+  padding: 0;
+}
+
+.headerbar-theme-item:hover {
+  background: var(--app-row-hover);
+}
+
+.headerbar-theme-item.is-active {
+  background: var(--app-accent-soft);
+}
+
+.headerbar-theme-item-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.headerbar-theme-item-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
+}
+
+.headerbar-theme-item.is-active .headerbar-theme-item-icon {
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.headerbar-theme-item-content {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.headerbar-theme-item-title {
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--app-text-strong);
+}
+
+.headerbar-theme-item-desc {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--app-text-muted);
+}
+
+.headerbar-theme-item-check {
+  color: var(--app-accent);
+}
+
+.headerbar-theme-follow {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.headerbar-dropdown-item {
+  border-radius: 10px;
+  padding: 0;
+}
+
+.headerbar-dropdown-item:hover {
+  background: var(--app-row-hover);
+}
+
+.headerbar-dropdown-item.is-active {
+  background: var(--app-accent-soft);
+}
+
+.headerbar-dropdown-item-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.headerbar-dropdown-item-leading {
+  color: var(--app-text-muted);
+}
+
+.headerbar-dropdown-item-label {
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--app-text-strong);
+}
+
+body[theme-mode='dark'] .headerbar-icon-btn,
+body[theme-mode='dark'] .headerbar-pill-btn,
+body[theme-mode='dark'] .headerbar-user-btn {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(35, 31, 26, 0.74);
+  color: #e2e8f0;
+}
+
+body[theme-mode='dark'] .headerbar-icon-btn:hover,
+body[theme-mode='dark'] .headerbar-pill-btn:hover,
+body[theme-mode='dark'] .headerbar-user-btn:hover {
+  border-color: rgba(148, 163, 184, 0.44);
+  background: rgba(35, 31, 26, 0.94);
+}
+
+body[theme-mode='dark'] .headerbar-theme-menu {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: #0f172a;
+}
+
+body[theme-mode='dark'] .headerbar-theme-item-icon {
+  background: rgba(30, 41, 59, 0.7);
+  color: #cbd5e1;
+}
+
+body[theme-mode='dark'] .headerbar-theme-item-title,
+body[theme-mode='dark'] .headerbar-dropdown-item-label {
+  color: #e2e8f0;
+}
+
+body[theme-mode='dark'] .headerbar-theme-item-desc,
+body[theme-mode='dark'] .headerbar-theme-follow,
+body[theme-mode='dark'] .headerbar-dropdown-item-leading {
+  color: #9a907e;
+}
+
+/* Theme switch — a two-segment box (light | dark), the same grammar as every
+   other segmented control: a 4% ink track, the current side a white sheet
+   with a hairline. Both icons use the text colour; there is no amber, no
+   glow and no spring — the sheet slides in 150ms with a direct ease-out. */
+.theme-pill-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 3px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--lazu-surface-muted);
+}
+
+.theme-pill-toggle__option {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  transition: color 150ms var(--lazu-ease-direct, ease-out);
+}
+
+.theme-pill-toggle__option[aria-checked='true'] {
+  color: var(--lazu-ink);
+}
+
+.theme-pill-toggle__option:focus-visible {
+  outline: 2px solid var(--lazu-focus, var(--lazu-evidence));
+  outline-offset: 1px;
+}
+
+.theme-pill-toggle__sheet {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 30px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--lazu-surface-solid);
+  box-shadow: 0 0 0 1px var(--lazu-border);
+  transition: transform 150ms var(--lazu-ease-direct, ease-out);
+}
+
+.theme-pill-toggle.is-dark .theme-pill-toggle__sheet {
+  transform: translateX(32px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-pill-toggle__sheet,
+  .theme-pill-toggle__option {
+    transition: none;
+  }
+}
+
+/* The language trigger is a plain ghost button; the conic halo it used to
+   wear on hover was a gradient wash G1 retired. */
+.headerbar-lang-trigger {
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .headerbar-pill-btn {
+    gap: 0;
+    min-width: 34px;
+    padding: 0 8px;
+  }
+
+  .headerbar-pill-chevron {
+    display: none;
+  }
+}

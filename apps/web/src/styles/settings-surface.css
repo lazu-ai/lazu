@@ -1,0 +1,1036 @@
+/* The settings row system, shared by personal settings and the admin console.
+ *
+ * Two rules decide every measurement here, and both came out of measuring the
+ * page it replaces:
+ *
+ * 1. Readable text sits on a solid surface and uses --lazu-text-muted.
+ *    --lazu-text-faint never reaches 4.5:1 for body copy — 2.93:1 on the
+ *    ground, 3.23:1 even on paper, 4.04:1 in dark. Muted on a card is 5.84:1
+ *    light and 6.31:1 dark.
+ *
+ * 2. An action sits next to what it acts on. The layout this replaces put the
+ *    value's text and its button 511px apart, most of the content column,
+ *    because a flex:1 value container stretches to the far margin while its
+ *    text stops early. Here the button follows the value by 10px and nothing
+ *    is pushed to an edge with margin-left:auto.
+ *
+ * Source of truth for the visual spec:
+ *   brand/foundations/yunmu-console.md, "Locked settings surfaces"
+ */
+
+:root {
+  /* Label column and the gutter after it. "松" from the prototype's four
+     presets — the label's text ends ~257px before the value begins. */
+  /* The label column now carries the explanation too, so it is wider than the
+     240px the label alone needed, and the gutter closes to match. */
+  --set-kv-label: minmax(240px, 300px);
+  --set-kv-gap: 40px;
+}
+
+/* ── Card ─────────────────────────────────────────────────────────── */
+/* The same sheet of paper every other console panel is made of.
+ *
+ * This used to be --lazu-surface-solid (#fdfdfc): opaque, near-white and with
+ * none of the warm 255 252 247 offset the rest of the console carries. Model
+ * operations, announcements and wallet all paint --lazu-surface, which is 92%
+ * and lets the warm page ground through, so settings and personal settings
+ * were the only two screens in the product reading colder and flatter than
+ * everything around them. Radius and shadow follow for the same reason: page
+ * panels are 18px and unshadowed. */
+.set-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  overflow: hidden;
+}
+
+.set-card + .set-card {
+  margin-top: 14px;
+}
+
+.set-card__hd {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 17px 22px 13px;
+}
+
+.set-card__copy {
+  min-width: 0;
+}
+
+/* A group whose rules live in their own editor carries the way there in its
+   header, where it reads as an action on the group rather than as a settings
+   row with no value. */
+.set-card__act {
+  flex: none;
+  padding-top: 1px;
+}
+
+/* Where the unsaved work is: a card with pending edits says how many. */
+.set-card__dirty {
+  align-items: center;
+  color: var(--lazu-warning-strong);
+  display: inline-flex;
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.set-card__dirty::before {
+  background: currentColor;
+  border-radius: 50%;
+  content: '';
+  height: 6px;
+  width: 6px;
+}
+
+.set-card__dirty + .set-card__act {
+  margin-left: 12px;
+}
+
+.set-card__link {
+  align-items: center;
+  color: var(--lazu-evidence-strong);
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 560;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.set-card__link[aria-disabled='true'] {
+  color: var(--lazu-text-faint);
+  cursor: not-allowed;
+}
+
+.set-card__t {
+  align-items: center;
+  display: flex;
+  font-size: 15px;
+  font-weight: 640;
+  gap: 8px;
+  margin: 0;
+}
+
+.set-card__d {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 3px 0 0;
+}
+
+.set-badge {
+  background: var(--lazu-evidence-soft);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-evidence-strong);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
+/* ── Row ──────────────────────────────────────────────────────────── */
+/* Label, its explanation and the control read in that order inside about
+   300px, instead of the label on the far left and its explanation past the
+   control 600px away — the complaint the September audit filed against this
+   row. The control spans both text rows and stays vertically centred. */
+.set-row {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  gap: 2px var(--set-kv-gap);
+  grid-template-columns: var(--set-kv-label) minmax(0, 1fr);
+  padding: 13px 22px;
+  transition: background var(--lazu-motion-base, 140ms)
+    var(--lazu-ease-direct, ease);
+}
+
+.set-row:first-of-type {
+  border-top: 0;
+}
+
+.set-row.is-open {
+  background: var(--lazu-surface-muted);
+}
+
+.set-row__lb {
+  align-self: end;
+  color: var(--lazu-ink);
+  font-size: 13px;
+  font-weight: 600;
+  grid-column: 1;
+  grid-row: 1;
+  line-height: 1.5;
+}
+
+/* A row with no explanation keeps its label vertically centred rather than
+   hanging at the bottom of a two-row grid. */
+.set-row:not(:has(.set-row__hint)) .set-row__lb {
+  align-self: center;
+}
+
+/* The value and its actions are one cluster: the button follows the value,
+   it is never pushed to the far edge of the row. */
+.set-row__vv {
+  align-items: center;
+  align-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.set-row__vl {
+  color: var(--lazu-ink);
+  font-size: 14px;
+}
+
+.set-row__hint {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  grid-column: 1;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+/* ── Inline editor: what a row opens into ─────────────────────────── */
+.set-ed {
+  animation: set-ed-in 180ms cubic-bezier(0.22, 0.9, 0.28, 1);
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  grid-column: 1 / -1;
+  margin: 12px 0 2px;
+  padding: 16px 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set-ed {
+    animation: none;
+  }
+}
+
+@keyframes set-ed-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.set-ed--warn {
+  background: var(--lazu-warning-soft);
+  border-color: color-mix(in srgb, var(--lazu-warning) 40%, var(--lazu-border));
+}
+
+.set-ed--danger {
+  background: var(--lazu-danger-soft);
+  border-color: color-mix(in srgb, var(--lazu-danger) 40%, var(--lazu-border));
+}
+
+.set-ed__t {
+  font-size: 13px;
+  font-weight: 640;
+  margin: 0;
+}
+
+.set-ed__d {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 64ch;
+}
+
+.set-ed__lb {
+  color: var(--lazu-ink);
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.set-ed__row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.set-ed__actions {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  margin-top: 2px;
+}
+
+.set-ed__note {
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+}
+
+/* Always occupies its line so the panel does not jump as the verdict changes. */
+.set-ed__state {
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 17px;
+}
+
+.set-ed__state--idle,
+.set-ed__state--busy {
+  color: var(--lazu-text-muted);
+}
+
+.set-ed__state--ok {
+  color: var(--lazu-success);
+  font-weight: 600;
+}
+
+.set-ed__state--bad {
+  color: var(--lazu-danger);
+}
+
+.set-ed .lazu-input,
+.set-ed .lazu-textarea {
+  background: var(--lazu-surface-solid);
+}
+
+.set-ed__field {
+  flex: 0 1 260px;
+  min-width: 0;
+}
+
+/* ── Danger zone ──────────────────────────────────────────────────── */
+/* Outline rather than a red slab: the weight belongs to the confirmation,
+   not to a block of colour sitting at the bottom of every visit. */
+.set-danger {
+  background: var(--lazu-surface);
+  border: 1px solid
+    color-mix(in srgb, var(--lazu-danger) 34%, var(--lazu-border));
+  border-radius: var(--lazu-radius-surface);
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 17px 22px;
+}
+
+.set-danger__t {
+  align-items: center;
+  color: var(--lazu-danger);
+  display: flex;
+  font-size: 14px;
+  font-weight: 640;
+  gap: 7px;
+  margin: 0;
+}
+
+.set-danger__d {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 56ch;
+}
+
+.set-danger__a {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+}
+
+/* ── Unsaved bar (admin only) ─────────────────────────────────────── */
+/* Centred over the content area, not the viewport: the sidebar is 254px, so
+   the midpoint is 50% + 127px. */
+.set-unsaved {
+  align-items: center;
+  background: var(--lazu-action);
+  border-radius: var(--lazu-radius-pill);
+  bottom: 24px;
+  box-shadow:
+    0 6px 16px rgb(20 25 35 / 18%),
+    0 22px 50px rgb(20 25 35 / 26%);
+  color: var(--lazu-on-action);
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  left: calc(50% + 127px);
+  padding: 9px 10px 9px 20px;
+  position: fixed;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 35;
+}
+
+@media (max-width: 900px) {
+  .set-unsaved {
+    left: 50%;
+  }
+}
+
+/* Mobile has no room for a fixed 240px label plus a 56px gutter. Stack the
+   three facts in reading order and let controls use the full card width. */
+@media (max-width: 640px) {
+  .set-card__hd,
+  .set-danger {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .set-row {
+    gap: 5px;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 13px 16px;
+  }
+
+  .set-row__lb,
+  .set-row__vv,
+  .set-row__hint {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .set-row__lb {
+    padding-top: 0;
+  }
+
+  .set-ed {
+    grid-column: 1;
+    margin-top: 9px;
+    padding: 14px;
+  }
+
+  .set-ed__field,
+  .set-ed__row > div {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .set-ed__actions,
+  .set-danger__a {
+    flex-wrap: wrap;
+  }
+
+  .set-unsaved {
+    bottom: 14px;
+    max-width: calc(100vw - 28px);
+    white-space: normal;
+  }
+}
+
+/* ── Wide screens ─────────────────────────────────────────────────── */
+/* A narrow measure exists so the explanation reads, not to leave margins. Once
+   there is room the explanation moves beside the value instead of below it,
+   which fills the width with content and takes about a third off the row
+   height. Each explanation stays capped, so line length never grows with the
+   screen. */
+@media (min-width: 1180px) {
+  .set-row {
+    align-items: baseline;
+    gap: 0 var(--set-kv-gap);
+    grid-template-columns:
+      var(--set-kv-label) minmax(0, max-content)
+      minmax(300px, 1fr);
+    padding: 15px 24px;
+  }
+
+  .set-row__hint {
+    grid-column: 3;
+    grid-row: 1;
+    max-width: 62ch;
+  }
+
+  .set-ed {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .set-danger {
+    align-items: center;
+    gap: 6px 30px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .set-danger__t,
+  .set-danger__d {
+    grid-column: 1;
+  }
+
+  .set-danger__a {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+/* JSON and read-only fields are their own block rather than a label/value
+   pair — a textarea has no short value to sit beside a label. They keep the
+   row's borders and padding but stack their contents. */
+.set-row--stack {
+  display: block;
+}
+
+/* Row-level odds and ends shared by both settings pages. */
+.set-row__ro {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.set-row .lazu-switch {
+  flex: none;
+}
+
+/* The action buttons in a row sit tight to the value, so they are sized down
+   a notch from the console default. */
+.set-row__vv .lazu-button--sm {
+  font-size: 12.5px;
+  height: 30px;
+  padding: 0 13px;
+}
+
+.pm-mono {
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+}
+
+/* ── Deployment status line ───────────────────────────────────────── */
+/* One line of fact about something this page cannot change. It is not a card:
+   a card would read as another group of settings. */
+.set-status {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: 6px 12px;
+  min-height: 44px;
+  padding: 8px 22px;
+}
+
+.set-status__item {
+  align-items: center;
+  display: inline-flex;
+  gap: 12px;
+}
+
+.set-status__spacer {
+  flex: 1;
+}
+
+.set-status__state {
+  align-items: center;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-weight: 600;
+  gap: 7px;
+}
+
+.set-status__dot {
+  background: var(--lazu-success);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+.set-status__state[data-state='off'] .set-status__dot {
+  background: var(--lazu-text-faint);
+}
+
+.set-status__sep {
+  color: var(--lazu-text-faint);
+}
+
+/* ── Template row: one line + its own editor ───────────────────────── */
+/* The preview is a value, not a block: it keeps a value's width so the switch
+   that governs it stays on the same line and the explanation keeps its own
+   column. A full-width preview wrapped every mail row onto two lines. */
+.set-template {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  max-width: 100%;
+  min-width: 0;
+  width: 360px;
+}
+
+/* The preview is the stored text, so it renders in the code register on the
+   code surface — it is markup, not prose. */
+.set-template__preview {
+  background: var(--lazu-code-bg);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-code-muted);
+  flex: 1;
+  font: 11px/1.5 var(--lazu-font-mono);
+  min-width: 0;
+  overflow: hidden;
+  padding: 9px 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-template__editor {
+  font: 12px/1.7 var(--lazu-font-mono);
+  width: 100%;
+}
+
+.set-template__note {
+  color: var(--lazu-text-faint);
+  flex: 1;
+  font-size: 12px;
+}
+
+/* ── Child rows ───────────────────────────────────────────────────── */
+/* A setting that only makes sense under the one above it — the domain list
+   under the domain switch, a sub-option under its product switch — hangs off it with
+   an elbow instead of standing as a peer. The border between them goes, so
+   the pair reads as one decision. */
+.set-row--child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.set-row--child .set-row__lb {
+  color: var(--lazu-text-muted);
+  font-weight: 500;
+  padding-left: 18px;
+  position: relative;
+}
+
+/* The indent and the lighter weight say "belongs to the row above"; the
+   drawn └ elbow is gone (canvas 2026-10-14). */
+
+/* ── Row badge ────────────────────────────────────────────────────── */
+.set-row__badge {
+  background: var(--lazu-evidence-soft);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-evidence-strong);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* ── Value input with its unit inside the control ─────────────────── */
+/* "600 次" and "$ 20.00" are one value, so the unit rides inside the field
+   rather than becoming loose text the eye has to re-associate. */
+.set-num {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: inline-flex;
+  gap: 6px;
+  min-height: var(--lazu-control-height-lg);
+  padding: 0 12px;
+  width: 200px;
+}
+
+.set-num--xs {
+  width: 96px;
+}
+
+.set-num--sm {
+  width: 128px;
+}
+
+.set-num--md {
+  width: 300px;
+}
+
+.set-num:focus-within {
+  box-shadow: var(--ui-focus-ring);
+}
+
+.set-num__pre,
+.set-num__u {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-size: 11.5px;
+}
+
+.set-num__u {
+  margin-left: auto;
+}
+
+/* The field inside carries no chrome of its own — the wrapper is the control. */
+.set-num__in.lazu-input,
+.set-num .lazu-input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.set-num .lazu-input:focus,
+.set-num .lazu-input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+/* ── Chips ────────────────────────────────────────────────────────── */
+/* A short list of small values — allowed domains, reminder days — reads as
+   chips rather than as a comma-separated string the reader has to parse. */
+.set-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.set-chip {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.set-chip__x {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  padding: 2px;
+}
+
+.set-chip__x:hover {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+.set-chip--add {
+  border-style: dashed;
+  color: var(--lazu-text-faint);
+  padding-right: 8px;
+}
+
+.set-chip__in {
+  background: none;
+  border: 0;
+  color: var(--lazu-ink);
+  font: inherit;
+  min-width: 0;
+  outline: none;
+  width: 88px;
+}
+
+/* A language chip says whether that version is written, and opens it. */
+.set-chip--toggle {
+  cursor: pointer;
+}
+
+.set-chip--toggle:hover {
+  background: var(--lazu-surface-selected);
+}
+
+.set-chip__dot {
+  background: var(--lazu-text-faint);
+  border-radius: 50%;
+  flex: none;
+  height: 6px;
+  width: 6px;
+}
+
+.set-chip--toggle[data-filled] {
+  border-color: var(--lazu-border);
+}
+
+.set-chip--toggle[data-filled] .set-chip__dot {
+  background: var(--lazu-success);
+}
+
+/* ── Grouped controls ─────────────────────────────────────────────── */
+/* Settings that only read as one sentence together: "1 分钟内最多 600 次，
+   其中成功 300 次". */
+.set-group__part {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.set-group__lead {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* ── JSON block ───────────────────────────────────────────────────── */
+.set-row__jsonhd {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.set-row__jsonfmt {
+  background: none;
+  border: 0;
+  color: var(--lazu-evidence-strong);
+  cursor: pointer;
+  font-size: 11.5px;
+  padding: 0;
+}
+
+.set-row__jsonfmt:hover {
+  text-decoration: underline;
+}
+
+.set-row__hint--stack {
+  margin: 7px 0 0;
+  max-width: 72ch;
+}
+
+/* ── Document dialog ──────────────────────────────────────────────── */
+.set-docs__tabs {
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.set-docs__tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 560;
+  margin-bottom: -1px;
+  padding: 8px 0;
+}
+
+.set-docs__tab[data-active] {
+  border-bottom-color: var(--lazu-ink);
+  color: var(--lazu-ink);
+  font-weight: 640;
+}
+
+.set-template__subject {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+/* ── Rate-limit summary ───────────────────────────────────────────── */
+/* The 速率限制 card shows what the limits say now; its page edits them. */
+.set-rl-summary {
+  display: grid;
+}
+
+.set-rl-summary__row {
+  align-items: baseline;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  font-size: 13px;
+  gap: 2px var(--set-kv-gap);
+  grid-template-columns: var(--set-kv-label) minmax(0, 1fr);
+  padding: 13px 22px;
+}
+
+.set-rl-summary__row > span {
+  color: var(--lazu-text-muted);
+}
+
+.set-rl-summary__row > b {
+  font-weight: 500;
+}
+
+.set-rl-summary__num {
+  font-family: var(--lazu-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Unsaved pill ─────────────────────────────────────────────────── */
+.set-unsaved__count {
+  font-weight: 560;
+}
+
+.set-unsaved .lazu-button--ghost {
+  border: 1px solid rgb(242 243 245 / 25%);
+  color: var(--lazu-on-action);
+}
+
+.set-unsaved .lazu-button--ghost:hover {
+  background: rgb(242 243 245 / 12%);
+}
+
+.set-unsaved .lazu-button--primary {
+  background: var(--lazu-on-action);
+  border-color: var(--lazu-on-action);
+  color: var(--lazu-action);
+}
+
+@media (max-width: 640px) {
+  .set-row--child .set-row__lb {
+    padding-left: 18px;
+  }
+
+  .set-num--md,
+  .set-num--sm {
+    width: 100%;
+  }
+
+  .set-status {
+    padding: 10px 16px;
+  }
+}
+
+/* ── Structured setting rows ──────────────────────────────────────── */
+/* A stored JSON object edited as the table it is: named columns instead of
+   braces, so a reader knows which number is the success cap. */
+/* The columns keep fixed bases so their headers line up, which means a narrow
+   card cannot fit them: a rate-limit row needs ~440px before its content. The
+   table scrolls sideways inside its own box instead of being clipped by the
+   card's overflow — clipped, the later columns and the remove button could not
+   be reached at all on a phone. */
+.set-rows {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  max-width: 760px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.set-rows__head,
+.set-rows__row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: max-content;
+  width: 100%;
+}
+
+.set-rows__row[data-duplicate] .lazu-input {
+  border-color: var(--lazu-danger);
+}
+
+.set-rows__h {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.set-rows__fixed {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-rows__c--sm {
+  flex: 0 0 110px;
+}
+
+.set-rows__c--md {
+  flex: 0 0 170px;
+}
+
+.set-rows__c--lg {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.set-rows__c--act {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 24px;
+  justify-content: center;
+}
+
+.set-rows .lazu-input,
+.set-rows .lazu-select-trigger {
+  width: 100%;
+}
+
+/* ── Document summary ─────────────────────────────────────────────── */
+.set-docs__summary {
+  align-items: center;
+  display: inline-flex;
+  gap: 12px;
+}
+
+.set-docs__count {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.set-docs__count[data-empty] {
+  color: var(--lazu-text-faint);
+}
+
+/* ── Template preview ─────────────────────────────────────────────── */
+/* The message the markup produces, on the paper an inbox would give it. */
+.set-template__preview-pane {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  max-height: 420px;
+  overflow: auto;
+  padding: 18px 20px;
+}
+
+.set-template__preview-pane img {
+  max-width: 100%;
+}
+
+.set-template__preview-pane a {
+  color: var(--lazu-evidence-strong);
+}
+
+/* Language tabs sit left, the source/preview switch sits right in the same
+   strip. A long document scrolls inside the dialog rather than growing it. */
+.set-docs__spacer {
+  flex: 1;
+}
+
+.set-docs__preview {
+  max-height: 420px;
+  overflow: auto;
+}
+
+/* ── Header action with its reason ────────────────────────────────── */
+.set-card__act-row {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.set-card__note {
+  color: var(--lazu-warning-strong);
+  font-size: 12px;
+}

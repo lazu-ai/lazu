@@ -1,0 +1,44 @@
+# deps
+/node_modules
+
+# generated content
+.source
+.generated
+/dist
+/public/openapi.json
+/public/openapi.yaml
+/public/openapi.en.json
+/public/openapi.zh.json
+/public/openapi.zh-TW.json
+/public/openapi.ja.json
+/public/llms.txt
+/public/llms-full.txt
+/public/sitemap.xml
+/public/robots.txt
+
+# test & build
+/coverage
+/.next/
+/out/
+/build
+*.tsbuildinfo
+
+# generated fonts
+src/fonts/
+
+# misc
+.DS_Store
+*.pem
+/.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# others
+.env*.local
+.vercel
+next-env.d.ts
+
+# generated per-route markdown (sync-openapi.ts)
+/public/**/*.md

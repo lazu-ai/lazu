@@ -1,0 +1,67 @@
+---
+title: "鉴权：一个 API Key 通用 OpenAI、Anthropic、Gemini 格式"
+description: "Lazu 的 API Key 怎么用：OpenAI 兼容的 Authorization 请求头、Anthropic 的 x-api-key、Gemini 原生请求头，以及 Key 的保存和轮换。"
+---
+
+# 鉴权
+
+所有 Lazu 请求都需要 API Key。你可以在
+[控制台](https://lazu.ai/console/token) 创建 key，key 通常以
+`sk-lazu-` 开头。
+
+## 不同 API 风格的鉴权方式
+
+| API 风格           | Header 或参数                                               |
+| ------------------ | ----------------------------------------------------------- |
+| OpenAI 兼容接口    | `Authorization: Bearer YOUR_API_KEY`                        |
+| Anthropic 原生接口 | `x-api-key: YOUR_API_KEY` + `anthropic-version: 2023-06-01` |
+| Gemini 原生接口    | `x-goog-api-key: YOUR_API_KEY` 或 query `?key=...`          |
+
+三种方式都由 Lazu 接收。实际使用时，选择你当前 SDK 已经支持的格式即可。
+
+## 推荐设置
+
+- **每个应用和环境单独创建 key**。CI、测试环境和生产环境不要共用同一个 key。
+- **限制 key 的权限**。Token 可以配置可访问模型、额度、过期时间、IP 白名单和 vendor lane 偏好。
+- **不要把 key 提交到 git**。使用环境变量、secret manager 或部署平台的密钥存储。
+
+## 存储 key
+
+Shell:
+
+```bash
+export LAZU_API_KEY=sk-lazu-...
+```
+
+`.env` 文件（确保已被 gitignore）:
+
+```txt
+LAZU_API_KEY=sk-lazu-...
+```
+
+SDK 代码中从环境变量读取，不要硬编码：
+
+```python
+import os
+
+api_key = os.environ["LAZU_API_KEY"]
+```
+
+```ts
+const apiKey = process.env.LAZU_API_KEY!;
+```
+
+## 验证 key
+
+```bash
+curl https://api.lazu.ai/v1/models \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+如果返回 200 和 JSON 模型列表，说明 key 可用。若返回 401
+`invalid_api_key`，通常表示 key 被禁用、过期、格式错误或不存在。
+
+## 更换泄露的 key
+
+如果 key 泄露，进入控制台删除旧 key，创建新 key，再更新部署环境。删除后旧 key
+立即失效；当前版本不提供原地 rotate。

@@ -1,0 +1,9 @@
+# Generated from brand/tokens/*.css by `bun run brand:sync`; formatting is the
+# generator's business. apps/web/.prettierignore already lists it, but the
+# pre-commit hook runs prettier from the repo root, where that file does not apply.
+apps/web/src/styles/brand.generated.css
+apps/docs/public/brand.generated.css
+
+# Design explorations are standalone artefacts, reviewed as-is.
+brand/_ds_bundle.js
+brand/foundations/*.card.html

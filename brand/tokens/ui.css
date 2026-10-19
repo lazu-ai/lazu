@@ -1,0 +1,140 @@
+/* Lazu product UI tokens — Kumo Native / Warm Utility. LOCKED 2026-07-11. */
+:root {
+  --lazu-font-sans:
+    "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Noto Sans SC", sans-serif; /* @kind font */
+  --lazu-font-mono:
+    "IBM Plex Mono", ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo,
+    Consolas, monospace; /* @kind font */
+  /* Display voice, LOCKED 2026-09-20 with the Seal logo: the wordmark's
+     typeface, used for public display headings and the large figures that sit
+     beside them. Never below 20px; UI text stays on --lazu-font-sans. */
+  --lazu-font-display:
+    "Instrument Serif", "Iowan Old Style", "Songti SC", "Noto Serif SC",
+    Georgia, serif; /* @kind font */
+
+  /* Yunmu 2026-08: controls 12 / cards 18 / overlays 20 — the console reads
+     as soft paper sheets, not squared panels. */
+  --lazu-radius-control: 12px;
+  --lazu-radius-surface: 18px;
+  --lazu-radius-overlay: 20px;
+  --lazu-radius-badge: 8px;
+  --lazu-radius-pill: 999px;
+  /* Data marks — heatmap cells, status dots, legend swatches. Small enough to
+     read as a plotted mark rather than a control, so it is its own step below
+     badge rather than a reuse of it. */
+  --lazu-radius-datamark: 2px;
+
+  --lazu-space-1: 4px;
+  --lazu-space-2: 8px;
+  --lazu-space-3: 12px;
+  --lazu-space-4: 16px;
+  --lazu-space-5: 20px;
+  --lazu-space-6: 24px;
+  --lazu-space-7: 28px;
+  --lazu-space-8: 32px;
+
+  --lazu-control-height-sm: 30px;
+  --lazu-control-height: 34px;
+  --lazu-control-height-lg: 38px;
+  --lazu-row-height: 40px;
+  --lazu-sidebar-width: 244px;
+
+  /* Compact account confirmation, approved in PR #247. */
+  --lazu-confirmation-width: 210px;
+  --lazu-confirmation-radius: 14px;
+  --lazu-confirmation-button-height: 28px;
+
+  /* One list row, everywhere — locked 2026-08-28.
+     Six specs had drifted apart (shared table 9/12, model ops 10/15,
+     announcements 11/14, wallet 10/16 + 14/18 + 16/20, organizations 13/17),
+     and none of them landed on the spacing scale above. These two are
+     space-3 and space-4, and every record list in the console uses them:
+     organizations, wallet, usage & logs, API keys, model ops, announcements.
+     Settings rows are NOT list rows — they keep their own locked 240/56
+     measurements from the settings surface spec. */
+  --lazu-row-padding-y: var(--lazu-space-3);
+  --lazu-row-padding-x: var(--lazu-space-4);
+  --lazu-row-text: 13px;
+  --lazu-row-label: 12px;
+
+  /* Model status C′ cards, owner-selected 2026-09-27. */
+  --lazu-health-model-text: 12.5px;
+  --lazu-health-meta-text: 11.5px;
+  --lazu-health-label-text: 11px;
+  --lazu-health-metric-text: 10.5px;
+
+  --lazu-icon-stroke: 1.5; /* @kind other */
+  --lazu-hairline: 1px;
+  --lazu-shadow-overlay: 0 18px 42px rgba(46, 43, 36, 0.12);
+  --lazu-shadow-drawer: -16px 0 40px rgb(20 25 35 / 14%);
+  --lazu-shadow-action: 0 6px 14px rgba(180, 83, 42, 0.16);
+
+  /* Feedback system — locked 2026-08-28, see foundations/feedback-system.md.
+     Notices sit on paper at control radius; toast is the inverted sheet and
+     keeps its own tighter radius so it never reads as a page surface. */
+  --lazu-radius-notice: 12px;
+  --lazu-radius-toast: 10px;
+  --lazu-notice-icon: 16px;
+  --lazu-shadow-toast:
+    0 12px 32px rgba(32, 35, 41, 0.12), 0 2px 6px rgba(32, 35, 41, 0.06);
+
+  /* Quiet Precision data display — locked 2026-07-19, see foundations/quiet-precision.md */
+  /* Selected September console / Docs heading scale. */
+  --lazu-heading-page: 28px;
+  --lazu-heading-docs: 38px;
+  --lazu-heading-section: 22px;
+  /* Seal Console continuation; Models and dense tables are excluded. */
+  --lazu-console-heading-size: clamp(26px, 3vw, 32px);
+  --lazu-console-money-size: 42px;
+  --lazu-display-kpi: 34px;
+  --lazu-display-stat: 26px;
+  --lazu-display-tracking: -0.02em;
+
+  --lazu-motion-fast: 120ms; /* @kind other */
+  --lazu-motion-base: 180ms; /* @kind other */
+  --lazu-motion-slow: 240ms; /* @kind other */
+  --lazu-motion-loading-cycle: 1500ms; /* @kind other */
+  --lazu-ease-direct: cubic-bezier(0.2, 0.8, 0.2, 1); /* @kind other */
+  --lazu-ease-mechanical: var(
+    --lazu-ease-direct
+  ); /* @kind other */ /* compatibility alias */
+}
+
+/* ---------------------------------------------------------------------------
+ * Silent scroll — LOCKED 2026-08-22, BRAND.md § "02 云母 Yunmu (Console)" 规则 9.
+ * Scroll containers never render a visible bar or track. A grey rail cutting
+ * down a floating paper panel breaks the sheet illusion the whole system rests
+ * on, and it is chrome the reader never asked for.
+ *
+ * Scrolling itself is untouched: wheel, trackpad, touch, keyboard (arrows /
+ * PageUp / PageDown / Home / End) and programmatic scrollIntoView all still
+ * work, and focus outlines still travel. Only the painted bar goes.
+ *
+ * This is the single canonical implementation — components must NOT re-declare
+ * `scrollbar-width` / `::-webkit-scrollbar` locally, and must never paint a
+ * thumb or track back in.
+ * ------------------------------------------------------------------------ */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+*::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}
+
+*::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Approved team-experience refinement, 2026-09-22. */
+:root {
+  --lazu-team-section-size: 18px;
+  --lazu-team-modal-radius: 16px;
+  --lazu-team-card-radius: 14px;
+  --lazu-team-control-radius: 8px;
+}

@@ -1,0 +1,151 @@
+/* Status bars — the health page's thin-bar record (channel-health.css
+   .chealth-bars) as a shared primitive. Colours and tooltip mirror it
+   exactly so the two never drift. */
+.lazu-status-bars {
+  min-width: 0;
+  position: relative;
+}
+
+.lazu-status-bars__row {
+  display: flex;
+  gap: 1px;
+}
+
+.lazu-status-bars__row > .lazu-status-bar {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.lazu-status-bars__row > .lazu-status-bar:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+.lazu-status-bar {
+  border-radius: var(--lazu-radius-datamark);
+  display: block;
+}
+
+.lazu-status-bar--ok {
+  background: color-mix(in srgb, var(--lazu-success) 82%, transparent);
+}
+
+.lazu-status-bar--warn {
+  background: color-mix(in srgb, var(--lazu-warning) 85%, transparent);
+}
+
+.lazu-status-bar--bad {
+  background: color-mix(in srgb, var(--lazu-danger) 90%, transparent);
+}
+
+.lazu-status-bar--none {
+  background: var(--lazu-surface-selected);
+}
+
+.lazu-status-bar--blocked {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--lazu-border) 0,
+    var(--lazu-border) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.lazu-status-bar--future {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--lazu-border);
+}
+
+.lazu-status-bar--ok.is-hovered {
+  background: var(--lazu-success);
+}
+
+.lazu-status-bar--warn.is-hovered {
+  background: var(--lazu-warning-strong);
+}
+
+.lazu-status-bar--bad.is-hovered {
+  background: var(--lazu-danger);
+}
+
+.lazu-status-bar--none.is-hovered {
+  background: var(--lazu-border-strong);
+}
+
+.lazu-status-bars__tip {
+  background: var(--lazu-ink);
+  border-radius: var(--lazu-radius-badge);
+  box-shadow: var(--lazu-shadow-overlay);
+  box-sizing: border-box;
+  color: var(--lazu-surface-solid);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: fixed;
+  text-align: left;
+  width: 212px;
+  z-index: 2000;
+}
+
+.lazu-status-bars__when,
+.lazu-status-bars__note {
+  color: color-mix(in srgb, var(--lazu-surface-solid) 78%, transparent);
+  font-size: 12px;
+}
+
+.lazu-status-bars__when {
+  font-family: var(--lazu-font-mono);
+  font-size: var(--lazu-health-label-text);
+}
+
+.lazu-status-bars__verdict {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The tooltip sits on ink, so its verdict is lifted toward the paper colour:
+   the light theme's own danger red is too dark to read on ink. */
+.lazu-status-bars__verdict--bad {
+  color: color-mix(in srgb, var(--lazu-danger) 62%, var(--lazu-surface-solid));
+}
+
+.lazu-status-bars__verdict--warn {
+  color: color-mix(in srgb, var(--lazu-warning) 70%, var(--lazu-surface-solid));
+}
+
+.lazu-status-bars__verdict--ok {
+  color: color-mix(in srgb, var(--lazu-success) 60%, var(--lazu-surface-solid));
+}
+
+.lazu-status-legend {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--lazu-health-meta-text);
+  gap: 12px;
+}
+
+.lazu-status-legend__caption {
+  color: var(--lazu-text-faint);
+  margin-right: auto;
+}
+
+.lazu-status-legend__item {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
+.lazu-status-legend__item .lazu-status-bar {
+  flex: none;
+  height: 11px;
+  width: 4px;
+}

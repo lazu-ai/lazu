@@ -1,0 +1,80 @@
+---
+title: "模型目录 API：运行时读取能力与价格"
+description: 通过 /api/models/catalog 在运行时发现当前 API Key 可用的模型和能力。
+---
+
+# 模型目录
+
+Lazu 会按当前 API Key 返回可访问模型集合。生产客户端、agent 和脚本应在运行时读取
+catalog，而不是把模型名写死。模型是否可用取决于 key 的权限、channel 状态和模型配置。
+
+## GET `/api/models/catalog`
+
+```bash
+curl https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+响应会包含：
+
+- `id`、`provider`、`owned_by`
+- `modality.input` / `modality.output`
+- `capabilities`
+- `supported_endpoint_types`
+- `supported_endpoints`
+- `default_endpoint_type`
+- `context_length`、`max_output_tokens`
+- 当前 key 的有效 `pricing`
+- `usage_capabilities`
+- `supported_parameters` 和 `parameters`
+- 可直接复用的 `example`
+
+## 如何选模型
+
+| 需求            | 关注字段                                          | 常用 endpoint                             |
+| --------------- | ------------------------------------------------- | ----------------------------------------- |
+| 文本聊天        | `modality.output` 包含 `text`                     | `/v1/chat/completions`                    |
+| 多模态/图片输入 | `modality.input` 包含 `image`                     | `/v1/chat/completions` 或 `/v1/responses` |
+| 推理模型        | `capabilities.supports_reasoning === true`        | `/v1/responses`                           |
+| Embeddings      | `supported_endpoint_types` 包含 `embeddings`      | `/v1/embeddings`                          |
+| 工具调用        | `capabilities.supports_function_calling === true` | `/v1/chat/completions`                    |
+
+除非客户端 SDK 明确需要 Anthropic/Gemini 原生接口，否则优先使用
+`default_endpoint_type`。
+
+## Usage 和 cache metadata
+
+每个模型都有 `usage_capabilities`，让客户端在发请求前知道可能出现哪些 usage 维度：
+
+| 维度             | 含义                                                |
+| ---------------- | --------------------------------------------------- |
+| `cache_read`     | 命中并读取已有 cache 的输入 token                   |
+| `cache_write`    | provider 返回总 cache write token 但没有 TTL bucket |
+| `cache_write_5m` | 5 分钟 TTL 的 cache creation/write token            |
+| `cache_write_1h` | 1 小时 TTL 的 cache creation/write token            |
+| `cache_miss`     | provider 单独上报的 cache miss token                |
+
+不同 provider 的字段不同：OpenAI 常见 `cached_tokens`；Anthropic 会上报 cache
+creation/read；Gemini 使用 cached content 计数；DeepSeek 使用
+`prompt_cache_hit_tokens` 和 `prompt_cache_miss_tokens`，Lazu 会标准化为
+`cache_read` 和 `cache_miss`。
+
+使用 `reported_dimensions` 判断哪些字段可能出现，使用 `billable_dimensions`
+判断哪些维度会影响价格。
+
+## `/v1/models`
+
+如果你的 SDK 调用 OpenAI 风格的 `models.list()`，Lazu 也提供扁平响应：
+
+```bash
+curl https://api.lazu.ai/v1/models \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+但它只适合 SDK 兼容。需要路由、价格、能力、参数和 usage metadata 时，请使用
+`/api/models/catalog`。
+
+## 相关页面
+
+- [模型列表](/zh/endpoints/models)
+- [定价与渠道](/zh/models/pricing)

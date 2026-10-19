@@ -1,0 +1,22 @@
+{
+  "model_name_taken": "已有名为 {{model}} 的模型。请换一个名称，或直接编辑已有模型。",
+  "vendor_name_taken": "已有名为 {{vendor}} 的供应商。请换一个名称，或直接编辑已有供应商。",
+  "prefill_group_name_taken": "已有名为 {{name}} 的预填组。请换一个名称。",
+  "model_sync_not_configured": "这台服务器没有配置模型元数据同步。请在服务器环境变量中设置元数据地址后重启。",
+  "model_sync_source_unavailable": "无法读取 {{source}} 模型目录，这次没有同步任何内容。请稍后再试。",
+  "lane_not_found": "档位 {{lane}} 不存在。请刷新查看当前档位。",
+  "lane_builtin_locked": "档位 {{lane}} 是内置档位，不能停用或删除。",
+  "lane_ever_enabled": "档位 {{lane}} 曾经承载过流量，不能删除。请改为停用。",
+  "lane_has_no_sources": "档位 {{lane}} 还没有来源，启用后发往它的请求都会失败。请先在来源页把来源挪进来。",
+  "lane_in_use": "档位 {{lane}} 仍有来源、价格或折扣记录。请先移走这些记录再删除。",
+  "tier_not_found": "等级 {{tier}} 不存在。请刷新查看当前等级。",
+  "tier_exists": "已有名为 {{tier}} 的等级。请换一个名称，或直接编辑该等级。",
+  "tier_builtin_locked": "等级 {{tier}} 是内置等级，不能删除。",
+  "tier_has_accounts": "等级 {{tier}} 里还有账号。请先在用户页把他们挪到别的等级，再删除。",
+  "sell_price_missing": "没有填写售价。请至少填写一项价格再保存。",
+  "sell_price_model_listed": "{{model}} 还在上架中，不能删除它的价格。请先下架。",
+  "sell_price_model_served": "还有启用的渠道在提供 {{model}}，删掉价格后它的请求会被拒绝。请先停用这些渠道。",
+  "sell_price_model_discounted": "{{model}} 还挂着生效中的折扣。请先撤掉折扣再删除价格。",
+  "model_listing_unpriced": "以下模型在任何档位都没有售价，上架会按 $0 计费：{{models}}。请先设置售价。",
+  "model_listing_no_source": "以下模型在档位 {{lane}} 上没有已启用的来源：{{models}}。请先添加来源再上架。"
+}

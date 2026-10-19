@@ -1,0 +1,300 @@
+/* First-run onboarding surfaces. Both states consume the locked Yunmu tokens
+   so the guide reads as part of the console, not as an overlay on top of it. */
+
+.onb-takeover {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  padding: var(--lazu-space-5) var(--lazu-space-6);
+  margin-bottom: var(--lazu-space-3);
+}
+
+.onb-takeover__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--lazu-ink);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.onb-takeover__sub {
+  font-size: 12px;
+  color: var(--lazu-text-faint);
+  margin-top: var(--lazu-space-1);
+  margin-bottom: var(--lazu-space-3);
+}
+
+.onb-takeover__body {
+  display: grid;
+  /* minmax(0, 1fr), not 1fr: a grid track's implicit min-width is its content's
+     min-content size, and the code sample's longest unbroken line is wide. With
+     plain 1fr the sample pushed the steps column down to ~50px and every step
+     title wrapped one character per line. The sample scrolls instead. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--lazu-space-3);
+  align-items: start;
+}
+
+.onb-takeover__body > * {
+  min-width: 0;
+}
+
+.onb-steps {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.onb-step {
+  display: grid;
+  grid-template-columns: var(--lazu-space-5) 1fr;
+  gap: var(--lazu-space-2);
+  padding: var(--lazu-space-2) 0;
+  font-size: 12px;
+  align-items: start;
+}
+
+.onb-step__num {
+  width: var(--lazu-space-5);
+  height: var(--lazu-space-5);
+  border-radius: var(--lazu-radius-pill);
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+  border: 1px solid var(--lazu-border);
+}
+
+.onb-step__num[data-done='true'] {
+  background: var(--lazu-success);
+  border-color: var(--lazu-success);
+  color: var(--lazu-on-action);
+}
+
+.onb-step__label {
+  font-weight: 600;
+  color: var(--lazu-ink);
+}
+
+.onb-step__hint {
+  display: block;
+  color: var(--lazu-text-faint);
+}
+
+.onb-code {
+  /* Code keeps a dark ground in both themes, so it uses the dedicated code
+     tokens rather than the action color, which inverts to paper in dark. */
+  background: var(--lazu-code-bg);
+  color: var(--lazu-code-text);
+  border-radius: var(--lazu-radius-control);
+  padding: var(--lazu-space-3) var(--lazu-space-4);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  line-height: 1.75;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre;
+}
+
+.onb-code__hint {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: var(--lazu-space-2) 0 0;
+}
+
+.onb-code__copy {
+  margin-top: var(--lazu-space-2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lazu-evidence);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.onb-code__copy:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+.onb-takeover__actions {
+  align-items: center;
+  display: flex;
+  gap: var(--lazu-space-3);
+  margin-top: var(--lazu-space-4);
+}
+
+.onb-step__action {
+  margin-left: auto;
+}
+
+/* Downgraded strip: the same checklist once the account is past its empty
+   state, laid out with the KPI row's hairline column grammar. */
+.onb-strip {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  margin-bottom: var(--lazu-space-3);
+  overflow: hidden;
+}
+
+.onb-strip__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--lazu-space-3);
+  padding: var(--lazu-space-2) var(--lazu-space-4);
+  border-bottom: 1px solid var(--lazu-border);
+}
+
+.onb-strip__title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lazu-ink);
+  margin: 0;
+}
+
+.onb-strip__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lazu-space-2);
+  font-size: 12px;
+  color: var(--lazu-text-faint);
+}
+
+.onb-strip__count {
+  font-family: var(--lazu-font-mono);
+  color: var(--lazu-evidence);
+}
+
+.onb-strip__rows {
+  display: grid;
+}
+
+.onb-strip__rows[data-count='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.onb-strip__rows[data-count='4'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.onb-strip__cell {
+  padding: var(--lazu-space-2) var(--lazu-space-3);
+  border-right: 1px solid var(--lazu-border);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.onb-strip__cell:last-child {
+  border-right: none;
+}
+
+.onb-strip__state {
+  display: flex;
+  align-items: center;
+  gap: var(--lazu-space-2);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--lazu-ink);
+}
+
+.onb-check {
+  width: 15px;
+  height: 15px;
+  border-radius: var(--lazu-radius-pill);
+  border: 1.5px solid var(--lazu-border-strong);
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: transparent;
+}
+
+.onb-check[data-done='true'] {
+  background: var(--lazu-success);
+  border-color: var(--lazu-success);
+  color: var(--lazu-on-action);
+}
+
+.onb-strip__hint {
+  display: block;
+  color: var(--lazu-text-faint);
+  margin-top: var(--lazu-space-1);
+}
+
+.onb-link {
+  color: var(--lazu-evidence);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.onb-link:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+.onb-dismiss {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--lazu-text-faint);
+  cursor: pointer;
+}
+
+.onb-dismiss:hover {
+  color: var(--lazu-text-muted);
+}
+
+.onb-code__copy:focus-visible,
+.onb-dismiss:focus-visible,
+.onb-link:focus-visible {
+  border-radius: var(--lazu-radius-badge);
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+@media (max-width: 820px) {
+  .onb-takeover__body {
+    grid-template-columns: 1fr;
+  }
+
+  .onb-strip__rows[data-count] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .onb-strip__cell:nth-child(2) {
+    border-right: none;
+  }
+}
+
+/* "Where did you hear about Lazu?" (SourceQuestion). The console zeroes
+   modal padding, so the body carries its own. */
+.src-q__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 24px 12px;
+}
+
+.src-q__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.src-q__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.src-q__foot {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  padding-top: 8px;
+}

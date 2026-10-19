@@ -1,0 +1,38 @@
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: "*.{ts,tsx,cts,json,css,md,mdx,yml,yaml}"
+      run: |
+        bash -c '
+          files=("$@")
+          filtered=()
+          for file in "${files[@]}"; do
+            [[ -L "$file" ]] && continue
+            filtered+=("$file")
+          done
+          ((${#filtered[@]} == 0)) && exit 0
+          # Match apps/web Prettier 3.8.3; unpinned `npx prettier` pulls 3.9+.
+          if [[ -x apps/web/node_modules/.bin/prettier ]]; then
+            apps/web/node_modules/.bin/prettier --check "${filtered[@]}"
+          else
+            npx --yes prettier@3.8.3 --check "${filtered[@]}"
+          fi
+        ' -- {staged_files}
+    eslint-web:
+      root: apps/web
+      glob: "*.{ts,tsx,cts}"
+      run: bunx eslint --cache --max-warnings=198 {staged_files}
+    typecheck-web:
+      root: apps/web
+      glob: "*.{ts,tsx,cts}"
+      run: bun run typecheck
+    typecheck-docs:
+      root: apps/docs
+      glob: "*.{ts,tsx}"
+      run: npx --yes tsc --noEmit --pretty false
+
+commit-msg:
+  commands:
+    commitlint:
+      run: npx --yes --package @commitlint/cli --package @commitlint/config-conventional commitlint --config commitlint.config.js --edit {1}

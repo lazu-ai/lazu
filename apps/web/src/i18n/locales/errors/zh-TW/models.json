@@ -1,0 +1,22 @@
+{
+  "model_name_taken": "已有名為 {{model}} 的模型。請換一個名稱，或直接編輯既有模型。",
+  "vendor_name_taken": "已有名為 {{vendor}} 的供應商。請換一個名稱，或直接編輯既有供應商。",
+  "prefill_group_name_taken": "已有名為 {{name}} 的預填組。請換一個名稱。",
+  "model_sync_not_configured": "這台伺服器沒有設定模型中繼資料同步。請在伺服器環境變數中設定中繼資料位址後重新啟動。",
+  "model_sync_source_unavailable": "無法讀取 {{source}} 模型目錄，這次沒有同步任何內容。請稍後再試。",
+  "lane_not_found": "檔位 {{lane}} 不存在。請重新整理查看目前的檔位。",
+  "lane_builtin_locked": "檔位 {{lane}} 是內建檔位，不能停用或刪除。",
+  "lane_ever_enabled": "檔位 {{lane}} 曾經承載過流量，不能刪除。請改為停用。",
+  "lane_has_no_sources": "檔位 {{lane}} 還沒有來源，啟用後送往它的請求都會失敗。請先在來源頁把來源移進來。",
+  "lane_in_use": "檔位 {{lane}} 仍有來源、價格或折扣紀錄。請先移除這些紀錄再刪除。",
+  "tier_not_found": "等級 {{tier}} 不存在。請重新整理查看目前的等級。",
+  "tier_exists": "已有名為 {{tier}} 的等級。請換一個名稱，或直接編輯該等級。",
+  "tier_builtin_locked": "等級 {{tier}} 是內建等級，不能刪除。",
+  "tier_has_accounts": "等級 {{tier}} 裡還有帳號。請先在使用者頁把他們移到其他等級，再刪除。",
+  "sell_price_missing": "沒有填寫售價。請至少填寫一項價格再儲存。",
+  "sell_price_model_listed": "{{model}} 仍在上架中，不能刪除它的價格。請先下架。",
+  "sell_price_model_served": "還有啟用的管道在提供 {{model}}，刪除價格後它的請求會被拒絕。請先停用這些管道。",
+  "sell_price_model_discounted": "{{model}} 還有生效中的折扣。請先撤除折扣再刪除價格。",
+  "model_listing_unpriced": "以下模型在任何檔位都沒有售價，上架會以 $0 計費：{{models}}。請先設定售價。",
+  "model_listing_no_source": "以下模型在檔位 {{lane}} 上沒有已啟用的來源：{{models}}。請先新增來源再上架。"
+}

@@ -1,0 +1,2624 @@
+/* Team projects — page and component styles.
+   Values are brand tokens (Yunmu); the artboards in
+   lazu-ops:brand/explorations/team-workspace-2026-09 are the reference. Selection is
+   a whole-row tint only, never a left rail. Buttons are components/ui
+   Buttons; the few bespoke controls opt out of the global button reset with
+   data-owns-chrome. */
+
+.pj-page .console-page-body {
+  gap: 18px;
+}
+
+/* ------------------------------------------------------------ surfaces */
+
+.pj-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  box-shadow: var(--lazu-shadow-panel);
+  min-width: 0;
+}
+
+.pj-card--pad {
+  padding: 20px 22px;
+}
+
+.pj-card--dashed {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.pj-table-card {
+  overflow: hidden;
+}
+
+.pj-table-card--flat {
+  box-shadow: none;
+}
+
+.pj-sec {
+  align-items: flex-end;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin: 0 0 12px;
+}
+
+.pj-card--pad > .pj-sec:first-child {
+  margin-top: 0;
+}
+
+.pj-sec h2 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.pj-sec p {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+.pj-sec__right {
+  flex: none;
+  font-size: 12px;
+}
+
+.pj-sec__right a,
+.pj-page a.pj-link,
+.pj-tfoot a,
+.pj-fs__h a,
+.pj-linkbtn {
+  color: var(--lazu-evidence-strong);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.pj-sec__right a:hover,
+.pj-tfoot a:hover,
+.pj-linkbtn:hover {
+  text-decoration: underline;
+}
+
+.pj-linkbtn {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: inherit;
+  padding: 0;
+}
+
+.pj-sec--inset {
+  margin: 18px 22px 8px;
+}
+
+/* --------------------------------------------------------- metric strip */
+
+/* The pinned payment record (Stripe return, payment e-mails) sits above the
+   ledger strip with the page's own gap. */
+.pj-topup-record {
+  margin-bottom: 14px;
+}
+
+.pj-ledger {
+  border-block: 1px solid var(--lazu-border);
+  display: grid;
+  grid-template-columns: repeat(var(--pj-cols, 4), minmax(0, 1fr));
+  padding: 20px 0;
+}
+
+.pj-ledger--compact {
+  padding: 16px 0;
+}
+
+.pj-ledger__cell {
+  border-right: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 24px;
+}
+
+.pj-ledger__cell:first-child {
+  padding-left: 0;
+}
+
+.pj-ledger__cell:last-child {
+  border-right: 0;
+}
+
+.pj-ledger__lb {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.pj-ledger__v {
+  color: var(--lazu-ink);
+  font-size: var(--lazu-display-kpi, 34px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: var(--lazu-display-tracking, -0.02em);
+  line-height: 1.3;
+  margin: 2px 0 1px;
+}
+
+.pj-ledger--compact .pj-ledger__v {
+  font-size: 26px;
+}
+
+.pj-ledger__v[data-tone='warn'] {
+  color: var(--lazu-warning-strong);
+}
+
+.pj-ledger__v[data-tone='bad'] {
+  color: var(--lazu-danger);
+}
+
+.pj-ledger__h {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------- text */
+
+.pj-mono {
+  font-family: var(--lazu-font-mono);
+}
+
+.pj-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.pj-muted {
+  color: var(--lazu-text-muted);
+}
+
+.pj-faint {
+  color: var(--lazu-text-faint);
+}
+
+.pj-warn {
+  color: var(--lazu-warning-strong);
+}
+
+.pj-small {
+  font-size: 12px;
+}
+
+.pj-strong {
+  font-weight: 500;
+}
+
+.pj-nowrap {
+  white-space: nowrap;
+}
+
+.pj-text {
+  font-size: 13px;
+}
+
+.pj-nm {
+  display: block;
+  font-weight: 600;
+}
+
+.pj-sub {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-size: 12px;
+}
+
+.pj-sub--inline {
+  display: inline;
+}
+
+.pj-eyebrow {
+  color: var(--lazu-text-faint);
+  display: block;
+  font: 500 10.5px/1 var(--lazu-font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.pj-inline {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.pj-inline--gap {
+  gap: 8px;
+}
+
+.pj-mt {
+  margin-top: 22px;
+}
+
+.pj-mt-s {
+  margin-top: 12px;
+}
+
+.pj-stackcol {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+.pj-grid2 {
+  align-items: start;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.pj-grid2--even {
+  grid-template-columns: 1fr 1fr;
+}
+
+.pj-grid2--settings {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.pj-grid2--exp {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+@media (max-width: 1100px) {
+  .pj-grid2,
+  .pj-grid2--settings,
+  .pj-grid2--exp,
+  .pj-grid2--even {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --------------------------------------------------------------- people */
+
+.pj-av {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-ink);
+  display: inline-flex;
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.pj-av[data-square] {
+  border-radius: var(--lazu-radius-badge);
+  font-family: var(--lazu-font-mono);
+}
+
+.pj-av[data-muted] {
+  opacity: 0.6;
+}
+
+.pj-who {
+  align-items: center;
+  display: inline-flex;
+  gap: 9px;
+  min-width: 0;
+}
+
+.pj-who__t {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.pj-who__t strong {
+  font-weight: 600;
+}
+
+.pj-who[data-muted] strong {
+  color: var(--lazu-text-muted);
+}
+
+.pj-rowlink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pj-rowlink:hover strong {
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------- badges */
+
+.pj-badge {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+
+.pj-badge[data-tone='warn'] {
+  background: var(--lazu-warning-soft);
+  color: var(--lazu-warning-strong);
+}
+
+.pj-badge[data-tone='bad'] {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+}
+
+.pj-inline-badges {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pj-rsn {
+  align-items: center;
+  background: var(--lazu-danger-soft);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-danger);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.pj-rsn[data-tone='warn'] {
+  background: var(--lazu-warning-soft);
+  color: var(--lazu-warning-strong);
+}
+
+.pj-rsn[data-tone='evi'] {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+}
+
+.pj-rsn[data-tone='mute'] {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-text-muted);
+}
+
+.pj-rsn[data-compact] {
+  font-size: 12px;
+  height: 20px;
+  margin-left: 6px;
+}
+
+.pj-rsn-link {
+  text-decoration: none;
+}
+
+.pj-rsn-link:hover .pj-rsn {
+  text-decoration: underline;
+}
+
+.pj-inline-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ---------------------------------------------------------------- meters */
+
+.pj-meter {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  overflow: hidden;
+}
+
+/* Budget meters are amounts, not a chart series: ink, like the figures
+   beside them. Teal stays for charts and selection. */
+.pj-meter i {
+  background: var(--lazu-ink);
+  display: block;
+  height: 100%;
+}
+
+.pj-meter[data-tone='warn'] i {
+  background: var(--lazu-warning);
+}
+
+.pj-meter[data-tone='bad'] i {
+  background: var(--lazu-danger);
+}
+
+.pj-quota {
+  display: grid;
+  gap: 4px;
+}
+
+.pj-quota__txt {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.pj-quota__txt[data-tone='warn'] {
+  color: var(--lazu-warning-strong);
+}
+
+.pj-quota__txt[data-tone='bad'] {
+  color: var(--lazu-danger);
+}
+
+.pj-bars {
+  align-items: flex-end;
+  display: flex;
+  gap: 5px;
+}
+
+.pj-bars i {
+  background: var(--lazu-chart-3);
+  border-radius: var(--lazu-radius-datamark) var(--lazu-radius-datamark) 0 0;
+  flex: 1;
+}
+
+.pj-bars i[data-peak] {
+  background: var(--lazu-chart-1);
+}
+
+.pj-lbl {
+  color: var(--lazu-text-faint);
+  display: flex;
+  font-size: 12px;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.pj-lbl--top {
+  margin: 0 0 4px;
+}
+
+.pj-stack {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+}
+
+.pj-stack i {
+  display: block;
+  height: 100%;
+}
+
+.pj-legend {
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.pj-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pj-legend i {
+  border-radius: var(--lazu-radius-datamark);
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.pj-legend__rest {
+  background: var(--lazu-surface-selected);
+}
+
+.pj-alloc.pj-card--pad {
+  padding: 14px 22px;
+}
+
+/* ---------------------------------------------------------------- tools */
+
+.pj-tools {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pj-search {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-faint);
+  display: flex;
+  gap: 8px;
+  height: 34px;
+  padding: 0 11px;
+  width: 240px;
+}
+
+.pj-search--full {
+  width: 100%;
+}
+
+/* The input inside the search box owns no chrome of its own. Written at
+   four classes so it beats the console-review geometry rule
+   (`.console-page-shell.console-review .lazu-input`, three classes), which
+   otherwise re-adds a border, a surface and the 38px large control height
+   inside the 34px box — a double border with the inner field poking out. */
+.pj-search .lazu-input,
+.console-page-shell.console-review .pj-search .lazu-input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+  font-size: 13px;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.pj-search .lazu-input:focus-visible,
+.console-page-shell.console-review .pj-search .lazu-input:focus-visible {
+  border: 0;
+  box-shadow: none;
+}
+
+.pj-search:focus-within {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}
+
+.pj-fld {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  gap: 8px;
+  height: 34px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0 11px;
+}
+
+.pj-fld:disabled {
+  color: var(--lazu-text-muted);
+  cursor: default;
+}
+
+.pj-fld--select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--lazu-text-faint) 50%),
+    linear-gradient(135deg, var(--lazu-text-faint) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 14px,
+    calc(100% - 10px) 14px;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+  padding-right: 28px;
+}
+
+.pj-tools .pj-fld--select:last-child {
+  margin-left: auto;
+}
+
+.pj-seg {
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-pill);
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.pj-seg__btn {
+  background: none;
+  border: 0;
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-size: 12px;
+  height: 26px;
+  padding: 0 12px;
+  place-items: center;
+  white-space: nowrap;
+}
+
+.pj-seg__btn[data-on] {
+  background: var(--lazu-surface-solid);
+  box-shadow: var(--lazu-shadow-overlay);
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.pj-seg__btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.pj-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.pj-tabs__btn {
+  background: none;
+  border: 0;
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-size: 12px;
+  height: 30px;
+  padding: 0 12px;
+  place-items: center;
+}
+
+.pj-tabs__btn[data-on] {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- chips */
+
+.pj-chip {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  height: 28px;
+  justify-content: center;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.pj-chip[data-on] {
+  background: var(--lazu-surface-selected);
+  border-color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.pj-chip:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.pj-chip--lg {
+  height: 30px;
+}
+
+.pj-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 14px;
+}
+
+.pj-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pj-budget-picker {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pj-amt {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  display: inline-flex;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+}
+
+.pj-budget-picker[data-size='sm'] .pj-amt {
+  height: 32px;
+}
+
+.pj-amt--err {
+  border-color: var(--lazu-danger);
+}
+
+.pj-amt__cur {
+  color: var(--lazu-text-faint);
+  font: 500 15px var(--lazu-font-mono);
+}
+
+.pj-amt input {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  font: 600 18px var(--lazu-font-mono);
+  letter-spacing: -0.02em;
+  outline: none;
+  width: 96px;
+}
+
+.pj-budget-picker[data-size='sm'] .pj-amt input {
+  font-size: 15px;
+  width: 84px;
+}
+
+.pj-okt {
+  align-items: center;
+  color: var(--lazu-success);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.pj-okt--lg {
+  font-size: 13px;
+}
+
+.pj-errt {
+  color: var(--lazu-danger);
+  display: block;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.pj-errt--lg {
+  font-size: 13px;
+  margin-top: 0;
+}
+
+.pj-errt[data-tone='warn'] {
+  color: var(--lazu-warning-strong);
+}
+
+/* ----------------------------------------------------------------- forms */
+
+.pj-fs {
+  align-items: start;
+  display: grid;
+  font-size: 13px;
+  gap: 14px 18px;
+}
+
+.pj-fs--tight {
+  gap: 10px 12px;
+}
+
+.pj-fs__l {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  padding-top: 7px;
+}
+
+.pj-fs__v {
+  min-width: 0;
+}
+
+.pj-fs__h {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.pj-fs .lazu-input {
+  max-width: 100%;
+}
+
+.pj-kvs {
+  display: grid;
+  font-size: 12px;
+  gap: 7px 14px;
+  grid-template-columns: 120px 1fr;
+}
+
+.pj-kvs span {
+  color: var(--lazu-text-muted);
+}
+
+.pj-kvs b {
+  font-weight: 500;
+  min-width: 0;
+}
+
+.pj-switchrow {
+  align-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 8px;
+  padding: 0;
+}
+
+.pj-tg {
+  background: var(--lazu-action);
+  border-radius: var(--lazu-radius-pill);
+  display: inline-block;
+  height: 20px;
+  position: relative;
+  width: 34px;
+}
+
+.pj-tg::after {
+  background: var(--lazu-surface-solid);
+  border-radius: var(--lazu-radius-pill);
+  content: '';
+  height: 16px;
+  left: 16px;
+  position: absolute;
+  top: 2px;
+  width: 16px;
+}
+
+.pj-tg[data-off] {
+  background: var(--lazu-border-strong);
+}
+
+.pj-tg[data-off]::after {
+  left: 2px;
+}
+
+.pj-switchrow__lb {
+  font-size: 12px;
+}
+
+.pj-switchrow__lb[data-off] {
+  color: var(--lazu-text-muted);
+}
+
+.pj-savebar {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.pj-savebar[data-sticky] {
+  background: var(--lazu-surface-solid);
+  bottom: 12px;
+  box-shadow: var(--lazu-shadow-overlay);
+  position: sticky;
+  z-index: 6;
+}
+
+.pj-savebar__acts {
+  display: flex;
+  gap: 8px;
+}
+
+.pj-settings-save {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pj-blk {
+  margin-bottom: 20px;
+}
+
+.pj-blk__save {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.pj-dang {
+  border: 1px solid color-mix(in srgb, var(--lazu-danger) 34%, transparent);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.pj-dang > div {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.pj-dang small {
+  color: var(--lazu-text-muted);
+  display: block;
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- tables */
+
+.pj-table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.pj-table th {
+  background: var(--lazu-surface-muted);
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 10px 16px;
+  text-align: left;
+  text-transform: none;
+}
+
+.pj-table td {
+  border-bottom: 1px solid var(--lazu-border);
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.pj-table tbody:last-child tr:last-child td {
+  border-bottom: 0;
+}
+
+.pj-table .pj-r {
+  text-align: right;
+}
+
+.pj-table td.pj-r {
+  font-variant-numeric: tabular-nums;
+}
+
+.pj-rowgroup[data-selected] > tr > td,
+.pj-row[data-selected] > td {
+  background: var(--lazu-surface-selected);
+}
+
+.pj-row[data-muted] > td {
+  opacity: 0.72;
+}
+
+.pj-row--pending > td {
+  opacity: 0.86;
+}
+
+.pj-row[data-highlight] > td {
+  animation: pj-highlight 6s ease-out forwards;
+}
+
+@keyframes pj-highlight {
+  0%,
+  70% {
+    background: var(--lazu-evidence-soft);
+  }
+
+  100% {
+    background: transparent;
+  }
+}
+
+.pj-row--edit > td,
+.pj-row--exp > td {
+  background: var(--lazu-surface-muted);
+  padding: 16px 16px 18px;
+}
+
+.pj-rowbtn {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.pj-ra {
+  align-items: center;
+  display: inline-flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+.pj-ra__dash {
+  color: var(--lazu-text-faint);
+  display: inline-block;
+  padding: 0 10px;
+}
+
+.pj-tfoot {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-faint);
+  display: flex;
+  font-size: 12px;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 11px 16px;
+}
+
+/* -------------------------------------------------------- inline budget */
+
+.pj-edit__box {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+}
+
+.pj-edit__f {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pj-edit__f--grow {
+  flex: 1;
+  min-width: 220px;
+}
+
+.pj-edit__lb {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.pj-edit__spent {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.pj-edit__spent[data-tone='bad'] {
+  color: var(--lazu-danger);
+}
+
+.pj-edit__acts {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.pj-edit__note {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+
+/* ------------------------------------------------------------- secrets */
+
+.pj-k {
+  align-items: center;
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pj-k__mask {
+  color: var(--lazu-text-muted);
+}
+
+.pj-k__plain {
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  user-select: all;
+}
+
+.pj-cd {
+  color: var(--lazu-text-faint);
+  font: 500 11px var(--lazu-font-mono);
+}
+
+.pj-created {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.pj-created__row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ------------------------------------------------------------- popovers */
+
+.pj-pop {
+  font-size: 12px;
+  max-width: 320px;
+  padding: 10px 12px;
+}
+
+.pj-pop p {
+  margin: 0;
+}
+
+.pj-pop__acts {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.pj-pop--inline {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  box-shadow: var(--lazu-shadow-panel);
+  max-width: none;
+}
+
+.pj-menu {
+  padding: 6px;
+  width: 300px;
+}
+
+.pj-menu--models {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.pj-menu__it {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 12px;
+  gap: 10px;
+  padding: 8px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.pj-menu__it:hover {
+  background: var(--lazu-surface-muted);
+}
+
+.pj-menu__it[data-on] {
+  background: var(--lazu-surface-selected);
+}
+
+.pj-menu__it--check {
+  cursor: pointer;
+}
+
+.pj-menu__eb {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+  padding: 8px 10px 4px;
+}
+
+.pj-menu__eb:first-child {
+  border-top: 0;
+  margin-top: 0;
+}
+
+.pj-menu__hint {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  padding: 4px 10px 8px;
+}
+
+/* ---------------------------------------------------------- switcher */
+
+/* Top-bar shape: the first crumb of "<project> › <group>". No border and no
+   surface at rest — a bordered control here would read as a button you press
+   to do something, when what it is is the name of where you are standing. */
+.pj-crumb {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 8px;
+  height: 30px;
+  max-width: 260px;
+  padding: 0 8px 0 6px;
+  transition: background-color var(--lazu-motion-fast) var(--lazu-ease-direct);
+}
+
+.pj-crumb:hover,
+.pj-crumb[aria-expanded='true'] {
+  background: var(--lazu-surface-selected);
+}
+
+.pj-crumb:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.pj-crumb__sq {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: 6px;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.pj-crumb__sq[data-shared] {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+}
+
+.pj-crumb__name {
+  font-size: 13px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pj-crumb__chev {
+  color: var(--lazu-text-faint);
+  flex: none;
+}
+
+.pj-crumb:hover .pj-crumb__chev {
+  color: var(--lazu-text-muted);
+}
+
+.pj-menu__eb--head {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pj-menu__rule {
+  background: var(--lazu-border);
+  height: 1px;
+  margin: 4px 6px;
+}
+
+/* A row that goes somewhere rather than adding something: the glyph sits in
+   the tile column so the rows line up, without the dashed "new" outline. */
+.pj-menu__glyph {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  display: flex;
+  flex-shrink: 0;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.pj-menu__quiet .pj-space__t b {
+  color: var(--lazu-text-muted);
+  font-weight: 500;
+}
+
+.pj-space {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 9px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.pj-space:hover {
+  background: var(--lazu-surface-muted);
+}
+
+.pj-space__sq {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  display: inline-flex;
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.pj-space__sq[data-shared] {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+}
+
+.pj-menu .pj-space__sq {
+  border-radius: var(--lazu-radius-control);
+  font-size: 12px;
+  height: 24px;
+  width: 24px;
+}
+
+.pj-space__t {
+  flex: 1;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.pj-space__t b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pj-menu .pj-space__t b {
+  font-size: 12px;
+}
+
+.pj-space__t small {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pj-space__chev {
+  color: var(--lazu-text-faint);
+  flex: none;
+}
+
+.pj-sidefoot {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 0 4px 6px;
+}
+
+.pj-sidefoot__who {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------- lists */
+
+.pj-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pj-list > div {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  padding: 11px 0;
+}
+
+.pj-list > div:last-child {
+  border-bottom: 0;
+}
+
+.pj-list__when {
+  flex: none;
+  font-size: 12px;
+  width: 44px;
+}
+
+.pj-list__t {
+  flex: 1;
+  min-width: 0;
+}
+
+.pj-list__t strong {
+  font-weight: 600;
+}
+
+.pj-list__t small {
+  color: var(--lazu-text-faint);
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.pj-list__empty {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  padding: 10px 0;
+}
+
+.pj-list > p {
+  border: 0;
+  padding: 6px 0 0;
+}
+
+/* ------------------------------------------------------------- notice */
+
+.pj-notice {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.pj-notice[data-tone='warn'] {
+  border-color: color-mix(in srgb, var(--lazu-warning) 34%, transparent);
+}
+
+.pj-notice[data-tone='bad'] {
+  border-color: color-mix(in srgb, var(--lazu-danger) 34%, transparent);
+}
+
+.pj-notice[data-tone='evi'] {
+  border-color: color-mix(in srgb, var(--lazu-evidence) 34%, transparent);
+}
+
+.pj-notice__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.pj-notice__copy strong {
+  font-weight: 600;
+}
+
+.pj-notice__copy p {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+.pj-footnote.pj-card--pad {
+  margin-top: 14px;
+  padding: 12px 16px;
+}
+
+.pj-footnote strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pj-footnote p {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+/* ------------------------------------------------------- master-detail */
+
+.pj-md {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  box-shadow: var(--lazu-shadow-panel);
+  display: block;
+  min-height: 0;
+  overflow: hidden;
+}
+.pj-md__rp {
+  min-width: 0;
+  padding: 22px 26px 26px;
+}
+
+.pj-rp__hd {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+}
+
+.pj-rp__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.pj-rp__copy h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.pj-rp__copy p {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+.pj-rp__acts {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.pj-rp__kbd {
+  margin-left: 6px;
+}
+
+/* A table too wide for a phone is replaced by this list, whose rows open the
+   member's detail page — that is where the editing controls already live. */
+.pj-narrow {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  /* The detail header: the name and its meta line get the full width, and the
+     J / K hint goes away with the keyboard that would drive it. */
+  .pj-rp__hd {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .pj-rp__copy {
+    flex: 1 1 100%;
+  }
+
+  .pj-rp__kbd {
+    display: none;
+  }
+
+  /* Label above control, so neither is squeezed into half a phone.
+     `!important` because FormRows sets its two-column track inline from the
+     labelWidth prop, which a plain rule cannot beat. */
+  .pj-fs {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px;
+  }
+
+  .pj-fs__l {
+    padding-top: 0;
+  }
+
+  /* The four-column ledger folds to 2×2 rather than squeezing every
+     value into a 90px column, where "$225.00" and "不设" wrapped
+     one glyph per line. */
+  .pj-ledger {
+    column-gap: 20px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 16px;
+  }
+
+  .pj-ledger__cell {
+    border-right: 0;
+    padding: 0;
+  }
+
+  /* Wide tables swap for a tap-through list; see .pj-mlist. */
+  .pj-wide {
+    display: none;
+  }
+
+  .pj-narrow {
+    display: block;
+  }
+}
+
+.pj-mlist {
+  display: flex;
+  flex-direction: column;
+}
+
+.pj-mlist__row {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  color: inherit;
+  display: flex;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 16px;
+  text-decoration: none;
+}
+
+.pj-mlist__row[data-selected] {
+  background: var(--lazu-surface-selected);
+}
+
+.pj-mlist__row:last-child {
+  border-bottom: 0;
+}
+
+.pj-mlist__row .pj-who {
+  flex: 1;
+  min-width: 0;
+}
+
+.pj-mlist__row .pj-who__t strong,
+.pj-mlist__row .pj-who__t .pj-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pj-mlist__chev {
+  color: var(--lazu-text-faint);
+  flex: none;
+}
+
+/* Narrow member and invitation rows carry their actions inline.
+   The row wraps to a second line for the action group instead of
+   squeezing resend/revoke buttons into whatever width is left. */
+.pj-mlist__row--actions,
+.pj-mlist__row--invite {
+  flex-wrap: wrap;
+}
+
+.pj-mlist__row--actions > .pj-ra,
+.pj-mlist__row--invite > .pj-ra {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* Lift the sticky save bar above the fixed mobile tab bar, the way the
+   console's own sticky action bars are lifted in shell.css. */
+@media (max-width: 768px) {
+  .pj-savebar[data-sticky] {
+    bottom: calc(
+      var(--mobile-console-tab-height, 64px) + env(safe-area-inset-bottom) +
+        12px
+    );
+  }
+}
+
+/* ----------------------------------------------------------------- modal */
+
+.pj-modal .lazu-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.pj-modal--wide {
+  max-width: min(92vw, 620px);
+}
+
+.pj-modal__titlewrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pj-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pj-modal__list {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 5px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pj-modal__list li {
+  display: flex;
+  gap: 8px;
+}
+
+.pj-modal__list li::before {
+  color: var(--lazu-text-faint);
+  content: '·';
+}
+
+.pj-modal__foot {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.pj-modal__esc {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  margin-right: auto;
+}
+
+.pj-modal__quote {
+  font-size: 12px;
+  margin: 0;
+}
+
+.pj-after {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  font-size: 12px;
+  padding: 14px 16px;
+}
+
+.pj-after__title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.pj-after ul {
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pj-after li::before {
+  content: '· ';
+}
+
+/* ------------------------------------------------------------ misc pages */
+
+.pj-overview-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.pj-invite-card .pj-sec {
+  margin-bottom: 8px;
+}
+
+.pj-undo {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 14px;
+}
+
+.pj-accept {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+}
+
+.pj-accept__card {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-overlay);
+  box-shadow: var(--lazu-shadow-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+  padding: 28px 30px 24px;
+  width: 100%;
+}
+
+.pj-accept__card h1 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.pj-accept__acts {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pj-accept__center {
+  margin: 0;
+  text-align: center;
+}
+
+/* The invited address beside the signed-in one, so the difference is read
+   rather than inferred. The invited one carries the stronger edge. */
+.pj-accept__compare {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pj-accept__addr {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.pj-accept__addr span {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.pj-accept__addr strong {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.pj-accept__addr--target {
+  background: var(--lazu-surface-solid);
+  border-color: var(--lazu-border-strong);
+}
+
+.pj-accept__code {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pj-accept__foot {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  justify-content: space-between;
+  padding-top: 12px;
+}
+
+.pj-accept__foot a,
+.pj-accept__link {
+  color: var(--lazu-evidence);
+  flex: none;
+  text-decoration: none;
+}
+
+.pj-accept__link:disabled {
+  color: var(--lazu-text-muted);
+  cursor: default;
+}
+
+@media (max-width: 520px) {
+  .pj-accept__compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.projects-receipt {
+  border-radius: var(--lazu-radius-control) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pj-row[data-highlight] > td {
+    animation: none;
+    background: var(--lazu-evidence-soft);
+  }
+}
+
+/* ------------------------------------------- 团队入口（A / B / C 共用样式） */
+
+/* B · 钱包里的「和同事共用这笔余额」。It sits between the ledger strip and
+   the tabs, where the reader has just looked at the number it talks about. */
+.pj-share {
+  align-items: center;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+  display: flex;
+  gap: 22px;
+  padding: 20px 22px;
+}
+
+.pj-share__mark {
+  align-items: center;
+  background: var(--lazu-evidence-soft);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-evidence-strong);
+  display: flex;
+  flex-shrink: 0;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.pj-share__body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 5px;
+  min-width: 0;
+}
+
+.pj-share__title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.pj-share__sub {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .pj-share {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+}
+
+/* A · 团队空状态页 — the shared members table with two extra rows.
+   The table itself is `Card` + `.pj-table` (same as the members page); only
+   the invite row, the empty seat and the rename control are new here. */
+/* The members page swaps its wide table for `.pj-mlist` below 960px. This
+   page has three rows, one of which is a form, so it keeps the table and
+   scrolls it sideways instead of maintaining a second layout for it. */
+.pj-roster__scroll {
+  overflow-x: auto;
+}
+
+.pj-roster__scroll > .pj-table {
+  min-width: 640px;
+}
+
+.pj-roster__invite {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pj-roster__invite .pj-roster__email.lazu-input {
+  flex: 1 1 200px;
+  height: 34px;
+  min-width: 180px;
+}
+
+.pj-roster__caps {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+}
+
+/* The seat nobody is in yet. A dashed ring, not a spinner: this row is not
+   loading, it is empty, and the difference is the whole point of the page. */
+.pj-roster__av-ghost {
+  border: 1.5px dashed var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-pill);
+  display: inline-block;
+  flex: none;
+  height: 24px;
+  width: 24px;
+}
+
+.pj-roster__err {
+  color: var(--lazu-danger);
+  font-size: 12px;
+  margin: 6px 0 0 34px;
+}
+
+.pj-roster__ghost {
+  opacity: 0.55;
+}
+
+.pj-roster__bar {
+  background: var(--lazu-surface-selected);
+  border-radius: 4px;
+  display: inline-block;
+  height: 8px;
+}
+
+.pj-roster__foot {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+/* Renaming the project in the page head, where its name already is. */
+.pj-rename {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 5px;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.pj-rename:disabled {
+  cursor: default;
+}
+
+.pj-rename svg {
+  color: var(--lazu-text-faint);
+  opacity: 0;
+  transition: opacity var(--lazu-motion-fast) var(--lazu-ease-direct);
+}
+
+.pj-rename:hover:not(:disabled) {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+.pj-rename:hover svg,
+.pj-rename:focus-visible svg {
+  opacity: 1;
+}
+
+.pj-rename:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.pj-rename__edit {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.pj-rename__edit .lazu-input {
+  height: 28px;
+  width: 200px;
+}
+
+.pj-rename__act {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.pj-rename__act:hover {
+  background: var(--lazu-surface-selected);
+  color: var(--lazu-ink);
+}
+
+/* One row while the five columns still fit; below that the invite controls
+   stack rather than each shrinking to nothing. */
+@media (max-width: 900px) {
+  .pj-roster__invite {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pj-roster__invite .pj-roster__email.lazu-input {
+    flex: none;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pj-rename svg {
+    opacity: 1;
+    transition: none;
+  }
+}
+
+/* B · 邀请表单，一列 */
+.pj-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pj-invite__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.pj-invite__label {
+  color: var(--lazu-ink);
+  font-size: 12.8px;
+  font-weight: 560;
+}
+
+.pj-invite__hint {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.pj-invite__field .lazu-input {
+  max-width: 100%;
+  width: 100%;
+}
+
+.pj-invite__after {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* The dialog: 440px, no header rule, the body is the form. */
+body:has(.console-review) .lazu-modal-content.pj-modal--invite,
+.lazu-modal-content.pj-modal--invite {
+  max-width: calc(100vw - 32px);
+  width: min(440px, calc(100vw - 32px));
+}
+
+body:has(.console-review) .pj-modal--invite .lazu-modal-header {
+  border-bottom: 0;
+  padding: 24px 24px 0;
+}
+
+body:has(.console-review) .pj-modal--invite .lazu-modal-body {
+  padding: 18px 24px 22px;
+}
+
+.pj-modal--invite .pj-modal__body {
+  gap: 18px;
+}
+
+/* C · 建 Key 前的分叉 */
+.pj-fork {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pj-fork__opt {
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 5px;
+  padding: 16px 18px;
+  text-align: left;
+  width: 100%;
+}
+
+.pj-fork__opt:hover {
+  background: var(--lazu-surface-muted);
+}
+
+.pj-fork__opt[data-on] {
+  border-color: var(--lazu-ink);
+}
+
+.pj-fork__opt b {
+  align-items: center;
+  display: flex;
+  font-size: 15px;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.pj-fork__opt span {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.pj-fork__tag {
+  background: var(--lazu-evidence-soft);
+  border-radius: var(--lazu-radius-badge);
+  color: var(--lazu-evidence-strong);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+/* 切换器底部的起步入口，替换独用时无意义的「别人邀请你就会出现」提示 */
+.pj-menu__start {
+  border-top: 1px solid var(--lazu-border);
+  border-radius: 0;
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+/* A dashed square where a project's solid tile would be: the row adds one,
+   so it wears the shape of the thing it would add. */
+.pj-menu__plus {
+  align-items: center;
+  border: 1px dashed var(--lazu-border-strong);
+  border-radius: 8px;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-shrink: 0;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+/* A fold for the blocks that are reference, not control: the rules an owner
+   cannot change, and the table of reasons a request can be refused. They earn
+   their place on the page but not the vertical space, so they open on ask. */
+.pj-fold {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface);
+}
+
+.pj-fold > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  list-style: none;
+  padding: 16px 20px;
+}
+
+.pj-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.pj-fold > summary:hover {
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-surface);
+}
+
+.pj-fold__t {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pj-fold__s {
+  color: var(--lazu-text-muted);
+  flex-grow: 1;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.pj-fold__chev {
+  color: var(--lazu-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.pj-fold[open] > summary {
+  border-bottom: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-surface) var(--lazu-radius-surface) 0 0;
+}
+
+.pj-fold[open] .pj-fold__chev {
+  transform: rotate(180deg);
+}
+
+.pj-fold__body {
+  padding: 18px 20px 20px;
+}
+
+.pj-fold__body > .pj-table {
+  margin: -18px -20px -20px;
+  width: calc(100% + 40px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pj-fold__chev {
+    transition: none;
+  }
+}
+
+.pj-setting-rows {
+  display: flex;
+  flex-direction: column;
+}
+.pj-setting-row {
+  display: grid;
+  grid-template-columns: 135px minmax(160px, 1fr) 1fr;
+  gap: var(--lazu-space-6);
+  padding: var(--lazu-space-5) var(--lazu-space-6);
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  font-size: var(--lazu-row-text);
+}
+.pj-setting-row:last-child {
+  border-bottom: 0;
+}
+.pj-setting-row__value {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--lazu-space-1);
+}
+.pj-setting-row__value > .lazu-select-trigger {
+  width: 100%;
+}
+.pj-setting-row__hint {
+  color: var(--lazu-text-muted);
+  font-size: var(--lazu-row-label);
+}
+@media (max-width: 1180px) {
+  .pj-setting-row {
+    grid-template-columns: 135px minmax(0, 1fr);
+  }
+  .pj-setting-row__hint {
+    grid-column: 2;
+  }
+}
+@media (max-width: 640px) {
+  .pj-setting-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lazu-space-2);
+    padding: var(--lazu-space-4);
+  }
+  .pj-setting-row__hint {
+    grid-column: auto;
+  }
+}
+.pj-setting-row__value > .lazu-pending-block {
+  width: 100%;
+}
+
+/* ------------------------------------------------ team refinement 2026-09-28 */
+/* Members table: budget figures in ink over a thin bar. */
+.pj-quota--cell {
+  gap: 5px;
+}
+
+.pj-quota__fig {
+  color: var(--lazu-ink);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.pj-quota__out {
+  color: var(--lazu-danger);
+}
+
+.pj-quota__meter {
+  max-width: 120px;
+}
+
+/* Row actions sit quietly until the row is in use. */
+.pj-ra--hover {
+  opacity: 0.55;
+  transition: opacity var(--lazu-motion-base, 140ms)
+    var(--lazu-ease-direct, ease);
+}
+
+.pj-row:hover .pj-ra--hover,
+.pj-ra--hover:focus-within {
+  opacity: 1;
+}
+
+/* Allocation inside the ledger's 「预算分配」 cell. */
+.pj-allocstack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pj-stack--thin {
+  height: 6px;
+  margin-top: 6px;
+  max-width: 220px;
+}
+
+.pj-allocstack__legend {
+  display: block;
+  height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pj-invite-expiry--compact {
+  white-space: nowrap;
+}
+
+/* 编辑成员 — the small centered dialog (frame rules in console-review.css). */
+.pj-medit {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pj-medit__f {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.pj-medit__lb {
+  align-items: baseline;
+  display: flex;
+  font-size: 12.5px;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pj-medit__lb b {
+  color: var(--lazu-ink);
+  font-weight: 560;
+}
+
+.pj-medit__lb span {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.pj-medit__hint {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pj-medit__foot {
+  gap: 8px;
+}
+
+.pj-medit__note {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin-right: auto;
+}
+
+.pj-medit__menu {
+  max-height: 340px;
+  overflow: auto;
+  width: 360px;
+}
+
+.pj-medit__search {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-faint);
+  display: flex;
+  gap: 6px;
+  margin: -2px -2px 6px;
+  padding: 0 8px 6px;
+}
+
+.pj-medit__search .lazu-input {
+  border: 0;
+  box-shadow: none;
+  height: 30px;
+}
+
+.pj-medit__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pj-medit__opt {
+  align-items: center;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  font-size: 12.5px;
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+.pj-medit__opt:hover {
+  background: var(--lazu-surface-muted);
+}
+
+.pj-badge[data-tone='evi'] {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+}
+
+/* 有效限制 as words: the wall a Key hits first. */
+.pj-limit {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+}
+
+.pj-limit[data-tone='warn'] {
+  color: var(--lazu-warning-strong);
+}
+
+.pj-limit[data-tone='bad'] {
+  color: var(--lazu-danger);
+}
+
+.pj-limit-sub {
+  display: block;
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+.pj-scope {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Evidence links inside table cells: counts that open the filtered log. */
+.pj-limit-sub a,
+.pj-evlink {
+  color: var(--lazu-evidence-strong);
+  font-weight: 400;
+}
+
+.pj-limit-sub a:hover,
+.pj-evlink:hover {
+  color: var(--lazu-evidence);
+}

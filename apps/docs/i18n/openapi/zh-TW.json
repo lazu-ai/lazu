@@ -1,0 +1,162 @@
+{
+  "info": {
+    "description": "Lazu API 提供統一的 AI 模型接入服務，完全相容 OpenAI API 格式。支援 GPT、Claude、Gemini 等主流模型，以及 Sora、Grok 影片生成。\n\n## 認證方式\n所有 API 請求需要在 Header 中攜帶 API Key：\n```\nAuthorization: Bearer YOUR_API_KEY\n```\n\n## 基礎位址\n- 主位址：`https://api.lazu.ai`\n"
+  },
+  "tags": {
+    "Models": "模型清單、模型目錄與模型能力發現介面。",
+    "Files": "OpenAI 相容的檔案上傳、清單、下載與刪除介面。",
+    "Discovery": "模型發現、目錄瀏覽與定價中繼資料介面。",
+    "Chat": "OpenAI 相容的對話補全介面。",
+    "Anthropic": "Anthropic 原生訊息格式。",
+    "Gemini": "Gemini 原生請求格式與發現介面。",
+    "Embeddings": "向量嵌入生成介面。",
+    "Images": "影像生成介面。",
+    "Responses": "OpenAI Responses 風格的推理介面。",
+    "Rerank": "用於檢索流程的重新排序介面。",
+    "Audio": "文字轉語音、語音轉文字、音訊翻譯。",
+    "Account": "用量統計、計費、API Key 自查介面。"
+  },
+  "paths": {
+    "/models.json": {
+      "get": {
+        "summary": "取得公開靜態模型目錄",
+        "description": "回傳與未鑑權 `/v1/models` 相同的公開 list 價模型發現 payload。本端點不會接受或回傳任何個人化 API Key 價格欄位，適合 CDN 快取、爬蟲與 agent 發現。\n"
+      }
+    },
+    "/api/models/catalog": {
+      "get": {
+        "summary": "取得可用模型目錄",
+        "description": "回傳目前 API Key 可存取的模型目錄，適合在正式呼叫前先發現模型能力、支援端點、定價與範例請求。\n\n回傳結果會依目前 API Key 自動篩選，並額外提供：\n- 輸入/輸出模態\n- 支援的端點型別\n- 可直接呼叫的介面路徑\n- 定價資訊\n- 參數提示\n- 可直接複製的 curl 範例\n"
+      }
+    },
+    "/api/pricing": {
+      "get": {
+        "summary": "取得公開定價與市集中繼資料",
+        "description": "針對已啟用模型的公開定價檢視。當需要依某個 API Key 範圍發現可用模型時，請改用 `/api/models/catalog`。\n"
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "summary": "發現可用模型",
+        "description": "用 OpenAI 相容的 `{object:\"list\",data:[...]}` 信封回傳富模型發現目錄。鑑權是可選的：無 key 時回傳所有公開啟用模型與 list 價；帶 key 時同一批條目額外包含 `your_price`、`accessible` 和頂層 `your_pricing_context`。\n\n使用 `include=health` 可選回傳執行時健康欄位。沒有 `view` 參數；預設回應已經是富資料。\n"
+      }
+    },
+    "/v1/models/{model}": {
+      "get": {
+        "summary": "發現單一模型",
+        "description": "依模型 ID 回傳與 `/v1/models` 相同的富目錄條目形狀。"
+      }
+    },
+    "/v1/files": {
+      "get": {
+        "summary": "列出已上傳檔案",
+        "description": "列出目前 API Key 所屬使用者上傳的檔案。可用 `purpose` 依檔案用途篩選。\n"
+      },
+      "post": {
+        "summary": "上傳檔案",
+        "description": "上傳檔案，以便後續讀取，或在 `/v1/responses` 輸入項裡透過 `file_id` 引用。\n\n自部署必須為 `artifact_storage` 設定 Cloudflare R2 或其他 S3 相容儲存。騰訊雲 COS 提供部分相容的 S3 端點，但 Lazu 尚未驗證其相容性。未設定物件儲存時，本介面會回傳 `503 storage_not_configured`。\n\n支援的 purpose：\n- `user_data`：非可執行檔，最大 512 MiB\n- `vision`：PNG、JPEG、GIF 或 WebP 圖片，最大 20 MiB\n"
+      }
+    },
+    "/v1/files/{file_id}": {
+      "get": {
+        "summary": "取得檔案中繼資料",
+        "description": "回傳目前 API Key 所屬使用者擁有的檔案中繼資料。"
+      },
+      "delete": {
+        "summary": "刪除檔案",
+        "description": "刪除檔案記錄及其物件儲存內容。剩餘 TTL 的儲存費用會依後端計費規則退款。"
+      }
+    },
+    "/v1/files/{file_id}/content": {
+      "get": {
+        "summary": "下載檔案內容",
+        "description": "下載目前 API Key 所屬使用者擁有的檔案原始位元組。"
+      }
+    },
+    "/v1beta/models": {
+      "get": {
+        "summary": "以 Gemini 相容格式列出模型"
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "summary": "建立對話補全",
+        "description": "依提供的訊息清單產生模型回應。支援串流輸出與多輪對話。"
+      }
+    },
+    "/v1/messages": {
+      "post": {
+        "summary": "使用 Anthropic 原生格式建立訊息",
+        "description": "當所選模型的 `supported_endpoint_types` 中包含 `anthropic` 時使用本介面。\n\n鑑權支援兩種方式：\n- `Authorization: Bearer <api-key>`\n- `x-api-key: <api-key>`\n"
+      }
+    },
+    "/v1beta/models/{model}:generateContent": {
+      "post": {
+        "summary": "使用 Gemini 原生格式產生內容",
+        "description": "當所選模型的 `supported_endpoint_types` 中包含 `gemini` 時使用本介面。\n\n鑑權支援：\n- `Authorization: Bearer <api-key>`\n- `x-goog-api-key: <api-key>`\n- `?key=<api-key>`\n"
+      }
+    },
+    "/v1/embeddings": {
+      "post": {
+        "summary": "產生向量嵌入"
+      }
+    },
+    "/v1/images/generations": {
+      "post": {
+        "summary": "依文字提示產生影像"
+      }
+    },
+    "/v1/responses": {
+      "post": {
+        "summary": "使用 OpenAI Responses 風格介面建立回應"
+      }
+    },
+    "/v1/rerank": {
+      "post": {
+        "summary": "對查詢的候選文件進行重新排序"
+      }
+    },
+    "/v1/audio/speech": {
+      "post": {
+        "summary": "文字轉語音",
+        "description": "OpenAI 相容 TTS。回傳二進位音訊。"
+      }
+    },
+    "/v1/audio/transcriptions": {
+      "post": {
+        "summary": "音訊轉文字",
+        "description": "Whisper 相容語音轉文字。multipart 上傳音訊檔案。"
+      }
+    },
+    "/v1/audio/translations": {
+      "post": {
+        "summary": "音訊翻譯為英文",
+        "description": "Whisper 相容翻譯。輸出固定為英文。"
+      }
+    },
+    "/v1/images/edits": {
+      "post": {
+        "summary": "編輯圖片",
+        "description": "依據 prompt 編輯既有圖片。OpenAI 相容。"
+      }
+    },
+    "/v1/completions": {
+      "post": {
+        "summary": "Legacy 文字補全",
+        "description": "OpenAI 舊版 /v1/completions —— 新程式碼建議使用 /v1/chat/completions。"
+      }
+    },
+    "/api/usage/summary": {
+      "get": {
+        "summary": "目前用量摘要",
+        "description": "時間區間內的總花費、請求數、Token 數。"
+      }
+    },
+    "/api/token/inspect": {
+      "get": {
+        "summary": "查詢目前 API Key 資訊",
+        "description": "回傳中繼資料：等級、配額、通道偏好、是否已儲值。"
+      }
+    }
+  }
+}

@@ -1,0 +1,3013 @@
+/*
+ * apps/docs/public/styles.css
+ * ---------------------------
+ * Docs B · workbench (LOCKED 2026-09-23, brand/foundations/public-web-system.md
+ * § Locked Docs B workbench). Sits on top of Vocs' generated CSS; every colour,
+ * font and radius comes from Brand tokens in /brand.generated.css.
+ *
+ *   chrome     56px top bar · 244px flat sidebar · Yunmu paper ground
+ *   endpoint   article on paper + a full-height graphite workbench column
+ *   prose      single 720px column with inline ink code + right outline
+ *   code       dark ink on warm paper in both themes (Shiki "lazu-ink")
+ */
+
+:root {
+  --vocs-sidebar_width: 244px !important;
+  --vocs-topNav_height: 56px !important;
+  --vocs-topNav_curtainHeight: 0px !important;
+  --vocs-content_horizontalPadding: 0px !important;
+  --vocs-content_verticalPadding: 40px !important;
+  --vocs-content_width: calc(100vw - 244px - 300px) !important;
+
+  --d-top: 56px;
+  --d-side: 244px;
+  --d-toc: 300px;
+  --d-bench: clamp(440px, 39vw, 620px);
+  --d-gap: 48px;
+
+  --d-ink: var(--lazu-ink);
+  --d-body: color-mix(in oklab, var(--lazu-ink) 62%, var(--lazu-text-muted));
+  --d-muted: var(--lazu-text-muted);
+  --d-faint: var(--lazu-text-faint);
+  --d-line: var(--lazu-border);
+  --d-line-soft: color-mix(in srgb, var(--lazu-border) 82%, transparent);
+  --d-line-strong: var(--lazu-border-strong);
+  --d-paper: var(--lazu-surface-solid);
+  --d-sheet: var(--lazu-surface);
+  --d-raised: var(--lazu-surface-raised);
+  --d-tint: var(--lazu-surface-muted);
+  --d-selected: var(--lazu-surface-selected);
+  --d-evidence: var(--lazu-evidence);
+  --d-evidence-strong: var(--lazu-evidence-strong);
+  --d-evidence-soft: var(--lazu-evidence-soft);
+
+  --d-code: var(--lazu-code-bg);
+  --d-code-text: var(--lazu-code-text);
+  --d-code-muted: var(--lazu-code-muted);
+  --d-code-line: var(--lazu-code-border);
+  --d-code-surface: var(--lazu-code-surface);
+  --d-code-selected: var(--lazu-code-surface-selected);
+  --d-code-hover: var(--lazu-code-surface-hover);
+  --d-code-strong: var(--lazu-code-strong);
+  --d-code-number: color-mix(
+    in srgb,
+    var(--lazu-code-muted) 62%,
+    var(--lazu-code-bg)
+  );
+
+  --d-ease: cubic-bezier(0.22, 0.9, 0.28, 1);
+}
+
+/* Endpoint pages: no outline column, the workbench takes the right side. */
+:root:has(.lazu-endpoint-examples--live) {
+  --vocs-content_width: calc(100vw - 244px) !important;
+}
+
+/* Home: no sidebar, no outline — one editorial sheet with its own column. */
+:root:has(.lazu-home) {
+  --vocs-content_width: 100vw !important;
+}
+
+/* ===================================================================
+ * Ground · Yunmu paper (BRAND.md rule 1)
+ * =================================================================== */
+html,
+body {
+  background:
+    radial-gradient(
+      1100px 560px at 6% -180px,
+      var(--lazu-ambient-cool),
+      transparent 62%
+    ),
+    radial-gradient(
+      900px 520px at 96% -140px,
+      var(--lazu-ambient-warm),
+      transparent 60%
+    ),
+    linear-gradient(
+        180deg,
+        var(--lazu-page-top) 0%,
+        var(--lazu-page) 52%,
+        var(--lazu-page-bottom) 100%
+      );
+  /* Keep the ambient lights in the same place on short and long pages. */
+  background-attachment: fixed;
+  color: var(--d-ink);
+  font-family: var(--lazu-font-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Vocs sets running text at 300; Brand body copy is Geist 400. */
+.vocs_DocsLayout,
+.vocs_Content,
+.vocs_Paragraph,
+.vocs_List,
+.vocs_ListItem,
+.vocs_TableCell,
+.vocs_Content li,
+.vocs_Content td {
+  font-weight: 400 !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--lazu-grid-opacity);
+  background-image:
+    linear-gradient(var(--lazu-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--lazu-grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(
+    ellipse 70% 55% at 50% 30%,
+    #000 30%,
+    transparent 80%
+  );
+}
+
+.vocs_DocsLayout,
+.vocs_DocsLayout_content,
+.vocs_Content {
+  background: transparent !important;
+}
+
+.vocs_DocsLayout {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: var(--d-evidence-soft);
+}
+
+a {
+  color: var(--d-evidence-strong);
+}
+
+a:hover {
+  color: var(--d-ink);
+}
+
+/* ===================================================================
+ * Top bar · 56px, full width, hairline under it
+ * =================================================================== */
+.vocs_DocsLayout_gutterTop {
+  padding: 0 !important;
+  background: color-mix(
+    in srgb,
+    var(--lazu-page-top) 72%,
+    transparent
+  ) !important;
+  backdrop-filter: blur(14px) saturate(1.1);
+  border-bottom: 1px solid var(--d-line);
+  z-index: 30 !important;
+}
+
+.vocs_DocsLayout_gutterTopCurtain {
+  display: none !important;
+}
+
+.vocs_DesktopTopNav {
+  height: var(--d-top) !important;
+  padding: 0 20px !important;
+  gap: 22px;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+@media (min-width: 1081px) {
+  .vocs_DesktopTopNav {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 1080px) {
+  .vocs_DesktopTopNav {
+    display: none !important;
+  }
+}
+
+.vocs_DesktopTopNav_logoWrapper {
+  order: 0;
+  display: flex !important;
+  align-items: center;
+  height: var(--d-top);
+  position: static !important;
+}
+
+.vocs_DesktopTopNav_logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: auto !important;
+  padding: 0 !important;
+}
+
+.vocs_DesktopTopNav_logo a {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 9px;
+  height: auto !important;
+}
+
+.vocs_DesktopTopNav_logo img {
+  height: 28px !important;
+  width: auto !important;
+}
+
+/* The mono DOCS tag. Prerendered, it is drawn inside the lockup link;
+ * sidebar-extras.js then points the lockup at the main site home
+ * (data-lazu-home) and puts the tag in its own link to the docs home, in the
+ * same place, so nothing moves when the script lands. */
+.vocs_DesktopTopNav_logo a:not([data-lazu-home]):not(.lazu-docs-tag)::after,
+.vocs_DesktopTopNav_logo .lazu-docs-tag {
+  content: "Docs";
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-muted);
+  border: 1px solid var(--d-line-strong);
+  border-radius: 6px;
+  padding: 2px 6px;
+  line-height: 1.3;
+}
+
+/* Vocs sets margin-top: 4px inline on the lockup link; the tag used to ride
+ * inside it, so it keeps the same offset. */
+.vocs_DesktopTopNav_logo .lazu-docs-tag {
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+.vocs_DesktopTopNav_logo .lazu-docs-tag:hover {
+  color: var(--d-ink);
+}
+
+/* Models goes to the main site. Prerendered it is Vocs' external link, whose
+ * arrow does not belong in this bar; sidebar-extras.js makes it a same-tab
+ * link. */
+.vocs_DesktopTopNav a[href$="lazu.ai/models"]::after,
+.vocs_MobileTopNav a[href$="lazu.ai/models"]::after,
+a[data-lazu-models]::after {
+  display: none !important;
+}
+
+.vocs_DesktopTopNav_section {
+  order: 1;
+  height: var(--d-top);
+  display: flex;
+  align-items: stretch;
+  margin: 0 !important;
+}
+
+.vocs_DesktopTopNav_group {
+  gap: 0 !important;
+}
+
+.vocs_NavigationMenu_list {
+  gap: 18px !important;
+  height: var(--d-top);
+  align-items: stretch;
+}
+
+.vocs_NavigationMenu_link,
+.vocs_NavigationMenu_trigger {
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  color: var(--d-muted) !important;
+  padding: 0 !important;
+  height: var(--d-top);
+  display: flex !important;
+  align-items: center;
+  background: none !important;
+  border: 0 !important;
+}
+
+.vocs_NavigationMenu_link[data-active="true"],
+.vocs_NavigationMenu_link:hover {
+  color: var(--d-ink) !important;
+}
+
+.vocs_NavigationMenu_link[data-active="true"] {
+  font-weight: 600 !important;
+}
+
+.vocs_DesktopSearch_search {
+  order: 2;
+  margin: 0 auto !important;
+  width: 380px !important;
+  max-width: min(380px, 30vw) !important;
+  font-size: 0 !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--d-line-strong) !important;
+  background: var(--d-paper) !important;
+  color: var(--d-faint) !important;
+  padding: 0 10px !important;
+  gap: 8px !important;
+  position: static !important;
+  transform: none !important;
+}
+
+.vocs_DesktopSearch_search svg {
+  order: 0;
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+
+.vocs_DesktopSearch_search::before {
+  content: "Search docs or paste an error code";
+  order: 1;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:lang(zh) .vocs_DesktopSearch_search::before {
+  content: "搜索文档，或粘贴错误码";
+}
+
+:lang(zh-TW) .vocs_DesktopSearch_search::before {
+  content: "搜尋文件，或貼上錯誤碼";
+}
+
+:lang(ja) .vocs_DesktopSearch_search::before {
+  content: "ドキュメント検索・エラーコード";
+}
+
+.vocs_DesktopSearch_search > div,
+.vocs_DesktopSearch_search > span {
+  order: 2;
+  margin-left: auto;
+  font-size: 10.5px;
+}
+
+.vocs_DesktopSearch_search kbd,
+.vocs_DesktopSearch_search .vocs_KeyboardShortcut_kbd {
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  border: 1px solid var(--d-line-strong);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--d-faint);
+  background: var(--d-paper);
+}
+
+.dub-sidebar-extras--topbar {
+  order: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* ===================================================================
+ * Sidebar · flat, 244px, hairline right edge
+ * =================================================================== */
+.vocs_DocsLayout_gutterLeft {
+  background: transparent !important;
+  top: var(--d-top) !important;
+  height: calc(100vh - var(--d-top)) !important;
+  border-right: 1px solid var(--d-line-soft);
+}
+
+.vocs_Sidebar {
+  width: var(--d-side) !important;
+  padding: 6px 12px 24px !important;
+  background: transparent !important;
+  border: 0 !important;
+  top: 0 !important;
+  height: 100% !important;
+}
+
+.vocs_Sidebar_logoWrapper,
+.vocs_Sidebar_logo {
+  display: none !important;
+}
+
+.vocs_Sidebar_navigation {
+  padding: 0 !important;
+}
+
+.vocs_Sidebar_group,
+.vocs_Sidebar_section {
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.vocs_Sidebar_sectionHeader {
+  padding: 0 10px !important;
+  margin: 18px 0 4px !important;
+  min-height: 0 !important;
+}
+
+.vocs_Sidebar_sectionTitle {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase;
+  color: var(--d-faint) !important;
+}
+
+.vocs_Sidebar_sectionCollapse {
+  display: none !important;
+}
+
+.vocs_Sidebar_items {
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  margin: 0 !important;
+}
+
+.vocs_Sidebar_item {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px !important;
+  border-radius: 9px !important;
+  font-size: 13.5px !important;
+  line-height: 1.35 !important;
+  color: var(--d-muted) !important;
+  border: 0 !important;
+  font-weight: 400 !important;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.vocs_Sidebar_item:hover {
+  color: var(--d-ink) !important;
+  background: color-mix(in srgb, var(--d-selected) 55%, transparent);
+}
+
+/* BRAND.md rule 6: selection = fill + weight + foreground, nothing else. */
+.vocs_Sidebar_item[data-active="true"] {
+  background: var(--d-selected) !important;
+  color: var(--d-ink) !important;
+  font-weight: 600 !important;
+}
+
+/* Method tags on endpoint entries, keyed off the route (every locale). */
+.vocs_Sidebar_item[href$="/endpoints/chat"]::after,
+.vocs_Sidebar_item[href$="/endpoints/responses"]::after,
+.vocs_Sidebar_item[href$="/endpoints/embeddings"]::after,
+.vocs_Sidebar_item[href$="/endpoints/search"]::after,
+.vocs_Sidebar_item[href$="/endpoints/files"]::after {
+  content: "POST";
+}
+
+.vocs_Sidebar_item[href$="/endpoints/models"]::after,
+.vocs_Sidebar_item[href$="/endpoints/usage-requests"]::after {
+  content: "GET";
+}
+
+.vocs_Sidebar_item[href*="/endpoints/"]::after {
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--d-faint);
+}
+
+.vocs_Sidebar_footer {
+  display: none !important;
+}
+
+/* ===================================================================
+ * Content frame
+ * =================================================================== */
+/* Vocs centres the content track and grows the left gutter to match; the
+   sidebar stays 244px and flush left, so pin the track right after it. */
+.vocs_DocsLayout_content_withSidebar {
+  margin-left: var(--d-side) !important;
+}
+
+.vocs_DocsLayout_gutterLeft {
+  width: var(--d-side) !important;
+}
+
+.vocs_DocsLayout_content {
+  padding: calc(var(--d-top) + 40px) 80px 0 96px !important;
+  box-sizing: border-box;
+}
+
+.vocs_Content {
+  max-width: 720px !important;
+  width: 100%;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.vocs_Content > * {
+  max-width: none;
+}
+
+/* Prose type */
+.vocs_Content,
+.vocs_Paragraph,
+.vocs_List,
+.vocs_Content li {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--d-body);
+}
+
+.vocs_Paragraph {
+  margin: 14px 0 0 !important;
+}
+
+.vocs_Content strong {
+  color: var(--d-ink);
+  font-weight: 600;
+}
+
+.vocs_Header {
+  margin: 14px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.vocs_Content h1,
+.vocs_H1 {
+  font-family: var(--lazu-font-display) !important;
+  font-weight: 400 !important;
+  font-size: 52px !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--d-ink) !important;
+  margin: 0 !important;
+}
+
+.vocs_Content h2,
+.vocs_H2 {
+  font-family: var(--lazu-font-sans) !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.3 !important;
+  color: var(--d-ink) !important;
+  margin: 44px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.vocs_Content h3,
+.vocs_H3 {
+  font-family: var(--lazu-font-sans) !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  color: var(--d-ink) !important;
+  margin: 28px 0 0 !important;
+}
+
+.vocs_Content h4,
+.vocs_H4 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--d-ink) !important;
+  margin: 22px 0 0 !important;
+}
+
+.vocs_Heading {
+  scroll-margin-top: calc(var(--d-top) + 24px);
+}
+
+.vocs_Heading_slugTarget {
+  top: calc(-1 * (var(--d-top) + 24px)) !important;
+}
+
+/* Heading anchors — copy their link (agent-actions.js). The link glyph sits
+   after the title in evidence blue and is focusable, not hover-only. */
+.vocs_Content .vocs_Autolink {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 7px;
+  color: var(--d-evidence);
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    background 120ms ease;
+}
+
+.vocs_Content .vocs_AutolinkIcon {
+  width: 15px !important;
+  height: 15px !important;
+  background-color: currentColor !important;
+}
+
+.vocs_Content h1 .vocs_Autolink {
+  display: none !important;
+}
+
+.vocs_Content .vocs_Heading:hover .vocs_Autolink,
+.vocs_Content .vocs_Autolink:focus-visible {
+  opacity: 1;
+}
+
+.vocs_Content .vocs_Autolink:hover {
+  background: var(--d-evidence-soft);
+}
+
+.vocs_Content .vocs_Autolink:focus-visible {
+  outline: 2px solid var(--d-evidence);
+  outline-offset: 1px;
+}
+
+/* Inline code — tinted chip */
+.vocs_Content :not(pre) > code,
+.lazu-endpoint-page :not(pre) > code {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 0.84em !important;
+  background: var(--d-tint) !important;
+  border: 1px solid var(--d-line) !important;
+  border-radius: 6px !important;
+  padding: 1px 6px !important;
+  color: var(--d-ink) !important;
+  overflow-wrap: break-word;
+}
+
+.vocs_Anchor,
+.vocs_Link:not(.vocs_Sidebar_item):not(.vocs_Link_styleless) {
+  color: var(--d-evidence-strong) !important;
+  text-decoration: none !important;
+  border: 0 !important;
+}
+
+.vocs_Anchor:hover,
+.vocs_Link:not(.vocs_Sidebar_item):not(.vocs_Link_styleless):hover {
+  color: var(--d-ink) !important;
+}
+
+.vocs_List {
+  padding-left: 20px !important;
+  margin: 12px 0 0 !important;
+}
+
+.vocs_ListItem,
+.vocs_Content li {
+  margin: 4px 0 !important;
+}
+
+.vocs_HorizontalRule {
+  border-color: var(--d-line) !important;
+  margin: 36px 0 !important;
+}
+
+.vocs_Blockquote {
+  border-left: 0 !important;
+  padding: 12px 16px !important;
+  border-radius: 12px;
+  background: var(--d-raised);
+  border: 1px solid var(--d-line) !important;
+  color: var(--d-body) !important;
+}
+
+/* Tables — hairline rows, mono headers */
+.vocs_Table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 18px 0 0 !important;
+  font-size: 13.5px !important;
+  display: table !important;
+}
+
+.vocs_TableHeader,
+.vocs_Content th {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  color: var(--d-faint) !important;
+  text-align: left !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--d-line-strong) !important;
+  padding: 8px 12px 8px 0 !important;
+}
+
+.vocs_TableCell,
+.vocs_Content td {
+  border: 0 !important;
+  border-bottom: 1px solid var(--d-line-soft) !important;
+  padding: 11px 12px 11px 0 !important;
+  vertical-align: top;
+  line-height: 1.55 !important;
+  color: var(--d-body) !important;
+  background: transparent !important;
+}
+
+.vocs_TableRow {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.vocs_Content td code {
+  white-space: nowrap;
+}
+
+/* ===================================================================
+ * Code · dark ink on warm paper (article blocks)
+ * =================================================================== */
+.vocs_CodeBlock,
+.vocs_CodeGroup {
+  position: relative;
+  margin: 16px 0 0 !important;
+  border-radius: 14px !important;
+  border: 0 !important;
+  background: var(--d-code) !important;
+  overflow: hidden;
+  box-shadow:
+    0 1px 0 var(--d-code-line) inset,
+    0 18px 40px -28px rgb(20 22 28 / 55%);
+}
+
+.vocs_CodeBlock::before {
+  content: attr(data-language);
+  display: flex;
+  align-items: center;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--d-code-line);
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--d-code-muted);
+}
+
+.vocs_CodeBlock:not([data-language])::before {
+  content: "code";
+}
+
+.vocs_CodeBlock:has(.vocs_CodeTitle)::before,
+.vocs_CodeGroup .vocs_CodeBlock::before {
+  display: none;
+}
+
+.vocs_CodeGroup .vocs_CodeBlock {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none;
+}
+
+.vocs_CodeTitle {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 0 14px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--d-code-line) !important;
+  background: transparent !important;
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: var(--d-code-text) !important;
+}
+
+.vocs_Pre_wrapper {
+  position: static !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.vocs_Pre,
+.vocs_CodeBlock pre,
+.vocs_Content pre.shiki {
+  position: static !important;
+  margin: 0 !important;
+  padding: 14px 18px 16px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--d-code-text) !important;
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 12.5px !important;
+  line-height: 1.75 !important;
+  overflow-x: auto;
+}
+
+.vocs_Pre .line {
+  padding: 0 !important;
+}
+
+.vocs_Pre code,
+.vocs_CodeBlock code {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: inherit;
+}
+
+/* Both Shiki themes are "lazu-ink": in dark mode Vocs swaps to --shiki-dark,
+   which holds the same token variables. */
+html.dark .vocs_Pre span[style*="--shiki-dark"] {
+  color: var(--shiki-dark) !important;
+}
+
+.vocs_CodeBlock .line.highlighted,
+.vocs_Pre .highlighted {
+  display: inline-block;
+  width: calc(100% + 36px);
+  margin: 0 -18px;
+  padding: 0 18px;
+  background: color-mix(in srgb, var(--d-evidence) 13%, transparent) !important;
+}
+
+/* Copy button — sits in the dark header row. */
+.vocs_CodeBlock .vocs_CopyButton,
+.vocs_CodeGroup .vocs_CopyButton {
+  position: absolute !important;
+  top: 7px !important;
+  right: 8px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  height: 28px !important;
+  padding: 0 9px !important;
+  gap: 6px;
+  border-radius: 8px !important;
+  border: 1px solid var(--d-code-selected) !important;
+  background: var(--d-code-surface) !important;
+  color: var(--d-code-text) !important;
+  opacity: 1 !important;
+  font-size: 11.5px;
+  font-weight: 500;
+  font-family: var(--lazu-font-sans);
+}
+
+.vocs_CodeBlock .vocs_CopyButton::after,
+.vocs_CodeGroup .vocs_CopyButton::after {
+  content: "Copy";
+}
+
+:lang(zh) .vocs_CodeBlock .vocs_CopyButton::after {
+  content: "复制";
+}
+
+:lang(zh-TW) .vocs_CodeBlock .vocs_CopyButton::after {
+  content: "複製";
+}
+
+:lang(ja) .vocs_CodeBlock .vocs_CopyButton::after {
+  content: "コピー";
+}
+
+.vocs_CodeBlock .vocs_CopyButton[data-copied="true"] {
+  color: var(--lazu-code-flag) !important;
+}
+
+.vocs_CodeBlock .vocs_CopyButton[data-copied="true"]::after {
+  content: "Copied";
+}
+
+.vocs_CodeBlock .vocs_CopyButton .vocs_Icon {
+  --vocs_Icon_size: 13px !important;
+}
+
+.vocs_CodeBlock .vocs_CopyButton:hover {
+  background: var(--d-code-hover) !important;
+}
+
+/* Overflow cue — no scrollbar is drawn (rule 9), so long lines fade out. */
+.vocs_CodeBlock[data-overflow="true"]::after {
+  content: "";
+  position: absolute;
+  top: 42px;
+  right: 0;
+  bottom: 0;
+  width: 56px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--d-code));
+}
+
+.vocs_CodeGroup_tabsList,
+.vocs_Tabs_list {
+  display: flex !important;
+  gap: 2px !important;
+  height: 42px;
+  box-sizing: border-box;
+  align-items: center;
+  padding: 0 8px 0 10px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--d-code-line) !important;
+  background: transparent !important;
+}
+
+.vocs_CodeGroup_tabsTrigger,
+.vocs_Tabs_trigger {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: var(--d-code-muted) !important;
+  padding: 5px 9px !important;
+  border-radius: 7px !important;
+  border: 0 !important;
+  background: transparent !important;
+  height: auto !important;
+}
+
+.vocs_CodeGroup_tabsTrigger[data-state="active"],
+.vocs_Tabs_trigger[data-state="active"] {
+  background: var(--d-code-selected) !important;
+  color: var(--d-code-strong) !important;
+}
+
+.vocs_CodeGroup_tabsContent,
+.vocs_Tabs_content {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+/* ===================================================================
+ * Right outline (prose pages)
+ * =================================================================== */
+.vocs_DocsLayout_gutterRight {
+  top: var(--d-top) !important;
+  height: calc(100vh - var(--d-top)) !important;
+  width: var(--d-toc) !important;
+  padding: 40px 60px 0 20px !important;
+  box-sizing: border-box;
+}
+
+.vocs_Outline,
+.vocs_Outline_nav {
+  width: 220px !important;
+  padding: 0 !important;
+}
+
+.vocs_Outline_heading {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  color: var(--d-faint) !important;
+  padding: 0 10px 8px !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+.vocs_Outline_items {
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+}
+
+.vocs_Outline_items .vocs_Outline_items {
+  padding-left: 10px !important;
+}
+
+.vocs_Outline_item {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.vocs_Outline_link {
+  display: block;
+  font-size: 12.5px !important;
+  color: var(--d-muted) !important;
+  padding: 5px 10px !important;
+  border-radius: 8px;
+  font-weight: 400 !important;
+  border: 0 !important;
+}
+
+.vocs_Outline_link:hover {
+  color: var(--d-ink) !important;
+}
+
+.vocs_Outline_link[data-active="true"] {
+  color: var(--d-ink) !important;
+  font-weight: 600 !important;
+  background: color-mix(in srgb, var(--d-selected) 78%, transparent);
+}
+
+.vocs_AiCtaDropdown {
+  display: none !important;
+}
+
+/* ===================================================================
+ * Footer · prev / next as paper cards
+ * =================================================================== */
+.vocs_Footer {
+  /* !important: Vocs' own sheet loads after this one and caps the footer at
+     --vocs-content_width, which is wider than the 720px article column. */
+  max-width: 720px !important;
+  padding: 56px 0 48px !important;
+}
+
+.vocs_Footer_container {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  color: var(--d-faint);
+  border: 0 !important;
+}
+
+.vocs_Footer_navigation {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.vocs_Footer_navigationItem {
+  border: 1px solid var(--d-line) !important;
+  border-radius: 18px !important;
+  background: var(--d-sheet) !important;
+  padding: 14px 16px !important;
+  color: var(--d-ink) !important;
+  transition:
+    border-color 140ms ease,
+    transform 140ms var(--d-ease);
+}
+
+.vocs_Footer_navigationItem:hover {
+  border-color: var(--d-line-strong) !important;
+  transform: translateY(-1px);
+}
+
+.vocs_Footer_navigationText {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--d-ink) !important;
+}
+
+.vocs_Footer_navigationItem .vocs_KeyboardShortcut {
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  color: var(--d-faint);
+}
+
+/* ===================================================================
+ * Page head · eyebrow + page actions (Copy page ▾)
+ * =================================================================== */
+.lazu-page-head {
+  margin: 0 !important;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 34px;
+}
+
+.lazu-endpoint-eyebrow {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-faint);
+  padding-top: 10px;
+}
+
+.lazu-page-actions {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.lazu-split {
+  display: inline-flex;
+  align-items: stretch;
+  height: 34px;
+  border: 1px solid var(--d-line-strong);
+  border-radius: 12px;
+  background: var(--d-paper);
+  overflow: hidden;
+}
+
+.lazu-split button {
+  border: 0;
+  background: transparent;
+  color: var(--d-ink);
+  font: 500 13px/1 var(--lazu-font-sans);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.lazu-split button + button {
+  border-left: 1px solid var(--d-line);
+  padding: 0 9px;
+}
+
+.lazu-split button:hover,
+.lazu-split-more[aria-expanded="true"] {
+  background: var(--d-selected);
+}
+
+.lazu-split button:focus-visible,
+.lazu-menu-item:focus-visible {
+  outline: 2px solid var(--d-evidence);
+  outline-offset: -2px;
+}
+
+.lazu-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 290px;
+  box-sizing: border-box;
+  padding: 6px;
+  background: var(--d-paper);
+  border: 1px solid var(--d-line-strong);
+  border-radius: 14px;
+  box-shadow:
+    0 24px 48px -24px rgb(30 34 42 / 35%),
+    0 2px 6px rgb(30 34 42 / 6%);
+}
+
+.lazu-menu[hidden] {
+  display: none;
+}
+
+.lazu-menu-group {
+  font-family: var(--lazu-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-faint);
+  padding: 6px 10px 4px;
+}
+
+.lazu-menu-rule {
+  height: 1px;
+  background: var(--d-line);
+  margin: 5px 8px;
+}
+
+.lazu-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--d-ink) !important;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--lazu-font-sans);
+  text-decoration: none !important;
+  box-sizing: border-box;
+}
+
+.lazu-menu-item:hover {
+  background: color-mix(in srgb, var(--d-selected) 78%, transparent);
+}
+
+.lazu-menu-item > svg {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.lazu-menu-item span {
+  flex: 1;
+  min-width: 0;
+}
+
+.lazu-menu-item b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.lazu-menu-item small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--d-faint);
+  margin-top: 1px;
+}
+
+.lazu-menu-item em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--d-faint);
+}
+
+/* Toast · 墨条 (feedback-system.md): the inverted sheet, semantic in icon only. */
+.lazu-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 9px 13px;
+  border-radius: var(--lazu-radius-toast);
+  background: var(--lazu-toast-bg);
+  color: var(--lazu-toast-fg);
+  box-shadow: var(--lazu-shadow-toast);
+  font-size: 12.5px;
+  font-weight: 500;
+  transform: translate(-50%, 12px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    transform 160ms var(--d-ease);
+}
+
+.lazu-toast[data-open="true"] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.lazu-toast svg {
+  color: var(--lazu-toast-success);
+  flex: 0 0 auto;
+}
+
+.lazu-toast-detail {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  opacity: 0.7;
+}
+
+/* ===================================================================
+ * Endpoint pages · article + graphite workbench
+ * =================================================================== */
+:root:has(.lazu-endpoint-examples--live) .vocs_DocsLayout_content {
+  padding: calc(var(--d-top) + 40px) calc(var(--d-bench) + var(--d-gap)) 0
+    var(--d-gap) !important;
+}
+
+:root:has(.lazu-endpoint-examples--live) .vocs_Content,
+:root:has(.lazu-endpoint-examples--live) .vocs_Footer {
+  max-width: 640px !important;
+}
+
+:root:has(.lazu-endpoint-examples--live) .vocs_DocsLayout_gutterRight {
+  display: none !important;
+}
+
+.lazu-endpoint-page {
+  display: block;
+}
+
+.lazu-endpoint-main > h1 {
+  margin-top: 14px !important;
+}
+
+.lazu-endpoint-route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.lazu-endpoint-page .lazu-endpoint-route code {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 13.5px !important;
+  color: var(--d-ink) !important;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.lazu-method-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: 6px;
+  padding: 4px 7px;
+  color: var(--lazu-success);
+  background: color-mix(in srgb, var(--lazu-success) 10%, transparent);
+}
+
+.lazu-method-badge[data-method="GET"] {
+  color: var(--d-evidence-strong);
+  background: var(--d-evidence-soft);
+}
+
+.lazu-method-badge[data-method="DELETE"] {
+  color: var(--lazu-danger);
+  background: color-mix(in srgb, var(--lazu-danger) 10%, transparent);
+}
+
+.lazu-endpoint-description {
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--d-body);
+  margin: 20px 0 0;
+}
+
+.lazu-endpoint-billing {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--d-muted);
+  margin: 12px 0 0;
+}
+
+.lazu-endpoint-billing strong {
+  color: var(--d-ink);
+  font-weight: 600;
+}
+
+.lazu-endpoint-billing strong::after {
+  content: " · ";
+  color: var(--d-faint);
+  font-weight: 400;
+}
+
+.lazu-endpoint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.lazu-endpoint-tile,
+.lazu-mini-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--d-line);
+  background: var(--d-sheet);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--d-body);
+}
+
+.lazu-endpoint-tile h3,
+.lazu-mini-card h3 {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  color: var(--d-faint) !important;
+  margin: 0 0 6px !important;
+}
+
+.lazu-endpoint-tile p,
+.lazu-mini-card p {
+  margin: 0 !important;
+  font-size: 13.5px !important;
+}
+
+/* Field list — hairline rows, nested fields on a tinted panel */
+.lazu-field-list {
+  margin-top: 14px;
+  border-bottom: 1px solid var(--d-line-soft);
+}
+
+.lazu-field {
+  padding: 16px 0;
+  border-top: 1px solid var(--d-line-soft);
+}
+
+.lazu-field-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.lazu-endpoint-page .lazu-field-head code.lazu-field-name,
+.lazu-field-head code.lazu-field-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 13.5px !important;
+  font-weight: 500;
+  color: var(--d-ink) !important;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.lazu-field-type {
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  color: var(--d-faint);
+}
+
+.lazu-field-req,
+.lazu-field-opt {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.lazu-field-req {
+  color: var(--lazu-danger);
+}
+
+.lazu-field-opt {
+  color: var(--d-faint);
+}
+
+.lazu-field-body {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--d-body);
+  margin-top: 6px;
+}
+
+.lazu-field-body p {
+  margin: 0 !important;
+  font-size: 14px !important;
+}
+
+.lazu-field-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lazu-field-children {
+  margin-top: 12px;
+  border-radius: 12px;
+  background: var(--d-tint);
+  padding: 4px 14px;
+}
+
+.lazu-field-child {
+  padding: 11px 0;
+  border-top: 1px solid var(--d-line-soft);
+}
+
+.lazu-field-child:first-child {
+  border-top: 0;
+}
+
+.lazu-field-child-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.lazu-endpoint-page .lazu-field-child-head code,
+.lazu-field-child-head code {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 12.5px !important;
+  font-weight: 500;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: var(--d-ink) !important;
+}
+
+.lazu-field-child-head span {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  color: var(--d-faint);
+}
+
+.lazu-field-child-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--d-body);
+  margin-top: 3px;
+}
+
+/* The workbench column */
+.lazu-endpoint-examples--live {
+  position: fixed;
+  top: var(--d-top);
+  right: 0;
+  bottom: 0;
+  width: var(--d-bench);
+  z-index: 5;
+  background: var(--d-code);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 28px;
+  color: var(--d-code-text);
+}
+
+.lazu-endpoint-examples--inline {
+  margin-top: 32px;
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--d-code);
+  color: var(--d-code-text);
+}
+
+.lazu-endpoint-aside-stack {
+  display: block;
+}
+
+.lazu-bench-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 24px 0 12px;
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-code-muted);
+}
+
+.lazu-bench-label:first-child {
+  margin-top: 0;
+}
+
+.lazu-bench-ep,
+.lazu-bench-tag {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 11px;
+}
+
+.lazu-bench-tag[data-live="true"] {
+  color: var(--lazu-code-flag);
+}
+
+.lazu-send {
+  border: 1px solid var(--d-code-selected);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 14px;
+  background: color-mix(in srgb, var(--d-code-surface) 45%, transparent);
+}
+
+.lazu-send-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lazu-send-row + .lazu-send-row {
+  margin-top: 8px;
+}
+
+.lazu-send-label {
+  flex: 0 0 52px;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-code-muted);
+}
+
+.lazu-send-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  border: 1px solid var(--d-code-selected);
+  background: rgb(0 0 0 / 18%);
+  padding: 0 10px;
+}
+
+.lazu-send-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--d-code-text);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.lazu-send-field input::placeholder {
+  font-family: var(--lazu-font-sans);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  color: var(--d-code-muted);
+}
+
+.lazu-send-field:focus-within {
+  border-color: var(--lazu-code-keyword);
+}
+
+.lazu-send-field a {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--lazu-code-keyword) !important;
+  white-space: nowrap;
+}
+
+.lazu-send-ok {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--lazu-code-flag);
+}
+
+.lazu-send-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--d-code-text);
+  color: var(--d-code);
+  font: 600 12.5px/1 var(--lazu-font-sans);
+  cursor: pointer;
+  transition:
+    transform 140ms var(--d-ease),
+    box-shadow 140ms ease;
+}
+
+.lazu-send-button[data-again="true"] {
+  background: var(--d-code-selected);
+  color: var(--d-code-text);
+}
+
+.lazu-send-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 60%);
+}
+
+.lazu-send-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lazu-send-select {
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid var(--d-code-selected);
+  background: transparent;
+  color: var(--d-code-text);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  padding: 0 8px;
+  max-width: 220px;
+}
+
+.lazu-send-select option {
+  background: var(--d-code);
+}
+
+.lazu-send-note {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+  font-size: 11.5px;
+  color: var(--d-code-muted);
+  text-align: right;
+}
+
+.lazu-send-stream {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--d-code-text);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.lazu-send-stream input {
+  accent-color: var(--lazu-code-keyword);
+}
+
+/* Shared dark code block (workbench + CodeSample) */
+.lazu-cb {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--d-code);
+  color: var(--d-code-text);
+  box-shadow:
+    0 1px 0 var(--d-code-line) inset,
+    0 18px 40px -28px rgb(20 22 28 / 55%);
+  margin-top: 16px;
+}
+
+.lazu-endpoint-examples .lazu-cb {
+  margin-top: 0;
+  background: color-mix(in srgb, var(--d-code-surface) 50%, transparent);
+  border: 1px solid var(--d-code-line);
+  box-shadow: none;
+}
+
+.lazu-cb-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 8px 7px 10px;
+  border-bottom: 1px solid var(--d-code-line);
+}
+
+.lazu-cb-title {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  color: var(--d-code-text);
+  padding: 0 6px;
+}
+
+.lazu-cb-tab {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--d-code-muted);
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.lazu-cb-tab[data-on="true"] {
+  background: var(--d-code-selected);
+  color: var(--d-code-strong);
+}
+
+.lazu-cb-copy {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 8px;
+  border: 1px solid var(--d-code-selected);
+  background: var(--d-code-surface);
+  color: var(--d-code-text);
+  font: 500 11.5px/1 var(--lazu-font-sans);
+  cursor: pointer;
+}
+
+.lazu-cb-copy:hover {
+  background: var(--d-code-hover);
+}
+
+.lazu-cb-pre {
+  margin: 0 !important;
+  padding: 14px 18px 16px !important;
+  background: transparent !important;
+  border: 0 !important;
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 12.5px !important;
+  line-height: 1.75 !important;
+  color: var(--d-code-text) !important;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.lazu-cb-pre code {
+  font: inherit !important;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: inherit !important;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lazu-line {
+  display: block;
+  padding-left: 30px;
+  text-indent: -30px;
+}
+
+.lazu-line .ln {
+  display: inline-block;
+  width: 26px;
+  margin-right: 4px;
+  text-indent: 0;
+  color: var(--d-code-number);
+  user-select: none;
+}
+
+.hl-k {
+  color: var(--lazu-code-keyword);
+}
+
+.hl-s {
+  color: var(--lazu-code-string);
+}
+
+.hl-f {
+  color: var(--lazu-code-flag);
+}
+
+.hl-c {
+  color: var(--d-code-muted);
+}
+
+/* Receipt — dark, inside the workbench */
+.lazu-receipt {
+  margin-top: 24px;
+  border: 1px solid var(--d-code-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--d-code-surface) 50%, transparent);
+}
+
+.lazu-receipt[data-live="true"] {
+  border-color: color-mix(in srgb, var(--lazu-code-flag) 28%, transparent);
+  background: color-mix(in srgb, var(--lazu-code-flag) 5%, transparent);
+}
+
+.lazu-receipt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  color: var(--d-code-muted);
+}
+
+.lazu-receipt-head span:first-child {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lazu-receipt[data-live="true"] .lazu-receipt-head span:last-child {
+  color: var(--lazu-code-flag);
+}
+
+.lazu-receipt-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 6px 0 8px;
+}
+
+.lazu-receipt-total strong {
+  font-family: var(--lazu-font-display);
+  font-weight: 400;
+  font-size: 36px;
+  line-height: 1.1;
+  color: var(--d-code-strong);
+}
+
+.lazu-receipt-total span {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  color: var(--lazu-code-flag);
+}
+
+.lazu-receipt-total span[data-ok="false"] {
+  color: var(--lazu-danger);
+}
+
+.lazu-receipt dl {
+  margin: 0;
+}
+
+.lazu-receipt dl > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--d-code-line);
+  font-size: 12px;
+}
+
+.lazu-receipt dt {
+  color: var(--d-code-muted);
+}
+
+.lazu-receipt dd {
+  margin: 0;
+  font-family: var(--lazu-font-mono);
+  color: var(--d-code-text);
+  text-align: right;
+}
+
+.lazu-receipt-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--d-code-muted);
+  margin: 10px 0 0;
+}
+
+.lazu-receipt-link {
+  display: inline-flex;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--lazu-code-keyword) !important;
+}
+
+.lazu-bench-extra {
+  margin-top: 24px;
+}
+
+/* ===================================================================
+ * Home · editorial left column + graphite "Hello, Lazu" column
+ * =================================================================== */
+:root:has(.lazu-home) .vocs_DocsLayout_gutterLeft,
+:root:has(.lazu-home) .vocs_DocsLayout_gutterRight,
+:root:has(.lazu-home) .vocs_Footer {
+  display: none !important;
+}
+
+:root:has(.lazu-home) .vocs_DocsLayout_content {
+  margin-left: 0 !important;
+  max-width: none !important;
+  padding: calc(var(--d-top) + 74px) calc(var(--d-bench) + 80px) 64px 80px !important;
+}
+
+:root:has(.lazu-home) .vocs_Content {
+  max-width: 700px !important;
+}
+
+.lazu-home-eyebrow {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-faint);
+}
+
+.lazu-home h1 {
+  font-size: 68px !important;
+  line-height: 1.02 !important;
+  margin-top: 14px !important;
+}
+
+.lazu-home-lede {
+  font-size: 16.5px;
+  line-height: 1.7;
+  color: var(--d-body);
+  max-width: 560px;
+  margin: 18px 0 0;
+}
+
+.lazu-home-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 52px;
+  margin-top: 28px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid var(--d-line-strong);
+  background: var(--d-paper);
+  box-shadow: 0 18px 40px -30px rgb(30 34 42 / 40%);
+  color: var(--d-faint);
+  font: 400 15px/1 var(--lazu-font-sans);
+  cursor: text;
+  text-align: left;
+}
+
+.lazu-home-search:hover {
+  border-color: color-mix(in srgb, var(--d-ink) 26%, transparent);
+}
+
+.lazu-home-search kbd {
+  margin-left: auto;
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  border: 1px solid var(--d-line-strong);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--d-faint);
+  background: var(--d-paper);
+}
+
+.lazu-home-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.lazu-home-tags a {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  padding: 4px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--d-line-strong);
+  background: var(--d-raised);
+  color: var(--d-muted) !important;
+}
+
+.lazu-home-tags a:hover {
+  color: var(--d-ink) !important;
+}
+
+.lazu-home-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 56px;
+}
+
+.lazu-home-cols h2 {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  color: var(--d-faint) !important;
+  margin: 0 0 10px !important;
+}
+
+.lazu-home-cols a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--d-line-soft);
+  color: var(--d-ink) !important;
+  font-size: 14px;
+}
+
+.lazu-home-cols a:hover {
+  color: var(--d-evidence-strong) !important;
+}
+
+.lazu-home-cols a svg {
+  color: var(--d-faint);
+}
+
+.lazu-home-bench {
+  position: fixed;
+  top: var(--d-top);
+  right: 0;
+  bottom: 0;
+  width: calc(var(--d-bench) + 20px);
+  box-sizing: border-box;
+  padding: 68px 28px 28px;
+  background: var(--d-code);
+  color: var(--d-code-text);
+  overflow-y: auto;
+}
+
+.lazu-home-bench .lazu-bench-label {
+  margin: 0;
+}
+
+.lazu-home-bench-title {
+  font-family: var(--lazu-font-display);
+  font-size: 30px;
+  line-height: 1.15;
+  color: var(--d-code-strong);
+  margin: 8px 0 18px;
+}
+
+.lazu-home-bench .lazu-cb {
+  background: color-mix(in srgb, var(--d-code-surface) 50%, transparent);
+  border: 1px solid var(--d-code-line);
+  box-shadow: none;
+  margin: 0;
+}
+
+.lazu-home-agent {
+  margin-top: 28px;
+  border: 1px solid var(--d-code-line);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.lazu-home-agent-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-code-text);
+}
+
+.lazu-home-agent-title svg {
+  color: var(--lazu-code-keyword);
+}
+
+.lazu-home-agent-url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  background: var(--d-code-surface);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  color: var(--d-code-text);
+}
+
+.lazu-home-agent-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.lazu-home-agent-links .lazu-cb-copy {
+  margin: 0;
+  text-decoration: none;
+}
+
+/* ===================================================================
+ * Callouts (纸上批注) and cards
+ * =================================================================== */
+.dub-docs-callout,
+.vocs_Callout {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin: 22px 0 0 !important;
+  padding: 14px 16px !important;
+  border: 1px solid var(--d-line) !important;
+  border-left-width: 1px !important;
+  border-radius: var(--lazu-radius-notice) !important;
+  background: var(--d-raised) !important;
+  color: var(--d-body) !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
+}
+
+.vocs_Callout {
+  display: block !important;
+}
+
+.dub-docs-callout {
+  --dub-callout-tone: var(--lazu-info, var(--d-evidence));
+}
+
+.dub-docs-callout[data-type="warning"] {
+  --dub-callout-tone: var(--lazu-warning);
+}
+
+.dub-docs-callout[data-type="danger"] {
+  --dub-callout-tone: var(--lazu-danger);
+}
+
+.dub-docs-callout[data-type="success"],
+.dub-docs-callout[data-type="tip"] {
+  --dub-callout-tone: var(--lazu-success);
+}
+
+.dub-docs-callout__icon {
+  color: var(--dub-callout-tone);
+  margin-top: 3px;
+}
+
+.dub-docs-callout__body > :first-child {
+  margin-top: 0 !important;
+}
+
+.dub-docs-callout__body > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.dub-docs-callout__body p {
+  font-size: 13.5px !important;
+}
+
+.dub-docs-callout__body > :first-child > strong:first-child {
+  color: var(--dub-callout-tone);
+}
+
+.dub-docs-cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 24px 0 0;
+}
+
+.dub-docs-card {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-height: 118px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--d-line);
+  background: var(--d-sheet);
+  color: var(--d-ink) !important;
+  text-decoration: none !important;
+  transition:
+    border-color 140ms ease,
+    transform 140ms var(--d-ease);
+}
+
+.dub-docs-card:hover {
+  border-color: var(--d-line-strong);
+  transform: translateY(-1px);
+}
+
+.dub-docs-card strong {
+  font-family: var(--lazu-font-display);
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.dub-docs-card span {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--d-muted);
+}
+
+/* ===================================================================
+ * Top-bar controls injected by sidebar-extras.js
+ * =================================================================== */
+.dub-sidebar-extras {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dub-sidebar-extras__theme,
+.dub-sidebar-extras__lang {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--d-body);
+  font: 500 13px/1 var(--lazu-font-sans);
+  cursor: pointer;
+}
+
+.dub-sidebar-extras__theme svg,
+.dub-sidebar-extras__lang svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dub-sidebar-extras__theme:hover,
+.dub-sidebar-extras__lang:hover,
+.dub-sidebar-extras__lang[aria-expanded="true"] {
+  background: var(--d-selected);
+  color: var(--d-ink);
+}
+
+.dub-sidebar-extras__lang-wrapper {
+  position: relative;
+}
+
+.dub-sidebar-extras__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 156px;
+  padding: 6px;
+  border: 1px solid var(--d-line-strong);
+  border-radius: 14px;
+  background: var(--d-paper);
+  box-shadow: 0 24px 48px -24px rgb(30 34 42 / 35%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dub-sidebar-extras__menu[hidden] {
+  display: none;
+}
+
+.dub-sidebar-extras__menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--d-body);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dub-sidebar-extras__menu-item:hover,
+.dub-sidebar-extras__menu-item:focus-visible {
+  background: var(--d-selected);
+  color: var(--d-ink);
+  outline: 0;
+}
+
+.dub-sidebar-extras__menu-item[aria-checked="true"] {
+  color: var(--d-ink);
+  font-weight: 600;
+}
+
+.dub-sidebar-extras__menu-check {
+  display: inline-flex;
+  width: 12px;
+}
+
+.dub-console-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  margin-left: 4px;
+  border-radius: 12px;
+  background: var(--lazu-action);
+  color: var(--lazu-on-action) !important;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition:
+    transform 140ms var(--d-ease),
+    box-shadow 140ms ease;
+}
+
+.dub-console-cta svg {
+  display: none;
+}
+
+.dub-console-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px rgb(20 22 28 / 45%);
+}
+
+@media (min-width: 1081px) {
+  .vocs_Sidebar .dub-sidebar-extras {
+    display: none;
+  }
+}
+
+/* ===================================================================
+ * API Explorer (/api-reference) — operations list + graphite panel
+ * =================================================================== */
+.lazu-expl {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.lazu-expl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lazu-expl-list-label,
+.lazu-expl-flabel {
+  font-family: var(--lazu-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-faint);
+  margin-bottom: 6px;
+}
+
+.lazu-expl-op {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--d-muted);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lazu-expl-op[data-on="true"] {
+  background: var(--d-selected);
+  color: var(--d-ink);
+  font-weight: 600;
+}
+
+.lazu-expl-op-method {
+  font-family: var(--lazu-font-mono);
+  font-size: 9.5px;
+  color: var(--d-faint);
+  width: 32px;
+}
+
+.lazu-expl-panel {
+  border-radius: 14px;
+  background: var(--d-code);
+  color: var(--d-code-text);
+  padding: 16px;
+}
+
+.lazu-expl-panel .lazu-expl-flabel {
+  color: var(--d-code-muted);
+}
+
+.lazu-expl-reqrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.lazu-endpoint-page .lazu-expl-path,
+.lazu-expl-path {
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 13px !important;
+  color: var(--d-code-text) !important;
+  background: none !important;
+  border: 0 !important;
+}
+
+.lazu-expl-send {
+  margin-left: auto;
+  height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--d-code-text);
+  color: var(--d-code);
+  font: 600 12.5px/1 var(--lazu-font-sans);
+  cursor: pointer;
+}
+
+.lazu-expl-field {
+  margin-bottom: 14px;
+}
+
+.lazu-expl-input,
+.lazu-expl-body {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 9px;
+  border: 1px solid var(--d-code-selected);
+  background: rgb(0 0 0 / 18%);
+  color: var(--d-code-text);
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+  padding: 9px 10px;
+}
+
+.lazu-expl-body {
+  min-height: 160px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.lazu-expl-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--d-code-muted);
+}
+
+.lazu-expl-resphead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lazu-expl-status {
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  color: var(--d-code-muted);
+}
+
+.lazu-expl-status[data-ok="true"] {
+  color: var(--lazu-code-flag);
+}
+
+.lazu-expl-status[data-ok="false"] {
+  color: var(--lazu-danger);
+}
+
+.lazu-expl-resp {
+  margin: 8px 0 0 !important;
+  padding: 14px !important;
+  border-radius: 10px;
+  border: 1px solid var(--d-code-line) !important;
+  background: color-mix(
+    in srgb,
+    var(--d-code-surface) 50%,
+    transparent
+  ) !important;
+  color: var(--d-code-text) !important;
+  font-family: var(--lazu-font-mono) !important;
+  font-size: 12.5px !important;
+  line-height: 1.7 !important;
+  max-height: 420px;
+  overflow: auto;
+}
+
+/* ===================================================================
+ * Silent scroll (BRAND.md rule 9) lives in the generated brand CSS.
+ * Mobile top nav and drawer below.
+ * =================================================================== */
+.vocs_MobileTopNav {
+  background: color-mix(
+    in srgb,
+    var(--lazu-page-top) 86%,
+    transparent
+  ) !important;
+  border-bottom: 1px solid var(--d-line) !important;
+  padding: 0 16px !important;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100vw;
+}
+
+.vocs_MobileTopNav_section {
+  gap: 10px !important;
+  min-width: 0;
+}
+
+.vocs_MobileTopNav_curtain,
+.vocs_MobileTopNav_curtainGroup {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+@media (max-width: 1280px) {
+  :root {
+    --vocs-content_width: calc(100vw - 244px) !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  :root {
+    --d-bench: 420px;
+  }
+
+  .vocs_DocsLayout_content {
+    padding-left: 56px !important;
+    padding-right: 56px !important;
+  }
+}
+
+@media (max-width: 1080px) {
+  /* The sidebar is gone at this width, so the content width must stop
+     subtracting it: Vocs caps .vocs_Footer at this value, and at
+     100vw - 244px a phone got a 146px prev/next pair with the second card
+     clipped away. */
+  :root,
+  :root:has(.lazu-endpoint-examples--live) {
+    --vocs-content_width: 100vw !important;
+  }
+
+  .vocs_DocsLayout_content,
+  :root:has(.lazu-endpoint-examples--live) .vocs_DocsLayout_content,
+  :root:has(.lazu-home) .vocs_DocsLayout_content {
+    margin: 0 auto !important;
+    padding: 28px 20px 0 !important;
+    max-width: 760px !important;
+  }
+
+  .vocs_Content,
+  :root:has(.lazu-endpoint-examples--live) .vocs_Content {
+    max-width: none !important;
+  }
+
+  .lazu-endpoint-examples--live,
+  .lazu-home-bench {
+    position: static;
+    width: auto;
+    margin: 32px -20px 0;
+    padding: 24px 20px;
+    border-radius: 0;
+  }
+
+  .vocs_Content h1,
+  .vocs_H1 {
+    font-size: 44px !important;
+  }
+
+  .lazu-home h1 {
+    font-size: 48px !important;
+  }
+
+  .lazu-home-cols {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .lazu-send-row {
+    flex-wrap: wrap;
+  }
+
+  .lazu-send-note {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .lazu-expl {
+    grid-template-columns: 1fr;
+  }
+
+  .vocs_Footer {
+    padding-bottom: 32px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .vocs_MobileTopNav .dub-console-cta {
+    height: 30px;
+    margin-left: 0;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .lazu-endpoint-page .lazu-endpoint-route code {
+    word-break: break-all;
+  }
+
+  .lazu-send-field {
+    flex-basis: calc(100% - 62px);
+  }
+
+  .lazu-send-button {
+    margin-left: 62px;
+  }
+
+  .lazu-page-head {
+    flex-wrap: wrap;
+  }
+
+  .vocs_Content h1,
+  .vocs_H1 {
+    font-size: 42px !important;
+  }
+
+  .lazu-home h1 {
+    font-size: 42px !important;
+  }
+
+  .vocs_Footer_navigation {
+    grid-template-columns: 1fr;
+  }
+
+  .lazu-menu {
+    width: min(290px, calc(100vw - 40px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lazu-toast,
+  .dub-console-cta,
+  .lazu-send-button,
+  .dub-docs-card,
+  .vocs_Footer_navigationItem {
+    transition: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   404 — same family as the web app's status pages
+   (apps/web/src/components/ui/status-page.tsx): a large serif mark, one
+   title, one sentence, the address that missed, two ways out.
+   ───────────────────────────────────────────────────────────────────── */
+.docs-404 {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: min(640px, 70vh);
+  padding: 48px 16px;
+}
+
+.docs-404__body {
+  display: grid;
+  gap: 12px;
+  isolation: isolate;
+  justify-items: center;
+  position: relative;
+  text-align: center;
+  width: min(100%, 420px);
+}
+
+.docs-404__body::before {
+  background: radial-gradient(
+    closest-side,
+    var(--lazu-evidence-soft),
+    transparent
+  );
+  content: "";
+  height: 190px;
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: -44px;
+  transform: translateX(-50%);
+  width: min(340px, 100%);
+  z-index: -1;
+}
+
+.docs-404__mark {
+  -webkit-background-clip: text;
+  background: linear-gradient(
+    180deg,
+    var(--lazu-ink) 30%,
+    var(--lazu-text-faint)
+  );
+  background-clip: text;
+  color: transparent;
+  font-family: var(--lazu-font-display);
+  font-size: clamp(80px, 16vw, 120px);
+  font-variant-numeric: lining-nums;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  margin-bottom: 8px;
+  padding-inline: 0.08em;
+}
+
+/* The docs set every content h1 in the display serif with !important; the
+   404 title is a sentence (often CJK, which the serif has no glyphs for),
+   so it opts back into the sans at the same strength. */
+.vocs_Content .docs-404 .docs-404__title,
+.docs-404 .docs-404__title {
+  border: 0;
+  color: var(--lazu-ink) !important;
+  font-family: var(--lazu-font-sans) !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.005em !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  padding: 0;
+  text-wrap: balance;
+}
+
+.docs-404__description {
+  color: var(--lazu-text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 380px;
+}
+
+.docs-404__pill {
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 5px 12px;
+}
+
+.docs-404__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.docs-404 .docs-404__btn {
+  align-items: center;
+  border-radius: var(--lazu-radius-pill);
+  box-shadow: inset 0 0 0 1px var(--lazu-border-strong);
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 500;
+  height: 36px;
+  padding: 0 16px;
+  text-decoration: none;
+  transition: transform 140ms ease;
+}
+
+.docs-404 .docs-404__btn--primary {
+  background: var(--lazu-ink);
+  box-shadow: none;
+  color: var(--lazu-page);
+}
+
+.docs-404 .docs-404__btn:hover {
+  transform: translateY(-1px);
+}
+
+.docs-404 .docs-404__btn:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+.docs-404__hint {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin-top: 12px;
+  padding-top: 14px;
+  width: 100%;
+}
+
+.docs-404__hint a {
+  color: var(--lazu-evidence);
+  text-underline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-404 .docs-404__btn {
+    transition: none;
+  }
+}
+
+/* ── Site footer ─────────────────────────────────────────────────────
+   The locked public footer (public-web-system #15), mounted under every
+   docs page by site-footer.js. Rules mirror
+   apps/web/src/components/marketing/public-footer.css. */
+.lazu-public-footer {
+  background: linear-gradient(
+    180deg,
+    var(--lazu-page) 0%,
+    var(--lazu-page-bottom) 100%
+  );
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-sans);
+}
+
+.lazu-public-footer__inner {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  margin: 0 auto;
+  max-width: 1160px;
+  padding: 56px 0 0;
+}
+
+.lazu-public-footer__grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.lazu-public-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  grid-column: span 2;
+}
+
+.lazu-public-footer__brand a {
+  align-self: flex-start;
+  display: inline-flex;
+}
+
+.lazu-public-footer__logo {
+  display: block;
+  height: 30px;
+  width: auto;
+}
+
+.lazu-public-footer__logo--dark,
+html.dark .lazu-public-footer__logo--light {
+  display: none;
+}
+
+html.dark .lazu-public-footer__logo--dark {
+  display: block;
+}
+
+.lazu-public-footer__brand p {
+  color: var(--lazu-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 300px;
+}
+
+.lazu-public-footer__col {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  gap: 12px;
+}
+
+.lazu-public-footer__eyebrow {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lazu-public-footer a {
+  color: var(--lazu-ink);
+  text-decoration: none;
+}
+
+.lazu-public-footer a:hover {
+  color: var(--lazu-evidence-strong);
+}
+
+.lazu-public-footer a.is-mono {
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+}
+
+.lazu-public-footer__legal {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 13px;
+  gap: 16px;
+  min-height: 64px;
+}
+
+.lazu-public-footer__line {
+  flex: 1;
+}
+
+/* Docs: the footer sits in the content column between the fixed sidebar
+   and the fixed outline, so the brand takes its own row above the four
+   link columns and the block keeps the column's width. */
+.lazu-public-footer--docs {
+  background: transparent;
+  margin-top: 8px;
+  max-width: 720px;
+}
+
+.lazu-public-footer--docs .lazu-public-footer__inner {
+  gap: 40px;
+  max-width: none;
+  padding: 48px 0 0;
+}
+
+.lazu-public-footer--docs .lazu-public-footer__grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  row-gap: 32px;
+}
+
+.lazu-public-footer--docs .lazu-public-footer__brand {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1240px) {
+  .lazu-public-footer:not(.lazu-public-footer--docs) .lazu-public-footer__inner {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+
+@media (max-width: 900px) {
+  .lazu-public-footer__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 32px;
+  }
+}
+
+@media (max-width: 600px) {
+  .lazu-public-footer__inner {
+    gap: 36px;
+    padding: 40px 0 0;
+  }
+
+  .lazu-public-footer__legal {
+    flex-wrap: wrap;
+    padding: 16px 0;
+  }
+
+  .lazu-public-footer__line {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .lazu-public-footer--docs .lazu-public-footer__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

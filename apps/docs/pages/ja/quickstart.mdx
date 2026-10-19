@@ -1,0 +1,79 @@
+---
+title: "クイックスタート：1 つの API キーで Claude・GPT・Gemini を呼び出す"
+description: "Lazu の API キーを作成し、任意の OpenAI SDK の接続先を https://api.lazu.ai/v1 に変えるだけで、数分で Claude・GPT・Gemini・DeepSeek に最初のリクエストを送れます。"
+---
+
+# クイックスタート
+
+## 1. キーを作成してモデルを選ぶ
+
+[コンソール](https://lazu.ai/console/token)でキーを作成します。下記の環境変数を設定し、そのキーでカタログを取得してください。`supported_endpoints` に `/v1/chat/completions` が含まれるモデルを選び、ID を `LAZU_MODEL` に設定します。カタログはアクセス範囲と機能を示しますが、実際の上流リクエストの成功を保証するものではありません。
+
+```bash
+export LAZU_API_ORIGIN="https://api.lazu.ai"
+export LAZU_API_KEY="YOUR_LAZU_KEY"
+curl --fail-with-body "$LAZU_API_ORIGIN/api/models/catalog" \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+export LAZU_MODEL="MODEL_ID_FROM_CATALOG"
+```
+
+## 2. リクエストを送る
+
+HTTP を直接使う場合、`LAZU_API_ORIGIN` は `/v1` を含まないオリジンです。OpenAI SDK の base URL には `/v1` を追加します。セルフホストでは自身のオリジンに置き換えてください。
+
+```bash
+# Requires jq. Inspect response headers in response.headers.
+jq -n --arg model "$LAZU_MODEL" \
+  '{model: $model, messages: [{role: "user", content: "Hello"}]}' \
+  | curl --fail-with-body -D response.headers \
+      "$LAZU_API_ORIGIN/v1/chat/completions" \
+      -H "Authorization: Bearer $LAZU_API_KEY" \
+      -H "Content-Type: application/json" --data-binary @-
+```
+
+### Python
+
+```bash
+python -m pip install openai
+```
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LAZU_API_KEY"],
+    base_url=os.environ["LAZU_API_ORIGIN"].rstrip("/") + "/v1",
+)
+response = client.chat.completions.create(
+    model=os.environ["LAZU_MODEL"],
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(response.choices[0].message.content)
+```
+
+### TypeScript
+
+```bash
+npm install openai
+```
+
+```ts
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LAZU_API_KEY,
+  baseURL: `${process.env.LAZU_API_ORIGIN}/v1`,
+});
+const response = await client.chat.completions.create({
+  model: process.env.LAZU_MODEL!,
+  messages: [{ role: "user", content: "Hello" }],
+});
+console.log(response.choices[0].message.content);
+```
+
+## 3. 結果と使用量を確認する
+
+返されたテキストを読み、レスポンスヘッダーの `X-Request-Id` を保存します。コンソールの使用量・ログで請求を確認するか、同じキーで `GET /api/usage/requests/{request_id}` を呼び出します。上流レスポンス本文の ID が Lazu のリクエスト ID とは限りません。
+
+[画像・動画・音声](/ja/endpoints/media) · [価格とレーン](/ja/models/pricing)

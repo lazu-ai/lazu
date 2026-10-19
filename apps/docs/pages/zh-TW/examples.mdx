@@ -1,0 +1,78 @@
+---
+title: "程式碼範例：Lazu API 的 cURL、Python、JavaScript"
+description: Lazu API 的 cURL、Python、JavaScript 與生產排障範例。
+---
+
+import { Callout } from "../../components/mdx";
+
+# 程式碼範例
+
+以下範例使用 Lazu 託管版 Base URL。自部署時，請替換成你自己的 API 網域。
+
+## OpenAI 相容對話
+
+### Python
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.lazu.ai/v1",
+    api_key="YOUR_LAZU_KEY",
+)
+
+response = client.chat.completions.create(
+    model="gpt-6-luna",
+    messages=[
+        {"role": "system", "content": "你是一個有幫助的助手。"},
+        {"role": "user", "content": "用一段話解釋模型路由。"},
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+### JavaScript
+
+```javascript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://api.lazu.ai/v1",
+  apiKey: process.env.LAZU_API_KEY,
+});
+
+const response = await client.chat.completions.create({
+  model: "gpt-6-luna",
+  messages: [{ role: "user", content: "Hello from Lazu" }],
+});
+
+console.log(response.choices[0].message.content);
+```
+
+## 串流回應
+
+```python
+stream = client.chat.completions.create(
+    model="claude-sonnet-5",
+    messages=[{"role": "user", "content": "寫一份簡短部署 checklist。"}],
+    stream=True,
+)
+
+for chunk in stream:
+    delta = chunk.choices[0].delta.content
+    if delta:
+        print(delta, end="", flush=True)
+```
+
+## 模型發現
+
+```bash
+curl https://api.lazu.ai/api/models/catalog \
+  -H "Authorization: Bearer YOUR_LAZU_KEY"
+```
+
+<Callout type="tip">
+  用 catalog 回應決定 endpoint、模態和參數。不要在 Agent 或 SDK wrapper
+  裡硬編碼全域模型列表。
+</Callout>

@@ -1,0 +1,215 @@
+services:
+  lazu-frontend:
+    build:
+      # The frontend image reads brand/ and the legal defaults as well as
+      # apps/web, so it builds from the repository root, as CI does.
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    image: lazu-frontend:local
+    container_name: lazu-frontend
+    restart: always
+    environment:
+      # Optional authenticated crawler counts; unset disables the mirror.
+      - CRAWLER_MIRROR_TOKEN=${CRAWLER_MIRROR_TOKEN:-}
+
+    ports:
+      - "3000:80"
+    networks:
+      default:
+        ipv4_address: 172.28.0.10
+    depends_on:
+      lazu-backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1/readyz || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  lazu-backend:
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile
+      args:
+        - APP_VERSION=${APP_VERSION:-dev}
+    image: lazu-api:local
+    container_name: lazu-backend
+    restart: always
+
+    command: --log-dir /data/logs
+    ports:
+      - "3001:3000"
+    volumes:
+      - backend_data:/data
+      - ../../config:/app/config:ro
+    environment:
+      - CRAWLER_MIRROR_TOKEN=${CRAWLER_MIRROR_TOKEN:-}
+      - DATABASE_URL=postgresql://lazu:${POSTGRES_PASSWORD:-lazu-local-postgres}@lazu-postgres:5432/lazu_app?sslmode=disable
+      - TELEMETRY_DATABASE_URL=postgresql://lazu:${POSTGRES_PASSWORD:-lazu-local-postgres}@lazu-telemetry:5432/lazu_telemetry?sslmode=disable
+      - REDIS_CONN_STRING=redis://default:${REDIS_PASSWORD:-lazu-local-redis}@lazu-redis:6379/0
+      - PROCESS_ROLE=api
+      # A fresh database gets its schema and opens its financial ledger on
+      # first start; on later starts both are no-ops. Production deploys run
+      # these steps explicitly instead (see docs/DEPLOYMENT.md).
+      - LAZU_RUN_MIGRATIONS_ON_START=${LAZU_RUN_MIGRATIONS_ON_START:-true}
+      - LAZU_BOOTSTRAP_LEDGER_ON_START=${LAZU_BOOTSTRAP_LEDGER_ON_START:-true}
+      - ROOT_USERNAME=${ROOT_USERNAME:-root}
+      - ROOT_PASSWORD=${ROOT_PASSWORD:-change-me-local-root}
+      - LOG_LEVEL=warn
+      - ACCESS_LOG=false
+      - GORM_LOG_LEVEL=error
+      - GORM_SLOW_THRESHOLD_MS=1000
+      - MODEL_LOG_ENABLED=true
+      - TRENDING_CACHE_TTL_SECONDS=600
+      - TZ=Asia/Shanghai
+      - ERROR_LOG_ENABLED=true
+      # Node identifier surfaced in topup audit logs; set per replica when scaling out.
+      - NODE_NAME=lazu-backend-1
+      # Trust only the bundled frontend nginx proxy on the compose network.
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-127.0.0.1/8,::1/128,172.28.0.10/32}
+      - API_SQL_MAX_OPEN_CONNS=15
+      - API_SQL_MAX_IDLE_CONNS=3
+      - API_SQL_MAX_LIFETIME=60
+      - GOMEMLIMIT=384MiB
+      - GOGC=50
+    #      - STREAMING_TIMEOUT=300  # Stream-mode idle timeout (seconds, default 120)
+    #      - SESSION_SECRET=random_string  # Required in multi-replica deployments
+    #      - SYNC_FREQUENCY=60
+    depends_on:
+      lazu-redis:
+        condition: service_healthy
+      lazu-postgres:
+        condition: service_healthy
+      lazu-telemetry:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://localhost:3000/readyz || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  lazu-jobs:
+    image: lazu-api:local
+    container_name: lazu-jobs
+    entrypoint: ["/entrypoint.sh", "/worker"]
+    restart: unless-stopped
+
+    depends_on:
+      lazu-backend:
+        condition: service_healthy
+    volumes:
+      - backend_data:/data
+      - ../../config:/app/config:ro
+    environment:
+      - DATABASE_URL=postgresql://lazu:${POSTGRES_PASSWORD:-lazu-local-postgres}@lazu-postgres:5432/lazu_app?sslmode=disable
+      - TELEMETRY_DATABASE_URL=postgresql://lazu:${POSTGRES_PASSWORD:-lazu-local-postgres}@lazu-telemetry:5432/lazu_telemetry?sslmode=disable
+      - REDIS_CONN_STRING=redis://default:${REDIS_PASSWORD:-lazu-local-redis}@lazu-redis:6379/0
+      - PROCESS_ROLE=worker
+      - LAZU_MIGRATION_MODE=validate
+      - LOG_LEVEL=warn
+      - GORM_LOG_LEVEL=error
+      - GORM_SLOW_THRESHOLD_MS=1000
+      - TRENDING_CACHE_WARMER_BASE_URL=http://lazu-backend:3000
+      - TRENDING_WARMER_INTERVAL_SECONDS=600
+      - WORKER_SQL_MAX_OPEN_CONNS=5
+      - WORKER_SQL_MAX_IDLE_CONNS=2
+      - WORKER_SQL_MAX_LIFETIME=60
+      - GOMEMLIMIT=128MiB
+      - GOGC=50
+
+  lazu-redis:
+    image: redis:7-alpine
+    container_name: lazu-redis
+    restart: unless-stopped
+
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-lazu-local-redis}
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:10001:6379"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a",
+          "${REDIS_PASSWORD:-lazu-local-redis}",
+          "--raw",
+          "incr",
+          "ping",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  lazu-postgres:
+    image: postgres:16-alpine
+    container_name: lazu-postgres
+    restart: unless-stopped
+
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c work_mem=4MB
+      -c effective_cache_size=512MB
+      -c max_connections=30
+      -c maintenance_work_mem=64MB
+    environment:
+      - POSTGRES_USER=lazu
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-lazu-local-postgres}
+      - POSTGRES_DB=lazu_app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "10000:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lazu"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  lazu-telemetry:
+    image: postgres:16-alpine
+    container_name: lazu-telemetry
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=lazu
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-lazu-local-postgres}
+      - POSTGRES_DB=lazu_telemetry
+    volumes:
+      - telemetry_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:10002:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lazu -d lazu_telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  backend_data:
+  redis_data:
+  postgres_data:
+  telemetry_data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
