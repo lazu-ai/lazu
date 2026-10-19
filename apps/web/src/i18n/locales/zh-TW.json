@@ -3497,7 +3497,6 @@
     "page.console.wallet.autoReload.pendingSub": "正在等 Stripe 回傳儲存的卡。儲存完成後自動續費開啟；儲存不扣款。",
     "page.console.wallet.autoReload.threshold": "餘額低於",
     "page.console.wallet.autoReload.amount": "每次自動儲值",
-    "page.console.wallet.autoReload.amountHint": "不低於最低儲值金額 {{min}}",
     "page.console.wallet.autoReload.cap": "每月最多",
     "page.console.wallet.autoReload.card": "扣款的卡",
     "page.console.wallet.autoReload.changeCard": "更換",

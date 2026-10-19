@@ -3497,7 +3497,6 @@
     "page.console.wallet.autoReload.pendingSub": "Waiting for Stripe to return the saved card. Auto-reload turns on once it lands; saving charges nothing.",
     "page.console.wallet.autoReload.threshold": "Balance under",
     "page.console.wallet.autoReload.amount": "Reload each time",
-    "page.console.wallet.autoReload.amountHint": "At least the minimum top-up, {{min}}",
     "page.console.wallet.autoReload.cap": "At most per month",
     "page.console.wallet.autoReload.card": "Card charged",
     "page.console.wallet.autoReload.changeCard": "Change",

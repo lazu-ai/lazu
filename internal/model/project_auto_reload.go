@@ -222,6 +222,13 @@ func AttachProjectAutoReloadSetupSession(projectID int, sessionID string) error 
 	return CoreDB().Model(&ProjectAutoReload{}).Where("project_id = ?", projectID).Update("setup_session_id", sessionID).Error
 }
 
+// ClearProjectAutoReloadSetup forgets a card save that will not complete:
+// the session expired on Stripe, or the owner never came back within the
+// window a Checkout Session lives. Nothing else changes.
+func ClearProjectAutoReloadSetup(projectID int) error {
+	return CoreDB().Model(&ProjectAutoReload{}).Where("project_id = ?", projectID).Updates(map[string]interface{}{"setup_session_id": "", "setup_started_at": 0}).Error
+}
+
 // ProjectAutoReloadCard is what a completed setup session hands back.
 type ProjectAutoReloadCard struct {
 	ProjectID       int

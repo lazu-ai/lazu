@@ -103,9 +103,20 @@ func GetProjectAutoReload(c *gin.Context) {
 		projectFailure(c, err)
 		return
 	}
-	if row.SetupSessionID != "" && service.StripeSecretUsable() {
-		if completed, applied, err := confirmProjectAutoReloadSession(c, pc.Project, row.SetupSessionID); err == nil && applied {
-			row = completed
+	if row.SetupSessionID != "" {
+		// A save the owner never finished is asked about only while its
+		// session can still complete; after that it is forgotten, so an
+		// abandoned tab does not cost a Stripe call on every wallet view.
+		if time.Now().Unix()-row.SetupStartedAt >= int64(autoReloadSetupPendingWindow/time.Second) {
+			if err := model.ClearProjectAutoReloadSetup(pc.Project.ID); err != nil {
+				projectFailure(c, err)
+				return
+			}
+			row.SetupSessionID, row.SetupStartedAt = "", 0
+		} else if service.StripeSecretUsable() {
+			if completed, applied, err := confirmProjectAutoReloadSession(c, pc.Project, row.SetupSessionID); err == nil && applied {
+				row = completed
+			}
 		}
 	}
 	respondProjectAutoReload(c, pc.Project, row, configured)
@@ -264,6 +275,11 @@ func confirmProjectAutoReloadSession(c *gin.Context, project model.Project, sess
 	}
 	if session.Metadata["lazu_project_id"] != project.PublicID || session.Customer == nil || session.Customer.ID != project.StripeCustomerID {
 		return model.ProjectAutoReload{}, false, model.ErrProjectStateConflict
+	}
+	if session.Status == stripe.CheckoutSessionStatusExpired {
+		if err := model.ClearProjectAutoReloadSetup(project.ID); err != nil {
+			return model.ProjectAutoReload{}, false, err
+		}
 	}
 	row, applied, err := service.CompleteAutoReloadSetupSession(c.Request.Context(), api, session)
 	if err != nil {

@@ -162,17 +162,9 @@ export function AutoReloadCard({
       ? t(`${ns}.statePending`)
       : t(`${ns}.stateOff`);
 
-  const fields: Array<{
-    key: keyof Draft;
-    label: string;
-    hint?: string;
-  }> = [
+  const fields: Array<{ key: keyof Draft; label: string }> = [
     { key: 'threshold', label: t(`${ns}.threshold`) },
-    {
-      key: 'amount',
-      label: t(`${ns}.amount`),
-      hint: t(`${ns}.amountHint`, { min: whole(min) }),
-    },
+    { key: 'amount', label: t(`${ns}.amount`) },
     { key: 'cap', label: t(`${ns}.cap`) },
   ];
 

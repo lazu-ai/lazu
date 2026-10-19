@@ -3497,7 +3497,6 @@
     "page.console.wallet.autoReload.pendingSub": "Stripe から保存されたカードの返答を待っています。保存が完了すると自動チャージがオンになります。保存に請求はありません。",
     "page.console.wallet.autoReload.threshold": "残高がこれ未満",
     "page.console.wallet.autoReload.amount": "1 回のチャージ額",
-    "page.console.wallet.autoReload.amountHint": "最低チャージ額 {{min}} 以上",
     "page.console.wallet.autoReload.cap": "月間上限",
     "page.console.wallet.autoReload.card": "請求するカード",
     "page.console.wallet.autoReload.changeCard": "変更",

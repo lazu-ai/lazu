@@ -3497,7 +3497,6 @@
     "page.console.wallet.autoReload.pendingSub": "正在等 Stripe 返回保存的卡。保存完成后自动续费开启；保存不扣款。",
     "page.console.wallet.autoReload.threshold": "余额低于",
     "page.console.wallet.autoReload.amount": "每次自动充",
-    "page.console.wallet.autoReload.amountHint": "不低于最低充值金额 {{min}}",
     "page.console.wallet.autoReload.cap": "每月最多",
     "page.console.wallet.autoReload.card": "扣款的卡",
     "page.console.wallet.autoReload.changeCard": "更换",
