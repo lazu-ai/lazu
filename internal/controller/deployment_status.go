@@ -23,7 +23,8 @@ func GetDeploymentStatus(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{
 		"payment": gin.H{
 			"stripe_configured":       stripeConfigured,
-			"stripe_min_topup":        setting.StripeMinTopUp,
+			"stripe_min_topup":        getStripeMinTopup(),
+			"stripe_max_topup":        getStripeMaxTopup(),
 			"promotion_codes_enabled": setting.StripePromotionCodesEnabled,
 		},
 		"email": gin.H{

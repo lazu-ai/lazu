@@ -55,6 +55,16 @@ const createSections = (t: TFunction): SettingSection[] => [
         label: t('page.console.settingV2.ops.field.quotaForNewUser'),
         description: t('page.console.settingV2.ops.field.quotaForNewUserHelp'),
       },
+      /* Whole dollars, not money: the floor counts $1 checkout units, and the
+         wallet and the pay endpoint both read it from /api/status. */
+      {
+        key: 'MinTopUpUSD',
+        kind: 'number',
+        prefix: '$',
+        width: 'sm',
+        label: t('page.console.settingV2.billing.field.minTopUp'),
+        description: t('page.console.settingV2.billing.field.minTopUpHelp'),
+      },
     ],
   },
   {

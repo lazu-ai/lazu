@@ -18,7 +18,11 @@ import {
 } from '../../../components/ui';
 import ConsolePage from '../../../components/ui/console-page';
 import { PaymentAdminTools } from '../../../components/ui/payment-admin-tools';
-import { TopupBar } from '../../../components/ui/topup-bar';
+import {
+  TOPUP_MAX_DEFAULT,
+  TOPUP_MIN_DEFAULT,
+  TopupBar,
+} from '../../../components/ui/topup-bar';
 import { TopupRecord } from '../../../components/ui/topup-record';
 import { StatusContext } from '../../../context/Status';
 import { useTopUpOffer, webExtensions } from '../../../extensions';
@@ -37,6 +41,7 @@ import {
   SectionHead,
   TableFoot,
   formatDay,
+  formatDayTime,
   formatMonthDay,
 } from '../components/atoms';
 import { ShareBalanceCard } from '../components/ShareBalanceCard';
@@ -174,11 +179,13 @@ function OwnerWallet() {
   );
 
   const w = wallet.data;
-  const minTopUp = Number(
-    (statusState?.status as { stripe_min_topup?: number } | undefined)
-      ?.stripe_min_topup || 1,
-  );
-  const maxTopUp = 10_000;
+  /* The range the server will accept: /api/status carries the operator's
+     floor and the fixed ceiling; the defaults only cover a status that has
+     not loaded, and the server refuses anything outside its own range. */
+  const minTopUp =
+    Number(statusState?.status?.stripe_min_topup) || TOPUP_MIN_DEFAULT;
+  const maxTopUp =
+    Number(statusState?.status?.stripe_max_topup) || TOPUP_MAX_DEFAULT;
   const projectSettings = detail.data?.settings;
   const canTopUp =
     w?.capabilities?.can_topup ??
@@ -225,6 +232,17 @@ function OwnerWallet() {
       errorReceipt(e);
     } finally {
       setPaying(false);
+    }
+  };
+  /* Withdraws a pending order from the list; the row re-reads as canceled.
+     Stripe's checkout page is expired with it, so nothing can land later. */
+  const cancelTopup = async (topupId: string) => {
+    if (!project.client || !project.current) return;
+    try {
+      await project.client.cancelTopup(project.current.id, topupId);
+      await topups.refetch();
+    } catch (e) {
+      errorReceipt(e);
     }
   };
   const openPortal = async () => {
@@ -477,6 +495,8 @@ function OwnerWallet() {
               own={!shared}
               projectId={project.current?.id ?? ''}
               highlightId={recordId}
+              canTopUp={Boolean(canTopUp)}
+              onCancel={cancelTopup}
             />
           ) : null}
           {tab === 'ledger' ? (
@@ -592,27 +612,52 @@ function TopupTable({
   own,
   projectId,
   highlightId = '',
+  canTopUp = false,
+  onCancel,
 }: {
   rows: ProjectTopup[];
   loading: boolean;
   own: boolean;
   projectId: string;
   highlightId?: string;
+  /* Whether the reader may pay: a pending row then offers its checkout
+     page back and a way to withdraw the order. */
+  canTopUp?: boolean;
+  onCancel?: (topupId: string) => void | Promise<void>;
 }) {
   const { t } = useTranslation(['projects', 'translation'], {
     nsMode: 'fallback',
   });
+  const [canceling, setCanceling] = useState<string | null>(null);
   const statusBadge = (row: ProjectTopup) => {
     if (row.payment_status === 'paid') return <PjBadge>Paid</PjBadge>;
     if (row.payment_status === 'pending')
       return (
-        <PjBadge tone='warn'>{t('projects.wallet.status.pending')}</PjBadge>
+        <>
+          <PjBadge tone='warn'>{t('projects.wallet.status.pending')}</PjBadge>
+          {row.pay_by ? (
+            <span className='pj-sub'>
+              {t('projects.wallet.payBy', { time: formatDayTime(row.pay_by) })}
+            </span>
+          ) : null}
+        </>
       );
+    if (row.payment_status === 'canceled')
+      return <PjBadge>{t('projects.wallet.status.canceled')}</PjBadge>;
     return (
       <PjBadge tone='bad'>
         {t(`projects.wallet.status.${row.payment_status}`)}
       </PjBadge>
     );
+  };
+  const cancel = async (topupId: string) => {
+    if (!onCancel) return;
+    setCanceling(topupId);
+    try {
+      await onCancel(topupId);
+    } finally {
+      setCanceling(null);
+    }
   };
   return (
     <Card className='pj-table-card' pad={false}>
@@ -672,46 +717,84 @@ function TopupTable({
               </td>
               <td>{statusBadge(row)}</td>
               <td className='pj-r'>
-                <span className='pj-ra'>
-                  {/* The hosted Invoice page, not the PDF: Stripe prints
+                {row.payment_status === 'pending' && canTopUp ? (
+                  /* The order's own checkout page, not a new order: paying it
+                     later credits this row. Past its deadline only the
+                     withdrawal is left; Stripe's own expiry closes it soon. */
+                  <span className='pj-ra'>
+                    {row.pay_link &&
+                    (!row.pay_by || row.pay_by * 1000 > Date.now()) ? (
+                      <Button
+                        render={
+                          <a
+                            aria-label={t('projects.wallet.continuePay')}
+                            href={row.pay_link}
+                            rel='noreferrer'
+                          />
+                        }
+                        size='sm'
+                        variant='primary'
+                      >
+                        {t('projects.wallet.continuePay')}
+                      </Button>
+                    ) : null}
+                    <Button
+                      disabled={canceling === row.id}
+                      loading={canceling === row.id}
+                      onClick={() => void cancel(row.id)}
+                      size='sm'
+                      variant='ghost'
+                    >
+                      {t('projects.wallet.cancelOrder')}
+                    </Button>
+                  </span>
+                ) : (
+                  <span className='pj-ra'>
+                    {/* The hosted Invoice page, not the PDF: Stripe prints
                       "Pay online" on the PDF of a paid Checkout Invoice. */}
-                  <Button
-                    disabled={
-                      row.invoice_status !== 'ready' || !row.invoice?.hosted_url
-                    }
-                    render={
-                      <a
-                        aria-label='Invoice'
-                        href={paymentDocumentPath(
-                          projectId,
-                          row.id,
-                          'invoice_page',
-                        )}
-                        rel='noreferrer'
-                        target='_blank'
-                      />
-                    }
-                    size='sm'
-                    variant='ghost'
-                  >
-                    Invoice
-                  </Button>
-                  <Button
-                    disabled={!row.receipt_url}
-                    render={
-                      <a
-                        aria-label='Receipt'
-                        href={paymentDocumentPath(projectId, row.id, 'receipt')}
-                        rel='noreferrer'
-                        target='_blank'
-                      />
-                    }
-                    size='sm'
-                    variant='ghost'
-                  >
-                    Receipt
-                  </Button>
-                </span>
+                    <Button
+                      disabled={
+                        row.invoice_status !== 'ready' ||
+                        !row.invoice?.hosted_url
+                      }
+                      render={
+                        <a
+                          aria-label='Invoice'
+                          href={paymentDocumentPath(
+                            projectId,
+                            row.id,
+                            'invoice_page',
+                          )}
+                          rel='noreferrer'
+                          target='_blank'
+                        />
+                      }
+                      size='sm'
+                      variant='ghost'
+                    >
+                      Invoice
+                    </Button>
+                    <Button
+                      disabled={!row.receipt_url}
+                      render={
+                        <a
+                          aria-label='Receipt'
+                          href={paymentDocumentPath(
+                            projectId,
+                            row.id,
+                            'receipt',
+                          )}
+                          rel='noreferrer'
+                          target='_blank'
+                        />
+                      }
+                      size='sm'
+                      variant='ghost'
+                    >
+                      Receipt
+                    </Button>
+                  </span>
+                )}
               </td>
             </tr>
           ))}

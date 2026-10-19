@@ -88,6 +88,7 @@ func SetApiRouter(router *gin.Engine) {
 		projectRoute.GET("/wallet", controller.GetProjectWallet)
 		projectRoute.GET("/topups", controller.ListProjectTopUps)
 		projectRoute.GET("/topups/:topup_id", controller.GetProjectTopUp)
+		projectRoute.POST("/topups/:topup_id/cancel", controller.CancelProjectTopUp)
 		projectRoute.GET("/my-budget", controller.GetProjectMyBudget)
 		projectRoute.GET("/members/:uid/budget-history", controller.GetProjectBudgetHistory)
 		projectRoute.GET("/budget-requests", controller.ListProjectBudgetRequests)

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/httperr"
+	"github.com/lazu-ai/lazu/internal/middleware"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/internal/setting/email_setting"
@@ -427,4 +429,62 @@ func projectBillingPortalConfiguration() *stripe.BillingPortalConfigurationParam
 	}
 	params.SetIdempotencyKey("lazu-project-billing-portal-v1")
 	return params
+}
+
+// CancelProjectTopUp withdraws a pending order the payer no longer wants:
+// Stripe's checkout page is expired first, so a payment cannot land after the
+// wallet says the order is gone, then the order is marked canceled. Whoever
+// may top up the project may cancel; a paid or already settled order is a
+// conflict, never a silent no-op.
+func CancelProjectTopUp(c *gin.Context) {
+	pc, ok := middleware.CurrentProject(c)
+	if !ok {
+		projectFailure(c, model.ErrProjectForbidden)
+		return
+	}
+	settings, err := pc.Project.GetSettings()
+	if err != nil {
+		projectFailure(c, err)
+		return
+	}
+	if !model.CanProjectAction(pc.Member, nil, model.ProjectTopUp, settings) {
+		projectFailure(c, model.ErrProjectForbidden)
+		return
+	}
+	var order model.TopUp
+	if err := model.CoreDB().Where("project_id = ? AND public_id = ?", pc.Project.ID, c.Param("topup_id")).First(&order).Error; err != nil {
+		projectFailure(c, notFoundAs(err, types.ErrorCodePaymentNotFound))
+		return
+	}
+	if order.Status != common.TopUpStatusPending {
+		projectFailure(c, model.ErrProjectStateConflict)
+		return
+	}
+	if order.StripeCheckoutSessionID != "" {
+		params := &stripe.CheckoutSessionExpireParams{}
+		params.Context = c.Request.Context()
+		if _, err := projectStripeClient().CheckoutSessions.Expire(order.StripeCheckoutSessionID, params); err != nil {
+			var stripeErr *stripe.Error
+			// A session that is already complete was paid: the webhook credits
+			// it, and the wallet must not pretend it was withdrawn. Any other
+			// refusal leaves the order pending for a retry.
+			if errors.As(err, &stripeErr) && stripeErr.HTTPStatusCode == http.StatusBadRequest && strings.Contains(stripeErr.Msg, "complete") {
+				projectFailure(c, model.ErrProjectStateConflict)
+				return
+			}
+			httperr.Write(c, types.WrapErr(err, types.ErrorCodePaymentProviderUnavailable))
+			return
+		}
+	}
+	if err := model.CancelProjectTopUp(order.TradeNo); err != nil {
+		projectFailure(c, err)
+		return
+	}
+	order.Status = common.TopUpStatusCanceled
+	item, err := projectTopUpPayload(order)
+	if err != nil {
+		projectFailure(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": item})
 }

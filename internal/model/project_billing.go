@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/pkg/billing"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -41,7 +42,7 @@ type ProjectCheckoutConfig struct {
 
 func BeginProjectTopUp(projectID, actorID int, operationKey string, amount int64, configs ...ProjectCheckoutConfig) (TopUp, error) {
 	var order TopUp
-	if strings.TrimSpace(operationKey) == "" || len(operationKey) > 128 || amount <= 0 || amount > 10000 {
+	if strings.TrimSpace(operationKey) == "" || len(operationKey) > 128 || amount <= 0 || amount > setting.StripeMaxTopUp {
 		return order, ErrProjectInvalidInput
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("project-topup:%d:%d:%s", projectID, actorID, operationKey)))
@@ -178,7 +179,9 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		if order.Status == common.TopUpStatusSuccess {
 			return nil
 		}
-		if order.Status != common.TopUpStatusPending && order.Status != common.TopUpStatusExpired && order.Status != "failed" {
+		// A cancelled or expired order can still be credited: Stripe may report
+		// a payment that raced the cancellation, and the money is real.
+		if order.Status != common.TopUpStatusPending && order.Status != common.TopUpStatusExpired && order.Status != "failed" && order.Status != common.TopUpStatusCanceled {
 			return ErrProjectStateConflict
 		}
 		order.StripeCustomerID = input.CustomerID
@@ -509,6 +512,20 @@ func ProjectPaymentMethod(kind, brand, last4 string) string {
 		label = "Amex"
 	}
 	return label + " ···· " + last4
+}
+
+// CancelProjectTopUp withdraws a pending order from the wallet. Only a
+// pending order moves; a paid, expired or already cancelled one is left as
+// it is and reported as a conflict so the caller does not claim a change.
+func CancelProjectTopUp(reference string) error {
+	result := CoreDB().Model(&TopUp{}).Where("trade_no = ? AND status = ?", reference, common.TopUpStatusPending).Update("status", common.TopUpStatusCanceled)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrProjectStateConflict
+	}
+	return nil
 }
 
 func ExpireProjectTopUp(reference string, failed bool) error {

@@ -151,6 +151,7 @@ func initializeOptionMapDefaults() {
 	common.OptionMap["WorkerAllowHttpImageRequestEnabled"] = strconv.FormatBool(system_setting.WorkerAllowHttpImageRequestEnabled)
 	common.OptionMap["QuotaForNewUser"] = strconv.FormatInt(common.QuotaForNewUser.Int64(), 10)
 	common.OptionMap["PreConsumedQuota"] = strconv.Itoa(common.PreConsumedQuota)
+	common.OptionMap["MinTopUpUSD"] = strconv.Itoa(setting.StripeMinTopUp)
 	common.OptionMap["ModelRequestRateLimitCount"] = strconv.Itoa(setting.ModelRequestRateLimitCount)
 	common.OptionMap["ModelRequestRateLimitDurationMinutes"] = strconv.Itoa(setting.ModelRequestRateLimitDurationMinutes)
 	common.OptionMap["ModelRequestRateLimitSuccessCount"] = strconv.Itoa(setting.ModelRequestRateLimitSuccessCount)
@@ -387,6 +388,12 @@ func updateOptionMap(key string, value string) (err error) {
 		common.QuotaForNewUser = parseMicroUSDOption(value)
 	case "PreConsumedQuota":
 		common.PreConsumedQuota, _ = strconv.Atoi(value)
+	case "MinTopUpUSD":
+		// Whole USD. The retired key MinTopUp stays ignored so a value from an
+		// older deploy cannot come back as a floor nobody chose.
+		if minimum, parseErr := strconv.Atoi(strings.TrimSpace(value)); parseErr == nil {
+			setting.StripeMinTopUp = setting.NormalizeMinTopUp(minimum)
+		}
 	case "ModelRequestRateLimitCount":
 		setting.ModelRequestRateLimitCount, _ = strconv.Atoi(value)
 	case "ModelRequestRateLimitDurationMinutes":

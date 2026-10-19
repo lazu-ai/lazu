@@ -20,11 +20,7 @@ import (
 	"github.com/stripe/stripe-go/v81/webhook"
 )
 
-const (
-	PaymentMethodStripe = "stripe"
-	// stripeMaxTopup is the largest single card top-up, in whole USD.
-	stripeMaxTopup = int64(10000)
-)
+const PaymentMethodStripe = "stripe"
 
 var stripeAdaptor = &StripeAdaptor{}
 
@@ -42,16 +38,21 @@ type StripeAdaptor struct {
 
 // writeInvalidTopupAmount reports an amount outside the card top-up range.
 func writeInvalidTopupAmount(c *gin.Context) {
-	httperr.Code(c, types.ErrorCodeInvalidAmount, types.D{"min_amount": getStripeMinTopup(), "max_amount": stripeMaxTopup})
+	httperr.Code(c, types.ErrorCodeInvalidAmount, types.D{"min_amount": getStripeMinTopup(), "max_amount": getStripeMaxTopup()})
+}
+
+// validStripeTopupAmount is the one range check every card top-up passes:
+// whole dollars from the operator's minimum to the fixed ceiling.
+func validStripeTopupAmount(amount int64) bool {
+	return amount >= getStripeMinTopup() && amount <= getStripeMaxTopup()
 }
 
 func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
-	if req.Amount < getStripeMinTopup() || req.Amount > stripeMaxTopup {
+	if !validStripeTopupAmount(req.Amount) {
 		writeInvalidTopupAmount(c)
 		return
 	}
-	// Stripe handles pricing via Price ID, we just validate the amount
-	// The actual price is determined by Stripe based on the Price ID
+	// Checkout sells $1 units of one Price; the amount is the quantity.
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": strconv.FormatInt(req.Amount, 10)})
 }
 
@@ -60,7 +61,7 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 		httperr.Invalid(c, "payment_method")
 		return
 	}
-	if req.Amount < getStripeMinTopup() || req.Amount > stripeMaxTopup {
+	if !validStripeTopupAmount(req.Amount) {
 		writeInvalidTopupAmount(c)
 		return
 	}
@@ -191,9 +192,14 @@ func GetChargedAmount(count float64, user model.User) float64 {
 	return count
 }
 
+// getStripeMinTopup is the operator's minimum (option MinTopUpUSD) in whole
+// USD; getStripeMaxTopup the fixed ceiling. Both are what the console shows.
 func getStripeMinTopup() int64 {
-	// Fixed minimum topup: 1 USD
-	return 1
+	return int64(setting.NormalizeMinTopUp(setting.StripeMinTopUp))
+}
+
+func getStripeMaxTopup() int64 {
+	return int64(setting.StripeMaxTopUp)
 }
 
 func getStripePaymentMethod(checkoutSession *stripe.CheckoutSession) string {

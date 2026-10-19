@@ -1352,6 +1352,18 @@ export const mockProjectsClient: ProjectsClient = {
     }
     return structuredClone(t!);
   },
+  async cancelTopup(id, topupId) {
+    await latency();
+    const p = project(id);
+    const t = p.topups.find((x) => x.id === topupId);
+    if (!t) fail('payment_not_found', '找不到这笔充值', {}, 404);
+    if (t!.payment_status !== 'pending')
+      fail('state_conflict', '这笔订单已经结束', {}, 409);
+    t!.payment_status = 'canceled';
+    delete t!.pay_link;
+    delete t!.pay_by;
+    return structuredClone(t!);
+  },
   async getTopupDocument(id, topupId, document) {
     const topup = await this.getTopup(id, topupId);
     const url =

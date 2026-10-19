@@ -108,18 +108,51 @@ func TestRequestStripePay_RejectsInvalidPaymentMethod(t *testing.T) {
 }
 
 // An out-of-range top-up is a validation failure carrying a code, not an HTTP
-// 200 whose body has to be sniffed for a stray number.
+// 200 whose body has to be sniffed for a stray number. The floor is the
+// operator's (option MinTopUpUSD) and the refusal names it.
 func TestRequestStripePay_RejectsAmountOutOfRange(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	for _, body := range []string{`{"amount":0,"payment_method":"stripe"}`, `{"amount":10001,"payment_method":"stripe"}`} {
+	previous := setting.StripeMinTopUp
+	setting.StripeMinTopUp = 5
+	t.Cleanup(func() { setting.StripeMinTopUp = previous })
+	for _, body := range []string{`{"amount":0,"payment_method":"stripe"}`, `{"amount":4,"payment_method":"stripe"}`, `{"amount":10001,"payment_method":"stripe"}`} {
 		c, w := newJSONContext(http.MethodPost, body)
 
 		RequestStripePay(c)
 
 		failure := assertConsoleError(t, w, http.StatusBadRequest, "invalid_amount")
 		details, _ := failure["details"].(map[string]any)
-		if details["min_amount"] != float64(1) || details["max_amount"] != float64(10000) {
+		if details["min_amount"] != float64(5) || details["max_amount"] != float64(10000) {
 			t.Fatalf("invalid_amount must carry the range for %s: %v", body, failure)
+		}
+	}
+}
+
+// Raising the floor in the console moves the gate; an amount the old floor
+// admitted is refused once the option says so, and the floor never drops
+// below $1 or above the ceiling however it was saved.
+func TestRequestStripePay_FloorFollowsOption(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := setting.StripeMinTopUp
+	t.Cleanup(func() { setting.StripeMinTopUp = previous })
+	for _, tc := range []struct {
+		saved  int
+		amount string
+		floor  float64
+	}{
+		{saved: 10, amount: "5", floor: 10},
+		{saved: 0, amount: "0", floor: 1},
+		{saved: 20000, amount: "9999", floor: 10000},
+	} {
+		setting.StripeMinTopUp = tc.saved
+		c, w := newJSONContext(http.MethodPost, `{"amount":`+tc.amount+`,"payment_method":"stripe"}`)
+
+		RequestStripePay(c)
+
+		failure := assertConsoleError(t, w, http.StatusBadRequest, "invalid_amount")
+		details, _ := failure["details"].(map[string]any)
+		if details["min_amount"] != tc.floor {
+			t.Fatalf("saved %d: expected floor %v, got %v", tc.saved, tc.floor, failure)
 		}
 	}
 }

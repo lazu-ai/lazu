@@ -10,6 +10,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/httperr"
 	"github.com/lazu-ai/lazu/internal/model"
+	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/internal/setting/console_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
@@ -53,6 +54,8 @@ const (
 	settingRuleLockedWhileEnabled = "locked_while_enabled"
 	// The value must be an integer of at least details.limit.
 	settingRuleMinInteger = "min_integer"
+	// A whole number inside details.min … details.max inclusive.
+	settingRuleIntegerRange = "integer_range"
 )
 
 // settingInvalid names the option key and the rule its value broke. The
@@ -104,6 +107,14 @@ func UpdateOption(c *gin.Context) {
 		if common.EmailDomainRestrictionEnabled &&
 			len(model.ParseEmailDomainWhitelist(option.Value.(string))) == 0 {
 			httperr.Write(c, settingInvalid(option.Key, settingRuleLockedWhileEnabled))
+			return
+		}
+	case "MinTopUpUSD":
+		// Whole dollars from $1 up to the single-payment ceiling; anything else
+		// would either refuse every top-up or admit one the ceiling refuses.
+		minimum, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string)))
+		if parseErr != nil || minimum < 1 || minimum > setting.StripeMaxTopUp {
+			httperr.Write(c, settingInvalid(option.Key, settingRuleIntegerRange, types.D{"min": 1, "max": setting.StripeMaxTopUp}))
 			return
 		}
 	case "monitor_setting.auto_test_channel_minutes":

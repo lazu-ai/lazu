@@ -2435,15 +2435,17 @@ test('topup amount rejects decimals and negative values without rewriting them',
   await page.goto('/console/wallet');
   const bar = page.locator('.lazu-topup-bar');
   const input = bar.locator('input');
-  for (const value of ['1.5', '-5', '1e2', '0', '10001']) {
+  // The deployment floor is $5 unless /api/status says otherwise (the
+  // operator's MinTopUpUSD); the mocked status says nothing, so $4 is under it.
+  for (const value of ['1.5', '-5', '1e2', '0', '4', '10001']) {
     await input.fill(value);
     await expect(input).toHaveValue(value);
     await expect(bar.locator('.lazu-topup-bar__pay')).toBeDisabled();
     await expect(bar.getByRole('alert')).toBeVisible();
   }
-  await input.fill('1');
+  await input.fill('5');
   await expect(bar.locator('.lazu-topup-bar__pay')).toBeEnabled();
-  await expect(bar.locator('.lazu-topup-bar__pay')).toContainText('$1');
+  await expect(bar.locator('.lazu-topup-bar__pay')).toContainText('$5');
 });
 
 test('payment lookup starts while the project bootstrap is unresolved', async ({

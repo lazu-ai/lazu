@@ -19,6 +19,22 @@ import type { ReactNode } from 'react';
 
 export const TOPUP_PRESETS = [10, 20, 50, 100, 200, 500] as const;
 export const TOPUP_DEFAULT = 20;
+/* The range a card top-up accepts when the server has not said otherwise:
+   /api/status carries the deployment's own (stripe_min_topup, set in 充值与
+   计费; stripe_max_topup, fixed). */
+export const TOPUP_MIN_DEFAULT = 5;
+export const TOPUP_MAX_DEFAULT = 10_000;
+
+/* The presets a deployment's range leaves, so no button offers an amount the
+   server refuses. A floor above every preset leaves the floor itself. */
+export function topupPresetsWithin(
+  presets: readonly number[],
+  min: number,
+  max: number,
+): number[] {
+  const within = presets.filter((value) => value >= min && value <= max);
+  return within.length ? within : [min];
+}
 
 type TopupBarProps = {
   title: ReactNode;
@@ -65,7 +81,7 @@ export function TopupBar({
   dailyAvgUSD,
   min,
   max,
-  presets = TOPUP_PRESETS,
+  presets: offeredPresets = TOPUP_PRESETS,
   initialAmount = TOPUP_DEFAULT,
   method,
   onPay,
@@ -88,9 +104,15 @@ export function TopupBar({
   const generatedId = useId();
   const fieldId = inputId ?? `topup-amount-${generatedId}`;
   const errorId = `${fieldId}-error`;
+  const presets = topupPresetsWithin(offeredPresets, min, max);
   const opensOnPreset = presets.includes(initialAmount);
+  /* The default preset is the usual one when the range keeps it, else the
+     first the range leaves — never a button that is not on the row. */
+  const fallbackPreset = presets.includes(TOPUP_DEFAULT)
+    ? TOPUP_DEFAULT
+    : presets[0];
   const [preset, setPreset] = useState<number>(
-    opensOnPreset ? initialAmount : TOPUP_DEFAULT,
+    opensOnPreset ? initialAmount : fallbackPreset,
   );
   const [typed, setTyped] = useState(
     opensOnPreset ? '' : String(initialAmount),

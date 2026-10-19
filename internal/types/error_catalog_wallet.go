@@ -58,7 +58,7 @@ func init() {
 		},
 		ErrorCodeInvalidAmount: {
 			ID: "LZ-7106", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
-			Template: "Top-up amount must be a whole number of USD between {min_amount|1} and {max_amount|10000}.",
+			Template: "Top-up amount must be a whole number of USD between {min_amount|5} and {max_amount|10000}.",
 		},
 		ErrorCodePaymentNotFound: {
 			ID: "LZ-7107", HTTPStatus: http.StatusNotFound, Type: ErrorTypeNotFound, Audience: AudienceCustomer,
