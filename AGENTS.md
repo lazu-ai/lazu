@@ -148,6 +148,35 @@ probes and the model plaza's health for four days without anyone being told.
    `route_health_hourly` is recomputed per hour from raw facts, and readers
    compute the hours it has not reached themselves.
 
+## Code Review Rules
+
+Report only P0 and P1 findings. Leave out everything below P1.
+
+- P0 — blocks merge: loses or mis-charges money, loses or corrupts data,
+  exposes a secret or credential, breaks authentication or authorization,
+  takes production down, or makes a deploy unrecoverable.
+- P1 — fix before merge: a real bug with a concrete input or state that
+  triggers it, a regression in existing behaviour, or a migration that is
+  unsafe on existing data.
+
+Do not report formatting, naming, comment wording, style, refactoring ideas,
+missing tests on their own, or anything lint, typecheck or CI already checks.
+If you are unsure whether something reaches P1, leave it out. Every finding
+names the input or state that triggers it.
+
+Treat as at least P1 in this repository:
+
+- Billing and settlement: double charging, charging without a durable Redis
+  event or fsynced spool, lost settlement, races on quota or balance.
+- Request path: a new synchronous SQL write or runtime schema probe on the
+  warmed path, or the same row locked twice in one phase.
+- Read path: filtering, joining or sorting on the routing JSON copies, or a
+  history query not bounded by an indexed time column in every union branch.
+- A UI figure for money or usage that shows 0 or "empty" while its query is
+  still pending.
+- A real secret, production credential or private endpoint in a tracked file
+  (this repository is public).
+
 ## Common Commands
 
 ```bash
