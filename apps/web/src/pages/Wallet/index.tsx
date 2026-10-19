@@ -527,6 +527,7 @@ const WalletPage = () => {
         cell: ({ getValue }) => {
           const status = String(getValue() || 'pending');
           const labels: Record<string, string> = {
+            canceled: t(`${topupNs}.history.status.canceled`),
             expired: t(`${topupNs}.history.status.expired`),
             pending: t(`${topupNs}.history.status.pending`),
             success: t(`${topupNs}.history.status.success`),

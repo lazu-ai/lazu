@@ -275,6 +275,8 @@ export type ProjectsClient = {
     operationId: string,
   ): Promise<{ pay_link: string; top_up_id: string; payment_status?: string }>;
   getPortalUrl(id: string): Promise<{ url: string }>;
+  /* Withdraws a pending order: Stripe's checkout page is expired with it. */
+  cancelTopup(id: string, topupId: string): Promise<ProjectTopup>;
 };
 
 export const realProjectsClient: ProjectsClient = {
@@ -408,6 +410,8 @@ export const realProjectsClient: ProjectsClient = {
   getTopup: (id, topupId) => get(`/api/project/${id}/topups/${topupId}`),
   getTopupDocument: (id, topupId, document) =>
     get(`/api/project/${id}/topups/${topupId}/document`, { document }),
+  cancelTopup: (id, topupId) =>
+    post(`/api/project/${id}/topups/${topupId}/cancel`, {}),
   startTopup: async (id, amountUSD, method, operationId) => {
     if (!Number.isSafeInteger(amountUSD) || amountUSD <= 0)
       throw projectError('invalid_amount');

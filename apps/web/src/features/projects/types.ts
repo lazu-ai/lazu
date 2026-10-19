@@ -269,7 +269,12 @@ export type ProjectWallet = {
   capabilities?: { can_topup: boolean; can_manage_billing: boolean };
 };
 
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired';
+export type PaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'expired'
+  | 'canceled';
 export type InvoiceStatus = 'pending' | 'ready' | 'failed' | 'legacy';
 
 export type ProjectTopup = {
@@ -288,6 +293,10 @@ export type ProjectTopup = {
     bill_to: BillTo | null;
   } | null;
   receipt_url: string | null;
+  /* A pending order keeps the checkout page Stripe opened for it, payable
+     until pay_by (Unix seconds); absent once it is paid or closed. */
+  pay_link?: string | null;
+  pay_by?: number | null;
 };
 
 export type Paged<T> = {
