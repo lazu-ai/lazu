@@ -18,7 +18,11 @@ import {
 } from '../../../components/ui';
 import ConsolePage from '../../../components/ui/console-page';
 import { PaymentAdminTools } from '../../../components/ui/payment-admin-tools';
-import { TopupBar } from '../../../components/ui/topup-bar';
+import {
+  TOPUP_MAX_DEFAULT,
+  TOPUP_MIN_DEFAULT,
+  TopupBar,
+} from '../../../components/ui/topup-bar';
 import { TopupRecord } from '../../../components/ui/topup-record';
 import { StatusContext } from '../../../context/Status';
 import { useTopUpOffer, webExtensions } from '../../../extensions';
@@ -174,11 +178,13 @@ function OwnerWallet() {
   );
 
   const w = wallet.data;
-  const minTopUp = Number(
-    (statusState?.status as { stripe_min_topup?: number } | undefined)
-      ?.stripe_min_topup || 1,
-  );
-  const maxTopUp = 10_000;
+  /* The range the server will accept: /api/status carries the operator's
+     floor and the fixed ceiling; the defaults only cover a status that has
+     not loaded, and the server refuses anything outside its own range. */
+  const minTopUp =
+    Number(statusState?.status?.stripe_min_topup) || TOPUP_MIN_DEFAULT;
+  const maxTopUp =
+    Number(statusState?.status?.stripe_max_topup) || TOPUP_MAX_DEFAULT;
   const projectSettings = detail.data?.settings;
   const canTopUp =
     w?.capabilities?.can_topup ??

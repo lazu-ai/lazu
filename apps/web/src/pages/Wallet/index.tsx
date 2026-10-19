@@ -27,6 +27,8 @@ import {
   TabsList,
   TabsTrigger,
   TOPUP_DEFAULT,
+  TOPUP_MAX_DEFAULT,
+  TOPUP_MIN_DEFAULT,
   TopupBar,
   TopupRecord,
 } from '../../components/ui';
@@ -67,6 +69,7 @@ type PayMethod = {
 type TopupSource = {
   enable_stripe_topup?: boolean;
   pay_methods?: PayMethod[];
+  stripe_max_topup?: number;
   stripe_min_topup?: number;
 };
 
@@ -153,10 +156,20 @@ const normalizeTopupInfo = (
 ) => {
   const enableStripeTopUp =
     data?.enable_stripe_topup ?? status?.enable_stripe_topup ?? false;
-  const minTopUp = data?.stripe_min_topup || 1;
+  /* The server's range (operator floor, fixed ceiling); the defaults cover a
+     status that has not loaded, and the pay endpoint refuses outside its own. */
+  const minTopUp =
+    Number(data?.stripe_min_topup) ||
+    Number(status?.stripe_min_topup) ||
+    TOPUP_MIN_DEFAULT;
+  const maxTopUp =
+    Number(data?.stripe_max_topup) ||
+    Number(status?.stripe_max_topup) ||
+    TOPUP_MAX_DEFAULT;
 
   return {
     enableStripeTopUp,
+    maxTopUp,
     minTopUp,
     payMethods:
       Array.isArray(data?.pay_methods) && data.pay_methods.length > 0
@@ -745,7 +758,7 @@ const WalletPage = () => {
               disabled={!info.enableStripeTopUp || !info.payMethods.length}
               initialAmount={initialAmount}
               inputId='wallet-custom-amount'
-              max={10_000}
+              max={info.maxTopUp}
               method={
                 info.payMethods.length > 1 ? (
                   <div className='wal-methods'>

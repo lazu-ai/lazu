@@ -14,8 +14,16 @@ var StripePriceId = ""
 var StripeReturnBase = ""
 var StripePromotionCodesEnabled = false
 
-// Fixed values - no longer configurable
-var StripeMinTopUp = 1
+// StripeMinTopUp is the smallest single card top-up in whole USD. It is an
+// operator setting (option MinTopUpUSD, 充值与计费 › 钱怎么进来) because card
+// fees are a fixed cent amount plus a percentage: a $1 top-up nets about
+// $0.67 after Stripe's cut. The compiled value is the default for a
+// deployment that has never saved the option.
+var StripeMinTopUp = 5
+
+// StripeMaxTopUp is the largest single card top-up in whole USD. Fixed in
+// code; larger amounts are split into several payments.
+const StripeMaxTopUp = 10000
 
 // LoadStripeFromAppConfig loads the single canonical Stripe config path:
 // payment.stripe.*. Secrets should be provided through env-expanded YAML or
@@ -35,4 +43,16 @@ func LoadStripeFromAppConfig(cfg common.PaymentStripeConfig) {
 	}
 	StripeReturnBase = strings.TrimRight(cfg.ReturnBase, "/")
 	StripePromotionCodesEnabled = cfg.PromotionCodesEnabled
+}
+
+// NormalizeMinTopUp clamps an operator-entered minimum into the range a card
+// top-up accepts: at least $1, never above the single-payment ceiling.
+func NormalizeMinTopUp(value int) int {
+	if value < 1 {
+		return 1
+	}
+	if value > StripeMaxTopUp {
+		return StripeMaxTopUp
+	}
+	return value
 }

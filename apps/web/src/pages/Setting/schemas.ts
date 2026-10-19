@@ -113,6 +113,7 @@ export const observabilitySchema = z.object({
  */
 export const billingDefaults = {
   QuotaForNewUser: 0,
+  MinTopUpUSD: 5,
   PreConsumedQuota: 500,
   'email_setting.low_balance_enabled': true,
   'email_setting.low_balance_threshold_usd': 20,
@@ -122,6 +123,9 @@ export const billingDefaults = {
 
 export const billingSchema = z.object({
   QuotaForNewUser: moneyField,
+  /* Whole dollars, stored as typed (not microUSD): it is the quantity of $1
+     checkout units a payment must reach. The server holds the same range. */
+  MinTopUpUSD: z.coerce.number().int().min(1).max(10_000).optional(),
   PreConsumedQuota: intField,
   'email_setting.low_balance_enabled': boolField,
   'email_setting.low_balance_threshold_usd': numberField,

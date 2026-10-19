@@ -20,6 +20,7 @@ const RULES = new Set([
   'requires_values',
   'locked_while_enabled',
   'min_integer',
+  'integer_range',
   'format',
   'required',
   'too_long',
@@ -50,6 +51,8 @@ export function readSettingInvalid(
   const index = asNumber(info.details.index);
   const problem = t(`page.console.settingV2.runtime.invalid.${rule}`, {
     limit,
+    min: asNumber(info.details.min),
+    max: asNumber(info.details.max),
   });
   const message =
     index === undefined

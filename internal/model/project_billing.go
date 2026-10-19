@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/pkg/billing"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -41,7 +42,7 @@ type ProjectCheckoutConfig struct {
 
 func BeginProjectTopUp(projectID, actorID int, operationKey string, amount int64, configs ...ProjectCheckoutConfig) (TopUp, error) {
 	var order TopUp
-	if strings.TrimSpace(operationKey) == "" || len(operationKey) > 128 || amount <= 0 || amount > 10000 {
+	if strings.TrimSpace(operationKey) == "" || len(operationKey) > 128 || amount <= 0 || amount > setting.StripeMaxTopUp {
 		return order, ErrProjectInvalidInput
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("project-topup:%d:%d:%s", projectID, actorID, operationKey)))
