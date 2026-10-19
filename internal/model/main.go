@@ -379,6 +379,7 @@ func migrateDB() error {
 		&TokenAuditLog{},
 
 		&TopUp{},
+		&ProjectAutoReload{},
 
 		&Model{},
 		&ModelInfoReview{},

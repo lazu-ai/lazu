@@ -21,6 +21,8 @@ const (
 	ErrorCodeDisputeStillOpen           ErrorCode = "dispute_still_open"
 	ErrorCodeDisputeResolutionFailed    ErrorCode = "dispute_resolution_failed"
 	ErrorCodePaymentDocumentReconcile   ErrorCode = "payment_document_reconcile_failed"
+	ErrorCodeAutoReloadSettingsInvalid  ErrorCode = "auto_reload_settings_invalid"
+	ErrorCodeAutoReloadCardRequired     ErrorCode = "auto_reload_card_required"
 )
 
 func init() {
@@ -91,6 +93,14 @@ func init() {
 		ErrorCodePaymentDocumentReconcile: {
 			ID: "LZ-7114", HTTPStatus: http.StatusServiceUnavailable, Type: ErrorTypeAPI, Audience: AudienceOperator,
 			Template: "The invoice and receipt of this top-up could not be reconciled with Stripe. Retry later.",
+		},
+		ErrorCodeAutoReloadSettingsInvalid: {
+			ID: "LZ-7115", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
+			Template: "Auto-reload amounts are whole USD: the threshold at least 1, each reload between {min_amount|5} and {max_amount|10000}, and the monthly cap at least one reload ({field|amount}).",
+		},
+		ErrorCodeAutoReloadCardRequired: {
+			ID: "LZ-7116", HTTPStatus: http.StatusConflict, Type: ErrorTypeConflict, Audience: AudienceCustomer,
+			Template: "Auto-reload needs a saved card. Save one first; nothing is charged while saving.",
 		},
 	})
 }

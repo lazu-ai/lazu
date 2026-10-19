@@ -109,7 +109,13 @@ func StripeWebhook(c *gin.Context) {
 
 	switch event.Type {
 	case stripe.EventTypeCheckoutSessionCompleted, stripe.EventTypeCheckoutSessionAsyncPaymentSucceeded:
-		sessionCompleted(c, event)
+		// A setup-mode session saved a card for auto-reload; it has no order
+		// to credit and must never reach the payment path.
+		if event.GetObjectValue("mode") == string(stripe.CheckoutSessionModeSetup) {
+			projectAutoReloadSetupWebhook(c, event)
+		} else {
+			sessionCompleted(c, event)
+		}
 	case stripe.EventTypeCheckoutSessionExpired, stripe.EventTypeCheckoutSessionAsyncPaymentFailed:
 		if err := model.ExpireProjectTopUp(event.GetObjectValue("client_reference_id"), event.Type == stripe.EventTypeCheckoutSessionAsyncPaymentFailed); err != nil {
 			c.AbortWithStatus(http.StatusServiceUnavailable)
@@ -124,6 +130,10 @@ func StripeWebhook(c *gin.Context) {
 		projectDisputeWebhook(c, event)
 	case stripe.EventTypeCustomerUpdated:
 		projectCustomerWebhook(c, event)
+	case stripe.EventTypePaymentIntentSucceeded, stripe.EventTypePaymentIntentPaymentFailed:
+		projectAutoReloadIntentWebhook(c, event)
+	case stripe.EventTypeSetupIntentSucceeded:
+		projectAutoReloadSetupIntentWebhook(c, event)
 	default:
 		// Other Stripe events are acknowledged without modifying payment state.
 	}

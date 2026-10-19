@@ -160,7 +160,10 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("trade_no = ?", input.Reference).First(&order).Error; err != nil {
 			return err
 		}
-		if order.ProjectID <= 0 || input.CustomerID == "" || input.SessionID == "" || strings.ToUpper(input.Currency) != "USD" || input.PaidMicrousd < 0 || input.PaidMicrousd > billing.MicroUSD(order.Amount*billing.MicroUSDPerUSD) {
+		// An auto-reload is charged by an off-session PaymentIntent and has no
+		// Checkout Session; the intent is its identity instead.
+		offSession := order.AutoReload && input.PaymentIntentID != ""
+		if order.ProjectID <= 0 || input.CustomerID == "" || input.SessionID == "" && !offSession || strings.ToUpper(input.Currency) != "USD" || input.PaidMicrousd < 0 || input.PaidMicrousd > billing.MicroUSD(order.Amount*billing.MicroUSDPerUSD) {
 			return ErrProjectInvalidInput
 		}
 		var project Project
@@ -185,7 +188,9 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 			return ErrProjectStateConflict
 		}
 		order.StripeCustomerID = input.CustomerID
-		order.StripeCheckoutSessionID = input.SessionID
+		if input.SessionID != "" {
+			order.StripeCheckoutSessionID = input.SessionID
+		}
 		if input.PaymentIntentID != "" {
 			order.StripePaymentIntentID = input.PaymentIntentID
 		}
@@ -205,7 +210,7 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		}
 		order.Status = common.TopUpStatusSuccess
 		order.CompleteTime = time.Now().Unix()
-		if input.Method != "" && (order.PaymentMethod == "" || order.PaymentMethod == "stripe") {
+		if input.Method != "" && (order.PaymentMethod == "" || order.PaymentMethod == "stripe" || order.PaymentMethod == AutoReloadPaymentMethod) {
 			order.PaymentMethod = input.Method
 		}
 		order.NormalizeLedgerFields()
@@ -228,6 +233,11 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		}
 		if err := queueProjectPaymentEmailTx(tx, project, order, true); err != nil {
 			return err
+		}
+		if order.AutoReload {
+			if err := tx.Model(&ProjectAutoReload{}).Where("project_id = ?", order.ProjectID).Update("last_charge_at", order.CompleteTime).Error; err != nil {
+				return err
+			}
 		}
 		credited = true
 		return nil
@@ -358,10 +368,14 @@ func queueProjectPaymentEmailTx(tx *gorm.DB, project Project, order TopUp, atCre
 	} else {
 		facts = append(facts, common.MailFact{Label: "Top-up ID", Value: order.PublicID, Mono: true})
 	}
+	message := "API credit added to your Lazu account."
+	if order.AutoReload {
+		message = "Auto-reload added API credit to your Lazu account."
+	}
 	content := common.PaymentEmailContent{
 		LogoURL: paymentEmailLogo(order.StripeReturnBase), Eyebrow: "PAYMENT RECEIVED",
 		Hero: credit, CompactHero: order.CreditedMicrousd.Dollars() >= 1000,
-		Message: "API credit added to your Lazu account.", Preheader: subject, Facts: facts,
+		Message: message, Preheader: subject, Facts: facts,
 		ActionLabel: "Open wallet",
 	}
 	if ready {

@@ -62,12 +62,12 @@ func TestBuildWorkerTasksOnlyAddsDatabaseTasksWhenReady(t *testing.T) {
 
 	withDatabase := buildWorkerTasks(&workerResources{databaseReady: true}, false)
 	extensionTasks := len(worker.ExtensionTasks())
-	if len(withDatabase) != 20+extensionTasks {
+	if len(withDatabase) != 21+extensionTasks {
 		t.Fatalf("expected database-backed tasks, got %d", len(withDatabase))
 	}
 
 	oneShot := buildWorkerTasks(&workerResources{databaseReady: true}, true)
-	if len(oneShot) != 26+extensionTasks {
+	if len(oneShot) != 27+extensionTasks {
 		t.Fatalf("expected hosted one-shot task coverage, got %d", len(oneShot))
 	}
 
@@ -80,6 +80,11 @@ func TestBuildWorkerTasksOnlyAddsDatabaseTasksWhenReady(t *testing.T) {
 	}
 	if !longRunning["channel_probe"] {
 		t.Fatal("channel_probe missing from the long-running worker registry")
+	}
+	// project_auto_reload charges saved cards off the request path; it must
+	// run on the long-running worker and in a scheduled batch alike.
+	if !longRunning["project_auto_reload"] {
+		t.Fatal("project_auto_reload missing from the long-running worker registry")
 	}
 	for _, name := range []string{"control_plane_snapshot", "model_ranking_refresh", "route_health_rollup", "route_health_rollup_watch", "slow_query_report"} {
 		if !longRunning[name] {

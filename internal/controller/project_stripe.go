@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -71,49 +72,14 @@ func requestProjectStripePay(c *gin.Context, req *StripePayRequest) {
 		return
 	}
 	api := projectStripeClient()
-	customerProject, err := model.BeginProjectStripeCustomer(pc.Project.ID)
+	customerID, err := ensureProjectStripeCustomer(c.Request.Context(), api, pc.Project)
+	if errors.Is(err, errProjectStripeUnavailable) {
+		projectPaymentUnavailable(c, order)
+		return
+	}
 	if err != nil {
 		projectFailure(c, err)
 		return
-	}
-	customerID := customerProject.StripeCustomerID
-	if customerID == "" {
-		if time.Now().Unix()-customerProject.StripeCustomerStartedAt > int64((23 * time.Hour).Seconds()) {
-			// Search only: an unconfirmed old request is never blindly retried.
-			search := &stripe.CustomerSearchParams{SearchParams: stripe.SearchParams{Query: fmt.Sprintf("metadata['lazu_project_id']:'%s'", pc.Project.PublicID)}}
-			search.Context = c.Request.Context()
-			iter := api.Customers.Search(search)
-			for iter.Next() {
-				if customerID != "" {
-					projectPaymentUnavailable(c, order)
-					return
-				}
-				customerID = iter.Customer().ID
-			}
-			if iter.Err() != nil || customerID == "" {
-				projectPaymentUnavailable(c, order)
-				return
-			}
-			if err := model.SetProjectStripeCustomer(pc.Project.ID, customerID); err != nil {
-				projectFailure(c, err)
-				return
-			}
-		}
-		if customerID == "" {
-			params := &stripe.CustomerParams{Metadata: map[string]string{"lazu_project_id": pc.Project.PublicID}}
-			params.Context = c.Request.Context()
-			params.SetIdempotencyKey("lazu-project-customer:" + pc.Project.PublicID)
-			customer, err := api.Customers.New(params)
-			if err != nil {
-				projectPaymentUnavailable(c, order)
-				return
-			}
-			customerID = customer.ID
-			if err := model.SetProjectStripeCustomer(pc.Project.ID, customerID); err != nil {
-				projectFailure(c, err)
-				return
-			}
-		}
 	}
 	if time.Now().Unix()-order.CreateTime > int64((23 * time.Hour).Seconds()) {
 		list := &stripe.CheckoutSessionListParams{Customer: stripe.String(customerID), CreatedRange: &stripe.RangeQueryParams{GreaterThanOrEqual: order.CreateTime}}
@@ -170,6 +136,55 @@ func requestProjectStripePay(c *gin.Context, req *StripePayRequest) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"pay_link": result.URL, "top_up_id": order.PublicID}})
+}
+
+// errProjectStripeUnavailable says Stripe did not answer, or answered in a
+// way that is not safe to act on; the caller reports the provider as
+// unavailable and the order or setup stays for a retry.
+var errProjectStripeUnavailable = errors.New("stripe is unavailable")
+
+// ensureProjectStripeCustomer is the project's one Stripe Customer, created
+// on the first payment or card save. The first attempt is recorded before
+// Stripe is called; an unconfirmed old attempt is only searched for, never
+// blindly retried, so a timeout cannot leave two Customers.
+func ensureProjectStripeCustomer(ctx context.Context, api *client.API, project model.Project) (string, error) {
+	customerProject, err := model.BeginProjectStripeCustomer(project.ID)
+	if err != nil {
+		return "", err
+	}
+	if customerProject.StripeCustomerID != "" {
+		return customerProject.StripeCustomerID, nil
+	}
+	if time.Now().Unix()-customerProject.StripeCustomerStartedAt > int64((23 * time.Hour).Seconds()) {
+		search := &stripe.CustomerSearchParams{SearchParams: stripe.SearchParams{Query: fmt.Sprintf("metadata['lazu_project_id']:'%s'", project.PublicID)}}
+		search.Context = ctx
+		iter := api.Customers.Search(search)
+		customerID := ""
+		for iter.Next() {
+			if customerID != "" {
+				return "", errProjectStripeUnavailable
+			}
+			customerID = iter.Customer().ID
+		}
+		if iter.Err() != nil || customerID == "" {
+			return "", errProjectStripeUnavailable
+		}
+		if err := model.SetProjectStripeCustomer(project.ID, customerID); err != nil {
+			return "", err
+		}
+		return customerID, nil
+	}
+	params := &stripe.CustomerParams{Metadata: map[string]string{"lazu_project_id": project.PublicID}}
+	params.Context = ctx
+	params.SetIdempotencyKey("lazu-project-customer:" + project.PublicID)
+	customer, err := api.Customers.New(params)
+	if err != nil {
+		return "", errProjectStripeUnavailable
+	}
+	if err := model.SetProjectStripeCustomer(project.ID, customer.ID); err != nil {
+		return "", err
+	}
+	return customer.ID, nil
 }
 
 // projectPaymentUnavailable answers a checkout the provider could not open

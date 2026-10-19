@@ -127,6 +127,16 @@ export const useProjectWallet = (options?: Enabled) => {
   );
 };
 
+/** The owner's auto-reload. Members never ask: the server would refuse. */
+export const useProjectAutoReload = (options?: Enabled) => {
+  const { projectId } = useClient();
+  return useProjectQuery(
+    projectKeys.autoReload(projectId),
+    (c, id) => c.getAutoReload(id),
+    options,
+  );
+};
+
 export const useProjectTopups = (options?: Enabled) => {
   const { projectId } = useClient();
   return useProjectQuery(
@@ -199,6 +209,7 @@ export const useInvalidateProject = () => {
           keys.push(
             projectKeys.wallet(projectId),
             projectKeys.topups(projectId),
+            projectKeys.autoReload(projectId),
             projectKeys.detail(projectId),
           );
           break;

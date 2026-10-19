@@ -23,5 +23,7 @@
   "referral_status_invalid": "推荐状态筛选条件无效。",
   "referral_search_invalid": "推荐记录搜索条件无效。",
   "referral_not_found": "未找到这笔推荐奖励。",
-  "referral_not_pending": "这笔推荐奖励已不在待处理状态。"
+  "referral_not_pending": "这笔推荐奖励已不在待处理状态。",
+  "auto_reload_settings_invalid": "自动续费的金额必须是整数美元：余额线至少 $1，每次充值在充值范围内，每月上限不低于一次充值金额。",
+  "auto_reload_card_required": "开启自动续费前先保存一张卡。保存时不会扣款。"
 }

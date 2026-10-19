@@ -6,7 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { Download } from 'lucide-react';
-import { useContext, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -16,6 +16,12 @@ import {
   TabsList,
   TabsTrigger,
 } from '../../../components/ui';
+import {
+  AutoReloadCard,
+  AutoReloadFailureNotice,
+  type AutoReloadSettings,
+  type AutoReloadState,
+} from '../../../components/ui/auto-reload-card';
 import ConsolePage from '../../../components/ui/console-page';
 import { PaymentAdminTools } from '../../../components/ui/payment-admin-tools';
 import {
@@ -49,17 +55,19 @@ import { formatUSD, formatUSDShort, toMicro } from '../money';
 import { paymentDocumentPath } from '../paymentDocument';
 import { useProject } from '../ProjectContext';
 import {
+  useInvalidateProject,
   useMyBudget,
   useMyProjectTokens,
+  useProjectAutoReload,
   useProjectDetail,
   useProjectMembers,
   useProjectTopups,
   useProjectWallet,
 } from '../queries';
 import { projectsQueryRoot } from '../queryKeys';
-import { errorReceipt } from '../receipt';
+import { errorReceipt, receipt } from '../receipt';
 import { useOperationId } from '../useOperationId';
-import type { ProjectTopup } from '../types';
+import type { ProjectAutoReload, ProjectTopup } from '../types';
 
 type Tab = 'ledger' | 'topups' | 'monthly';
 
@@ -121,6 +129,12 @@ function OwnerWallet() {
   /* The Stripe return and both payment e-mails land here with the order id;
      the record card is pinned above the ledger until the reader closes it. */
   const recordId = searchParams.get('top_up_id')?.trim() || '';
+  /* The owner's auto-reload: the one setting, read once here and shared by
+     the notice at the top and the row under the top-up bar. */
+  const autoReload = useOwnerAutoReload(project.isOwner);
+  const [autoReloadEditor, setAutoReloadEditor] = useState(
+    searchParams.get('auto_reload') === 'card',
+  );
 
   const anchor = period === 'current' ? dayjs() : dayjs().subtract(1, 'month');
   const rangeFrom = anchor.startOf('month');
@@ -415,6 +429,18 @@ function OwnerWallet() {
         ]}
       />
       <ShareBalanceCard />
+      {project.isOwner ? (
+        <AutoReloadFailureNoticeSlot
+          autoReload={autoReload}
+          balanceUSD={
+            w?.balance_microusd == null
+              ? null
+              : w.balance_microusd / getMicroUSDPerUSD()
+          }
+          onChangeCard={() => setAutoReloadEditor(true)}
+          onTopUp={(amount) => void pay(amount)}
+        />
+      ) : null}
       {canTopUp ? (
         <TopupBar
           balancePending={wallet.isPending}
@@ -463,6 +489,12 @@ function OwnerWallet() {
           {t('projects.wallet.topUpRestricted')}
         </p>
       )}
+      {project.isOwner ? (
+        <OwnerAutoReload
+          autoReload={autoReload}
+          openEditor={autoReloadEditor}
+        />
+      ) : null}
       {project.isOwner
         ? webExtensions().map((extension) =>
             extension.WalletAside ? (
@@ -818,6 +850,226 @@ function TopupTable({
         right={t('projects.wallet.usd')}
       />
     </Card>
+  );
+}
+
+/* ------------------------------------------------------- auto-reload (G2) */
+
+/* An answer that is not the auto-reload shape (a stub, a proxy page) is no
+   answer: the row then draws nothing rather than an invented "off". */
+const toAutoReloadState = (
+  data: ProjectAutoReload | undefined,
+): AutoReloadState | null => {
+  if (!data || typeof data.enabled !== 'boolean') return null;
+  return {
+    configured: Boolean(data.configured),
+    enabled: data.enabled,
+    thresholdUSD: Number(data.threshold_usd) || 0,
+    amountUSD: Number(data.amount_usd) || 0,
+    monthlyCapUSD: Number(data.monthly_cap_usd) || 0,
+    cardLabel: data.card?.label ?? null,
+    setupPending: Boolean(data.setup_pending),
+    pausedReason: data.paused_reason || '',
+    lastReload: data.last_reload
+      ? {
+          amountUSD: Number(data.last_reload.amount_usd) || 0,
+          completedAt: Number(data.last_reload.completed_at) || 0,
+        }
+      : null,
+    monthSpentUSD: Number(data.month_spent_usd) || 0,
+    minAmountUSD: Number(data.min_amount_usd) || TOPUP_MIN_DEFAULT,
+    maxAmountUSD: Number(data.max_amount_usd) || TOPUP_MAX_DEFAULT,
+  };
+};
+
+const toSettingsBody = (settings: AutoReloadSettings) => ({
+  threshold_usd: settings.thresholdUSD,
+  amount_usd: settings.amountUSD,
+  monthly_cap_usd: settings.monthlyCapUSD,
+});
+
+/** Reads the owner's auto-reload and settles a return from Stripe: the
+ *  `session_id` the card-save page came back with is confirmed server-side,
+ *  the parameters are stripped, and the row shows the card at once. */
+function useOwnerAutoReload(enabled: boolean) {
+  const { t } = useTranslation();
+  const project = useProject();
+  const query = useProjectAutoReload({ enabled });
+  const invalidate = useInvalidateProject();
+  const [params, setParams] = useSearchParams();
+  const [busy, setBusy] = useState(false);
+  const returned = params.get('auto_reload');
+  const sessionId = params.get('session_id') || '';
+  const confirmed = useRef('');
+  useEffect(() => {
+    if (!enabled || !project.client || !project.current) return;
+    if (returned !== 'saved' && returned !== 'canceled') return;
+    const key = `${returned}:${sessionId}`;
+    if (confirmed.current === key) return;
+    confirmed.current = key;
+    const client = project.client;
+    const projectId = project.current.id;
+    const finish = () => {
+      const next = new URLSearchParams(params);
+      next.delete('auto_reload');
+      next.delete('session_id');
+      setParams(next, { replace: true });
+    };
+    if (returned === 'canceled') {
+      receipt(t('page.console.wallet.autoReload.receiptCanceled'));
+      finish();
+      return;
+    }
+    if (!sessionId) {
+      finish();
+      return;
+    }
+    void (async () => {
+      try {
+        const data = await client.confirmAutoReloadSetup(projectId, sessionId);
+        if (data.card) {
+          receipt(t('page.console.wallet.autoReload.receiptCardSaved'));
+        }
+      } catch (e) {
+        errorReceipt(e);
+      } finally {
+        void invalidate('wallet');
+        finish();
+      }
+    })();
+  }, [
+    enabled,
+    project.client,
+    project.current,
+    returned,
+    sessionId,
+    params,
+    setParams,
+    invalidate,
+    t,
+  ]);
+
+  const run = async (
+    work: (
+      client: NonNullable<typeof project.client>,
+      id: string,
+    ) => Promise<void>,
+  ) => {
+    if (!project.client || !project.current) return;
+    setBusy(true);
+    try {
+      await work(project.client, project.current.id);
+    } catch (e) {
+      errorReceipt(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const saveCard = (settings: AutoReloadSettings) =>
+    run(async (client, id) => {
+      const { setup_link } = await client.startAutoReloadSetup(
+        id,
+        toSettingsBody(settings),
+      );
+      receipt(t('page.console.wallet.autoReload.receiptOpening'));
+      window.location.assign(setup_link);
+    });
+  const turnOn = (settings: AutoReloadSettings) =>
+    run(async (client, id) => {
+      await client.updateAutoReload(id, {
+        ...toSettingsBody(settings),
+        enabled: true,
+      });
+      receipt(t('page.console.wallet.autoReload.receiptOn'));
+      await invalidate('wallet');
+    });
+  const save = (settings: AutoReloadSettings) =>
+    run(async (client, id) => {
+      await client.updateAutoReload(id, toSettingsBody(settings));
+      receipt(t('page.console.wallet.autoReload.receiptSaved'));
+      await invalidate('wallet');
+    });
+  const turnOff = () =>
+    run(async (client, id) => {
+      await client.disableAutoReload(id);
+      receipt(t('page.console.wallet.autoReload.receiptOff'));
+      await invalidate('wallet');
+    });
+  const changeCard = () =>
+    run(async (client, id) => {
+      const { setup_link } = await client.startAutoReloadSetup(id, {});
+      receipt(t('page.console.wallet.autoReload.receiptOpening'));
+      window.location.assign(setup_link);
+    });
+
+  return {
+    pending: query.isPending,
+    state: toAutoReloadState(query.data),
+    failedAt: query.data?.last_failed_at ?? 0,
+    busy,
+    saveCard,
+    turnOn,
+    save,
+    turnOff,
+    changeCard,
+  };
+}
+
+type OwnerAutoReloadHandle = ReturnType<typeof useOwnerAutoReload>;
+
+function OwnerAutoReload({
+  autoReload,
+  openEditor,
+}: {
+  autoReload: OwnerAutoReloadHandle;
+  openEditor: boolean;
+}) {
+  return (
+    <AutoReloadCard
+      busy={autoReload.busy}
+      className='pj-auto-reload'
+      onSave={(settings) => void autoReload.save(settings)}
+      onSaveCard={(settings) => void autoReload.saveCard(settings)}
+      onTurnOff={() => void autoReload.turnOff()}
+      onTurnOn={(settings) => void autoReload.turnOn(settings)}
+      openEditor={openEditor}
+      pending={autoReload.pending}
+      state={autoReload.state}
+    />
+  );
+}
+
+/* The notice shows only for a declined card, and only once the setting has
+   answered: an unanswered query is not "nothing failed". */
+function AutoReloadFailureNoticeSlot({
+  autoReload,
+  balanceUSD,
+  onChangeCard,
+  onTopUp,
+}: {
+  autoReload: OwnerAutoReloadHandle;
+  balanceUSD: number | null;
+  onChangeCard: () => void;
+  onTopUp: (amountUSD: number) => void;
+}) {
+  const state = autoReload.state;
+  if (!state || !state.enabled || state.pausedReason !== 'card_declined')
+    return null;
+  return (
+    <AutoReloadFailureNotice
+      amountUSD={state.amountUSD}
+      balanceUSD={balanceUSD}
+      busy={autoReload.busy}
+      cardLabel={state.cardLabel}
+      className='pj-auto-reload-notice'
+      failedAt={autoReload.failedAt}
+      onChangeCard={() => {
+        onChangeCard();
+        void autoReload.changeCard();
+      }}
+      onTopUp={onTopUp}
+      thresholdUSD={state.thresholdUSD}
+    />
   );
 }
 
