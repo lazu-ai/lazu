@@ -4165,3 +4165,220 @@
     color: var(--lazu-danger);
   }
 }
+
+/* ---------------------------------------------------------------
+   Auto-reload · the row under the top-up bar (components/ui/auto-reload-card).
+   Closed it is one line: switch, state, a sentence. Open it adds the three
+   numbers and the card in one four-column grid, then one line of rules.
+   --------------------------------------------------------------- */
+@layer tailwind-components {
+  .lazu-auto-reload {
+    background: var(--lazu-surface);
+    border: 1px solid var(--lazu-border);
+    border-radius: var(--lazu-radius-surface);
+    box-shadow: var(--lazu-shadow-panel);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px 24px;
+  }
+
+  .lazu-auto-reload--pending {
+    border-radius: var(--lazu-radius-surface);
+    box-shadow: none;
+  }
+
+  .lazu-auto-reload__row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    min-height: 42px;
+  }
+
+  .lazu-auto-reload__copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .lazu-auto-reload__copy > strong {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .lazu-auto-reload__copy > span,
+  .lazu-auto-reload__summary,
+  .lazu-auto-reload__note {
+    color: var(--lazu-text-muted);
+    font-size: 12.5px;
+    line-height: 18px;
+  }
+
+  .lazu-auto-reload__summary {
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .lazu-auto-reload[data-state='paused'] .lazu-auto-reload__copy > span {
+    color: var(--lazu-danger);
+  }
+
+  .lazu-auto-reload__grid {
+    align-items: end;
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lazu-auto-reload__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .lazu-auto-reload__cell > label,
+  .lazu-auto-reload__cell-label {
+    color: var(--lazu-text-faint);
+    font-size: 12px;
+  }
+
+  .lazu-auto-reload__field,
+  .lazu-auto-reload__card {
+    align-items: center;
+    border: 1px solid var(--lazu-border-strong);
+    border-radius: var(--lazu-radius-control);
+    box-sizing: border-box;
+    display: flex;
+    gap: 6px;
+    height: 40px;
+    min-width: 0;
+    padding: 0 12px;
+  }
+
+  .lazu-auto-reload__field {
+    background: var(--lazu-surface-solid);
+    color: var(--lazu-text-muted);
+    cursor: text;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lazu-auto-reload__field:focus-within {
+    border-color: var(--lazu-ink);
+    box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+  }
+
+  .lazu-auto-reload__field[data-invalid] {
+    border-color: var(--lazu-danger);
+    box-shadow: 0 0 0 3px var(--lazu-danger-soft);
+  }
+
+  .lazu-auto-reload__field input {
+    background: transparent;
+    border: 0;
+    color: var(--lazu-ink);
+    flex: 1;
+    font: inherit;
+    font-family: var(--lazu-font-mono);
+    font-size: 15px;
+    min-width: 0;
+    outline: 0;
+    padding: 0;
+    width: 100%;
+  }
+
+  .lazu-auto-reload__card {
+    background: var(--lazu-surface-muted);
+    border-color: var(--lazu-border);
+    color: var(--lazu-text-muted);
+    font-size: 13px;
+  }
+
+  .lazu-auto-reload__card-label {
+    color: var(--lazu-ink);
+    flex: 1;
+    font-family: var(--lazu-font-mono);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lazu-auto-reload__link {
+    background: none;
+    border: 0;
+    color: var(--lazu-evidence-strong);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 0;
+  }
+
+  .lazu-auto-reload__link:hover {
+    text-decoration: underline;
+  }
+
+  .lazu-auto-reload__link:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  .lazu-auto-reload__error {
+    color: var(--lazu-danger);
+    font-size: 12.5px;
+    margin: -6px 0 0;
+  }
+
+  .lazu-auto-reload__foot {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    justify-content: space-between;
+  }
+
+  .lazu-auto-reload__note {
+    flex: 1;
+    margin: 0;
+    min-width: 240px;
+  }
+
+  .lazu-auto-reload__actions {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .lazu-auto-reload-notice .lazu-inline-notice__actions {
+    display: inline-flex;
+    gap: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .lazu-auto-reload__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .lazu-auto-reload__summary {
+      flex-basis: 100%;
+      margin-left: 0;
+      text-align: left;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .lazu-auto-reload {
+      padding: 14px 18px;
+    }
+
+    .lazu-auto-reload__grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

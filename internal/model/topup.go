@@ -30,7 +30,7 @@ type TopUp struct {
 	StripeDisputeCents      int64            `json:"-" gorm:"not null;default:0"`
 	StripeChargeCents       int64            `json:"-" gorm:"not null;default:0"`
 	DisputeStatus           string           `json:"-" gorm:"size:16"`
-	ProjectID               int              `json:"-" gorm:"index;not null;default:0"`
+	ProjectID               int              `json:"-" gorm:"index;not null;default:0;index:idx_top_ups_project_auto_reload,priority:1"`
 	PaidByUserID            int              `json:"-" gorm:"index;not null;default:0"`
 	StripeCustomerID        string           `json:"-" gorm:"size:64;index"`
 	StripeCheckoutSessionID string           `json:"-" gorm:"size:255;index"`
@@ -45,6 +45,10 @@ type TopUp struct {
 	// Owner wallet balance right after this credit, the figure the payment
 	// e-mail reports even when it is rendered later.
 	BalanceAfterMicrousd *billing.MicroUSD `json:"-" gorm:"type:bigint"`
+	// AutoReload marks an order the auto-reload worker opened and charged
+	// off-session. The monthly cap sums this column; payment_method is the
+	// card label and is rewritten by charge events.
+	AutoReload bool `json:"-" gorm:"not null;default:false;index:idx_top_ups_project_auto_reload,priority:2"`
 
 	Id                  int              `json:"id"`
 	UserId              int              `json:"user_id" gorm:"index;index:idx_top_ups_user_status_complete,priority:1"`

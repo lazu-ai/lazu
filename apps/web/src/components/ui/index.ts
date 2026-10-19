@@ -1,4 +1,5 @@
 export * from './accordion';
+export * from './auto-reload-card';
 export * from './badge';
 export * from './auth-progress';
 export * from './button';

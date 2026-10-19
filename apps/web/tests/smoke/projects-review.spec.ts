@@ -136,6 +136,7 @@ async function setup(
         });
       if (url.pathname.endsWith('/topups'))
         return ok({ items: [], total: 0, page: 1, page_size: 20 });
+      if (url.pathname.endsWith('/auto-reload')) return ok(autoReloadOff);
       if (url.pathname === '/api/user/models') return ok(['gpt-6-astra']);
       if (url.pathname === '/api/pricing')
         return {
@@ -153,6 +154,27 @@ async function setup(
     },
   });
 }
+
+/* The owner's auto-reload before it has ever been touched: off, no card. */
+const autoReloadOff = {
+  configured: false,
+  enabled: false,
+  threshold_usd: 0,
+  amount_usd: 0,
+  monthly_cap_usd: 0,
+  card: null,
+  setup_pending: false,
+  paused_reason: '',
+  paused_at: 0,
+  last_failure: '',
+  last_failed_at: 0,
+  last_run_at: 0,
+  last_charge_at: 0,
+  last_reload: null,
+  month_spent_usd: 0,
+  min_amount_usd: 5,
+  max_amount_usd: 10000,
+};
 
 test('root project switch survives the platform home and key navigation', async ({
   page,
@@ -2663,4 +2685,100 @@ test('lowered count links to exact month-to-date filtered logs and statistics', 
       );
     }
   }
+});
+
+test('auto-reload is one closed row for the owner and opens the numbers with the consent line', async ({
+  page,
+}) => {
+  const own = {
+    ...projects.find((p) => p.id === 'p_orbit')!,
+    is_default: true,
+    upgraded_at: null,
+    member_count: 1,
+  };
+  let setupBody: Record<string, unknown> | null = null;
+  const app = await setup(page, (url, request) => {
+    if (url.pathname === '/api/user/self')
+      return ok({
+        id: 'u_ada',
+        username: 'Ada',
+        role: 1,
+        features: { projects: true },
+        projects: [own],
+      });
+    if (
+      url.pathname.endsWith('/auto-reload/setup') &&
+      request.method() === 'POST'
+    ) {
+      setupBody = request.postDataJSON() as Record<string, unknown>;
+      return ok({
+        setup_link: '/console/wallet?auto_reload=canceled',
+        session_id: 'cs_t',
+      });
+    }
+  });
+  await page.goto('/console/wallet');
+  const row = page.locator('.lazu-auto-reload');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('Auto-reload · off');
+  // Closed: no numbers, no card, one line of copy.
+  await expect(row.locator('.lazu-auto-reload__field')).toHaveCount(0);
+  await row.getByRole('switch', { name: 'Auto-reload' }).click();
+  await expect(row.locator('.lazu-auto-reload__field')).toHaveCount(3);
+  await expect(row).toContainText(
+    'I agree that Lazu may charge the saved card',
+  );
+  await expect(row).toContainText('No card yet');
+  await row.locator('.lazu-auto-reload__field input').first().fill('12');
+  await row
+    .getByRole('button', { name: 'Agree and save a card on Stripe' })
+    .click();
+  await expect.poll(() => setupBody).not.toBeNull();
+  expect(setupBody).toMatchObject({
+    threshold_usd: 12,
+    amount_usd: 50,
+    monthly_cap_usd: 300,
+  });
+  await app.expectNoUnexpectedErrors();
+});
+
+test('auto-reload row is hidden from a member and shows the paused notice to the owner', async ({
+  page,
+}) => {
+  await setup(page, (url) => {
+    if (url.pathname.endsWith('/auto-reload'))
+      return ok({
+        ...autoReloadOff,
+        configured: true,
+        enabled: true,
+        threshold_usd: 10,
+        amount_usd: 50,
+        monthly_cap_usd: 300,
+        card: { brand: 'visa', last4: '4242', label: 'Visa ···· 4242' },
+        paused_reason: 'card_declined',
+        last_failure: 'insufficient_funds',
+        last_failed_at: 1760843520,
+      });
+  });
+  await page.goto('/console/wallet');
+  const notice = page.locator('.lazu-auto-reload-notice');
+  await expect(notice).toContainText(
+    'Auto-reload could not charge your card and is paused',
+  );
+  await expect(notice).toContainText('Visa ···· 4242');
+  await expect(
+    notice.getByRole('button', { name: 'Top up $50' }),
+  ).toBeVisible();
+  const row = page.locator('.lazu-auto-reload');
+  await expect(row).toContainText('Auto-reload · paused');
+  await expect(row.locator('.lazu-auto-reload__card-label')).toHaveText(
+    'Visa ···· 4242',
+  );
+
+  // A member sees neither the notice nor the row.
+  await setup(page, undefined, 'active', 'member');
+  await page.goto('/console/wallet');
+  await expect(page.locator('.pj-mybudget-page')).toBeVisible();
+  await expect(page.locator('.lazu-auto-reload')).toHaveCount(0);
+  await expect(page.locator('.lazu-auto-reload-notice')).toHaveCount(0);
 });

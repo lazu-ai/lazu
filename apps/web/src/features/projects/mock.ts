@@ -22,6 +22,7 @@ import {
   type ProjectRole,
   type ProjectSummary,
   type ProjectToken,
+  type ProjectAutoReload,
   type ProjectTopup,
   type RejectionReason,
   type UserRef,
@@ -71,6 +72,8 @@ type State = {
   };
   secrets: Record<string, string>;
   models: string[];
+  /* Auto-reload is the owner's: one row per project, none until touched. */
+  autoReload: Record<string, ProjectAutoReload>;
 };
 
 const MODELS = [
@@ -228,6 +231,7 @@ function seed(scenario: MockScenario): State {
       ],
     },
     secrets: {},
+    autoReload: {},
     models: MODELS,
   };
 
@@ -1404,6 +1408,141 @@ export const mockProjectsClient: ProjectsClient = {
       fail('access_denied', '只有所有者能进账单门户', {}, 403);
     return { url: 'https://billing.stripe.com/p/session/example' };
   },
+
+  async getAutoReload(id) {
+    await latency();
+    requireAutoReloadOwner(id);
+    return autoReloadRow(id);
+  },
+  async updateAutoReload(id, body) {
+    await latency();
+    requireAutoReloadOwner(id);
+    const row = autoReloadRow(id);
+    validateAutoReload(body, row);
+    if (body.enabled && !row.card)
+      fail('auto_reload_card_required', '先保存一张卡', {}, 409);
+    const next: ProjectAutoReload = {
+      ...row,
+      configured: true,
+      threshold_usd: body.threshold_usd,
+      amount_usd: body.amount_usd,
+      monthly_cap_usd: body.monthly_cap_usd,
+      enabled: body.enabled ?? row.enabled,
+      paused_reason:
+        body.enabled === undefined && row.paused_reason !== 'card_declined'
+          ? row.paused_reason
+          : '',
+    };
+    state.autoReload[id] = next;
+    return next;
+  },
+  async startAutoReloadSetup(id, body) {
+    await latency();
+    requireAutoReloadOwner(id);
+    const row = autoReloadRow(id);
+    const settings =
+      'amount_usd' in body
+        ? (body as {
+            threshold_usd: number;
+            amount_usd: number;
+            monthly_cap_usd: number;
+          })
+        : {
+            threshold_usd: row.threshold_usd,
+            amount_usd: row.amount_usd,
+            monthly_cap_usd: row.monthly_cap_usd,
+          };
+    validateAutoReload(settings, row);
+    state.autoReload[id] = {
+      ...row,
+      ...settings,
+      configured: true,
+      setup_pending: true,
+    };
+    const sessionId = nextId('cs');
+    return {
+      setup_link: `/console/wallet?project_id=${id}&auto_reload=saved&session_id=${sessionId}`,
+      session_id: sessionId,
+    };
+  },
+  async confirmAutoReloadSetup(id) {
+    await latency();
+    requireAutoReloadOwner(id);
+    const row = autoReloadRow(id);
+    const next: ProjectAutoReload = {
+      ...row,
+      configured: true,
+      enabled: true,
+      setup_pending: false,
+      card: { brand: 'visa', last4: '4242', label: 'Visa ···· 4242' },
+      paused_reason:
+        row.paused_reason === 'card_declined' ? '' : row.paused_reason,
+      last_failure: '',
+    };
+    state.autoReload[id] = next;
+    return next;
+  },
+  async disableAutoReload(id) {
+    await latency();
+    requireAutoReloadOwner(id);
+    const next: ProjectAutoReload = {
+      ...autoReloadRow(id),
+      configured: true,
+      enabled: false,
+      paused_reason: '',
+      setup_pending: false,
+    };
+    state.autoReload[id] = next;
+    return next;
+  },
+};
+
+const requireAutoReloadOwner = (id: string) => {
+  if (viewerRole(id) !== 'owner')
+    fail('access_denied', '只有所有者能设置自动续费', {}, 403);
+};
+
+const autoReloadRow = (id: string): ProjectAutoReload =>
+  state.autoReload[id] ?? {
+    configured: false,
+    enabled: false,
+    threshold_usd: 10,
+    amount_usd: 50,
+    monthly_cap_usd: 300,
+    card: null,
+    setup_pending: false,
+    paused_reason: '',
+    paused_at: 0,
+    last_failure: '',
+    last_failed_at: 0,
+    last_run_at: 0,
+    last_charge_at: 0,
+    last_reload: null,
+    month_spent_usd: 0,
+    min_amount_usd: 5,
+    max_amount_usd: 10_000,
+  };
+
+const validateAutoReload = (
+  body: { threshold_usd: number; amount_usd: number; monthly_cap_usd: number },
+  row: ProjectAutoReload,
+) => {
+  const whole = (v: number) => Number.isSafeInteger(v);
+  if (
+    !whole(body.threshold_usd) ||
+    !whole(body.amount_usd) ||
+    !whole(body.monthly_cap_usd) ||
+    body.threshold_usd < 1 ||
+    body.amount_usd < row.min_amount_usd ||
+    body.amount_usd > row.max_amount_usd ||
+    body.monthly_cap_usd < body.amount_usd
+  )
+    fail(
+      'auto_reload_settings_invalid',
+      '金额不在范围内',
+      { min_amount: row.min_amount_usd, max_amount: row.max_amount_usd },
+      400,
+    );
 };
 
 export const mockRejectReasonForKey = (id: string) => REJECT_REASON_FOR_KEY[id];

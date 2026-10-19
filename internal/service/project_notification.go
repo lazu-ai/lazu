@@ -29,6 +29,8 @@ func projectNotificationMailMeta(row model.ProjectNotification) common.MailMeta 
 		meta.Sensitive = true
 	case "payment", "invoice", "topup", "receipt":
 		meta.Kind = common.MailKindPayment
+	case "auto-reload-failed":
+		meta.Kind = common.MailKindBalance
 	case "payment-alert":
 		meta.Kind = common.MailKindOps
 	}

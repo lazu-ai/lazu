@@ -89,6 +89,14 @@ func SetApiRouter(router *gin.Engine) {
 		projectRoute.GET("/topups", controller.ListProjectTopUps)
 		projectRoute.GET("/topups/:topup_id", controller.GetProjectTopUp)
 		projectRoute.POST("/topups/:topup_id/cancel", controller.CancelProjectTopUp)
+		// Auto-reload is the owner's: settings, the Stripe card-save page and
+		// its confirmation, and the off switch. The charge itself runs in the
+		// worker, never on a request.
+		projectRoute.GET("/auto-reload", controller.GetProjectAutoReload)
+		projectRoute.PUT("/auto-reload", controller.UpdateProjectAutoReload)
+		projectRoute.POST("/auto-reload/setup", middleware.AccountActionRateLimit(), controller.StartProjectAutoReloadSetup)
+		projectRoute.POST("/auto-reload/confirm", middleware.AccountActionRateLimit(), controller.ConfirmProjectAutoReloadSetup)
+		projectRoute.POST("/auto-reload/disable", controller.DisableProjectAutoReload)
 		projectRoute.GET("/my-budget", controller.GetProjectMyBudget)
 		projectRoute.GET("/members/:uid/budget-history", controller.GetProjectBudgetHistory)
 		projectRoute.GET("/budget-requests", controller.ListProjectBudgetRequests)
