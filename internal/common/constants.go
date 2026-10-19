@@ -199,4 +199,7 @@ const (
 	TopUpStatusPending = "pending"
 	TopUpStatusSuccess = "success"
 	TopUpStatusExpired = "expired"
+	// TopUpStatusCanceled is a pending order the payer withdrew from the
+	// wallet before paying; Stripe's checkout page is expired with it.
+	TopUpStatusCanceled = "canceled"
 )

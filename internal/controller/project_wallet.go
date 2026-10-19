@@ -234,13 +234,7 @@ func projectTopUpPayload(order model.TopUp) (gin.H, error) {
 	if err := model.CoreDB().Unscoped().Select("public_id", "username").First(&actor, order.PaidByUserID).Error; err != nil {
 		return nil, err
 	}
-	status := order.Status
-	if status == common.TopUpStatusSuccess {
-		status = "paid"
-	}
-	if status != "pending" && status != "paid" && status != "expired" {
-		status = "failed"
-	}
+	status := projectPaymentStatus(order.Status)
 	invoiceStatus := order.InvoiceStatus
 	if invoiceStatus == "" {
 		invoiceStatus = "legacy"
@@ -257,8 +251,33 @@ func projectTopUpPayload(order model.TopUp) (gin.H, error) {
 	if credit == 0 {
 		credit = billing.USD(order.OrderUSD())
 	}
-	return gin.H{"id": order.PublicID, "created_at": order.CreateTime, "paid_amount_microusd": billing.USD(order.PaidAmount), "credited_microusd": credit,
-		"paid_by": model.ProjectUserRef{ID: actor.PublicID, Username: actor.Username}, "method": order.PaymentMethod, "payment_status": status, "invoice_status": invoiceStatus, "invoice": invoice, "receipt_url": receipt}, nil
+	item := gin.H{"id": order.PublicID, "created_at": order.CreateTime, "paid_amount_microusd": billing.USD(order.PaidAmount), "credited_microusd": credit,
+		"paid_by": model.ProjectUserRef{ID: actor.PublicID, Username: actor.Username}, "method": order.PaymentMethod, "payment_status": status, "invoice_status": invoiceStatus, "invoice": invoice, "receipt_url": receipt}
+	if status == "pending" && order.StripeCheckoutURL != "" {
+		// The checkout page Stripe opened for this order is still the way to
+		// pay it; the wallet offers it back instead of minting a second order.
+		item["pay_link"] = order.StripeCheckoutURL
+		item["pay_by"] = order.CreateTime + int64(stripeCheckoutLifetime.Seconds())
+	}
+	return item, nil
+}
+
+// stripeCheckoutLifetime is how long a Checkout Session stays payable after
+// it is created (Stripe's default; the session is created right after the
+// order). The wallet shows the deadline next to "continue paying".
+const stripeCheckoutLifetime = 24 * time.Hour
+
+// projectPaymentStatus is the wallet's word for an order's state: paid,
+// pending, expired, canceled, or failed for anything else.
+func projectPaymentStatus(status string) string {
+	switch status {
+	case common.TopUpStatusSuccess:
+		return "paid"
+	case common.TopUpStatusPending, common.TopUpStatusExpired, common.TopUpStatusCanceled:
+		return status
+	default:
+		return "failed"
+	}
 }
 
 // GetOwnPaymentRecord is the account-wallet deep link for one payment. The
@@ -277,13 +296,7 @@ func GetOwnPaymentRecord(c *gin.Context) {
 		projectFailure(c, notFoundAs(err, types.ErrorCodePaymentNotFound))
 		return
 	}
-	status := order.Status
-	if status == common.TopUpStatusSuccess {
-		status = "paid"
-	}
-	if status != "paid" && status != "pending" && status != "expired" {
-		status = "failed"
-	}
+	status := projectPaymentStatus(order.Status)
 	credit := order.CreditedMicrousd
 	if credit == 0 {
 		credit = billing.USD(order.OrderUSD())

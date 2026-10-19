@@ -95,7 +95,11 @@ function lookupStatus(error: unknown): number | undefined {
 
 function settled(record: TopupRecordData | undefined) {
   if (!record) return false;
-  if (record.payment_status === 'expired' || record.payment_status === 'failed')
+  if (
+    record.payment_status === 'expired' ||
+    record.payment_status === 'failed' ||
+    record.payment_status === 'canceled'
+  )
     return true;
   return (
     record.payment_status === 'paid' &&
@@ -249,14 +253,17 @@ function TopupRecordContent({
 
   const status = record?.payment_status;
   const paid = status === 'paid';
-  const notPaid = status === 'expired' || status === 'failed';
+  const notPaid =
+    status === 'expired' || status === 'failed' || status === 'canceled';
   const eyebrow = paid
     ? 'PAID'
     : status === 'expired'
       ? 'EXPIRED'
-      : status === 'failed'
-        ? 'NOT PAID'
-        : 'CONFIRMING';
+      : status === 'canceled'
+        ? 'CANCELED'
+        : status === 'failed'
+          ? 'NOT PAID'
+          : 'CONFIRMING';
   const amount = record
     ? usd(
         paid
@@ -305,7 +312,11 @@ function TopupRecordContent({
         aria-hidden='true'
         className='lazu-topup-record__dot lazu-topup-record__dot--danger'
       />
-      {status === 'expired' ? t(`${ns}.expired`) : t(`${ns}.failed`)}
+      {status === 'expired'
+        ? t(`${ns}.expired`)
+        : status === 'canceled'
+          ? t(`${ns}.canceled`)
+          : t(`${ns}.failed`)}
     </>
   ) : (
     <>

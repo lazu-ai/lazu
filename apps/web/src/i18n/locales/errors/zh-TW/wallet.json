@@ -23,5 +23,7 @@
   "referral_status_invalid": "推薦狀態篩選條件無效。",
   "referral_search_invalid": "推薦記錄搜尋條件無效。",
   "referral_not_found": "找不到這筆推薦獎勵。",
-  "referral_not_pending": "這筆推薦獎勵已不在待處理狀態。"
+  "referral_not_pending": "這筆推薦獎勵已不在待處理狀態。",
+  "auto_reload_settings_invalid": "自動續費的金額必須是整數美元：餘額線至少 $1，每次儲值在儲值範圍內，每月上限不低於一次儲值金額。",
+  "auto_reload_card_required": "開啟自動續費前先儲存一張卡。儲存時不會扣款。"
 }

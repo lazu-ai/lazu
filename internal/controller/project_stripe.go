@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/httperr"
+	"github.com/lazu-ai/lazu/internal/middleware"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/internal/setting/email_setting"
@@ -69,49 +72,14 @@ func requestProjectStripePay(c *gin.Context, req *StripePayRequest) {
 		return
 	}
 	api := projectStripeClient()
-	customerProject, err := model.BeginProjectStripeCustomer(pc.Project.ID)
+	customerID, err := ensureProjectStripeCustomer(c.Request.Context(), api, pc.Project)
+	if errors.Is(err, errProjectStripeUnavailable) {
+		projectPaymentUnavailable(c, order)
+		return
+	}
 	if err != nil {
 		projectFailure(c, err)
 		return
-	}
-	customerID := customerProject.StripeCustomerID
-	if customerID == "" {
-		if time.Now().Unix()-customerProject.StripeCustomerStartedAt > int64((23 * time.Hour).Seconds()) {
-			// Search only: an unconfirmed old request is never blindly retried.
-			search := &stripe.CustomerSearchParams{SearchParams: stripe.SearchParams{Query: fmt.Sprintf("metadata['lazu_project_id']:'%s'", pc.Project.PublicID)}}
-			search.Context = c.Request.Context()
-			iter := api.Customers.Search(search)
-			for iter.Next() {
-				if customerID != "" {
-					projectPaymentUnavailable(c, order)
-					return
-				}
-				customerID = iter.Customer().ID
-			}
-			if iter.Err() != nil || customerID == "" {
-				projectPaymentUnavailable(c, order)
-				return
-			}
-			if err := model.SetProjectStripeCustomer(pc.Project.ID, customerID); err != nil {
-				projectFailure(c, err)
-				return
-			}
-		}
-		if customerID == "" {
-			params := &stripe.CustomerParams{Metadata: map[string]string{"lazu_project_id": pc.Project.PublicID}}
-			params.Context = c.Request.Context()
-			params.SetIdempotencyKey("lazu-project-customer:" + pc.Project.PublicID)
-			customer, err := api.Customers.New(params)
-			if err != nil {
-				projectPaymentUnavailable(c, order)
-				return
-			}
-			customerID = customer.ID
-			if err := model.SetProjectStripeCustomer(pc.Project.ID, customerID); err != nil {
-				projectFailure(c, err)
-				return
-			}
-		}
 	}
 	if time.Now().Unix()-order.CreateTime > int64((23 * time.Hour).Seconds()) {
 		list := &stripe.CheckoutSessionListParams{Customer: stripe.String(customerID), CreatedRange: &stripe.RangeQueryParams{GreaterThanOrEqual: order.CreateTime}}
@@ -168,6 +136,55 @@ func requestProjectStripePay(c *gin.Context, req *StripePayRequest) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"pay_link": result.URL, "top_up_id": order.PublicID}})
+}
+
+// errProjectStripeUnavailable says Stripe did not answer, or answered in a
+// way that is not safe to act on; the caller reports the provider as
+// unavailable and the order or setup stays for a retry.
+var errProjectStripeUnavailable = errors.New("stripe is unavailable")
+
+// ensureProjectStripeCustomer is the project's one Stripe Customer, created
+// on the first payment or card save. The first attempt is recorded before
+// Stripe is called; an unconfirmed old attempt is only searched for, never
+// blindly retried, so a timeout cannot leave two Customers.
+func ensureProjectStripeCustomer(ctx context.Context, api *client.API, project model.Project) (string, error) {
+	customerProject, err := model.BeginProjectStripeCustomer(project.ID)
+	if err != nil {
+		return "", err
+	}
+	if customerProject.StripeCustomerID != "" {
+		return customerProject.StripeCustomerID, nil
+	}
+	if time.Now().Unix()-customerProject.StripeCustomerStartedAt > int64((23 * time.Hour).Seconds()) {
+		search := &stripe.CustomerSearchParams{SearchParams: stripe.SearchParams{Query: fmt.Sprintf("metadata['lazu_project_id']:'%s'", project.PublicID)}}
+		search.Context = ctx
+		iter := api.Customers.Search(search)
+		customerID := ""
+		for iter.Next() {
+			if customerID != "" {
+				return "", errProjectStripeUnavailable
+			}
+			customerID = iter.Customer().ID
+		}
+		if iter.Err() != nil || customerID == "" {
+			return "", errProjectStripeUnavailable
+		}
+		if err := model.SetProjectStripeCustomer(project.ID, customerID); err != nil {
+			return "", err
+		}
+		return customerID, nil
+	}
+	params := &stripe.CustomerParams{Metadata: map[string]string{"lazu_project_id": project.PublicID}}
+	params.Context = ctx
+	params.SetIdempotencyKey("lazu-project-customer:" + project.PublicID)
+	customer, err := api.Customers.New(params)
+	if err != nil {
+		return "", errProjectStripeUnavailable
+	}
+	if err := model.SetProjectStripeCustomer(project.ID, customer.ID); err != nil {
+		return "", err
+	}
+	return customer.ID, nil
 }
 
 // projectPaymentUnavailable answers a checkout the provider could not open
@@ -427,4 +444,62 @@ func projectBillingPortalConfiguration() *stripe.BillingPortalConfigurationParam
 	}
 	params.SetIdempotencyKey("lazu-project-billing-portal-v1")
 	return params
+}
+
+// CancelProjectTopUp withdraws a pending order the payer no longer wants:
+// Stripe's checkout page is expired first, so a payment cannot land after the
+// wallet says the order is gone, then the order is marked canceled. Whoever
+// may top up the project may cancel; a paid or already settled order is a
+// conflict, never a silent no-op.
+func CancelProjectTopUp(c *gin.Context) {
+	pc, ok := middleware.CurrentProject(c)
+	if !ok {
+		projectFailure(c, model.ErrProjectForbidden)
+		return
+	}
+	settings, err := pc.Project.GetSettings()
+	if err != nil {
+		projectFailure(c, err)
+		return
+	}
+	if !model.CanProjectAction(pc.Member, nil, model.ProjectTopUp, settings) {
+		projectFailure(c, model.ErrProjectForbidden)
+		return
+	}
+	var order model.TopUp
+	if err := model.CoreDB().Where("project_id = ? AND public_id = ?", pc.Project.ID, c.Param("topup_id")).First(&order).Error; err != nil {
+		projectFailure(c, notFoundAs(err, types.ErrorCodePaymentNotFound))
+		return
+	}
+	if order.Status != common.TopUpStatusPending {
+		projectFailure(c, model.ErrProjectStateConflict)
+		return
+	}
+	if order.StripeCheckoutSessionID != "" {
+		params := &stripe.CheckoutSessionExpireParams{}
+		params.Context = c.Request.Context()
+		if _, err := projectStripeClient().CheckoutSessions.Expire(order.StripeCheckoutSessionID, params); err != nil {
+			var stripeErr *stripe.Error
+			// A session that is already complete was paid: the webhook credits
+			// it, and the wallet must not pretend it was withdrawn. Any other
+			// refusal leaves the order pending for a retry.
+			if errors.As(err, &stripeErr) && stripeErr.HTTPStatusCode == http.StatusBadRequest && strings.Contains(stripeErr.Msg, "complete") {
+				projectFailure(c, model.ErrProjectStateConflict)
+				return
+			}
+			httperr.Write(c, types.WrapErr(err, types.ErrorCodePaymentProviderUnavailable))
+			return
+		}
+	}
+	if err := model.CancelProjectTopUp(order.TradeNo); err != nil {
+		projectFailure(c, err)
+		return
+	}
+	order.Status = common.TopUpStatusCanceled
+	item, err := projectTopUpPayload(order)
+	if err != nil {
+		projectFailure(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": item})
 }

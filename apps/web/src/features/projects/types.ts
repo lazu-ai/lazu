@@ -269,7 +269,43 @@ export type ProjectWallet = {
   capabilities?: { can_topup: boolean; can_manage_billing: boolean };
 };
 
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired';
+/* G2 · auto-reload: one setting per project, the owner's. `configured` is
+ * false until the owner has touched it; `card` is null until a setup session
+ * saved one. Amounts are whole USD because a reload is a card top-up. */
+export type AutoReloadPause = '' | 'card_declined' | 'cap_reached';
+
+export type ProjectAutoReload = {
+  configured: boolean;
+  enabled: boolean;
+  threshold_usd: number;
+  amount_usd: number;
+  monthly_cap_usd: number;
+  card: { brand: string; last4: string; label: string } | null;
+  setup_pending: boolean;
+  paused_reason: AutoReloadPause;
+  paused_at: number;
+  last_failure: string;
+  last_failed_at: number;
+  last_run_at: number;
+  last_charge_at: number;
+  last_reload: { id: string; amount_usd: number; completed_at: number } | null;
+  month_spent_usd: number;
+  min_amount_usd: number;
+  max_amount_usd: number;
+};
+
+export type AutoReloadSettingsInput = {
+  threshold_usd: number;
+  amount_usd: number;
+  monthly_cap_usd: number;
+};
+
+export type PaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'expired'
+  | 'canceled';
 export type InvoiceStatus = 'pending' | 'ready' | 'failed' | 'legacy';
 
 export type ProjectTopup = {
@@ -288,6 +324,10 @@ export type ProjectTopup = {
     bill_to: BillTo | null;
   } | null;
   receipt_url: string | null;
+  /* A pending order keeps the checkout page Stripe opened for it, payable
+     until pay_by (Unix seconds); absent once it is paid or closed. */
+  pay_link?: string | null;
+  pay_by?: number | null;
 };
 
 export type Paged<T> = {

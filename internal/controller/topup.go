@@ -17,9 +17,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// stripeTopupEnabled is whether this deployment can open a card checkout:
+// the three Stripe values Checkout needs are all present.
+func stripeTopupEnabled() bool {
+	return setting.StripeApiSecret != "" && setting.StripeWebhookSecret != "" && setting.StripePriceId != ""
+}
+
 func GetTopUpInfo(c *gin.Context) {
 	payMethods := []map[string]string{}
-	stripeEnabled := setting.StripeApiSecret != "" && setting.StripeWebhookSecret != "" && setting.StripePriceId != ""
+	stripeEnabled := stripeTopupEnabled()
 	if stripeEnabled {
 		payMethods = append(payMethods, map[string]string{
 			"name":   "Stripe",
@@ -31,7 +37,8 @@ func GetTopUpInfo(c *gin.Context) {
 	data := gin.H{
 		"enable_stripe_topup": stripeEnabled,
 		"pay_methods":         payMethods,
-		"stripe_min_topup":    setting.StripeMinTopUp,
+		"stripe_min_topup":    getStripeMinTopup(),
+		"stripe_max_topup":    getStripeMaxTopup(),
 	}
 	common.ApiSuccess(c, data)
 }

@@ -121,6 +121,7 @@ func buildWorkerTasks(resources *workerResources, oneShot bool) []worker.Task {
 			worker.NewUsageDigestTask(),
 			worker.NewMailArchiveTask(),
 			worker.NewProjectPaymentDocumentTask(),
+			worker.NewProjectAutoReloadTask(), // charges saved cards for wallets under their reload line
 			dashboardRollup,
 			worker.NewMediaJobPollerTask(),
 			worker.NewRoutingQualityBackfillTask(), // runs worker.BackfillQualitySignals

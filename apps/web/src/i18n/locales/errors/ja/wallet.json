@@ -23,5 +23,7 @@
   "referral_status_invalid": "紹介状態のフィルターが無効です。",
   "referral_search_invalid": "紹介記録の検索条件が無効です。",
   "referral_not_found": "紹介報酬が見つかりません。",
-  "referral_not_pending": "この紹介報酬は処理待ちではありません。"
+  "referral_not_pending": "この紹介報酬は処理待ちではありません。",
+  "auto_reload_settings_invalid": "自動チャージの金額は整数ドルで指定します。残高ラインは $1 以上、1 回の金額はチャージ範囲内、月間上限は 1 回分以上にしてください。",
+  "auto_reload_card_required": "自動チャージを有効にする前にカードを保存してください。保存時に請求は発生しません。"
 }

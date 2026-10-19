@@ -5,12 +5,14 @@
 import { projectError } from './errors';
 import {
   type Attention,
+  type AutoReloadSettingsInput,
   type BudgetHistoryEntry,
   type BudgetRequest,
   type InvitePreview,
   type MyBudget,
   type Paged,
   type ProjectDetail,
+  type ProjectAutoReload,
   type ProjectInvite,
   type ProjectMember,
   type ProjectMemberDetail,
@@ -275,6 +277,25 @@ export type ProjectsClient = {
     operationId: string,
   ): Promise<{ pay_link: string; top_up_id: string; payment_status?: string }>;
   getPortalUrl(id: string): Promise<{ url: string }>;
+  /* Withdraws a pending order: Stripe's checkout page is expired with it. */
+  cancelTopup(id: string, topupId: string): Promise<ProjectTopup>;
+  // G2 · auto-reload (owner only)
+  getAutoReload(id: string): Promise<ProjectAutoReload>;
+  updateAutoReload(
+    id: string,
+    body: AutoReloadSettingsInput & { enabled?: boolean },
+  ): Promise<ProjectAutoReload>;
+  /** Opens the Stripe page that saves a card: turn on, or change the card.
+   *  Nothing is charged there. Empty settings keep the saved numbers. */
+  startAutoReloadSetup(
+    id: string,
+    body: AutoReloadSettingsInput | Record<string, never>,
+  ): Promise<{ setup_link: string; session_id: string }>;
+  confirmAutoReloadSetup(
+    id: string,
+    sessionId: string,
+  ): Promise<ProjectAutoReload>;
+  disableAutoReload(id: string): Promise<ProjectAutoReload>;
 };
 
 export const realProjectsClient: ProjectsClient = {
@@ -408,6 +429,8 @@ export const realProjectsClient: ProjectsClient = {
   getTopup: (id, topupId) => get(`/api/project/${id}/topups/${topupId}`),
   getTopupDocument: (id, topupId, document) =>
     get(`/api/project/${id}/topups/${topupId}/document`, { document }),
+  cancelTopup: (id, topupId) =>
+    post(`/api/project/${id}/topups/${topupId}/cancel`, {}),
   startTopup: async (id, amountUSD, method, operationId) => {
     if (!Number.isSafeInteger(amountUSD) || amountUSD <= 0)
       throw projectError('invalid_amount');
@@ -432,4 +455,19 @@ export const realProjectsClient: ProjectsClient = {
     };
   },
   getPortalUrl: (id) => get('/api/user/self/stripe/portal', { project_id: id }),
+
+  getAutoReload: (id) => get(`/api/project/${id}/auto-reload`),
+  updateAutoReload: (id, body) => put(`/api/project/${id}/auto-reload`, body),
+  startAutoReloadSetup: async (id, body) => {
+    const data = await post<{
+      setup_link?: string;
+      session_id?: string;
+    } | null>(`/api/project/${id}/auto-reload/setup`, body);
+    if (!data?.setup_link)
+      throw projectError('payment_provider_unavailable', {}, 503);
+    return { setup_link: data.setup_link, session_id: data.session_id || '' };
+  },
+  confirmAutoReloadSetup: (id, sessionId) =>
+    post(`/api/project/${id}/auto-reload/confirm`, { session_id: sessionId }),
+  disableAutoReload: (id) => post(`/api/project/${id}/auto-reload/disable`),
 };

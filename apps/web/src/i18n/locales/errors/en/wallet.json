@@ -23,5 +23,7 @@
   "referral_status_invalid": "This referral status filter is invalid.",
   "referral_search_invalid": "This referral search is invalid.",
   "referral_not_found": "The referral reward was not found.",
-  "referral_not_pending": "This referral reward is no longer pending."
+  "referral_not_pending": "This referral reward is no longer pending.",
+  "auto_reload_settings_invalid": "Auto-reload amounts must be whole dollars: the threshold at least $1, each reload within the top-up range, and the monthly cap at least one reload.",
+  "auto_reload_card_required": "Save a card before turning auto-reload on. Nothing is charged while saving it."
 }

@@ -18,6 +18,8 @@ export const projectKeys = {
     [...projectsQueryRoot(id), 'budget-requests'] as const,
   attention: (id: string) => [...projectsQueryRoot(id), 'attention'] as const,
   wallet: (id: string) => [...projectsQueryRoot(id), 'wallet'] as const,
+  autoReload: (id: string) =>
+    [...projectsQueryRoot(id), 'auto-reload'] as const,
   topups: (id: string) => [...projectsQueryRoot(id), 'topups'] as const,
   topup: (id: string, topupId: string) =>
     [...projectsQueryRoot(id), 'topup', topupId] as const,

@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/pkg/billing"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -41,7 +42,7 @@ type ProjectCheckoutConfig struct {
 
 func BeginProjectTopUp(projectID, actorID int, operationKey string, amount int64, configs ...ProjectCheckoutConfig) (TopUp, error) {
 	var order TopUp
-	if strings.TrimSpace(operationKey) == "" || len(operationKey) > 128 || amount <= 0 || amount > 10000 {
+	if strings.TrimSpace(operationKey) == "" || len(operationKey) > 128 || amount <= 0 || amount > setting.StripeMaxTopUp {
 		return order, ErrProjectInvalidInput
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("project-topup:%d:%d:%s", projectID, actorID, operationKey)))
@@ -159,7 +160,10 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("trade_no = ?", input.Reference).First(&order).Error; err != nil {
 			return err
 		}
-		if order.ProjectID <= 0 || input.CustomerID == "" || input.SessionID == "" || strings.ToUpper(input.Currency) != "USD" || input.PaidMicrousd < 0 || input.PaidMicrousd > billing.MicroUSD(order.Amount*billing.MicroUSDPerUSD) {
+		// An auto-reload is charged by an off-session PaymentIntent and has no
+		// Checkout Session; the intent is its identity instead.
+		offSession := order.AutoReload && input.PaymentIntentID != ""
+		if order.ProjectID <= 0 || input.CustomerID == "" || input.SessionID == "" && !offSession || strings.ToUpper(input.Currency) != "USD" || input.PaidMicrousd < 0 || input.PaidMicrousd > billing.MicroUSD(order.Amount*billing.MicroUSDPerUSD) {
 			return ErrProjectInvalidInput
 		}
 		var project Project
@@ -178,11 +182,15 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		if order.Status == common.TopUpStatusSuccess {
 			return nil
 		}
-		if order.Status != common.TopUpStatusPending && order.Status != common.TopUpStatusExpired && order.Status != "failed" {
+		// A cancelled or expired order can still be credited: Stripe may report
+		// a payment that raced the cancellation, and the money is real.
+		if order.Status != common.TopUpStatusPending && order.Status != common.TopUpStatusExpired && order.Status != "failed" && order.Status != common.TopUpStatusCanceled {
 			return ErrProjectStateConflict
 		}
 		order.StripeCustomerID = input.CustomerID
-		order.StripeCheckoutSessionID = input.SessionID
+		if input.SessionID != "" {
+			order.StripeCheckoutSessionID = input.SessionID
+		}
 		if input.PaymentIntentID != "" {
 			order.StripePaymentIntentID = input.PaymentIntentID
 		}
@@ -202,7 +210,7 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		}
 		order.Status = common.TopUpStatusSuccess
 		order.CompleteTime = time.Now().Unix()
-		if input.Method != "" && (order.PaymentMethod == "" || order.PaymentMethod == "stripe") {
+		if input.Method != "" && (order.PaymentMethod == "" || order.PaymentMethod == "stripe" || order.PaymentMethod == AutoReloadPaymentMethod) {
 			order.PaymentMethod = input.Method
 		}
 		order.NormalizeLedgerFields()
@@ -225,6 +233,11 @@ func CompleteProjectTopUp(input ProjectPaymentReceipt) (TopUp, bool, error) {
 		}
 		if err := queueProjectPaymentEmailTx(tx, project, order, true); err != nil {
 			return err
+		}
+		if order.AutoReload {
+			if err := tx.Model(&ProjectAutoReload{}).Where("project_id = ?", order.ProjectID).Update("last_charge_at", order.CompleteTime).Error; err != nil {
+				return err
+			}
 		}
 		credited = true
 		return nil
@@ -355,10 +368,14 @@ func queueProjectPaymentEmailTx(tx *gorm.DB, project Project, order TopUp, atCre
 	} else {
 		facts = append(facts, common.MailFact{Label: "Top-up ID", Value: order.PublicID, Mono: true})
 	}
+	message := "API credit added to your Lazu account."
+	if order.AutoReload {
+		message = "Auto-reload added API credit to your Lazu account."
+	}
 	content := common.PaymentEmailContent{
 		LogoURL: paymentEmailLogo(order.StripeReturnBase), Eyebrow: "PAYMENT RECEIVED",
 		Hero: credit, CompactHero: order.CreditedMicrousd.Dollars() >= 1000,
-		Message: "API credit added to your Lazu account.", Preheader: subject, Facts: facts,
+		Message: message, Preheader: subject, Facts: facts,
 		ActionLabel: "Open wallet",
 	}
 	if ready {
@@ -509,6 +526,20 @@ func ProjectPaymentMethod(kind, brand, last4 string) string {
 		label = "Amex"
 	}
 	return label + " ···· " + last4
+}
+
+// CancelProjectTopUp withdraws a pending order from the wallet. Only a
+// pending order moves; a paid, expired or already cancelled one is left as
+// it is and reported as a conflict so the caller does not claim a change.
+func CancelProjectTopUp(reference string) error {
+	result := CoreDB().Model(&TopUp{}).Where("trade_no = ? AND status = ?", reference, common.TopUpStatusPending).Update("status", common.TopUpStatusCanceled)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrProjectStateConflict
+	}
+	return nil
 }
 
 func ExpireProjectTopUp(reference string, failed bool) error {

@@ -88,6 +88,12 @@ func GetStatus(c *gin.Context) {
 		"SidebarModulesAdmin": sidebarModulesAdmin,
 		"SidebarModulePreset": sidebarModulePreset,
 
+		// The wallet draws its amount row from these before any wallet query
+		// answers; the same numbers gate /api/user/stripe/pay.
+		"enable_stripe_topup": stripeTopupEnabled(),
+		"stripe_min_topup":    getStripeMinTopup(),
+		"stripe_max_topup":    getStripeMaxTopup(),
+
 		"user_agreement_enabled": legalSetting.HasUserAgreement(),
 		"privacy_policy_enabled": legalSetting.HasPrivacyPolicy(),
 	}
