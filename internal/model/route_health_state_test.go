@@ -268,3 +268,40 @@ func TestRouteHealthStatesLeaveWithTheirChannel(t *testing.T) {
 		t.Fatalf("remaining = %+v, want only the existing channel's record", remaining)
 	}
 }
+
+// A route tripped by one process must be clearable by a success observed in
+// another. The jobs process runs no breaker sync loop of its own; its
+// control-plane refresh is what loads the troubled-route view.
+func TestRouteHealthRefreshLetsJobsClearTrippedRoutes(t *testing.T) {
+	setupRouteHealthTestDB(t)
+	at := time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC)
+	if err := coreDB.Create(&RouteHealthState{
+		Lane: ChannelLaneDirect, ModelName: "seedance-2.5", ChannelId: 9,
+		State: RouteHealthStateRetreat, ConsecutiveFailures: 3, LastEvidenceAt: at,
+	}).Error; err != nil {
+		t.Fatalf("seed tripped route: %v", err)
+	}
+	routeHealthCache.Lock()
+	routeHealthCache.routes = map[string]routeHealthEntry{}
+	routeHealthCache.Unlock()
+	if ShouldRecordRouteHealthEvidence("seedance-2.5", ChannelLaneDirect, 9, true) {
+		t.Fatal("precondition: an unloaded view must not know the route")
+	}
+
+	if err := refreshRouteHealthCacheFromCore(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if !ShouldRecordRouteHealthEvidence("seedance-2.5", ChannelLaneDirect, 9, true) {
+		t.Fatal("a success on a tripped route must be recorded after the refresh")
+	}
+	if err := RecordRouteHealthEvidence("seedance-2.5", ChannelLaneDirect, 9, true, "", at.Add(time.Minute)); err != nil {
+		t.Fatalf("record success: %v", err)
+	}
+	var row RouteHealthState
+	if err := coreDB.First(&row, "model_name = ? AND channel_id = ?", "seedance-2.5", 9).Error; err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if row.ConsecutiveFailures != 0 || row.State != RouteHealthStateHealthy {
+		t.Fatalf("success did not clear the route: %+v", row)
+	}
+}

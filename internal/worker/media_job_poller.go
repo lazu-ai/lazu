@@ -102,12 +102,7 @@ func ProcessMediaJob(ctx context.Context, job model.MediaJob) error {
 }
 
 func mediaJobProviderExecution(job model.MediaJob) bool {
-	var snapshot map[string]any
-	if common.Unmarshal(job.RequestSnapshot, &snapshot) != nil {
-		return false
-	}
-	enabled, _ := snapshot["_provider_execution"].(bool)
-	return enabled
+	return model.MediaJobProviderExecuted(job)
 }
 
 func completeMediaJobFromURL(ctx context.Context, job model.MediaJob, now time.Time) error {

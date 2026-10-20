@@ -10,6 +10,7 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/relay/channel/video"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"gorm.io/gorm"
@@ -401,7 +402,7 @@ func markMediaJobFailed(jobID uint, code string, message string, now time.Time, 
 	var job MediaJob
 	err := CoreDB().Transaction(func(tx *gorm.DB) error {
 		if providerVerdict {
-			if err := tx.Select("id", "kind", "request_id", "channel_id", "request_snapshot").First(&job, jobID).Error; err != nil {
+			if err := tx.Select("id", "kind", "model_name", "request_id", "channel_id", "request_snapshot", "created_at").First(&job, jobID).Error; err != nil {
 				return err
 			}
 		}
@@ -429,37 +430,95 @@ func markMediaJobFailed(jobID uint, code string, message string, now time.Time, 
 	// Routing facts live in the Telemetry store, which is a different
 	// database from the job's in production, so the verdict follows the
 	// job's commit rather than joining its transaction.
-	return recordMediaJobProviderVerdict(job, code, now)
+	return recordMediaJobProviderVerdict(job, mediaJobProviderFailureVerdict(code), now)
+}
+
+// RecordMediaJobProviderSuccess replaces a delivered job's accepted (202)
+// outcome with a 200 whose duration runs from submission to the artifact, so
+// a video lane's latency is the wait a caller actually has, and lets the
+// success end any failure streak the route's breaker is counting.
+//
+// The job is already succeeded when this runs; a failure here loses a health
+// sample, never the job, so callers log it rather than retry the job.
+func RecordMediaJobProviderSuccess(job MediaJob, now time.Time) error {
+	if !MediaJobProviderExecuted(job) {
+		// A customer can import a finished video with its own task id and
+		// artifact URL. Nothing was asked of the route, so nothing it did
+		// can speak for it.
+		return nil
+	}
+	now = normalizeMediaJobTime(now)
+	verdict := mediaJobProviderVerdict{statusCode: http.StatusOK}
+	if !job.CreatedAt.IsZero() && now.After(job.CreatedAt) {
+		duration := int(now.Sub(job.CreatedAt).Milliseconds())
+		verdict.durationMs = &duration
+	}
+	return recordMediaJobProviderVerdict(job, verdict, now)
+}
+
+// mediaJobProviderVerdict is the terminal outcome of an asynchronous job, in
+// the routing outcome's own terms.
+type mediaJobProviderVerdict struct {
+	statusCode int
+	code       string
+	errorType  string
+	// durationMs is set only by a delivered job: a failure's elapsed time is
+	// how long the provider took to give up, not a latency sample.
+	durationMs *int
+}
+
+// mediaJobProviderFailureVerdict files a terminal failure by whose fault it
+// is. The provider codes themselves are classified where the video families
+// are known (video.ClassifyFailure); a refusal leaves the health population
+// as a 4xx, so a moderated prompt never counts against the route.
+func mediaJobProviderFailureVerdict(code string) mediaJobProviderVerdict {
+	switch video.ClassifyFailure(code) {
+	case video.FailureCaller:
+		return mediaJobProviderVerdict{statusCode: http.StatusBadRequest, code: code, errorType: string(types.ErrorTypeInvalidRequest)}
+	case video.FailureRateLimited:
+		return mediaJobProviderVerdict{statusCode: http.StatusTooManyRequests, code: code, errorType: string(types.ErrorTypeRateLimit)}
+	default:
+		return mediaJobProviderVerdict{statusCode: http.StatusBadGateway, code: code, errorType: string(types.ErrorTypeUpstreamError)}
+	}
 }
 
 // recordMediaJobProviderVerdict replaces an asynchronous job's accepted (202)
-// outcome with the provider's final failure, so channel health counts it.
-func recordMediaJobProviderVerdict(job MediaJob, code string, now time.Time) error {
+// outcome with the provider's final verdict, so channel health counts the
+// generation rather than the submission, and folds that verdict into the
+// route's breaker. The submission itself never reaches the breaker: an
+// accepted task says the API answered, not that the route can make a video.
+func recordMediaJobProviderVerdict(job MediaJob, verdict mediaJobProviderVerdict, now time.Time) error {
+	providerAttempted := true
+	healthEligible, healthFailed := types.ChannelHealthVerdict(
+		verdict.statusCode, types.ErrorCode(verdict.code), providerAttempted,
+	)
+	recordMediaJobBreakerEvidence(job, healthEligible, healthFailed, verdict.code, now)
+
 	requestID := strings.TrimSpace(job.RequestID)
 	store := TelemetryDB()
 	if requestID == "" || store == nil {
 		return nil
 	}
-	statusCode, errorType := mediaJobProviderRoutingVerdict(code)
-	providerAttempted := true
-	healthEligible, healthFailed := types.ChannelHealthVerdict(
-		statusCode, types.ErrorCode(code), providerAttempted,
-	)
+	statusCode := verdict.statusCode
 	if !routingFactsAreViews(store) {
 		if !store.Migrator().HasTable(&RoutingOutcome{}) {
 			return nil
 		}
+		updates := map[string]any{
+			"status_code":        statusCode,
+			"error_code":         verdict.code,
+			"error_type":         verdict.errorType,
+			"provider_attempted": providerAttempted,
+			"health_eligible":    healthEligible,
+			"health_failed":      healthFailed,
+			"outcome_at":         now,
+		}
+		if verdict.durationMs != nil {
+			updates["total_duration_ms"] = *verdict.durationMs
+		}
 		result := store.Model(&RoutingOutcome{}).
 			Where("request_id = ?", requestID).
-			Updates(map[string]any{
-				"status_code":        statusCode,
-				"error_code":         code,
-				"error_type":         errorType,
-				"provider_attempted": providerAttempted,
-				"health_eligible":    healthEligible,
-				"health_failed":      healthFailed,
-				"outcome_at":         now,
-			})
+			Updates(updates)
 		if result.Error != nil || result.RowsAffected > 0 {
 			return result.Error
 		}
@@ -478,13 +537,51 @@ func recordMediaJobProviderVerdict(job MediaJob, code string, now time.Time) err
 		return err
 	}
 	outcome.OutcomeAt = now
-	outcome.StatusCode, outcome.ErrorCode, outcome.ErrorType = &statusCode, code, errorType
+	outcome.StatusCode, outcome.ErrorCode, outcome.ErrorType = &statusCode, verdict.code, verdict.errorType
 	outcome.ProviderAttempted = &providerAttempted
 	outcome.HealthEligible, outcome.HealthFailed = &healthEligible, &healthFailed
+	if verdict.durationMs != nil {
+		outcome.TotalDurationMs = verdict.durationMs
+	}
 	if !routingFactsAreViews(store) {
 		return store.Clauses(routingOutcomeConflictClause()).Create(outcome).Error
 	}
 	return RecordRoutingOutcomeSync(outcome)
+}
+
+// recordMediaJobBreakerEvidence is the asynchronous half of the relay's
+// recordRouteBreakerEvidence: the same eligibility rule, the same writer.
+// Without it a video route could only ever accumulate submission failures,
+// and no success could end the streak.
+func recordMediaJobBreakerEvidence(job MediaJob, eligible bool, failed bool, reason string, now time.Time) {
+	if !eligible || job.ChannelID == nil || *job.ChannelID <= 0 || !MediaJobProviderExecuted(job) {
+		// An imported job's task id is the customer's to make up; polling it
+		// says nothing about the route, and must not trip or clear it.
+		return
+	}
+	modelName := strings.TrimSpace(job.ModelName)
+	lane := mediaJobRoutingFinalGroup(job.RequestSnapshot)
+	if !ShouldRecordRouteHealthEvidence(modelName, lane, *job.ChannelID, !failed) {
+		return
+	}
+	if err := RecordRouteHealthEvidence(modelName, lane, *job.ChannelID, !failed, reason, now); err != nil {
+		common.SysLog("media job: failed to record route health evidence: " + err.Error())
+	}
+}
+
+// MediaJobProviderExecutionSnapshotKey marks a job the gateway itself
+// submitted to a provider, as opposed to one a customer imported.
+const MediaJobProviderExecutionSnapshotKey = "_provider_execution"
+
+// MediaJobProviderExecuted reports whether the gateway submitted the job to
+// its provider. Only such a job's outcome is evidence about the route.
+func MediaJobProviderExecuted(job MediaJob) bool {
+	var snapshot map[string]any
+	if common.Unmarshal(job.RequestSnapshot, &snapshot) != nil {
+		return false
+	}
+	enabled, _ := snapshot[MediaJobProviderExecutionSnapshotKey].(bool)
+	return enabled
 }
 
 func mediaJobRoutingFinalGroup(snapshot JSONValue) string {
@@ -500,19 +597,6 @@ func mediaJobRoutingFinalGroup(snapshot JSONValue) string {
 		}
 	}
 	return ChannelLaneDirect
-}
-
-func mediaJobProviderRoutingVerdict(code string) (int, string) {
-	normalized := strings.ToLower(strings.TrimSpace(code))
-	for _, marker := range []string{"moderation", "content_policy", "content_filter", "safety", "invalid_prompt"} {
-		if strings.Contains(normalized, marker) {
-			// Content rejection is a terminal job result but not a route failure.
-			// A 4xx caller-fault outcome removes the accepted 202 from the health
-			// denominator without blaming the provider channel.
-			return http.StatusBadRequest, "invalid_request"
-		}
-	}
-	return http.StatusBadGateway, string(types.ErrorTypeUpstreamError)
 }
 
 func RescheduleMediaJob(jobID uint, nextPollAt time.Time) error {

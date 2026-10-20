@@ -201,7 +201,7 @@ func TestMarkMediaJobProviderContentRejectionRemovesAcceptedHealthSuccess(t *tes
 	if err := db.First(&outcome, "request_id = ?", "req-video-moderated").Error; err != nil {
 		t.Fatalf("reload routing outcome: %v", err)
 	}
-	if outcome.StatusCode == nil || *outcome.StatusCode != 400 || outcome.ErrorType != "invalid_request" {
+	if outcome.StatusCode == nil || *outcome.StatusCode != 400 || outcome.ErrorType != "invalid_request_error" {
 		t.Fatalf("content rejection must leave health population: %+v", outcome)
 	}
 }
@@ -376,5 +376,182 @@ func TestMediaJobCustomerCostProjection(t *testing.T) {
 	job.CostSnapshot = JSONValue(`not-json`)
 	if len(job.ToDTO(false).CostSnapshot) != 0 {
 		t.Fatal("malformed snapshot leaked")
+	}
+}
+
+// setupMediaJobVerdictTestDB adds what a terminal verdict writes to: the
+// routing outcome and the route breaker.
+func setupMediaJobVerdictTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupMediaJobModelTestDB(t)
+	if err := db.AutoMigrate(&RoutingDecision{}, &RoutingOutcome{}, &RouteHealthState{}); err != nil {
+		t.Fatalf("migrate verdict tables: %v", err)
+	}
+	resetRouteHealthForTest := func() {
+		routeHealthCache.Lock()
+		routeHealthCache.routes = map[string]routeHealthEntry{}
+		routeHealthCache.Unlock()
+		routeHealthTableCache.Lock()
+		routeHealthTableCache.checked = false
+		routeHealthTableCache.db = nil
+		routeHealthTableCache.Unlock()
+	}
+	resetRouteHealthForTest()
+	t.Cleanup(resetRouteHealthForTest)
+	return db
+}
+
+func seedAcceptedVideoJob(t *testing.T, db *gorm.DB, requestID string, channelID int, createdAt time.Time) MediaJob {
+	t.Helper()
+	return seedVideoJob(t, db, requestID, channelID, createdAt, `{"final_group":"direct","_provider_execution":true}`)
+}
+
+func seedVideoJob(t *testing.T, db *gorm.DB, requestID string, channelID int, createdAt time.Time, snapshot string) MediaJob {
+	t.Helper()
+	job, err := CreateMediaJob(CreateMediaJobInput{
+		UserID: 1, ModelName: "seedance-test", Kind: MediaJobKindVideo,
+		ChannelID: &channelID, RequestID: requestID,
+		RequestSnapshot: JSONValue(snapshot), Now: createdAt,
+	})
+	if err != nil {
+		t.Fatalf("create media job: %v", err)
+	}
+	if err := db.Model(&MediaJob{}).Where("id = ?", job.ID).Update("created_at", createdAt).Error; err != nil {
+		t.Fatalf("pin job creation time: %v", err)
+	}
+	job.CreatedAt = createdAt
+	accepted := http.StatusAccepted
+	submitMs := 900
+	if err := db.Create(&RoutingOutcome{
+		RequestID: requestID, DecisionID: int64(channelID), ChannelID: &channelID,
+		FinalGroup: ChannelLaneDirect, StatusCode: &accepted, OutcomeAt: createdAt,
+		TotalDurationMs: &submitMs,
+	}).Error; err != nil {
+		t.Fatalf("seed accepted routing outcome: %v", err)
+	}
+	return *job
+}
+
+func routeFailuresForTest(t *testing.T, db *gorm.DB, channelID int) int {
+	t.Helper()
+	var row RouteHealthState
+	err := db.Where("model_name = ? AND lane = ? AND channel_id = ?", "seedance-test", ChannelLaneDirect, channelID).First(&row).Error
+	if err == gorm.ErrRecordNotFound {
+		return 0
+	}
+	if err != nil {
+		t.Fatalf("load route health: %v", err)
+	}
+	return row.ConsecutiveFailures
+}
+
+// A delivered video is the only evidence that the route can make one. It
+// must replace the submission's 202 with the full wait and end the failure
+// streak; before, nothing a successful job did could ever reset the breaker.
+func TestRecordMediaJobProviderSuccessRewritesOutcomeAndResetsBreaker(t *testing.T) {
+	db := setupMediaJobVerdictTestDB(t)
+	created := time.Date(2026, 10, 20, 8, 0, 0, 0, time.UTC)
+	channelID := 41
+	for i := 0; i < 2; i++ {
+		if err := RecordRouteHealthEvidence("seedance-test", ChannelLaneDirect, channelID, false, "upstream_error", created.Add(-time.Hour+time.Duration(i)*time.Minute)); err != nil {
+			t.Fatalf("seed breaker failure: %v", err)
+		}
+	}
+	job := seedAcceptedVideoJob(t, db, "req-video-delivered", channelID, created)
+
+	delivered := created.Add(3 * time.Minute)
+	if err := RecordMediaJobProviderSuccess(job, delivered); err != nil {
+		t.Fatalf("record delivered outcome: %v", err)
+	}
+	var outcome RoutingOutcome
+	if err := db.First(&outcome, "request_id = ?", "req-video-delivered").Error; err != nil {
+		t.Fatalf("reload outcome: %v", err)
+	}
+	if outcome.StatusCode == nil || *outcome.StatusCode != http.StatusOK ||
+		outcome.TotalDurationMs == nil || *outcome.TotalDurationMs != int((3*time.Minute).Milliseconds()) ||
+		outcome.HealthFailed == nil || *outcome.HealthFailed || !outcome.OutcomeAt.Equal(delivered) {
+		t.Fatalf("delivered outcome = %+v", outcome)
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 0 {
+		t.Fatalf("breaker failures after delivery = %d, want 0", got)
+	}
+}
+
+// Ark files a moderated prompt or clip as a failed task. That is the caller's
+// content, not the route: it must leave the health population and the
+// breaker alone. An upstream failure must count in both.
+func TestMarkMediaJobProviderFailedFeedsBreakerByFailureClass(t *testing.T) {
+	db := setupMediaJobVerdictTestDB(t)
+	created := time.Date(2026, 10, 20, 8, 0, 0, 0, time.UTC)
+	channelID := 42
+
+	moderated := seedAcceptedVideoJob(t, db, "req-video-sensitive", channelID, created)
+	if err := MarkMediaJobProviderFailed(moderated.ID, "OutputVideoSensitiveContentDetected", "flagged", created.Add(time.Minute)); err != nil {
+		t.Fatalf("mark moderated failure: %v", err)
+	}
+	var outcome RoutingOutcome
+	if err := db.First(&outcome, "request_id = ?", "req-video-sensitive").Error; err != nil {
+		t.Fatalf("reload moderated outcome: %v", err)
+	}
+	if outcome.StatusCode == nil || *outcome.StatusCode != http.StatusBadRequest ||
+		outcome.HealthEligible == nil || *outcome.HealthEligible {
+		t.Fatalf("moderated outcome must leave the health population: %+v", outcome)
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 0 {
+		t.Fatalf("moderation counted against the route: failures = %d", got)
+	}
+
+	broken := seedAcceptedVideoJob(t, db, "req-video-broken", channelID, created.Add(time.Minute))
+	if err := MarkMediaJobProviderFailed(broken.ID, "InternalServiceError", "boom", created.Add(2*time.Minute)); err != nil {
+		t.Fatalf("mark upstream failure: %v", err)
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 1 {
+		t.Fatalf("upstream failure not counted: failures = %d, want 1", got)
+	}
+
+	limited := seedAcceptedVideoJob(t, db, "req-video-quota", channelID, created.Add(2*time.Minute))
+	if err := MarkMediaJobProviderFailed(limited.ID, "QuotaExceeded", "quota", created.Add(3*time.Minute)); err != nil {
+		t.Fatalf("mark quota failure: %v", err)
+	}
+	var quota RoutingOutcome
+	if err := db.First(&quota, "request_id = ?", "req-video-quota").Error; err != nil {
+		t.Fatalf("reload quota outcome: %v", err)
+	}
+	if quota.StatusCode == nil || *quota.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("quota outcome = %+v", quota)
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 2 {
+		t.Fatalf("quota failure not counted: failures = %d, want 2", got)
+	}
+}
+
+// A customer may import a finished video with a task id and artifact URL of
+// its own. The gateway never asked the route for it, so neither its delivery
+// nor a poll rejection of its made-up id may move the route's breaker.
+func TestImportedVideoJobNeverMovesTheBreaker(t *testing.T) {
+	db := setupMediaJobVerdictTestDB(t)
+	created := time.Date(2026, 10, 20, 8, 0, 0, 0, time.UTC)
+	channelID := 43
+	if err := RecordRouteHealthEvidence("seedance-test", ChannelLaneDirect, channelID, false, "upstream_error", created.Add(-time.Hour)); err != nil {
+		t.Fatalf("seed breaker failure: %v", err)
+	}
+	imported := `{"final_group":"direct"}`
+
+	delivered := seedVideoJob(t, db, "req-import-ok", channelID, created, imported)
+	if err := RecordMediaJobProviderSuccess(delivered, created.Add(time.Minute)); err != nil {
+		t.Fatalf("record imported delivery: %v", err)
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 1 {
+		t.Fatalf("an imported delivery cleared the route: failures = %d, want 1", got)
+	}
+
+	for i := 0; i < RouteHealthFailureThreshold; i++ {
+		bogus := seedVideoJob(t, db, fmt.Sprintf("req-import-bogus-%d", i), channelID, created, imported)
+		if err := MarkMediaJobProviderFailed(bogus.ID, "video_provider_poll_rejected", "unknown task", created.Add(time.Duration(2+i)*time.Minute)); err != nil {
+			t.Fatalf("mark imported poll rejection: %v", err)
+		}
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 1 {
+		t.Fatalf("imported poll rejections counted against the route: failures = %d, want 1", got)
 	}
 }
