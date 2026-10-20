@@ -46,13 +46,6 @@
  * the shipped docs skin. An older copy lived here too and lost every cascade,
  * which is why edits to it appeared to do nothing. */
 
-/* `.dub-docs-api-reference`, `.dub-docs-api-header` and `.dub-docs-api-loading`
- * are now defined in `public/styles.css` as part of the full-bleed
- * OpenAPI Explorer layout. An older copy here used `position: sticky; z-index: 10`
- * on the header which created its own stacking context — the language dropdown
- * inside the header was then trapped at the header's z-index and got covered
- * by Scalar's high-z-index elements (z-1000, z-tooltip=99999) below. */
-
 .dub-docs-redirect {
   align-items: center;
   display: flex;
