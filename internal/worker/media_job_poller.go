@@ -221,7 +221,11 @@ func failMediaJob(job model.MediaJob, code string, message string, now time.Time
 		!errors.Is(err, model.ErrMediaJobBillingReservationUnverified) {
 		return err
 	}
-	return model.MarkMediaJobFailed(job.ID, code, message, now)
+	if err := model.MarkMediaJobFailed(job.ID, code, message, now); err != nil {
+		return err
+	}
+	model.RecordMediaJobFailureLog(job.ID, now)
+	return nil
 }
 
 func failMediaProviderJob(job model.MediaJob, code string, message string, now time.Time) error {
@@ -232,7 +236,11 @@ func failMediaProviderJob(job model.MediaJob, code string, message string, now t
 		!errors.Is(err, model.ErrMediaJobBillingReservationUnverified) {
 		return err
 	}
-	return model.MarkMediaJobProviderFailed(job.ID, code, message, now)
+	if err := model.MarkMediaJobProviderFailed(job.ID, code, message, now); err != nil {
+		return err
+	}
+	model.RecordMediaJobFailureLog(job.ID, now)
+	return nil
 }
 
 func cleanupMediaJobArtifact(ctx context.Context, file *model.File) {

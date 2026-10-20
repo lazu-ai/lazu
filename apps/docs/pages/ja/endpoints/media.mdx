@@ -59,7 +59,7 @@ Pro/Flash の分解では `layer_decomposition: true` と 1 枚の `image` を�
 
 ## 動画を送信してポーリングする
 
-`LAZU_VIDEO_MODEL` に `/v1/videos` 対応モデルを設定します。受付成功時は HTTP 202 とジョブ ID が返ります。同じキーで同じジョブを取得してください。`pending` と `running` は未完了、`succeeded` は成果物情報、`failed` はエラーを示します。ローカル待機のタイムアウトはジョブのキャンセルや失敗ではありません。ID を保存して取得を再開し、待機終了だけを理由に有料ジョブを再作成しないでください。
+`LAZU_VIDEO_MODEL` に `/v1/videos` 対応モデルを設定します。受付成功時は HTTP 202 とジョブ ID が返ります。同じキーで `?wait=60` を付けてジョブを取得してください。ジョブが終わった時点ですぐに応答し、最長 60 秒待ちます。応答がまだ `pending` か `running` なら同じ取得を繰り返します。間に sleep は不要です。`succeeded` には `artifact.url`（1 時間有効なダウンロードリンク。期限後はジョブを再取得すると新しいリンクが返ります）と `artifact.expires_at`（保存ファイルの削除時刻）が含まれます。キーを付けた `GET /v1/videos/{id}/content` でも同じファイルをダウンロードできます。`failed` はエラーを示し、仮押さえ額は返金されます。ローカル待機のタイムアウトはジョブのキャンセルや失敗ではありません。ID を保存して取得を再開し、待機終了だけを理由に有料ジョブを再作成しないでください。
 
 ```python
 import os
@@ -76,8 +76,9 @@ job_id = response.json()["id"]
 print("Save job ID:", job_id, flush=True)
 deadline = time.monotonic() + 600
 while time.monotonic() < deadline:
-    response = requests.get(origin + "/v1/videos/" + job_id,
-                            headers=headers, timeout=30)
+    # wait=60 answers as soon as the job finishes, or after 60 s.
+    response = requests.get(origin + "/v1/videos/" + job_id, params={"wait": 60},
+                            headers=headers, timeout=90)
     if response.status_code in (429, 503):
         retry_after = response.headers.get("Retry-After", "5")
         delay = float(retry_after) if retry_after.isdecimal() else 5
@@ -89,11 +90,19 @@ while time.monotonic() < deadline:
     response.raise_for_status()
     job = response.json()
     if job["status"] == "succeeded":
-        print(job.get("artifact", {}))
+        artifact = job.get("artifact") or {}
+        if artifact.get("url"):
+            video = requests.get(artifact["url"], timeout=300)
+        else:
+            video = requests.get(origin + "/v1/videos/" + job_id + "/content",
+                                 headers=headers, timeout=300)
+        video.raise_for_status()
+        with open("video.mp4", "wb") as out:
+            out.write(video.content)
+        print("Saved video.mp4")
         break
     if job["status"] == "failed":
         raise RuntimeError(job.get("error", {"message": "Video failed"}))
-    time.sleep(5)
 else:
     print("Still waiting; resume GET for job:", job_id)
 # A local timeout does not cancel the remote job. Keep job_id for later GETs.

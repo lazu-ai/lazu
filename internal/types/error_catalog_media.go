@@ -30,6 +30,8 @@ const (
 	ErrorCodeInvalidPrecreatedMediaJob ErrorCode = "invalid_precreated_media_job"
 	ErrorCodeArtifactTooLarge          ErrorCode = "artifact_too_large"
 	ErrorCodeVideoArtifactMissing      ErrorCode = "video_artifact_missing"
+	ErrorCodeVideoNotReady             ErrorCode = "video_not_ready"
+	ErrorCodeInvalidWait               ErrorCode = "invalid_wait"
 
 	// Operator pages: search backends, data uploads, repairs.
 	ErrorCodeSearchBackendNotFound        ErrorCode = "search_backend_not_found"
@@ -110,6 +112,14 @@ func init() {
 		ErrorCodeVideoArtifactMissing: {
 			ID: "LZ-7828", HTTPStatus: http.StatusBadGateway, Type: ErrorTypeAPI, Audience: AudienceCustomer,
 			Template: "The video finished without a file to download.",
+		},
+		ErrorCodeVideoNotReady: {
+			ID: "LZ-7829", HTTPStatus: http.StatusConflict, Type: ErrorTypeConflict, Audience: AudienceCustomer,
+			Template: "Video job {job_id|requested} has no file to download: its status is {status|not succeeded}.",
+		},
+		ErrorCodeInvalidWait: {
+			ID: "LZ-7830", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
+			Template: "wait must be a whole number of seconds from 0 to {max|60}.",
 		},
 		// ── LZ-786x · operator pages ──────────────────────────────────
 		ErrorCodeSearchBackendNotFound: {

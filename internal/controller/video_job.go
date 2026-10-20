@@ -571,31 +571,26 @@ func ListVideoJobs(c *gin.Context) {
 		return
 	}
 	rows = filterVideoJobsForEphemeralCredential(c, rows)
-	data := make([]dto.MediaJobObject, 0, len(rows))
-	for _, row := range rows {
-		item := row.ToDTO(false)
-		item.Object = "video"
-		data = append(data, item)
-	}
+	data := videoJobViews(c.Request.Context(), rows, false, time.Now())
 	c.JSON(http.StatusOK, dto.MediaJobListResponse{Object: "list", Data: data})
 }
 
+// GetVideoJob answers GET /v1/videos/{id}. With ?wait=N (up to 60) it holds
+// the request for an unfinished job until the job finishes or N seconds pass,
+// so a client can loop on this call without sleeping between reads.
 func GetVideoJob(c *gin.Context) {
-	job, err := model.GetMediaJobByPublicIDAndUser(c.Param("id"), c.GetInt("id"), model.RequestResourcePrincipal(c))
-	if err != nil {
-		writeMediaJobLookupError(c, err, c.Param("id"))
+	wait, ok := parseVideoWait(c)
+	if !ok {
 		return
 	}
-	if job.Kind != model.MediaJobKindVideo {
-		writeControlPlaneCatalogError(c, types.ErrorCodeVideoNotFound, types.D{"field": "id", "job_id": c.Param("id")})
+	job, ok := loadVideoJob(c)
+	if !ok {
 		return
 	}
-	if !authorizeEphemeralVideoJobRead(c, job) {
-		return
-	}
-	response := job.ToDTO(true)
-	response.Object = "video"
-	c.JSON(http.StatusOK, response)
+	job = waitForVideoJob(c.Request.Context(), job, time.Duration(wait)*time.Second, func() (*model.MediaJob, error) {
+		return model.GetMediaJobByPublicIDAndUser(job.PublicID, c.GetInt("id"), model.RequestResourcePrincipal(c))
+	})
+	c.JSON(http.StatusOK, videoJobView(c.Request.Context(), *job, true, time.Now()))
 }
 
 func filterVideoJobsForEphemeralCredential(c *gin.Context, rows []model.MediaJob) []model.MediaJob {

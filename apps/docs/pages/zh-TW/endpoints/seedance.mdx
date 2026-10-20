@@ -21,7 +21,7 @@ Seedance 2.5 是字節跳動的影片生成模型，2026-07-31 發布。在 Lazu
 
 ## 快速開始
 
-影片生成是非同步任務：先提交，再輪詢到結束，最後下載檔案。每一步都用同一把金鑰。
+影片生成是非同步任務：先提交，再等它完成，最後下載檔案。每一步都用同一把金鑰。
 
 提交任務。Lazu 回傳 HTTP 202 與任務物件，其中 `cost_snapshot` 是從餘額預留的金額。
 
@@ -37,22 +37,24 @@ curl https://api.lazu.ai/v1/videos \
   }'
 ```
 
-用任務 `id` 每 10–15 秒查詢一次。`pending` 和 `running` 都還沒結束。一段 4–5 秒的 480p 影片通常需要兩分半鐘左右。
+用任務的 `id` 等待結果。帶上 `?wait=60` 後，任務一完成請求就立即回傳；60 秒內沒完成，會回傳仍是 `pending` 或 `running` 的任務，這時再發同一個請求即可。4–5 秒的 480p 影片通常要兩分半左右，大約要發三四次。完成之前，任務會顯示在控制台使用紀錄頂部的「執行中」裡。
 
 ```bash
-curl https://api.lazu.ai/v1/videos/mjob_... \
+curl "https://api.lazu.ai/v1/videos/mjob_...?wait=60" \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
-`status` 變為 `succeeded` 後，用 `artifact.file_id` 下載影片，檔案類型為 `video/mp4`。
+`status` 變為 `succeeded` 後，`artifact.url` 是影片 MP4 的連結，1 小時內不帶金鑰也能存取：可以直接放進 `<video>` 標籤、轉給別人或下載。過期後重新查詢任務即可取得新連結。`artifact.expires_at` 是檔案刪除時間，即生成後 3 天。也可以帶金鑰下載：
 
 ```bash
-curl https://api.lazu.ai/v1/files/file-lazu-.../content \
+curl --fail https://api.lazu.ai/v1/videos/mjob_.../content \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -o seedance.mp4
 ```
 
-下面的完整腳本會提交任務、輪詢到結束、儲存影片並印出實際扣費。需要 Python 3 與 `requests`（`python -m pip install requests`）。要接續查詢已提交的任務，把任務 ID 作為參數傳入：`python seedance.py mjob_...`。
+`--fail` 讓 curl 遇到錯誤時直接結束，而不是把錯誤訊息存成 `seedance.mp4`。
+
+下面的完整腳本會提交任務、等到結束、儲存影片並印出實際扣費。需要 Python 3 與 `requests`（`python -m pip install requests`）。要接續查詢已提交的任務，把任務 ID 作為參數傳入：`python seedance.py mjob_...`。
 
 ```python
 import os
@@ -81,8 +83,9 @@ else:
 
 job_id = job["id"]
 while job["status"] in ("pending", "running"):
-    time.sleep(12)
-    response = requests.get(BASE + "/v1/videos/" + job_id, headers=headers, timeout=30)
+    # wait=60 answers as soon as the job finishes, or after 60 s.
+    response = requests.get(BASE + "/v1/videos/" + job_id, params={"wait": 60},
+                            headers=headers, timeout=90)
     if response.status_code in (429, 503):
         retry_after = response.headers.get("Retry-After", "15")
         time.sleep(float(retry_after) if retry_after.isdecimal() else 15)
@@ -95,9 +98,8 @@ if job["status"] == "failed":
     error = job.get("error", {})
     sys.exit(f"Job failed: {error.get('code')}: {error.get('message')} (the hold was refunded)")
 
-file_id = job["artifact"]["file_id"]
-with requests.get(BASE + "/v1/files/" + file_id + "/content",
-                  headers=headers, stream=True, timeout=300) as download:
+# artifact.url needs no key and works for an hour.
+with requests.get(job["artifact"]["url"], stream=True, timeout=300) as download:
     download.raise_for_status()
     with open(job_id + ".mp4", "wb") as out:
         for chunk in download.iter_content(chunk_size=1024 * 1024):
@@ -330,7 +332,14 @@ Lazu 依字節跳動 BytePlus 官方牌價收費，單位為美元／秒。
   "status": "succeeded",
   "created_at": 1792466151,
   "completed_at": 1792466297,
-  "artifact": { "file_id": "file-lazu-..." },
+  "artifact": {
+    "file_id": "file-lazu-...",
+    "url": "https://...?X-Amz-Signature=...",
+    "url_expires_at": 1792469897,
+    "mime_type": "video/mp4",
+    "bytes": 441133,
+    "expires_at": 1792725497
+  },
   "cost_snapshot": {
     "customer_charge_microusd": 411500,
     "customer_charge_usd": 0.4115,

@@ -16,6 +16,8 @@
   "invalid_precreated_media_job": "请求中指定的媒体任务与本次请求不匹配。请重新发起生成。",
   "artifact_too_large": "生成的文件超出了可保存的大小，结果没有保留。请调小尺寸或缩短时长后再试。",
   "video_artifact_missing": "视频已生成结束，但没有可下载的文件。请重新生成。",
+  "video_not_ready": "这个视频还没有可下载的文件。等状态变成 succeeded 后再下载。",
+  "invalid_wait": "wait 必须是 0 到 60 之间的整数秒。",
   "search_backend_not_found": "找不到这个搜索后端。请刷新列表。",
   "search_backend_provider_invalid": "不支持这个搜索服务商，或它与渠道类型不一致。请从列表中选择服务商。",
   "upload_file_not_found": "服务器上找不到这个数据文件。请检查文件路径。",

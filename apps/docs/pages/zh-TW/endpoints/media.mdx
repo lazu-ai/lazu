@@ -59,7 +59,7 @@ Pro/Flash 分層使用 `layer_decomposition: true` 與恰好一張 `image`，`pr
 
 ## 提交並輪詢影片
 
-將 `LAZU_VIDEO_MODEL` 設為支援 `/v1/videos` 的模型。提交成功回傳 HTTP 202 與任務 ID；用同一金鑰查詢同一任務。`pending`、`running` 均未完成；`succeeded` 提供產物資訊，`failed` 提供錯誤。本地等待逾時不會取消任務或令任務失敗，應保存 ID 並繼續查詢，不要因等待結束重複建立付費任務。
+將 `LAZU_VIDEO_MODEL` 設為支援 `/v1/videos` 的模型。提交成功回傳 HTTP 202 與任務 ID。用同一金鑰帶 `?wait=60` 查詢任務：任務一完成就立即回傳，最多等 60 秒；回傳時仍是 `pending` 或 `running` 就再查一次，兩次之間不用 sleep。`succeeded` 帶有 `artifact.url`（1 小時內有效的下載連結，過期後重新查詢任務即可取得新連結）與 `artifact.expires_at`（檔案刪除時間）。也可以用金鑰請求 `GET /v1/videos/{id}/content` 下載同一個檔案。`failed` 提供錯誤，預扣金額會退回。本地等待逾時不會取消任務或令任務失敗，應保存 ID 並繼續查詢，不要因等待結束重複建立付費任務。
 
 ```python
 import os
@@ -76,8 +76,9 @@ job_id = response.json()["id"]
 print("Save job ID:", job_id, flush=True)
 deadline = time.monotonic() + 600
 while time.monotonic() < deadline:
-    response = requests.get(origin + "/v1/videos/" + job_id,
-                            headers=headers, timeout=30)
+    # wait=60 answers as soon as the job finishes, or after 60 s.
+    response = requests.get(origin + "/v1/videos/" + job_id, params={"wait": 60},
+                            headers=headers, timeout=90)
     if response.status_code in (429, 503):
         retry_after = response.headers.get("Retry-After", "5")
         delay = float(retry_after) if retry_after.isdecimal() else 5
@@ -89,11 +90,19 @@ while time.monotonic() < deadline:
     response.raise_for_status()
     job = response.json()
     if job["status"] == "succeeded":
-        print(job.get("artifact", {}))
+        artifact = job.get("artifact") or {}
+        if artifact.get("url"):
+            video = requests.get(artifact["url"], timeout=300)
+        else:
+            video = requests.get(origin + "/v1/videos/" + job_id + "/content",
+                                 headers=headers, timeout=300)
+        video.raise_for_status()
+        with open("video.mp4", "wb") as out:
+            out.write(video.content)
+        print("Saved video.mp4")
         break
     if job["status"] == "failed":
         raise RuntimeError(job.get("error", {"message": "Video failed"}))
-    time.sleep(5)
 else:
     print("Still waiting; resume GET for job:", job_id)
 # A local timeout does not cancel the remote job. Keep job_id for later GETs.

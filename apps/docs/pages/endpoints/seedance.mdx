@@ -21,7 +21,7 @@ Seedance 2.5 is ByteDance's video model, released on 2026-07-31. On Lazu you cal
 
 ## Quick start
 
-Video generation is a job: you submit it, poll it until it finishes, then download the file. Every call uses the same API key.
+Video generation is a job: you submit it, wait for it to finish, then download the file. Every call uses the same API key.
 
 Submit a job. Lazu answers with HTTP 202 and a job object whose `cost_snapshot` is the amount held from your balance.
 
@@ -37,22 +37,24 @@ curl https://api.lazu.ai/v1/videos \
   }'
 ```
 
-Poll the job with its `id` every 10–15 seconds. `pending` and `running` are not final. A 4–5 second 480p clip usually takes about two and a half minutes.
+Wait for the job with its `id`. With `?wait=60` the call answers the moment the job finishes, or after 60 seconds while it is still `pending` or `running`; then send the same call again. A 4–5 second 480p clip usually takes about two and a half minutes, so expect three or four calls. Until it finishes, the job is listed under In progress at the top of the console's usage log.
 
 ```bash
-curl https://api.lazu.ai/v1/videos/mjob_... \
+curl "https://api.lazu.ai/v1/videos/mjob_...?wait=60" \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
-When `status` is `succeeded`, download the video with `artifact.file_id`. The file is `video/mp4`.
+When `status` is `succeeded`, `artifact.url` is a link to the MP4 that works for an hour without your key: put it in a `<video>` tag, hand it on, or download it. Read the job again for a fresh link. `artifact.expires_at` is when the file is deleted, three days after the video was made. To download with your key instead:
 
 ```bash
-curl https://api.lazu.ai/v1/files/file-lazu-.../content \
+curl --fail https://api.lazu.ai/v1/videos/mjob_.../content \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -o seedance.mp4
 ```
 
-The complete script below submits a job, polls until it finishes, saves the video and prints the charge. It needs Python 3 and `requests` (`python -m pip install requests`). To resume a job you already submitted, pass its id: `python seedance.py mjob_...`.
+`--fail` makes curl stop on an error instead of saving the error message as `seedance.mp4`.
+
+The complete script below submits a job, waits until it finishes, saves the video and prints the charge. It needs Python 3 and `requests` (`python -m pip install requests`). To resume a job you already submitted, pass its id: `python seedance.py mjob_...`.
 
 ```python
 import os
@@ -81,8 +83,9 @@ else:
 
 job_id = job["id"]
 while job["status"] in ("pending", "running"):
-    time.sleep(12)
-    response = requests.get(BASE + "/v1/videos/" + job_id, headers=headers, timeout=30)
+    # wait=60 answers as soon as the job finishes, or after 60 s.
+    response = requests.get(BASE + "/v1/videos/" + job_id, params={"wait": 60},
+                            headers=headers, timeout=90)
     if response.status_code in (429, 503):
         retry_after = response.headers.get("Retry-After", "15")
         time.sleep(float(retry_after) if retry_after.isdecimal() else 15)
@@ -95,9 +98,8 @@ if job["status"] == "failed":
     error = job.get("error", {})
     sys.exit(f"Job failed: {error.get('code')}: {error.get('message')} (the hold was refunded)")
 
-file_id = job["artifact"]["file_id"]
-with requests.get(BASE + "/v1/files/" + file_id + "/content",
-                  headers=headers, stream=True, timeout=300) as download:
+# artifact.url needs no key and works for an hour.
+with requests.get(job["artifact"]["url"], stream=True, timeout=300) as download:
     download.raise_for_status()
     with open(job_id + ".mp4", "wb") as out:
         for chunk in download.iter_content(chunk_size=1024 * 1024):
@@ -330,7 +332,14 @@ A balance too low for the hold returns HTTP 429 with `insufficient_quota`; see [
   "status": "succeeded",
   "created_at": 1792466151,
   "completed_at": 1792466297,
-  "artifact": { "file_id": "file-lazu-..." },
+  "artifact": {
+    "file_id": "file-lazu-...",
+    "url": "https://...?X-Amz-Signature=...",
+    "url_expires_at": 1792469897,
+    "mime_type": "video/mp4",
+    "bytes": 441133,
+    "expires_at": 1792725497
+  },
   "cost_snapshot": {
     "customer_charge_microusd": 411500,
     "customer_charge_usd": 0.4115,

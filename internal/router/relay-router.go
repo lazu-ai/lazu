@@ -105,6 +105,7 @@ func SetRelayRouter(router *gin.Engine) {
 		videosRouter := relayV1Router.Group("/videos")
 		videosRouter.GET("", controller.ListVideoJobs)
 		videosRouter.GET("/:id", controller.GetVideoJob)
+		videosRouter.GET("/:id/content", controller.GetVideoContent)
 	}
 	{
 		// WebSocket 路由（统一到 Relay）
