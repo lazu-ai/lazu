@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu｜大模型 API 平台：国内直连 Claude、GPT、Gemini，一个 Key 全部可用",
-      "description": "Claude、GPT、Gemini、DeepSeek 用同一个 OpenAI 兼容的 Key 调用，支付宝直接充值。稳定线路走官方 API，账单逐笔可查，不用你的数据训练模型。首充多送 10%。"
+      "title": "Lazu｜Agent 的模型供应：一个 Key 调用 Claude、GPT、Gemini、Seedance",
+      "description": "Agent 要的模型，一个 Key 全有：Claude、GPT、Gemini、DeepSeek 写代码，GPT Image、Seedream 出图，Seedance 做视频。Claude Code、Codex 直接接入，按量付费，支持支付宝充值。"
     },
     "nav": {
       "models": "模型",
@@ -35,12 +35,12 @@
       "menu": "菜单"
     },
     "hero": {
-      "eyebrow": "AI API 网关 · 面向开发者和小团队",
-      "headline": "所有模型一个账户，一张账单",
-      "headlineEm": "看得懂。",
-      "whatBefore": "Lazu 是",
-      "whatBold": "给开发者和小团队用的 AI API 网关",
-      "whatAfter": "。接入 Claude Code、Codex 或 SDK，从会话、请求回执到成员用量，核对每次任务的调用费用。",
+      "eyebrow": "给 Agent、应用和团队",
+      "headline": "Agent 的",
+      "headlineEm": "模型供应。",
+      "whatBefore": "Agent 要的模型，",
+      "whatBold": "一个 Key 全有",
+      "whatAfter": "：Opus 写代码，GPT Image 出图，Seedance 做视频。Claude Code、Codex 和 SDK 直接接入，每次调用都有账单。",
       "ctaPrimary": "免费注册",
       "ctaSecondary": "看看界面",
       "free": "首充送 10%,最多 $10"
@@ -94,8 +94,8 @@
     },
     "features": {
       "eyebrow": "它能解决什么",
-      "title": "四件麻烦事，一个后台",
-      "lede": "这些是团队开始用 AI 之后，几乎一定会遇到的问题。",
+      "title": "一个账户，每个 Agent 一把 Key",
+      "lede": "团队里的人和 Agent 多起来以后，模型、Key、预算和账单都要有人管。",
       "items": [
         {
           "title": "不用一家家开账号充值",

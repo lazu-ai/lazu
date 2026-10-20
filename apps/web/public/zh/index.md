@@ -1,10 +1,10 @@
-<!-- Lazu · Lazu｜大模型 API 平台：国内直连 Claude、GPT、Gemini，一个 Key 全部可用 · https://lazu.ai/zh/ -->
+<!-- Lazu · Lazu｜Agent 的模型供应：一个 Key 调用 Claude、GPT、Gemini、Seedance · https://lazu.ai/zh/ -->
 
-# 所有模型一个账户，一张账单看得懂。
+# Agent 的模型供应。
 
-Lazu 是给开发者和小团队用的 AI API 网关。接入 Claude Code、Codex 或 SDK，从会话、请求回执到成员用量，核对每次任务的调用费用。
+Agent 要的模型，一个 Key 全有：Opus 写代码，GPT Image 出图，Seedance 做视频。Claude Code、Codex 和 SDK 直接接入，每次调用都有账单。
 
-## 四件麻烦事，一个后台
+## 一个账户，每个 Agent 一把 Key
 
 - **不用一家家开账号充值** — Claude、GPT、Gemini、DeepSeek 都在 lazu 里。充一次钱，全公司都能用，不用每家单独注册、单独充值、单独看账单。
 - **给每个人一份额度，用完就停** — 新同事进来给他 $50，脚本给 $30。花到上限自动停，不会等到月底看账单才发现有人跑飞了。

@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu — One API key for every LLM: Claude, GPT, Gemini, DeepSeek",
-      "description": "Call Claude, GPT, Gemini and DeepSeek with one OpenAI-compatible API key. Pay as you go, no subscription. The stable lane runs on official APIs, every request is itemized, and Lazu never trains on your data."
+      "title": "Lazu — The model supply for agents: Claude, GPT, Gemini, Seedance",
+      "description": "Every model your agent needs, on one key: Claude, GPT, Gemini and DeepSeek for code, GPT Image for images, Seedance for video. Pay as you go."
     },
     "nav": {
       "models": "Models",
@@ -35,12 +35,12 @@
       "menu": "Menu"
     },
     "hero": {
-      "eyebrow": "AI gateway · for developers and small teams",
-      "headline": "One account for every model. One bill ",
-      "headlineEm": "you can actually read.",
-      "whatBefore": "Lazu is the ",
-      "whatBold": "AI gateway for developers and small teams",
-      "whatAfter": ". Connect Claude Code, Codex or an SDK, then trace each task through its session, request receipts and team spend.",
+      "eyebrow": "For agents, apps and the teams that run them",
+      "headline": "The model supply ",
+      "headlineEm": "for agents.",
+      "whatBefore": "Every model your agent needs, ",
+      "whatBold": "on one key",
+      "whatAfter": ": Opus for code, GPT Image for images, Seedance for video. Connect Claude Code, Codex or any SDK, and every call is itemized.",
       "ctaPrimary": "Sign up free",
       "ctaSecondary": "See the console",
       "free": "10% extra on your first top-up, up to $10"
@@ -94,8 +94,8 @@
     },
     "features": {
       "eyebrow": "What it solves",
-      "title": "Four headaches, one back office",
-      "lede": "These show up in every team that starts using AI seriously.",
+      "title": "One account, a key for every agent",
+      "lede": "Once a team runs more people and more agents, someone has to keep track of the models, keys, budgets and bill.",
       "items": [
         {
           "title": "No more signing up with every provider",

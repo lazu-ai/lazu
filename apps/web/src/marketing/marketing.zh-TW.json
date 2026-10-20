@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu｜一把 Key 呼叫 Claude、GPT、Gemini API，儲值簡單、帳單清楚",
-      "description": "Claude API 付款失敗？在 Lazu 用信用卡或支付寶儲值一次，就能用同一把相容 OpenAI 的 Key 呼叫 Claude、GPT、Gemini、DeepSeek。穩定線路走官方 API，帳單逐筆可查，不拿你的資料訓練模型。"
+      "title": "Lazu｜Agent 的模型供應：一把 Key 呼叫 Claude、GPT、Gemini、Seedance",
+      "description": "Agent 需要的模型，一把 Key 全都有：Claude、GPT、Gemini、DeepSeek 寫程式，GPT Image、Seedream 出圖，Seedance 做影片。Claude Code、Codex 直接接入，用多少付多少，可用信用卡或支付寶儲值。"
     },
     "nav": {
       "models": "模型",
@@ -35,12 +35,12 @@
       "menu": "選單"
     },
     "hero": {
-      "eyebrow": "AI API 網關 · 面向開發者和小團隊",
-      "headline": "所有模型一個帳戶，一張帳單",
-      "headlineEm": "看得懂。",
-      "whatBefore": "Lazu 是",
-      "whatBold": "給開發者和小團隊用的 AI API 網關",
-      "whatAfter": "。接入 Claude Code、Codex 或 SDK，從工作階段、請求明細到成員用量，核對每次任務的費用。",
+      "eyebrow": "給 Agent、應用程式和團隊",
+      "headline": "Agent 的",
+      "headlineEm": "模型供應。",
+      "whatBefore": "Agent 需要的模型，",
+      "whatBold": "一把 Key 全都有",
+      "whatAfter": "：Opus 寫程式，GPT Image 出圖，Seedance 做影片。Claude Code、Codex 和 SDK 直接接入，每次呼叫都有明細。",
       "ctaPrimary": "免費註冊",
       "ctaSecondary": "看看介面",
       "free": "首次儲值送 10%,最多 $10"
@@ -94,8 +94,8 @@
     },
     "features": {
       "eyebrow": "它能解決什麼",
-      "title": "四件麻煩事，一個後台",
-      "lede": "這些是團隊開始用 AI 之後，幾乎一定會遇到的問題。",
+      "title": "一個帳戶，每個 Agent 一把 Key",
+      "lede": "團隊裡的人和 Agent 多起來以後，模型、Key、預算和帳單都需要有人管。",
       "items": [
         {
           "title": "不用一家家開帳號儲值",

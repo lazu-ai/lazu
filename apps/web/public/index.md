@@ -1,10 +1,10 @@
-<!-- Lazu · Lazu — One API key for every LLM: Claude, GPT, Gemini, DeepSeek · https://lazu.ai/ -->
+<!-- Lazu · Lazu — The model supply for agents: Claude, GPT, Gemini, Seedance · https://lazu.ai/ -->
 
-# One account for every model. One bill you can actually read.
+# The model supply for agents.
 
-Lazu is the AI gateway for developers and small teams. Connect Claude Code, Codex or an SDK, then trace each task through its session, request receipts and team spend.
+Every model your agent needs, on one key: Opus for code, GPT Image for images, Seedance for video. Connect Claude Code, Codex or any SDK, and every call is itemized.
 
-## Four headaches, one back office
+## One account, a key for every agent
 
 - **No more signing up with every provider** — Claude, GPT, Gemini and DeepSeek all live in lazu. Fund it once and the whole company can use any of them — no separate accounts, top-ups or invoices.
 - **Give everyone a cap that actually stops** — $50 for a new hire, $30 for a script. When the cap is reached the requests stop — you do not find out from next month's invoice.
