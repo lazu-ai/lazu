@@ -874,9 +874,10 @@ func loadHealthSnapshots() ([]HealthSnapshot, error) {
 
 // loadOpenIncidents returns every incident that has not been resolved, keyed
 // by incident key. Resolve deletes an incident, so whatever remains is open.
-// When Redis answers, it is authoritative: another process may have resolved
-// an incident this process still caches, so local state only refines keys
-// Redis still holds. Without Redis, the local cache is all there is.
+// When Redis answers, it is the whole answer: another process may have
+// resolved an incident this process still caches, or recorded a recurrence
+// whose lifecycle the cached one would wrongly extend. The local cache is
+// used only when Redis is off or the scan failed.
 func loadOpenIncidents() (map[string]incidentState, error) {
 	open := map[string]incidentState{}
 	var loadErr error
@@ -908,13 +909,12 @@ func loadOpenIncidents() (map[string]incidentState, error) {
 			}
 		}
 	}
+	if redisAnswered {
+		return open, nil
+	}
 	localMu.Lock()
 	for key, state := range localIncidents {
-		existing, inRedis := open[key]
-		if redisAnswered && !inRedis {
-			continue
-		}
-		if inRedis {
+		if existing, ok := open[key]; ok {
 			state, _ = mergeIncidentState(existing, true, state, true)
 		}
 		open[key] = state
@@ -939,6 +939,11 @@ func claimDigest(now time.Time) bool {
 		claimed, err := common.RDB.SetNX(ctx, "lazu:alerts:digest:v1:"+day, "1", 25*time.Hour).Result()
 		cancel()
 		if err == nil {
+			// Remember that the day is taken, by this process or another, so a
+			// retry tick that finds Redis down does not send it again.
+			localMu.Lock()
+			localDigestDay = day
+			localMu.Unlock()
 			return claimed
 		}
 	}
