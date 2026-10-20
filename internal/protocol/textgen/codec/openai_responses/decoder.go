@@ -61,7 +61,9 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 			// (empty) message
 			if !d.turn {
 				d.turn = true
-				return []textgen.Event{{Kind: textgen.EventTurn, Role: "assistant"}}, nil
+				// the item's id marks the message as the upstream's own,
+				// kept even beside tool calls
+				return []textgen.Event{{Kind: textgen.EventTurn, Role: "assistant", ItemID: ev.Item.ID}}, nil
 			}
 		}
 		return nil, nil

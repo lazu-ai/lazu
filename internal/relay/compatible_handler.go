@@ -175,6 +175,9 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			if err != nil {
 				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 			}
+			// the dialect's wire patch, as on every outbound body: DeepSeek
+			// Responses takes the same tool-schema quirks as its Chat
+			jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 			requestBody = bytes.NewBuffer(jsonData)
 		} else {
 			openAIConverter, converterErr := requireOpenAIRequestConverter(adaptor, info)
@@ -685,19 +688,13 @@ func encodeMessagesBridge(c *gin.Context, info *relaycommon.RelayInfo, semantic 
 }
 
 // degradedChatRequest is the Chat request a degraded native plan sends: the
-// attempt's IR (already degraded) encoded, with what the handler has
-// already settled on the wire copy kept: the mapped model and the stream
-// options.
+// client's request as the handler has settled it (model, stream options),
+// with only what the degradation changed applied (openai_chat.ApplyDegraded).
 func degradedChatRequest(info *relaycommon.RelayInfo, wire *dto.GeneralOpenAIRequest) (*dto.GeneralOpenAIRequest, *types.LazuError) {
-	semantic := info.ProtocolRequest.Clone()
-	stripLazuMetadataFromSemantic(semantic)
-	semantic.Model.Upstream = info.UpstreamModelName
-	encoded, err := openai_chat.Encode(semantic)
+	encoded, err := openai_chat.ApplyDegraded(wire, info.ProtocolRequest)
 	if err != nil {
 		return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
-	encoded.Model = wire.Model
-	encoded.StreamOptions = wire.StreamOptions
 	return encoded, nil
 }
 
