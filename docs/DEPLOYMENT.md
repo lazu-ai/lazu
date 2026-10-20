@@ -283,6 +283,23 @@ unknown paths continue to return their normal responses.
 
 Change operational values directly in the console UI. These values are stored in the database `option` table and do not require a backend restart.
 
+## Request content logging
+
+`model_log_enabled` (environment: `MODEL_LOG_ENABLED`) is off by default. When
+it is on, Lazu:
+
+- appends one JSON line per model call to `data/export/<model_log_filename>`
+  (rotated daily), holding the full response body or stream chunks together
+  with the user, project and token ids, client IP, country, user agent and the
+  agent session and thread ids;
+- stores a preview of the first user message of each agent session, which the
+  console's Sessions view shows and searches.
+
+These files hold your users' content. Turn the log on only if you need it for
+debugging or quality review, say so in your privacy policy, and keep the
+`upload` target (if enabled) private. Local JSONL files are deleted after 7
+days; anything uploaded follows the retention of the bucket it goes to.
+
 ## Retention And Disk Maintenance
 
 Database request logs are retained for 30 days by default. Override this with `LOG_RETENTION_DAYS` and restart `lazu-backend` and `lazu-jobs` if your deployment needs a different window. Keep the value large enough for support and billing investigation, but small enough to prevent the `logs` table from growing without bound.
