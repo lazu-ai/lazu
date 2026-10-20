@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lazu-ai/lazu/pkg/billing"
+	"github.com/lazu-ai/lazu/pkg/pricecalendar"
 	"sort"
 	"strings"
 
@@ -51,6 +52,7 @@ type Pricing struct {
 	ImageOutputPerMtok        *float64                       `json:"image_output_per_mtok,omitempty"`
 	RequestUSD                *float64                       `json:"request_usd,omitempty"`
 	SecondUSD                 *float64                       `json:"second_usd,omitempty"`
+	PeakCalendar              *pricecalendar.Calendar        `json:"peak_calendar,omitempty"`
 	PeakHoursUTC              string                         `json:"peak_hours_utc,omitempty"`
 	PeakMultiplier            *float64                       `json:"peak_multiplier,omitempty"`
 	PricingVersion            int64                          `json:"pricing_version,omitempty"`
@@ -108,25 +110,26 @@ func (price ModelSellPrice) ContextTier() *ContextTierPrice {
 }
 
 type PricingLane struct {
-	ImagePricing        *billing.ImagePrices `json:"image_pricing,omitempty"`
-	VideoPricing        *billing.VideoPrices `json:"video_pricing,omitempty"`
-	ModelName           string               `json:"model_name"`
-	ChannelGroup        string               `json:"channel_group"`
-	InputPerMtok        *float64             `json:"input_per_mtok,omitempty"`
-	OutputPerMtok       *float64             `json:"output_per_mtok,omitempty"`
-	CacheReadPerMtok    *float64             `json:"cache_read_per_mtok,omitempty"`
-	CacheWrite5mPerMtok *float64             `json:"cache_write_5m_per_mtok,omitempty"`
-	CacheWrite1hPerMtok *float64             `json:"cache_write_1h_per_mtok,omitempty"`
-	AudioInputPerMtok   *float64             `json:"audio_input_per_mtok,omitempty"`
-	AudioOutputPerMtok  *float64             `json:"audio_output_per_mtok,omitempty"`
-	ImageInputPerMtok   *float64             `json:"image_input_per_mtok,omitempty"`
-	ImageOutputPerMtok  *float64             `json:"image_output_per_mtok,omitempty"`
-	RequestUSD          *float64             `json:"request_usd,omitempty"`
-	SecondUSD           *float64             `json:"second_usd,omitempty"`
-	PeakHoursUTC        string               `json:"peak_hours_utc,omitempty"`
-	PeakMultiplier      *float64             `json:"peak_multiplier,omitempty"`
-	PricingVersion      int64                `json:"pricing_version,omitempty"`
-	ContextTier         *ContextTierPrice    `json:"context_tier,omitempty"`
+	ImagePricing        *billing.ImagePrices    `json:"image_pricing,omitempty"`
+	VideoPricing        *billing.VideoPrices    `json:"video_pricing,omitempty"`
+	ModelName           string                  `json:"model_name"`
+	ChannelGroup        string                  `json:"channel_group"`
+	InputPerMtok        *float64                `json:"input_per_mtok,omitempty"`
+	OutputPerMtok       *float64                `json:"output_per_mtok,omitempty"`
+	CacheReadPerMtok    *float64                `json:"cache_read_per_mtok,omitempty"`
+	CacheWrite5mPerMtok *float64                `json:"cache_write_5m_per_mtok,omitempty"`
+	CacheWrite1hPerMtok *float64                `json:"cache_write_1h_per_mtok,omitempty"`
+	AudioInputPerMtok   *float64                `json:"audio_input_per_mtok,omitempty"`
+	AudioOutputPerMtok  *float64                `json:"audio_output_per_mtok,omitempty"`
+	ImageInputPerMtok   *float64                `json:"image_input_per_mtok,omitempty"`
+	ImageOutputPerMtok  *float64                `json:"image_output_per_mtok,omitempty"`
+	RequestUSD          *float64                `json:"request_usd,omitempty"`
+	SecondUSD           *float64                `json:"second_usd,omitempty"`
+	PeakCalendar        *pricecalendar.Calendar `json:"peak_calendar,omitempty"`
+	PeakHoursUTC        string                  `json:"peak_hours_utc,omitempty"`
+	PeakMultiplier      *float64                `json:"peak_multiplier,omitempty"`
+	PricingVersion      int64                   `json:"pricing_version,omitempty"`
+	ContextTier         *ContextTierPrice       `json:"context_tier,omitempty"`
 	// Available and ClientOnly describe what the lane can actually serve right
 	// now, not what it costs. They are filled per request from the live channel
 	// cache (GetLaneServiceability) rather than stored with the price, because a
@@ -559,6 +562,7 @@ func (pricing *Pricing) applyModelSellPrice(sellPrice ModelSellPrice) {
 	pricing.VideoPricing = sellPrice.VideoPricing.Public()
 	pricing.RequestUSD = sellPrice.RequestUSD
 	pricing.SecondUSD = sellPrice.SecondUSD
+	pricing.PeakCalendar = pricecalendar.ForModel(sellPrice.ModelName)
 	pricing.PeakHoursUTC = sellPrice.PeakHoursUTC
 	pricing.PeakMultiplier = sellPrice.PeakMultiplier
 	pricing.PricingVersion = sellPrice.PricingVersion
@@ -671,6 +675,7 @@ func modelSellPriceToPricingLane(row ModelSellPrice) PricingLane {
 		VideoPricing:        row.VideoPricing.Public(),
 		RequestUSD:          row.RequestUSD,
 		SecondUSD:           row.SecondUSD,
+		PeakCalendar:        pricecalendar.ForModel(row.ModelName),
 		PeakHoursUTC:        row.PeakHoursUTC,
 		PeakMultiplier:      row.PeakMultiplier,
 		PricingVersion:      row.PricingVersion,

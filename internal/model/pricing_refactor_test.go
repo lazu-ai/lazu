@@ -1420,3 +1420,26 @@ func TestUserQuotaMicroUSDRoundTripAboveInt4Limit(t *testing.T) {
 		t.Fatalf("expected quota columns to round-trip %d, got quota=%d used=%d", quota, user.Quota, user.UsedQuota)
 	}
 }
+
+func TestDeepSeekCostFactUsesRequestTime(t *testing.T) {
+	db := withPricingTestDB(t, "deepseek_request_cost")
+	in, out, cache := 0.15, 0.6, 0.003
+	if err := db.Create(&ProviderCostPrice{ModelName: "deepseek-flash", Provider: "deepseek", ChannelID: 54, InputPerMtok: &in, OutputPerMtok: &out, CacheReadPerMtok: &cache, PricingVersion: 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	params := RecordConsumeLogParams{ModelName: "deepseek-flash", ChannelId: 54, Other: map[string]interface{}{}}
+	fact := usagepkg.Fact{Version: usagepkg.FactVersion, PromptTokens: 1000, InputTokens: 1000, CompletionTokens: 100, OutputTokens: 100}
+	for _, tt := range []struct {
+		day  int
+		want float64
+	}{{17, 0.00021}, {20, 0.00042}} {
+		got, ok := resolveUpstreamCostUSDAt(params, fact, time.Date(2026, 10, tt.day, 2, 0, 0, 0, time.UTC))
+		if !ok || math.Abs(got-tt.want) > 1e-9 {
+			t.Fatalf("day %d cost=%v ok=%v", tt.day, got, ok)
+		}
+	}
+	params.Other["provider_cost_usd"] = 0.0001
+	if got, _ := resolveUpstreamCostUSDAt(params, fact, time.Date(2026, 10, 20, 2, 0, 0, 0, time.UTC)); got != 0.0001 {
+		t.Fatal("provider-reported cost must not be multiplied again")
+	}
+}

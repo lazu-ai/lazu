@@ -1005,7 +1005,7 @@ func GetUserModelsClassified(c *gin.Context) {
 }
 
 func classifyModelNames(modelNames []string) map[string][]model.ModelClassifiedItem {
-	modelNames = append([]string(nil), modelNames...)
+	modelNames = model.ListedModelNames(modelNames)
 	sort.Strings(modelNames)
 
 	// Build pricing lookup maps

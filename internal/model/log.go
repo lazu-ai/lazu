@@ -636,7 +636,7 @@ func enrichRequestUsageFact(c *gin.Context, userId int, params RecordConsumeLogP
 
 	customerCostUSD := float64(params.AmountMicrousd.Int64()) / float64(billing.MicroUSDPerUSD)
 	fact.CustomerCostUSD = float64Ptr(customerCostUSD)
-	if upstreamCostUSD, ok := resolveUpstreamCostUSD(params, fact); ok {
+	if upstreamCostUSD, ok := resolveUpstreamCostUSDAt(params, fact, common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)); ok {
 		fact.ProviderCostUSD = float64Ptr(upstreamCostUSD)
 		fact.GrossMarginUSD = float64Ptr(customerCostUSD - upstreamCostUSD)
 	}
@@ -991,7 +991,7 @@ func attachRoutingOutcomeUsageSnapshot(c *gin.Context, params RecordConsumeLogPa
 			snapshot.GrossMarginUSD = snapshot.ChargedCostUSD - *usageFact.ProviderCostUSD
 		}
 		snapshot.HasGrossMargin = true
-	} else if upstreamCostUSD, ok := resolveUpstreamCostUSD(params, usageFact); ok {
+	} else if upstreamCostUSD, ok := resolveUpstreamCostUSDAt(params, usageFact, common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)); ok {
 		snapshot.UpstreamCostUSD = upstreamCostUSD
 		snapshot.HasUpstreamCost = true
 		snapshot.GrossMarginUSD = snapshot.ChargedCostUSD - upstreamCostUSD
@@ -1001,6 +1001,13 @@ func attachRoutingOutcomeUsageSnapshot(c *gin.Context, params RecordConsumeLogPa
 }
 
 func resolveUpstreamCostUSD(params RecordConsumeLogParams, usageFact usagepkg.Fact) (float64, bool) {
+	return resolveUpstreamCostUSDAt(params, usageFact, time.Now())
+}
+
+func resolveUpstreamCostUSDAt(params RecordConsumeLogParams, usageFact usagepkg.Fact, at time.Time) (float64, bool) {
+	if at.IsZero() {
+		at = time.Now()
+	}
 	if providerCostUSD, ok := floatFromAny(params.Other["provider_cost_usd"]); ok && providerCostUSD >= 0 {
 		return providerCostUSD, true
 	}
@@ -1010,7 +1017,7 @@ func resolveUpstreamCostUSD(params RecordConsumeLogParams, usageFact usagepkg.Fa
 	}
 	usage := usageFactToBillingUsage(usageFact)
 	price, _ = price.ForInputTokens(usage.InputTokenTotal())
-	quote := billing.Quote(usage, price.ToBillingPriceSheet(), nil)
+	quote := billing.Quote(usage, price.ToBillingPriceSheetAt(at), nil)
 	if len(quote.LineItems) == 0 && quote.TotalMicrousd == 0 {
 		return 0, false
 	}

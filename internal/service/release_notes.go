@@ -20,7 +20,7 @@ import (
 
 const (
 	defaultReleaseNotesPrimaryModel  = "gemini-3.7-flash"
-	defaultReleaseNotesFallbackModel = "deepseek-v4-flash"
+	defaultReleaseNotesFallbackModel = "deepseek-flash"
 	defaultReleaseNotesBaseURL       = "http://lazu-backend:3000/v1"
 	releaseNotesMaxTokens            = 2400
 	releaseNoteOutputContract        = `Return one JSON object with exactly this shape and all four locales present: {"kind":"release_note","default_locale":"zh","title_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."},"summary_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."},"body_i18n":{"zh":["..."],"en":["..."],"zh-TW":["..."],"ja":["..."]},"api_changes":[]}. Each body_i18n locale must contain 1 to 3 short items. Fill api_changes only for real new, changed, or deprecated public API operations or fields, using {"method":"GET","path":"/public/path/{id}","note_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."}}. Use an empty array otherwise. Do not put API paths in the localized prose. Do not omit locales, add keys, or wrap the JSON in Markdown.`

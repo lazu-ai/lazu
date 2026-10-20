@@ -15,7 +15,7 @@ import (
 )
 
 func GetPricing(c *gin.Context) {
-	pricing := applyPricingLaneServiceability(model.GetPricing())
+	pricing := applyPricingLaneServiceability(model.ListedPricing(model.GetPricing()))
 	response := gin.H{
 		"success":            true,
 		"data":               pricing,

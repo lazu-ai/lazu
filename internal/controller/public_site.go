@@ -157,6 +157,16 @@ func PublicModelPage(locale string) gin.HandlerFunc {
 			publicSiteError(c, err)
 			return
 		}
+		if replacement := model.CompatibilityModelTarget(id); replacement != "" {
+			if canonical, exists := catalog.Find(replacement); exists {
+				target := publicsite.LocalizedPath(publicsite.ModelPath(canonical), locale)
+				if format != "html" {
+					target += "." + format
+				}
+				c.Redirect(http.StatusMovedPermanently, target)
+				return
+			}
+		}
 		found, ok := catalog.Find(id)
 		if !ok {
 			publicNotFound(c, locale)
