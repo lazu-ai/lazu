@@ -121,6 +121,8 @@ response = requests.post(origin + "/v1/videos", headers=headers, json={
 
 A succeeded job carries `usage` with what the provider reported: `seconds`, `resolution`, `fps` and, for token-billed models such as Seedance, `output_tokens`. The charge on `cost_snapshot` follows that report, so a clip that comes back shorter or longer than asked is billed as delivered, at the prices in effect when the job was submitted. A report that leaves out a dimension keeps the submission's estimate for it, and a report that would charge more than twice the amount held at submission is billed at the held amount.
 
+Lazu stores the finished video itself, so the provider's short-lived link never reaches you: download it with `GET /v1/files/{artifact.file_id}/content` using the same key. Videos generated through the API are kept for a limited time (three days on lazu.ai), then deleted; save the file if you need it longer.
+
 ## Generate speech or transcribe audio
 
 Set `LAZU_AUDIO_MODEL` to a speech model and `LAZU_VOICE` to a supported voice. `/v1/audio/speech` returns binary audio, not JSON. For transcription, choose a compatible model and upload a local audio file to `/v1/audio/transcriptions` as multipart data. These are separate model capabilities.

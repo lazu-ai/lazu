@@ -57,10 +57,14 @@ type AppConfigStruct struct {
 	} `yaml:"upload"`
 
 	ArtifactStorage struct {
-		Enable        bool             `yaml:"enable"`
-		BasePath      string           `yaml:"base_path"`
-		PublicBaseURL string           `yaml:"public_base_url"`
-		S3            storage.S3Config `yaml:"s3"`
+		Enable        bool   `yaml:"enable"`
+		BasePath      string `yaml:"base_path"`
+		PublicBaseURL string `yaml:"public_base_url"`
+		// APIVideoTTLHours keeps videos generated through /v1/videos for this
+		// many hours instead of the 30-day file default. Videos made by an
+		// extension (Studio) keep the default. 0 leaves the default.
+		APIVideoTTLHours int              `yaml:"api_video_ttl_hours"`
+		S3               storage.S3Config `yaml:"s3"`
 	} `yaml:"artifact_storage"`
 
 	OSSURLCache struct {
@@ -437,6 +441,9 @@ func loadConfigFile(found string) {
 		}
 		if userCfg.ArtifactStorage.PublicBaseURL != "" {
 			AppConfig.ArtifactStorage.PublicBaseURL = strings.TrimRight(userCfg.ArtifactStorage.PublicBaseURL, "/")
+		}
+		if userCfg.ArtifactStorage.APIVideoTTLHours > 0 {
+			AppConfig.ArtifactStorage.APIVideoTTLHours = userCfg.ArtifactStorage.APIVideoTTLHours
 		}
 		// ArtifactStorage S3 config
 		if userCfg.ArtifactStorage.S3.Endpoint != "" {

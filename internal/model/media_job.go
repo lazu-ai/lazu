@@ -634,8 +634,13 @@ func (job MediaJob) ToDTO(includeRequest bool) dto.MediaJobObject {
 		out.CostSnapshot = publicMediaJobCost(job.CostSnapshot)
 	}
 	if job.Kind == MediaJobKindVideo {
-		if facts, ok := mediaJobSnapshotFacts(job, MediaJobProviderFactsSnapshotKey); ok {
-			out.Usage = facts.Public()
+		// What the job was billed on: the provider's report, with the
+		// submission's estimate for any dimension it left out (an aggregator
+		// that reports only its cost still shows the clip's length and tier).
+		if _, reported := mediaJobSnapshotFacts(job, MediaJobProviderFactsSnapshotKey); reported {
+			if facts, ok := MediaJobProviderFacts(job); ok {
+				out.Usage = facts.Public()
+			}
 		}
 	}
 	return out
