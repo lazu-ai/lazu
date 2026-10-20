@@ -35,10 +35,12 @@ func planBridges(info *relaycommon.RelayInfo) bool {
 // bridged is false when the attempt is not a bridge, and the body is then
 // nil.
 //
-// No raw param_override is applied: a bridge's overrides are the typed
-// semantic ones, applied to the IR when the attempt was planned
-// (textgenruntime.PrepareAttempt), and any other override refuses the
-// bridge there.
+// Between Chat and Responses a bridge's overrides are the typed semantic
+// ones, applied to the IR when the attempt was planned
+// (textgenruntime.PrepareAttempt). Across families (a Claude client, or an
+// Anthropic channel) the channel's raw param_override is written for the
+// upstream's wire and is applied to the encoded body, as the legacy
+// conversions did (textgenruntime.OverrideIsUpstreamWire).
 func BridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.BaseAdaptor) (body []byte, bridged bool, lazuErr *types.LazuError) {
 	if !planBridges(info) {
 		return nil, false, nil
@@ -100,7 +102,20 @@ func BridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Bas
 	if err != nil {
 		return nil, true, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
+	if len(info.ParamOverride) > 0 && crossFamily(info) {
+		jsonData, err = relaycommon.ApplyParamOverride(jsonData, info.ParamOverride)
+		if err != nil {
+			return nil, true, types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
+		}
+	}
 	// wire dialect patch: vendor quirks on the compiled body, once per
-	// attempt (internal/relay/wirepatch)
+	// attempt, after the override (internal/relay/wirepatch)
 	return wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData), true, nil
+}
+
+// crossFamily says whether the bridge crosses between Anthropic's Messages
+// and the OpenAI protocols, where the channel's override is its upstream
+// wire's (textgenruntime.OverrideIsUpstreamWire).
+func crossFamily(info *relaycommon.RelayInfo) bool {
+	return (info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolAnthropic) != (info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolAnthropic)
 }
