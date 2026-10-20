@@ -220,3 +220,13 @@ func TestBuildSnapshotChannelCanDenyJSONSchema(t *testing.T) {
 		t.Fatal("true and nil change nothing")
 	}
 }
+
+// A strict function tool raises the shared strict marker; DeepSeek Chat's gap
+// is the response-format schema alone, so such a request stays native.
+func TestDeepSeekChatGapIsTheResponseSchemaOnly(t *testing.T) {
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectDeepSeek, Model: model.ModelCapabilities{SupportsResponseSchema: true}})
+	gap := snapshot.EndpointGaps[textgen.FeatureEndpointChat]
+	if !gap.Has(textgen.FeatureJSONSchema) || gap.Has(textgen.FeatureStrictSchema) {
+		t.Fatalf("gap: %v", gap.Names())
+	}
+}

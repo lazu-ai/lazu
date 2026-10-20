@@ -1,6 +1,7 @@
 package openai_chat
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/dto"
@@ -22,6 +23,20 @@ type StreamDecoder struct {
 func (d *StreamDecoder) Decode(chunk *dto.ChatCompletionsStreamResponse) []textgen.Event {
 	if d == nil || chunk == nil {
 		return nil
+	}
+	if upstream := chunk.GetOpenAIError(); upstream != nil {
+		// a Chat stream reports failure in-band, as a chunk with an error
+		semantic := &textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: "upstream stream failed"}
+		if upstream.Type != "" && upstream.Type != "upstream_error" {
+			semantic.Type = upstream.Type
+		}
+		if upstream.Message != "" {
+			semantic.Message = upstream.Message
+		}
+		if code := strings.TrimSpace(fmt.Sprint(upstream.Code)); code != "" && code != "<nil>" {
+			semantic.Code = code
+		}
+		return []textgen.Event{{Kind: textgen.EventError, Error: semantic}}
 	}
 	var events []textgen.Event
 	if !d.started {
