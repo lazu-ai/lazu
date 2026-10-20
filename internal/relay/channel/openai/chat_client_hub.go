@@ -107,7 +107,7 @@ func chatClientResponsesStream(c *gin.Context, info *relaycommon.RelayInfo, resp
 		// recorded as an error, classified by what the upstream said
 		info.StreamFailedWithoutUsage = !service.ValidUsage(col.Result().Usage)
 		common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
-		return usage, responsesFirstEventLazuError(c, failure)
+		return usage, channel.FirstEventFailure(c, failure)
 	}
 	if conversionErr != nil {
 		failResponsesCompatChatStream(c, types.ErrorCodeBadResponse, "")
