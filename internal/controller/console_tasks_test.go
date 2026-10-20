@@ -218,3 +218,48 @@ func TestConsoleTaskRequestHidesRoutingLanes(t *testing.T) {
 		t.Fatalf("public request = %s", request)
 	}
 }
+
+func TestAdminTasksListEveryAccountWithItsUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupMediaJobControllerTestDB(t)
+	now := time.Now().UTC()
+	for _, user := range []model.User{{Id: 701, Username: "alice"}, {Id: 702, Username: "bob"}} {
+		if err := db.Create(&user).Error; err != nil {
+			t.Fatal(err)
+		}
+		seedConsoleTask(t, db, user.Id, nil, "req-admin-"+user.Username, model.MediaJobStatusRunning,
+			`{"prompt":"clip by `+user.Username+`","seconds":4}`, `{}`, "", now)
+	}
+	get := func(query string) (body struct {
+		Data struct {
+			Total int `json:"total"`
+			Items []struct {
+				UserID   int    `json:"user_id"`
+				Username string `json:"username"`
+			} `json:"items"`
+		} `json:"data"`
+	}) {
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/log/tasks?"+query, nil)
+		GetAllTasks(c)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status %d body=%s", recorder.Code, recorder.Body.String())
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		return body
+	}
+	all := get("")
+	names := map[string]int{}
+	for _, item := range all.Data.Items {
+		names[item.Username] = item.UserID
+	}
+	if all.Data.Total != 2 || names["alice"] != 701 || names["bob"] != 702 {
+		t.Fatalf("admin list = %+v", all.Data)
+	}
+	if one := get("user_id=702"); one.Data.Total != 1 || one.Data.Items[0].Username != "bob" {
+		t.Fatalf("user filter = %+v", one.Data)
+	}
+}

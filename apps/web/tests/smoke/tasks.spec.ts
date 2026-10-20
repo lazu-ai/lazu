@@ -123,3 +123,59 @@ test('the Tasks tab reads like the log and opens a job under its row', async ({
 
   await app.expectNoUnexpectedErrors();
 });
+
+test('administrators see every account in the platform view, with the user', async ({
+  page,
+}) => {
+  const paths = [];
+  const withUsers = {
+    ...tasks,
+    items: tasks.items.map((item, index) => ({
+      ...item,
+      user_id: 10 + index,
+      username: ['alice', 'bob', 'carol'][index],
+    })),
+  };
+  const app = await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: (url) => {
+      const { pathname } = new URL(url);
+      if (pathname.startsWith('/api/log/')) paths.push(pathname);
+      return pathname === '/api/log/tasks'
+        ? { data: withUsers, message: '', success: true }
+        : undefined;
+    },
+  });
+  await page.route('**/__test__/clip.mp4', (route) =>
+    process.env.TASKS_VIDEO
+      ? route.fulfill({
+          path: process.env.TASKS_VIDEO,
+          contentType: 'video/mp4',
+        })
+      : route.fulfill({ status: 200, contentType: 'video/mp4', body: '' }),
+  );
+  await expectRouteReady(page, '/console/usage?tab=tasks');
+
+  await expect.poll(() => paths).toContain('/api/log/tasks');
+  expect(paths).not.toContain('/api/log/self/tasks');
+  await expect(page.getByRole('columnheader', { name: '用户' })).toBeVisible();
+  const rows = page.locator('.tasks-table tbody tr.logv2-row');
+  await expect(rows.nth(1)).toContainText('bob');
+  await expect(rows.nth(1)).toContainText('#11');
+  await expect(page.getByRole('tab', { name: '生成任务' })).toBeVisible();
+
+  await rows.nth(1).click();
+  const detail = page.locator('.tasks-detail');
+  await expect(detail.locator('.tasks-detail__prompt')).toContainText('纸船');
+  await expect(detail.locator('.tasks-bill')).toContainText('$3.502');
+  await expect(detail.locator('.tasks-id')).toHaveCount(2);
+  if (process.env.TASKS_SCREENSHOT) {
+    await page.waitForTimeout(500);
+    await page.screenshot({
+      fullPage: true,
+      path: process.env.TASKS_SCREENSHOT,
+    });
+  }
+
+  await app.expectNoUnexpectedErrors();
+});

@@ -151,13 +151,7 @@ func BuildSnippet(language string, endpoint Endpoint, modelID, base string) stri
 		}
 		return ts(`{ model: "` + id + `", prompt: "` + prompt + `", size: "1024x1024" }`)
 	case "video-generation":
-		if language == "curl" {
-			return curl("{\n    \"model\": \""+id+"\",\n    \"prompt\": \"A cinematic product reveal on a clean studio table\",\n    \"seconds\": 5,\n    \"size\": \"16:9\"\n  }", "")
-		}
-		if language == "python" {
-			return py(`{"model": "` + id + `", "prompt": "A cinematic product reveal", "seconds": 5, "size": "16:9"}`)
-		}
-		return ts(`{ model: "` + id + `", prompt: "A cinematic product reveal", seconds: 5, size: "16:9" }`)
+		return videoSnippet(language, base, path, id)
 	case "jina-rerank":
 		if language == "curl" {
 			return curl("{\n    \"model\": \""+id+"\",\n    \"query\": \"Which document is about billing?\",\n    \"documents\": [\"API billing is usage-based.\", \"This guide covers images.\"],\n    \"top_n\": 2\n  }", "")
@@ -230,4 +224,66 @@ func Highlight(code, language string) template.HTML {
 		b.WriteString(template.HTMLEscapeString(code[cursor:]))
 	}
 	return template.HTML(b.String())
+}
+
+// videoSnippet is the whole video job, not just its submission: submit, wait
+// for it (?wait answers when the status changes or the job finishes) and
+// download the result from its signed link.
+func videoSnippet(language, base, path, id string) string {
+	prompt := "A cinematic product reveal on a clean studio table"
+	switch language {
+	case "curl":
+		return "# 1. Submit: HTTP 202 with the job id (mjob_...) and the amount held\n" +
+			"curl " + base + path + " \\\n" +
+			"  -H \"Authorization: Bearer $LAZU_API_KEY\" \\\n" +
+			"  -H \"Content-Type: application/json\" \\\n" +
+			"  -d '{\n    \"model\": \"" + id + "\",\n    \"prompt\": \"" + prompt + "\",\n    \"seconds\": 5,\n    \"resolution\": \"720p\",\n    \"aspect_ratio\": \"16:9\"\n  }'\n\n" +
+			"# 2. Wait: answers when the status changes or the job finishes (60 s at most),\n" +
+			"#    with progress and eta_seconds; repeat until status is succeeded or failed\n" +
+			"curl \"" + base + path + "/mjob_...?wait=60\" \\\n" +
+			"  -H \"Authorization: Bearer $LAZU_API_KEY\"\n\n" +
+			"# 3. Download the MP4\n" +
+			"curl --fail " + base + path + "/mjob_.../content \\\n" +
+			"  -H \"Authorization: Bearer $LAZU_API_KEY\" -o video.mp4"
+	case "python":
+		return "import os\nimport requests\n\n" +
+			"API = \"" + base + path + "\"\n" +
+			"headers = {\"Authorization\": \"Bearer \" + os.environ[\"LAZU_API_KEY\"]}\n\n" +
+			"job = requests.post(API, headers=headers, json={\n" +
+			"    \"model\": \"" + id + "\",\n" +
+			"    \"prompt\": \"" + prompt + "\",\n" +
+			"    \"seconds\": 5,\n" +
+			"    \"resolution\": \"720p\",\n" +
+			"}).json()\n\n" +
+			"while job[\"status\"] in (\"pending\", \"running\"):\n" +
+			"    # Answers when the status changes or the job finishes, 60 s at most.\n" +
+			"    job = requests.get(f\"{API}/{job['id']}\", params={\"wait\": 60},\n" +
+			"                       headers=headers, timeout=90).json()\n" +
+			"    print(job[\"status\"], job.get(\"progress\"), \"%\")\n\n" +
+			"if job[\"status\"] == \"succeeded\":\n" +
+			"    video = requests.get(job[\"artifact\"][\"url\"], timeout=300)\n" +
+			"    open(\"video.mp4\", \"wb\").write(video.content)"
+	default:
+		return "const API = \"" + base + path + "\";\n" +
+			"const headers = {\n  Authorization: `Bearer ${process.env.LAZU_API_KEY}`,\n  \"Content-Type\": \"application/json\",\n};\n\n" +
+			"let job = await (await fetch(API, {\n  method: \"POST\",\n  headers,\n  body: JSON.stringify({\n" +
+			"    model: \"" + id + "\",\n    prompt: \"" + prompt + "\",\n    seconds: 5,\n    resolution: \"720p\",\n  }),\n})).json();\n\n" +
+			"while (job.status === \"pending\" || job.status === \"running\") {\n" +
+			"  // Answers when the status changes or the job finishes, 60 s at most.\n" +
+			"  job = await (await fetch(`${API}/${job.id}?wait=60`, { headers })).json();\n" +
+			"  console.log(job.status, job.progress, \"%\");\n}\n\n" +
+			"if (job.status === \"succeeded\") console.log(job.artifact.url);"
+	}
+}
+
+// IsVideoEndpoint reports whether a model is called through the video job API.
+func IsVideoEndpoint(endpoint Endpoint) bool { return endpoint.Type == "video-generation" }
+
+// VideoGuideSlug is the docs page that walks through a video model: Seedance
+// has its own guide, every other video model the general media page.
+func VideoGuideSlug(modelID string) string {
+	if strings.HasPrefix(strings.ToLower(modelID), "seedance") {
+		return "endpoints/seedance"
+	}
+	return "endpoints/media#submit-and-poll-a-video"
 }

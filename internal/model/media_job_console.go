@@ -29,6 +29,10 @@ type MediaJobConsoleFilter struct {
 	ModelName string
 	TokenID   int
 	Query     string // a job id, a request id, or words of the prompt
+	UserID    int    // admin view only: one person's jobs
+	// AllAccounts is the admin view: every account's jobs, the principal
+	// unused.
+	AllAccounts bool
 }
 
 // MediaJobConsoleSummary is the strip above the Tasks table.
@@ -43,7 +47,13 @@ type MediaJobConsoleSummary struct {
 }
 
 func mediaJobConsoleQuery(principal ProjectPrincipal, filter MediaJobConsoleFilter) *gorm.DB {
-	query := requestResourceScope(CoreDB().Model(&MediaJob{}), principal.ActorUserID, []ProjectPrincipal{principal})
+	query := CoreDB().Model(&MediaJob{})
+	if !filter.AllAccounts {
+		query = requestResourceScope(query, principal.ActorUserID, []ProjectPrincipal{principal})
+	}
+	if filter.UserID > 0 {
+		query = query.Where("actor_user_id = ? OR (actor_user_id = 0 AND user_id = ?)", filter.UserID, filter.UserID)
+	}
 	switch filter.Status {
 	case MediaJobConsoleStatusActive:
 		query = query.Where("status IN ?", []string{MediaJobStatusPending, MediaJobStatusRunning})
@@ -194,6 +204,22 @@ func TokenNamesByID(ids []int) (map[int]string, error) {
 	}
 	for _, row := range rows {
 		out[row.Id] = row.Name
+	}
+	return out, nil
+}
+
+// UserNamesByID resolves account names for the admin Tasks view.
+func UserNamesByID(ids []int) (map[int]string, error) {
+	out := make(map[int]string, len(ids))
+	if len(ids) == 0 || CoreDB() == nil {
+		return out, nil
+	}
+	var rows []User
+	if err := CoreDB().Select("id", "username").Where("id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.Id] = row.Username
 	}
 	return out, nil
 }

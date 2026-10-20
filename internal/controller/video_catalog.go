@@ -164,7 +164,8 @@ func videoCatalogExample(baseURL string, path string, modelName string) string {
 	return fmt.Sprintf(
 		"# 1. Submit: HTTP 202 returns a job id (mjob_...) and the amount held\n"+
 			"curl %[1]s%[2]s -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' -d '{\"model\":\"%[3]s\",\"prompt\":\"A cinematic product reveal on a clean studio table\",\"seconds\":%[4]d,\"resolution\":\"%[5]s\",\"aspect_ratio\":\"%[6]s\"}'\n"+
-			"# 2. Wait: answers as soon as the job finishes, at most 60 s per call; repeat while status is pending or running.\n"+
+			"# 2. Wait: answers when the status changes or the job finishes (60 s at most), with progress and eta_seconds;\n"+
+			"#    repeat until status is succeeded or failed. GET .../JOB_ID/events streams the same live.\n"+
 			"#    When status is succeeded, artifact.url is a download link valid for an hour.\n"+
 			"curl '%[1]s%[2]s/JOB_ID?wait=60' -H 'Authorization: Bearer YOUR_API_KEY'\n"+
 			"# 3. Download the video\n"+

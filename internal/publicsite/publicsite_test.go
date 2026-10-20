@@ -218,3 +218,42 @@ func TestMetaDescription(t *testing.T) {
 		t.Errorf("zh meta = %q", got)
 	}
 }
+
+func TestVideoModelPageExplainsTheJobNotTheChatSDK(t *testing.T) {
+	catalog := loadFixture(t)
+	model, ok := catalog.Find("claude-opus-5-5")
+	if !ok {
+		t.Fatal("fixture lacks claude-opus-5-5")
+	}
+	model.ID = "seedance-2.5"
+	model.SupportedEndpoints = []Endpoint{{Type: "video-generation", Path: "/v1/videos", Method: "POST"}}
+	model.DefaultEndpointType = "video-generation"
+
+	page, err := RenderModelPage(catalog, model, "zh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(page)
+	for _, want := range []string{"?wait=60", "/content", "/docs/zh/endpoints/seedance", "视频接入指南", "可以用 OpenAI SDK 吗？", "按生成视频的秒数"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("video model page lacks %q", want)
+		}
+	}
+	for _, unwanted := range []string{"也可以用 OpenAI SDK 调用", "稳定线路和 Agent 专线有什么区别？"} {
+		if strings.Contains(html, unwanted) {
+			t.Errorf("video model page still says %q", unwanted)
+		}
+	}
+
+	md := ModelMarkdown(catalog, model)
+	for _, want := range []string{"## Prices (USD per second of video)", "## How to call it", "?wait=60", "Can I use the OpenAI SDK?\n\nNot for video"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("video model markdown lacks %q", want)
+		}
+	}
+	for _, unwanted := range []string{"USD per million tokens", "Any OpenAI SDK works", "Per token actually used"} {
+		if strings.Contains(md, unwanted) {
+			t.Errorf("video model markdown still says %q", unwanted)
+		}
+	}
+}

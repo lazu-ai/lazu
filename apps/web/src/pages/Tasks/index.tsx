@@ -10,6 +10,7 @@ import { getUsageProjectScope } from '../../hooks/usage-logs/usageProjectScope';
 import { useUsageScope } from '../../hooks/usage-logs/useUsageScope';
 import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
+import { UserIdentity } from '../Log/log-support';
 import '../Log/log-table.css';
 import './tasks.css';
 import type { TFunction } from 'i18next';
@@ -43,6 +44,9 @@ export type ConsoleTask = {
   refund_microusd: number;
   file_expired?: boolean;
   key_deleted?: boolean;
+  /** Admin view only: who made the job. */
+  user_id?: number;
+  username?: string;
   artifact?: {
     file_id?: string;
     url?: string;
@@ -239,9 +243,34 @@ function TaskDetail({
           : t('page.console.tasks.timeline.deleted'),
     });
 
+  const chips = [
+    task.spec?.resolution,
+    task.spec?.seconds
+      ? t('page.console.tasks.spec.seconds', { n: task.spec.seconds })
+      : '',
+    task.spec?.aspect_ratio,
+    task.spec?.reference_videos
+      ? t('page.console.tasks.spec.refVideo', { n: task.spec.reference_videos })
+      : '',
+    task.spec?.reference_images
+      ? t('page.console.tasks.spec.refImage', { n: task.spec.reference_images })
+      : '',
+    task.spec?.reference_audios
+      ? t('page.console.tasks.spec.refAudio', { n: task.spec.reference_audios })
+      : '',
+    task.spec?.frames
+      ? t('page.console.tasks.spec.frames', { n: task.spec.frames })
+      : '',
+    task.spec?.audio === false ? t('page.console.tasks.spec.silent') : '',
+  ].filter(Boolean) as string[];
+  const ids = [
+    { label: t('page.console.tasks.detail.taskId'), value: task.id },
+    { label: t('page.console.tasks.detail.requestId'), value: task.request_id },
+  ].filter((item) => item.value) as { label: string; value: string }[];
+
   return (
     <div className='tasks-detail'>
-      <div className='tasks-detail__preview'>
+      <div className='tasks-detail__media'>
         {url && mime.startsWith('video/') ? (
           // A generated clip has no caption track to offer; its prompt is
           // shown beside it.
@@ -285,90 +314,104 @@ function TaskDetail({
         ) : null}
       </div>
 
-      <div className='tasks-detail__col tasks-detail__col--wide'>
-        <h3>{t('page.console.tasks.detail.timeline')}</h3>
-        <ol className='tasks-timeline'>
-          {timeline.map((event) => (
-            <li key={`${event.at}-${event.label}`}>
-              <span className='logv2-time'>{formatTaskTime(event.at)}</span>
-              <span className={event.tone ? `tasks-tone--${event.tone}` : ''}>
-                {event.label}
-              </span>
-            </li>
-          ))}
-        </ol>
-        {task.error?.message ? (
-          <p className='tasks-detail__error'>
-            <code>{task.error.code}</code> {task.error.message}
-          </p>
-        ) : null}
-      </div>
-
-      <div className='tasks-detail__col'>
-        <h3>{t('page.console.tasks.detail.cost')}</h3>
-        <dl className='tasks-bill'>
-          <dt>{t('page.console.tasks.detail.hold')}</dt>
-          <dd>{formatTaskCost(task.hold_microusd)}</dd>
-          <dt>{t('page.console.tasks.detail.charge')}</dt>
-          <dd>
-            {isActive(task)
-              ? t('page.console.tasks.detail.afterFinish')
-              : formatTaskCost(task.charge_microusd)}
-          </dd>
-          {task.refund_microusd ? (
-            <>
-              <dt>{t('page.console.tasks.detail.refund')}</dt>
-              <dd className='tasks-tone--ok'>
-                {formatTaskCost(task.refund_microusd)}
-              </dd>
-            </>
-          ) : null}
-        </dl>
-      </div>
-
-      <div className='tasks-detail__col'>
-        <h3>{t('page.console.tasks.detail.request')}</h3>
-        <dl className='tasks-ids'>
-          <dt>{t('page.console.tasks.detail.taskId')}</dt>
-          <dd>
-            <button
-              className='logv2-link logv2-model'
-              type='button'
-              onClick={() => copyValue(task.id)}
-            >
-              {task.id}
-            </button>
-          </dd>
-          {task.request_id ? (
-            <>
-              <dt>{t('page.console.tasks.detail.requestId')}</dt>
-              <dd>
-                <button
-                  className='logv2-link logv2-model'
-                  type='button'
-                  onClick={() => copyValue(task.request_id || '')}
-                >
-                  {task.request_id}
-                </button>
-              </dd>
-            </>
-          ) : null}
-          <dt>{t('page.console.tasks.detail.spec')}</dt>
-          <dd>
-            {[
-              taskSpecText(task, t),
-              task.spec?.aspect_ratio,
-              task.spec?.audio === false
-                ? t('page.console.tasks.spec.silent')
-                : '',
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </dd>
-        </dl>
+      <div className='tasks-detail__body'>
         {task.prompt ? (
           <p className='tasks-detail__prompt'>{task.prompt}</p>
         ) : null}
+
+        <div className='tasks-detail__grid'>
+          <section>
+            <h3>{t('page.console.tasks.detail.timeline')}</h3>
+            <ol className='tasks-steps'>
+              {timeline.map((event) => (
+                <li
+                  className={event.tone ? `tasks-tone--${event.tone}` : ''}
+                  key={`${event.at}-${event.label}`}
+                >
+                  <span aria-hidden='true' className='tasks-steps__dot' />
+                  <span className='logv2-time'>{formatTaskTime(event.at)}</span>
+                  <span>{event.label}</span>
+                </li>
+              ))}
+            </ol>
+            {task.error?.message ? (
+              <p className='tasks-detail__error'>
+                <code>{task.error.code}</code> {task.error.message}
+              </p>
+            ) : null}
+          </section>
+
+          <section className='tasks-bill'>
+            <h3>{t('page.console.tasks.detail.cost')}</h3>
+            <dl>
+              <dt>{t('page.console.tasks.detail.hold')}</dt>
+              <dd>{formatTaskCost(task.hold_microusd)}</dd>
+              <dt>{t('page.console.tasks.detail.charge')}</dt>
+              <dd>
+                {isActive(task)
+                  ? t('page.console.tasks.detail.afterFinish')
+                  : formatTaskCost(task.charge_microusd)}
+              </dd>
+              {task.refund_microusd ? (
+                <>
+                  <dt>{t('page.console.tasks.detail.refund')}</dt>
+                  <dd className='tasks-tone--ok'>
+                    {formatTaskCost(task.refund_microusd)}
+                  </dd>
+                </>
+              ) : null}
+            </dl>
+          </section>
+        </div>
+
+        <div className='tasks-detail__meta'>
+          {ids.map((item) => (
+            <span className='tasks-id' key={item.label}>
+              <span className='tasks-id__label'>{item.label}</span>
+              <code className='tasks-id__value' title={item.value}>
+                {item.value}
+              </code>
+              <button
+                aria-label={`${t('page.console.tables.copy')} ${item.label}`}
+                className='tasks-id__copy'
+                type='button'
+                onClick={() => copyValue(item.value)}
+              >
+                <svg
+                  aria-hidden='true'
+                  fill='none'
+                  height='14'
+                  viewBox='0 0 24 24'
+                  width='14'
+                >
+                  <rect
+                    height='12'
+                    rx='2'
+                    stroke='currentColor'
+                    strokeWidth='1.6'
+                    width='12'
+                    x='8'
+                    y='8'
+                  />
+                  <path
+                    d='M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2'
+                    stroke='currentColor'
+                    strokeWidth='1.6'
+                  />
+                </svg>
+              </button>
+            </span>
+          ))}
+          {chips.length ? (
+            <span className='tasks-chips'>
+              {chips.map((chip) => (
+                <span className='tasks-chip-spec' key={chip}>
+                  {chip}
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -376,7 +419,10 @@ function TaskDetail({
 
 export default function TasksPage() {
   const { t } = useTranslation();
-  const { activeScope } = useUsageScope();
+  // Platform scope (administrators) reads every account's jobs, with who
+  // made each; everyone else reads their project's.
+  const { activeScope, admin } = useUsageScope();
+  const columns = admin ? 10 : 9;
   const [searchParams, setSearchParams] = useSearchParams();
   const status = searchParams.get('status') || '';
   const days = Number(searchParams.get('days')) || 7;
@@ -400,7 +446,7 @@ export default function TasksPage() {
     () => Math.floor(Date.now() / 1000) - days * DAY,
     [days],
   );
-  const params = { status, start, q, page, project };
+  const params = { admin, status, start, q, page, project };
 
   const query = useQuery({
     queryKey: queryKeys.console.table('tasks', params),
@@ -415,7 +461,11 @@ export default function TasksPage() {
         token_id: project.token_id,
         user_id: project.user_id,
       });
-      return unwrap<TaskPage>(await API.get(`/api/log/self/tasks?${search}`));
+      return unwrap<TaskPage>(
+        await API.get(
+          `${admin ? '/api/log/tasks' : '/api/log/self/tasks'}?${search}`,
+        ),
+      );
     },
     placeholderData: keepPreviousData,
     refetchInterval: (state) =>
@@ -547,6 +597,9 @@ export default function TasksPage() {
             <thead>
               <tr>
                 <th scope='col'>{t('page.console.tasks.col.time')}</th>
+                {admin ? (
+                  <th scope='col'>{t('page.console.log.column.user')}</th>
+                ) : null}
                 <th scope='col'>{t('page.console.tasks.col.status')}</th>
                 <th scope='col'>{t('page.console.tasks.col.model')}</th>
                 <th scope='col'>{t('page.console.tasks.col.key')}</th>
@@ -562,7 +615,7 @@ export default function TasksPage() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td className='tasks-empty' colSpan={9}>
+                  <td className='tasks-empty' colSpan={columns}>
                     {query.isLoading
                       ? t('page.system.loading.title')
                       : t('page.console.tasks.empty')}
@@ -599,6 +652,14 @@ export default function TasksPage() {
                           {formatTaskTime(task.created_at)}
                         </button>
                       </td>
+                      {admin ? (
+                        <td>
+                          <UserIdentity
+                            name={task.username || '—'}
+                            uid={task.user_id}
+                          />
+                        </td>
+                      ) : null}
                       <td>
                         <TaskStatusCell task={task} t={t} />
                       </td>
@@ -663,7 +724,7 @@ export default function TasksPage() {
                     </tr>
                     {open ? (
                       <tr className='logv2-detail-row'>
-                        <td colSpan={9}>
+                        <td colSpan={columns}>
                           <TaskDetail nowSec={nowSec} t={t} task={task} />
                         </td>
                       </tr>

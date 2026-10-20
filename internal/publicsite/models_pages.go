@@ -252,6 +252,10 @@ func ModelMarkdown(catalog Catalog, model Model) string {
 	for _, fact := range page.Facts {
 		fmt.Fprintf(&b, "- **%s:** %s\n", fact.Label, fact.Value)
 	}
+	if page.IsVideo {
+		writeVideoModelMarkdown(&b, page, model)
+		return b.String()
+	}
 	b.WriteString("\n## Prices (USD per million tokens)\n\n| Lane | Input | Output | Cache read | Cache write 5m | 7-day availability |\n|---|---|---|---|---|---|\n")
 	if model.OfficialInput > 0 {
 		out := "—"
@@ -410,4 +414,24 @@ func metaDescription(text string, locale string) string {
 		text = strings.TrimSpace(text[end:])
 	}
 	return strings.TrimSpace(out.String())
+}
+
+// writeVideoModelMarkdown finishes a video model's .md: per-second prices by
+// resolution, the whole job as an example, and the video questions.
+func writeVideoModelMarkdown(b *strings.Builder, page ModelPage, model Model) {
+	fmt.Fprintf(b, "\n## %s\n\n| Resolution | Price |\n|---|---|\n", T("en", "md.videoPrices"))
+	for _, row := range page.VideoPriceRows {
+		fmt.Fprintf(b, "| %s | %s |\n", row.Label, row.Price)
+	}
+	fmt.Fprintf(b, "\n%s\n", page.Updated)
+	if len(page.Capabilities) > 0 {
+		fmt.Fprintf(b, "\n## Capabilities\n\n%s\n", strings.Join(page.Capabilities, ", "))
+	}
+	endpoint := DefaultEndpoint(model)
+	fmt.Fprintf(b, "\n## %s\n\n```bash\n%s\n```\n", T("en", "md.videoExample"), BuildSnippet("curl", endpoint, model.ID, APIOrigin))
+	fmt.Fprintf(b, "\n%s Guide: %s\n", T("en", "sample.noteVideo"), page.DocsHref)
+	b.WriteString("\n## Questions\n\n")
+	for _, item := range page.FAQs {
+		fmt.Fprintf(b, "### %s\n\n%s\n\n", item.Q, item.A)
+	}
 }

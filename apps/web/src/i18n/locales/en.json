@@ -3545,7 +3545,7 @@
     "page.console.tasks.timeline.submitted": "Submitted",
     "page.console.tasks.timeline.submittedHold": "Submitted, {{amount}} held",
     "page.console.tasks.took.waiting": "{{time}} so far",
-    "page.console.usage.tabs.tasks": "Tasks",
+    "page.console.usage.tabs.tasks": "Generations",
     "page.console.log.detail.viewTask": "View task",
     "page.console.personal.plan.forever": "No end date",
     "page.console.plaza.discount.savedVsOfficial": "{{pct}}% under official",

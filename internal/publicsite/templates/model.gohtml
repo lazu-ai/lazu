@@ -108,7 +108,7 @@
       </div>
       {{- end}}
     </div>
-    <p class="lazu-model__note">{{$m.SampleNote}} <a href="{{$m.DocsHref}}">{{t "sample.docs"}}</a></p>
+    <p class="lazu-model__note">{{$m.SampleNote}} <a href="{{$m.DocsHref}}">{{if $m.DocsLabel}}{{$m.DocsLabel}}{{else}}{{t "sample.docs"}}{{end}}</a></p>
   </section>
 
   <section class="lazu-model__section">

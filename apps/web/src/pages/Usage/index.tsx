@@ -34,7 +34,7 @@ const views = [
     value: 'tasks',
     tab: 'tasks',
     labelKey: 'page.console.usage.tabs.tasks',
-    fallback: '任务',
+    fallback: '生成任务',
   },
   {
     value: 'monthly',
