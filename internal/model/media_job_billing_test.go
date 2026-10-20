@@ -1424,3 +1424,158 @@ func TestReservedVideoJobRepricesOnProviderReportedFacts(t *testing.T) {
 		t.Fatalf("public job usage should expose the reported facts: %+v", public.Usage)
 	}
 }
+
+// settleVideoJobWithReportedFacts records what the provider reported on a
+// reserved job, as the poller does, and settles it.
+func settleVideoJobWithReportedFacts(t *testing.T, db *gorm.DB, job MediaJob, facts dto.VideoFacts, now time.Time) MediaJobBillingResult {
+	t.Helper()
+	snapshot, err := SnapshotWithVideoFacts(job.RequestSnapshot, MediaJobProviderFactsSnapshotKey, facts)
+	if err != nil {
+		t.Fatalf("SnapshotWithVideoFacts error: %v", err)
+	}
+	if err := db.Model(&MediaJob{}).Where("id = ?", job.ID).Updates(map[string]any{
+		"request_snapshot": snapshot,
+		"cost_snapshot":    job.CostSnapshot,
+	}).Error; err != nil {
+		t.Fatalf("persist reported facts: %v", err)
+	}
+	var persisted MediaJob
+	if err := db.First(&persisted, job.ID).Error; err != nil {
+		t.Fatalf("reload media job: %v", err)
+	}
+	settled, err := SettleMediaJobBilling(persisted, now)
+	if err != nil {
+		t.Fatalf("SettleMediaJobBilling error: %v", err)
+	}
+	return settled
+}
+
+func mediaJobBillingUserQuota(t *testing.T, db *gorm.DB, userID int) billing.MicroUSD {
+	t.Helper()
+	var user User
+	if err := db.First(&user, userID).Error; err != nil {
+		t.Fatalf("reload user: %v", err)
+	}
+	return user.Quota
+}
+
+func TestReservedVideoJobKeepsEstimatedTokensWhenTheResultHasNoUsage(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	job := seedPricedVideoMediaJob(t, db)
+	perMtok := 2.0
+	if err := db.Model(&ModelSellPrice{}).Where("model_name = ?", job.ModelName).
+		Updates(map[string]any{"second_usd": nil, "output_per_mtok": perMtok}).Error; err != nil {
+		t.Fatalf("make the lane token-billed: %v", err)
+	}
+	// The submission estimated Ark's tokens off the outbound body.
+	snapshot, err := SnapshotWithVideoFacts(job.RequestSnapshot, MediaJobProviderFactsEstimateSnapshotKey, dto.VideoFacts{
+		Seconds: 5, Resolution: "720p", OutputTokens: 108900,
+	})
+	if err != nil {
+		t.Fatalf("SnapshotWithVideoFacts error: %v", err)
+	}
+	job.RequestSnapshot = snapshot
+	if err := db.Model(&MediaJob{}).Where("id = ?", job.ID).Update("request_snapshot", snapshot).Error; err != nil {
+		t.Fatalf("persist estimate: %v", err)
+	}
+	reserved, err := ReserveMediaJobBillingBeforeSubmit(&job, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("ReserveMediaJobBillingBeforeSubmit error: %v", err)
+	}
+	if reserved.CustomerCharge <= 0 {
+		t.Fatalf("the estimate's tokens should hold a charge, got %d", reserved.CustomerCharge)
+	}
+	// Ark reported the clip's length but no usage.
+	settled := settleVideoJobWithReportedFacts(t, db, job, dto.VideoFacts{Seconds: 5, Resolution: "720p", Reported: true}, time.Now().UTC().Add(time.Minute))
+	if settled.CustomerCharge != reserved.CustomerCharge {
+		t.Fatalf("a result without usage must settle at the estimate (%d), got %d", reserved.CustomerCharge, settled.CustomerCharge)
+	}
+	if quota := mediaJobBillingUserQuota(t, db, job.UserID); quota != billing.MicroUSD(1_000_000)-reserved.CustomerCharge {
+		t.Fatalf("the hold must not be refunded: quota=%d", quota)
+	}
+}
+
+func TestReserveVideoRefusesALaneThatPricesNothingOfTheEstimate(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	job := seedPricedVideoMediaJob(t, db)
+	multiplier := 1.2
+	price := ModelSellPrice{}
+	if err := db.Where("model_name = ?", job.ModelName).First(&price).Error; err != nil {
+		t.Fatalf("load sell price: %v", err)
+	}
+	price.SecondUSD = nil
+	price.VideoPricing = &billing.VideoPrices{ProviderCostMultiplier: &multiplier}
+	if err := db.Save(&price).Error; err != nil {
+		t.Fatalf("make the lane provider-cost only: %v", err)
+	}
+	_, err := ReserveMediaJobBillingBeforeSubmit(&job, time.Now().UTC())
+	if !errors.Is(err, ErrMediaJobPriceNotConfigured) {
+		t.Fatalf("a provider-cost lane with no per-second price must be refused before submission, got %v", err)
+	}
+	if quota := mediaJobBillingUserQuota(t, db, job.UserID); quota != billing.MicroUSD(1_000_000) {
+		t.Fatalf("nothing should be held: quota=%d", quota)
+	}
+}
+
+func TestReservedVideoJobKeepsItsHoldWhenTheLaneIsRepricedWhileItRuns(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	job := seedPricedVideoMediaJob(t, db)
+	reserved, err := ReserveMediaJobBillingBeforeSubmit(&job, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("ReserveMediaJobBillingBeforeSubmit error: %v", err)
+	}
+	if err := db.Model(&ModelSellPrice{}).Where("model_name = ?", job.ModelName).Update("active", false).Error; err != nil {
+		t.Fatalf("retire version 7: %v", err)
+	}
+	dearer := 0.05
+	if err := db.Create(&ModelSellPrice{ModelName: job.ModelName, ChannelGroup: ChannelLaneDirect, SecondUSD: &dearer, Active: true, PricingVersion: 8, Source: "test"}).Error; err != nil {
+		t.Fatalf("publish version 8: %v", err)
+	}
+	settled := settleVideoJobWithReportedFacts(t, db, job, dto.VideoFacts{Seconds: 6, Resolution: "720p", Reported: true}, time.Now().UTC().Add(time.Minute))
+	if settled.CustomerCharge != reserved.CustomerCharge {
+		t.Fatalf("a job quoted on version 7 pays its hold (%d), got %d", reserved.CustomerCharge, settled.CustomerCharge)
+	}
+}
+
+func TestReservedVideoJobRequotesOnThePricesOfItsAdmission(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	job := seedPricedVideoMediaJob(t, db)
+	peak := 2.0
+	// Peak all day except the admission hour, so the test does not depend on
+	// when it runs: only pricing at admission keeps the job off-peak.
+	if err := db.Model(&ModelSellPrice{}).Where("model_name = ?", job.ModelName).
+		Updates(map[string]any{"peak_hours_utc": "4-3", "peak_multiplier": peak}).Error; err != nil {
+		t.Fatalf("add peak hours: %v", err)
+	}
+	admitted := time.Date(2026, 10, 20, 3, 0, 0, 0, time.UTC)
+	reserved, err := ReserveMediaJobBillingBeforeSubmit(&job, admitted)
+	if err != nil {
+		t.Fatalf("ReserveMediaJobBillingBeforeSubmit error: %v", err)
+	}
+	if reserved.CustomerCharge != billing.USD(0.10) {
+		t.Fatalf("five off-peak seconds at $0.02 should hold $0.10, got %d", reserved.CustomerCharge)
+	}
+	settled := settleVideoJobWithReportedFacts(t, db, job, dto.VideoFacts{Seconds: 8, Resolution: "720p", Reported: true}, admitted.Add(6*time.Minute))
+	if settled.CustomerCharge != billing.USD(0.16) {
+		t.Fatalf("eight seconds admitted off-peak cost $0.16 even when finished at peak, got %d", settled.CustomerCharge)
+	}
+}
+
+func TestReservedVideoJobSettlesAtItsHoldWhenTheReportIsFarAboveIt(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	job := seedPricedVideoMediaJob(t, db)
+	reserved, err := ReserveMediaJobBillingBeforeSubmit(&job, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("ReserveMediaJobBillingBeforeSubmit error: %v", err)
+	}
+	settled := settleVideoJobWithReportedFacts(t, db, job, dto.VideoFacts{Seconds: 600, Resolution: "720p", Reported: true}, time.Now().UTC().Add(time.Minute))
+	if settled.CustomerCharge != reserved.CustomerCharge {
+		t.Fatalf("a report above %dx the hold settles at the hold (%d), got %d", mediaJobRequoteMaxFactor, reserved.CustomerCharge, settled.CustomerCharge)
+	}
+	if !settled.RequoteCapped || settled.RequoteQuotedMicrousd != billing.USD(12) {
+		t.Fatalf("the capped quote must be reported for the operator alert: %+v", settled)
+	}
+	if quota := mediaJobBillingUserQuota(t, db, job.UserID); quota != billing.MicroUSD(1_000_000)-reserved.CustomerCharge {
+		t.Fatalf("the user pays the hold only: quota=%d", quota)
+	}
+}

@@ -163,7 +163,8 @@ func (arkDriver) ParseStatus(_ Channel, body []byte) (*StatusResult, error) {
 
 // arkFacts reads the dimensions Ark bills on: the returned usage is the
 // authoritative token count, and duration / resolution / fps are the clip's
-// own, which can differ from the request.
+// own, which can differ from the request. A result that reports none of them
+// has no facts, as in the other families.
 func arkFacts(payload map[string]any) *dto.VideoFacts {
 	facts := &dto.VideoFacts{
 		Seconds:      firstInt(payload, "duration"),
@@ -171,11 +172,14 @@ func arkFacts(payload map[string]any) *dto.VideoFacts {
 		Ratio:        dto.NormalizeVideoRatio(firstString(payload, "ratio")),
 		FPS:          int(firstInt(payload, "framespersecond", "fps")),
 		OutputTokens: firstInt(payload, "usage.completion_tokens", "usage.total_tokens"),
-		Reported:     true,
 	}
 	if audio, ok := firstBool(payload, "generate_audio"); ok {
 		facts.Audio = audio
 	}
+	if facts.IsZero() {
+		return nil
+	}
+	facts.Reported = true
 	return facts
 }
 

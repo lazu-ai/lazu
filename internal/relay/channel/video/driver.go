@@ -12,6 +12,7 @@ package video
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/dto"
@@ -140,7 +141,10 @@ func autoFamily(ch Channel, modelNames ...string) string {
 	case ch.Settings.VideoEnvelope != nil:
 		// An aggregator serves Seedance through its own envelope.
 		return dto.VideoFamilyEnvelope
-	case ark:
+	case ark && IsArkBaseURL(ch.BaseURL):
+		// Seedance elsewhere (an OpenAI-compatible aggregator, a Custom
+		// channel) keeps the shape that channel already spoke; an Ark proxy
+		// on another host sets video_family: ark.
 		return dto.VideoFamilyArk
 	case ch.Type == channelTypeCustom:
 		return dto.VideoFamilyEnvelope
@@ -175,6 +179,29 @@ func LegacyFamily(channelType int) string {
 // served by the Volcengine Ark task API (doubao-seedance-*, dreamina-seedance-*).
 func IsArkVideoModel(modelName string) bool {
 	return strings.Contains(strings.ToLower(strings.TrimSpace(modelName)), "seedance")
+}
+
+// arkHostSuffixes are the hosts of the Volcengine Ark and BytePlus ModelArk
+// endpoints (ark.cn-beijing.volces.com, ark.ap-southeast.bytepluses.com).
+var arkHostSuffixes = []string{"volces.com", "bytepluses.com", "byteplus.com"}
+
+// IsArkBaseURL reports whether a channel's base URL is an Ark endpoint.
+func IsArkBaseURL(baseURL string) bool {
+	baseURL = strings.TrimSpace(baseURL)
+	if baseURL != "" && !strings.Contains(baseURL, "://") {
+		baseURL = "https://" + baseURL
+	}
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	for _, suffix := range arkHostSuffixes {
+		if host == suffix || strings.HasSuffix(host, "."+suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // DisplayFamily is the family name a driver reports for a channel and model,

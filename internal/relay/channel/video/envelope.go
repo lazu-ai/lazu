@@ -285,7 +285,7 @@ func (envelopeDriver) ParseStatus(ch Channel, body []byte) (*StatusResult, error
 	if !ok {
 		return nil, fmt.Errorf("decode video status: not a JSON object")
 	}
-	word := strings.ToLower(firstString(payload, env.StatusPath, "status", "state"))
+	word := strings.ToLower(firstString(payload, env.StatusPath, "status", "state", "data.status"))
 	state, known := env.StatusMap[word]
 	artifactURL := firstString(payload, env.ArtifactPaths...)
 	facts := envelopeFacts(payload, env)

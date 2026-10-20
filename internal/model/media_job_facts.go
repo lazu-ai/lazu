@@ -30,13 +30,41 @@ func mediaJobSnapshotFacts(job MediaJob, key string) (dto.VideoFacts, bool) {
 }
 
 // MediaJobProviderFacts returns the dimensions to bill a video job on: what
-// the provider reported at the terminal state when it did, else what the
-// submission estimated from the outbound request.
+// the provider reported at the terminal state, field by field, over what the
+// submission estimated from the outbound request. A dimension the provider
+// left out keeps the estimate, so a result without usage cannot price the
+// clip at zero tokens.
 func MediaJobProviderFacts(job MediaJob) (dto.VideoFacts, bool) {
-	if facts, ok := mediaJobSnapshotFacts(job, MediaJobProviderFactsSnapshotKey); ok {
-		return facts, true
+	estimate, hasEstimate := mediaJobSnapshotFacts(job, MediaJobProviderFactsEstimateSnapshotKey)
+	reported, hasReported := mediaJobSnapshotFacts(job, MediaJobProviderFactsSnapshotKey)
+	if !hasReported {
+		return estimate, hasEstimate
 	}
-	return mediaJobSnapshotFacts(job, MediaJobProviderFactsEstimateSnapshotKey)
+	if !hasEstimate {
+		return reported, true
+	}
+	merged := estimate
+	if reported.Seconds > 0 {
+		merged.Seconds = reported.Seconds
+	}
+	if reported.Resolution != "" {
+		merged.Resolution = reported.Resolution
+	}
+	if reported.Ratio != "" {
+		merged.Ratio = reported.Ratio
+	}
+	if reported.FPS > 0 {
+		merged.FPS = reported.FPS
+	}
+	if reported.OutputTokens > 0 {
+		merged.OutputTokens = reported.OutputTokens
+	}
+	if reported.ProviderCostUSD != nil {
+		merged.ProviderCostUSD = reported.ProviderCostUSD
+	}
+	merged.Audio = reported.Audio || estimate.Audio
+	merged.Reported = reported.Reported
+	return merged, true
 }
 
 // MediaJobHasReportedFacts reports whether the provider told us a billing

@@ -1250,7 +1250,7 @@
     "page.console.modelOps.tier.sourceRecordLabel": "{{name}}, last {{hours}} hours",
     "page.console.modelOps.tier.stable": "Stable",
     "page.console.modelOps.tier.videoPricing": "Video pricing JSON",
-    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd prices each tier per second; provider_cost_multiplier bills the provider-reported cost; token-billed models only need the output token price.",
+    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd prices each tier per second; provider_cost_multiplier bills the provider-reported cost, and still needs a per-second price for the hold; token-billed models only need the output token price.",
     "page.console.modelOps.tier.weight": "Weight",
     "page.console.modelOps.tier.weightFor": "Weight of {{name}} in this tier",
     "page.console.modelOps.title": "Model operations",

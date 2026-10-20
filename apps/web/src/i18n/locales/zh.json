@@ -1250,7 +1250,7 @@
     "page.console.modelOps.tier.sourceRecordLabel": "{{name}} 过去 {{hours}} 小时的记录",
     "page.console.modelOps.tier.stable": "稳定",
     "page.console.modelOps.tier.videoPricing": "视频价格 JSON",
-    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd 按档秒价；provider_cost_multiplier 以上游 cost 为准；按 token 计费填输出单价即可。",
+    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd 按档秒价；provider_cost_multiplier 以上游 cost 为准，仍需填秒价用于预扣；按 token 计费填输出单价即可。",
     "page.console.modelOps.tier.weight": "权重",
     "page.console.modelOps.tier.weightFor": "{{name}} 在本线路的权重",
     "page.console.modelOps.title": "模型运营",

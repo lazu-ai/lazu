@@ -314,6 +314,7 @@ func completeUpstreamVideoJob(ctx context.Context, job model.MediaJob, channel *
 		return failMediaJobBilling(job, err, now)
 	}
 	defer model.ReleaseMediaJobSpendBudgetReservation(job)
+	alertVideoRequoteCapped(ctx, job, billingResult)
 	if err := model.MarkMediaJobSucceeded(job.ID, model.CompleteMediaJobInput{
 		ArtifactFileID: file.ID,
 		CostSnapshot:   billingResult.CostSnapshot,
@@ -326,6 +327,42 @@ func completeUpstreamVideoJob(ctx context.Context, job model.MediaJob, channel *
 		return err
 	}
 	return nil
+}
+
+// alertVideoRequoteCapped tells the operator when a provider's report priced
+// a job far above its hold. The job settled at the hold, so the customer was
+// not overcharged, but the report is either a unit mix-up on the channel or
+// a real cost the lane's price does not cover.
+func alertVideoRequoteCapped(ctx context.Context, job model.MediaJob, result model.MediaJobBillingResult) {
+	if !result.RequoteCapped {
+		return
+	}
+	hold := fmt.Sprintf("$%.6f", result.CustomerCharge.Dollars())
+	quoted := fmt.Sprintf("$%.6f", result.RequoteQuotedMicrousd.Dollars())
+	// Settlement already logged the job; this is the operator's mail.
+	if !common.RedisEnabled || common.RDB == nil {
+		return
+	}
+	mail := common.Mail{
+		Severity:  "ALERT",
+		Source:    "video-billing",
+		Title:     "视频结算超出预扣上限",
+		Preheader: fmt.Sprintf("%s 按上游回报应收 %s，已按预扣 %s 结算", job.ModelName, quoted, hold),
+		Lead:      "上游回报的计费数据把这条视频任务算成了预扣的两倍以上。为了不多收用户的钱，这次按预扣结算。请检查这个渠道回报的 cost 或 token 单位是否正确，以及这条通道的售价能否覆盖上游成本。",
+		Blocks: []common.MailBlock{
+			{Facts: []common.MailFact{
+				{Label: "任务", Value: job.PublicID, Mono: true},
+				{Label: "模型", Value: job.ModelName, Mono: true},
+				{Label: "预扣（已结算）", Value: hold, Mono: true},
+				{Label: "按回报重算", Value: quoted, Mono: true},
+			}},
+		},
+	}
+	// One mail per model every 6 hours: a misreporting channel repeats on
+	// every job, and the settlement log keeps each one.
+	if err := sendLeasedOpsMail(ctx, "video-requote-capped:"+job.ModelName, 6*time.Hour, "视频结算超出预扣上限", mail); err != nil {
+		common.SysLog("video requote cap alert for " + job.PublicID + ": " + err.Error())
+	}
 }
 
 func permanentMediaJobBillingError(err error) bool {

@@ -1250,7 +1250,7 @@
     "page.console.modelOps.tier.sourceRecordLabel": "{{name}} 過去 {{hours}} 小時的紀錄",
     "page.console.modelOps.tier.stable": "穩定",
     "page.console.modelOps.tier.videoPricing": "影片價格 JSON",
-    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd 依檔秒價；provider_cost_multiplier 以上游 cost 為準；按 token 計費填輸出單價即可。",
+    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd 依檔秒價；provider_cost_multiplier 以上游 cost 為準，仍需填秒價用於預扣；按 token 計費填輸出單價即可。",
     "page.console.modelOps.tier.weight": "權重",
     "page.console.modelOps.tier.weightFor": "{{name}} 在此線路的權重",
     "page.console.modelOps.title": "模型營運",

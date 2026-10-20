@@ -533,7 +533,7 @@ export default function LanePricing({
                         <span className='mo-field__hint'>
                           {t(`${ns}.tier.videoPricingHelp`, {
                             defaultValue:
-                              'resolution_second_usd 按档秒价；provider_cost_multiplier 以上游 cost 为准；按 token 计费填输出单价即可。',
+                              'resolution_second_usd 按档秒价；provider_cost_multiplier 以上游 cost 为准，仍需填秒价用于预扣；按 token 计费填输出单价即可。',
                           })}
                         </span>
                       </label>

@@ -26,7 +26,16 @@ type MediaJobBillingResult struct {
 	CustomerCharge          billing.MicroUSD
 	ProviderCost            billing.MicroUSD
 	AlreadySettled          bool
+	// RequoteCapped is set when the provider's report priced the job above
+	// mediaJobRequoteMaxFactor times its hold; the hold was settled instead.
+	RequoteCapped         bool
+	RequoteQuotedMicrousd billing.MicroUSD
 }
+
+// mediaJobRequoteMaxFactor bounds how far a provider's report may move a
+// settlement above its hold. A report beyond it (a cost in the wrong unit, a
+// runaway token count) settles at the hold and the operator is told.
+const mediaJobRequoteMaxFactor = 2
 
 var ErrMediaJobPriceNotConfigured = errors.New("media job price not configured")
 var ErrMediaJobDurationRequired = errors.New("media job duration required")
@@ -52,25 +61,21 @@ func SettleMediaJobBilling(job MediaJob, now time.Time) (MediaJobBillingResult, 
 	}
 	source := mediaJobSource(job)
 	reservedQuota := MediaJobBillingReservationAmount(job)
-	result, quoteErr := quoteMediaJobBilling(job)
+	var result MediaJobBillingResult
+	var quoteErr error
 	if reservedQuota > 0 {
 		verified, verificationErr := mediaJobBillingReservationActive(job, reservedQuota)
 		if verificationErr != nil {
-			return result, verificationErr
+			return mediaJobBillingResultFromReservation(job, reservedQuota), verificationErr
 		}
 		if !verified {
-			return result, ErrMediaJobBillingReservationUnverified
+			return mediaJobBillingResultFromReservation(job, reservedQuota), ErrMediaJobBillingReservationUnverified
 		}
+		// The delta between this result and the hold settles below.
 		reserved := mediaJobBillingResultFromReservation(job, reservedQuota)
-		// The hold is final unless the provider reported a billing dimension
-		// of its own (Ark tokens, an aggregator's cost); then the customer
-		// pays the fresh quote and the delta against the hold settles below.
-		if quoteErr != nil || !result.CustomerPriceConfigured || !MediaJobHasReportedFacts(job) {
-			result = reserved
-			quoteErr = nil
-		} else if result.ChannelGroup == "" {
-			result.ChannelGroup = reserved.ChannelGroup
-		}
+		result = settlementMediaJobBilling(job, reserved, reservedQuota, reserved.CustomerQuote.PricingVersion, mediaJobBudgetOccurredAt(job, now))
+	} else {
+		result, quoteErr = quoteMediaJobBilling(job)
 	}
 	result.CostSnapshot = buildMediaJobCostSnapshot(result)
 	if quoteErr != nil {
@@ -233,18 +238,60 @@ func SettleMediaJobBilling(job MediaJob, now time.Time) (MediaJobBillingResult, 
 	return result, nil
 }
 
+// settlementMediaJobBilling decides what a held job settles at, on both
+// ledgers. The hold is final unless the provider reported a billing
+// dimension of its own (Ark tokens, an aggregator's cost, the delivered
+// length). Then the job is re-quoted on the sheet as it stood at admission,
+// and the fresh quote replaces the hold only when it prices every dimension,
+// comes from the same price version as the hold, is not zero against a real
+// hold, and stays within mediaJobRequoteMaxFactor of it.
+func settlementMediaJobBilling(job MediaJob, reserved MediaJobBillingResult, hold billing.MicroUSD, holdVersion int64, admittedAt time.Time) MediaJobBillingResult {
+	if !MediaJobHasReportedFacts(job) {
+		return reserved
+	}
+	quoted, err := quoteMediaJobBillingAt(job, admittedAt)
+	switch {
+	case err != nil || !quoted.CustomerPriceConfigured:
+		return reserved
+	case len(quoted.CustomerQuote.MissingPriceDimensions) > 0:
+		return reserved
+	case holdVersion == 0 || quoted.CustomerQuote.PricingVersion != holdVersion:
+		// The lane was repriced while the job ran; it pays what it was quoted.
+		return reserved
+	case hold > 0 && quoted.CustomerCharge <= 0:
+		return reserved
+	case hold > 0 && quoted.CustomerCharge > hold*mediaJobRequoteMaxFactor:
+		common.SysError(fmt.Sprintf("media job settled at its hold: job=%s model=%s hold_microusd=%d reported_microusd=%d", job.PublicID, job.ModelName, hold, quoted.CustomerCharge))
+		reserved.RequoteCapped = true
+		reserved.RequoteQuotedMicrousd = quoted.CustomerCharge
+		return reserved
+	}
+	if quoted.ChannelGroup == "" {
+		quoted.ChannelGroup = reserved.ChannelGroup
+	}
+	return quoted
+}
+
 func ReserveMediaJobBillingBeforeSubmit(job *MediaJob, now time.Time) (MediaJobBillingResult, error) {
 	if job == nil {
 		return MediaJobBillingResult{}, errors.New("media job is required")
 	}
 	now = normalizeMediaJobTime(now)
-	result, quoteErr := quoteMediaJobBilling(*job)
+	// Settlement re-quotes on the sheet as it stood at this admission.
+	result, quoteErr := quoteMediaJobBillingAt(*job, now)
 	result.CostSnapshot = buildMediaJobCostSnapshot(result)
 	if quoteErr != nil {
 		return result, quoteErr
 	}
 	if !result.CustomerPriceConfigured {
 		return result, fmt.Errorf("%w: model=%s group=%s", ErrMediaJobPriceNotConfigured, job.ModelName, result.ChannelGroup)
+	}
+	if job.Kind == MediaJobKindVideo && result.CustomerCharge <= 0 && len(result.CustomerQuote.MissingPriceDimensions) > 0 {
+		// The lane prices nothing of this estimate (a provider-cost lane
+		// without a per-second price, say), so the hold would be zero and the
+		// clip free whenever the provider leaves its cost out. A lane that is
+		// free on purpose has no missing dimension and still passes.
+		return result, fmt.Errorf("%w: model=%s group=%s missing=%s", ErrMediaJobPriceNotConfigured, job.ModelName, result.ChannelGroup, strings.Join(result.CustomerQuote.MissingPriceDimensions, ","))
 	}
 	if modernMediaBilling() {
 		return reserveRedisMediaJob(job, result, now)
@@ -778,6 +825,12 @@ func markMediaJobBillingSettledTx(tx *gorm.DB, jobID uint, result MediaJobBillin
 }
 
 func quoteMediaJobBilling(job MediaJob) (MediaJobBillingResult, error) {
+	return quoteMediaJobBillingAt(job, time.Now())
+}
+
+// quoteMediaJobBillingAt prices the job on the sell price sheet as it stood
+// at `at` (peak-hour adjustments are time-of-day dependent).
+func quoteMediaJobBillingAt(job MediaJob, at time.Time) (MediaJobBillingResult, error) {
 	channelID, channelGroup := mediaJobChannelContext(job)
 	usageFact := mediaJobUsageFact(job, channelID)
 	result := MediaJobBillingResult{
@@ -794,7 +847,7 @@ func quoteMediaJobBilling(job MediaJob) (MediaJobBillingResult, error) {
 			return result, err
 		}
 		usageFact = customerFact
-		customerQuote = billing.Quote(billingUsageFromMediaFact(customerFact), sellPrice.ToBillingPriceSheet(), nil)
+		customerQuote = billing.Quote(billingUsageFromMediaFact(customerFact), sellPrice.ToBillingPriceSheetAt(at), nil)
 	}
 	providerQuote := billing.QuoteResult{}
 	if channelID > 0 {

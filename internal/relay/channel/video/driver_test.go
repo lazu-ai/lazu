@@ -17,8 +17,14 @@ func TestSelectPicksFamilyFromChannelAndModel(t *testing.T) {
 		want   string
 	}{
 		{"openai type defaults to gateway", Channel{Type: channelTypeOpenAI}, []string{"veo-3.1"}, dto.VideoFamilyGateway},
-		{"seedance on openai type is ark", Channel{Type: channelTypeOpenAI}, []string{"doubao-seedance-1-5-pro-251215"}, dto.VideoFamilyArk},
-		{"mapped upstream name decides too", Channel{Type: channelTypeOpenAI}, []string{"video-pro", "dreamina-seedance-2-0-260128"}, dto.VideoFamilyArk},
+		{"seedance on an ark base url is ark", Channel{Type: channelTypeOpenAI, BaseURL: "https://ark.cn-beijing.volces.com/api/v3"}, []string{"doubao-seedance-1-5-pro-251215"}, dto.VideoFamilyArk},
+		{"seedance on byteplus is ark", Channel{Type: channelTypeOpenAI, BaseURL: "https://ark.ap-southeast.bytepluses.com/api/v3"}, []string{"seedance-1-0-pro"}, dto.VideoFamilyArk},
+		{"mapped upstream name decides too", Channel{Type: channelTypeOpenAI, BaseURL: "https://ark.cn-beijing.volces.com/api/v3"}, []string{"video-pro", "dreamina-seedance-2-0-260128"}, dto.VideoFamilyArk},
+		{"seedance through an aggregator keeps the gateway", Channel{Type: channelTypeOpenAI, BaseURL: "https://openrouter.ai/api"}, []string{"doubao-seedance-1-0-pro"}, dto.VideoFamilyGateway},
+		{"seedance on a custom channel keeps the envelope", Channel{Type: channelTypeCustom, BaseURL: "https://agg.example/videos"}, []string{"doubao-seedance-1-0-pro"}, dto.VideoFamilyEnvelope},
+		{"an ark base url without a scheme is ark", Channel{Type: channelTypeOpenAI, BaseURL: "ark.cn-beijing.volces.com/api/v3"}, []string{"seedance-1-0-pro"}, dto.VideoFamilyArk},
+		{"a lookalike host is not ark", Channel{Type: channelTypeOpenAI, BaseURL: "https://notvolces.com/api/v3"}, []string{"seedance-1-0-pro"}, dto.VideoFamilyGateway},
+		{"explicit ark on a proxy host", Channel{Type: channelTypeOpenAI, BaseURL: "https://ark-proxy.internal", Settings: dto.ChannelOtherSettings{VideoFamily: dto.VideoFamilyArk}}, []string{"seedance-1-0-pro"}, dto.VideoFamilyArk},
 		{"gemini type is veo", Channel{Type: channelTypeGemini}, []string{"veo-3.1"}, dto.VideoFamilyGemini},
 		{"custom type is envelope", Channel{Type: channelTypeCustom}, []string{"any"}, dto.VideoFamilyEnvelope},
 		{"explicit family wins", Channel{Type: channelTypeOpenAI, Settings: dto.ChannelOtherSettings{VideoFamily: dto.VideoFamilyEnvelope}}, []string{"seedance-2.0"}, dto.VideoFamilyEnvelope},
@@ -368,5 +374,34 @@ func TestReviewFixes(t *testing.T) {
 	good := dto.VideoRequest{FrameImages: []dto.VideoFrameImage{{URL: "gs://b/a.png", FrameType: "last_frame"}}, InputRefs: []dto.VideoInputReference{{URL: "https://x/a.png"}}}
 	if err := good.ValidateInputs(); err != nil {
 		t.Fatalf("valid inputs refused: %v", err)
+	}
+}
+
+func TestEnvelopeLegacyCustomReadsDataStatus(t *testing.T) {
+	ch := Channel{Type: channelTypeCustom, BaseURL: "https://video.example.com/generate", Key: "k",
+		Settings: dto.ChannelOtherSettings{VideoStatusURLTemplate: "/jobs/{id}", VideoContentURLTemplate: "/jobs/{id}/content"}}
+	driver := envelopeDriver{}
+	failed, err := driver.ParseStatus(ch, []byte(`{"data":{"status":"failed"}}`))
+	if err != nil || failed.State != StateFailed {
+		t.Fatalf("data.status failed must fail the job: %+v %v", failed, err)
+	}
+	done, err := driver.ParseStatus(ch, []byte(`{"data":{"status":"completed"}}`))
+	if err != nil || done.State != StateSucceeded {
+		t.Fatalf("data.status completed must succeed (the clip comes from the content template): %+v %v", done, err)
+	}
+	top, _ := driver.ParseStatus(ch, []byte(`{"status":"queued","data":{"status":"completed"}}`))
+	if top.State != StateQueued {
+		t.Fatalf("a top-level status still wins: %+v", top)
+	}
+}
+
+func TestArkResultWithoutBillingFactsHasNoFacts(t *testing.T) {
+	ch := Channel{Type: channelTypeOpenAI, BaseURL: "https://ark.cn-beijing.volces.com/api/v3", Key: "k"}
+	done, err := arkDriver{}.ParseStatus(ch, []byte(`{"id":"cgt","status":"succeeded","content":{"video_url":"https://ark-content.tos.volces.com/x.mp4"}}`))
+	if err != nil || done.State != StateSucceeded {
+		t.Fatalf("status: %+v %v", done, err)
+	}
+	if done.Facts != nil {
+		t.Fatalf("a result without usage, duration or resolution reports nothing: %+v", done.Facts)
 	}
 }
