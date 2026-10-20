@@ -47,6 +47,9 @@ const (
 	// EventToolStart opens a function call: ToolIndex is the upstream's
 	// position for it (Chat merges fragments by it), ToolCallID and
 	// ToolName what is known so far, ItemID the upstream's item id if any.
+	// A call its upstream signed (Gemini's thought signature) carries the
+	// signature in Text, bound to SealedBy, for that dialect alone to read
+	// back.
 	EventToolStart EventKind = "tool_start"
 	// EventToolArguments is a fragment of the call's arguments (Text) for
 	// ToolIndex; ToolCallID and ToolName are set when the fragment carried

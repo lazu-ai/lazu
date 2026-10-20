@@ -24,8 +24,8 @@ type Part struct {
 	// Text is the part's text: the answer, the refusal, the reasoning, or
 	// a tool call's arguments.
 	Text string
-	// Signature is a reasoning part's, SealedBy the dialect it belongs to
-	// (also a sealed part's).
+	// Signature is a reasoning part's or a signed tool call's, SealedBy the
+	// dialect it belongs to (also a sealed part's).
 	Signature string
 	SealedBy  string
 	Sealed    json.RawMessage
@@ -151,7 +151,11 @@ func (c *Collector) Add(events ...Event) {
 			if _, open := c.tools[event.ToolIndex]; open {
 				continue
 			}
-			c.tools[event.ToolIndex] = c.appendPart(Part{Kind: PartTool, ToolIndex: event.ToolIndex, CallID: event.ToolCallID, Name: event.ToolName, ItemID: event.ItemID})
+			part := Part{Kind: PartTool, ToolIndex: event.ToolIndex, CallID: event.ToolCallID, Name: event.ToolName, ItemID: event.ItemID}
+			if event.SealedBy != "" {
+				part.Signature, part.SealedBy = event.Text, event.SealedBy
+			}
+			c.tools[event.ToolIndex] = c.appendPart(part)
 		case EventToolArguments, EventToolDone:
 			index, open := c.tools[event.ToolIndex]
 			if !open {

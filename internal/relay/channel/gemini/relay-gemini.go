@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -526,80 +525,11 @@ func getSupportedMimeTypesList() []string {
 	return keys
 }
 
-func unescapeString(s string) (string, error) {
-	var result []rune
-	escaped := false
-	i := 0
-
-	for i < len(s) {
-		r, size := utf8.DecodeRuneInString(s[i:]) // 正确解码UTF-8字符
-		if r == utf8.RuneError {
-			return "", fmt.Errorf("invalid UTF-8 encoding")
-		}
-
-		if escaped {
-			// 如果是转义符后的字符，检查其类型
-			switch r {
-			case '"':
-				result = append(result, '"')
-			case '\\':
-				result = append(result, '\\')
-			case '/':
-				result = append(result, '/')
-			case 'b':
-				result = append(result, '\b')
-			case 'f':
-				result = append(result, '\f')
-			case 'n':
-				result = append(result, '\n')
-			case 'r':
-				result = append(result, '\r')
-			case 't':
-				result = append(result, '\t')
-			case '\'':
-				result = append(result, '\'')
-			default:
-				// 如果遇到一个非法的转义字符，直接按原样输出
-				result = append(result, '\\', r)
-			}
-			escaped = false
-		} else {
-			if r == '\\' {
-				escaped = true // 记录反斜杠作为转义符
-			} else {
-				result = append(result, r)
-			}
-		}
-		i += size // 移动到下一个字符
-	}
-
-	return string(result), nil
-}
-func unescapeMapOrSlice(data interface{}) interface{} {
-	switch v := data.(type) {
-	case map[string]interface{}:
-		for k, val := range v {
-			v[k] = unescapeMapOrSlice(val)
-		}
-	case []interface{}:
-		for i, val := range v {
-			v[i] = unescapeMapOrSlice(val)
-		}
-	case string:
-		if unescaped, err := unescapeString(v); err != nil {
-			return v
-		} else {
-			return unescaped
-		}
-	}
-	return data
-}
-
 func getResponseToolCall(item *dto.GeminiPart) *dto.ToolCallResponse {
 	var argsBytes []byte
 	var err error
 	if result, ok := item.FunctionCall.Arguments.(map[string]interface{}); ok {
-		argsBytes, err = json.Marshal(unescapeMapOrSlice(result))
+		argsBytes, err = json.Marshal(geminicodec.UnescapeArguments(result))
 	} else {
 		argsBytes, err = json.Marshal(item.FunctionCall.Arguments)
 	}
