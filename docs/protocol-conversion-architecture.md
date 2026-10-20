@@ -267,30 +267,27 @@ type RelayPlan struct {
 
 ### 事件 IR
 
-请求 IR 与响应 IR 不复用。响应是事件序列，必须携带足以重建完整 Responses SSE 的信息：
+请求 IR 与响应 IR 不复用。响应是**内容事件**序列（`internal/protocol/textgen/event.go`，2026-10-21 修订）：它只说"模型说了什么、按什么顺序"，不带任何一个协议的生命周期。Responses 的 item/content part/sequence_number、Anthropic 的 block、Chat 的 choice 都是各协议 emitter 自己的状态。
 
 ```go
 type Event struct {
-    Kind             EventKind
-    Sequence         uint64
-    ResponseID       string
-    Model            string
-    ItemID           string
-    ItemIndex        int
-    ContentIndex     int
-    ToolCallID       string
-    Delta            TypedDelta        // 文本、tool arguments 分片、annotation
-    Usage            *UsageFact
-    Status           ResponseStatus    // in_progress / completed / incomplete / failed
-    IncompleteReason string            // 如 max_output_tokens
-    Metadata         map[string]string // response 级 metadata 回显
-    Error            *SemanticError
+    Kind       EventKind   // start, turn, text, refusal, reasoning_start, reasoning,
+                           // reasoning_signature, reasoning_sealed, tool_start,
+                           // tool_arguments, tool_done, stop, usage, error
+    Text       string      // 分片：回答、拒绝、推理、签名或参数
+    ResponseID, Model string; CreatedAt int64   // start
+    ItemID     string      // 上游给推理块或调用 item 的 id
+    ToolIndex  int; ToolCallID, ToolName string // 调用按上游位置合并
+    Stop       StopReason  // end / length / tool / filter
+    Usage      *dto.Usage  // 共享用量事实
+    Error      *SemanticError
+    Sealed     json.RawMessage; SealedBy string // 密封推理，只回传给来源方言
 }
 ```
 
-`EventKind` 至少包括：`response_created`、`response_in_progress`、`item_added`、`content_part_added`、`delta`、`content_part_done`、`item_done`、`response_completed`、`response_incomplete`、`response_failed`、`usage`。仅 created/delta/done/completed 不足以生成合法 Responses 流——content part 生命周期与 incomplete 终态必须在 IR 层表达，否则协议特例会被塞回 emitter。
+每个协议有一个 **decoder**（上游 wire → 事件）和一个 **emitter**（事件 → 客户端 wire）；4 个协议 8 件，16 个组合全部由此得到。emitter 是显式状态机，持有 O(活跃 item/tool 数) 状态，自己分配 id、index 和 sequence。Responses emitter 的 terminal event 必须带完整 `output`，所以它保留一份受请求 max-output 约束的装配缓冲；禁止重复缓冲、无界队列或为日志再复制一份完整输出。推理块边界（`reasoning_start`）和密封推理（`reasoning_sealed`）在 IR 里表达，这样 Anthropic 的多段 thinking 和 Responses 的 reasoning item 不需要 emitter 之间互相认识对方的形状。
 
-Emitter 是显式状态机，持有 O(活跃 item/tool 数) 状态。由于 Responses 的 terminal event 必须带可直接消费的完整 `output`，Chat→Responses emitter 允许保留一份受模型 max-output 约束的终态装配缓冲；禁止重复缓冲、无界队列或为日志再复制一份完整输出。Chat→Responses 事件流（Responses 客户端读 Chat 上游）和 Responses→Chat 事件流各是一个独立状态机，各配 fixture；不在现有 handler 上继续加分支。
+已落地：Chat decoder（`codec/openai_chat/stream.go`）、Responses emitter（`codec/openai_responses/stream.go`）。原先 Responses 形状的事件 IR 和 `ChatStreamBridge` 已被替换；Responses→Chat 方向（`relay_responses.go`）尚未迁到 decoder/emitter，随 Anthropic codec 一起迁。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 

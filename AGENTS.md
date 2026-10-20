@@ -223,10 +223,15 @@ roadmap adds it, and until then the rule is a review rule.
    model_name_rules_test.go`) scans the channel packages; the judgements
    that existed when it was written are listed there as debt, per file, and
    the list may only shrink.
-4. **The IR imports no wire DTO.** `internal/protocol/textgen` must not import
-   `internal/dto`; the event IR carries content (text, reasoning, tool start,
-   argument fragments, stop, usage), and each protocol's emitter owns its own
-   lifecycle (items, content parts, blocks). Planned test: import check.
+4. **The event IR carries content, not a protocol's lifecycle.** The events
+   in `internal/protocol/textgen/event.go` are text, refusal, reasoning (with
+   block boundaries, signatures and sealed items bound to their dialect),
+   tool start, argument fragments, stop, usage and error. Items, content
+   parts, blocks, sequence numbers, ids and indexes belong to each protocol's
+   emitter; the shared usage fact (`dto.Usage`) and the parsed wire request
+   kept beside the IR are the only `internal/dto` types the package refers
+   to. `TestEventIRCarriesNoWireShapes` fails on a `dto.Responses*`,
+   `dto.Claude*` or `dto.Gemini*` reference in the IR files.
 5. **Refuse with a feature ID and a field path; degrade only from the
    registry.** A request that cannot be preserved returns 400 before the
    upstream call, naming `feature` and `path`. The only permitted lossy steps
@@ -251,9 +256,11 @@ roadmap adds it, and until then the rule is a review rule.
    the PR that lands their codec or the release after it, and gain no new
    features meanwhile. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
-   Each codec directory has `testdata/*.sse` captured from a real upstream
-   (de-identified request details are the source). Planned test: the directory
-   is non-empty for every codec.
+   Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
+   (made by `go test -tags record` in `internal/relay/contracttest`, keys from
+   the environment only) and load through
+   `internal/protocol/textgen/fixtures`. A stream decoder has at least one
+   test that feeds its vendor's recording through it. Enforced by review.
 9. **Stateless by default.** `previous_response_id`, `conversation` and
    explicit `store: true` return a stable 400 on bridged paths until a separate
    ADR designs server-side state. Enforced by the planner's tests.
