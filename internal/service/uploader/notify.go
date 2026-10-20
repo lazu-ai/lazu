@@ -15,6 +15,12 @@ const (
 )
 
 func NotifyPgDumpResult(res PgDumpResult) {
+	if res.Reason == pgDumpAlreadyRunning && res.Err == nil {
+		// A run that is still going has no new outcome. Keep the last real
+		// result, so a dump that hangs ages into a stopped backup in the
+		// digest instead of refreshing a quiet skip every day.
+		return
+	}
 	if res.Reason != "" && res.Err == nil {
 		alerting.RecordHealth(pgDumpIncidentKey, "Database backup", "skipped", res.Reason)
 		return

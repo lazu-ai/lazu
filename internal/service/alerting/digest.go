@@ -3,6 +3,7 @@ package alerting
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -65,6 +66,10 @@ var digestTaskExpected = func(key string) bool {
 		return common.UsingPostgreSQL && common.AppConfig.ArtifactStorage.S3.IsConfigured()
 	case "archive-compactor":
 		return common.AppConfig.ArtifactStorage.S3.IsConfigured()
+	case "relay-zero-token":
+		// Only the separate worker runs this monitor; an all-in-one API
+		// does not schedule it.
+		return common.ResolveProcessRole(os.Getenv("PROCESS_ROLE")) != common.ProcessRoleAllInOne
 	default:
 		return true
 	}
