@@ -229,7 +229,7 @@ func pollVideoProvider(ctx context.Context, job model.MediaJob, channel *model.C
 		}
 		return nil, err
 	}
-	response, body, err := doVideoProviderRequest(ctx, http.MethodGet, statusRequest.URL, statusRequest.Headers, channel)
+	response, body, err := service.DoVideoProviderRequest(ctx, http.MethodGet, statusRequest.URL, statusRequest.Headers, channel.GetSetting().Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -412,35 +412,6 @@ func rescheduleCompletedVideoArtifact(job model.MediaJob, now time.Time, stage s
 	}
 	common.SysLog(fmt.Sprintf("video job %s artifact %s error: %v", job.PublicID, stage, err))
 	return nil
-}
-
-func doVideoProviderRequest(ctx context.Context, method string, requestURL string, headers http.Header, channel *model.Channel) (*http.Response, []byte, error) {
-	request, err := http.NewRequestWithContext(ctx, method, requestURL, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	for name, values := range headers {
-		for _, value := range values {
-			request.Header.Add(name, value)
-		}
-	}
-	client, err := videoProviderHTTPClient(channel, requestURL, true)
-	if err != nil {
-		return nil, nil, err
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer response.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(response.Body, videoProviderResponseLimit+1))
-	if err != nil {
-		return nil, nil, err
-	}
-	if int64(len(body)) > videoProviderResponseLimit {
-		return nil, nil, fmt.Errorf("video provider response is too large")
-	}
-	return response, body, nil
 }
 
 func doVideoProviderDownload(ctx context.Context, download *video.DownloadRequest, channel *model.Channel) (*http.Response, []byte, error) {

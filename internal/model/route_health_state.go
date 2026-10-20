@@ -360,6 +360,52 @@ func RecordRouteHealthEvidence(
 	return nil
 }
 
+// A breaker reason records which kind of evidence tripped the route, because
+// the two kinds of success do not prove the same thing. A liveness check that
+// reaches the provider proves the API answers and the key works; it does not
+// prove the route can make a video. So a reachability success clears a streak
+// of reachability failures (transport, auth, 5xx, a refused submission) but
+// leaves a streak of failed generations for a generation success to end.
+const routeHealthGenerationReasonPrefix = "generation: "
+
+// RouteHealthGenerationReason marks a breaker reason as a failed generation.
+func RouteHealthGenerationReason(code string) string {
+	return routeHealthGenerationReasonPrefix + strings.TrimSpace(code)
+}
+
+func isRouteHealthGenerationReason(reason string) bool {
+	return strings.HasPrefix(reason, routeHealthGenerationReasonPrefix)
+}
+
+// RecordRouteReachabilityEvidence folds one liveness verdict into a route's
+// breaker. An unreachable provider counts like any failure. A reachable one
+// clears the route only when what tripped it was reachability too.
+func RecordRouteReachabilityEvidence(
+	modelName string, lane string, channelID int, reachable bool, reason string, at time.Time,
+) error {
+	if !reachable {
+		return RecordRouteHealthEvidence(modelName, lane, channelID, false, reason, at)
+	}
+	if !ShouldRecordRouteHealthEvidence(modelName, lane, channelID, true) {
+		return nil
+	}
+	var row RouteHealthState
+	err := CoreDB().
+		Where("lane = ? AND model_name = ? AND channel_id = ?",
+			NormalizeChannelLane(lane), NormalizePricingModelName(strings.TrimSpace(modelName)), channelID).
+		First(&row).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if isRouteHealthGenerationReason(row.Reason) {
+		return nil
+	}
+	return RecordRouteHealthEvidence(modelName, lane, channelID, true, "", at)
+}
+
 func truncateRouteHealthReason(reason string) string {
 	reason = strings.TrimSpace(reason)
 	if len(reason) > 250 {

@@ -553,3 +553,81 @@ func TestSearchOverlayFailureKeepsModelHealth(t *testing.T) {
 		t.Fatal("cached snapshot was mutated")
 	}
 }
+
+// A video route is checked by reading a task's status: no generation, no
+// cost. The route's most recent delivered task is asked about when there is
+// one, the sentinel otherwise, and only the provider's own answers count as
+// reachable.
+func TestProbeVideoRouteReadsTaskStatusWithoutGenerating(t *testing.T) {
+	db := setupModelOpsControllerTestDB(t)
+	if err := db.AutoMigrate(&model.MediaJob{}); err != nil {
+		t.Fatalf("migrate media jobs: %v", err)
+	}
+	var (
+		asked  []string
+		answer = http.StatusNotFound
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("liveness used %s; it must never submit", r.Method)
+		}
+		if r.Header.Get("Authorization") != "Bearer ark-key" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":{"code":"AuthenticationError"}}`))
+			return
+		}
+		asked = append(asked, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(answer)
+		if answer == http.StatusOK {
+			_, _ = w.Write([]byte(`{"id":"cgt-delivered","status":"succeeded"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"error":{"code":"ResourceNotFound","message":"task not found"}}`))
+	}))
+	defer server.Close()
+	baseURL := server.URL + "/api/v3"
+	channel := model.Channel{
+		Id: 92, PublicID: "ark-video", Name: "ark", Key: "ark-key", BaseURL: &baseURL,
+		Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled,
+		// An Ark proxy on its own host names its family, as production does.
+		OtherSettings: `{"video_family":"ark"}`,
+	}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatalf("seed Ark channel: %v", err)
+	}
+	candidate := ChannelProbeCandidate{
+		Lane: model.ChannelLaneDirect, ModelName: "seedance-2.5", ChannelId: channel.Id,
+	}
+
+	outcome := probeChannelCell(context.Background(), candidate, 0)
+	if outcome.Skipped || !outcome.Success || outcome.CostUSD != 0 ||
+		outcome.Modality != model.ChannelProbeModalityVideoLiveness {
+		t.Fatalf("sentinel check = %+v, want a free reachable liveness result", outcome)
+	}
+	if len(asked) != 1 || asked[0] != "/api/v3/contents/generations/tasks/lazu-liveness-check" {
+		t.Fatalf("asked %v, want the sentinel task", asked)
+	}
+
+	delivered := channel.Id
+	if err := db.Create(&model.MediaJob{
+		PublicID: "mjob-delivered", UserID: 1, ModelName: "seedance-2.5", Kind: model.MediaJobKindVideo,
+		ChannelID: &delivered, Status: model.MediaJobStatusSucceeded, UpstreamJobID: "cgt-delivered",
+	}).Error; err != nil {
+		t.Fatalf("seed delivered job: %v", err)
+	}
+	answer = http.StatusOK
+	outcome = probeChannelCell(context.Background(), candidate, 0)
+	if !outcome.Success || asked[len(asked)-1] != "/api/v3/contents/generations/tasks/cgt-delivered" {
+		t.Fatalf("hinted check = %+v asked %v, want the delivered task read back", outcome, asked)
+	}
+
+	if err := db.Model(&model.Channel{}).Where("id = ?", channel.Id).Update("key", "revoked").Error; err != nil {
+		t.Fatalf("revoke key: %v", err)
+	}
+	model.InitChannelCache()
+	outcome = probeChannelCell(context.Background(), candidate, 0)
+	if outcome.Skipped || outcome.Success || outcome.ErrorMessage == "" {
+		t.Fatalf("revoked-key check = %+v, want an unreachable verdict with its reason", outcome)
+	}
+}
