@@ -306,7 +306,9 @@ func sendDailyDigest() {
 	if err := postText(formatDailyDigest(now, snapshots, incidents, sections)); err != nil {
 		common.SysError("alerting: Feishu digest delivery failed: " + err.Error())
 		releaseDigestClaim(now)
+		return
 	}
+	markDigestDelivered(now)
 }
 
 func persistHealthSnapshot(key string, raw []byte) error {
@@ -937,7 +939,7 @@ func claimDigest(now time.Time) bool {
 	day := now.Format("2006-01-02")
 	if common.RedisEnabled && common.RDB != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		claimed, err := common.RDB.SetNX(ctx, "lazu:alerts:digest:v1:"+day, "1", 25*time.Hour).Result()
+		claimed, err := common.RDB.SetNX(ctx, digestClaimKey(day), "sending", digestSendingTTL).Result()
 		cancel()
 		if err == nil {
 			// Remember that the day is taken, by this process or another, so a
@@ -957,11 +959,35 @@ func claimDigest(now time.Time) bool {
 	return true
 }
 
+// A claim is held briefly while the digest is built and sent, and kept for
+// the rest of the day only once delivery succeeded. If releasing a failed
+// attempt does not reach Redis, the short hold still expires before the
+// next retry tick, so the day is not lost.
+const (
+	digestSendingTTL   = 10 * time.Minute
+	digestDeliveredTTL = 25 * time.Hour
+)
+
+func digestClaimKey(day string) string { return "lazu:alerts:digest:v1:" + day }
+
+func markDigestDelivered(now time.Time) {
+	if !common.RedisEnabled || common.RDB == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := common.RDB.Set(ctx, digestClaimKey(now.Format("2006-01-02")), "sent", digestDeliveredTTL).Err(); err != nil {
+		// This process remembers the day locally; another replica may send
+		// again once the short hold expires.
+		common.SysError("alerting: failed to record digest delivery: " + err.Error())
+	}
+}
+
 func releaseDigestClaim(now time.Time) {
 	day := now.Format("2006-01-02")
 	if common.RedisEnabled && common.RDB != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = common.RDB.Del(ctx, "lazu:alerts:digest:v1:"+day).Err()
+		_ = common.RDB.Del(ctx, digestClaimKey(day)).Err()
 		cancel()
 	}
 	localMu.Lock()

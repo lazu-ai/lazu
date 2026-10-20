@@ -116,7 +116,7 @@ func onlyExpectDigestTasks(t *testing.T, keys ...string) {
 }
 
 func TestDailyDigestLeadsWithProblemsAndFoldsHealthyTasks(t *testing.T) {
-	onlyExpectDigestTasks(t)
+	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump", "relay-zero-token")
 	now := time.Date(2026, 8, 19, 9, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 14 个文件", UpdatedAt: now.Add(-time.Hour).Unix()},
@@ -138,7 +138,7 @@ func TestDailyDigestLeadsWithProblemsAndFoldsHealthyTasks(t *testing.T) {
 }
 
 func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
-	onlyExpectDigestTasks(t)
+	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump", "relay-zero-token")
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", Summary: "size=671.7 MiB", UpdatedAt: now.Add(-(291*time.Hour + 38*time.Minute)).Unix()},
@@ -156,7 +156,7 @@ func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
 }
 
 func TestDailyDigestHeadline(t *testing.T) {
-	onlyExpectDigestTasks(t)
+	onlyExpectDigestTasks(t, "pg-dump", "relay-zero-token")
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	allOK := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
@@ -175,7 +175,7 @@ func TestDailyDigestHeadline(t *testing.T) {
 }
 
 func TestDailyDigestShowsSections(t *testing.T) {
-	onlyExpectDigestTasks(t)
+	onlyExpectDigestTasks(t, "pg-dump")
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
@@ -224,7 +224,7 @@ func TestDigestSectionFailureShowsInItsBlock(t *testing.T) {
 }
 
 func TestDailyDigestShowsOpenAlerts(t *testing.T) {
-	onlyExpectDigestTasks(t)
+	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump")
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	incidents := map[string]incidentState{
 		// Health still reads ok, but the alert was never resolved.
@@ -267,10 +267,30 @@ func TestDailyDigestListsExpectedTasksThatNeverReported(t *testing.T) {
 	}
 }
 
+func TestDailyDigestSkipsSnapshotsOfDisabledTasks(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	old := now.Add(-30 * 24 * time.Hour).Unix()
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+		// Upload and compactor were switched off after they last reported.
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", UpdatedAt: old},
+		{Key: "archive-compactor", Label: "R2 archive compactor", Status: "ok", UpdatedAt: old},
+	}, map[string]incidentState{
+		"archive-compactor": {Fingerprint: "x", FirstSeen: old, LastSeen: old, Occurrences: 1, Title: "❌ compactor FAILED"},
+	}, nil)
+	if strings.Contains(message, "已停止运行") || strings.Contains(message, "请求日志上传") {
+		t.Fatalf("a disabled task must not be reported as stopped: %s", message)
+	}
+	if !strings.Contains(message, "🔔 R2 旧归档压缩：告警未恢复") {
+		t.Fatalf("an open alert for a disabled task is still listed: %s", message)
+	}
+}
+
 func TestUploadCadenceFollowsConfiguredSchedule(t *testing.T) {
 	previous := common.AppConfig.Upload.Schedule
 	defer func() { common.AppConfig.Upload.Schedule = previous }()
-	onlyExpectDigestTasks(t)
+	onlyExpectDigestTasks(t, "hourly-upload")
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	snapshots := []HealthSnapshot{{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", UpdatedAt: now.Add(-5*time.Hour - 10*time.Minute).Unix()}}
 
@@ -659,6 +679,24 @@ func TestDigestClaimSurvivesRedisOutageAfterDelivery(t *testing.T) {
 	common.RDB = down
 	if claimDigest(now.Add(15 * time.Minute)) {
 		t.Fatal("a retry tick must not send again after a successful Redis-backed claim")
+	}
+}
+
+func TestDigestClaimIsShortUntilDelivered(t *testing.T) {
+	client := alertingTestRedis(t)
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	key := digestClaimKey("2026-10-20")
+	if !claimDigest(now) {
+		t.Fatal("first claim of the day should succeed")
+	}
+	// If the attempt fails and its release never reaches Redis, the hold must
+	// lapse before the 09:25 retry.
+	if ttl := client.TTL(context.Background(), key).Val(); ttl <= 0 || ttl > digestSendingTTL || ttl >= 15*time.Minute {
+		t.Fatalf("sending claim should expire before the next retry tick, ttl=%s", ttl)
+	}
+	markDigestDelivered(now)
+	if ttl := client.TTL(context.Background(), key).Val(); ttl < 24*time.Hour {
+		t.Fatalf("a delivered digest should hold the day, ttl=%s", ttl)
 	}
 }
 

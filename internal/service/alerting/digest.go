@@ -246,6 +246,12 @@ func digestTaskLines(now time.Time, snapshots []HealthSnapshot, incidents map[st
 	lines := make([]digestLine, 0, len(snapshots)+len(incidents))
 	withHealth := map[string]bool{}
 	for _, snapshot := range snapshots {
+		if _, known := digestTasks[snapshot.Key]; known && !digestTaskExpected(snapshot.Key) {
+			// A task switched off after it last reported keeps its snapshot in
+			// Redis; it is not stopped, just no longer run. An open alert for
+			// it is still listed below.
+			continue
+		}
 		line := digestLine{
 			snapshot: snapshot,
 			name:     snapshot.Label,
