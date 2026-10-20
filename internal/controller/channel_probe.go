@@ -763,10 +763,16 @@ func probeChannelCell(ctx context.Context, candidate ChannelProbeCandidate, esti
 }
 
 // channelProbeIsVideo reports whether a route is checked by reading a task's
-// status instead of sending a request. The catalog kind and the name rule are
-// both consulted: a hand-built candidate carries no kind.
+// status instead of sending a request. It uses the route's health kind, which
+// prefers the catalog's modality to the name rule: some image models carry a
+// name the video rule matches. An operator's manual probe carries no kind and
+// resolves it the same way.
 func channelProbeIsVideo(candidate ChannelProbeCandidate) bool {
-	return candidate.Kind == channelHealthKindVideo || common.IsVideoGenerationModel(candidate.ModelName)
+	kind := candidate.Kind
+	if kind == "" {
+		kind = channelHealthKindOf(channelHealthCatalogKinds(), candidate.ModelName)
+	}
+	return kind == channelHealthKindVideo
 }
 
 // probeVideoLiveness checks a video route without generating anything. It
