@@ -93,7 +93,7 @@ func TestRecordedResponsesToChatClient(t *testing.T) {
 	events := decodeRecording(t, "deepseek/responses_tool_call.sse")
 	emitter := openai_chat.NewStreamEmitter("", "m")
 	chunks := emitter.Emit(events...)
-	chunks = append(chunks, emitter.Finish(nil)...)
+	chunks = append(chunks, mustFinish(emitter.Finish(nil))...)
 	var id, name, args string
 	for _, chunk := range chunks {
 		for _, call := range chunk.Choices[0].Delta.ToolCalls {
@@ -139,4 +139,12 @@ func TestRecordedResponsesRoundTrip(t *testing.T) {
 	if output[0]["id"] == "" {
 		t.Fatalf("reasoning item lost its id: %+v", output[0])
 	}
+}
+
+// mustFinish is an emitter's Finish for a stream known to have ended well.
+func mustFinish[T any](out []T, err error) []T {
+	if err != nil {
+		panic(err)
+	}
+	return out
 }

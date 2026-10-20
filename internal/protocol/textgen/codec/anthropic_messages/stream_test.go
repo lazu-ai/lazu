@@ -104,7 +104,7 @@ func TestRecordedAnthropicToChatClient(t *testing.T) {
 	events := decodeRecording(t, "anthropic/thinking_block.sse")
 	emitter := openai_chat.NewStreamEmitter("", "m")
 	chunks := emitter.Emit(events...)
-	chunks = append(chunks, emitter.Finish(nil)...)
+	chunks = append(chunks, mustFinish(emitter.Finish(nil))...)
 	if chunks[0].Choices[0].Delta.Role != "assistant" || !strings.HasPrefix(chunks[0].Id, "chatcmpl-") {
 		t.Fatalf("expected a role chunk first, got %+v", chunks[0])
 	}
@@ -123,7 +123,7 @@ func TestRecordedAnthropicToChatClient(t *testing.T) {
 	tool := decodeRecording(t, "anthropic/tool_call.sse")
 	toolEmitter := openai_chat.NewStreamEmitter("", "m")
 	toolChunks := toolEmitter.Emit(tool...)
-	toolChunks = append(toolChunks, toolEmitter.Finish(nil)...)
+	toolChunks = append(toolChunks, mustFinish(toolEmitter.Finish(nil))...)
 	var callID, name, args string
 	for _, chunk := range toolChunks {
 		for _, call := range chunk.Choices[0].Delta.ToolCalls {
@@ -179,7 +179,7 @@ func TestRecordedDeepSeekChatToClaudeClient(t *testing.T) {
 		chunk := decodeChatChunk(t, data)
 		frames = append(frames, emitter.Emit(decoder.Decode(chunk)...)...)
 	}
-	frames = append(frames, emitter.Finish(nil)...)
+	frames = append(frames, mustFinish(emitter.Finish(nil))...)
 	names := make([]string, 0, len(frames))
 	for _, frame := range frames {
 		names = append(names, frame.Event)
@@ -214,7 +214,7 @@ func TestRecordedDeepSeekChatToClaudeClient(t *testing.T) {
 		}
 		frames = append(frames, toolEmitter.Emit(toolDecoder.Decode(decodeChatChunk(t, data))...)...)
 	}
-	frames = append(frames, toolEmitter.Finish(nil)...)
+	frames = append(frames, mustFinish(toolEmitter.Finish(nil))...)
 	var args string
 	var toolBlock map[string]any
 	for _, frame := range frames {
@@ -257,7 +257,7 @@ func TestEmitterPassesOwnSealedReasoningAndDropsForeign(t *testing.T) {
 		textgen.Event{Kind: textgen.EventText, Text: "ok"},
 		textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopEnd},
 	)
-	frames = append(frames, emitter.Finish(nil)...)
+	frames = append(frames, mustFinish(emitter.Finish(nil))...)
 	blocks := []string{}
 	for _, frame := range frames {
 		if frame.Event == "content_block_start" {
@@ -276,4 +276,12 @@ func decodeChatChunk(t *testing.T, data string) *dtoChatChunk {
 		t.Fatal(err)
 	}
 	return &chunk
+}
+
+// mustFinish is an emitter's Finish for a stream known to have ended well.
+func mustFinish[T any](out []T, err error) []T {
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
