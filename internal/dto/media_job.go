@@ -69,6 +69,9 @@ type ConsoleTaskObject struct {
 	FileExpired bool `json:"file_expired,omitempty"`
 	// KeyDeleted marks a job made with a Key that no longer exists.
 	KeyDeleted bool `json:"key_deleted,omitempty"`
+	// UserID and Username name who made the job, in the admin view only.
+	UserID   int    `json:"user_id,omitempty"`
+	Username string `json:"username,omitempty"`
 }
 
 // ConsoleTaskSpec is the request's shape in a few fields.

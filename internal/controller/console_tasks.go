@@ -76,6 +76,50 @@ func GetUserTasks(c *gin.Context) {
 	})
 }
 
+// GetAllTasks is the platform-wide Tasks view for administrators: every
+// account's jobs, with who made each, filterable by user_id.
+func GetAllTasks(c *gin.Context) {
+	filter := model.MediaJobConsoleFilter{
+		Status:      strings.TrimSpace(c.Query("status")),
+		ModelName:   c.Query("model_name"),
+		Query:       c.Query("q"),
+		AllAccounts: true,
+	}
+	filter.Start, _ = strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	filter.End, _ = strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	filter.UserID, _ = strconv.Atoi(c.Query("user_id"))
+	everyone := model.ProjectPrincipal{}
+	page := common.GetPageQuery(c)
+	rows, total, err := model.ListMediaJobsForConsole(everyone, filter, page.GetStartIdx(), page.GetPageSize())
+	if err != nil {
+		logFailure(c, err)
+		return
+	}
+	now := time.Now()
+	summary, err := model.SummarizeMediaJobsForConsole(everyone, filter, now)
+	if err != nil {
+		logFailure(c, err)
+		return
+	}
+	items := consoleTaskViews(c.Request.Context(), rows, false, now)
+	userIDs := make([]int, 0, len(rows))
+	for _, row := range rows {
+		userIDs = append(userIDs, row.ActorID())
+	}
+	names, _ := model.UserNamesByID(userIDs)
+	for i, row := range rows {
+		items[i].UserID = row.ActorID()
+		items[i].Username = names[row.ActorID()]
+	}
+	common.ApiSuccess(c, gin.H{
+		"items":     items,
+		"total":     total,
+		"page":      page.GetPage(),
+		"page_size": page.GetPageSize(),
+		"summary":   summary,
+	})
+}
+
 // GetUserTask is one job of the Tasks view, with its request.
 func GetUserTask(c *gin.Context) {
 	access, ok := projectLogAccess(c)

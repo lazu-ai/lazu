@@ -357,11 +357,15 @@ type ModelPage struct {
 	Endpoint       string
 	Samples        []Sample
 	SampleNote     template.HTML
-	DocsHref       string
-	FAQs           []FAQ
-	Related        []Related
-	AgentPrompt    string
-	Actions        []ModelAction
+	// IsVideo marks a model called through the video job API; DocsLabel
+	// names the guide its DocsHref points at ("" reads "Full integration docs").
+	IsVideo     bool
+	DocsLabel   string
+	DocsHref    string
+	FAQs        []FAQ
+	Related     []Related
+	AgentPrompt string
+	Actions     []ModelAction
 }
 
 var capabilityOrder = []string{
@@ -718,6 +722,19 @@ func BuildModelPage(catalog Catalog, model Model, locale string, docsBase string
 		{Q: T(locale, "faq.lanesQ"), A: T(locale, "faq.lanesA")},
 		{Q: T(locale, "faq.sdkQ", model.ID), A: strings.TrimSpace(T(locale, "faq.sdkA", model.ID, native))},
 		{Q: T(locale, "faq.billingQ"), A: T(locale, "faq.billingA")},
+	}
+	if IsVideoEndpoint(endpoint) {
+		// A video is a job billed by the second, not a chat call billed by the
+		// token: the note, the guide and the questions say how it really works.
+		page.IsVideo = true
+		page.SampleNote = template.HTML(template.HTMLEscapeString(T(locale, "sample.noteVideo")))
+		page.DocsLabel = T(locale, "sample.docsVideo")
+		page.DocsHref = docsBase + "/" + VideoGuideSlug(model.ID)
+		page.FAQs = []FAQ{
+			{Q: T(locale, "faq.videoHowQ", model.ID), A: T(locale, "faq.videoHowA")},
+			{Q: T(locale, "faq.videoSdkQ"), A: T(locale, "faq.videoSdkA")},
+			{Q: T(locale, "faq.videoBillingQ"), A: T(locale, "faq.videoBillingA")},
+		}
 	}
 	for _, other := range RelatedModels(catalog, model, 3) {
 		page.Related = append(page.Related, Related{

@@ -3545,7 +3545,7 @@
     "page.console.tasks.timeline.submitted": "已提交",
     "page.console.tasks.timeline.submittedHold": "已提交，预扣 {{amount}}",
     "page.console.tasks.took.waiting": "已等 {{time}}",
-    "page.console.usage.tabs.tasks": "任务",
+    "page.console.usage.tabs.tasks": "生成任务",
     "page.console.log.detail.viewTask": "查看任务",
     "page.console.personal.plan.forever": "长期",
     "page.console.plaza.discount.savedVsOfficial": "比官方省 {{pct}}%",

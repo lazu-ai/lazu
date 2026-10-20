@@ -3545,7 +3545,7 @@
     "page.console.tasks.timeline.submitted": "送信",
     "page.console.tasks.timeline.submittedHold": "送信、{{amount}} を仮押さえ",
     "page.console.tasks.took.waiting": "経過 {{time}}",
-    "page.console.usage.tabs.tasks": "タスク",
+    "page.console.usage.tabs.tasks": "生成タスク",
     "page.console.log.detail.viewTask": "タスクを見る",
     "page.console.personal.plan.forever": "無期限",
     "page.console.plaza.discount.savedVsOfficial": "公式より {{pct}}% 安い",
