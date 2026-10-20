@@ -471,8 +471,11 @@ func setStructuredInputTokenEstimate(c *gin.Context, reqCtx *relayrouter.Request
 		return
 	}
 	format := types.RelayFormatOpenAI
-	if parsed.Client.Family == textgen.ProtocolOpenAIResponses {
+	switch parsed.Client.Family {
+	case textgen.ProtocolOpenAIResponses:
 		format = types.RelayFormatOpenAIResponses
+	case textgen.ProtocolAnthropic:
+		format = types.RelayFormatClaude
 	}
 	meta := textgen.TokenCountMeta(parsed.Semantic)
 	meta.Files = nil

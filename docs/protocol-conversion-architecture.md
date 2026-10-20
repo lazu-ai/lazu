@@ -172,7 +172,7 @@ type ParameterSpec struct {
 现状是 override 在转换后直接打在 raw JSON 上（`ApplyParamOverride`），可能绕过能力校验、注入 plan 未批准的 feature。目标分层：
 
 1. **typed semantic override**（temperature、max tokens 等语义参数）：在候选渠道规划阶段应用到 IR 副本，随后**重新提取 effective feature set** 再进 plan；
-2. **wire dialect patch**：outbound 编译后应用，只允许 provider 字段形状/URL 方言修补，应用后重跑 outbound 校验；不得改 model、新增 feature、改变工具执行责任。
+2. **wire dialect patch**：outbound 编译后应用，只允许 provider 字段形状/URL 方言修补，应用后重跑 outbound 校验；不得改 model、新增 feature、改变工具执行责任。已落地为 `internal/relay/wirepatch`（注册表 + 每 handler 一个挂点，位于 ParamOverride 之后）；每个 quirk 是一条带 ID、方言、原因、来源链接和回归测试的注册项，细节见 [wire-dialect-patch.md](./wire-dialect-patch.md)，规则见 AGENTS.md Protocol Layer 第 6 条。
 
 迁移前先盘点线上渠道 `param_override` 的真实使用情况，把存量配置归类进两层，避免破坏管理页面已有配置；盘点结果决定兼容期的解释规则。
 
@@ -215,7 +215,7 @@ dialect baseline
 
 合并规则固定为：数值上限取最小值，枚举能力取交集，显式禁用优先；未声明按不支持。channel overlay 和运维配置默认只能收窄能力，不能凭空扩大；扩大能力必须修改 dialect/model profile 并通过 contract tests。合成后的整张快照产生新的 `Revision`。
 
-- **endpoint 可用性建模为 feature**（`feature.EndpointChatCompletions`、`feature.EndpointResponses` 表示原生存在），key 保持两级，不为 endpoint 增加第三维；bridge 可用性由 planner 派生（原生 endpoint 缺失 + 存在无损边 + 请求 feature 全覆盖），不进快照。这直接修正 Cloudflare 误判：`cloudflare_ai_v1` dialect 不声明 `EndpointResponses`，planner 自然选 bridge 路径。
+- **endpoint 可用性建模为 feature**（`feature.EndpointChatCompletions`、`feature.EndpointResponses` 表示原生存在），key 保持两级，不为 endpoint 增加第三维；同一方言两个 endpoint 的 feature 差异记为 `EndpointGaps`（按方言声明，如 DeepSeek Chat 不收 json_schema），planner 据此把请求路由到另一端点，见 [protocol-degradation.md](./protocol-degradation.md)；bridge 可用性由 planner 派生（原生 endpoint 缺失 + 存在无损边 + 请求 feature 全覆盖），不进快照。这直接修正 Cloudflare 误判：`cloudflare_ai_v1` dialect 不声明 `EndpointResponses`，planner 自然选 bridge 路径。
 - dialect 决定 wire 层能力（endpoint、stream framing、usage 方言）；model family 决定语义能力与数值约束；单模型只在真实差异时 override 并写明依据；
 - 运维临时禁用是 (key, feature) 黑名单，与快照一起原子热换，换后 `Revision` 变化；
 - 没声明就是不支持（无 `Unknown` 态）。表的准确性靠"条目少而粗 + codec contract tests"维持；`Evidence`/过期复核机制暂缓（见明确不做），但 `Revision` 必须保留——否则热更、回滚、日志审计和 planner 缓存失效都无从谈起。
@@ -261,36 +261,56 @@ type RelayPlan struct {
 }
 ```
 
-一经创建不可修改。规划顺序：解析 canonical model → 提取 feature set →（typed semantic override 后重提取）→ 候选渠道能力预筛 → 健康度/优先级选 attempt 渠道 → 生成 plan → 编译 outbound → wire dialect patch → outbound 校验。
+一经创建不可修改。规划顺序：解析 canonical model → 提取 feature set →（typed semantic override 后重提取）→ 候选渠道能力预筛 → 健康度/优先级选 attempt 渠道 → 生成 plan → 编译 outbound → ParamOverride → wire dialect patch（[`internal/relay/wirepatch`](./wire-dialect-patch.md)）→ outbound 校验。
 
 ## 响应与流式
 
 ### 事件 IR
 
-请求 IR 与响应 IR 不复用。响应是事件序列，必须携带足以重建完整 Responses SSE 的信息：
+请求 IR 与响应 IR 不复用。响应是**内容事件**序列（`internal/protocol/textgen/event.go`，2026-10-21 修订）：它只说"模型说了什么、按什么顺序"，不带任何一个协议的生命周期。Responses 的 item/content part/sequence_number、Anthropic 的 block、Chat 的 choice 都是各协议 emitter 自己的状态。
 
 ```go
 type Event struct {
-    Kind             EventKind
-    Sequence         uint64
-    ResponseID       string
-    Model            string
-    ItemID           string
-    ItemIndex        int
-    ContentIndex     int
-    ToolCallID       string
-    Delta            TypedDelta        // 文本、tool arguments 分片、annotation
-    Usage            *UsageFact
-    Status           ResponseStatus    // in_progress / completed / incomplete / failed
-    IncompleteReason string            // 如 max_output_tokens
-    Metadata         map[string]string // response 级 metadata 回显
-    Error            *SemanticError
+    Kind       EventKind   // start, turn, text, refusal, reasoning_start, reasoning,
+                           // reasoning_signature, reasoning_sealed, tool_start,
+                           // tool_arguments, tool_done, stop, usage, error
+    Text       string      // 分片：回答、拒绝、推理、签名或参数
+    ResponseID, Model string; CreatedAt int64   // start
+    ItemID     string      // 上游给推理块或调用 item 的 id
+    ToolIndex  int; ToolCallID, ToolName string // 调用按上游位置合并
+    Stop       StopReason  // end / length / tool / filter
+    Usage      *dto.Usage  // 共享用量事实
+    Error      *SemanticError
+    Sealed     json.RawMessage; SealedBy string // 密封推理，只回传给来源方言
 }
 ```
 
-`EventKind` 至少包括：`response_created`、`response_in_progress`、`item_added`、`content_part_added`、`delta`、`content_part_done`、`item_done`、`response_completed`、`response_incomplete`、`response_failed`、`usage`。仅 created/delta/done/completed 不足以生成合法 Responses 流——content part 生命周期与 incomplete 终态必须在 IR 层表达，否则协议特例会被塞回 emitter。
+每个协议有一个 **decoder**（上游 wire → 事件）和一个 **emitter**（事件 → 客户端 wire）；4 个协议 8 件，16 个组合全部由此得到。emitter 是显式状态机，持有 O(活跃 item/tool 数) 状态，自己分配 id、index 和 sequence。Responses emitter 的 terminal event 必须带完整 `output`，所以它保留一份受请求 max-output 约束的装配缓冲；禁止重复缓冲、无界队列或为日志再复制一份完整输出。推理块边界（`reasoning_start`）和密封推理（`reasoning_sealed`）在 IR 里表达，这样 Anthropic 的多段 thinking 和 Responses 的 reasoning item 不需要 emitter 之间互相认识对方的形状。
 
-Emitter 是显式状态机，持有 O(活跃 item/tool 数) 状态。由于 Responses 的 terminal event 必须带可直接消费的完整 `output`，Chat→Responses emitter 允许保留一份受模型 max-output 约束的终态装配缓冲；禁止重复缓冲、无界队列或为日志再复制一份完整输出。Chat→Responses 事件流（Responses 客户端读 Chat 上游）和 Responses→Chat 事件流各是一个独立状态机，各配 fixture；不在现有 handler 上继续加分支。
+已落地（流层）：Chat decoder 与 emitter（`codec/openai_chat/stream.go`、`emitter.go`）、Responses decoder 与 emitter（`codec/openai_responses/decoder.go`、`stream.go`）、Anthropic decoder 与 emitter（`codec/anthropic_messages/stream.go`、`emitter.go`），以及把事件装配成整段回复的 `textgen.Collector`（非流式渲染和 emitter 的终态都从它读）。三个协议的 decoder 都有录制 fixture 驱动的测试，跨协议组合（Anthropic→Chat、Anthropic→Responses、Chat→Anthropic、Responses→Chat、Responses→Responses）各有一条端到端测试。
+
+已接入 handler（2026-10-21，Messages hub）：规划器把 OpenAI 形状的客户端（Chat、Responses）在 Anthropic 方言渠道上规划为到 Messages 的 bridge（`FeatureEndpointMessages`，`bridgeOrder`，`messagesBridgeIssue`）；请求侧 `codec/anthropic_messages.Encode` 把 IR 编成 Messages 请求，渠道再按目录策略拟合 thinking（`claude.EncodeBridgedRequest`：`fitBridgedThinking` + `PrepareNativeThinking`）；响应侧 `claude.HubStreamHandler` / `HubHandler` 用 Anthropic decoder 解一次、按客户端协议的 emitter 发出，整段回复走 `Collector` + `openai_chat.Render`。Chat 请求的 OpenRouter 风格 `reasoning.max_tokens` 进 IR 为 `Reasoning.Budget`（feature `reasoning.budget`，Responses 上游不可承载则拒绝）。渠道探测（`channel-test.go`）用同一条 `textgenruntime.Parse` + `PrepareAttempt` 规划，走同一条 bridge。`relay-claude.go` 的 Chat↔Messages 逐对转换器（`RequestOpenAI2ClaudeMessage`、`StreamResponseClaude2OpenAI`、`ResponseClaude2OpenAI`）已删除，只留 `/v1/complete` 的 completion 模式；其 7 个 golden（`codec/anthropic_messages/testdata/golden/`）由 `TestEncodeMatchesLegacyGoldens` 守住。
+
+已接入 handler（2026-10-21，Claude 客户端）：`/v1/messages` 先经 `middleware.ClaudeClientParse` 解析成 IR（`anthropic_messages.Decode`），和 Chat、Responses 一样逐次规划。Anthropic 渠道上是 native；OpenAI 形状的渠道上桥接到 Chat，没有 Chat 端点时桥接到 Responses（`bridgeOrder`）。请求由上游协议的 encoder 编码，`ClaudeHelper` 的桥接分支（`claudeClientBridgeBody`）交给渠道 adaptor；回复由 `openai.ClaudeClientStreamHandler` / `ClaudeClientHandler` 用 Chat 或 Responses decoder 解一次，再经 Anthropic emitter 发出。Gemini 渠道的请求同样经 IR 编码为 Chat，回复仍走 Gemini adaptor 自己的转换，直到 Gemini codec 落地。
+
+Claude 客户端的映射以真实录制的 Claude Code 请求为准（`testdata/client/claude_code/`）：
+
+- 会话中的 `system` 消息保持原位；带文字的 thinking 进 Chat 的 `reasoning_content`；只有签名、或 redacted 的 thinking 是 Anthropic 的密封推理，对其它厂商无用，桥接时不发，不算有损。
+- tool_result 里的图片保留为图片：Chat 放在这组 tool 消息之后的一条 user 消息里，Responses 放进 function_call_output 的内容数组。目录未声明能看图的模型，桥接时把这些图片换成一句说明并加 `X-Lazu-Warning: omitted:tool_result_image`：会话历史里只要有一张图，之后每个请求都会被不能看图的上游拒绝，旧转换把图片当文字塞进 tool 消息，模型同样看不了。用户自己发的图片不变。`is_error` 以 "Error: " 前缀说明。
+- `metadata` 原样保留（旧转换也原样转发）：Claude Code 的会话在 `metadata.user_id` 里，agent 会话和路由提示从解析后的请求读它。它不当作 OpenAI 的 `user`。
+- Claude 客户端不做降级：native 路径发的是客户端原始字节，Messages 也没有 json_object 可替代；被拒绝的 schema 在发出前拒绝。`thinking: disabled` 只在模型能关闭推理时发 effort none。
+- thinking 预算按档位映射为 effort（`textgen.EffortForBudget`，与 `model.EffortBudgetTokens` 反向同表），Chat 和 Responses 同一张表；Chat 客户端的 `reasoning.max_tokens` 到 Responses 也不再拒绝。目录未声明会推理的模型，桥接时不发 thinking（Claude Code 每个请求都带），与旧转换一致。
+- `context_management` 只有 `clear_thinking_*` 时是提示性的；其它编辑、`mcp_servers`、Anthropic 自己执行的工具和 `server_tool_use` 历史，桥接时按字段路径拒绝，native 不受影响。
+
+回退开关：`global.legacy_claude_client_conversion`（控制台「上游」设置）打开后，`/v1/messages` 不解析、不规划，完全走旧转换。开关只保留这一个版本；下一版本删除 `ClaudeToOpenAIRequest`、`StreamResponseOpenAI2Claude`、`ResponseOpenAI2Claude` 和开关本身，差分测试 `TestClaudeToChatMatchesTheLegacyConverter` 届时转为 golden 文件。
+
+已接入 handler（2026-10-21，Responses 上游的 Chat 客户端）：`relay_responses.go` 里逐事件拼 Chat chunk 的兼容分支删除，改为 `openai.chatClientResponsesStream`：Responses decoder 解一次，Chat emitter 发出，规则与另两个 hub 相同（首个内容之前什么都不写，之前的失败可重试，之后告知客户端且不重放），计费所需的副作用（内置工具计数、图片生成、finish reason、交换日志）保留，失败帧仍用错误目录的 `streamFailureFrame`。行为变化：内容之前的 `response.failed` 由「写给客户端、不重试」改为可重试（与 native Responses 路径一致）。顺带修正：Responses decoder 对只有 done 事件的 function_call 先发 start；Chat emitter 每个调用的 id 和 name 只写一次，逐段拼接的客户端不会把名字拼成两遍。整段回复仍走 `ResponsesResponseToChat`（它保留 annotations）。
+
+派发统一（2026-10-21）：三个 hub 共用一个流运行器 `channel.RunHubStream`，各自只提供上游 decoder 和计费读的副作用，客户端协议的写出器由 `channel.HubClientFor` 按 plan 选（Chat、Responses、Messages）。运行器统一的规则：首个内容之前什么都不写（start、turn、usage 先扣住）；内容之前的失败按上游的话分类（`channel.FirstEventFailure`，只有暂时性失败重试）；之后的失败用错误目录的帧（`channel.StreamFailureFrame`）告诉客户端、结算、不重放；没有 stop 就结束的流按截断处理；读到终止事件就停，不等 provider 的 EOF；每个 hub 都记交换日志。请求侧只剩一个 `relay.BridgeBody`：上游协议的 codec 编码 IR，渠道 adaptor 转换，删禁用字段，打方言补丁；桥接上不再应用原始 `param_override`（类型化的覆盖由规划器作用在 IR 上，其它覆盖在规划时拒绝），桥接到 Chat 流时总是请求 usage，渠道探测走同一个函数。
+
+Gemini codec（2026-10-21，只有 codec，未接入）：`codec/gemini` 有请求 encoder（IR→generateContent，含 systemInstruction、function call/response、tools、toolConfig、responseSchema）、请求 decoder（Gemini 客户端→IR）、流 decoder、流 emitter 和整段 render。Gemini 的 schema 子集（`CleanFunctionParameters`、`CleanResponseSchema`）、usage 映射（`UsageOf`）和参数反转义（`UnescapeArguments`）从渠道移进 codec，渠道调用它们。thought signature 是绑定 `gemini` 方言的密封值：function call 上的签名随 `EventToolStart` 的 `Text`/`SealedBy` 走，文本上的签名是 `EventReasoningSignature`，只回到 Gemini。渠道策略（safety settings、按模型的 thinking、图片张数上限、response modalities）留在渠道。三个旧转换器各有活的差分测试守住：`TestGeminiCodecMatchesTheLegacyConverter`（Chat→Gemini 请求）、`TestGeminiDecodeMatchesTheLegacyConverter`（Gemini 客户端→Chat）、`TestGeminiRenderMatchesTheLegacyConverter`（Chat 回复→Gemini）。旧的流式回复转换器把 function call 的参数片段当成多个 functionCall 发出、丢掉推理，codec 的 emitter 不以它为准：一个调用结束时整体发出一次。
+
+尚未接入：Gemini 的规划与 handler（gemini 方言的基线从 `EndpointChat` 换成 Gemini 端点会重新规划所有 Gemini 渠道上的 Chat 客户端，`relay-gemini.go` 里九处按模型名判断的债要先变成目录事实；Gemini 客户端的接入需要像 Claude Code 那样先录一个真实的 Gemini 客户端请求）。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 
@@ -356,6 +376,7 @@ Responses API 的 `store` 默认为 true；bridge 路径按取值区分，而不
 
 - 同协议：经 `Raw` 保留 round-trip（延续现有 `mergeUnknownResponsesFields` 行为，受 allowlist 与大小限制约束）；
 - 跨协议：无法安全推断含义，400。代价是上游发布新字段后 bridge 路径需 Lazu 声明才可用（native 路径不受影响）——接受此代价，换取不静默改语义。
+- 已声明的厂商字段不是未知字段（2026-10-21）：Anthropic 的 prompt-caching 标记（请求级、system 段、内容段、工具上的 `cache_control`）与 `speed` 档位经 Chat 送来时进 IR（`textgen.VendorOptions`、各项的 `CacheControl`），Messages encoder 原样写出，native 路径仍是透传。到其它协议的 bridge 上两者不同：`cache_control` 是提示性的，只影响成本、不影响模型输出，lazu 服务的 OpenAI 兼容接口都自行缓存，所以直接丢弃，不算有损；`speed` 改变请求的服务方式，按字段路径拒绝（`FeatureAnthropicOptions`，只用于命名拒绝，不参与能力声明）。旧的 Chat→Claude 转换器本就转发这些字段；删除它不能让它们变成 400。
 
 ## Usage 与计费
 
@@ -431,7 +452,7 @@ Responses API 的 `store` 默认为 true；bridge 路径按取值区分，而不
 | 项 | 状态 | 恢复条件 |
 | --- | --- | --- |
 | Claude/Gemini codec 迁移 | 推迟 | IR v1 先用其真实 fixture 验证后冻结；bridge 稳定后单独迁移 codec，届时收敛 adaptor 的 Convert* 接口 |
-| lossy 显式放行（token/workspace policy） | 不做 | 出现真实客户需求，且能定义"哪些丢弃绝不允许"后，单独 ADR |
+| lossy 显式放行（token/workspace policy） | 2026-10-20 部分放开 | 不做通用放行；只做有界降级注册表（固定规则、具名、带来源与测试、仅对渠道**已知**不支持的 feature 生效）加按端点的能力缺口路由，见 [protocol-degradation.md](./protocol-degradation.md) |
 | 状态模拟（ResponseStateStore） | 不做 | 明确客户需求 + 独立的存储/加密/保留期/租户隔离设计，单独 ADR |
 | hosted tool 网关运行时 | 不做 | 产品层面决定做 tool 执行环境时 |
 | planner 数值成本函数 | 不做 | 出现 >2 条候选路径需要权衡时（预计不会） |

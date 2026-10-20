@@ -35,6 +35,9 @@ type ModelRef struct {
 type Instruction struct {
 	Role string
 	Text string
+	// CacheControl is Anthropic's prompt-caching marker on this instruction
+	// (a Chat system part's cache_control). See VendorOptions.
+	CacheControl json.RawMessage
 }
 
 type InputKind string
@@ -69,6 +72,9 @@ type ContentPart struct {
 	FileID   string
 	Filename string
 	Detail   string
+	// CacheControl is Anthropic's prompt-caching marker on this part. See
+	// VendorOptions.
+	CacheControl json.RawMessage
 }
 
 type OpaqueValue struct {
@@ -92,6 +98,11 @@ type InputItem struct {
 	// WireType is the original item "type" for opaque items, kept so planner
 	// diagnostics can name what the client actually sent.
 	WireType string
+	// IsError marks a function result the tool reported as failed
+	// (Anthropic's tool_result.is_error). Content on a function result holds
+	// what the result returned beside its text, images in practice; Output
+	// is the text.
+	IsError bool
 }
 
 type ToolDefinition struct {
@@ -101,6 +112,24 @@ type ToolDefinition struct {
 	Parameters  json.RawMessage
 	Strict      Option[bool]
 	Hosted      json.RawMessage
+	// CacheControl is Anthropic's prompt-caching marker on this tool. See
+	// VendorOptions.
+	CacheControl json.RawMessage
+}
+
+// VendorOptions are fields of Anthropic's Messages API that a client sends
+// through another protocol's wire, as OpenRouter-compatible Chat clients do:
+// a request-level cache_control marker and the speed tier (the per-part,
+// per-instruction and per-tool markers sit on those items). They are not
+// unknown fields. The Messages encoder writes them. Elsewhere the two differ:
+// a cache marker is advisory (it changes what a request costs, never what
+// the model says, and the OpenAI-compatible APIs lazu serves cache on their
+// own), so a bridge to another protocol drops it; the speed tier changes how
+// the request is served, so such a bridge refuses it (SpeedPath). A native
+// relay passes its own wire untouched.
+type VendorOptions struct {
+	CacheControl json.RawMessage
+	Speed        json.RawMessage
 }
 
 type ToolPolicy struct {
@@ -132,6 +161,10 @@ type SamplingOptions struct {
 type ReasoningOptions struct {
 	Effort  string
 	Summary string
+	// Budget is a thinking budget in tokens (the OpenRouter-style
+	// reasoning.max_tokens of a Chat request); Messages carries it as
+	// thinking.budget_tokens.
+	Budget Option[int]
 }
 
 type LifecycleOptions struct {
@@ -171,7 +204,17 @@ type Request struct {
 	Reasoning    ReasoningOptions
 	Lifecycle    LifecycleOptions
 	Metadata     MetadataOptions
+	Vendor       VendorOptions
 	Raw          RawRetention
+}
+
+// SpeedPath is the field path of Anthropic's speed tier when the request
+// carries one, for a bridge that cannot carry it to name.
+func (r *Request) SpeedPath() (string, bool) {
+	if r == nil || len(r.Vendor.Speed) == 0 {
+		return "", false
+	}
+	return "speed", true
 }
 
 func (r *Request) Clone() *Request {

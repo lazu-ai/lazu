@@ -16,9 +16,9 @@ import (
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
-	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
+	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
@@ -88,14 +88,22 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 	var requestBody io.Reader
 
 	passThroughBodyEnabled := model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled
-	bridgeToResponses := info.ProtocolPlan != nil && !info.ProtocolPlan.Native &&
-		info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIChat &&
-		info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIResponses
+	bridged := planBridges(info)
+	// A degraded native plan is sent encoded from the IR: the client's wire
+	// still carries the feature the degradation stood in for.
+	degradedNative := info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.Degraded() && info.ProtocolRequest != nil
+	if degradedNative {
+		encoded, encodeErr := degradedChatRequest(info, request)
+		if encodeErr != nil {
+			return encodeErr
+		}
+		request = encoded
+	}
 
 	nativeConverter, nativeConvertible := adaptor.(interface {
 		ConvertNativeRequest([]byte, *relaycommon.RelayInfo, bool) ([]byte, error)
 	})
-	if nativeConvertible && !bridgeToResponses && (info.ProtocolRequest == nil || !openai_chat.HasOSSURLHint(info.ProtocolRequest)) {
+	if nativeConvertible && !bridged && !degradedNative && (info.ProtocolRequest == nil || !openai_chat.HasOSSURLHint(info.ProtocolRequest)) {
 		bodyTimer := common.StartHotPathStage(common.HotPathStageOutboundBody)
 		body := info.NativeBodyCache
 		if body == nil || info.NativeBodyChannelID != info.ChannelId {
@@ -113,7 +121,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 		requestBody = bytes.NewReader(body)
-	} else if passThroughBodyEnabled && !bridgeToResponses {
+	} else if passThroughBodyEnabled && !bridged && !degradedNative {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)
@@ -128,35 +136,12 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 		}
 		requestBody = bytes.NewBuffer(body)
 	} else {
-		if bridgeToResponses {
-			semantic := info.ProtocolRequest.Clone()
-			if semantic == nil {
-				return types.NewError(fmt.Errorf("missing immutable protocol request"), types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-			}
-			stripLazuMetadataFromSemantic(semantic)
-			semantic.Model.Upstream = info.UpstreamModelName
-			responsesReq, encodeErr := openai_responses.Encode(semantic)
+		if bridged {
+			body, _, encodeErr := BridgeBody(c, info, adaptor)
 			if encodeErr != nil {
-				return types.NewErrorWithStatusCode(encodeErr, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+				return encodeErr
 			}
-			relaycommon.PopulateResponsesUsageInfo(info, responsesReq)
-			responsesConverter, converterErr := requireResponsesRequestConverter(adaptor, info)
-			if converterErr != nil {
-				return converterErr
-			}
-			convertedRequest, convertErr := responsesConverter.ConvertOpenAIResponsesRequest(c, info, *responsesReq)
-			if convertErr != nil {
-				return types.NewError(convertErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-			}
-			jsonData, marshalErr := common.Marshal(convertedRequest)
-			if marshalErr != nil {
-				return types.NewError(marshalErr, types.ErrorCodeJsonMarshalFailed, types.ErrOptionWithSkipRetry())
-			}
-			jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
-			if err != nil {
-				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-			}
-			requestBody = bytes.NewBuffer(jsonData)
+			requestBody = bytes.NewBuffer(body)
 		} else {
 			openAIConverter, converterErr := requireOpenAIRequestConverter(adaptor, info)
 			if converterErr != nil {
@@ -173,7 +158,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			}
 
 			if _, sameProtocol := convertedRequest.(*dto.GeneralOpenAIRequest); sameProtocol {
-				jsonData, err = relaycommon.MergeUnknownTopLevelFieldsFromContext(c, jsonData)
+				jsonData, err = mergeClientUnknownFields(c, info, jsonData, degradedNative)
 				if err != nil {
 					return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 				}
@@ -192,6 +177,9 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 					return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
 				}
 			}
+			// wire dialect patch: vendor quirks on the compiled body, once per
+			// attempt, after ParamOverride (internal/relay/wirepatch).
+			jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 
 			logger.LogDebug(c, fmt.Sprintf("text request body: %s", string(jsonData)))
 			requestBody = bytes.NewBuffer(jsonData)
@@ -615,4 +603,40 @@ func stripLazuFromCachedBody(c *gin.Context) {
 		return
 	}
 	c.Set(common.KeyRequestBody, newBody)
+}
+
+// degradedChatRequest is the Chat request a degraded native plan sends: the
+// client's request as the handler has settled it (model, stream options),
+// with only what the degradation changed applied (openai_chat.ApplyDegraded).
+func degradedChatRequest(info *relaycommon.RelayInfo, wire *dto.GeneralOpenAIRequest) (*dto.GeneralOpenAIRequest, *types.LazuError) {
+	encoded, err := openai_chat.ApplyDegraded(wire, info.ProtocolRequest)
+	if err != nil {
+		return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	return encoded, nil
+}
+
+// mergeClientUnknownFields puts the client's top-level fields the converted
+// body lacks back on it, as a same-protocol relay always has. For a body
+// encoded from a degraded IR only the fields the IR records as unknown go
+// back: a known field missing from that body (response_format after a
+// degradation) was removed on purpose.
+func mergeClientUnknownFields(c *gin.Context, info *relaycommon.RelayInfo, body []byte, fromIR bool) ([]byte, error) {
+	if !fromIR {
+		return relaycommon.MergeUnknownTopLevelFieldsFromContext(c, body)
+	}
+	unknown := map[string]json.RawMessage{}
+	for path, value := range info.ProtocolRequest.Raw.UnknownFields {
+		if !strings.ContainsAny(path, ".[") {
+			unknown[path] = value
+		}
+	}
+	if len(unknown) == 0 {
+		return body, nil
+	}
+	raw, err := common.Marshal(unknown)
+	if err != nil {
+		return nil, err
+	}
+	return relaycommon.MergeUnknownTopLevelFields(raw, body)
 }

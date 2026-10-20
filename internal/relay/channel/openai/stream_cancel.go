@@ -9,6 +9,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	relayconstant "github.com/lazu-ai/lazu/internal/relay/constant"
 	"github.com/lazu-ai/lazu/internal/service"
@@ -86,46 +87,15 @@ func (a *chatStreamUsageAccumulator) Usage(info *relaycommon.RelayInfo, output c
 	return usage, true
 }
 
-type boundedStreamChunks struct {
-	limit     int
-	size      int
-	received  int
-	chunks    []string
-	truncated bool
-}
+// boundedStreamChunks is the exchange log of a stream, bounded
+// (channel.StreamLog).
+type boundedStreamChunks = channel.StreamLog
 
 func newBoundedStreamChunks(limit int) *boundedStreamChunks {
 	if limit <= 0 {
 		limit = maxBridgedStreamLogBytes
 	}
-	return &boundedStreamChunks{limit: limit}
-}
-
-func (b *boundedStreamChunks) Add(chunk string) {
-	if b == nil || chunk == "" {
-		return
-	}
-	b.received += len(chunk)
-	if b.size+len(chunk) > b.limit {
-		b.truncated = true
-		return
-	}
-	b.chunks = append(b.chunks, chunk)
-	b.size += len(chunk)
-}
-
-func (b *boundedStreamChunks) Values() []string {
-	if b == nil {
-		return nil
-	}
-	return append([]string(nil), b.chunks...)
-}
-
-func (b *boundedStreamChunks) Metadata() map[string]any {
-	if b == nil || !b.truncated {
-		return nil
-	}
-	return map[string]any{"response_chunks_truncated": true, "response_chunks_retained_bytes": b.size, "response_bytes_received": b.received}
+	return channel.NewStreamLog(limit)
 }
 
 // streamClientCanceledError turns a downstream disconnect into an explicit

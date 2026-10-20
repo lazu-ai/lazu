@@ -2,11 +2,13 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 // SSRFProtection SSRF防护配置
@@ -18,6 +20,11 @@ type SSRFProtection struct {
 	IpList                 []string // CIDR or single IP
 	AllowedPorts           []int    // 允许的端口范围
 	ApplyIPFilterForDomain bool     // Apply optional IP allow/deny lists to resolved domain IPs.
+	// PrivateAllowList names the private sources an operator fetches on
+	// purpose: hostnames (exact or *.suffix), single IPs or CIDRs. A listed
+	// host may resolve to a private address; a listed address may be dialled.
+	// Nothing else about the policy (ports, domain lists) is relaxed.
+	PrivateAllowList []string
 }
 
 // DefaultSSRFProtection 默认SSRF防护配置
@@ -35,6 +42,68 @@ var lookupIP = net.LookupIP
 // ContextDialer is the subset of net.Dialer used by the SSRF-protected dialer.
 type ContextDialer interface {
 	DialContext(ctx context.Context, network, address string) (net.Conn, error)
+}
+
+// RejectReason classifies why the fetch policy refused a URL. It is stable
+// so callers can choose a client-facing sentence without parsing text.
+type RejectReason string
+
+const (
+	RejectInvalidURL        RejectReason = "invalid_url"
+	RejectUnsupportedScheme RejectReason = "unsupported_scheme"
+	RejectPortNotAllowed    RejectReason = "port_not_allowed"
+	RejectDomainFiltered    RejectReason = "domain_filtered"
+	RejectPrivateAddress    RejectReason = "private_address"
+	RejectIPFiltered        RejectReason = "ip_filtered"
+	RejectDNSFailed         RejectReason = "dns_failed"
+)
+
+// URLRejectedError is returned by ValidateURL, DialContext and DialControl
+// when the fetch policy refuses a target. Detail is for logs: it names the
+// host the caller supplied but never an address an internal name resolved
+// to. PublicReason is the sentence a customer may see.
+type URLRejectedError struct {
+	Reason RejectReason
+	Detail string
+}
+
+func (e *URLRejectedError) Error() string {
+	return e.Detail
+}
+
+// PublicReason is safe to return to an API client: it names the policy that
+// refused the URL and nothing about the operator's network.
+func (e *URLRejectedError) PublicReason() string {
+	switch e.Reason {
+	case RejectUnsupportedScheme:
+		return "the media URL must use http or https"
+	case RejectPortNotAllowed:
+		return "the media URL uses a port the gateway does not fetch from"
+	case RejectDomainFiltered:
+		return "the media URL host is not permitted by the gateway's fetch policy"
+	case RejectPrivateAddress:
+		return "the media URL points to a private or internal network address, which the gateway does not fetch"
+	case RejectIPFiltered:
+		return "the media URL address is not permitted by the gateway's fetch policy"
+	case RejectDNSFailed:
+		return "the media URL host could not be resolved"
+	default:
+		return "the media URL is not valid"
+	}
+}
+
+func rejectf(reason RejectReason, format string, args ...any) *URLRejectedError {
+	return &URLRejectedError{Reason: reason, Detail: fmt.Sprintf(format, args...)}
+}
+
+// AsURLRejected unwraps err (through *url.Error and fmt wrappers) and returns
+// the policy rejection inside it, or nil when the failure was something else.
+func AsURLRejected(err error) *URLRejectedError {
+	var rejected *URLRejectedError
+	if errors.As(err, &rejected) {
+		return rejected
+	}
+	return nil
 }
 
 // privateIPv4Nets IPv4 私有/保留/特殊用途网段
@@ -91,6 +160,8 @@ func isPrivateIP(ip net.IP) bool {
 		return true
 	}
 
+	// An IPv4-mapped IPv6 address (::ffff:a.b.c.d) is the IPv4 address it
+	// wraps: To4 unwraps it so the IPv4 table applies.
 	if v4 := ip.To4(); v4 != nil {
 		for _, privateNet := range privateIPv4Nets {
 			if privateNet.Contains(v4) {
@@ -181,7 +252,7 @@ func (p *SSRFProtection) isAllowedPort(port int) bool {
 	return false
 }
 
-// isDomainWhitelisted 检查域名是否在白名单中
+// isDomainListed 检查域名是否在列表中 (exact or *.suffix)
 func isDomainListed(domain string, list []string) bool {
 	if len(list) == 0 {
 		return false
@@ -217,19 +288,21 @@ func (p *SSRFProtection) isDomainAllowed(domain string) bool {
 	return !listed
 }
 
-// isIPWhitelisted 检查IP是否在白名单中
-
 func isIPListed(ip net.IP, list []string) bool {
 	if len(list) == 0 {
 		return false
 	}
 
-	for _, whitelistCIDR := range list {
-		_, network, err := net.ParseCIDR(whitelistCIDR)
+	for _, entry := range list {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		_, network, err := net.ParseCIDR(entry)
 		if err != nil {
 			// 尝试作为单个IP处理
-			if whitelistIP := net.ParseIP(whitelistCIDR); whitelistIP != nil {
-				if ip.Equal(whitelistIP) {
+			if listedIP := net.ParseIP(entry); listedIP != nil {
+				if ip.Equal(listedIP) {
 					return true
 				}
 			}
@@ -243,18 +316,38 @@ func isIPListed(ip net.IP, list []string) bool {
 	return false
 }
 
-// IsIPAccessAllowed 检查IP是否允许访问
+// privateAllowed reports whether the operator deliberately allowed this
+// private target: by the host name the caller used, or by the address.
+// host is the URL host (a name or an IP literal); ip is the address being
+// judged (a literal or a resolved one). Either match is enough.
+func (p *SSRFProtection) privateAllowed(host string, ip net.IP) bool {
+	if len(p.PrivateAllowList) == 0 {
+		return false
+	}
+	if host != "" && net.ParseIP(host) == nil && isDomainListed(host, p.PrivateAllowList) {
+		return true
+	}
+	return ip != nil && isIPListed(ip, p.PrivateAllowList)
+}
+
+// privateBlocked is the single private-address decision: the address is
+// private, the operator did not allow private addresses globally, and did
+// not allow this host or address specifically.
+func (p *SSRFProtection) privateBlocked(host string, ip net.IP) bool {
+	return isPrivateIP(ip) && !p.AllowPrivateIp && !p.privateAllowed(host, ip)
+}
+
+// IsIPAccessAllowed 检查IP是否允许访问 (literal IP target)
 func (p *SSRFProtection) IsIPAccessAllowed(ip net.IP) bool {
-	// 私有IP限制
-	if isPrivateIP(ip) && !p.AllowPrivateIp {
+	if p.privateBlocked("", ip) {
 		return false
 	}
 
 	return p.isOptionalIPListAllowed(ip)
 }
 
-func (p *SSRFProtection) isDomainResolvedIPAllowed(ip net.IP) bool {
-	if isPrivateIP(ip) && !p.AllowPrivateIp {
+func (p *SSRFProtection) isDomainResolvedIPAllowed(host string, ip net.IP) bool {
+	if p.privateBlocked(host, ip) {
 		return false
 	}
 	if !p.ApplyIPFilterForDomain {
@@ -272,36 +365,46 @@ func (p *SSRFProtection) isOptionalIPListAllowed(ip net.IP) bool {
 	return !listed
 }
 
-func (p *SSRFProtection) ipAccessError(host string, ip net.IP, domainResolved bool) error {
-	if isPrivateIP(ip) && !p.AllowPrivateIp {
+// ipAccessError names the host the caller supplied. When the host is a name
+// it never includes the address it resolved to: that address is a fact
+// about the operator's network, not about the request.
+func (p *SSRFProtection) ipAccessError(host string, ip net.IP, domainResolved bool) *URLRejectedError {
+	if p.privateBlocked(host, ip) {
 		if domainResolved {
-			return fmt.Errorf("private IP address not allowed: %s resolves to %s", host, ip.String())
+			return rejectf(RejectPrivateAddress, "private address not allowed: %s resolves to a private or internal address", host)
 		}
-		return fmt.Errorf("private IP address not allowed: %s", ip.String())
+		return rejectf(RejectPrivateAddress, "private address not allowed: %s", ip.String())
 	}
 	if p.IpFilterMode {
 		if domainResolved {
-			return fmt.Errorf("ip not in whitelist: %s resolves to %s", host, ip.String())
+			return rejectf(RejectIPFiltered, "ip not in whitelist: %s resolves to an address outside the whitelist", host)
 		}
-		return fmt.Errorf("ip not in whitelist: %s", ip.String())
+		return rejectf(RejectIPFiltered, "ip not in whitelist: %s", ip.String())
 	}
 	if domainResolved {
-		return fmt.Errorf("ip in blacklist: %s resolves to %s", host, ip.String())
+		return rejectf(RejectIPFiltered, "ip in blacklist: %s resolves to a blacklisted address", host)
 	}
-	return fmt.Errorf("ip in blacklist: %s", ip.String())
+	return rejectf(RejectIPFiltered, "ip in blacklist: %s", ip.String())
 }
 
-// ValidateURL 验证URL是否安全
+func (p *SSRFProtection) domainError(host string) *URLRejectedError {
+	if p.DomainFilterMode {
+		return rejectf(RejectDomainFiltered, "domain not in whitelist: %s", host)
+	}
+	return rejectf(RejectDomainFiltered, "domain in blacklist: %s", host)
+}
+
+// ValidateURL 验证URL是否安全. A refusal is a *URLRejectedError.
 func (p *SSRFProtection) ValidateURL(urlStr string) error {
 	// 解析URL
 	u, err := url.Parse(urlStr)
 	if err != nil {
-		return fmt.Errorf("invalid URL format: %v", err)
+		return rejectf(RejectInvalidURL, "invalid URL format: %v", err)
 	}
 
 	// 只允许HTTP/HTTPS协议
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("unsupported protocol: %s (only http/https allowed)", u.Scheme)
+		return rejectf(RejectUnsupportedScheme, "unsupported protocol: %s (only http/https allowed)", u.Scheme)
 	}
 
 	// 解析主机和端口
@@ -315,15 +418,18 @@ func (p *SSRFProtection) ValidateURL(urlStr string) error {
 			portStr = "80"
 		}
 	}
+	if host == "" {
+		return rejectf(RejectInvalidURL, "invalid URL: missing host")
+	}
 
 	// 验证端口
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return fmt.Errorf("invalid port: %s", portStr)
+		return rejectf(RejectInvalidURL, "invalid port: %s", portStr)
 	}
 
 	if !p.isAllowedPort(port) {
-		return fmt.Errorf("port %d is not allowed", port)
+		return rejectf(RejectPortNotAllowed, "port %d is not allowed", port)
 	}
 
 	// 如果 host 是 IP，则跳过域名检查
@@ -336,66 +442,101 @@ func (p *SSRFProtection) ValidateURL(urlStr string) error {
 
 	// 先进行域名过滤
 	if !p.isDomainAllowed(host) {
-		if p.DomainFilterMode {
-			return fmt.Errorf("domain not in whitelist: %s", host)
-		}
-		return fmt.Errorf("domain in blacklist: %s", host)
+		return p.domainError(host)
 	}
 
 	// 解析域名对应IP并检查
 	ips, err := lookupIP(host)
 	if err != nil {
-		return fmt.Errorf("DNS resolution failed for %s: %v", host, err)
+		return rejectf(RejectDNSFailed, "DNS resolution failed for %s: %v", host, err)
+	}
+	if len(ips) == 0 {
+		return rejectf(RejectDNSFailed, "DNS resolution failed for %s: no addresses", host)
 	}
 	for _, ip := range ips {
-		if !p.isDomainResolvedIPAllowed(ip) {
+		if !p.isDomainResolvedIPAllowed(host, ip) {
 			return p.ipAccessError(host, ip, true)
 		}
 	}
 	return nil
 }
 
+// approvedDialKey carries the addresses DialContext validated to the
+// dialer's control hook, which refuses any other address.
+type approvedDialKey struct{}
+
+type approvedDialAddrs []net.IP
+
+func withApprovedDialAddrs(ctx context.Context, ips []net.IP) context.Context {
+	return context.WithValue(ctx, approvedDialKey{}, approvedDialAddrs(ips))
+}
+
+// DialControl is a net.Dialer.ControlContext hook. It runs after the
+// operating system has chosen the address to connect to and before the
+// connection is made, and refuses any address DialContext did not validate
+// in this same dial. A dialer carrying it cannot reach an unchecked target
+// even if a caller bypasses DialContext.
+func DialControl(ctx context.Context, network, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return rejectf(RejectInvalidURL, "invalid dial address: %s", address)
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return rejectf(RejectInvalidURL, "dial to unresolved address refused: %s", host)
+	}
+	approved, _ := ctx.Value(approvedDialKey{}).(approvedDialAddrs)
+	for _, candidate := range approved {
+		if candidate.Equal(ip) {
+			return nil
+		}
+	}
+	if isPrivateIP(ip) {
+		return rejectf(RejectPrivateAddress, "dial to unvalidated private address refused")
+	}
+	return rejectf(RejectIPFiltered, "dial to unvalidated address refused")
+}
+
 // DialContext resolves domains once, validates the selected IPs, and dials the
 // validated IP address directly so DNS rebinding cannot bypass ValidateURL.
+// The validated addresses travel in ctx for DialControl.
 func (p *SSRFProtection) DialContext(ctx context.Context, network, address string, dialer ContextDialer) (net.Conn, error) {
 	if dialer == nil {
-		dialer = &net.Dialer{}
+		dialer = &net.Dialer{ControlContext: DialControl}
 	}
 	host, portStr, err := net.SplitHostPort(address)
 	if err != nil {
-		return nil, fmt.Errorf("invalid dial address: %s", address)
+		return nil, rejectf(RejectInvalidURL, "invalid dial address: %s", address)
 	}
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid port: %s", portStr)
+		return nil, rejectf(RejectInvalidURL, "invalid port: %s", portStr)
 	}
 	if !p.isAllowedPort(port) {
-		return nil, fmt.Errorf("port %d is not allowed", port)
+		return nil, rejectf(RejectPortNotAllowed, "port %d is not allowed", port)
 	}
 
 	if ip := net.ParseIP(host); ip != nil {
 		if !p.IsIPAccessAllowed(ip) {
 			return nil, p.ipAccessError(host, ip, false)
 		}
-		return dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), portStr))
+		return dialer.DialContext(withApprovedDialAddrs(ctx, []net.IP{ip}), network, net.JoinHostPort(ip.String(), portStr))
 	}
 
 	if !p.isDomainAllowed(host) {
-		if p.DomainFilterMode {
-			return nil, fmt.Errorf("domain not in whitelist: %s", host)
-		}
-		return nil, fmt.Errorf("domain in blacklist: %s", host)
+		return nil, p.domainError(host)
 	}
 
 	ips, err := lookupIP(host)
 	if err != nil {
-		return nil, fmt.Errorf("DNS resolution failed for %s: %v", host, err)
+		return nil, rejectf(RejectDNSFailed, "DNS resolution failed for %s: %v", host, err)
 	}
 	for _, ip := range ips {
-		if !p.isDomainResolvedIPAllowed(ip) {
+		if !p.isDomainResolvedIPAllowed(host, ip) {
 			return nil, p.ipAccessError(host, ip, true)
 		}
 	}
+	ctx = withApprovedDialAddrs(ctx, ips)
 	var lastErr error
 	for _, ip := range ips {
 		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), portStr))
@@ -407,35 +548,13 @@ func (p *SSRFProtection) DialContext(ctx context.Context, network, address strin
 	if lastErr != nil {
 		return nil, lastErr
 	}
-	return nil, fmt.Errorf("DNS resolution failed for %s: no addresses", host)
+	return nil, rejectf(RejectDNSFailed, "DNS resolution failed for %s: no addresses", host)
 }
 
-// ValidateURLWithFetchSetting 使用FetchSetting配置验证URL
-func ValidateURLWithFetchSetting(urlStr string, enableSSRFProtection, allowPrivateIp bool, domainFilterMode bool, ipFilterMode bool, domainList, ipList, allowedPorts []string, applyIPFilterForDomain bool) error {
-	// 如果SSRF防护被禁用，直接返回成功
-	if !enableSSRFProtection {
-		return nil
-	}
-
-	// 解析端口范围配置
-	allowedPortInts, err := parsePortRanges(allowedPorts)
-	if err != nil {
-		return fmt.Errorf("request reject - invalid port configuration: %v", err)
-	}
-
-	protection := &SSRFProtection{
-		AllowPrivateIp:         allowPrivateIp,
-		DomainFilterMode:       domainFilterMode,
-		DomainList:             domainList,
-		IpFilterMode:           ipFilterMode,
-		IpList:                 ipList,
-		AllowedPorts:           allowedPortInts,
-		ApplyIPFilterForDomain: applyIPFilterForDomain,
-	}
-	return protection.ValidateURL(urlStr)
-}
-
-func NewSSRFProtectionFromFetchSetting(allowPrivateIp bool, domainFilterMode bool, ipFilterMode bool, domainList, ipList, allowedPorts []string, applyIPFilterForDomain bool) (*SSRFProtection, error) {
+// NewSSRFProtectionFromFetchSetting builds the policy from the operator's
+// fetch setting fields. privateAllowList holds hosts, IPs or CIDRs that may
+// be fetched although they are private.
+func NewSSRFProtectionFromFetchSetting(allowPrivateIp bool, domainFilterMode bool, ipFilterMode bool, domainList, ipList, allowedPorts []string, applyIPFilterForDomain bool, privateAllowList []string) (*SSRFProtection, error) {
 	allowedPortInts, err := parsePortRanges(allowedPorts)
 	if err != nil {
 		return nil, fmt.Errorf("request reject - invalid port configuration: %v", err)
@@ -448,5 +567,6 @@ func NewSSRFProtectionFromFetchSetting(allowPrivateIp bool, domainFilterMode boo
 		IpList:                 ipList,
 		AllowedPorts:           allowedPortInts,
 		ApplyIPFilterForDomain: applyIPFilterForDomain,
+		PrivateAllowList:       privateAllowList,
 	}, nil
 }

@@ -1,0 +1,60 @@
+{
+  "model": "claude-haiku-5-5",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Weather in Paris?"
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "..."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01",
+          "name": "get_weather",
+          "input": {
+            "city": "Paris"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "content": "{\"temp\":18}",
+          "tool_use_id": "toolu_01"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "And in Rome?"
+    }
+  ],
+  "tools": [
+    {
+      "name": "get_weather",
+      "description": "Weather for a city",
+      "input_schema": {
+        "properties": {
+          "city": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "city"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "tool_choice": {
+    "type": "any"
+  }
+}

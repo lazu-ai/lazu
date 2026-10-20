@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"github.com/lazu-ai/lazu/internal/relay/channel"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/types"
@@ -17,7 +18,7 @@ func TestStreamFailureUsesOneCatalogIdentity(t *testing.T) {
 		{types.OpenAIError{Code: "provider_specific", Type: "provider_specific", Message: "Unexpected failure"}, types.ErrorCodeUpstreamStreamFailed},
 	} {
 		t.Run(string(tc.code), func(t *testing.T) {
-			frame, _ := streamFailureFrame(types.ErrorCodeUpstreamStreamFailed, &tc.upstream)
+			frame, _ := channel.StreamFailureFrame(types.ErrorCodeUpstreamStreamFailed, &tc.upstream)
 			spec := types.RenderWire(tc.code, nil, 0)
 			if frame.Code != string(spec.Code) || frame.Type != spec.Type || frame.Lazu != spec.ID || frame.Docs != spec.Docs {
 				t.Fatalf("mixed error identities: %+v", frame)

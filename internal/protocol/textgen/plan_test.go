@@ -397,3 +397,204 @@ func TestPlanAttemptNamesOpaqueInputItemWhenBridgingToChat(t *testing.T) {
 		t.Fatalf("opaque input items must stay native-relayable on a Responses channel, plan=%+v err=%v", plan, err)
 	}
 }
+
+func deepseekSnapshot(withResponses bool) CapabilitySnapshot {
+	endpoints := []FeatureID{FeatureEndpointChat}
+	if withResponses {
+		endpoints = append(endpoints, FeatureEndpointResponses)
+	}
+	snapshot := snapshot("deepseek", endpoints...)
+	snapshot.Features.Add(FeatureJSONSchema)
+	snapshot.Features.Add(FeatureJSONOutput)
+	snapshot.Features.Add(FeatureFunctionTools)
+	snapshot.Features.Add(FeatureReasoningEffort)
+	snapshot.EndpointGaps = map[FeatureID]FeatureSet{FeatureEndpointChat: FeatureSet(1)<<FeatureJSONSchema | FeatureSet(1)<<FeatureStrictSchema}
+	return snapshot
+}
+
+func schemaChatRequest() *Request {
+	request := minimalRequest()
+	request.Output = OutputConstraint{Type: "json_schema", Name: "session_title", Schema: json.RawMessage(`{"type":"object"}`)}
+	return request
+}
+
+// Hermes' title request: Chat + json_schema to DeepSeek, no tools. The Chat
+// endpoint is native but cannot carry the schema; Responses can, losslessly.
+func TestPlanAttemptRoutesAGappedFeatureThroughTheOtherEndpoint(t *testing.T) {
+	plan, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), schemaChatRequest(), 1, "deepseek-flash")
+	if err != nil {
+		t.Fatalf("expected a Responses bridge, got %v", err)
+	}
+	if plan.Native || plan.UpstreamProtocol.Family != ProtocolOpenAIResponses {
+		t.Fatalf("expected Chat->Responses bridge, got %+v", plan)
+	}
+	if len(plan.Warnings) != 1 || plan.Warnings[0].Message != "endpoint_bridge:output.json_schema" || plan.Warnings[0].Path != "response_format" {
+		t.Fatalf("expected an endpoint_bridge warning, got %+v", plan.Warnings)
+	}
+	// without the feature the native endpoint is still the route
+	plain, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), minimalRequest(), 1, "deepseek-flash")
+	if err != nil || !plain.Native {
+		t.Fatalf("a request without the gapped feature stays native: %+v %v", plain, err)
+	}
+}
+
+// With tools and reasoning on, the Chat->Responses bridge is not lossless, so
+// the gapped feature cannot be routed: the planner refuses, naming it.
+func TestPlanAttemptRefusesAGappedFeatureWhenTheBridgeIsLossy(t *testing.T) {
+	request := schemaChatRequest()
+	request.Tools = []ToolDefinition{{Type: "function", Name: "lookup", Parameters: json.RawMessage(`{"type":"object"}`)}}
+	request.Reasoning.Effort = "high"
+	_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), request, 1, "deepseek-flash")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureJSONSchema || unsupported.Path != "response_format" {
+		t.Fatalf("expected a json_schema refusal, got %v", err)
+	}
+	// reasoning off makes the bridge lossless again (Hermes sends effort none)
+	request.Reasoning.Effort = "none"
+	plan, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), request, 1, "deepseek-flash")
+	if err != nil || plan.Native || plan.UpstreamProtocol.Family != ProtocolOpenAIResponses {
+		t.Fatalf("expected a bridge with reasoning off, got %+v %v", plan, err)
+	}
+	// no other endpoint at all: refused as well (a degradation rule would
+	// have run before planning)
+	_, err = PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(false), schemaChatRequest(), 1, "deepseek-flash")
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureJSONSchema {
+		t.Fatalf("expected a refusal without a second endpoint, got %v", err)
+	}
+}
+
+func anthropicSnapshot() CapabilitySnapshot {
+	snapshot := snapshot("anthropic", FeatureEndpointMessages)
+	snapshot.Features.Add(FeatureFunctionTools)
+	snapshot.Features.Add(FeatureReasoningEffort)
+	snapshot.Features.Add(FeatureJSONSchema)
+	snapshot.Features.Add(FeatureJSONOutput)
+	return snapshot
+}
+
+// A Chat or Responses client on an Anthropic channel is bridged to the
+// Messages API; a Claude client is native there.
+func TestPlanAttemptBridgesOpenAIClientsToMessages(t *testing.T) {
+	for _, family := range []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses} {
+		request := minimalRequest()
+		request.Tools = []ToolDefinition{{Type: "function", Name: "lookup"}}
+		request.Reasoning.Effort = "high"
+		plan, err := PlanAttempt(Protocol{Family: family, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		if err != nil {
+			t.Fatalf("%s: %v", family, err)
+		}
+		if plan.Native || plan.UpstreamProtocol.Family != ProtocolAnthropic || plan.UpstreamProtocol.Dialect != "anthropic" || plan.RequestCodec != string(ProtocolAnthropic) || plan.ResponseEmitter != string(family) {
+			t.Fatalf("%s: expected a Messages bridge, got %+v", family, plan)
+		}
+	}
+	native, err := PlanAttempt(Protocol{Family: ProtocolAnthropic, Dialect: "anthropic"}, anthropicSnapshot(), minimalRequest(), 1, "claude-haiku-5-5")
+	if err != nil || !native.Native {
+		t.Fatalf("a Claude client is native on an Anthropic channel: %+v %v", native, err)
+	}
+}
+
+func TestPlanAttemptMessagesBridgeRefusesWhatMessagesCannotCarry(t *testing.T) {
+	cases := map[string]func(*Request){
+		"json_object": func(r *Request) { r.Output = OutputConstraint{Type: "json_object"} },
+		"logprobs":    func(r *Request) { r.Sampling.LogProbs = Some(true) },
+		"seed":        func(r *Request) { r.Sampling.Seed = Some[int64](7) },
+		"n=2":         func(r *Request) { r.Sampling.N = Some(2) },
+		"store=true":  func(r *Request) { r.Lifecycle.Store = Some(true) },
+	}
+	for name, mutate := range cases {
+		request := minimalRequest()
+		mutate(request)
+		_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		var unsupported *UnsupportedFeatureError
+		if !errors.As(err, &unsupported) {
+			t.Fatalf("%s: expected a refusal, got %v", name, err)
+		}
+	}
+	// what Messages carries: json_schema, stop sequences, top_k, a developer instruction
+	request := minimalRequest()
+	request.Output = OutputConstraint{Type: "json_schema", Name: "t", Schema: json.RawMessage(`{"type":"object"}`)}
+	request.Sampling.Stop = Some(json.RawMessage(`["END"]`))
+	request.Sampling.TopK = Some(5)
+	request.Instructions = []Instruction{{Role: "developer", Text: "be brief"}}
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("Messages carries these losslessly: %v", err)
+	}
+}
+
+// Anthropic's cache markers are advisory: they go to Messages and fall out
+// of any other bridge. Its speed tier goes to Messages and is refused
+// elsewhere by name.
+func TestPlanAttemptAnthropicOptionsOnlyBridgeToMessages(t *testing.T) {
+	cached := minimalRequest()
+	cached.Conversation[0].Content[0].CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
+	cached.Vendor.CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
+	responsesOnly := snapshot("openai", FeatureEndpointResponses)
+	for name, snap := range map[string]CapabilitySnapshot{"messages": anthropicSnapshot(), "responses": responsesOnly} {
+		if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, snap, cached, 1, "m"); err != nil {
+			t.Fatalf("%s: a cache marker never blocks a bridge: %v", name, err)
+		}
+	}
+	fast := minimalRequest()
+	fast.Vendor.Speed = json.RawMessage(`"fast"`)
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), fast, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("Messages carries speed: %v", err)
+	}
+	_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, responsesOnly, fast, 1, "gpt-5")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureAnthropicOptions || unsupported.Path != "speed" {
+		t.Fatalf("a Responses bridge refuses speed by name: %v", err)
+	}
+	native := snapshot("openai", FeatureEndpointChat)
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, native, fast, 1, "gpt-5"); err != nil {
+		t.Fatalf("a native relay passes its own wire: %v", err)
+	}
+}
+
+func TestPlanAttemptMessagesBridgeRefusesWebSearchAndImageDetail(t *testing.T) {
+	search := minimalRequest()
+	search.Tools = []ToolDefinition{{Type: "web_search_preview"}}
+	detail := minimalRequest()
+	detail.Conversation[0].Content = append(detail.Conversation[0].Content, ContentPart{Kind: ContentImage, URL: "data:image/png;base64,AA", Detail: "low"})
+	for name, request := range map[string]*Request{"web search": search, "image detail": detail} {
+		_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		var unsupported *UnsupportedFeatureError
+		if !errors.As(err, &unsupported) || unsupported.Path == "" {
+			t.Fatalf("%s: a Messages bridge must refuse by path: %v", name, err)
+		}
+	}
+}
+
+// What the Messages API would refuse is refused by its path at planning,
+// so routing picks another channel instead of meeting an upstream 400.
+func TestMessagesBridgeRefusesWhatMessagesRejects(t *testing.T) {
+	chat := Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}
+	user := InputItem{Kind: InputMessage, Role: "user", Content: []ContentPart{{Kind: ContentText, Text: "q"}}}
+	for name, tc := range map[string]struct {
+		mutate func(*Request)
+		path   string
+	}{
+		"service tier": {func(r *Request) { r.Metadata.ServiceTier = "priority" }, "service_tier"},
+		"system turn before a user turn": {func(r *Request) {
+			r.Conversation = []InputItem{user, {Kind: InputMessage, Role: "developer", Content: []ContentPart{{Kind: ContentText, Text: "be terse"}}}, user}
+		}, "input[1].role"},
+		"arguments not an object": {func(r *Request) {
+			r.Conversation = []InputItem{user, {Kind: InputFunctionCall, CallID: "c", FunctionName: "f", Arguments: `[1,2]`}, {Kind: InputFunctionResult, CallID: "c", Output: "ok"}}
+		}, "input[1].arguments"},
+	} {
+		request := minimalRequest()
+		tc.mutate(request)
+		_, err := PlanAttempt(chat, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		var unsupported *UnsupportedFeatureError
+		if !errors.As(err, &unsupported) || unsupported.Path != tc.path {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	// a system turn before the assistant's, or at the end, is fine; so is
+	// the auto tier
+	request := minimalRequest()
+	request.Metadata.ServiceTier = "auto"
+	request.Conversation = append(request.Conversation, InputItem{Kind: InputMessage, Role: "developer", Content: []ContentPart{{Kind: ContentText, Text: "be terse"}}})
+	if _, err := PlanAttempt(chat, anthropicSnapshot(), request, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("a trailing system turn and the auto tier plan: %v", err)
+	}
+}

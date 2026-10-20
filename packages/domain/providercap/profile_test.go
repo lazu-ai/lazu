@@ -174,3 +174,73 @@ func TestIsSupported_GeminiGuard(t *testing.T) {
 		t.Fatalf("anthropic should be blocked for gemini profile")
 	}
 }
+
+func TestBuildSnapshotDeepSeekCarriesJSONSchemaOnResponsesOnly(t *testing.T) {
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectDeepSeek, Model: model.ModelCapabilities{SupportsResponseSchema: true, SupportsFunctionCalling: true}})
+	if !snapshot.Features.Has(textgen.FeatureEndpointChat) || !snapshot.Features.Has(textgen.FeatureEndpointResponses) {
+		t.Fatalf("deepseek has both endpoints: %v", snapshot.Features.Names())
+	}
+	if !snapshot.Features.Has(textgen.FeatureJSONSchema) {
+		t.Fatal("the model's schema support is kept on the snapshot")
+	}
+	if snapshot.FeaturesOn(textgen.FeatureEndpointChat).Has(textgen.FeatureJSONSchema) {
+		t.Fatal("DeepSeek Chat does not carry json_schema")
+	}
+	if !snapshot.FeaturesOn(textgen.FeatureEndpointResponses).Has(textgen.FeatureJSONSchema) {
+		t.Fatal("DeepSeek Responses carries json_schema")
+	}
+	if snapshot.UnsupportedEverywhere(textgen.FeatureSet(1)<<textgen.FeatureJSONSchema) != 0 {
+		t.Fatal("a feature one endpoint carries is not unsupported")
+	}
+	// the gap is a wire fact: a sparse row records it too
+	plain := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectDeepSeek})
+	if !plain.EndpointGaps[textgen.FeatureEndpointChat].Has(textgen.FeatureJSONSchema) {
+		t.Fatalf("the gap holds without the catalog flag: %v", plain.EndpointGaps)
+	}
+	if other := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectOpenAI}); other.Revision == plain.Revision || other.EndpointGaps != nil {
+		t.Fatal("gaps are part of the revision, and only DeepSeek has them")
+	}
+}
+
+func TestBuildSnapshotChannelCanDenyJSONSchema(t *testing.T) {
+	no := false
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectOpenAIChatCompatible, Model: model.ModelCapabilities{SupportsResponseSchema: true}, Channel: &dto.ChannelCapabilities{SupportsJSONSchema: &no}})
+	if snapshot.Features.Has(textgen.FeatureJSONSchema) || !snapshot.Denied.Has(textgen.FeatureJSONSchema) {
+		t.Fatalf("explicit false must remove and deny json_schema: features=%v denied=%v", snapshot.Features.Names(), snapshot.Denied.Names())
+	}
+	if snapshot.Denied.Has(textgen.FeatureStrictSchema) {
+		t.Fatal("the overlay says nothing about strict function tools")
+	}
+	if !snapshot.Features.Has(textgen.FeatureJSONOutput) {
+		t.Fatal("json_object stays available")
+	}
+	yes := true
+	kept := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectOpenAIChatCompatible, Model: model.ModelCapabilities{SupportsResponseSchema: true}, Channel: &dto.ChannelCapabilities{SupportsJSONSchema: &yes}})
+	if !kept.Features.Has(textgen.FeatureJSONSchema) || kept.Denied != 0 {
+		t.Fatal("true and nil change nothing")
+	}
+}
+
+// A strict function tool raises the shared strict marker; DeepSeek Chat's gap
+// is the response-format schema alone, so such a request stays native.
+func TestDeepSeekChatGapIsTheResponseSchemaOnly(t *testing.T) {
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectDeepSeek, Model: model.ModelCapabilities{SupportsResponseSchema: true}})
+	gap := snapshot.EndpointGaps[textgen.FeatureEndpointChat]
+	if !gap.Has(textgen.FeatureJSONSchema) || gap.Has(textgen.FeatureStrictSchema) {
+		t.Fatalf("gap: %v", gap.Names())
+	}
+}
+
+// A sparse catalog row leaves json_schema unknown; DeepSeek Chat still
+// rejects it, so the gap stands and the planner bridges to Responses.
+func TestDeepSeekChatGapHoldsForASparseCatalogRow(t *testing.T) {
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectDeepSeek})
+	semantic := &textgen.Request{Output: textgen.OutputConstraint{Type: "json_schema", Schema: []byte(`{"type":"object"}`)}}
+	plan, err := textgen.PlanAttempt(textgen.Protocol{Family: textgen.ProtocolOpenAIChat}, snapshot, semantic, 1, "deepseek-chat")
+	if err != nil || plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIResponses {
+		t.Fatalf("a sparse row must still bridge json_schema to Responses: %+v %v", plan, err)
+	}
+	if !snapshot.EndpointGaps[textgen.FeatureEndpointChat].Has(textgen.FeatureJSONSchema) {
+		t.Fatalf("gaps: %+v", snapshot.EndpointGaps)
+	}
+}

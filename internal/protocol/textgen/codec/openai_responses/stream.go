@@ -3,7 +3,6 @@ package openai_responses
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -11,57 +10,92 @@ import (
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 )
 
-type toolStreamState struct {
-	ItemID      string
-	CallID      string
-	Name        string
-	Arguments   strings.Builder
-	OutputIndex int
-	Added       bool
-}
-
 const (
 	defaultChatStreamRetainedOutputBytes = 16 << 20
 	minimumChatStreamRetainedOutputBytes = 64 << 10
 	chatStreamBytesPerOutputToken        = 16
 )
 
-// ChatStreamBridge is an explicit state machine for Chat-upstream to
-// Responses-client SSE conversion. Responses terminal events require the
-// completed output, so retained text is bounded per request.
-type ChatStreamBridge struct {
-	sequence              uint64
-	responseID            string
-	model                 string
-	createdAt             int64
-	started               bool
-	assistantRoleSeen     bool
-	messageAdded          bool
-	textContentAdded      bool
-	refusalContentAdded   bool
-	messageText           strings.Builder
-	messageRefusal        strings.Builder
-	reasoningText         strings.Builder
-	messageItemID         string
-	reasoningItemID       string
-	messageOutputIndex    int
-	reasoningOutputIndex  int
-	textContentIndex      int
-	refusalContentIndex   int
-	reasoningContentIndex int
-	nextContentIndex      int
-	nextOutputIndex       int
-	finishReason          string
-	reasoningAdded        bool
-	reasoningContentAdded bool
-	terminal              bool
-	tools                 map[int]*toolStreamState
-	usage                 *dto.Usage
-	retainedOutputBytes   int
-	retainedOutputLimit   int
+// SealedBy is the dialect name a Responses reasoning item is sealed under
+// (textgen.Event.SealedBy): only a Responses client may be given it back.
+const SealedBy = "openai_responses"
+
+type itemKind int
+
+const (
+	itemMessage itemKind = iota
+	itemReasoning
+	itemTool
+	itemRaw
+)
+
+// outputItem is one item of the reply as the Responses wire counts them,
+// in output order.
+type outputItem struct {
+	kind   itemKind
+	id     string
+	index  int
+	status string
+	// message
+	text, refusal             strings.Builder
+	textAdded, refusalAdded   bool
+	textContent, refusalIndex int
+	nextContent               int
+	// reasoning: the raw text (content) and the summary, each a part once
+	// it has text
+	reasoning      strings.Builder
+	reasoningAdded bool
+	summary        strings.Builder
+	summaryAdded   bool
+	upstreamID     string // the upstream's id for the item, when it gave one
+	// tool
+	toolIndex int
+	callID    string
+	name      string
+	args      strings.Builder
+	// announced: output_item.added has gone out. A call is announced once
+	// its call id and name are known (a Chat upstream may name it on a
+	// later fragment) or when it closes; argument deltas wait for it.
+	announced bool
+	// raw: a sealed item passed through as the upstream wrote it
+	raw json.RawMessage
 }
 
-func NewChatStreamBridge(responseID, model string, retainedOutputLimit ...int) *ChatStreamBridge {
+// StreamEmitter is the Responses SSE state machine: content events in,
+// Responses events out. It owns sequence numbers, item ids, output and
+// content indexes, the content-part lifecycle, the retained output the
+// terminal event must carry (bounded per request), and the envelope. One
+// emitter serves one reply.
+type StreamEmitter struct {
+	sequence   uint64
+	responseID string
+	suffix     string
+	model      string
+	createdAt  int64
+	request    *textgen.Request
+
+	started  bool
+	terminal bool
+	turnSeen bool
+	stopSeen bool
+	stop     textgen.StopReason
+
+	items           []*outputItem
+	message         *outputItem
+	reasoning       *outputItem
+	reasonCount     int
+	nextReasoningID string // the upstream's id the next reasoning item takes
+	tools           map[int]*outputItem
+
+	usage               *dto.Usage
+	retainedOutputBytes int
+	retainedOutputLimit int
+}
+
+// NewStreamEmitter makes the emitter for one reply. responseID is the id
+// the reply is answered under until an EventStart names the upstream's;
+// request is the client's, whose configuration the envelope echoes.
+func NewStreamEmitter(responseID, model string, request *textgen.Request, retainedOutputLimit ...int) *StreamEmitter {
 	if responseID == "" {
 		responseID = "resp_lazu"
 	}
@@ -69,10 +103,20 @@ func NewChatStreamBridge(responseID, model string, retainedOutputLimit ...int) *
 	if len(retainedOutputLimit) > 0 && retainedOutputLimit[0] > 0 {
 		limit = retainedOutputLimit[0]
 	}
-	return &ChatStreamBridge{responseID: normalizeResponseID(responseID), model: model, createdAt: time.Now().Unix(), messageItemID: "msg_" + stableSuffix(responseID), reasoningItemID: "rs_lazu_" + stableSuffix(responseID), tools: map[int]*toolStreamState{}, retainedOutputLimit: limit}
+	e := &StreamEmitter{model: model, request: request, createdAt: time.Now().Unix(), tools: map[int]*outputItem{}, retainedOutputLimit: limit}
+	e.setResponseID(responseID)
+	return e
 }
 
-func ChatStreamRetainedOutputLimit(request *textgen.Request) int {
+func (e *StreamEmitter) setResponseID(id string) {
+	e.responseID = normalizeResponseID(id)
+	e.suffix = stableSuffix(id)
+}
+
+// RetainedOutputLimit is how much reply text an emitter for request may
+// retain for the terminal event: the request's output limit times a bytes
+// per token allowance, within fixed bounds.
+func RetainedOutputLimit(request *textgen.Request) int {
 	if request == nil || !request.Sampling.MaxOutput.Set || request.Sampling.MaxOutput.Value == 0 {
 		return defaultChatStreamRetainedOutputBytes
 	}
@@ -81,486 +125,505 @@ func ChatStreamRetainedOutputLimit(request *textgen.Request) int {
 	if requested > maxDynamicTokens {
 		return defaultChatStreamRetainedOutputBytes
 	}
-	limit := requested*chatStreamBytesPerOutputToken + minimumChatStreamRetainedOutputBytes
-	return int(limit)
+	return int(requested*chatStreamBytesPerOutputToken + minimumChatStreamRetainedOutputBytes)
 }
 
-func (s *ChatStreamBridge) Consume(chunk *dto.ChatCompletionsStreamResponse) ([]textgen.Event, error) {
-	if s == nil || chunk == nil {
+// Emit is the Responses events for the content events given, in order. An
+// error (retained output over its limit) leaves the emitter in a state Fail
+// closes; nothing after the failing event is applied.
+func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) {
+	events = textgen.ForClient(events)
+	if e == nil || e.terminal {
 		return nil, nil
 	}
-	if chunk.Id != "" && !s.started {
-		s.responseID = normalizeResponseID(chunk.Id)
-		s.messageItemID = "msg_" + stableSuffix(chunk.Id)
-		s.reasoningItemID = "rs_lazu_" + stableSuffix(chunk.Id)
-	}
-	if chunk.Model != "" {
-		s.model = chunk.Model
-	}
-	if chunk.Created > 0 {
-		s.createdAt = chunk.Created
-	}
-	events := s.startEvents()
-	if chunk.Usage != nil {
-		s.usage = chunk.Usage
-		events = append(events, s.event(textgen.EventUsage))
-	}
-	for _, choice := range chunk.Choices {
-		if strings.EqualFold(strings.TrimSpace(choice.Delta.Role), "assistant") {
-			s.assistantRoleSeen = true
-		}
-		if reasoning := choice.Delta.GetReasoningContent(); reasoning != "" {
-			if err := s.retainOutput(reasoning); err != nil {
-				return events, err
+	var out []map[string]any
+	for _, event := range events {
+		if event.Kind == textgen.EventStart && !e.started {
+			if event.ResponseID != "" {
+				e.setResponseID(event.ResponseID)
 			}
-			partEvents, contentIndex := s.ensureReasoning()
-			events = append(events, partEvents...)
-			s.reasoningText.WriteString(reasoning)
-			events = append(events, textgen.Event{Kind: textgen.EventDelta, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.reasoningItemID, ItemIndex: s.reasoningOutputIndex, ContentIndex: contentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaReasoning, Text: reasoning}})
-		}
-		if choice.Delta.Content != nil && *choice.Delta.Content != "" {
-			if err := s.retainOutput(*choice.Delta.Content); err != nil {
-				return events, err
+			if event.Model != "" {
+				e.model = event.Model
 			}
-			partEvents, contentIndex := s.ensureMessage(textgen.DeltaText)
-			events = append(events, partEvents...)
-			s.messageText.WriteString(*choice.Delta.Content)
-			events = append(events, textgen.Event{Kind: textgen.EventDelta, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, ContentIndex: contentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaText, Text: *choice.Delta.Content}})
-		}
-		if choice.Delta.Refusal != nil && *choice.Delta.Refusal != "" {
-			if err := s.retainOutput(*choice.Delta.Refusal); err != nil {
-				return events, err
+			if event.CreatedAt > 0 {
+				e.createdAt = event.CreatedAt
 			}
-			partEvents, contentIndex := s.ensureMessage(textgen.DeltaRefusal)
-			events = append(events, partEvents...)
-			s.messageRefusal.WriteString(*choice.Delta.Refusal)
-			events = append(events, textgen.Event{Kind: textgen.EventDelta, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, ContentIndex: contentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaRefusal, Refusal: *choice.Delta.Refusal}})
 		}
-		for _, call := range choice.Delta.ToolCalls {
-			if call.Function.Arguments != "" {
-				if err := s.retainOutput(call.Function.Arguments); err != nil {
-					return events, err
+		out = append(out, e.startEvents()...)
+		switch event.Kind {
+		case textgen.EventStart:
+		case textgen.EventUsage:
+			if event.Usage != nil {
+				// partial reports add up: Anthropic gives the input on
+				// message_start and the output on message_delta
+				e.usage = textgen.MergeUsage(e.usage, event.Usage)
+			}
+		case textgen.EventTurn:
+			e.turnSeen = true
+			if event.ItemID != "" {
+				// an upstream message item, possibly empty: opened in its
+				// place among the output items
+				out = append(out, e.openMessage()...)
+			}
+		case textgen.EventText, textgen.EventRefusal:
+			if event.Text == "" {
+				continue
+			}
+			if err := e.retainOutput(event.Text); err != nil {
+				return out, err
+			}
+			refusal := event.Kind == textgen.EventRefusal
+			opened, contentIndex := e.ensureMessage(refusal)
+			out = append(out, opened...)
+			if refusal {
+				e.message.refusal.WriteString(event.Text)
+				out = append(out, e.send("response.refusal.delta", map[string]any{"item_id": e.message.id, "output_index": e.message.index, "content_index": contentIndex, "delta": event.Text}))
+			} else {
+				e.message.text.WriteString(event.Text)
+				out = append(out, e.send("response.output_text.delta", map[string]any{"item_id": e.message.id, "output_index": e.message.index, "content_index": contentIndex, "delta": event.Text}))
+			}
+		case textgen.EventReasoningStart:
+			out = append(out, e.closeReasoning("completed")...)
+			e.nextReasoningID = event.ItemID
+		case textgen.EventReasoning:
+			if event.Text == "" {
+				continue
+			}
+			if err := e.retainOutput(event.Text); err != nil {
+				return out, err
+			}
+			out = append(out, e.ensureReasoning()...)
+			if event.Summary {
+				if !e.reasoning.summaryAdded {
+					e.reasoning.summaryAdded = true
+					out = append(out, e.send("response.reasoning_summary_part.added", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "summary_index": 0, "part": map[string]any{"type": "summary_text", "text": ""}}))
+				}
+				e.reasoning.summary.WriteString(event.Text)
+				out = append(out, e.send("response.reasoning_summary_text.delta", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "summary_index": 0, "delta": event.Text}))
+				continue
+			}
+			if !e.reasoning.reasoningAdded {
+				e.reasoning.reasoningAdded = true
+				out = append(out, e.send("response.content_part.added", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "content_index": 0, "part": map[string]any{"type": "reasoning_text", "text": ""}}))
+			}
+			e.reasoning.reasoning.WriteString(event.Text)
+			out = append(out, e.send("response.reasoning_text.delta", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "content_index": 0, "delta": event.Text}))
+		case textgen.EventReasoningSignature:
+			// a signature belongs to the dialect that made it; Responses
+			// has no field for another's
+		case textgen.EventReasoningSealed:
+			if event.SealedBy != SealedBy || len(event.Sealed) == 0 {
+				continue
+			}
+			// the item is kept whole for the terminal output, so it counts
+			// against the same bound as text and arguments
+			if err := e.retainOutput(string(event.Sealed)); err != nil {
+				return out, err
+			}
+			if open := e.reasoning; open != nil && (event.ItemID == "" || event.ItemID == open.upstreamID) {
+				// the item streamed so far, done as the upstream wrote it
+				open.raw = append(json.RawMessage(nil), event.Sealed...)
+				out = append(out, e.closeReasoning("completed")...)
+				continue
+			}
+			out = append(out, e.closeReasoning("completed")...)
+			item := e.newItem(itemRaw, "")
+			item.raw = append(json.RawMessage(nil), event.Sealed...)
+			out = append(out, e.send("response.output_item.added", map[string]any{"output_index": item.index, "item": item.raw}))
+			out = append(out, e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": item.raw}))
+		case textgen.EventToolStart:
+			if _, open := e.tools[event.ToolIndex]; open {
+				continue
+			}
+			item := e.newItem(itemTool, fmt.Sprintf("fc_%s_%d", e.suffix, event.ToolIndex))
+			if event.ItemID != "" {
+				item.id = event.ItemID
+			}
+			item.toolIndex, item.callID, item.name = event.ToolIndex, event.ToolCallID, event.ToolName
+			e.tools[event.ToolIndex] = item
+			out = append(out, e.announce(item, false)...)
+		case textgen.EventToolArguments, textgen.EventToolDone:
+			item := e.tools[event.ToolIndex]
+			if item == nil {
+				continue
+			}
+			if event.ToolCallID != "" {
+				item.callID = event.ToolCallID
+			}
+			if event.ToolName != "" {
+				item.name = event.ToolName
+			}
+			if event.Kind == textgen.EventToolDone {
+				if event.Text != "" && item.args.Len() == 0 {
+					if err := e.retainOutput(event.Text); err != nil {
+						return out, err
+					}
+					item.args.WriteString(event.Text)
+				}
+				out = append(out, e.announce(item, true)...)
+				continue
+			}
+			if event.Text != "" {
+				if err := e.retainOutput(event.Text); err != nil {
+					return out, err
+				}
+				item.args.WriteString(event.Text)
+				if item.announced {
+					out = append(out, e.send("response.function_call_arguments.delta", map[string]any{"item_id": item.id, "output_index": item.index, "delta": event.Text}))
+					continue
 				}
 			}
-			index := 0
-			if call.Index != nil {
-				index = *call.Index
+			out = append(out, e.announce(item, false)...)
+		case textgen.EventStop:
+			e.stopSeen, e.stop = true, event.Stop
+		case textgen.EventError:
+			semantic := event.Error
+			if semantic == nil {
+				semantic = &textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: "upstream stream failed"}
 			}
-			state := s.tools[index]
-			if state == nil {
-				state = &toolStreamState{ItemID: fmt.Sprintf("fc_%s_%d", stableSuffix(s.responseID), index), CallID: call.ID, Name: call.Function.Name, OutputIndex: s.nextOutputIndex}
-				s.nextOutputIndex++
-				s.tools[index] = state
-			}
-			if call.ID != "" {
-				state.CallID = call.ID
-			}
-			if call.Function.Name != "" {
-				state.Name = call.Function.Name
-			}
-			if !state.Added {
-				state.Added = true
-				events = append(events, textgen.Event{Kind: textgen.EventItemAdded, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: state.ItemID, ItemIndex: state.OutputIndex, ToolCallID: state.CallID, Delta: textgen.TypedDelta{Kind: textgen.DeltaToolArguments, ToolName: state.Name}})
-			}
-			if call.Function.Arguments != "" {
-				state.Arguments.WriteString(call.Function.Arguments)
-				events = append(events, textgen.Event{Kind: textgen.EventDelta, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: state.ItemID, ItemIndex: state.OutputIndex, ToolCallID: state.CallID, Delta: textgen.TypedDelta{Kind: textgen.DeltaToolArguments, Text: call.Function.Arguments, ToolName: state.Name}})
-			}
-		}
-		if choice.FinishReason != nil && *choice.FinishReason != "" {
-			s.finishReason = *choice.FinishReason
+			return append(out, e.FailWithSemanticError(semantic)...), nil
 		}
 	}
-	return events, nil
+	return out, nil
 }
 
-func (s *ChatStreamBridge) retainOutput(value string) error {
-	if s == nil || value == "" {
-		return nil
-	}
-	if s.retainedOutputLimit <= 0 {
-		s.retainedOutputLimit = defaultChatStreamRetainedOutputBytes
-	}
-	if len(value) > s.retainedOutputLimit-s.retainedOutputBytes {
-		return fmt.Errorf("bridged stream retained output exceeds %d-byte limit", s.retainedOutputLimit)
-	}
-	s.retainedOutputBytes += len(value)
-	return nil
-}
-
-func (s *ChatStreamBridge) Finalize(usage *dto.Usage) ([]textgen.Event, error) {
-	if s == nil || s.terminal {
+// Finish closes the reply: every open item, then the terminal event, which
+// carries the whole output and usage (the usage given wins over the one
+// streamed). A reply that never said why it stopped is an error.
+func (e *StreamEmitter) Finish(usage *dto.Usage) ([]map[string]any, error) {
+	if e == nil || e.terminal {
 		return nil, nil
 	}
-	if strings.TrimSpace(s.finishReason) == "" {
-		return nil, fmt.Errorf("chat stream ended without finish_reason")
+	if !e.stopSeen {
+		return nil, fmt.Errorf("stream ended without a stop reason")
 	}
 	if usage != nil {
-		s.usage = chatUsageToResponses(usage)
+		e.usage = chatUsageToResponses(usage)
 	}
-	events := s.startEvents()
-	terminalKind := textgen.EventResponseCompleted
-	status := textgen.StatusCompleted
-	reason := ""
-	switch strings.ToLower(strings.TrimSpace(s.finishReason)) {
-	case "length":
-		terminalKind = textgen.EventResponseIncomplete
-		status = textgen.StatusIncomplete
-		reason = "max_output_tokens"
-	case "content_filter":
-		terminalKind = textgen.EventResponseIncomplete
-		status = textgen.StatusIncomplete
-		reason = "content_filter"
+	out := e.startEvents()
+	status, eventType, reason := "completed", "response.completed", ""
+	switch e.stop {
+	case textgen.StopLength:
+		status, eventType, reason = "incomplete", "response.incomplete", "max_output_tokens"
+	case textgen.StopFilter:
+		status, eventType, reason = "incomplete", "response.incomplete", "content_filter"
 	}
-	if s.assistantRoleSeen && !s.messageAdded && len(s.tools) == 0 {
-		messageEvents, _ := s.ensureMessage(textgen.DeltaText)
-		events = append(events, messageEvents...)
+	if e.turnSeen && e.message == nil && len(e.tools) == 0 {
+		opened, _ := e.ensureMessage(false)
+		out = append(out, opened...)
 	}
-	closedEvents, outputs := s.closeActiveItems(status)
-	events = append(events, closedEvents...)
-	events = append(events, textgen.Event{Kind: terminalKind, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, Status: status, IncompleteReason: reason, Usage: s.usage, Output: outputs})
-	s.terminal = true
-	return events, nil
+	out = append(out, e.closeItems(status)...)
+	response := e.envelope(status)
+	if reason != "" {
+		response["incomplete_details"] = map[string]any{"reason": reason}
+	}
+	e.terminal = true
+	return append(out, e.send(eventType, map[string]any{"response": response})), nil
 }
 
-func (s *ChatStreamBridge) closeActiveItems(status textgen.ResponseStatus) ([]textgen.Event, []textgen.ResponseOutputItem) {
-	events := make([]textgen.Event, 0)
-	if s.reasoningContentAdded {
-		text := s.reasoningText.String()
-		events = append(events,
-			textgen.Event{Kind: textgen.EventDeltaDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.reasoningItemID, ItemIndex: s.reasoningOutputIndex, ContentIndex: s.reasoningContentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaReasoning, Text: text}},
-			textgen.Event{Kind: textgen.EventContentPartDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.reasoningItemID, ItemIndex: s.reasoningOutputIndex, ContentIndex: s.reasoningContentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaReasoning, Text: text}},
-		)
-	}
-	if s.reasoningAdded {
-		events = append(events, textgen.Event{Kind: textgen.EventItemDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, Status: status, ItemID: s.reasoningItemID, ItemIndex: s.reasoningOutputIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaReasoning, Text: s.reasoningText.String()}})
-	}
-	if s.textContentAdded {
-		text := s.messageText.String()
-		events = append(events,
-			textgen.Event{Kind: textgen.EventDeltaDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, ContentIndex: s.textContentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaText, Text: text}},
-			textgen.Event{Kind: textgen.EventContentPartDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, ContentIndex: s.textContentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaText, Text: text}},
-		)
-	}
-	if s.refusalContentAdded {
-		refusal := s.messageRefusal.String()
-		events = append(events,
-			textgen.Event{Kind: textgen.EventDeltaDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, ContentIndex: s.refusalContentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaRefusal, Refusal: refusal}},
-			textgen.Event{Kind: textgen.EventContentPartDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, ContentIndex: s.refusalContentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaRefusal, Refusal: refusal}},
-		)
-	}
-	if s.messageAdded {
-		events = append(events, textgen.Event{Kind: textgen.EventItemDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, Status: status, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaText, Text: s.messageText.String(), Refusal: s.messageRefusal.String()}, Content: s.messageContent()})
-	}
-	toolIndexes := make([]int, 0, len(s.tools))
-	for index := range s.tools {
-		toolIndexes = append(toolIndexes, index)
-	}
-	sort.Slice(toolIndexes, func(i, j int) bool { return s.tools[toolIndexes[i]].OutputIndex < s.tools[toolIndexes[j]].OutputIndex })
-	for _, index := range toolIndexes {
-		state := s.tools[index]
-		if state == nil || !state.Added {
-			continue
-		}
-		arguments := state.Arguments.String()
-		events = append(events,
-			textgen.Event{Kind: textgen.EventDeltaDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, ItemID: state.ItemID, ItemIndex: state.OutputIndex, ToolCallID: state.CallID, Delta: textgen.TypedDelta{Kind: textgen.DeltaToolArguments, Text: arguments, ToolName: state.Name}},
-			textgen.Event{Kind: textgen.EventItemDone, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, Status: status, ItemID: state.ItemID, ItemIndex: state.OutputIndex, ToolCallID: state.CallID, Delta: textgen.TypedDelta{Kind: textgen.DeltaToolArguments, Text: arguments, ToolName: state.Name}},
-		)
-	}
-	outputs := make([]textgen.ResponseOutputItem, 0, 2+len(s.tools))
-	if s.reasoningAdded {
-		outputs = append(outputs, textgen.ResponseOutputItem{Kind: textgen.InputReasoning, OutputIndex: s.reasoningOutputIndex, ID: s.reasoningItemID, Status: status, Text: s.reasoningText.String()})
-	}
-	if s.messageAdded {
-		outputs = append(outputs, textgen.ResponseOutputItem{Kind: textgen.InputMessage, OutputIndex: s.messageOutputIndex, ID: s.messageItemID, Status: status, Role: "assistant", Text: s.messageText.String(), Refusal: s.messageRefusal.String(), Content: s.messageContent()})
-	}
-	for _, index := range toolIndexes {
-		state := s.tools[index]
-		if state != nil && state.Added {
-			outputs = append(outputs, textgen.ResponseOutputItem{Kind: textgen.InputFunctionCall, OutputIndex: state.OutputIndex, ID: state.ItemID, Status: status, CallID: state.CallID, Name: state.Name, Arguments: state.Arguments.String()})
-		}
-	}
-	sort.SliceStable(outputs, func(i, j int) bool { return outputs[i].OutputIndex < outputs[j].OutputIndex })
-	return events, outputs
-}
-
-func (s *ChatStreamBridge) Fail(err error, usage ...*dto.Usage) []textgen.Event {
+// Fail ends the reply with an error of lazu's own words.
+func (e *StreamEmitter) Fail(err error, usage ...*dto.Usage) []map[string]any {
 	message := "stream failed"
 	if err != nil {
 		message = err.Error()
 	}
-	return s.FailWithSemanticError(&textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: message}, usage...)
+	return e.FailWithSemanticError(&textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: message}, usage...)
 }
 
-func (s *ChatStreamBridge) FailWithSemanticError(streamError *textgen.SemanticError, usage ...*dto.Usage) []textgen.Event {
-	if s == nil || s.terminal {
+// FailWithSemanticError ends the reply with response.failed, exactly once,
+// after closing what was open as incomplete. The payload's type is what a
+// caller keys its settlement on.
+func (e *StreamEmitter) FailWithSemanticError(streamError *textgen.SemanticError, usage ...*dto.Usage) []map[string]any {
+	if e == nil || e.terminal {
 		return nil
 	}
 	if len(usage) > 0 && usage[0] != nil {
-		s.usage = chatUsageToResponses(usage[0])
+		e.usage = chatUsageToResponses(usage[0])
 	}
-	events := s.startEvents()
-	s.terminal = true
+	out := e.startEvents()
+	e.terminal = true
 	if streamError == nil {
 		streamError = &textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: "The model stopped the stream with an error. Check any partial output before retrying."}
 	}
-	closedEvents, outputs := s.closeActiveItems(textgen.StatusIncomplete)
-	events = append(events, closedEvents...)
-	return append(events, textgen.Event{Kind: textgen.EventResponseFailed, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, Status: textgen.StatusFailed, Usage: s.usage, Output: outputs, Error: streamError})
+	out = append(out, e.closeItems("incomplete")...)
+	response := e.envelope("failed")
+	response["error"] = streamError
+	return append(out, e.send("response.failed", map[string]any{"response": response}))
 }
 
-// VisitBillableOutput exposes already-retained logical output without creating
-// a second stream-sized buffer. Each callback value is one semantic field, so
-// token estimates are independent of arbitrary SSE chunk boundaries.
-func (s *ChatStreamBridge) VisitBillableOutput(visit func(string)) int {
-	if s == nil {
+// VisitBillableOutput exposes the retained output for a token estimate
+// without a second stream-sized buffer: each value is one semantic field.
+// It returns how many function calls the reply made.
+func (e *StreamEmitter) VisitBillableOutput(visit func(string)) int {
+	if e == nil {
 		return 0
 	}
-	if visit != nil {
-		if s.reasoningText.Len() > 0 {
-			visit(s.reasoningText.String())
-		}
-		if s.messageText.Len() > 0 {
-			visit(s.messageText.String())
-		}
-		if s.messageRefusal.Len() > 0 {
-			visit(s.messageRefusal.String())
-		}
-	}
 	toolCount := 0
-	for _, state := range s.tools {
-		if state == nil || !state.Added {
-			continue
-		}
-		toolCount++
-		if visit != nil {
-			if state.Name != "" {
-				visit(state.Name)
+	for _, item := range e.items {
+		switch item.kind {
+		case itemReasoning:
+			if visit != nil && item.reasoning.Len() > 0 {
+				visit(item.reasoning.String())
 			}
-			if state.Arguments.Len() > 0 {
-				visit(state.Arguments.String())
+		case itemMessage:
+			if visit != nil {
+				if item.text.Len() > 0 {
+					visit(item.text.String())
+				}
+				if item.refusal.Len() > 0 {
+					visit(item.refusal.String())
+				}
+			}
+		case itemTool:
+			toolCount++
+			if visit != nil {
+				if item.name != "" {
+					visit(item.name)
+				}
+				if item.args.Len() > 0 {
+					visit(item.args.String())
+				}
 			}
 		}
 	}
 	return toolCount
 }
 
-func (s *ChatStreamBridge) startEvents() []textgen.Event {
-	if s.started {
+func (e *StreamEmitter) retainOutput(value string) error {
+	if value == "" {
 		return nil
 	}
-	s.started = true
-	return []textgen.Event{{Kind: textgen.EventResponseCreated, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, Status: textgen.StatusInProgress}, {Kind: textgen.EventResponseInProgress, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, CreatedAt: s.createdAt, Status: textgen.StatusInProgress}}
-}
-func (s *ChatStreamBridge) ensureMessage(kind textgen.DeltaKind) ([]textgen.Event, int) {
-	events := make([]textgen.Event, 0, 2)
-	if !s.messageAdded {
-		s.messageAdded = true
-		s.messageOutputIndex = s.nextOutputIndex
-		s.nextOutputIndex++
-		events = append(events, textgen.Event{Kind: textgen.EventItemAdded, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex})
+	if e.retainedOutputLimit <= 0 {
+		e.retainedOutputLimit = defaultChatStreamRetainedOutputBytes
 	}
-	contentIndex := s.textContentIndex
-	added := s.textContentAdded
-	if kind == textgen.DeltaRefusal {
-		contentIndex = s.refusalContentIndex
-		added = s.refusalContentAdded
+	if len(value) > e.retainedOutputLimit-e.retainedOutputBytes {
+		return fmt.Errorf("bridged stream retained output exceeds %d-byte limit", e.retainedOutputLimit)
+	}
+	e.retainedOutputBytes += len(value)
+	return nil
+}
+
+func (e *StreamEmitter) send(eventType string, fields map[string]any) map[string]any {
+	fields["type"] = eventType
+	fields["sequence_number"] = e.sequence
+	e.sequence++
+	return fields
+}
+
+func (e *StreamEmitter) startEvents() []map[string]any {
+	if e.started {
+		return nil
+	}
+	e.started = true
+	return []map[string]any{
+		e.send("response.created", map[string]any{"response": e.envelope("in_progress")}),
+		e.send("response.in_progress", map[string]any{"response": e.envelope("in_progress")}),
+	}
+}
+
+// announce sends a call's output_item.added once its identity is known, or
+// when force says the call is closing, with the arguments held so far as
+// one delta.
+func (e *StreamEmitter) announce(item *outputItem, force bool) []map[string]any {
+	if item.announced || (!force && (item.callID == "" || item.name == "")) {
+		return nil
+	}
+	item.announced = true
+	if item.callID == "" {
+		item.callID = "call_" + item.id
+	}
+	out := []map[string]any{e.send("response.output_item.added", map[string]any{"output_index": item.index, "item": map[string]any{"type": "function_call", "id": item.id, "call_id": item.callID, "name": item.name, "arguments": "", "status": "in_progress"}})}
+	if item.args.Len() > 0 {
+		out = append(out, e.send("response.function_call_arguments.delta", map[string]any{"item_id": item.id, "output_index": item.index, "delta": item.args.String()}))
+	}
+	return out
+}
+
+func (e *StreamEmitter) newItem(kind itemKind, id string) *outputItem {
+	item := &outputItem{kind: kind, id: id, index: len(e.items)}
+	e.items = append(e.items, item)
+	return item
+}
+
+// ensureMessage opens the reply's message item and the text or refusal
+// content part, as needed, and gives the part's content index.
+func (e *StreamEmitter) ensureMessage(refusal bool) ([]map[string]any, int) {
+	out := e.openMessage()
+	m := e.message
+	added, contentIndex := m.textAdded, m.textContent
+	if refusal {
+		added, contentIndex = m.refusalAdded, m.refusalIndex
 	}
 	if !added {
-		contentIndex = s.nextContentIndex
-		s.nextContentIndex++
-		if kind == textgen.DeltaRefusal {
-			s.refusalContentAdded = true
-			s.refusalContentIndex = contentIndex
+		contentIndex = m.nextContent
+		m.nextContent++
+		part := map[string]any{"type": "output_text", "text": "", "annotations": []any{}}
+		if refusal {
+			m.refusalAdded, m.refusalIndex = true, contentIndex
+			part = map[string]any{"type": "refusal", "refusal": ""}
 		} else {
-			s.textContentAdded = true
-			s.textContentIndex = contentIndex
+			m.textAdded, m.textContent = true, contentIndex
 		}
-		events = append(events, textgen.Event{Kind: textgen.EventContentPartAdded, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.messageItemID, ItemIndex: s.messageOutputIndex, ContentIndex: contentIndex, Delta: textgen.TypedDelta{Kind: kind}})
+		out = append(out, e.send("response.content_part.added", map[string]any{"item_id": m.id, "output_index": m.index, "content_index": contentIndex, "part": part}))
 	}
-	return events, contentIndex
+	return out, contentIndex
 }
 
-// Content indexes belong to the message, including refusal-first streams.
-func (s *ChatStreamBridge) messageContent() []dto.ResponsesOutputContent {
-	content := make([]dto.ResponsesOutputContent, s.nextContentIndex)
-	if s.textContentAdded {
-		content[s.textContentIndex] = dto.ResponsesOutputContent{Type: "output_text", Text: s.messageText.String(), Annotations: []interface{}{}}
+// openMessage opens the message item, without a content part.
+func (e *StreamEmitter) openMessage() []map[string]any {
+	if e.message != nil {
+		return nil
 	}
-	if s.refusalContentAdded {
-		content[s.refusalContentIndex] = dto.ResponsesOutputContent{Type: "refusal", Refusal: s.messageRefusal.String()}
-	}
-	return content
+	e.message = e.newItem(itemMessage, "msg_"+e.suffix)
+	return []map[string]any{e.send("response.output_item.added", map[string]any{"output_index": e.message.index, "item": map[string]any{"type": "message", "id": e.message.id, "role": "assistant", "content": []any{}, "status": "in_progress"}})}
 }
 
-func (s *ChatStreamBridge) ensureReasoning() ([]textgen.Event, int) {
-	events := make([]textgen.Event, 0, 2)
-	if !s.reasoningAdded {
-		s.reasoningAdded = true
-		s.reasoningOutputIndex = s.nextOutputIndex
-		s.nextOutputIndex++
-		events = append(events, textgen.Event{Kind: textgen.EventItemAdded, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.reasoningItemID, ItemIndex: s.reasoningOutputIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaReasoning}})
+// ensureReasoning opens a reasoning item and its one content part.
+func (e *StreamEmitter) ensureReasoning() []map[string]any {
+	if e.reasoning != nil {
+		return nil
 	}
-	if !s.reasoningContentAdded {
-		s.reasoningContentAdded = true
-		s.reasoningContentIndex = 0
-		events = append(events, textgen.Event{Kind: textgen.EventContentPartAdded, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, ItemID: s.reasoningItemID, ItemIndex: s.reasoningOutputIndex, ContentIndex: s.reasoningContentIndex, Delta: textgen.TypedDelta{Kind: textgen.DeltaReasoning}})
+	id := "rs_lazu_" + e.suffix
+	if e.reasonCount > 0 {
+		id = fmt.Sprintf("rs_lazu_%s_%d", e.suffix, e.reasonCount)
 	}
-	return events, s.reasoningContentIndex
+	if e.nextReasoningID != "" {
+		// the upstream's own id, which a Responses client hands back
+		id = e.nextReasoningID
+	}
+	e.reasonCount++
+	e.reasoning = e.newItem(itemReasoning, id)
+	e.reasoning.upstreamID, e.nextReasoningID = e.nextReasoningID, ""
+	return []map[string]any{
+		e.send("response.output_item.added", map[string]any{"output_index": e.reasoning.index, "item": dto.NewResponsesReasoningItem(e.reasoning.id, "in_progress", nil)}),
+	}
 }
-func (s *ChatStreamBridge) event(kind textgen.EventKind) textgen.Event {
-	return textgen.Event{Kind: kind, Sequence: s.next(), ResponseID: s.responseID, Model: s.model, Usage: s.usage}
-}
-func (s *ChatStreamBridge) next() uint64 { value := s.sequence; s.sequence++; return value }
 
-func EmitEvent(event textgen.Event, semanticRequest ...*textgen.Request) map[string]any {
-	var request *textgen.Request
-	if len(semanticRequest) > 0 {
-		request = semanticRequest[0]
+// closeReasoning ends the open reasoning block, if any.
+func (e *StreamEmitter) closeReasoning(status string) []map[string]any {
+	item := e.reasoning
+	if item == nil {
+		return nil
 	}
-	base := map[string]any{"sequence_number": event.Sequence}
-	switch event.Kind {
-	case textgen.EventResponseCreated:
-		base["type"] = "response.created"
-		base["response"] = responseEnvelope(event, "in_progress", request)
-	case textgen.EventResponseInProgress:
-		base["type"] = "response.in_progress"
-		base["response"] = responseEnvelope(event, "in_progress", request)
-	case textgen.EventItemAdded:
-		base["type"] = "response.output_item.added"
-		base["output_index"] = event.ItemIndex
-		if event.Delta.Kind == textgen.DeltaToolArguments {
-			base["item"] = map[string]any{"type": "function_call", "id": event.ItemID, "call_id": event.ToolCallID, "name": event.Delta.ToolName, "arguments": "", "status": "in_progress"}
-		} else if event.Delta.Kind == textgen.DeltaReasoning {
-			base["item"] = dto.NewResponsesReasoningItem(event.ItemID, "in_progress", nil)
-		} else {
-			base["item"] = map[string]any{"type": "message", "id": event.ItemID, "role": "assistant", "content": []any{}, "status": "in_progress"}
-		}
-	case textgen.EventContentPartAdded:
-		base["type"] = "response.content_part.added"
-		base["item_id"] = event.ItemID
-		base["output_index"] = event.ItemIndex
-		base["content_index"] = event.ContentIndex
-		if event.Delta.Kind == textgen.DeltaRefusal {
-			base["part"] = map[string]any{"type": "refusal", "refusal": ""}
-		} else if event.Delta.Kind == textgen.DeltaReasoning {
-			base["part"] = map[string]any{"type": "reasoning_text", "text": ""}
-		} else {
-			base["part"] = map[string]any{"type": "output_text", "text": "", "annotations": []any{}}
-		}
-	case textgen.EventDelta:
-		base["item_id"] = event.ItemID
-		base["output_index"] = event.ItemIndex
-		if event.Delta.Kind == textgen.DeltaToolArguments {
-			base["type"] = "response.function_call_arguments.delta"
-			base["delta"] = event.Delta.Text
-		} else if event.Delta.Kind == textgen.DeltaRefusal {
-			base["type"] = "response.refusal.delta"
-			base["content_index"] = event.ContentIndex
-			base["delta"] = event.Delta.Refusal
-		} else if event.Delta.Kind == textgen.DeltaReasoning {
-			base["type"] = "response.reasoning_text.delta"
-			base["content_index"] = event.ContentIndex
-			base["delta"] = event.Delta.Text
-		} else {
-			base["type"] = "response.output_text.delta"
-			base["content_index"] = event.ContentIndex
-			base["delta"] = event.Delta.Text
-		}
-	case textgen.EventDeltaDone:
-		base["item_id"] = event.ItemID
-		base["output_index"] = event.ItemIndex
-		switch event.Delta.Kind {
-		case textgen.DeltaToolArguments:
-			base["type"] = "response.function_call_arguments.done"
-			base["arguments"] = event.Delta.Text
-		case textgen.DeltaRefusal:
-			base["type"] = "response.refusal.done"
-			base["content_index"] = event.ContentIndex
-			base["refusal"] = event.Delta.Refusal
-		case textgen.DeltaReasoning:
-			base["type"] = "response.reasoning_text.done"
-			base["content_index"] = event.ContentIndex
-			base["text"] = event.Delta.Text
-		default:
-			base["type"] = "response.output_text.done"
-			base["content_index"] = event.ContentIndex
-			base["text"] = event.Delta.Text
-		}
-	case textgen.EventContentPartDone:
-		base["type"] = "response.content_part.done"
-		base["item_id"] = event.ItemID
-		base["output_index"] = event.ItemIndex
-		base["content_index"] = event.ContentIndex
-		if event.Delta.Kind == textgen.DeltaRefusal {
-			base["part"] = map[string]any{"type": "refusal", "refusal": event.Delta.Refusal}
-		} else if event.Delta.Kind == textgen.DeltaReasoning {
-			base["part"] = map[string]any{"type": "reasoning_text", "text": event.Delta.Text}
-		} else {
-			base["part"] = map[string]any{"type": "output_text", "text": event.Delta.Text, "annotations": []any{}}
-		}
-	case textgen.EventItemDone:
-		base["type"] = "response.output_item.done"
-		base["output_index"] = event.ItemIndex
-		itemStatus := string(event.Status)
-		if itemStatus == "" {
-			itemStatus = "completed"
-		}
-		if event.Delta.Kind == textgen.DeltaToolArguments {
-			base["item"] = map[string]any{"type": "function_call", "id": event.ItemID, "call_id": event.ToolCallID, "name": event.Delta.ToolName, "arguments": event.Delta.Text, "status": itemStatus}
-		} else if event.Delta.Kind == textgen.DeltaReasoning {
-			base["item"] = dto.NewResponsesReasoningItem(event.ItemID, itemStatus, []dto.ResponsesOutputContent{{Type: "reasoning_text", Text: event.Delta.Text}})
-		} else {
-			content := responseMessageContent(event.Delta.Text, event.Delta.Refusal, event.Content)
-			base["item"] = map[string]any{"type": "message", "id": event.ItemID, "role": "assistant", "content": content, "status": itemStatus}
-		}
-	case textgen.EventResponseCompleted:
-		base["type"] = "response.completed"
-		base["response"] = responseEnvelope(event, "completed", request)
-	case textgen.EventResponseIncomplete:
-		base["type"] = "response.incomplete"
-		response := responseEnvelope(event, "incomplete", request)
-		response["incomplete_details"] = map[string]any{"reason": event.IncompleteReason}
-		base["response"] = response
-	case textgen.EventResponseFailed:
-		base["type"] = "response.failed"
-		response := responseEnvelope(event, "failed", request)
-		response["error"] = event.Error
-		base["response"] = response
-	case textgen.EventUsage:
-		base["type"] = "lazu.response.usage"
-		base["usage"] = dto.ProjectResponsesUsage(event.Usage)
-	}
-	return base
+	e.reasoning = nil
+	return e.closeItem(item, status)
 }
-func responseEnvelope(event textgen.Event, status string, request *textgen.Request) map[string]any {
-	createdAt := event.CreatedAt
-	if createdAt == 0 {
-		createdAt = time.Now().Unix()
-	}
-	output := make([]any, 0, len(event.Output))
-	for _, item := range event.Output {
-		itemStatus := string(item.Status)
-		if itemStatus == "" {
-			itemStatus = status
+
+func (e *StreamEmitter) closeItem(item *outputItem, status string) []map[string]any {
+	item.status = status
+	switch item.kind {
+	case itemReasoning:
+		var out []map[string]any
+		if item.summaryAdded {
+			summary := item.summary.String()
+			out = append(out,
+				e.send("response.reasoning_summary_text.done", map[string]any{"item_id": item.id, "output_index": item.index, "summary_index": 0, "text": summary}),
+				e.send("response.reasoning_summary_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "summary_index": 0, "part": map[string]any{"type": "summary_text", "text": summary}}),
+			)
 		}
-		if item.Kind == textgen.InputFunctionCall {
-			output = append(output, map[string]any{"type": "function_call", "id": item.ID, "call_id": item.CallID, "name": item.Name, "arguments": item.Arguments, "status": itemStatus})
+		if text := item.reasoning.String(); item.reasoningAdded && text != "" {
+			out = append(out,
+				e.send("response.reasoning_text.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "text": text}),
+				e.send("response.content_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "part": map[string]any{"type": "reasoning_text", "text": text}}),
+			)
+		}
+		return append(out, e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": e.renderItem(item)}))
+	case itemMessage:
+		var out []map[string]any
+		if item.textAdded {
+			text := item.text.String()
+			out = append(out,
+				e.send("response.output_text.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": item.textContent, "text": text}),
+				e.send("response.content_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": item.textContent, "part": map[string]any{"type": "output_text", "text": text, "annotations": []any{}}}),
+			)
+		}
+		if item.refusalAdded {
+			refusal := item.refusal.String()
+			out = append(out,
+				e.send("response.refusal.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": item.refusalIndex, "refusal": refusal}),
+				e.send("response.content_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": item.refusalIndex, "part": map[string]any{"type": "refusal", "refusal": refusal}}),
+			)
+		}
+		return append(out, e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": e.renderItem(item)}))
+	case itemTool:
+		return append(e.announce(item, true),
+			e.send("response.function_call_arguments.done", map[string]any{"item_id": item.id, "output_index": item.index, "arguments": item.args.String()}),
+			e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": e.renderItem(item)}),
+		)
+	}
+	return nil
+}
+
+// closeItems closes every open item in output order, with status.
+func (e *StreamEmitter) closeItems(status string) []map[string]any {
+	var out []map[string]any
+	e.reasoning = nil
+	for _, item := range e.items {
+		if item.status != "" || item.kind == itemRaw {
 			continue
 		}
-		if item.Kind == textgen.InputReasoning {
-			output = append(output, dto.NewResponsesReasoningItem(item.ID, itemStatus, []dto.ResponsesOutputContent{{Type: "reasoning_text", Text: item.Text}}))
+		out = append(out, e.closeItem(item, status)...)
+	}
+	return out
+}
+
+func (e *StreamEmitter) renderItem(item *outputItem) any {
+	status := item.status
+	if status == "" {
+		status = "completed"
+	}
+	switch item.kind {
+	case itemReasoning:
+		if len(item.raw) > 0 {
+			// sealed by the upstream after it streamed: as it wrote it
+			return item.raw
+		}
+		var content []dto.ResponsesOutputContent
+		if item.reasoningAdded {
+			content = []dto.ResponsesOutputContent{{Type: "reasoning_text", Text: item.reasoning.String()}}
+		}
+		rendered := dto.NewResponsesReasoningItem(item.id, status, content)
+		if item.summaryAdded {
+			rendered.Summary = []dto.ResponsesReasoningSummary{{Type: "summary_text", Text: item.summary.String()}}
+		}
+		return rendered
+	case itemTool:
+		return map[string]any{"type": "function_call", "id": item.id, "call_id": item.callID, "name": item.name, "arguments": item.args.String(), "status": status}
+	case itemRaw:
+		return item.raw
+	}
+	content := make([]dto.ResponsesOutputContent, item.nextContent)
+	if item.textAdded {
+		content[item.textContent] = dto.ResponsesOutputContent{Type: "output_text", Text: item.text.String(), Annotations: []interface{}{}}
+	}
+	if item.refusalAdded {
+		content[item.refusalIndex] = dto.ResponsesOutputContent{Type: "refusal", Refusal: item.refusal.String()}
+	}
+	return map[string]any{"type": "message", "id": item.id, "role": "assistant", "content": content, "status": status}
+}
+
+// envelope is the response object of a created, in_progress or terminal
+// event: the output so far and the client's configuration echoed back.
+func (e *StreamEmitter) envelope(status string) map[string]any {
+	output := make([]any, 0, len(e.items))
+	for _, item := range e.items {
+		if item.status == "" && status != "in_progress" {
+			item.status = status
+		}
+		if status == "in_progress" && item.status == "" {
 			continue
 		}
-		output = append(output, map[string]any{"type": "message", "id": item.ID, "role": item.Role, "content": responseMessageContent(item.Text, item.Refusal, item.Content), "status": itemStatus})
+		output = append(output, e.renderItem(item))
+	}
+	if status == "in_progress" {
+		output = []any{}
 	}
 	response := map[string]any{
-		"id": event.ResponseID, "object": "response", "created_at": createdAt, "status": status, "model": event.Model, "output": output, "usage": dto.ProjectResponsesUsage(event.Usage),
-		"max_output_tokens": nil, "parallel_tool_calls": true, "store": false, "temperature": float64(1), "tool_choice": defaultResponseToolChoice(request),
+		"id": e.responseID, "object": "response", "created_at": e.createdAt, "status": status, "model": e.model, "output": output, "usage": dto.ProjectResponsesUsage(textgen.CacheInclusiveUsage(e.usage)),
+		"max_output_tokens": nil, "parallel_tool_calls": true, "store": false, "temperature": float64(1), "tool_choice": defaultResponseToolChoice(e.request),
 		"tools": []any{}, "top_p": float64(1), "truncation": "disabled",
 	}
-	applyResponseConfigurationEnvelope(response, request)
+	applyResponseConfigurationEnvelope(response, e.request)
 	return response
 }
 
@@ -605,20 +668,6 @@ func applyResponseConfigurationEnvelope(response map[string]any, request *textge
 	if request.Metadata.User != "" {
 		response["user"] = request.Metadata.User
 	}
-}
-
-func responseMessageContent(text, refusal string, ordered []dto.ResponsesOutputContent) []dto.ResponsesOutputContent {
-	if ordered != nil {
-		return ordered
-	}
-	content := make([]dto.ResponsesOutputContent, 0, 2)
-	if text != "" || refusal == "" {
-		content = append(content, dto.ResponsesOutputContent{Type: "output_text", Text: text, Annotations: []interface{}{}})
-	}
-	if refusal != "" {
-		content = append(content, dto.ResponsesOutputContent{Type: "refusal", Refusal: refusal})
-	}
-	return content
 }
 
 func normalizeResponseID(value string) string {

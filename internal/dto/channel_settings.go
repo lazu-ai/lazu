@@ -214,10 +214,18 @@ type ChannelCapabilities struct {
 	SupportsTools           *bool    `json:"supports_tools,omitempty"`            // nil → assume yes (compat); *false → skip for tool-using requests
 	SupportsVision          *bool    `json:"supports_vision,omitempty"`           // nil → assume yes (compat)
 	SupportsAudio           *bool    `json:"supports_audio,omitempty"`            // nil → assume yes (compat)
+	SupportsJSONSchema      *bool    `json:"supports_json_schema,omitempty"`      // nil → use the model catalog; *false → the channel takes no response_format json_schema (a degradation rule may stand in; textgen/degrade.go)
 	RPMLimit                int      `json:"rpm_limit,omitempty"`                 // 0 = unlimited
 	TPMLimit                int      `json:"tpm_limit,omitempty"`                 // 0 = unlimited
 	MaxParallel             int      `json:"max_parallel,omitempty"`              // 0 = unlimited in-flight
 	PreferredFor            []string `json:"preferred_for,omitempty"`             // capability tags this channel is the preferred destination for
+}
+
+// HasJSONSchema reports whether the channel may be sent a JSON-schema
+// response format. nil means "the catalog decides"; only an explicit false
+// denies it.
+func (c *ChannelCapabilities) HasJSONSchema() bool {
+	return c == nil || c.SupportsJSONSchema == nil || *c.SupportsJSONSchema
 }
 
 func (c *ChannelCapabilities) HasChatCompletionsEndpoint() bool {

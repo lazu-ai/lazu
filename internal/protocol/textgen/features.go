@@ -45,6 +45,16 @@ const (
 	FeatureHostedToolNativeOnly
 	FeatureOpaqueInputItem
 	FeatureUnknownField
+	// FeatureEndpointMessages is Anthropic's Messages API as a native
+	// endpoint of the channel.
+	FeatureEndpointMessages
+	// FeatureReasoningBudget is a thinking budget in tokens.
+	FeatureReasoningBudget
+	// FeatureAnthropicOptions names Anthropic's speed tier
+	// (Request.VendorOptions) in a refusal. It is never extracted or
+	// required: a native relay passes its own wire, the Messages encoder
+	// writes it, and only a bridge elsewhere refuses it.
+	FeatureAnthropicOptions
 )
 
 var featureNames = map[FeatureID]string{
@@ -60,6 +70,7 @@ var featureNames = map[FeatureID]string{
 	FeaturePromptTemplate: "state.prompt_template", FeatureIncludeEncryptedReasoning: "include.reasoning.encrypted_content",
 	FeatureIncludeUnsupported: "include.unsupported", FeatureOpaqueReasoningItem: "input.reasoning_opaque", FeatureInputReference: "input.reference",
 	FeatureStore: "lifecycle.store", FeatureHostedToolNativeOnly: "tools.hosted_native_only", FeatureOpaqueInputItem: "input.opaque_item",
+	FeatureEndpointMessages: "endpoint.messages", FeatureReasoningBudget: "reasoning.budget", FeatureAnthropicOptions: "vendor.anthropic",
 	FeatureUnknownField: "wire.unknown_field",
 }
 
@@ -125,7 +136,13 @@ func ExtractFeatures(request *Request) (FeatureSet, []FeatureUse) {
 			add(FeatureToolResult, "input["+itoa(index)+"]")
 		case InputReasoning:
 			if !item.PlainReasoning.Set {
-				add(FeatureOpaqueReasoningItem, "input["+itoa(index)+"]")
+				// the dialect that sealed it, so a bridge can tell reasoning
+				// its target could use from reasoning bound to another vendor
+				dialect := ""
+				if len(item.Opaque) > 0 {
+					dialect = item.Opaque[0].Dialect
+				}
+				addDetail(FeatureOpaqueReasoningItem, "input["+itoa(index)+"]", dialect)
 			}
 		case InputReference:
 			add(FeatureInputReference, "input["+itoa(index)+"]")
@@ -177,6 +194,9 @@ func ExtractFeatures(request *Request) (FeatureSet, []FeatureUse) {
 	}
 	if request.Reasoning.Summary != "" {
 		add(FeatureReasoningSummary, "reasoning.summary")
+	}
+	if request.Reasoning.Budget.Set {
+		add(FeatureReasoningBudget, "reasoning.max_tokens")
 	}
 	if request.Sampling.Temperature.Set {
 		add(FeatureTemperature, "temperature")

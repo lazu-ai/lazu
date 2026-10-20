@@ -9,6 +9,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
+	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	relayconstant "github.com/lazu-ai/lazu/internal/relay/constant"
@@ -96,7 +97,7 @@ func TestObservedResponsesStreamUsageEstimatesTextAndTools(t *testing.T) {
 func TestChatStreamUsageAccumulatorCountsIncrementally(t *testing.T) {
 	info := &relaycommon.RelayInfo{PromptTokens: 9000, UsagePromptTokens: 5, UsagePromptTokensSet: true, UsagePromptTokensAvailable: true, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o-mini"}}
 	accumulator := newChatStreamUsageAccumulator(info)
-	bridge := openai_responses.NewChatStreamBridge("resp_usage", info.UpstreamModelName)
+	bridge := openai_responses.NewStreamEmitter("resp_usage", info.UpstreamModelName, nil)
 	toolIndex := 0
 	first := &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
 		Index: 0,
@@ -117,7 +118,7 @@ func TestChatStreamUsageAccumulatorCountsIncrementally(t *testing.T) {
 	}}}
 	for _, chunk := range []*dto.ChatCompletionsStreamResponse{first, second} {
 		accumulator.Observe(chunk)
-		if _, err := bridge.Consume(chunk); err != nil {
+		if _, err := bridge.Emit((&openai_chat.StreamDecoder{}).Decode(chunk)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -131,14 +132,14 @@ func TestChatStreamUsageAccumulatorIsIndependentOfDeltaBoundaries(t *testing.T) 
 	info := &relaycommon.RelayInfo{PromptTokens: 9000, UsagePromptTokens: 5, UsagePromptTokensSet: true, UsagePromptTokensAvailable: true, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o-mini"}}
 	measure := func(fragments []string) *dto.Usage {
 		accumulator := newChatStreamUsageAccumulator(info)
-		bridge := openai_responses.NewChatStreamBridge("resp_usage", info.UpstreamModelName)
+		bridge := openai_responses.NewStreamEmitter("resp_usage", info.UpstreamModelName, nil)
 		for _, fragment := range fragments {
 			chunk := &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
 				Index: 0,
 				Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: common.GetPointer(fragment)},
 			}}}
 			accumulator.Observe(chunk)
-			if _, err := bridge.Consume(chunk); err != nil {
+			if _, err := bridge.Emit((&openai_chat.StreamDecoder{}).Decode(chunk)...); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -178,14 +179,14 @@ func TestBoundedStreamChunksNeverExceedsLimit(t *testing.T) {
 func TestChatStreamUsageAccumulatorRetainsPromptForCompletedEmptyOutput(t *testing.T) {
 	info := &relaycommon.RelayInfo{PromptTokens: 9000, UsagePromptTokens: 6, UsagePromptTokensSet: true, UsagePromptTokensAvailable: true, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o-mini"}}
 	accumulator := newChatStreamUsageAccumulator(info)
-	bridge := openai_responses.NewChatStreamBridge("resp_empty", info.UpstreamModelName)
+	bridge := openai_responses.NewStreamEmitter("resp_empty", info.UpstreamModelName, nil)
 	finish := "stop"
 	chunk := &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
 		Index:        0,
 		FinishReason: &finish,
 	}}}
 	accumulator.Observe(chunk)
-	if _, err := bridge.Consume(chunk); err != nil {
+	if _, err := bridge.Emit((&openai_chat.StreamDecoder{}).Decode(chunk)...); err != nil {
 		t.Fatal(err)
 	}
 	usage, observed := accumulator.Usage(info, bridge)

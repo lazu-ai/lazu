@@ -264,6 +264,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			relayInfo.ProtocolPlan = attempt.Plan
 			common.SetContextKey(c, constant.ContextKeyProtocolPlan, attempt.Plan)
 			setProtocolAttemptWarning(c, attempt.Plan)
+			for _, id := range attempt.Plan.Degradations() {
+				common.IncrementHotPathCounter(common.HotPathCounterProtocolDegradedPrefix + id)
+			}
 			if attempt.Plan.Native {
 				common.IncrementHotPathCounter(common.HotPathCounterProtocolPlanNative)
 			} else {
@@ -394,11 +397,20 @@ func shouldApplyOSSURL(c *gin.Context) bool {
 	return !common.GetContextKeyBool(c, constant.ContextKeyOSSURLApplied)
 }
 
+// setProtocolAttemptWarning tells the client what the attempt could not keep
+// as asked: a stateless bridge, an endpoint bridge for a feature, a
+// degradation (textgen/degrade.go). Every warning of the plan, comma
+// separated; the request detail keeps them one by one.
 func setProtocolAttemptWarning(c *gin.Context, plan *textgen.RelayPlan) {
 	c.Writer.Header().Del("X-Lazu-Warning")
-	if plan != nil && len(plan.Warnings) > 0 {
-		c.Header("X-Lazu-Warning", plan.Warnings[0].Message)
+	if plan == nil || len(plan.Warnings) == 0 {
+		return
 	}
+	messages := make([]string, 0, len(plan.Warnings))
+	for _, warning := range plan.Warnings {
+		messages = append(messages, warning.Message)
+	}
+	c.Header("X-Lazu-Warning", strings.Join(messages, ", "))
 }
 
 func recordProtocolAdmissionComparison(c *gin.Context, relayInfo *relaycommon.RelayInfo, admissionTokens int) {

@@ -20,6 +20,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	relayconstant "github.com/lazu-ai/lazu/internal/relay/constant"
@@ -308,7 +309,10 @@ func OaiChatStreamToResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo
 		return nil, types.NewOpenAIError(fmt.Errorf("invalid response"), types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	defer service.CloseResponseBodyGracefully(resp)
-	bridge := openai_responses.NewChatStreamBridge(helper.GetResponseID(c), info.UpstreamModelName, openai_responses.ChatStreamRetainedOutputLimit(info.ProtocolRequest))
+	// hub and spoke: the Chat decoder reads the upstream into content events,
+	// the Responses emitter writes the client's stream from them
+	decoder := &openai_chat.StreamDecoder{}
+	bridge := openai_responses.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName, info.ProtocolRequest, openai_responses.RetainedOutputLimit(info.ProtocolRequest))
 	usage := &dto.Usage{}
 	usageAccumulator := newChatStreamUsageAccumulator(info)
 	streamLog := newBoundedStreamChunks(maxBridgedStreamLogBytes)
@@ -331,20 +335,17 @@ func OaiChatStreamToResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo
 		usageAccumulator.Observe(&chunk)
 		streamLog.Add(data)
 		conversionTimer := common.StartHotPathStage(common.HotPathStageProtocolStreamEvent)
-		events, err := bridge.Consume(&chunk)
+		payloads, err := bridge.Emit(decoder.Decode(&chunk)...)
 		conversionTimer.Finish(err)
+		for _, payload := range payloads {
+			if writeErr := emitResponsesBridgeEvent(c, payload); writeErr != nil {
+				conversionErr = writeErr
+				return false
+			}
+		}
 		if err != nil {
 			conversionErr = err
 			return false
-		}
-		for _, event := range events {
-			if event.Kind == textgen.EventUsage {
-				continue
-			}
-			if err := emitResponsesBridgeEvent(c, event, info.ProtocolRequest); err != nil {
-				conversionErr = err
-				return false
-			}
 		}
 		return true
 	})
@@ -372,14 +373,14 @@ func OaiChatStreamToResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo
 	preparedQuote := service.BuildTextBillingQuote(c, info, usage, "")
 	service.AnnotateUsageCost(c, usage, preparedQuote.Quote)
 	conversionTimer := common.StartHotPathStage(common.HotPathStageProtocolStreamEvent)
-	events, err := bridge.Finalize(usage)
+	payloads, err := bridge.Finish(usage)
 	conversionTimer.Finish(err)
 	if err != nil {
 		emitResponsesBridgeFailure(c, bridge, err, info.ProtocolRequest, usage)
 		return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
-	for _, event := range events {
-		if err := emitResponsesBridgeEvent(c, event, info.ProtocolRequest); err != nil {
+	for _, payload := range payloads {
+		if err := emitResponsesBridgeEvent(c, payload); err != nil {
 			return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 	}
@@ -387,11 +388,11 @@ func OaiChatStreamToResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo
 	return usage, nil
 }
 
-func emitResponsesBridgeFailure(c *gin.Context, bridge *openai_responses.ChatStreamBridge, conversionErr error, request *textgen.Request, usage *dto.Usage) {
-	emitResponsesBridgeFailureEvents(c, bridge.Fail(conversionErr, usage), request)
+func emitResponsesBridgeFailure(c *gin.Context, bridge *openai_responses.StreamEmitter, conversionErr error, request *textgen.Request, usage *dto.Usage) {
+	emitResponsesBridgeFailureEvents(c, bridge.Fail(conversionErr, usage))
 }
 
-func emitResponsesBridgeUpstreamFailure(c *gin.Context, bridge *openai_responses.ChatStreamBridge, upstreamErr *types.OpenAIError, request *textgen.Request, usage *dto.Usage) {
+func emitResponsesBridgeUpstreamFailure(c *gin.Context, bridge *openai_responses.StreamEmitter, upstreamErr *types.OpenAIError, request *textgen.Request, usage *dto.Usage) {
 	errorType := strings.TrimSpace(upstreamErr.Type)
 	if errorType == "" || errorType == "upstream_error" {
 		errorType = types.ErrorTypeAPI
@@ -404,16 +405,16 @@ func emitResponsesBridgeUpstreamFailure(c *gin.Context, bridge *openai_responses
 	if message == "" {
 		message = "upstream stream failed"
 	}
-	emitResponsesBridgeFailureEvents(c, bridge.FailWithSemanticError(&textgen.SemanticError{Type: errorType, Code: code, Message: message}, usage), request)
+	emitResponsesBridgeFailureEvents(c, bridge.FailWithSemanticError(&textgen.SemanticError{Type: errorType, Code: code, Message: message}, usage))
 }
 
-func emitResponsesBridgeFailureEvents(c *gin.Context, events []textgen.Event, request *textgen.Request) {
+func emitResponsesBridgeFailureEvents(c *gin.Context, payloads []map[string]any) {
 	emitted := false
-	for _, event := range events {
-		if err := emitResponsesBridgeEvent(c, event, request); err != nil {
+	for _, payload := range payloads {
+		if err := emitResponsesBridgeEvent(c, payload); err != nil {
 			return
 		}
-		if event.Kind == textgen.EventResponseFailed {
+		if payload["type"] == "response.failed" {
 			emitted = true
 		}
 	}
@@ -423,8 +424,7 @@ func emitResponsesBridgeFailureEvents(c *gin.Context, events []textgen.Event, re
 	}
 }
 
-func emitResponsesBridgeEvent(c *gin.Context, event textgen.Event, request *textgen.Request) error {
-	payload := openai_responses.EmitEvent(event, request)
+func emitResponsesBridgeEvent(c *gin.Context, payload map[string]any) error {
 	eventType, _ := payload["type"].(string)
 	data, err := json.Marshal(payload)
 	if err != nil {

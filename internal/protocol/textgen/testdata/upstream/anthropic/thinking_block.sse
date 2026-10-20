@@ -1,0 +1,128 @@
+# recorded 2026-10-20T16:38:50Z from https://api.lazu.ai/v1/messages, HTTP 200, content-type text/event-stream
+# request: {"model":"claude-haiku-5-5","max_tokens":4000,"stream":true,"thinking":{"type":"adaptive","display":"summarized"},"output_config":{"effort":"high"},"messages":[{"role":"user","content":"A train leaves at 9:40 and arrives at 13:05 after a 25 minute stop. How long was it moving? Reason it through before answering."}]}
+event: message_start
+data: {"type":"message_start","message":{"type":"message","model":"claude-haiku-5-5","usage":{"input_tokens":55,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{},"output_tokens":4},"role":"assistant","id":"msg_011CgDpQzDtr6aRTHLALYu7e","content":[]}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}
+
+event: ping
+data: {"type":"ping"}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"From"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"9:40"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" to 13"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":":05 is 3h"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"25m total, and"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" sub"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"tracting the 25-min"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ute stop le"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"aves ex"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"actly 3 hours of"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" actual moving time."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"\n\n"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"CAQSuwYKEAgTGAI4AUIIdGhpbmtpbmcSDMCqDsy23cq1mwwd+hoMXzcIlP3Xt4rKIFhGIjDtSng+G57KAaz+AoJfsrkriKvG9emZX46h7UdfBebPrJcoVkPQnX/CnjcP+hMYW8Aq2AXK+XYGe3rKNnmJkamWvczxId+mOc0z97C6qE1YviMNk1YRQoJTPE6T/ykysW5slSrbCt873Yni7fSl5xUUb6h+wjsfQGzbD7ipD7rxEDlXohffo3plJjR7WXNAsV7UMDDM1xXLrQGI5i6ow4Fj1NgQolRwl9Ng26jpqYu/nIJQnsv+KZsUBo6XalxKUnMjVEzxaqPUcf4AMh5SgrIWdV0rPOKf3hxH1C8AHgjPFy7nRIr8rjuRtCJlJZr73NZmC36/rPenIk/IIDdueOzr4h+hk7c7oSH+Xlf/rjOA8MwNWRPsBihC/mC1LdH5fOMJEccyWnUAzfiiJiiGPxazfQ3Cf8kYYtpaqqh6uaunm6Lb13qN95CaZ6ITvvmw6cGc8UZZytwPeVFjLxLhR+Nca4p1hZ7UHihFdIj4Le3pDLCiDX19CKFPWDdtk94bH0LN3hJw7kf0JHvyC5Vfm3sbrbzcDPC0kr0Lgz+E0tsBwft4+oNQyhVKkUrlNEhbhEAIoUgn7RTtcdVgc/TROgYJO/87izs6HbWp0QUG2s+uRPvUsU0z7Thf1tSGe+hYe8hB2emtbetEN3FNnJp8MENyf+XHX9hNui2MAwMcAcP0igWXIaP3JaKJ+E57LslHfd9A48nD9aljoAdwJ3DCKibqV0Sw6+AuLvxIEWf0ClRtgu+Q+FNpm9LyqRZInOt9HNeVJ2sBJ4YeMMgYFd3NQjA6cJI/UII5EG4j8PhNJdJK/bvr+8ZC0SL/S5De79JGTvrFpx1q5FA2PRtzrmGavnE2zqCdd5vOFlFy69F9XxIfs3kbRxkeKCXF5ajgHXf8gUgOoH+CGax2zuPIyTVdi7sHI+An+bxqFc0beoyaiFGuKoe0HisQwOOOKN2td8WVlSh7T+ctRUs39GZSsk2vSbwcVaRnQyvkjbA9St4ZSgmaUM62ipuOvtEXYfeU5Wh186ZEcdzdhlaA4IhkGRgB"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"The"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" train was moving for **3 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"hours**"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":".\n\n1. From"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" 9:40 to 13"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":":05 is"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" 3 hours 25 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"minutes,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" or 205 minutes."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"\n2. The"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" train"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" was stopped for"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" 25 minutes of"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" that time"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":", so the mo"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"ving time is 205 − "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"25 = 180 minut"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"es.\n3. "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"180 minutes is"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" 3 hours."}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","usage":{"input_tokens":55,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":236,"output_tokens_details":{"thinking_tokens":128}},"delta":{"stop_reason":"end_turn"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

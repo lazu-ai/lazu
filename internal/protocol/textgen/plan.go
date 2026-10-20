@@ -1,6 +1,10 @@
 package textgen
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 type Constraint struct {
 	Max    int64
@@ -21,6 +25,71 @@ type CapabilitySnapshot struct {
 	// provider's call, exactly as it was before the protocol planner existed.
 	Denied      FeatureSet
 	Constraints map[FeatureID]Constraint
+	// EndpointGaps lists, per native endpoint (FeatureEndpointChat,
+	// FeatureEndpointResponses), the features of Features that endpoint does
+	// NOT carry although another endpoint of the same dialect does: DeepSeek's
+	// Chat API takes no json_schema while its Responses API does. A gap is a
+	// known fact about the dialect, so the planner routes around it (the
+	// other endpoint, through a lossless bridge) or, when no endpoint carries
+	// the feature, treats it as unsupported; see FeaturesOn and
+	// UnsupportedEverywhere.
+	EndpointGaps map[FeatureID]FeatureSet
+}
+
+// FeaturesOn is what the channel carries through endpoint: Features minus
+// that endpoint's gaps.
+func (s CapabilitySnapshot) FeaturesOn(endpoint FeatureID) FeatureSet {
+	return s.Features &^ s.EndpointGaps[endpoint]
+}
+
+// endpoints lists the native endpoints the snapshot has.
+func (s CapabilitySnapshot) endpoints() []FeatureID {
+	var out []FeatureID
+	for _, endpoint := range []FeatureID{FeatureEndpointChat, FeatureEndpointResponses, FeatureEndpointMessages} {
+		if s.Features.Has(endpoint) {
+			out = append(out, endpoint)
+		}
+	}
+	return out
+}
+
+// endpointOf is the native endpoint a client protocol speaks.
+func endpointOf(family ProtocolFamily) FeatureID {
+	switch family {
+	case ProtocolOpenAIResponses:
+		return FeatureEndpointResponses
+	case ProtocolAnthropic:
+		return FeatureEndpointMessages
+	}
+	return FeatureEndpointChat
+}
+
+// familyOf is the protocol family served at a native endpoint.
+func familyOf(endpoint FeatureID) ProtocolFamily {
+	switch endpoint {
+	case FeatureEndpointResponses:
+		return ProtocolOpenAIResponses
+	case FeatureEndpointMessages:
+		return ProtocolAnthropic
+	}
+	return ProtocolOpenAIChat
+}
+
+// UnsupportedEverywhere is the part of required that no attempt on this
+// channel can preserve: what the operator explicitly denied, and what every
+// native endpoint of the dialect lacks. It is what a degradation rule
+// (degrade.go) may stand in for; anything else is left to the planner.
+func (s CapabilitySnapshot) UnsupportedEverywhere(required FeatureSet) FeatureSet {
+	unsupported := required & s.Denied
+	endpoints := s.endpoints()
+	if len(endpoints) == 0 || len(s.EndpointGaps) == 0 {
+		return unsupported
+	}
+	gappedEverywhere := required
+	for _, endpoint := range endpoints {
+		gappedEverywhere &= s.EndpointGaps[endpoint]
+	}
+	return unsupported | gappedEverywhere
 }
 
 type Issue struct {
@@ -42,6 +111,30 @@ type RelayPlan struct {
 	UpstreamModel    string
 }
 
+// DegradationPrefix starts the message of a plan warning that records a
+// registered degradation (textgen/degrade.go).
+const DegradationPrefix = "degraded:"
+
+// Degradations are the IDs of the registered degradations the plan applied,
+// in order; none for a lossless plan. Routing ranks a degraded plan below
+// every lossless one, and the handlers encode it from the IR, since the
+// client's wire still carries the feature that was stood in for.
+func (p *RelayPlan) Degradations() []string {
+	if p == nil {
+		return nil
+	}
+	var ids []string
+	for _, warning := range p.Warnings {
+		if strings.HasPrefix(warning.Message, DegradationPrefix) {
+			ids = append(ids, strings.TrimPrefix(warning.Message, DegradationPrefix))
+		}
+	}
+	return ids
+}
+
+// Degraded says whether the plan applied a registered degradation.
+func (p *RelayPlan) Degraded() bool { return len(p.Degradations()) > 0 }
+
 type UnsupportedFeatureError struct {
 	Feature FeatureID
 	Path    string
@@ -61,30 +154,71 @@ func PlanAttempt(client Protocol, snapshot CapabilitySnapshot, request *Request,
 	if err := requireConstraints(snapshot, request, inputTokenEstimate); err != nil {
 		return nil, err
 	}
-	endpoint := FeatureEndpointChat
-	if client.Family == ProtocolOpenAIResponses {
-		endpoint = FeatureEndpointResponses
-	}
+	endpoint := endpointOf(client.Family)
 	if snapshot.Features.Has(endpoint) {
 		if err := requireFeatures(snapshot, features, uses); err != nil {
 			return nil, err
 		}
-		upstreamProtocol := client
-		upstreamProtocol.Dialect = snapshot.Dialect
-		return &RelayPlan{ClientProtocol: client, UpstreamProtocol: upstreamProtocol, RequestCodec: string(client.Family), ResponseEmitter: string(client.Family), Native: true, CapabilityRev: snapshot.Revision, Features: features, ChannelID: channelID, UpstreamModel: upstreamModel}, nil
+		// Native, unless the native endpoint is known to lack a feature this
+		// request uses that the dialect's other endpoint carries: then the
+		// lossless bridge to that endpoint is the faithful route.
+		gapped := features & snapshot.EndpointGaps[endpoint]
+		if gapped == 0 {
+			upstreamProtocol := client
+			upstreamProtocol.Dialect = snapshot.Dialect
+			return &RelayPlan{ClientProtocol: client, UpstreamProtocol: upstreamProtocol, RequestCodec: string(client.Family), ResponseEmitter: string(client.Family), Native: true, CapabilityRev: snapshot.Revision, Features: features, ChannelID: channelID, UpstreamModel: upstreamModel}, nil
+		}
+		for _, other := range snapshot.endpoints() {
+			if other == endpoint || features&snapshot.EndpointGaps[other] != 0 {
+				continue
+			}
+			if plan, err := planBridge(client, familyOf(other), snapshot, request, features, uses, channelID, upstreamModel); err == nil {
+				plan.Warnings = append(plan.Warnings, Issue{Feature: firstFeature(gapped), Path: firstPath(uses, gapped), Message: "endpoint_bridge:" + strings.Join(gapped.Names(), ",")})
+				return plan, nil
+			}
+		}
+		return nil, &UnsupportedFeatureError{Feature: firstFeature(gapped), Path: firstPath(uses, gapped), Reason: fmt.Sprintf("the channel's %s endpoint does not carry this feature and no lossless route to another endpoint exists", endpoint.String())}
 	}
-	var upstream ProtocolFamily
-	switch client.Family {
+	// No native endpoint: the first lossless one-hop bridge, in the order
+	// the bridges are known to be faithful.
+	var firstErr error
+	for _, upstream := range bridgeOrder(client.Family) {
+		if !snapshot.Features.Has(endpointOf(upstream)) {
+			continue
+		}
+		plan, err := planBridge(client, upstream, snapshot, request, features, uses, channelID, upstreamModel)
+		if err == nil {
+			return plan, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return nil, &UnsupportedFeatureError{Feature: endpoint, Path: "", Reason: "channel has no native endpoint and no lossless bridge target"}
+}
+
+// bridgeOrder lists the upstream protocols a client protocol may be bridged
+// to, preferred first: the OpenAI sibling, then Anthropic's Messages.
+func bridgeOrder(client ProtocolFamily) []ProtocolFamily {
+	switch client {
 	case ProtocolOpenAIChat:
-		if snapshot.Features.Has(FeatureEndpointResponses) {
-			upstream = ProtocolOpenAIResponses
-		}
+		return []ProtocolFamily{ProtocolOpenAIResponses, ProtocolAnthropic}
 	case ProtocolOpenAIResponses:
-		if snapshot.Features.Has(FeatureEndpointChat) {
-			upstream = ProtocolOpenAIChat
-		}
+		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolAnthropic}
+	case ProtocolAnthropic:
+		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses}
 	}
-	if upstream == "" {
+	return nil
+}
+
+// planBridge plans the one-hop bridge from the client protocol to upstream,
+// or fails closed.
+func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySnapshot, request *Request, features FeatureSet, uses []FeatureUse, channelID int, upstreamModel string) (*RelayPlan, error) {
+	endpoint := endpointOf(client.Family)
+	if upstream == "" || upstream == client.Family || !snapshot.Features.Has(endpointOf(upstream)) {
 		return nil, &UnsupportedFeatureError{Feature: endpoint, Path: "", Reason: "channel has no native endpoint and no lossless bridge target"}
 	}
 	if client.Family == ProtocolOpenAIResponses && upstream == ProtocolOpenAIChat && !supportsOpenAIChatWireBridge(snapshot.Dialect) {
@@ -128,6 +262,27 @@ func PlanAttempt(client Protocol, snapshot CapabilitySnapshot, request *Request,
 	return &RelayPlan{ClientProtocol: client, UpstreamProtocol: Protocol{Family: upstream, Dialect: snapshot.Dialect}, RequestCodec: string(upstream), ResponseEmitter: string(client.Family), Native: false, CapabilityRev: snapshot.Revision, Features: features, Warnings: warnings, ChannelID: channelID, UpstreamModel: upstreamModel}, nil
 }
 
+// firstFeature is the lowest feature of set, for naming an error or warning.
+func firstFeature(set FeatureSet) FeatureID {
+	for id := FeatureID(0); id < 64; id++ {
+		if set.Has(id) {
+			return id
+		}
+	}
+	return FeatureUnknownField
+}
+
+// firstPath is the field path the request used a feature of set at, "" when
+// the uses carry none.
+func firstPath(uses []FeatureUse, set FeatureSet) string {
+	for _, use := range uses {
+		if set.Has(use.Feature) {
+			return use.Path
+		}
+	}
+	return ""
+}
+
 func requireConstraints(snapshot CapabilitySnapshot, request *Request, inputTokens int) error {
 	if inputTokens > 0 {
 		if constraint, ok := snapshot.Constraints[FeatureInputText]; ok && constraint.Max > 0 && int64(inputTokens) > constraint.Max {
@@ -154,7 +309,7 @@ func requireConstraints(snapshot CapabilitySnapshot, request *Request, inputToke
 
 func supportsOpenAIChatWireBridge(dialect string) bool {
 	switch dialect {
-	case "openai", "azure_openai", "openrouter", "cloudflare_ai_v1", "openai_chat_compatible":
+	case "openai", "azure_openai", "openrouter", "cloudflare_ai_v1", "openai_chat_compatible", "deepseek":
 		return true
 	default:
 		return false
@@ -180,7 +335,31 @@ func requireFeatures(snapshot CapabilitySnapshot, required FeatureSet, uses []Fe
 }
 
 func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
+	if upstream == ProtocolAnthropic {
+		return messagesBridgeIssue(request, uses)
+	}
+	if upstream == ProtocolOpenAIChat && request != nil {
+		for index, item := range request.Conversation {
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentFile && part.URL != "" && part.Data == "" && part.FileID == "" {
+					// Chat's file part takes data or a file id, not a URL
+					return &Issue{Feature: FeatureInputFile, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].file_url", Message: "Chat Completions has no lossless file URL representation"}
+				}
+			}
+		}
+	}
+	// Anthropic's cache markers are advisory and fall out of other encoders;
+	// its speed tier is not, and has no equivalent elsewhere.
+	if path, ok := request.SpeedPath(); ok {
+		return &Issue{Feature: FeatureAnthropicOptions, Path: path, Message: "Anthropic's speed tier has no equivalent outside the Messages API"}
+	}
 	for _, use := range uses {
+		if client == ProtocolAnthropic && use.Feature == FeatureOpaqueReasoningItem && use.Detail == "anthropic" {
+			// thinking Anthropic sealed means something to Anthropic alone;
+			// another vendor's model cannot use it, so leaving it out loses
+			// nothing (the OpenAI encoders skip it)
+			continue
+		}
 		switch use.Feature {
 		case FeatureUnknownField, FeaturePreviousResponse, FeatureConversation, FeaturePromptTemplate, FeatureIncludeEncryptedReasoning, FeatureIncludeUnsupported, FeatureHostedWebSearch, FeatureHostedToolNativeOnly, FeatureOpaqueReasoningItem, FeatureInputReference:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
@@ -227,6 +406,76 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 	}
 	if client == ProtocolOpenAIResponses && request.Lifecycle.Store.Set && request.Lifecycle.Store.Value {
 		return &Issue{Feature: FeatureStore, Path: "store", Message: "explicit store=true cannot be preserved by a stateless chat-completions upstream"}
+	}
+	return nil
+}
+
+// messagesBridgeIssue is what a Chat or Responses request cannot carry to
+// Anthropic's Messages API losslessly. Instructions of either role become
+// the system prompt; stop sequences, top_k and a JSON schema have their own
+// fields; web search is Anthropic's own tool. Everything stateful, opaque
+// or sampled in a way Messages does not take is refused.
+// assistantSide says whether the item is spoken by the assistant.
+func assistantSide(item InputItem) bool {
+	switch item.Kind {
+	case InputFunctionCall, InputReasoning:
+		return true
+	case InputMessage:
+		return item.Role == "assistant"
+	}
+	return false
+}
+
+func jsonObject(text string) bool {
+	var object map[string]json.RawMessage
+	return json.Unmarshal([]byte(text), &object) == nil && object != nil
+}
+
+func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
+	for _, use := range uses {
+		switch use.Feature {
+		case FeatureUnknownField, FeaturePreviousResponse, FeatureConversation, FeaturePromptTemplate, FeatureIncludeEncryptedReasoning, FeatureIncludeUnsupported, FeatureHostedToolNativeOnly, FeatureOpaqueReasoningItem, FeatureInputReference, FeatureOpaqueInputItem:
+			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
+		case FeatureLogProbs, FeatureSeed, FeatureInputAudio, FeatureInputFile:
+			return &Issue{Feature: use.Feature, Path: use.Path, Message: "Messages has no lossless equivalent"}
+		case FeatureHostedWebSearch:
+			// Anthropic's search results and citations have no place in a
+			// Chat or Responses reply yet; the answer would arrive unsourced
+			return &Issue{Feature: use.Feature, Path: use.Path, Message: "web search results and citations from the Messages API cannot be carried to this client"}
+		case FeatureJSONOutput:
+			return &Issue{Feature: use.Feature, Path: use.Path, Message: "Messages takes a JSON schema, not a bare JSON object format"}
+		case FeatureN:
+			if !request.Sampling.N.Set || request.Sampling.N.Value != 1 {
+				return &Issue{Feature: use.Feature, Path: use.Path, Message: "a Messages bridge supports exactly one output"}
+			}
+		}
+	}
+	if request != nil && request.Lifecycle.Store.Set && request.Lifecycle.Store.Value {
+		return &Issue{Feature: FeatureStore, Path: "store", Message: "explicit store=true cannot be preserved by a stateless Messages upstream"}
+	}
+	if request != nil && request.Metadata.ServiceTier != "" && request.Metadata.ServiceTier != "auto" {
+		// Messages takes auto and standard_only; OpenAI's default, flex,
+		// priority and scale have no verified equivalent
+		return &Issue{Feature: FeatureUnknownField, Path: "service_tier", Message: "the Messages API has no equivalent of service_tier " + request.Metadata.ServiceTier}
+	}
+	if request != nil {
+		for index, item := range request.Conversation {
+			if item.Kind == InputMessage && (item.Role == "system" || item.Role == "developer") && index+1 < len(request.Conversation) && !assistantSide(request.Conversation[index+1]) {
+				// Messages takes a system turn inside the conversation only
+				// before an assistant turn or at its end
+				return &Issue{Feature: FeatureDeveloperRole, Path: "input[" + itoa(index) + "].role", Message: "a system turn inside the conversation must be followed by an assistant turn on the Messages API"}
+			}
+			if item.Kind == InputFunctionCall && strings.TrimSpace(item.Arguments) != "" && !jsonObject(item.Arguments) {
+				return &Issue{Feature: FeatureFunctionTools, Path: "input[" + itoa(index) + "].arguments", Message: "the Messages API takes a tool call's arguments as a JSON object only"}
+			}
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentImage && part.Detail != "" && part.Detail != "auto" {
+					// Messages has no image detail: low or high would change
+					// fidelity and cost without saying so
+					return &Issue{Feature: FeatureInputImage, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].detail", Message: "Messages has no image detail setting"}
+				}
+			}
+		}
 	}
 	return nil
 }

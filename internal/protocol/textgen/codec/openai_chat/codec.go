@@ -11,10 +11,13 @@ import (
 
 var knownTopLevel = map[string]struct{}{
 	"model": {}, "messages": {}, "stream": {}, "stream_options": {}, "max_tokens": {}, "max_completion_tokens": {},
-	"reasoning_effort": {}, "temperature": {}, "top_p": {}, "top_k": {}, "stop": {}, "n": {},
+	"reasoning_effort": {}, "reasoning": {}, "temperature": {}, "top_p": {}, "top_k": {}, "stop": {}, "n": {},
 	"response_format": {}, "seed": {}, "parallel_tool_calls": {}, "tools": {}, "tool_choice": {}, "user": {},
 	"logprobs": {}, "top_logprobs": {}, "safety_identifier": {}, "store": {}, "prompt_cache_key": {},
 	"metadata": {}, "web_search_options": {}, "service_tier": {},
+	// Anthropic's Messages API fields OpenRouter-compatible clients send
+	// through Chat (textgen.VendorOptions)
+	"cache_control": {}, "speed": {},
 	// OpenRouter-compatible gateway routing metadata is consumed before
 	// protocol planning and must not make an otherwise lossless bridge fail.
 	"models":  {},
@@ -55,6 +58,8 @@ func Decode(body []byte) (*textgen.Request, *dto.GeneralOpenAIRequest, error) {
 		return nil, nil, err
 	}
 	request.Reasoning.Effort = wire.ReasoningEffort
+	decodeReasoningObject(raw, request)
+	request.Vendor = textgen.VendorOptions{CacheControl: nonNullRaw(wire.CacheControl), Speed: nonNullRaw(wire.Speed)}
 	request.Metadata.Metadata = append(json.RawMessage(nil), wire.Metadata...)
 	request.Metadata.User = wire.User
 	request.Metadata.SafetyIdentifier = wire.SafetyIdentifier
@@ -237,10 +242,19 @@ func decodeMessages(messages []dto.Message, request *textgen.Request) error {
 				markUnknown(request, fmt.Sprintf("messages[%d].role", index), role)
 			}
 			if message.Content != nil && !message.IsStringContent() {
-				// Responses instructions are a single string. Preserve the native
-				// Chat wire, but fail a bridge closed before array part boundaries or
-				// controls such as cache_control can be flattened by messageText.
 				markUnknownMessageContent(message, index, request)
+				if parts, textOnly := textParts(message); textOnly {
+					// one instruction per text part, each with its own
+					// cache_control; Messages keeps the boundaries, and a
+					// Responses bridge refuses more than one instruction
+					for _, part := range parts {
+						request.Instructions = append(request.Instructions, textgen.Instruction{Role: role, Text: part.Text, CacheControl: nonNullRaw(part.CacheControl)})
+					}
+					continue
+				}
+				// Non-text parts in an instruction have no semantic place.
+				// Preserve the native Chat wire, but fail a bridge closed
+				// before messageText flattens them.
 				markUnknown(request, fmt.Sprintf("messages[%d].content", index), message.Content)
 			}
 			request.Instructions = append(request.Instructions, textgen.Instruction{Role: role, Text: messageText(message)})
@@ -315,9 +329,6 @@ func markUnknownMessageContent(message dto.Message, index int, request *textgen.
 			continue
 		}
 		kind, _ := part["type"].(string)
-		if cacheControl, exists := part["cache_control"]; exists && cacheControl != nil {
-			markUnknown(request, fmt.Sprintf("messages[%d].content[%d].cache_control", index, partIndex), cacheControl)
-		}
 		switch kind {
 		case dto.ContentTypeText:
 			markUnknownContentPartFields(request, index, partIndex, part, "type", "text", "cache_control")
@@ -365,6 +376,28 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
+// textParts is the message's parts when every one is a text part.
+func textParts(message dto.Message) ([]dto.MediaContent, bool) {
+	parts := message.ParseContent()
+	if len(parts) == 0 {
+		return nil, false
+	}
+	for _, part := range parts {
+		if part.Type != dto.ContentTypeText {
+			return nil, false
+		}
+	}
+	return parts, true
+}
+
+// nonNullRaw is the raw value, or nil when it is absent or JSON null.
+func nonNullRaw(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 || isJSONNull(raw) {
+		return nil
+	}
+	return append(json.RawMessage(nil), raw...)
+}
+
 func messageParts(message dto.Message, index int, request *textgen.Request) ([]textgen.ContentPart, error) {
 	if message.Content == nil {
 		return nil, nil
@@ -376,21 +409,21 @@ func messageParts(message dto.Message, index int, request *textgen.Request) ([]t
 	for partIndex, part := range message.ParseContent() {
 		switch part.Type {
 		case dto.ContentTypeText:
-			parts = append(parts, textgen.ContentPart{Kind: textgen.ContentText, Text: part.Text})
+			parts = append(parts, textgen.ContentPart{Kind: textgen.ContentText, Text: part.Text, CacheControl: nonNullRaw(part.CacheControl)})
 		case dto.ContentTypeImageURL:
 			image := part.GetImageMedia()
 			if image != nil {
-				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentImage, URL: image.Url, Detail: explicitImageDetail(message.Content, partIndex)})
+				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentImage, URL: image.Url, Detail: explicitImageDetail(message.Content, partIndex), CacheControl: nonNullRaw(part.CacheControl)})
 			}
 		case dto.ContentTypeInputAudio:
 			audio := part.GetInputAudio()
 			if audio != nil {
-				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentAudio, Data: audio.Data, Format: audio.Format})
+				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentAudio, Data: audio.Data, Format: audio.Format, CacheControl: nonNullRaw(part.CacheControl)})
 			}
 		case dto.ContentTypeFile:
 			file := part.GetFile()
 			if file != nil {
-				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentFile, FileID: file.FileId, Data: file.FileData, Filename: file.FileName})
+				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentFile, FileID: file.FileId, Data: file.FileData, Filename: file.FileName, CacheControl: nonNullRaw(part.CacheControl)})
 			}
 		default:
 			markUnknown(request, fmt.Sprintf("messages[%d].content[%d].type", index, partIndex), part)
@@ -418,6 +451,10 @@ func explicitImageDetail(content any, partIndex int) string {
 
 func decodeTools(raw map[string]json.RawMessage, wire *dto.GeneralOpenAIRequest, request *textgen.Request) error {
 	markUnknownToolFields(raw["tools"], request)
+	var rawTools []map[string]json.RawMessage
+	if value, ok := raw["tools"]; ok && !isJSONNull(value) {
+		_ = json.Unmarshal(value, &rawTools)
+	}
 	for index, tool := range wire.Tools {
 		if !strings.EqualFold(tool.Type, "function") {
 			markUnknown(request, fmt.Sprintf("tools[%d].type", index), tool)
@@ -428,6 +465,9 @@ func decodeTools(raw map[string]json.RawMessage, wire *dto.GeneralOpenAIRequest,
 			return err
 		}
 		definition := textgen.ToolDefinition{Type: "function", Name: tool.Function.Name, Description: tool.Function.Description, Parameters: parameters}
+		if index < len(rawTools) {
+			definition.CacheControl = nonNullRaw(rawTools[index]["cache_control"])
+		}
 		if len(tool.Function.Strict) > 0 {
 			var strict bool
 			if err := json.Unmarshal(tool.Function.Strict, &strict); err != nil {
@@ -465,7 +505,7 @@ func markUnknownToolFields(raw json.RawMessage, request *textgen.Request) {
 		return
 	}
 	for index, tool := range tools {
-		markUnknownRawObjectFields(request, fmt.Sprintf("tools[%d]", index), tool, "type", "function")
+		markUnknownRawObjectFields(request, fmt.Sprintf("tools[%d]", index), tool, "type", "function", "cache_control")
 		var function map[string]json.RawMessage
 		if value, ok := tool["function"]; ok && !isJSONNull(value) && json.Unmarshal(value, &function) == nil {
 			markUnknownRawObjectFields(request, fmt.Sprintf("tools[%d].function", index), function, "name", "description", "parameters", "strict")
@@ -524,7 +564,9 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 	if request == nil {
 		return nil, fmt.Errorf("request is nil")
 	}
-	wire := &dto.GeneralOpenAIRequest{Model: request.Model.Upstream, Stream: request.Lifecycle.Stream, ReasoningEffort: request.Reasoning.Effort, User: request.Metadata.User, SafetyIdentifier: request.Metadata.SafetyIdentifier, ServiceTier: request.Metadata.ServiceTier}
+	// Chat takes an effort and no budget: a budget is sent as the effort it
+	// reaches (textgen.EffortForBudget)
+	wire := &dto.GeneralOpenAIRequest{Model: request.Model.Upstream, Stream: request.Lifecycle.Stream, ReasoningEffort: textgen.ReasoningEffortFor(request.Reasoning), User: request.Metadata.User, SafetyIdentifier: request.Metadata.SafetyIdentifier, ServiceTier: request.Metadata.ServiceTier}
 	if wire.Model == "" {
 		wire.Model = request.Model.Canonical
 	}
@@ -560,7 +602,9 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 		wire.TopLogProbs = request.Sampling.TopLogProbs.Value
 	}
 	if request.Sampling.MaxOutput.Set {
-		wire.MaxCompletionTokens = request.Sampling.MaxOutput.Value
+		// max_tokens, the field every Chat-compatible API takes; the OpenAI
+		// adaptor moves it to max_completion_tokens for models that need it
+		wire.MaxTokens = request.Sampling.MaxOutput.Value
 	}
 	if request.ToolPolicy.ParallelToolCalls.Set {
 		wire.ParallelToolCalls = &request.ToolPolicy.ParallelToolCalls.Value
@@ -584,6 +628,18 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 	return wire, nil
 }
 
+// appendAssistantContent puts more's content after the message's own.
+func appendAssistantContent(message *dto.Message, more dto.Message) {
+	switch {
+	case message.Content == nil || (message.IsStringContent() && message.StringContent() == ""):
+		message.Content = more.Content
+	case message.IsStringContent() && more.IsStringContent():
+		message.SetStringContent(message.StringContent() + "\n\n" + more.StringContent())
+	default:
+		message.SetMediaContent(append(message.ParseContent(), more.ParseContent()...))
+	}
+}
+
 func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) error {
 	for _, instruction := range request.Instructions {
 		message := dto.Message{Role: instruction.Role}
@@ -591,10 +647,29 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 		wire.Messages = append(wire.Messages, message)
 	}
 	pendingReasoning := -1
+	// images a tool returned: Chat's tool message is text only, so they go
+	// in a user message after the run of tool messages they came from
+	var resultImages []dto.MediaContent
+	flushResultImages := func() {
+		if len(resultImages) == 0 {
+			return
+		}
+		message := dto.Message{Role: "user"}
+		message.SetMediaContent(append([]dto.MediaContent{{Type: dto.ContentTypeText, Text: "Images returned by the tool calls above:"}}, resultImages...))
+		wire.Messages = append(wire.Messages, message)
+		resultImages = nil
+	}
 	for _, item := range request.Conversation {
+		if item.Kind != textgen.InputFunctionResult {
+			flushResultImages()
+		}
 		switch item.Kind {
 		case textgen.InputReasoning:
 			if !item.PlainReasoning.Set {
+				if len(item.Opaque) > 0 && item.Opaque[0].Dialect == "anthropic" {
+					// sealed by Anthropic, meaningless to another vendor
+					continue
+				}
 				return fmt.Errorf("opaque reasoning cannot be encoded as chat")
 			}
 			last := len(wire.Messages) - 1
@@ -617,9 +692,16 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 				return err
 			}
 			message.Content = content
-			if item.Role == "assistant" && pendingReasoning >= 0 {
+			last := len(wire.Messages) - 1
+			switch {
+			case item.Role == "assistant" && pendingReasoning >= 0:
 				wire.Messages[pendingReasoning].Content = content
-			} else {
+			case item.Role == "assistant" && last >= 0 && wire.Messages[last].Role == "assistant" && len(wire.Messages[last].ParseToolCalls()) > 0:
+				// text after a tool call in the same assistant turn
+				// (Messages allows tool_use then text): Chat answers the
+				// calls right after their message, so the text joins it
+				appendAssistantContent(&wire.Messages[last], message)
+			default:
 				wire.Messages = append(wire.Messages, message)
 			}
 			pendingReasoning = -1
@@ -635,12 +717,19 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 		case textgen.InputFunctionResult:
 			pendingReasoning = -1
 			message := dto.Message{Role: "tool", ToolCallId: item.CallID}
-			message.SetStringContent(item.Output)
+			message.SetStringContent(textgen.ResultText(item))
 			wire.Messages = append(wire.Messages, message)
+			for _, part := range item.Content {
+				if part.Kind == textgen.ContentImage {
+					media := dto.MediaContent{Type: dto.ContentTypeImageURL, ImageUrl: &dto.MessageImageUrl{Url: part.URL, Detail: part.Detail}}
+					resultImages = append(resultImages, media)
+				}
+			}
 		default:
 			return fmt.Errorf("input kind %q cannot be encoded as chat", item.Kind)
 		}
 	}
+	flushResultImages()
 	if len(wire.Messages) == 0 {
 		return fmt.Errorf("messages is required")
 	}
@@ -742,6 +831,42 @@ func encodeOutput(output textgen.OutputConstraint, wire *dto.GeneralOpenAIReques
 	return nil
 }
 
+// decodeReasoningObject takes the OpenRouter-style reasoning object a Chat
+// request may carry beside reasoning_effort: its effort wins over
+// reasoning_effort and its max_tokens is the thinking budget. Any other key
+// is unknown.
+func decodeReasoningObject(raw map[string]json.RawMessage, request *textgen.Request) {
+	value, ok := raw["reasoning"]
+	if !ok || isJSONNull(value) {
+		return
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(value, &object); err != nil {
+		markUnknown(request, "reasoning", value)
+		return
+	}
+	for key, field := range object {
+		if isJSONNull(field) {
+			continue
+		}
+		switch key {
+		case "effort":
+			var effort string
+			if json.Unmarshal(field, &effort) == nil && strings.TrimSpace(effort) != "" {
+				request.Reasoning.Effort = effort
+				continue
+			}
+		case "max_tokens":
+			var budget int
+			if json.Unmarshal(field, &budget) == nil && budget > 0 {
+				request.Reasoning.Budget = textgen.Some(budget)
+				continue
+			}
+		}
+		markUnknown(request, "reasoning."+key, field)
+	}
+}
+
 func unknownFields(raw map[string]json.RawMessage) map[string]json.RawMessage {
 	result := map[string]json.RawMessage{}
 	for key, value := range raw {
@@ -767,3 +892,50 @@ func messageText(message dto.Message) string {
 	return builder.String()
 }
 func stringValue(value any) string { text, _ := value.(string); return text }
+
+// ApplyDegraded writes what a degradation changed onto the client's own
+// Chat request: the output constraint and the instructions (the system and
+// developer messages, in order). Every other field stays as the client sent
+// it: Encode is a semantic encoder, not a lossless one, and a degraded
+// native request must differ from the client's only by the degradation.
+func ApplyDegraded(wire *dto.GeneralOpenAIRequest, degraded *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
+	out := *wire
+	out.ResponseFormat = nil
+	if err := encodeOutput(degraded.Output, &out); err != nil {
+		return nil, err
+	}
+	out.Messages = append([]dto.Message(nil), wire.Messages...)
+	var at []int
+	for index, message := range out.Messages {
+		if message.Role == "system" || message.Role == "developer" {
+			at = append(at, index)
+		}
+	}
+	switch {
+	case len(at) == 0 && len(degraded.Instructions) == 1:
+		message := dto.Message{Role: degraded.Instructions[0].Role}
+		message.SetStringContent(degraded.Instructions[0].Text)
+		out.Messages = append([]dto.Message{message}, out.Messages...)
+	case len(at) == len(degraded.Instructions):
+		// a degradation only extends an instruction; one with parts keeps
+		// them and gets the extension as a message after it
+		for k := len(at) - 1; k >= 0; k-- {
+			index, text := at[k], degraded.Instructions[k].Text
+			original := messageText(out.Messages[index])
+			if text == original {
+				continue
+			}
+			if out.Messages[index].Content == nil || out.Messages[index].IsStringContent() {
+				out.Messages[index].SetStringContent(text)
+				continue
+			}
+			extension := strings.TrimSpace(strings.TrimPrefix(text, strings.TrimRight(original, "\n")))
+			message := dto.Message{Role: out.Messages[index].Role}
+			message.SetStringContent(extension)
+			out.Messages = append(out.Messages[:index+1], append([]dto.Message{message}, out.Messages[index+1:]...)...)
+		}
+	default:
+		return nil, fmt.Errorf("the degraded instructions do not match the request's system messages")
+	}
+	return &out, nil
+}

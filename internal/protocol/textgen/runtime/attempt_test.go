@@ -3,6 +3,7 @@ package runtime
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	gormsqlite "github.com/glebarez/sqlite"
@@ -356,5 +357,153 @@ func TestPrepareAttemptTurnsReasoningOffForGPT6ChatTools(t *testing.T) {
 	}
 	if first.Request == request.Semantic || retry.Request != request.Semantic || retry.Request.Reasoning.Effort != "" {
 		t.Fatal("reasoning default polluted retry input or disabled ordinary request reuse")
+	}
+}
+
+// A channel that denies json_schema gets the registered stand-in: the plan
+// carries the degradation warning and the caller's request is untouched.
+func TestPrepareAttemptDegradesDeniedJSONSchema(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_degrade?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed := &textgen.ParsedRequest{
+		Client: textgen.Protocol{Family: textgen.ProtocolOpenAIChat},
+		Semantic: &textgen.Request{
+			Model:        textgen.ModelRef{Canonical: "fixture"},
+			Instructions: []textgen.Instruction{{Role: "system", Text: "Name the session."}},
+			Conversation: []textgen.InputItem{{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "hello"}}}},
+			Output:       textgen.OutputConstraint{Type: "json_schema", Name: "title", Schema: json.RawMessage(`{"type":"object"}`)},
+		},
+	}
+	channel := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_json_schema":false}}`}
+	before, _ := json.Marshal(parsed.Semantic)
+	attempt, err := PrepareAttempt(parsed, channel, "fixture")
+	if err != nil {
+		t.Fatalf("degraded route failed: %v", err)
+	}
+	if attempt.Request == parsed.Semantic || attempt.Request.Output.Type != "" || len(attempt.Request.Instructions) != 1 {
+		t.Fatalf("expected a degraded clone, got %+v", attempt.Request)
+	}
+	// the catalog knows nothing of "fixture", so json_object is not known to
+	// be carried either: the schema goes as an instruction alone
+	if len(attempt.Plan.Warnings) != 1 || attempt.Plan.Warnings[0].Message != "degraded:json_schema_to_instruction" {
+		t.Fatalf("expected the degradation warning on the plan, got %+v", attempt.Plan.Warnings)
+	}
+	after, _ := json.Marshal(parsed.Semantic)
+	if string(before) != string(after) {
+		t.Fatal("degradation changed caller input")
+	}
+	// the instruction the stand-in adds counts toward the context window: a
+	// request just under the limit before it is over the limit after
+	nearLimit := *parsed
+	nearLimit.InputTokens = 100
+	tight := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_json_schema":false,"context_window":110}}`}
+	if _, err := PrepareAttempt(&nearLimit, tight, "fixture"); err == nil {
+		t.Fatal("the degraded prompt is over the context window and must be refused")
+	}
+	nearLimit.Semantic = nearLimit.Semantic.Clone()
+	nearLimit.Semantic.Output = textgen.OutputConstraint{}
+	if _, err := PrepareAttempt(&nearLimit, tight, "fixture"); err != nil {
+		t.Fatalf("without the degradation the request fits: %v", err)
+	}
+	// a nested field the IR does not model would be lost by encoding the
+	// degraded request from the IR, so there is no degradation and the
+	// denial stands
+	nested := *parsed
+	nested.Semantic = parsed.Semantic.Clone()
+	nested.Semantic.Raw.UnknownFields = map[string]json.RawMessage{"messages[0].content[0].vendor": json.RawMessage(`1`)}
+	if _, err := PrepareAttempt(&nested, channel, "fixture"); err == nil {
+		t.Fatal("a request the IR cannot encode losslessly must not be degraded")
+	}
+	// without the overlay the same request is left for the provider to judge
+	open := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`}
+	attempt, err = PrepareAttempt(parsed, open, "fixture")
+	if err != nil || attempt.Request != parsed.Semantic || len(attempt.Plan.Warnings) != 0 {
+		t.Fatalf("unknown support must not degrade: %+v %v", attempt, err)
+	}
+}
+
+// A Claude client's thinking reaches another vendor's model as
+// reasoning_effort only when the catalog says the model reasons; a model it
+// does not describe gets no effort, as the legacy conversion sent none.
+func TestPrepareAttemptLeavesClaudeThinkingOutForAModelNotKnownToReason(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_claude_thinking?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"fixture","max_tokens":100,"thinking":{"type":"adaptive"},"output_config":{"effort":"high"},"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chat := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`}
+	attempt, err := PrepareAttempt(parsed, chat, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempt.Plan.Native || attempt.Plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIChat {
+		t.Fatalf("expected a Chat bridge, got %+v", attempt.Plan)
+	}
+	if attempt.Request.Reasoning != (textgen.ReasoningOptions{}) || parsed.Semantic.Reasoning.Effort != "high" {
+		t.Fatalf("thinking must be left out on a clone: attempt %+v, parsed %+v", attempt.Request.Reasoning, parsed.Semantic.Reasoning)
+	}
+	anthropic := &model.Channel{Type: constant.ChannelTypeAnthropic}
+	native, err := PrepareAttempt(parsed, anthropic, "fixture")
+	if err != nil || !native.Plan.Native || native.Request.Reasoning.Effort != "high" {
+		t.Fatalf("a native attempt keeps the client's thinking: %+v %v", native, err)
+	}
+
+	// a tool result's image, for a model not known to see images, becomes a
+	// note and a warning; the client's own request is untouched
+	withImage, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"fixture","max_tokens":100,"messages":[{"role":"user","content":"look"},{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file_path":"a.png"}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"image","source":{"type":"base64","media_type":"image/png","data":"iVBORw0KGgo="}}]}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	blind, err := PrepareAttempt(withImage, chat, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := blind.Request.Conversation[2]
+	if len(result.Content) != 0 || !strings.Contains(result.Output, "omitted") || len(withImage.Semantic.Conversation[2].Content) != 1 {
+		t.Fatalf("image not omitted on a clone: %+v", result)
+	}
+	warned := false
+	for _, warning := range blind.Plan.Warnings {
+		warned = warned || warning.Message == "omitted:tool_result_image"
+	}
+	if !warned || blind.Plan.Degraded() {
+		t.Fatalf("warnings: %+v", blind.Plan.Warnings)
+	}
+
+	// a Claude client is never degraded: a denied schema is refused
+	schema, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"fixture","max_tokens":100,"output_config":{"format":{"type":"json_schema","schema":{"type":"object"}}},"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	denying := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_json_schema":false}}`}
+	if _, err := PrepareAttempt(schema, denying, "fixture"); err == nil {
+		t.Fatal("a Claude client's denied schema must be refused, not degraded")
 	}
 }

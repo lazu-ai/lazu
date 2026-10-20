@@ -570,8 +570,10 @@ func encodeResponseConfiguration(request *textgen.Request, wire *dto.OpenAIRespo
 	if request.ToolPolicy.ParallelToolCalls.Set {
 		wire.ParallelToolCalls, _ = json.Marshal(request.ToolPolicy.ParallelToolCalls.Value)
 	}
-	if request.Reasoning.Effort != "" || request.Reasoning.Summary != "" {
-		wire.Reasoning = &dto.Reasoning{Effort: request.Reasoning.Effort, Summary: request.Reasoning.Summary}
+	// Responses takes an effort and no budget: a budget is sent as the
+	// effort it reaches (textgen.EffortForBudget)
+	if effort := textgen.ReasoningEffortFor(request.Reasoning); effort != "" || request.Reasoning.Summary != "" {
+		wire.Reasoning = &dto.Reasoning{Effort: effort, Summary: request.Reasoning.Summary}
 	}
 	wire.Metadata = append(json.RawMessage(nil), request.Metadata.Metadata...)
 	wire.PromptCacheKey = append(json.RawMessage(nil), request.Metadata.PromptCacheKey...)
@@ -623,8 +625,12 @@ func encodeInput(request *textgen.Request, wire *dto.OpenAIResponsesRequest) err
 		case textgen.InputFunctionCall:
 			items = append(items, map[string]any{"type": "function_call", "call_id": item.CallID, "name": item.FunctionName, "arguments": item.Arguments})
 		case textgen.InputFunctionResult:
-			items = append(items, map[string]any{"type": "function_call_output", "call_id": item.CallID, "output": item.Output})
+			items = append(items, map[string]any{"type": "function_call_output", "call_id": item.CallID, "output": functionOutput(item)})
 		case textgen.InputReasoning, textgen.InputReference, textgen.InputOpaque:
+			if item.Kind == textgen.InputReasoning && len(item.Opaque) > 0 && item.Opaque[0].Dialect == "anthropic" {
+				// sealed by Anthropic, meaningless to another vendor
+				continue
+			}
 			if len(item.Opaque) == 0 || item.Opaque[0].Dialect != "openai" {
 				return fmt.Errorf("opaque %s item cannot cross provider dialect", item.Kind)
 			}
@@ -643,6 +649,31 @@ func encodeInput(request *textgen.Request, wire *dto.OpenAIResponsesRequest) err
 	wire.Input, _ = json.Marshal(items)
 	return nil
 }
+
+// functionOutput is a function result's output: its text, or, when the tool
+// returned images too, the content list Responses takes for one.
+func functionOutput(item textgen.InputItem) any {
+	text := textgen.ResultText(item)
+	var images []map[string]any
+	for _, part := range item.Content {
+		if part.Kind == textgen.ContentImage {
+			image := map[string]any{"type": "input_image", "image_url": part.URL}
+			if part.Detail != "" {
+				image["detail"] = part.Detail
+			}
+			images = append(images, image)
+		}
+	}
+	if len(images) == 0 {
+		return text
+	}
+	out := make([]map[string]any, 0, len(images)+1)
+	if text != "" {
+		out = append(out, map[string]any{"type": "input_text", "text": text})
+	}
+	return append(out, images...)
+}
+
 func encodeContent(item textgen.InputItem) ([]map[string]any, error) {
 	result := make([]map[string]any, 0, len(item.Content))
 	for _, part := range item.Content {

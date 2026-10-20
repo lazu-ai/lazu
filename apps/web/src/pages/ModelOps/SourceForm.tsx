@@ -508,6 +508,7 @@ export default function SourceForm({
                           Azure OpenAI
                         </SelectItem>
                         <SelectItem value='openrouter'>OpenRouter</SelectItem>
+                        <SelectItem value='deepseek'>DeepSeek</SelectItem>
                         <SelectItem value='cloudflare_ai_v1'>
                           Cloudflare Workers AI
                         </SelectItem>

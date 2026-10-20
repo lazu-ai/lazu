@@ -1,0 +1,32 @@
+# recorded 2026-10-20T16:35:50Z from https://api.lazu.ai/v1/messages, HTTP 200, content-type text/event-stream
+# request: {"model":"claude-haiku-5-5","max_tokens":200,"stream":true,"output_config":{"format":{"type":"json_schema","schema":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"],"additionalProperties":false}}},"messages":[{"role":"user","content":"Title this chat about protocol gateways."}]}
+event: message_start
+data: {"type":"message_start","message":{"type":"message","model":"claude-haiku-5-5","usage":{"input_tokens":206,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{},"output_tokens":8},"role":"assistant","id":"msg_011CgDpBuqsNnfYino7fV87E","content":[]}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: ping
+data: {"type":"ping"}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"{\"title\": \"Protoc"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"ol Gateways"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" Disc"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"ussion\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta","usage":{"input_tokens":206,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":21,"output_tokens_details":{"thinking_tokens":0}},"delta":{"stop_reason":"end_turn"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

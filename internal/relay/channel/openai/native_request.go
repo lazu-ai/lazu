@@ -8,6 +8,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
+	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -86,6 +87,11 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 	}
 	if len(info.ParamOverride) > 0 {
 		body, err = relaycommon.ApplyParamOverride(body, info.ParamOverride)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return body, err
+	// wire dialect patch: vendor quirks on the compiled body, once per
+	// attempt, after ParamOverride (internal/relay/wirepatch).
+	return wirepatch.Apply(wirepatch.ResolveDialect(info), body), nil
 }

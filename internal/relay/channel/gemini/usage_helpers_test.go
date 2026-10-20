@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"encoding/base64"
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
@@ -68,7 +69,7 @@ func TestEstimateGeminiInlineAudioTokensStripsMIMEParameters(t *testing.T) {
 }
 
 func TestBuildUsageFromGeminiMetadataIncludesToolUsePromptTokens(t *testing.T) {
-	usage := buildUsageFromGeminiMetadata(dto.GeminiUsageMetadata{
+	usage := geminicodec.UsageOf(dto.GeminiUsageMetadata{
 		PromptTokenCount:        120,
 		ToolUsePromptTokenCount: 80,
 		CandidatesTokenCount:    20,
@@ -111,7 +112,7 @@ func TestBuildUsageFromGeminiMetadataSplitsImageOutputTokens(t *testing.T) {
 	// gemini-3.1-flash-image returns image tokens inside candidatesTokenCount.
 	// They must be split out because image output is priced at $60/Mtok while
 	// text output is $3/Mtok.
-	usage := buildUsageFromGeminiMetadata(dto.GeminiUsageMetadata{
+	usage := geminicodec.UsageOf(dto.GeminiUsageMetadata{
 		PromptTokenCount:     30,
 		CandidatesTokenCount: 1140,
 		TotalTokenCount:      1170,
@@ -139,7 +140,7 @@ func TestBuildUsageFromGeminiMetadataSplitsImageOutputTokens(t *testing.T) {
 // only an IMAGE entry is reported, and candidatesTokenCount exceeds it — the
 // remainder is text/thinking and must stay on the output dimension.
 func TestBuildUsageFromGeminiMetadataRealUpstreamImageShape(t *testing.T) {
-	usage := buildUsageFromGeminiMetadata(dto.GeminiUsageMetadata{
+	usage := geminicodec.UsageOf(dto.GeminiUsageMetadata{
 		PromptTokenCount:     6,
 		CandidatesTokenCount: 1422,
 		TotalTokenCount:      1428,
@@ -164,7 +165,7 @@ func TestBuildUsageFromGeminiMetadataRealUpstreamImageShape(t *testing.T) {
 }
 
 func TestBuildUsageFromGeminiMetadataUsesFallbackPromptTokens(t *testing.T) {
-	usage := buildUsageFromGeminiMetadata(dto.GeminiUsageMetadata{
+	usage := geminicodec.UsageOf(dto.GeminiUsageMetadata{
 		PromptTokenCount:     0,
 		CandidatesTokenCount: 90,
 		ThoughtsTokenCount:   10,
@@ -189,10 +190,10 @@ func TestBuildUsageFromGeminiMetadataRepairsMissingTotal(t *testing.T) {
 		ThoughtsTokenCount:   3,
 	}
 
-	if !hasGeminiUsageMetadata(metadata) {
+	if !geminicodec.HasUsage(metadata) {
 		t.Fatal("expected component token counts to be recognized as provider usage")
 	}
-	usage := buildUsageFromGeminiMetadata(metadata, 0)
+	usage := geminicodec.UsageOf(metadata, 0)
 	if usage.PromptTokens != 20 || usage.CompletionTokens != 8 || usage.TotalTokens != 28 {
 		t.Fatalf("unexpected repaired Gemini usage: %+v", usage)
 	}
@@ -208,7 +209,7 @@ func TestReconcileGeminiUsageTotalAfterFallbackCompletion(t *testing.T) {
 		TotalTokens:      20,
 	}
 
-	reconcileGeminiUsageTotal(&usage)
+	geminicodec.ReconcileTotal(&usage)
 
 	if usage.TotalTokens != 25 {
 		t.Fatalf("expected total to include fallback completion tokens, got %+v", usage)
@@ -216,7 +217,7 @@ func TestReconcileGeminiUsageTotalAfterFallbackCompletion(t *testing.T) {
 }
 
 func TestBuildUsageFromGeminiMetadataDoesNotDeriveNegativeCompletion(t *testing.T) {
-	usage := buildUsageFromGeminiMetadata(dto.GeminiUsageMetadata{
+	usage := geminicodec.UsageOf(dto.GeminiUsageMetadata{
 		PromptTokenCount: 20,
 		TotalTokenCount:  10,
 	}, 0)
@@ -227,7 +228,7 @@ func TestBuildUsageFromGeminiMetadataDoesNotDeriveNegativeCompletion(t *testing.
 }
 
 func TestHasGeminiUsageMetadataRejectsEmptyMetadata(t *testing.T) {
-	if hasGeminiUsageMetadata(dto.GeminiUsageMetadata{}) {
+	if geminicodec.HasUsage(dto.GeminiUsageMetadata{}) {
 		t.Fatal("empty metadata must not suppress local usage fallback")
 	}
 }

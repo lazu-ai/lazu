@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/setting/system_setting"
 )
 
@@ -59,17 +58,7 @@ func VideoUpstreamClient(proxyURL string, requestURL string, authenticated bool)
 // gateway did not configure itself.
 func ValidateExternalVideoArtifactURL(rawURL string) error {
 	fetchSetting := system_setting.GetFetchSetting()
-	if err := common.ValidateURLWithFetchSetting(
-		rawURL,
-		fetchSetting.EnableSSRFProtection,
-		fetchSetting.AllowPrivateIp,
-		fetchSetting.DomainFilterMode,
-		fetchSetting.IpFilterMode,
-		fetchSetting.DomainList,
-		fetchSetting.IpList,
-		fetchSetting.AllowedPorts,
-		fetchSetting.ApplyIPFilterForDomain,
-	); err != nil {
+	if err := fetchSetting.ValidateURL(rawURL); err != nil {
 		return fmt.Errorf("external video artifact url blocked: %w", err)
 	}
 	return nil

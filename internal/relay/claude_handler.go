@@ -9,9 +9,11 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	claudechannel "github.com/lazu-ai/lazu/internal/relay/channel/claude"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
+	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
@@ -44,62 +46,36 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		return types.NewError(fmt.Errorf("invalid api type: %d", info.ApiType), types.ErrorCodeInvalidApiType, types.ErrOptionWithSkipRetry())
 	}
 	adaptor.Init(info)
-	claudeConverter, lazuErr := requireClaudeRequestConverter(adaptor, info)
-	if lazuErr != nil {
-		return lazuErr
-	}
-	originalModel := request.Model
-	adaptiveEffort := ""
-
-	if baseModel, effort, ok := claudechannel.TrimEffortSuffix(request.Model); ok && claudechannel.SupportsAdaptiveThinkingModel(baseModel) {
-		request.Model = baseModel
-		info.UpstreamModelName = request.Model
-		adaptiveEffort = effort
-	}
-
-	// 检测 -thinking 或 #thinking 模型后缀
-	suffixTriggeredThinking := false
-	if model_setting.GetClaudeSettings().ThinkingAdapterEnabled {
-		if model, suffix := claudechannel.TrimThinkingSuffix(request.Model); suffix != "" {
-			suffixTriggeredThinking = true
-			request.Model = model
+	if !bridgesClaudeClient(info) {
+		// thinking fitted to a Claude model; a bridged attempt's model is
+		// another vendor's, and its reasoning was planned (PrepareAttempt)
+		originalModel := request.Model
+		resolve := claudechannel.CatalogPolicy(info.OriginModelName)
+		claudechannel.PrepareNativeThinking(request, resolve)
+		if request.Model != originalModel {
 			info.UpstreamModelName = request.Model
 		}
 	}
-	if request.MaxTokens == 0 {
-		request.MaxTokens = uint(claudechannel.GetDefaultMaxTokensForThinkingModel(originalModel, request.Model))
-	}
-	if adaptiveEffort != "" && request.Thinking == nil {
-		claudechannel.ApplyAdaptiveThinking(request, adaptiveEffort)
-	}
-	if suffixTriggeredThinking && request.Thinking == nil {
-		if strings.HasPrefix(request.Model, "claude-opus-4-7") {
-			claudechannel.ApplyAdaptiveThinking(request, "high")
-		} else {
-			budgetTokens := int(float64(request.MaxTokens) * model_setting.GetClaudeSettings().ThinkingAdapterBudgetTokensPercentage)
-			request.Thinking = &dto.Thinking{
-				Type:         "enabled",
-				BudgetTokens: &budgetTokens,
-			}
-		}
-	}
-	if strings.HasPrefix(request.Model, "claude-opus-4-7") && request.Thinking != nil && request.Thinking.Type == "enabled" {
-		effort := adaptiveEffort
-		if effort == "" {
-			effort = "high"
-		}
-		claudechannel.ApplyAdaptiveThinking(request, effort)
-	}
-	claudechannel.EnsureThinkingConstraints(request)
 
 	var requestBody io.Reader
-	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
+	if bridgesClaudeClient(info) {
+		// hub: the IR encoded for the OpenAI-shaped upstream the plan chose
+		body, _, bridgeErr := BridgeBody(c, info, adaptor)
+		if bridgeErr != nil {
+			return bridgeErr
+		}
+		requestBody = bytes.NewBuffer(body)
+	} else if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)
 		}
 		requestBody = bytes.NewBuffer(body)
 	} else {
+		claudeConverter, converterErr := requireClaudeRequestConverter(adaptor, info)
+		if converterErr != nil {
+			return converterErr
+		}
 		convertedRequest, err := claudeConverter.ConvertClaudeRequest(c, info, request)
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
@@ -130,6 +106,9 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 				return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
 			}
 		}
+		// wire dialect patch: vendor quirks on the compiled body, once per
+		// attempt, after ParamOverride (internal/relay/wirepatch).
+		jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 
 		if common.DebugEnabled {
 			println("requestBody: ", string(jsonData))
@@ -176,4 +155,18 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 
 	service.PostClaudeConsumeQuota(c, info, usage.(*dto.Usage))
 	return nil
+}
+
+// bridgesClaudeClient says whether the attempt serves a Claude client from an
+// OpenAI-shaped upstream (Chat Completions or Responses) through the hub.
+func bridgesClaudeClient(info *relaycommon.RelayInfo) bool {
+	if info == nil || info.ProtocolPlan == nil || info.ProtocolPlan.Native || info.ProtocolRequest == nil ||
+		info.ProtocolPlan.ClientProtocol.Family != textgen.ProtocolAnthropic {
+		return false
+	}
+	switch info.ProtocolPlan.UpstreamProtocol.Family {
+	case textgen.ProtocolOpenAIChat, textgen.ProtocolOpenAIResponses:
+		return true
+	}
+	return false
 }

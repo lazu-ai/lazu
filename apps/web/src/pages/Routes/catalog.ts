@@ -129,7 +129,12 @@ export type CatalogModel = {
   owned_by?: string;
   pricing?: CatalogPricing;
   provider?: string;
-  reasoning_options?: { efforts?: string[]; toggle?: boolean } | null;
+  reasoning_options?: {
+    efforts?: string[];
+    toggle?: boolean;
+    mode?: string;
+    off?: string;
+  } | null;
   release_date?: string;
   released_at?: number;
   supported_endpoints?: CatalogEndpoint[];

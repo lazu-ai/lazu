@@ -122,6 +122,9 @@ func selectProtocolCompatibleChannel(c *gin.Context, group, modelName string, ex
 	}
 	nativeCompatible := make([]model.RoutingCandidate, 0, len(candidates))
 	bridgedCompatible := make([]model.RoutingCandidate, 0, len(candidates))
+	// a plan that applied a registered degradation is lossy: it is taken only
+	// when no candidate carries the request losslessly, native or bridged
+	degradedCompatible := make([]model.RoutingCandidate, 0, len(candidates))
 	var lastPlanError error
 	for _, candidate := range candidates {
 		channel := candidate.Channel
@@ -145,15 +148,21 @@ func selectProtocolCompatibleChannel(c *gin.Context, group, modelName string, ex
 			lastPlanError = planErr
 			continue
 		}
-		if plan.Native {
+		switch {
+		case plan.Degraded():
+			degradedCompatible = append(degradedCompatible, candidate)
+		case plan.Native:
 			nativeCompatible = append(nativeCompatible, candidate)
-		} else {
+		default:
 			bridgedCompatible = append(bridgedCompatible, candidate)
 		}
 	}
 	compatible := nativeCompatible
 	if len(compatible) == 0 {
 		compatible = bridgedCompatible
+	}
+	if len(compatible) == 0 {
+		compatible = degradedCompatible
 	}
 	if len(compatible) == 0 {
 		if lastPlanError != nil {

@@ -141,6 +141,7 @@ for `code` from the `errors` i18n namespace, then the copy for `type`.
 | Protocol bridge | `protocol_bridge_unsupported` | Use a supported/native route or change the request | Never by silently deleting fields |
 | Partial stream | Error/timeout/disconnect after output | Retain partial result, inspect request detail | Do not replay automatically |
 | Media job | Terminal job error | Inspect job and billing state | Submission and terminal success are distinct |
+| Media URL fetch | 400 `invalid_request` naming the fetch policy (private address, port, scheme) | Host the file somewhere public, or have the operator add the source to `fetch_setting.private_allow_list`; see [DEPLOYMENT.md](DEPLOYMENT.md#fetching-client-supplied-media-urls) | Never; the refusal is the gateway's own and is not channel evidence |
 
 The catalog's `Retry` describes a client-facing retry category. `FallbackCat`,
 request state and `IsSkipRetryError` constrain the gateway's attempt policy;

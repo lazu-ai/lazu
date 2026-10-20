@@ -17,6 +17,9 @@ type ModelDescriptor struct {
 	Capabilities    model.ModelCapabilities
 	ContextWindow   int64
 	MaxOutputTokens int64
+	// Found is whether a catalog row matched the name at all; a sparse row
+	// (no family, no limits yet) is still a listed model.
+	Found bool
 }
 
 func Descriptor(modelName string) ModelDescriptor {
@@ -44,7 +47,7 @@ func descriptorFromPricingRow(pricings []model.Pricing, pricing *model.Pricing) 
 	if pricing == nil {
 		return ModelDescriptor{}
 	}
-	descriptor := ModelDescriptor{Family: pricing.Family, Capabilities: pricing.Capabilities, ContextWindow: pricing.ContextLength, MaxOutputTokens: pricing.MaxOutputTokens}
+	descriptor := ModelDescriptor{Family: pricing.Family, Capabilities: pricing.Capabilities, ContextWindow: pricing.ContextLength, MaxOutputTokens: pricing.MaxOutputTokens, Found: true}
 	family := strings.TrimSpace(pricing.Family)
 	if family == "" || strings.EqualFold(pricing.ModelName, family) {
 		return descriptor

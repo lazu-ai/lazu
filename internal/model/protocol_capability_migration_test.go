@@ -179,3 +179,57 @@ func TestChannelUpdateInitializesMissingLegacyProtocolDialect(t *testing.T) {
 		t.Fatalf("update did not persist inferred Cloudflare dialect: %q (%s)", dialect, channel.OtherSettings)
 	}
 }
+
+func TestBackfillDeepSeekDialectMovesGenericChannelsOnce(t *testing.T) {
+	db, err := gorm.Open(gormsqlite.Open("file:deepseek_dialect_backfill?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&Channel{}, &SchemaVersion{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	deepseek := "https://api.deepseek.com"
+	other := "https://api.openai.com"
+	rows := []Channel{
+		{Type: constant.ChannelTypeOpenAI, Name: "generic", Key: "k", BaseURL: &deepseek, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","azure_responses_version":"preview"}`},
+		{Type: constant.ChannelTypeOpenAI, Name: "unset", Key: "k", BaseURL: &deepseek, OtherSettings: ``},
+		{Type: constant.ChannelTypeOpenAI, Name: "operator chose", Key: "k", BaseURL: &deepseek, OtherSettings: `{"protocol_dialect":"openai"}`},
+		{Type: constant.ChannelTypeOpenAI, Name: "not deepseek", Key: "k", BaseURL: &other, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`},
+	}
+	for i := range rows {
+		if err := db.Create(&rows[i]).Error; err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+	}
+	if err := backfillDeepSeekDialectOnce(db); err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	want := map[string]string{"generic": "deepseek", "unset": "deepseek", "operator chose": "openai", "not deepseek": "openai_chat_compatible"}
+	for name, dialect := range want {
+		var got Channel
+		if err := db.Where("name = ?", name).First(&got).Error; err != nil {
+			t.Fatalf("load %s: %v", name, err)
+		}
+		settings := got.GetOtherSettings()
+		if settings.ProtocolDialect != dialect {
+			t.Fatalf("%s: dialect %q want %q", name, settings.ProtocolDialect, dialect)
+		}
+		if name == "generic" && settings.AzureResponsesVersion != "preview" {
+			t.Fatalf("other settings lost: %#v", settings)
+		}
+	}
+	// marker recorded: a channel switched back by an operator stays switched
+	if err := db.Model(&Channel{}).Where("name = ?", "generic").Update("settings", `{"protocol_dialect":"openai_chat_compatible"}`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := backfillDeepSeekDialectOnce(db); err != nil {
+		t.Fatal(err)
+	}
+	var again Channel
+	if err := db.Where("name = ?", "generic").First(&again).Error; err != nil {
+		t.Fatal(err)
+	}
+	if again.GetOtherSettings().ProtocolDialect != "openai_chat_compatible" {
+		t.Fatal("second run must be a no-op")
+	}
+}

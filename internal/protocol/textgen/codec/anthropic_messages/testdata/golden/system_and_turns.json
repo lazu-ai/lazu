@@ -1,0 +1,28 @@
+{
+  "model": "claude-haiku-5-5",
+  "system": [
+    {
+      "type": "text",
+      "text": "You are terse."
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello."
+    },
+    {
+      "role": "user",
+      "content": "Again?"
+    }
+  ],
+  "stop_sequences": [
+    "END",
+    "STOP"
+  ],
+  "tools": []
+}

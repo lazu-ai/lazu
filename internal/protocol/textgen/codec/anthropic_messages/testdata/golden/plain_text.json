@@ -1,0 +1,12 @@
+{
+  "model": "claude-haiku-5-5",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Say hello in five words."
+    }
+  ],
+  "temperature": 0.3,
+  "top_p": 0.9,
+  "tools": []
+}
