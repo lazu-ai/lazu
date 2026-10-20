@@ -110,6 +110,16 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		}
 		effective.Reasoning = textgen.ReasoningOptions{}
 	}
+	if !plan.Native && client.Family == textgen.ProtocolAnthropic && plan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat &&
+		len(effective.Tools) > 0 && effective.ToolPolicy.Mode != "none" && common.ChatToolsNeedReasoningOff(modelName) {
+		// a model that takes tools on Chat only with reasoning off: a
+		// Claude client's tool call goes without thinking (the legacy
+		// conversion sent none), as a Chat client's does
+		if effective == parsed.Semantic {
+			effective = effective.Clone()
+		}
+		effective.Reasoning = textgen.ReasoningOptions{Effort: "none"}
+	}
 	if !plan.Native && client.Family == textgen.ProtocolAnthropic && effective.Reasoning.Effort == "none" && !model.CanDisableReasoning(modelName) {
 		// thinking off, asked of a model that cannot stop reasoning: the
 		// ask is left out, as an upstream would refuse effort none
