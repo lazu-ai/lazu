@@ -261,3 +261,33 @@ func TestDecoderHoldsStreamedCallsAndBillsWithheldOnes(t *testing.T) {
 		t.Fatalf("the withheld call must still be collected for billing, with its item id: %+v", parts)
 	}
 }
+
+// A completed call goes out when it completes, before the text after it:
+// the output keeps the upstream's order.
+func TestDecoderKeepsCallsInPlace(t *testing.T) {
+	d := &StreamDecoder{}
+	var kinds []textgen.EventKind
+	for _, data := range []string{
+		`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"f"}}`,
+		`{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{}"}`,
+		`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"f","arguments":"{}","status":"completed"}}`,
+		`{"type":"response.output_text.delta","output_index":1,"delta":"after"}`,
+	} {
+		events, err := d.Decode(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, event := range events {
+			kinds = append(kinds, event.Kind)
+		}
+	}
+	want := []textgen.EventKind{textgen.EventToolStart, textgen.EventToolArguments, textgen.EventToolDone, textgen.EventText}
+	if len(kinds) != len(want) {
+		t.Fatalf("kinds: %v", kinds)
+	}
+	for i := range want {
+		if kinds[i] != want[i] {
+			t.Fatalf("kinds: %v", kinds)
+		}
+	}
+}

@@ -115,3 +115,35 @@ func TestChatClientHubWritesAUsageOnlyChunk(t *testing.T) {
 		t.Fatalf("usage chunk: %s", usage)
 	}
 }
+
+// A stream cut off while a call was held still bills the call: its name,
+// arguments and framing.
+func TestChatClientHubBillsAHeldCallOnACutOff(t *testing.T) {
+	_, info, usage, err := runChatClientHub(t, httptest.NewRecorder(),
+		`{"type":"response.output_text.delta","delta":"hello"}`,
+		`{"type":"response.output_item.added","output_index":1,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"get_weather"}}`,
+		`{"type":"response.function_call_arguments.delta","output_index":1,"delta":"{\"city\":\"Taipei\"}"}`,
+	)
+	if err == nil {
+		t.Fatal("a cut-off is an error")
+	}
+	want := service.CountTextToken("hello"+"get_weather"+`{"city":"Taipei"}`, info.UpstreamModelName) + 7
+	if usage.CompletionTokens != want {
+		t.Fatalf("completion tokens = %d, want %d", usage.CompletionTokens, want)
+	}
+}
+
+// A provider report with the output count but no input count still gets
+// its prompt estimated.
+func TestChatClientHubEstimatesAMissingInputCount(t *testing.T) {
+	_, _, usage, err := runChatClientHub(t, httptest.NewRecorder(),
+		`{"type":"response.output_text.delta","delta":"hello"}`,
+		`{"type":"response.completed","response":{"status":"completed","usage":{"output_tokens":3,"total_tokens":3}}}`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.PromptTokens == 0 || usage.CompletionTokens != 3 {
+		t.Fatalf("usage: %+v", usage)
+	}
+}

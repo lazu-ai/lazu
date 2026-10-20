@@ -628,6 +628,18 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 	return wire, nil
 }
 
+// appendAssistantContent puts more's content after the message's own.
+func appendAssistantContent(message *dto.Message, more dto.Message) {
+	switch {
+	case message.Content == nil || (message.IsStringContent() && message.StringContent() == ""):
+		message.Content = more.Content
+	case message.IsStringContent() && more.IsStringContent():
+		message.SetStringContent(message.StringContent() + "\n\n" + more.StringContent())
+	default:
+		message.SetMediaContent(append(message.ParseContent(), more.ParseContent()...))
+	}
+}
+
 func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) error {
 	for _, instruction := range request.Instructions {
 		message := dto.Message{Role: instruction.Role}
@@ -680,9 +692,16 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 				return err
 			}
 			message.Content = content
-			if item.Role == "assistant" && pendingReasoning >= 0 {
+			last := len(wire.Messages) - 1
+			switch {
+			case item.Role == "assistant" && pendingReasoning >= 0:
 				wire.Messages[pendingReasoning].Content = content
-			} else {
+			case item.Role == "assistant" && last >= 0 && wire.Messages[last].Role == "assistant" && len(wire.Messages[last].ParseToolCalls()) > 0:
+				// text after a tool call in the same assistant turn
+				// (Messages allows tool_use then text): Chat answers the
+				// calls right after their message, so the text joins it
+				appendAssistantContent(&wire.Messages[last], message)
+			default:
 				wire.Messages = append(wire.Messages, message)
 			}
 			pendingReasoning = -1

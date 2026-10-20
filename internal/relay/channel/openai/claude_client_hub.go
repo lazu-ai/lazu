@@ -43,10 +43,12 @@ func ServesClaudeClient(info *relaycommon.RelayInfo) bool {
 // upstreamDecoder decodes one SSE data payload of the upstream's stream.
 type upstreamDecoder func(data string) ([]textgen.Event, error)
 
-func decoderFor(info *relaycommon.RelayInfo) upstreamDecoder {
+// decoderFor is the decoder for the attempt's upstream, and what it still
+// holds when the stream ends (nil for a Chat upstream, which holds nothing).
+func decoderFor(info *relaycommon.RelayInfo) (upstreamDecoder, func() []textgen.Event) {
 	if info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIResponses {
 		decoder := &openai_responses.StreamDecoder{}
-		return decoder.Decode
+		return decoder.Decode, decoder.Unreleased
 	}
 	decoder := &openai_chat.StreamDecoder{}
 	return func(data string) ([]textgen.Event, error) {
@@ -59,7 +61,7 @@ func decoderFor(info *relaycommon.RelayInfo) upstreamDecoder {
 			return []textgen.Event{{Kind: textgen.EventError, Error: semanticErrorOf(upstream)}}, nil
 		}
 		return markProviderUsage(decoder.Decode(&chunk)), nil
-	}
+	}, nil
 }
 
 // markProviderUsage marks the usage a Chat upstream reported as the
@@ -93,8 +95,10 @@ func semanticErrorOf(upstream *types.OpenAIError) *textgen.SemanticError {
 // ClaudeClientStreamHandler serves a streamed Chat Completions or Responses
 // reply to a Claude client (channel.RunHubStream).
 func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
+	decode, unreleased := decoderFor(info)
 	return channel.RunHubStream(c, resp, info, channel.HubStream{
-		Decode: decoderFor(info),
+		Decode:     decode,
+		Unreleased: unreleased,
 		// a Chat upstream's usage chunk comes after its finish
 		ReadPastStop: info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat,
 	}, channel.HubClientFor(c, info))

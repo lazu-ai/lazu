@@ -60,6 +60,10 @@ type HubStream struct {
 	// ReadPastStop keeps reading after the stop event, for an upstream
 	// whose usage arrives after it (Chat's include_usage chunk).
 	ReadPastStop bool
+	// Unreleased is what the decoder still holds when the stream ends (a
+	// Responses call whose fate the terminal event would have decided):
+	// never written, but billed when the stream was cut off.
+	Unreleased func() []textgen.Event
 	// ClientUsage is the usage as the client reads it, where that is not
 	// the settled one (Messages' cache-exclusive input, for a Chat or
 	// Responses client).
@@ -127,6 +131,9 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 		return !terminal
 	}, func() bool { return terminal })
 
+	if hub.Unreleased != nil {
+		col.Add(hub.Unreleased()...)
+	}
 	usage := SettleHubUsage(c, info, col.Result())
 	shown := usage
 	if hub.ClientUsage != nil {
@@ -140,7 +147,7 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 	}
 	// a failure after output: told in the client's protocol, settled, not
 	// replayed
-	failAfterOutput := func(code types.ErrorCode, upstream *types.OpenAIError, status int, err error) (*dto.Usage, *types.LazuError) {
+	failAfterOutput := func(code types.ErrorCode, upstream *types.OpenAIError, status int, err error, returned ...types.ErrorCode) (*dto.Usage, *types.LazuError) {
 		frame, message := StreamFailureFrame(code, upstream)
 		frame.RequestID = c.GetString(common.RequestIdKey)
 		client.Fail(c, frame, shown)
@@ -150,7 +157,13 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 		if err == nil {
 			err = fmt.Errorf("%s", message)
 		}
-		return usage, types.NewErrorWithStatusCode(err, types.ErrorCodeUpstreamError, status, types.ErrOptionWithSkipRetry())
+		// the code the failure was classified by (a scanner timeout stays
+		// upstream_timeout), else the generic upstream error
+		errorCode := types.ErrorCodeUpstreamError
+		if len(returned) > 0 && returned[0] != "" {
+			errorCode = returned[0]
+		}
+		return usage, types.NewErrorWithStatusCode(err, errorCode, status, types.ErrOptionWithSkipRetry())
 	}
 	switch {
 	case writeErr != nil:
@@ -190,7 +203,7 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 		if !forwarded {
 			return usage, relayErr
 		}
-		return failAfterOutput(types.ErrorCodeUpstreamStreamFailed, nil, relayErr.StatusCode, relayErr.Err)
+		return failAfterOutput(types.ErrorCodeUpstreamStreamFailed, nil, relayErr.StatusCode, relayErr.Err, relayErr.GetErrorCode())
 	}
 	if !col.Result().StopSeen {
 		// cut off before the upstream said how the reply ended

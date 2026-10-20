@@ -27,7 +27,8 @@ import (
 func chatClientResponsesStream(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.LazuError) {
 	decoder := &openai_responses.StreamDecoder{}
 	return channel.RunHubStream(c, resp, info, channel.HubStream{
-		Decode: decoder.Decode,
+		Decode:     decoder.Decode,
+		Unreleased: decoder.Unreleased,
 		Observe: func(c *gin.Context, info *relaycommon.RelayInfo, data string, _ []textgen.Event) {
 			observeResponsesStreamEvent(c, info, data)
 		},

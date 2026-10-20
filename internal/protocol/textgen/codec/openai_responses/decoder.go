@@ -13,21 +13,21 @@ import (
 // which output indexes are function calls (their argument deltas) and
 // reasoning items (whose done event may carry a seal).
 type StreamDecoder struct {
-	// calls are held, by output index in arrival order, until the terminal
-	// event says how the reply ended: a call the provider did not mark
-	// completed goes to the client only when the reply was cut at its
-	// output cap (a partial call the caller may resume), and is withheld,
-	// still billed, when a filter or another reason stopped it
-	calls     map[int]*heldCall
-	order     []int
+	// calls are the function calls by output index. A call goes to the
+	// client once the provider marks it completed; until then it, and all
+	// that follows it, waits in queue, so the output keeps its order. At
+	// the terminal event an unfinished call is kept when the reply was cut
+	// at its output cap (a partial call the caller may resume) and is
+	// withheld, still billed, when a filter or another reason stopped it.
+	calls     map[int]*callState
+	queue     []textgen.Event
 	reasoning map[int]string
 	called    bool
 	turn      bool
 }
 
-type heldCall struct {
-	events []textgen.Event
-	status string
+type callState struct {
+	decided, withhold bool
 }
 
 // callID is the item's call id, or its own id when the provider left the
@@ -39,37 +39,84 @@ func callID(item *dto.ResponsesOutput) string {
 	return item.ID
 }
 
-// hold opens the call at index if it is new.
-func (d *StreamDecoder) hold(index int, item *dto.ResponsesOutput) *heldCall {
-	if call, ok := d.calls[index]; ok {
-		return call
+// open records the call at index, and says whether it is new.
+func (d *StreamDecoder) open(index int) bool {
+	if _, ok := d.calls[index]; ok {
+		return false
 	}
-	call := &heldCall{events: []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: callID(item), ToolName: item.Name, ItemID: item.ID}}}
-	d.calls[index] = call
-	d.order = append(d.order, index)
+	d.calls[index] = &callState{}
 	d.called = true
-	return call
+	return true
 }
 
-// release is the held calls' events, in order: each call kept, or withheld
-// when keepUnfinished is false and the provider did not mark it completed.
-func (d *StreamDecoder) release(keepUnfinished bool) []textgen.Event {
-	var out []textgen.Event
-	for _, index := range d.order {
-		call := d.calls[index]
-		withhold := !keepUnfinished && !strings.EqualFold(call.status, "completed")
-		for _, event := range call.events {
-			event.Withheld = withhold
-			out = append(out, event)
+// decide settles every call still open: kept, or withheld when
+// keepUnfinished is false.
+func (d *StreamDecoder) decide(keepUnfinished bool) {
+	for _, call := range d.calls {
+		if !call.decided {
+			call.decided, call.withhold = true, !keepUnfinished
 		}
 	}
-	d.calls, d.order = map[int]*heldCall{}, nil
+}
+
+func isCallEvent(event textgen.Event) bool {
+	switch event.Kind {
+	case textgen.EventToolStart, textgen.EventToolArguments, textgen.EventToolDone:
+		return true
+	}
+	return false
+}
+
+// flush is the queued events up to the first of a call not yet decided.
+func (d *StreamDecoder) flush() []textgen.Event {
+	n := 0
+	var out []textgen.Event
+	for ; n < len(d.queue); n++ {
+		event := d.queue[n]
+		if isCallEvent(event) {
+			call := d.calls[event.ToolIndex]
+			if call != nil && !call.decided {
+				break
+			}
+			event.Withheld = call != nil && call.withhold
+		}
+		out = append(out, event)
+	}
+	d.queue = d.queue[n:]
 	return out
 }
 
-// Decode is the events of one SSE event's data. Shapes it does not know
-// decode to nothing; an error event or a failed response ends the reply.
+// Unreleased is what the upstream produced that never reached the client,
+// for a stream cut off before its terminal event: withheld, for settlement
+// to bill.
+func (d *StreamDecoder) Unreleased() []textgen.Event {
+	if d == nil {
+		return nil
+	}
+	out := make([]textgen.Event, len(d.queue))
+	for i, event := range d.queue {
+		event.Withheld = true
+		out[i] = event
+	}
+	d.queue = nil
+	return out
+}
+
+// Decode is the events of one SSE event's data, in the order the client
+// may have them (StreamDecoder.calls).
 func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
+	events, err := d.decode(data)
+	if err != nil || d == nil {
+		return nil, err
+	}
+	d.queue = append(d.queue, events...)
+	return d.flush(), nil
+}
+
+// decode is the events of one SSE event's data, as the upstream sent
+// them. Shapes it does not know decode to nothing; an error event or a
+// failed response ends the reply.
+func (d *StreamDecoder) decode(data string) ([]textgen.Event, error) {
 	if d == nil {
 		return nil, nil
 	}
@@ -81,7 +128,7 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		return nil, err
 	}
 	if d.calls == nil {
-		d.calls, d.reasoning = map[int]*heldCall{}, map[int]string{}
+		d.calls, d.reasoning = map[int]*callState{}, map[int]string{}
 	}
 	index := 0
 	if ev.OutputIndex != nil {
@@ -99,8 +146,8 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		switch ev.Item.Type {
 		case "function_call":
-			d.hold(index, ev.Item)
-			return nil, nil
+			d.open(index)
+			return []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: callID(ev.Item), ToolName: ev.Item.Name, ItemID: ev.Item.ID}}, nil
 		case "reasoning":
 			d.reasoning[index] = ev.Item.ID
 			return []textgen.Event{{Kind: textgen.EventReasoningStart, ItemID: ev.Item.ID}}, nil
@@ -128,8 +175,8 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 			return []textgen.Event{{Kind: textgen.EventReasoning, Text: ev.Delta, ItemID: d.reasoning[index], Summary: ev.Type == "response.reasoning_summary_text.delta"}}, nil
 		}
 	case "response.function_call_arguments.delta":
-		if call, ok := d.calls[index]; ok && ev.Delta != "" {
-			call.events = append(call.events, textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: index, Text: ev.Delta})
+		if _, ok := d.calls[index]; ok && ev.Delta != "" {
+			return []textgen.Event{{Kind: textgen.EventToolArguments, ToolIndex: index, Text: ev.Delta}}, nil
 		}
 	case "response.output_item.done":
 		if ev.Item == nil {
@@ -137,10 +184,16 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		switch ev.Item.Type {
 		case "function_call":
-			call := d.hold(index, ev.Item)
-			call.events = append(call.events, textgen.Event{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: callID(ev.Item), ToolName: ev.Item.Name, Text: ev.Item.Arguments})
-			call.status = ev.Item.Status
-			return nil, nil
+			var events []textgen.Event
+			if d.open(index) {
+				// a call reported only by its done item
+				events = append(events, textgen.Event{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: callID(ev.Item), ToolName: ev.Item.Name, ItemID: ev.Item.ID})
+			}
+			events = append(events, textgen.Event{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: callID(ev.Item), ToolName: ev.Item.Name, Text: ev.Item.Arguments})
+			if strings.EqualFold(ev.Item.Status, "completed") {
+				d.calls[index].decided = true
+			}
+			return events, nil
 		case "reasoning":
 			// sealed: the item as the upstream wrote it, for a Responses
 			// client and for its next request
@@ -157,7 +210,7 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 			if ev.Response != nil && ev.Response.Usage != nil {
 				events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: UsageOf(ev.Response.Usage)})
 			}
-			events = append(d.release(false), events...)
+			d.decide(false)
 			return append(events, textgen.Event{Kind: textgen.EventError, Error: failedError(ev)}), nil
 		}
 		var events []textgen.Event
@@ -176,7 +229,7 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 			// calls it never finished
 			keepUnfinished = reason == "max_output_tokens"
 		}
-		events = append(events, d.release(keepUnfinished)...)
+		d.decide(keepUnfinished)
 		if stop == textgen.StopEnd && d.called {
 			stop = textgen.StopTool
 		} else if stop == textgen.StopEnd && ev.Response != nil {
@@ -192,7 +245,8 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		return events, nil
 	case "error":
-		return append(d.release(false), textgen.Event{Kind: textgen.EventError, Error: failedError(ev)}), nil
+		d.decide(false)
+		return []textgen.Event{{Kind: textgen.EventError, Error: failedError(ev)}}, nil
 	}
 	return nil, nil
 }

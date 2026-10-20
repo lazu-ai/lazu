@@ -6,6 +6,7 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 )
 
 // Chat and Responses interleave parallel calls; Messages blocks are
@@ -165,5 +166,28 @@ func TestPauseTurnIsNotACompletion(t *testing.T) {
 	}
 	if len(events) != 2 || events[0].Kind != textgen.EventUsage || events[1].Kind != textgen.EventError || events[1].Error.Code != "pause_turn" {
 		t.Fatalf("events: %+v", events)
+	}
+}
+
+// Messages allows text after a tool call in one assistant turn; Chat
+// answers the calls right after their message, so the text joins it.
+func TestTextAfterAToolCallStaysInTheChatTurn(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","max_tokens":10,"messages":[
+		{"role":"user","content":"q"},
+		{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"f","input":{}},{"type":"text","text":"checking"}]},
+		{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := openai_chat.Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roles := ""
+	for _, message := range wire.Messages {
+		roles += message.Role + ","
+	}
+	if roles != "user,assistant,tool," || wire.Messages[1].StringContent() != "checking" || len(wire.Messages[1].ParseToolCalls()) != 1 {
+		t.Fatalf("roles %s, assistant %+v", roles, wire.Messages[1])
 	}
 }
