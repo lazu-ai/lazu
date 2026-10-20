@@ -219,3 +219,14 @@ func TestProductionWorkerHonorsUnrecognizedProductionMarkers(t *testing.T) {
 		t.Fatal("an unfamiliar production marker must keep worker protections enabled")
 	}
 }
+
+func TestScheduledMaintenanceIsOffUnlessRequested(t *testing.T) {
+	t.Setenv("LAZU_JOBS_SCHEDULED_MAINTENANCE", "")
+	if scheduledMaintenanceEnabled() {
+		t.Fatal("scheduled maintenance must stay off by default so an all-in-one API does not run it twice")
+	}
+	t.Setenv("LAZU_JOBS_SCHEDULED_MAINTENANCE", "true")
+	if !scheduledMaintenanceEnabled() {
+		t.Fatal("expected LAZU_JOBS_SCHEDULED_MAINTENANCE=true to enable scheduled maintenance")
+	}
+}

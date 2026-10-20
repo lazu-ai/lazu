@@ -18,6 +18,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/logger"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/service"
+	"github.com/lazu-ai/lazu/internal/service/uploader"
 	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/internal/setting/email_setting"
 	"github.com/lazu-ai/lazu/internal/worker"
@@ -100,6 +101,29 @@ func initWorkerDBOnly() error {
 	model.InitOptionMap()
 	setting.ApplyCredentialConfig()
 	return nil
+}
+
+// scheduledMaintenanceEnabled lets a long-running jobs container own the
+// clock-scheduled maintenance that only an all-in-one API starts: JSONL
+// upload, pg_dump, archive compaction, user-file cleanup and log retention.
+// A split deployment (API with PROCESS_ROLE=api) that has no external
+// run-once scheduler turns it on; it stays off by default so an all-in-one
+// API and its jobs container never run the same maintenance twice.
+func scheduledMaintenanceEnabled() bool {
+	return common.GetEnvOrDefaultBool("LAZU_JOBS_SCHEDULED_MAINTENANCE", false)
+}
+
+// startScheduledMaintenance starts the same schedulers the all-in-one API
+// runs, so times, notifications and digest health records are unchanged.
+// The upload reads the JSONL shards the API writes, so the jobs container
+// must mount the API's data volume.
+func startScheduledMaintenance() {
+	common.SysLog("worker: scheduled maintenance enabled (upload, pg_dump, compactor, user-file cleanup, log retention)")
+	uploader.StartUploadScheduler()
+	uploader.StartPgDumpScheduler()
+	uploader.StartCompactorScheduler()
+	service.StartUserFileCleanup()
+	service.StartLogRetention()
 }
 
 func buildWorkerTasks(resources *workerResources, oneShot bool) []worker.Task {
@@ -412,6 +436,9 @@ func main() {
 		if engine := model.GatewayLedger(); engine != nil {
 			go engine.Run(ctx, fmt.Sprintf("ledger-jobs-%d", os.Getpid()), func(err error) { common.SysError("ledger writer: " + err.Error()) })
 		}
+	}
+	if !oneShot && resources.databaseReady && scheduledMaintenanceEnabled() {
+		startScheduledMaintenance()
 	}
 
 	if oneShot {
