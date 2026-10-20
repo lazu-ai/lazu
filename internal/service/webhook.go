@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/setting/system_setting"
 )
@@ -84,7 +83,7 @@ func SendWebhookNotify(webhookURL string, secret string, data dto.Notify) error 
 	} else {
 		// SSRF防护：验证Webhook URL（非Worker模式）
 		fetchSetting := system_setting.GetFetchSetting()
-		if err := common.ValidateURLWithFetchSetting(webhookURL, fetchSetting.EnableSSRFProtection, fetchSetting.AllowPrivateIp, fetchSetting.DomainFilterMode, fetchSetting.IpFilterMode, fetchSetting.DomainList, fetchSetting.IpList, fetchSetting.AllowedPorts, fetchSetting.ApplyIPFilterForDomain); err != nil {
+		if err := fetchSetting.ValidateURL(webhookURL); err != nil {
 			return fmt.Errorf("request reject: %v", err)
 		}
 

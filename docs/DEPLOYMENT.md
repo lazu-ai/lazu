@@ -60,6 +60,46 @@ them empty and the feature stays off.
 Starting containers does not verify payment, email or object storage workflows.
 Validate each enabled integration with its actual provider configuration.
 
+### Fetching client-supplied media URLs
+
+When a request carries an image or file by URL and the selected provider
+only accepts bytes, the gateway downloads the file itself. That download is
+governed by the `fetch_setting.*` options (stored in the `option` table and
+applied without a restart):
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `fetch_setting.enable_ssrf_protection` | `true` | Apply the policy below. Switching it off is a deliberate choice to dial anything. |
+| `fetch_setting.allowed_ports` | `["80","443","8080","8443"]` | Ports the gateway fetches from. |
+| `fetch_setting.allow_private_ip` | `false` | Allow every private address. Prefer `private_allow_list`. |
+| `fetch_setting.private_allow_list` | `[]` | Private sources fetched on purpose: hostnames (`minio.internal`, `*.lan.example`), single IPs or CIDRs (`10.0.5.0/24`), as a JSON array. |
+| `fetch_setting.domain_list`, `domain_filter_mode` | `[]`, deny-list | Optional host allow/deny list. |
+| `fetch_setting.ip_list`, `ip_filter_mode`, `apply_ip_filter_for_domain` | `[]`, deny-list, `false` | Optional address allow/deny list. |
+
+With the policy on, a URL is refused before any connection when its scheme
+is not http or https, its port is not allowed, or its host is, or resolves
+to, a loopback, RFC 1918, link-local (169.254/16 and the cloud metadata
+service, fe80::/10), CGNAT (100.64/10), unique-local (fc00::/7), multicast,
+unspecified or reserved address, including the IPv4-mapped IPv6 forms. The
+connection is pinned to the address that was checked (the original host is
+kept for the Host header and TLS), the dialer refuses any other address, and
+every redirect is checked the same way, at most 5 hops. A refusal is a 400
+`invalid_request` that names the policy to the client without disclosing
+what an internal name resolved to; it is never retried on another channel
+and never counts against the channel's health.
+
+`private_allow_list` is the way to let the gateway read from an internal
+object store or a LAN image host: list that host or its subnet and leave
+`allow_private_ip` off. Ports and the domain lists still apply to listed
+sources.
+
+Two paths check less. With `HTTP_PROXY` / `HTTPS_PROXY` set, the proxy
+resolves the name and dials; the gateway still refuses the URL and every
+redirect hop by policy, but cannot pin the address the proxy connects to.
+When a Cloudflare worker (`WorkerUrl`) does the fetching, the policy is
+checked before the URL is handed over, and the worker follows redirects on
+its own.
+
 ### Cloudflare edge caching of public pages
 
 The public pages (home, FAQ, about, legal, model pages, blog, docs and their

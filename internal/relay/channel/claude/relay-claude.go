@@ -434,7 +434,7 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 							// 是url，获取图片的类型和base64编码的数据
 							fileData, err := service.GetFileBase64FromUrl(c, imageUrl.Url, "formatting image for Claude")
 							if err != nil {
-								return nil, fmt.Errorf("get file base64 from url failed: %s", err.Error())
+								return nil, fmt.Errorf("get file base64 from url failed: %w", err)
 							}
 							claudeMediaMessage.Source.MediaType = fileData.MimeType
 							claudeMediaMessage.Source.Data = fileData.Base64Data

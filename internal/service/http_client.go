@@ -26,14 +26,21 @@ var (
 	streamingProxyClients = make(map[string]*http.Client)
 )
 
+// maxFetchRedirects caps redirect chains on operator-policy fetches (media
+// URLs, webhooks, notifications). Every hop is re-validated against the
+// fetch policy before it is followed.
+const maxFetchRedirects = 5
+
 func checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxFetchRedirects {
+		return fmt.Errorf("stopped after %d redirects", maxFetchRedirects)
+	}
 	fetchSetting := system_setting.GetFetchSetting()
 	urlStr := req.URL.String()
-	if err := common.ValidateURLWithFetchSetting(urlStr, fetchSetting.EnableSSRFProtection, fetchSetting.AllowPrivateIp, fetchSetting.DomainFilterMode, fetchSetting.IpFilterMode, fetchSetting.DomainList, fetchSetting.IpList, fetchSetting.AllowedPorts, fetchSetting.ApplyIPFilterForDomain); err != nil {
-		return fmt.Errorf("redirect to %s blocked: %v", urlStr, err)
-	}
-	if len(via) >= 10 {
-		return fmt.Errorf("stopped after 10 redirects")
+	if err := fetchSetting.ValidateURL(urlStr); err != nil {
+		// %w keeps the *common.URLRejectedError reachable through the
+		// *url.Error http.Client wraps around it.
+		return fmt.Errorf("redirect to %s blocked: %w", common.MaskSensitiveInfo(urlStr), err)
 	}
 	return nil
 }
@@ -355,24 +362,24 @@ func relayTransport(dialer *net.Dialer, protectTarget bool, proxyFn func(*http.R
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 	if protectTarget {
+		// The guarded dialer refuses, in its control hook, any address the
+		// policy did not validate in the same dial: the connection is pinned
+		// to the checked IP while the request keeps the original host for
+		// the Host header and TLS SNI.
+		guarded := &net.Dialer{
+			Timeout:        dialer.Timeout,
+			KeepAlive:      dialer.KeepAlive,
+			ControlContext: common.DialControl,
+		}
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			fetchSetting := system_setting.GetFetchSetting()
-			if !fetchSetting.EnableSSRFProtection {
-				return dialer.DialContext(ctx, network, addr)
-			}
-			protection, err := common.NewSSRFProtectionFromFetchSetting(
-				fetchSetting.AllowPrivateIp,
-				fetchSetting.DomainFilterMode,
-				fetchSetting.IpFilterMode,
-				fetchSetting.DomainList,
-				fetchSetting.IpList,
-				fetchSetting.AllowedPorts,
-				fetchSetting.ApplyIPFilterForDomain,
-			)
+			protection, err := system_setting.GetFetchSetting().Protection()
 			if err != nil {
 				return nil, err
 			}
-			return protection.DialContext(ctx, network, addr, dialer)
+			if protection == nil {
+				return dialer.DialContext(ctx, network, addr)
+			}
+			return protection.DialContext(ctx, network, addr, guarded)
 		}
 	} else {
 		transport.DialContext = dialer.DialContext
