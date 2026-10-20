@@ -142,3 +142,17 @@ func TestVideoPricesValidateMultiplierTiersAndPublicCopy(t *testing.T) {
 		t.Fatalf("a per-second lane is not cost-billed")
 	}
 }
+
+func TestVideoPricesPublicCopyIsStableWhenTakenTwice(t *testing.T) {
+	flat := 1.07
+	public := (&VideoPrices{ResolutionSecondUSD: map[string]float64{"720p": 0.231}, ProviderCostMultiplier: &flat}).Public()
+	if again := public.Public(); !again.ProviderCostBilled || again.ProviderCostMultiplier != nil {
+		t.Fatalf("a public copy of a public copy still says it follows cost: %+v", again)
+	}
+	if lowest := (&VideoPrices{ResolutionSecondUSD: map[string]float64{"1080p": 0.569, "480p": 0.103}}).LowestSecondUSD(); lowest == nil || *lowest != 0.103 {
+		t.Fatalf("the cheapest tier: %v", lowest)
+	}
+	if (&VideoPrices{}).LowestSecondUSD() != nil {
+		t.Fatalf("no tiers, no lowest price")
+	}
+}

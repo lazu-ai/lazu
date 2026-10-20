@@ -16,6 +16,7 @@ import (
 
 type Pricing struct {
 	ImagePricing           *billing.ImagePrices `json:"image_pricing,omitempty"`
+	VideoPricing           *billing.VideoPrices `json:"video_pricing,omitempty"`
 	BillingType            string               `json:"billing_type,omitempty"`
 	Input                  *float64             `json:"input,omitempty"`
 	InputPerMillion        *float64             `json:"input_per_million,omitempty"`
@@ -296,7 +297,7 @@ func DisplayName(id string) string {
 		}
 		return out
 	case strings.HasPrefix(lower, "gemini-"), strings.HasPrefix(lower, "deepseek-"),
-		strings.HasPrefix(lower, "kimi-"), strings.HasPrefix(lower, "qwen"), strings.HasPrefix(lower, "seed-"), strings.HasPrefix(lower, "seedream-"):
+		strings.HasPrefix(lower, "kimi-"), strings.HasPrefix(lower, "qwen"), strings.HasPrefix(lower, "seed-"), strings.HasPrefix(lower, "seedream-"), strings.HasPrefix(lower, "seedance-"):
 		words := make([]string, 0, len(parts))
 		for index, part := range parts {
 			if index == 0 {

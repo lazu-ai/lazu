@@ -144,7 +144,9 @@ func sortedStrings(values []string) []string {
 	return out
 }
 
-// videoCatalogExample is the curl the catalog shows for a video model.
+// videoCatalogExample is what the catalog shows for a video model: the
+// whole asynchronous flow (submit, poll, download), since a submission
+// returns a job and not the clip.
 func videoCatalogExample(baseURL string, path string, modelName string) string {
 	caps := model.ModelVideoCapabilities(modelName)
 	seconds := caps.DefaultSeconds
@@ -160,7 +162,12 @@ func videoCatalogExample(baseURL string, path string, modelName string) string {
 		ratio = "16:9"
 	}
 	return fmt.Sprintf(
-		"curl %s%s -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' -d '{\"model\":\"%s\",\"prompt\":\"A cinematic product reveal on a clean studio table\",\"seconds\":%d,\"resolution\":\"%s\",\"aspect_ratio\":\"%s\"}'",
+		"# 1. Submit: HTTP 202 returns a job id (mjob_...) and the amount held\n"+
+			"curl %[1]s%[2]s -H 'Authorization: Bearer YOUR_API_KEY' -H 'Content-Type: application/json' -d '{\"model\":\"%[3]s\",\"prompt\":\"A cinematic product reveal on a clean studio table\",\"seconds\":%[4]d,\"resolution\":\"%[5]s\",\"aspect_ratio\":\"%[6]s\"}'\n"+
+			"# 2. Poll every 10-15 s until status is succeeded (artifact.file_id) or failed\n"+
+			"curl %[1]s%[2]s/JOB_ID -H 'Authorization: Bearer YOUR_API_KEY'\n"+
+			"# 3. Download the stored video\n"+
+			"curl %[1]s/v1/files/FILE_ID/content -H 'Authorization: Bearer YOUR_API_KEY' -o video.mp4",
 		baseURL,
 		path,
 		modelName,

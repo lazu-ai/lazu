@@ -381,6 +381,15 @@ func updatePricingFromCore() error {
 		modelSupportEndpointsStr[modelName] = endpoints
 	}
 
+	// A model with a video capability row is served by /v1/videos only: the
+	// chat endpoints its channel type implies would be advertised (and shown
+	// as the default example) but cannot generate a clip.
+	for modelName, meta := range metaMap {
+		if meta.VideoCapabilities != nil {
+			modelSupportEndpointsStr[modelName] = []string{string(constant.EndpointTypeVideoGeneration)}
+		}
+	}
+
 	modelSupportEndpointTypes = make(map[string][]constant.EndpointType)
 	for model, endpoints := range modelSupportEndpointsStr {
 		supportedEndpoints := make([]constant.EndpointType, 0)

@@ -45,9 +45,11 @@ func SubmitVideoJob(c *gin.Context) {
 		writeControlPlaneCatalogError(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "prompt"})
 		return
 	}
+	caps := model.ModelVideoCapabilities(payload.Model)
+	video.AdaptiveRatioForReferences(&payload, caps)
 	capErr := payload.ValidateInputs()
 	if capErr == nil {
-		capErr = model.ModelVideoCapabilities(payload.Model).Validate(&payload)
+		capErr = caps.Validate(&payload)
 	}
 	if capErr != nil {
 		writeControlPlaneCatalogError(c, types.ErrorCodeInvalidRequest, types.D{

@@ -1093,6 +1093,14 @@ func buildCatalogPricingWithAdjustment(
 	result.RequestPrice = scale(pricing.RequestUSD)
 	result.Second = scale(pricing.SecondUSD)
 	result.SecondPrice = scale(pricing.SecondUSD)
+	if video := pricing.VideoPricing.Public().Scaled(pricingAdjustment); !video.IsEmpty() {
+		result.VideoPricing = video
+		// Lists show one figure: the cheapest tier is what a clip starts at.
+		if result.Second == nil {
+			result.Second = video.LowestSecondUSD()
+			result.SecondPrice = video.LowestSecondUSD()
+		}
+	}
 	if tier := pricing.ContextTier; tier != nil && tier.Threshold > 0 {
 		result.ContextTier = &dto.ModelCatalogContextTier{
 			Threshold:    tier.Threshold,
@@ -1107,7 +1115,7 @@ func buildCatalogPricingWithAdjustment(
 	switch {
 	case pricing.RequestUSD != nil:
 		result.BillingType = "per_call"
-	case pricing.SecondUSD != nil:
+	case pricing.SecondUSD != nil, result.VideoPricing != nil:
 		result.BillingType = "per_second"
 	case catalogPriceConfigured(
 		pricing.InputPerMtok,
@@ -1147,6 +1155,7 @@ func buildCatalogPersonalizedLanePrices(
 			ImageInputPerMtok:      lane.ImageInputPerMtok,
 			ImageOutputPerMtok:     lane.ImageOutputPerMtok,
 			ImagePricing:           lane.ImagePricing,
+			VideoPricing:           lane.VideoPricing,
 			RequestUSD:             lane.RequestUSD,
 			SecondUSD:              lane.SecondUSD,
 			PeakHoursUTC:           lane.PeakHoursUTC,
@@ -1185,6 +1194,7 @@ func buildCatalogLanes(
 			ImageInputPerMtok:      lane.ImageInputPerMtok,
 			ImageOutputPerMtok:     lane.ImageOutputPerMtok,
 			ImagePricing:           lane.ImagePricing,
+			VideoPricing:           lane.VideoPricing,
 			RequestUSD:             lane.RequestUSD,
 			SecondUSD:              lane.SecondUSD,
 			PeakHoursUTC:           lane.PeakHoursUTC,
@@ -1345,7 +1355,7 @@ func buildCatalogUsageCapabilities(
 	}
 	if endpointTypesContain(endpointTypes, constant.EndpointTypeVideoGeneration) {
 		reported = appendUniqueStrings(reported, usagepkg.DimensionVideoSeconds, usagepkg.DimensionSecond)
-		if pricing.SecondUSD != nil {
+		if pricing.SecondUSD != nil || !pricing.VideoPricing.IsEmpty() {
 			billable = appendUniqueStrings(billable, usagepkg.DimensionSecond)
 		}
 	}
@@ -2247,6 +2257,10 @@ func applyCatalogPlanDiscount(result dto.ModelCatalogPricing, _ model.Pricing, o
 	if result.ImagePricing != nil {
 		factor := anchor(float64Ptr(1), 0)
 		result.ImagePricing = result.ImagePricing.Scaled(*factor)
+	}
+	if result.VideoPricing != nil {
+		factor := anchor(float64Ptr(1), 0)
+		result.VideoPricing = result.VideoPricing.Scaled(*factor)
 	}
 	return result
 }

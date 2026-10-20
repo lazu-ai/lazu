@@ -460,3 +460,37 @@ func TestSeedanceReferenceLimitsByVersion(t *testing.T) {
 		t.Fatalf("Seedance 2.0 takes up to 15 s of reference video: %+v", got)
 	}
 }
+
+func TestAdaptiveRatioForReferences(t *testing.T) {
+	caps := &dto.VideoCapabilities{Ratios: []string{"16:9", "9:16", "adaptive"}}
+	withVideo := dto.VideoRequest{InputRefs: []dto.VideoInputReference{{URL: "https://x/r.mp4", Type: "video"}}}
+	AdaptiveRatioForReferences(&withVideo, caps)
+	if withVideo.AspectRatio != "adaptive" {
+		t.Fatalf("reference video with no ratio sends adaptive: %+v", withVideo)
+	}
+	withFrame := dto.VideoRequest{FrameImages: []dto.VideoFrameImage{{URL: "https://x/a.png", FrameType: "first_frame"}}}
+	AdaptiveRatioForReferences(&withFrame, caps)
+	if withFrame.AspectRatio != "adaptive" {
+		t.Fatalf("first/last frames with no ratio send adaptive: %+v", withFrame)
+	}
+	explicit := dto.VideoRequest{AspectRatio: "9:16", InputRefs: withVideo.InputRefs}
+	AdaptiveRatioForReferences(&explicit, caps)
+	if explicit.AspectRatio != "9:16" {
+		t.Fatalf("an explicit ratio is kept: %+v", explicit)
+	}
+	sized := dto.VideoRequest{Size: "1280x720", InputRefs: withVideo.InputRefs}
+	AdaptiveRatioForReferences(&sized, caps)
+	if sized.AspectRatio != "" {
+		t.Fatalf("an explicit size is kept: %+v", sized)
+	}
+	textOnly := dto.VideoRequest{Prompt: "p"}
+	AdaptiveRatioForReferences(&textOnly, caps)
+	if textOnly.AspectRatio != "" {
+		t.Fatalf("text-to-video keeps the model default: %+v", textOnly)
+	}
+	noAdaptive := dto.VideoRequest{InputRefs: withVideo.InputRefs}
+	AdaptiveRatioForReferences(&noAdaptive, &dto.VideoCapabilities{Ratios: []string{"16:9"}})
+	if noAdaptive.AspectRatio != "" {
+		t.Fatalf("a model without adaptive is left alone: %+v", noAdaptive)
+	}
+}

@@ -34,6 +34,7 @@ func TestDisplayName(t *testing.T) {
 		"MiniMax-M2.7":              "MiniMax-M2.7",
 		"seed-2.0-pro":              "Seed 2.0 Pro",
 		"seed-2.1-turbo":            "Seed 2.1 Turbo",
+		"seedance-2.5":              "Seedance 2.5",
 	}
 	for id, want := range cases {
 		if got := DisplayName(id); got != want {

@@ -7,6 +7,7 @@ import (
 	gormsqlite "github.com/glebarez/sqlite"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"gorm.io/gorm"
 )
 
@@ -402,5 +403,73 @@ func TestPricingStatusDistinguishesMissingFromConfiguredZero(t *testing.T) {
 	}
 	if laneOnly.PricingStatus != "configured" {
 		t.Fatalf("expected lane-only configured status, got %q", laneOnly.PricingStatus)
+	}
+}
+
+func TestRefreshPricing_VideoModelsAdvertiseOnlyTheVideoEndpoint(t *testing.T) {
+	previousDB := coreDB
+	previousRedisEnabled := common.RedisEnabled
+	common.RedisEnabled = false
+	db, err := gorm.Open(gormsqlite.Open("file:video_endpoint_test?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open sqlite: %v", err)
+	}
+	coreDB = db
+	EnsureColumnNamesInitialized()
+	if err := db.AutoMigrate(&Channel{}, &Ability{}, &Model{}, &ModelMetadata{}, &Vendor{}); err != nil {
+		t.Fatalf("failed to migrate test tables: %v", err)
+	}
+	previousPricingMap := pricingMap
+	previousLastGetPricingTime := lastGetPricingTime
+	previousSupportedEndpointMap := supportedEndpointMap
+	previousModelEndpointInfoMap := modelEndpointInfoMap
+	previousModelSupportEndpointTypes := modelSupportEndpointTypes
+	previousModelEnableGroups := modelEnableGroups
+	previousModelQuotaTypeMap := modelQuotaTypeMap
+	previousModelVendorMap := modelVendorMap
+	previousVendorDetailMap := vendorDetailMap
+	defer func() {
+		pricingMap = previousPricingMap
+		lastGetPricingTime = previousLastGetPricingTime
+		supportedEndpointMap = previousSupportedEndpointMap
+		modelEndpointInfoMap = previousModelEndpointInfoMap
+		modelSupportEndpointTypes = previousModelSupportEndpointTypes
+		modelEnableGroups = previousModelEnableGroups
+		modelQuotaTypeMap = previousModelQuotaTypeMap
+		modelVendorMap = previousModelVendorMap
+		vendorDetailMap = previousVendorDetailMap
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		common.RedisEnabled = previousRedisEnabled
+		coreDB = previousDB
+	}()
+
+	for _, meta := range []*Model{
+		{Id: 1, ModelName: "seedance-test", VendorID: 1, Status: 1, VideoCapabilities: &dto.VideoCapabilities{MinSeconds: 4, MaxSeconds: 30}},
+		{Id: 2, ModelName: "chat-test", VendorID: 1, Status: 1},
+	} {
+		if err := meta.Insert(); err != nil {
+			t.Fatalf("failed to insert model metadata: %v", err)
+		}
+	}
+	if err := (&Vendor{Id: 1, Name: "Test Vendor", Status: 1}).Insert(); err != nil {
+		t.Fatalf("failed to insert vendor: %v", err)
+	}
+	if err := coreDB.Create(&Channel{Id: 21, Type: constant.ChannelTypeOpenAI, Key: "k", Status: common.ChannelStatusEnabled, Name: "aggregator", Models: "seedance-test,chat-test", Group: "direct"}).Error; err != nil {
+		t.Fatalf("failed to insert channel: %v", err)
+	}
+	for _, name := range []string{"seedance-test", "chat-test"} {
+		if err := coreDB.Create(&Ability{Group: "direct", Model: name, ChannelId: 21, Enabled: true}).Error; err != nil {
+			t.Fatalf("failed to insert ability: %v", err)
+		}
+	}
+
+	RefreshPricing()
+
+	if got := GetModelSupportEndpointTypes("seedance-test"); len(got) != 1 || got[0] != constant.EndpointTypeVideoGeneration {
+		t.Fatalf("a model with a video capability row is served by /v1/videos only, got %v", got)
+	}
+	if got := GetModelSupportEndpointTypes("chat-test"); len(got) == 0 || got[0] != constant.EndpointTypeOpenAI {
+		t.Fatalf("a chat model on the same channel keeps its chat endpoints, got %v", got)
 	}
 }
