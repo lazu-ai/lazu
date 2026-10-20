@@ -147,16 +147,25 @@ func submitVideoProvider(c *gin.Context, prepared *preparedVideoProviderRequest)
 		return nil, fmt.Errorf("video provider request is not prepared")
 	}
 	common.SetContextKey(c, constant.ContextKeyProviderAttempted, true)
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	return sendVideoProviderSubmission(ctx, prepared)
+}
+
+// sendVideoProviderSubmission sends a prepared submission and reads the
+// provider's receipt. Customer submissions and canary generations share it.
+func sendVideoProviderSubmission(ctx context.Context, prepared *preparedVideoProviderRequest) (*videoProviderSubmission, error) {
+	if prepared == nil || prepared.Driver == nil || prepared.Submit == nil {
+		return nil, fmt.Errorf("video provider request is not prepared")
+	}
 	client, err := service.VideoUpstreamClient(prepared.Proxy, prepared.Submit.URL, true)
 	if err != nil {
 		return nil, &videoProviderSubmitError{
 			StatusCode: http.StatusBadGateway,
 			Err:        fmt.Errorf("prepare video provider client: %w", err),
 		}
-	}
-	ctx := context.Background()
-	if c != nil && c.Request != nil {
-		ctx = c.Request.Context()
 	}
 	method := prepared.Submit.Method
 	if method == "" {

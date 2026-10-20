@@ -596,7 +596,7 @@ const (
 	channelHealthMinDecodeTokens = "16"
 	// channelHealthSampledDurationModalities are the probe modalities whose
 	// total duration is a plain latency sample of the lane.
-	channelHealthSampledDurationModalities = "'embedding', 'image', 'rerank'"
+	channelHealthSampledDurationModalities = "'embedding', 'image', 'rerank', 'video'"
 )
 
 // The aggregate queries below read the hourly route health rows

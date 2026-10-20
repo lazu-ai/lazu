@@ -71,6 +71,11 @@ type ChannelProbeResult struct {
 // the route's success rate or latency, which only generations measure.
 const ChannelProbeModalityVideoLiveness = "video-liveness"
 
+// ChannelProbeModalityVideo marks a canary generation: a real, smallest
+// video made on an idle route. It is a generation like a customer's and
+// counts toward the route's success rate and latency.
+const ChannelProbeModalityVideo = "video"
+
 func (ChannelProbeResult) TableName() string {
 	return "channel_probe_result"
 }
@@ -187,6 +192,26 @@ func RecordChannelProbe(result ChannelProbeResult) error {
 	return TelemetryDB().Create(&result).Error
 }
 
+// VideoCanarySpendSince totals what canary generations cost from the given
+// instant. Canaries have their own daily budget: one costs about as much as
+// a day of every other probe together.
+func VideoCanarySpendSince(since time.Time) (float64, error) {
+	if TelemetryDB() == nil || !TelemetryDB().Migrator().HasTable(&ChannelProbeResult{}) {
+		return 0, nil
+	}
+	var total *float64
+	if err := TelemetryDB().Model(&ChannelProbeResult{}).
+		Where("probed_at >= ? AND modality = ?", since, ChannelProbeModalityVideo).
+		Select("COALESCE(SUM(cost_usd), 0)").
+		Scan(&total).Error; err != nil {
+		return 0, err
+	}
+	if total == nil {
+		return 0, nil
+	}
+	return *total, nil
+}
+
 // ChannelProbeSpendSince totals probe cost from the given instant. The
 // scheduler passes the start of the current UTC day to enforce a daily cap.
 func ChannelProbeSpendSince(since time.Time) (float64, error) {
@@ -273,6 +298,16 @@ func LoadChannelProbeLastAttempts(since time.Time) (map[string]time.Time, error)
 }
 
 func LoadChannelProbeLastAttemptsContext(ctx context.Context, since time.Time) (map[string]time.Time, error) {
+	return loadChannelProbeLastAttempts(ctx, since, "")
+}
+
+// LoadVideoCanaryLastRunsContext returns, per route, when its newest canary
+// generation finished.
+func LoadVideoCanaryLastRunsContext(ctx context.Context, since time.Time) (map[string]time.Time, error) {
+	return loadChannelProbeLastAttempts(ctx, since, ChannelProbeModalityVideo)
+}
+
+func loadChannelProbeLastAttempts(ctx context.Context, since time.Time, modality string) (map[string]time.Time, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -284,12 +319,14 @@ func LoadChannelProbeLastAttemptsContext(ctx context.Context, since time.Time) (
 	if db == nil || !db.Migrator().HasTable(&ChannelProbeResult{}) {
 		return result, ctx.Err()
 	}
-	var rows []ChannelProbeLastAttempt
-	if err := db.Model(&ChannelProbeResult{}).
+	query := db.Model(&ChannelProbeResult{}).
 		Select("lane, model_name, channel_id, MAX(probed_at) AS probed_at").
-		Where("probed_at >= ?", since).
-		Group("lane, model_name, channel_id").
-		Scan(&rows).Error; err != nil {
+		Where("probed_at >= ?", since)
+	if modality != "" {
+		query = query.Where("modality = ?", modality)
+	}
+	var rows []ChannelProbeLastAttempt
+	if err := query.Group("lane, model_name, channel_id").Scan(&rows).Error; err != nil {
 		return result, err
 	}
 	for _, row := range rows {
