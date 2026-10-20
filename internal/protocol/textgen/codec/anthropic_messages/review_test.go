@@ -155,3 +155,15 @@ func TestStopReasonOfContextWindowIsTruncation(t *testing.T) {
 		t.Fatal("a context-window stop cuts the answer short")
 	}
 }
+
+// pause_turn is not a finished reply: a bridged client cannot continue the
+// server-tool loop, so it is an error, after the usage settlement reads.
+func TestPauseTurnIsNotACompletion(t *testing.T) {
+	events, err := (&StreamDecoder{}).Decode(`{"type":"message_delta","delta":{"stop_reason":"pause_turn"},"usage":{"output_tokens":7}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[0].Kind != textgen.EventUsage || events[1].Kind != textgen.EventError || events[1].Error.Code != "pause_turn" {
+		t.Fatalf("events: %+v", events)
+	}
+}

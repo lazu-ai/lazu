@@ -46,7 +46,7 @@ type StreamEmitter struct {
 	// (start order) with its argument fragments until the open one closes.
 	openTool int
 	pending  []*pendingTool
-	col      textgen.Collector
+	col      textgen.Ending
 }
 
 // pendingTool is a call held back while another tool block is open.
@@ -386,7 +386,8 @@ func (e *StreamEmitter) fail(semantic *textgen.SemanticError) []Frame {
 	return append(out, e.frame("error", map[string]any{"error": map[string]any{"type": errType, "message": semantic.Message}}))
 }
 
-// Result is the reply collected so far.
+// Result is how the reply ended so far, without its content: the
+// emitter keeps none (textgen.Ending).
 func (e *StreamEmitter) Result() textgen.Result { return e.col.Result() }
 
 // usageTo is the shared usage fact as Messages' usage object.

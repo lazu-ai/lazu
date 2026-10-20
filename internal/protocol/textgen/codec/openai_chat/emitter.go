@@ -27,7 +27,7 @@ type StreamEmitter struct {
 	// them once, and clients that concatenate deltas would double a name
 	// written twice
 	named map[int][2]bool
-	col   textgen.Collector
+	col   textgen.Ending
 }
 
 // NewStreamEmitter makes the emitter for one reply; id is used until an
@@ -165,14 +165,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStre
 	return out
 }
 
-func (e *StreamEmitter) argsSeen(toolIndex int) bool {
-	for _, part := range e.col.Result().Parts {
-		if part.Kind == textgen.PartTool && part.ToolIndex == toolIndex {
-			return part.Text != ""
-		}
-	}
-	return false
-}
+func (e *StreamEmitter) argsSeen(toolIndex int) bool { return e.col.ArgsSeen(toolIndex) }
 
 // Finish closes the reply with the finish reason and usage (the usage given
 // wins over the one streamed). A reply that said nothing still gets its
@@ -199,7 +192,8 @@ func (e *StreamEmitter) Finish(usage *dto.Usage) ([]*dto.ChatCompletionsStreamRe
 // errStreamWithoutStop is a stream that ended without its stop reason.
 var errStreamWithoutStop = errors.New("stream ended without a stop reason")
 
-// Result is the reply collected so far.
+// Result is how the reply ended so far, without its content: the
+// emitter keeps none (textgen.Ending).
 func (e *StreamEmitter) Result() textgen.Result { return e.col.Result() }
 
 func errorType(err *textgen.SemanticError) string {

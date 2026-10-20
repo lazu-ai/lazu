@@ -175,6 +175,9 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			if err != nil {
 				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 			}
+			// the dialect's wire patch, as on every outbound body: DeepSeek
+			// Responses takes the same tool-schema quirks as its Chat
+			jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 			requestBody = bytes.NewBuffer(jsonData)
 		} else {
 			openAIConverter, converterErr := requireOpenAIRequestConverter(adaptor, info)
@@ -642,8 +645,8 @@ func stripLazuFromCachedBody(c *gin.Context) {
 // MessagesBridgeBody is the outbound body for a Chat or Responses client whose
 // attempt is planned onto Anthropic's Messages API (the hub in
 // internal/relay/channel/claude): the IR encoded, the thinking fitted to the
-// model, then the same field removal, operator override and wire patch as
-// every other outbound path. bridged is false when the attempt is not such a
+// model, then the same field removal and wire patch as every other outbound
+// path (the operator's overrides were applied to the IR). bridged is false when the attempt is not such a
 // bridge, and the body is then nil.
 func MessagesBridgeBody(c *gin.Context, info *relaycommon.RelayInfo) (body []byte, bridged bool, lazuErr *types.LazuError) {
 	if !claudechannel.BridgesToMessages(info) {
@@ -672,32 +675,23 @@ func encodeMessagesBridge(c *gin.Context, info *relaycommon.RelayInfo, semantic 
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
-	if len(info.ParamOverride) > 0 {
-		jsonData, err = relaycommon.ApplyParamOverride(jsonData, info.ParamOverride)
-		if err != nil {
-			return nil, types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
-		}
-	}
-	// wire dialect patch: vendor quirks on the compiled body, once per
-	// attempt, after ParamOverride (internal/relay/wirepatch).
+	// No raw param_override: a bridge's overrides are the semantic ones,
+	// already applied to the IR when the attempt was planned
+	// (textgenruntime.PrepareAttempt), and any other refuses the bridge
+	// there. Patching the OpenAI-shaped override onto this Messages body
+	// would add fields Anthropic rejects.
 	jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 	return jsonData, nil
 }
 
 // degradedChatRequest is the Chat request a degraded native plan sends: the
-// attempt's IR (already degraded) encoded, with what the handler has
-// already settled on the wire copy kept: the mapped model and the stream
-// options.
+// client's request as the handler has settled it (model, stream options),
+// with only what the degradation changed applied (openai_chat.ApplyDegraded).
 func degradedChatRequest(info *relaycommon.RelayInfo, wire *dto.GeneralOpenAIRequest) (*dto.GeneralOpenAIRequest, *types.LazuError) {
-	semantic := info.ProtocolRequest.Clone()
-	stripLazuMetadataFromSemantic(semantic)
-	semantic.Model.Upstream = info.UpstreamModelName
-	encoded, err := openai_chat.Encode(semantic)
+	encoded, err := openai_chat.ApplyDegraded(wire, info.ProtocolRequest)
 	if err != nil {
 		return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
-	encoded.Model = wire.Model
-	encoded.StreamOptions = wire.StreamOptions
 	return encoded, nil
 }
 
