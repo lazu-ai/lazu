@@ -66,3 +66,43 @@ func TestDecodeMapsThinkingToolConfigAndUnknownFields(t *testing.T) {
 		t.Fatal("googleSearch is a hosted web search")
 	}
 }
+
+// A response names its call by id when it has one: two calls of one
+// function answered out of order keep their own outputs.
+func TestDecodeMatchesFunctionResponsesByID(t *testing.T) {
+	request, _, err := Decode([]byte(`{"contents":[
+		{"role":"user","parts":[{"text":"q"}]},
+		{"role":"model","parts":[{"functionCall":{"id":"a","name":"f","args":{}}},{"functionCall":{"id":"b","name":"f","args":{}}}]},
+		{"role":"user","parts":[{"functionResponse":{"id":"b","name":"f","response":{"r":"B"}}},{"functionResponse":{"id":"a","name":"f","response":{"r":"A"}}}]}]}`), "gemini-3-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputs := map[string]string{}
+	for _, item := range request.Conversation {
+		if item.Kind == textgen.InputFunctionResult {
+			outputs[item.CallID] = item.Output
+		}
+	}
+	if outputs["a"] != `{"r":"A"}` || outputs["b"] != `{"r":"B"}` {
+		t.Fatalf("outputs: %v", outputs)
+	}
+}
+
+// Explicit zeros are values; includeThoughts asks for a summary; a Gemini
+// Schema becomes JSON Schema.
+func TestDecodeGenerationConfigPresenceThoughtsAndSchema(t *testing.T) {
+	request, _, err := Decode([]byte(`{"contents":[{"role":"user","parts":[{"text":"q"}]}],"generationConfig":{"topP":0,"seed":0,"thinkingConfig":{"includeThoughts":true},
+		"responseMimeType":"application/json","responseSchema":{"type":"OBJECT","properties":{"type":{"type":"STRING","nullable":true}},"propertyOrdering":["type"]}}}`), "gemini-3-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !request.Sampling.TopP.Set || request.Sampling.TopP.Value != 0 || !request.Sampling.Seed.Set {
+		t.Fatalf("explicit zeros lost: %+v", request.Sampling)
+	}
+	if request.Reasoning.Summary == "" {
+		t.Fatal("includeThoughts must ask for a reasoning summary")
+	}
+	if got := string(request.Output.Schema); got != `{"properties":{"type":{"type":["string","null"]}},"type":"object"}` {
+		t.Fatalf("schema: %s", got)
+	}
+}

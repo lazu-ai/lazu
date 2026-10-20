@@ -136,11 +136,23 @@ func decodeContents(contents []dto.GeminiChatContent, request *textgen.Request) 
 				open = append(open, pending{id: id, name: part.FunctionCall.FunctionName})
 			case part.FunctionResponse != nil:
 				flush()
+				// by the call's id when the response names one, else the
+				// first open call of that name, else the first open call
 				match := -1
+				if responseID := part.FunctionResponse.ID; responseID != "" {
+					for i, call := range open {
+						if call.id == responseID {
+							match = i
+							break
+						}
+					}
+				}
 				for i, call := range open {
+					if match >= 0 {
+						break
+					}
 					if call.name == part.FunctionResponse.Name {
 						match = i
-						break
 					}
 				}
 				if match < 0 && len(open) > 0 {
@@ -291,14 +303,24 @@ func decodeGeneration(raw map[string]json.RawMessage, config *dto.GeminiChatGene
 			request.Raw.UnknownFields["generationConfig."+key] = append(json.RawMessage(nil), field...)
 		}
 	}
+	// an explicit zero is a value, not an omission: presence is read off
+	// the raw config
+	present := func(names ...string) bool {
+		for _, name := range names {
+			if field, ok := fields[name]; ok && !bytes.Equal(bytes.TrimSpace(field), []byte("null")) {
+				return true
+			}
+		}
+		return false
+	}
 	sampling := &request.Sampling
 	if config.Temperature != nil {
 		sampling.Temperature = textgen.Some(*config.Temperature)
 	}
-	if config.TopP > 0 {
+	if config.TopP > 0 || present("topP", "top_p") {
 		sampling.TopP = textgen.Some(config.TopP)
 	}
-	if config.TopK > 0 {
+	if config.TopK > 0 || present("topK", "top_k") {
 		sampling.TopK = textgen.Some(int(config.TopK))
 	}
 	if config.MaxOutputTokens > 0 {
@@ -311,7 +333,7 @@ func decodeGeneration(raw map[string]json.RawMessage, config *dto.GeminiChatGene
 	if config.CandidateCount > 0 {
 		sampling.N = textgen.Some(config.CandidateCount)
 	}
-	if config.Seed != 0 {
+	if config.Seed != 0 || present("seed") {
 		sampling.Seed = textgen.Some(config.Seed)
 	}
 	if config.ResponseLogprobs {
@@ -324,7 +346,9 @@ func decodeGeneration(raw map[string]json.RawMessage, config *dto.GeminiChatGene
 		request.Output = textgen.OutputConstraint{Type: "json_object"}
 		schema := config.ResponseJsonSchema
 		if len(schema) == 0 && config.ResponseSchema != nil {
-			schema, _ = json.Marshal(config.ResponseSchema)
+			// Gemini's Schema, not JSON Schema: its type enums are upper
+			// case (OBJECT) and nullable is a flag
+			schema, _ = json.Marshal(jsonSchemaOf(config.ResponseSchema))
 		}
 		if len(schema) > 0 {
 			request.Output = textgen.OutputConstraint{Type: "json_schema", Name: "response", Schema: schema}
@@ -342,5 +366,66 @@ func decodeGeneration(raw map[string]json.RawMessage, config *dto.GeminiChatGene
 			request.Reasoning.Budget = textgen.Some(*thinking.ThinkingBudget)
 		}
 		// a budget of -1 (dynamic) is the model's default: nothing to ask
+		if thinking.IncludeThoughts {
+			// the thoughts shown: a reasoning summary, which a bridge must
+			// carry or refuse
+			request.Reasoning.Summary = "auto"
+		}
 	}
+}
+
+// jsonSchemaOf is a Gemini Schema as JSON Schema: type names in lower case,
+// nullable as a null type, propertyOrdering (Gemini's own) left out.
+func jsonSchemaOf(schema any) any {
+	raw, err := json.Marshal(schema)
+	if err != nil {
+		return schema
+	}
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return schema
+	}
+	var convert func(any) any
+	convert = func(node any) any {
+		switch typed := node.(type) {
+		case map[string]any:
+			out := make(map[string]any, len(typed))
+			for key, child := range typed {
+				if properties, ok := child.(map[string]any); ok && key == "properties" {
+					// property names, each with its schema: names are
+					// never keywords
+					named := make(map[string]any, len(properties))
+					for name, property := range properties {
+						named[name] = convert(property)
+					}
+					out[key] = named
+					continue
+				}
+				switch key {
+				case "propertyOrdering", "nullable":
+					continue
+				case "type":
+					if name, ok := child.(string); ok {
+						out[key] = strings.ToLower(name)
+						continue
+					}
+				}
+				out[key] = convert(child)
+			}
+			if nullable, _ := typed["nullable"].(bool); nullable {
+				if name, ok := out["type"].(string); ok {
+					out["type"] = []any{name, "null"}
+				}
+			}
+			return out
+		case []any:
+			out := make([]any, len(typed))
+			for i, child := range typed {
+				out[i] = convert(child)
+			}
+			return out
+		}
+		return node
+	}
+	return convert(value)
 }
