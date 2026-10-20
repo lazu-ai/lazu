@@ -105,20 +105,20 @@ func TestIncidentDeliveryReservationSuppressesConcurrentReporter(t *testing.T) {
 func TestDailyDigestFormatsOneCompactSummary(t *testing.T) {
 	now := time.Date(2026, 8, 19, 9, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
-		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "uploaded=14 failed=0", UpdatedAt: now.Add(-time.Hour).Unix()},
-		{Key: "pg-dump", Label: "Database backup", Status: "failed", Summary: "connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 14 个文件", UpdatedAt: now.Add(-time.Hour).Unix()},
+		{Key: "pg-dump", Label: "Database backup", Status: "failed", Summary: "错误：connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
 	})
 	for _, expected := range []string{
-		"Lazu daily operations summary · 2026-08-19",
-		"⚠️ 1 failed · 1 ok",
-		"❌ Database backup: failed · 30m ago · connection refused",
-		"✅ R2 JSONL upload: ok · 1h ago · uploaded=14 failed=0",
+		"Lazu 每日运维报告 · 2026-08-19",
+		"⚠️ 失败 1 项，正常 1 项",
+		"❌ 数据库备份：失败\n   30 分钟前更新 · 错误：connection refused",
+		"✅ 请求日志上传 R2：正常\n   1 小时前更新 · 上传 14 个文件",
 	} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
 		}
 	}
-	if strings.Index(message, "Database backup") > strings.Index(message, "R2 JSONL upload") {
+	if strings.Index(message, "数据库备份") > strings.Index(message, "请求日志上传") {
 		t.Fatalf("failed task should be listed before ok task: %s", message)
 	}
 }
@@ -127,14 +127,14 @@ func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", Summary: "size=671.7 MiB", UpdatedAt: now.Add(-(291*time.Hour + 38*time.Minute)).Unix()},
-		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "uploaded=3", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
-		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", Summary: "not evaluated", UpdatedAt: now.Unix()},
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 3 个文件", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
+		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", Summary: "流量低", UpdatedAt: now.Unix()},
 	})
 	for _, expected := range []string{
-		"⚠️ 1 stale · 1 unknown · 1 ok",
-		"⏸️ Database backup: stale · last ok 12d3h ago, expected every 1d · size=671.7 MiB",
-		"➖ Zero-token billing monitor: unknown · just now",
-		"✅ R2 JSONL upload: ok · 10m ago",
+		"⚠️ 已停止运行 1 项，未检测 1 项，正常 1 项",
+		"⏸️ 数据库备份：已停止运行\n   最后一次正常在 12 天 3 小时前（应每天运行一次）\n   上次结果：size=671.7 MiB",
+		"➖ 零 token 计费监控：未检测\n   刚刚更新 · 流量低",
+		"✅ 请求日志上传 R2：正常\n   10 分钟前更新",
 	} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
@@ -148,14 +148,20 @@ func TestDailyDigestHeadline(t *testing.T) {
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
 		{Label: "Unregistered task", Status: "ok", UpdatedAt: now.Add(-30 * 24 * time.Hour).Unix()},
 	})
-	if !strings.Contains(allOK, "\n✅ all 2 tasks ok\n") {
-		t.Fatalf("expected all-ok headline; tasks without a cadence never go stale: %s", allOK)
+	if !strings.Contains(allOK, "\n✅ 全部 2 项正常\n") || !strings.Contains(allOK, "✅ Unregistered task：正常") {
+		t.Fatalf("expected all-ok headline; tasks without a cadence keep their label and never go stale: %s", allOK)
 	}
 	quiet := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", UpdatedAt: now.Unix()},
 	})
-	if !strings.Contains(quiet, "\n➖ 1 unknown · 0 ok\n") {
+	if !strings.Contains(quiet, "\n➖ 未检测 1 项\n") {
 		t.Fatalf("unknown alone should not raise a warning: %s", quiet)
+	}
+	odd := formatDailyDigest(now, []HealthSnapshot{
+		{Label: "Custom task", Status: "degraded", UpdatedAt: now.Unix()},
+	})
+	if !strings.Contains(odd, "⚠️ degraded 1 项") || !strings.Contains(odd, "⚠️ Custom task：degraded") {
+		t.Fatalf("unrecognized status should show verbatim as a warning: %s", odd)
 	}
 }
 
@@ -164,12 +170,12 @@ func TestFormatDigestAge(t *testing.T) {
 		in   time.Duration
 		want string
 	}{
-		{40 * time.Second, "0m"},
-		{59 * time.Minute, "59m"},
-		{2 * time.Hour, "2h"},
-		{2*time.Hour + 28*time.Minute, "2h28m"},
-		{24 * time.Hour, "1d"},
-		{291*time.Hour + 38*time.Minute, "12d3h"},
+		{40 * time.Second, "0 分钟"},
+		{59 * time.Minute, "59 分钟"},
+		{2 * time.Hour, "2 小时"},
+		{2*time.Hour + 28*time.Minute, "2 小时 28 分钟"},
+		{24 * time.Hour, "1 天"},
+		{291*time.Hour + 38*time.Minute, "12 天 3 小时"},
 	} {
 		if got := formatDigestAge(tc.in); got != tc.want {
 			t.Fatalf("formatDigestAge(%s) = %q, want %q", tc.in, got, tc.want)

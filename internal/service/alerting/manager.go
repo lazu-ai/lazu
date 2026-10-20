@@ -889,80 +889,96 @@ func releaseDigestClaim(now time.Time) {
 	localMu.Unlock()
 }
 
-// healthCadence is how often each recorded task is expected to report. A
-// snapshot older than twice its cadence means the task stopped running, so
-// the digest shows it as stale instead of repeating its last status. Keys
-// without a cadence are never marked stale.
-var healthCadence = map[string]time.Duration{
-	"pg-dump":           24 * time.Hour,
-	"hourly-upload":     time.Hour,
-	"archive-compactor": 24 * time.Hour,
-	"user-file-cleanup": 24 * time.Hour,
-	"relay-zero-token":  15 * time.Minute,
+// digestTask names a recorded task in the digest and says how often it is
+// expected to report. A snapshot older than twice its cadence means the task
+// stopped running, so the digest shows it as stopped instead of repeating its
+// last status. Snapshots of keys not listed here keep their own label and are
+// never marked stopped.
+type digestTask struct {
+	name    string
+	cadence time.Duration
 }
 
-// digestStatusOrder lists problems first so the top of the message answers
-// whether anything needs attention.
-var digestStatusOrder = map[string]int{
-	"failed":  0,
-	"stale":   1,
-	"warning": 2,
-	"unknown": 3,
-	"skipped": 4,
-	"ok":      5,
+var digestTasks = map[string]digestTask{
+	"pg-dump":           {name: "数据库备份", cadence: 24 * time.Hour},
+	"hourly-upload":     {name: "请求日志上传 R2", cadence: time.Hour},
+	"archive-compactor": {name: "R2 旧归档压缩", cadence: 24 * time.Hour},
+	"user-file-cleanup": {name: "过期用户文件清理", cadence: 24 * time.Hour},
+	"relay-zero-token":  {name: "零 token 计费监控", cadence: 15 * time.Minute},
 }
 
-var digestStatusIcon = map[string]string{
-	"failed":  "❌",
-	"stale":   "⏸️",
-	"warning": "⚠️",
-	"unknown": "➖",
-	"skipped": "➖",
-	"ok":      "✅",
+type digestStatus struct {
+	rank  int
+	icon  string
+	label string
+	// quiet statuses do not turn the headline into a warning.
+	quiet bool
+}
+
+// Problems rank first so the top of the message answers whether anything
+// needs attention.
+var digestStatuses = map[string]digestStatus{
+	"failed":  {rank: 0, icon: "❌", label: "失败"},
+	"stale":   {rank: 1, icon: "⏸️", label: "已停止运行"},
+	"warning": {rank: 2, icon: "⚠️", label: "有警告"},
+	"unknown": {rank: 3, icon: "➖", label: "未检测", quiet: true},
+	"skipped": {rank: 4, icon: "➖", label: "已跳过", quiet: true},
+	"ok":      {rank: 5, icon: "✅", label: "正常", quiet: true},
 }
 
 type digestLine struct {
 	snapshot HealthSnapshot
+	name     string
 	status   string
 	age      time.Duration
 }
 
 func formatDailyDigest(now time.Time, snapshots []HealthSnapshot) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "📊 Lazu daily operations summary · %s", now.Format("2006-01-02"))
+	fmt.Fprintf(&b, "📊 Lazu 每日运维报告 · %s", now.Format("2006-01-02"))
 	if len(snapshots) == 0 {
-		b.WriteString("\n⚠️ no task results recorded")
+		b.WriteString("\n⚠️ 没有任何任务上报过结果")
 		return b.String()
 	}
 	lines := make([]digestLine, 0, len(snapshots))
 	for _, snapshot := range snapshots {
-		line := digestLine{snapshot: snapshot, status: snapshot.Status, age: now.Sub(time.Unix(snapshot.UpdatedAt, 0))}
+		line := digestLine{
+			snapshot: snapshot,
+			name:     snapshot.Label,
+			status:   snapshot.Status,
+			age:      now.Sub(time.Unix(snapshot.UpdatedAt, 0)),
+		}
 		if line.age < 0 {
 			line.age = 0
 		}
-		if cadence, ok := healthCadence[snapshot.Key]; ok && line.age > 2*cadence {
-			line.status = "stale"
+		if task, ok := digestTasks[snapshot.Key]; ok {
+			line.name = task.name
+			if line.age > 2*task.cadence {
+				line.status = "stale"
+			}
 		}
 		lines = append(lines, line)
 	}
 	sort.SliceStable(lines, func(i, j int) bool {
-		return digestRank(lines[i].status) < digestRank(lines[j].status)
+		return lookupDigestStatus(lines[i].status).rank < lookupDigestStatus(lines[j].status).rank
 	})
 
 	b.WriteString("\n")
 	b.WriteString(digestHeadline(lines))
 	for _, line := range lines {
-		icon := digestStatusIcon[line.status]
-		if icon == "" {
-			icon = "•"
-		}
-		fmt.Fprintf(&b, "\n%s %s: %s", icon, line.snapshot.Label, line.status)
+		status := lookupDigestStatus(line.status)
+		fmt.Fprintf(&b, "\n\n%s %s：%s", status.icon, line.name, status.label)
 		if line.status == "stale" {
-			fmt.Fprintf(&b, " · last %s %s ago, expected every %s",
-				line.snapshot.Status, formatDigestAge(line.age), formatDigestAge(healthCadence[line.snapshot.Key]))
-		} else {
-			fmt.Fprintf(&b, " · %s", formatDigestWhen(line.age))
+			fmt.Fprintf(&b, "\n   最后一次%s在 %s前（应%s运行一次）",
+				lookupDigestStatus(line.snapshot.Status).label,
+				formatDigestAge(line.age),
+				formatDigestCadence(digestTasks[line.snapshot.Key].cadence))
+			if line.snapshot.Summary != "" {
+				fmt.Fprintf(&b, "\n   上次结果：%s", line.snapshot.Summary)
+			}
+			continue
 		}
+		fmt.Fprintf(&b, "\n   %s", formatDigestWhen(line.age))
 		if line.snapshot.Summary != "" {
 			fmt.Fprintf(&b, " · %s", line.snapshot.Summary)
 		}
@@ -970,17 +986,19 @@ func formatDailyDigest(now time.Time, snapshots []HealthSnapshot) string {
 	return b.String()
 }
 
-func digestRank(status string) int {
-	if rank, ok := digestStatusOrder[status]; ok {
-		return rank
+// lookupDigestStatus shows a status this file does not know verbatim and
+// ranks it with the warnings rather than below ok.
+func lookupDigestStatus(status string) digestStatus {
+	if known, ok := digestStatuses[status]; ok {
+		return known
 	}
-	// Unrecognized statuses sit with the problems rather than below ok.
-	return digestStatusOrder["warning"]
+	fallback := digestStatuses["warning"]
+	fallback.label = status
+	return fallback
 }
 
 // digestHeadline counts statuses in the order the lines are sorted, so the
-// worst status leads. Only unknown and skipped are quiet; anything else that
-// is not ok, including statuses this file does not know, raises the warning.
+// worst status leads.
 func digestHeadline(lines []digestLine) string {
 	counts := map[string]int{}
 	order := make([]string, 0, len(lines))
@@ -990,33 +1008,40 @@ func digestHeadline(lines []digestLine) string {
 			order = append(order, line.status)
 		}
 		counts[line.status]++
-		switch line.status {
-		case "ok", "unknown", "skipped":
-		default:
+		if !lookupDigestStatus(line.status).quiet {
 			alarming = true
 		}
 	}
 	if counts["ok"] == len(lines) {
-		return fmt.Sprintf("✅ all %d tasks ok", len(lines))
+		return fmt.Sprintf("✅ 全部 %d 项正常", len(lines))
 	}
 	parts := make([]string, 0, len(order))
 	for _, status := range order {
-		if status != "ok" {
-			parts = append(parts, fmt.Sprintf("%d %s", counts[status], status))
-		}
+		parts = append(parts, fmt.Sprintf("%s %d 项", lookupDigestStatus(status).label, counts[status]))
 	}
 	icon := "➖"
 	if alarming {
 		icon = "⚠️"
 	}
-	return fmt.Sprintf("%s %s · %d ok", icon, strings.Join(parts, " · "), counts["ok"])
+	return icon + " " + strings.Join(parts, "，")
 }
 
 func formatDigestWhen(age time.Duration) string {
 	if age < time.Minute {
-		return "just now"
+		return "刚刚更新"
 	}
-	return formatDigestAge(age) + " ago"
+	return formatDigestAge(age) + "前更新"
+}
+
+func formatDigestCadence(cadence time.Duration) string {
+	switch cadence {
+	case 24 * time.Hour:
+		return "每天"
+	case time.Hour:
+		return "每小时"
+	default:
+		return "每 " + formatDigestAge(cadence)
+	}
 }
 
 // formatDigestAge renders a duration at the precision a daily reader needs:
@@ -1025,18 +1050,18 @@ func formatDigestAge(d time.Duration) string {
 	d = d.Truncate(time.Minute)
 	switch {
 	case d < time.Hour:
-		return fmt.Sprintf("%dm", int(d/time.Minute))
+		return fmt.Sprintf("%d 分钟", int(d/time.Minute))
 	case d < 24*time.Hour:
 		hours, minutes := int(d/time.Hour), int(d%time.Hour/time.Minute)
 		if minutes == 0 {
-			return fmt.Sprintf("%dh", hours)
+			return fmt.Sprintf("%d 小时", hours)
 		}
-		return fmt.Sprintf("%dh%dm", hours, minutes)
+		return fmt.Sprintf("%d 小时 %d 分钟", hours, minutes)
 	default:
 		days, hours := int(d/(24*time.Hour)), int(d%(24*time.Hour)/time.Hour)
 		if hours == 0 {
-			return fmt.Sprintf("%dd", days)
+			return fmt.Sprintf("%d 天", days)
 		}
-		return fmt.Sprintf("%dd%dh", days, hours)
+		return fmt.Sprintf("%d 天 %d 小时", days, hours)
 	}
 }
