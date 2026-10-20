@@ -389,6 +389,72 @@ func TestGenerateAndRecordReleaseNoteHoldsWhileTheLastNoteIsRecent(t *testing.T)
 	}
 }
 
+func TestGenerateAndRecordReleaseNoteRetryPublishesAnOlderChangelogDraft(t *testing.T) {
+	setupReleaseNotesTestDB(t)
+	_, draft, err := model.RecordReleaseDeploymentWithAnnouncement(&model.ReleaseDeployment{
+		Version: "v0.7.4", CommitSHA: "abcdef1", PreviousCommitSHA: "1234567",
+	}, &model.AnnouncementUpsert{
+		Kind:          model.AnnouncementKindReleaseNote,
+		TitleI18N:     map[string]string{"zh": "发布说明"},
+		SummaryI18N:   map[string]string{"zh": "摘要"},
+		BodyI18N:      map[string]any{"zh": []string{"内容"}},
+		DefaultLocale: "zh",
+		Source:        model.AnnouncementSourceDeploy,
+		Delivery:      model.AnnouncementDeliveryChangelog,
+		DeliverySet:   true,
+	})
+	if err != nil || draft == nil || draft.PublishedAt != nil {
+		t.Fatalf("create changelog draft: announcement=%#v err=%v", draft, err)
+	}
+
+	t.Setenv("RELEASE_NOTES_API_KEY", "")
+	_, retried, err := GenerateAndRecordReleaseNote(context.Background(), ReleaseNoteGenerationRequest{
+		CommitSHA: "abcdef1", PreviousCommitSHA: "1234567", Version: "v0.7.4",
+		Delivery: model.AnnouncementDeliveryChangelog,
+	})
+	if err != nil || retried == nil || retried.ID != draft.ID || retried.PublishedAt == nil {
+		t.Fatalf("a changelog retry should publish the existing draft: announcement=%#v err=%v", retried, err)
+	}
+}
+
+func TestReleaseNoteHoldUsesTheLatestPublicationTime(t *testing.T) {
+	setupReleaseNotesTestDB(t)
+	// The newer deployment's note went out two days ago; an older deployment's
+	// draft was published an hour ago. The hold must see the hour.
+	twoDaysAgo := time.Now().UTC().Add(-48 * time.Hour)
+	anHourAgo := time.Now().UTC().Add(-time.Hour)
+	for _, row := range []struct {
+		commit      string
+		deployedAt  time.Time
+		publishedAt time.Time
+	}{
+		{"sha-older", twoDaysAgo.Add(-time.Hour), anHourAgo},
+		{"sha-newer", twoDaysAgo, twoDaysAgo},
+	} {
+		publishedAt := row.publishedAt
+		if _, _, err := model.RecordReleaseDeploymentWithAnnouncement(&model.ReleaseDeployment{
+			Version: row.commit, CommitSHA: row.commit, PreviousCommitSHA: row.commit + "-before", DeployedAt: row.deployedAt,
+		}, &model.AnnouncementUpsert{
+			Kind:           model.AnnouncementKindReleaseNote,
+			TitleI18N:      map[string]string{"zh": "发布说明"},
+			SummaryI18N:    map[string]string{"zh": "摘要"},
+			BodyI18N:       map[string]any{"zh": []string{"内容"}},
+			DefaultLocale:  "zh",
+			Source:         model.AnnouncementSourceDeploy,
+			Delivery:       model.AnnouncementDeliveryChangelog,
+			DeliverySet:    true,
+			PublishedAt:    &publishedAt,
+			PublishedAtSet: true,
+		}); err != nil {
+			t.Fatalf("record %s: %v", row.commit, err)
+		}
+	}
+	held, err := releaseNotePublishedWithin(6 * time.Hour)
+	if err != nil || !held {
+		t.Fatalf("a note published an hour ago should hold the next one: held=%v err=%v", held, err)
+	}
+}
+
 func TestGenerateAndRecordReleaseNoteRecordsBothModelFailures(t *testing.T) {
 	setupReleaseNotesTestDB(t)
 	attempts := 0

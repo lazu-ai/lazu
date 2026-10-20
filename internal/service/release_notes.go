@@ -174,6 +174,12 @@ func GenerateAndRecordReleaseNote(ctx context.Context, req ReleaseNoteGeneration
 		if err != nil {
 			return nil, nil, err
 		}
+		// A changelog draft left by an older worker publishes on its retry.
+		if !req.Draft && updatedAnnouncement != nil && updatedAnnouncement.PublishedAt == nil && updatedAnnouncement.UnpublishedAt == nil {
+			if updatedAnnouncement, err = model.PublishAnnouncementDraft(updatedAnnouncement.ID); err != nil {
+				return nil, nil, err
+			}
+		}
 		return updatedDeployment, updatedAnnouncement, nil
 	}
 	req.CommitSummary = strings.TrimSpace(req.CommitSummary)
@@ -238,15 +244,11 @@ func releaseNotePublishedWithin(interval time.Duration) (bool, error) {
 	if interval <= 0 {
 		return false, nil
 	}
-	latest, err := model.LatestGeneratedReleaseDeployment()
-	if err != nil || latest == nil || latest.ReleaseNoteAnnouncementID == nil {
+	publishedAt, err := model.LatestPublishedDeployReleaseNoteAt()
+	if err != nil || publishedAt == nil {
 		return false, err
 	}
-	var announcement model.Announcement
-	if err := model.CoreDB().First(&announcement, *latest.ReleaseNoteAnnouncementID).Error; err != nil {
-		return false, err
-	}
-	return announcement.PublishedAt != nil && time.Since(*announcement.PublishedAt) < interval, nil
+	return time.Since(*publishedAt) < interval, nil
 }
 
 // LatestPublishedReleaseNoteCommitSHA is the commit the last published release
