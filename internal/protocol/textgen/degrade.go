@@ -96,7 +96,7 @@ func Degrade(snapshot CapabilitySnapshot, request *Request) (*Request, []Issue) 
 		}
 		path := rule.Apply(out)
 		done.Add(rule.Feature)
-		issues = append(issues, Issue{Feature: rule.Feature, Path: path, Message: "degraded:" + rule.ID})
+		issues = append(issues, Issue{Feature: rule.Feature, Path: path, Message: DegradationPrefix + rule.ID})
 	}
 	if out == nil {
 		return request, nil

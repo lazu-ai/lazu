@@ -205,8 +205,11 @@ func TestBuildSnapshotDeepSeekCarriesJSONSchemaOnResponsesOnly(t *testing.T) {
 func TestBuildSnapshotChannelCanDenyJSONSchema(t *testing.T) {
 	no := false
 	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectOpenAIChatCompatible, Model: model.ModelCapabilities{SupportsResponseSchema: true}, Channel: &dto.ChannelCapabilities{SupportsJSONSchema: &no}})
-	if snapshot.Features.Has(textgen.FeatureJSONSchema) || !snapshot.Denied.Has(textgen.FeatureJSONSchema) || !snapshot.Denied.Has(textgen.FeatureStrictSchema) {
+	if snapshot.Features.Has(textgen.FeatureJSONSchema) || !snapshot.Denied.Has(textgen.FeatureJSONSchema) {
 		t.Fatalf("explicit false must remove and deny json_schema: features=%v denied=%v", snapshot.Features.Names(), snapshot.Denied.Names())
+	}
+	if snapshot.Denied.Has(textgen.FeatureStrictSchema) {
+		t.Fatal("the overlay says nothing about strict function tools")
 	}
 	if !snapshot.Features.Has(textgen.FeatureJSONOutput) {
 		t.Fatal("json_object stays available")
