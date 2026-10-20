@@ -122,7 +122,10 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		url = strings.Replace(url, "{model}", info.UpstreamModelName, -1)
 		return url, nil
 	default:
-		if info.RelayFormat == types.RelayFormatClaude || info.RelayFormat == types.RelayFormatGemini {
+		// a planned attempt goes to the endpoint its plan chose, a bridged
+		// Claude client included; unplanned Claude and Gemini clients are
+		// converted to Chat by the legacy path
+		if (info.RelayFormat == types.RelayFormatClaude || info.RelayFormat == types.RelayFormatGemini) && info.ProtocolPlan == nil {
 			return fmt.Sprintf("%s/v1/chat/completions", info.ChannelBaseUrl), nil
 		}
 		requestPath := info.RequestURLPath
@@ -530,6 +533,12 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.LazuError) {
+	if ServesClaudeClient(info) {
+		if info.IsStream {
+			return ClaudeClientStreamHandler(c, resp, info)
+		}
+		return ClaudeClientHandler(c, resp, info)
+	}
 	if info.ProtocolPlan != nil {
 		switch info.ProtocolPlan.UpstreamProtocol.Family {
 		case textgen.ProtocolOpenAIResponses:

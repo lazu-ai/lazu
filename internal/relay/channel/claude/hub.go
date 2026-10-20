@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
@@ -16,6 +15,7 @@ import (
 	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
+	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/service"
@@ -221,35 +221,6 @@ func observeServerTools(c *gin.Context, data string) {
 	}
 }
 
-// settleUsage is the usage the attempt is billed for: the provider's where
-// it reported one, estimated from the collected text where it did not.
-func settleUsage(c *gin.Context, info *relaycommon.RelayInfo, result textgen.Result) *dto.Usage {
-	usage := result.Usage
-	if usage == nil {
-		usage = &dto.Usage{}
-	}
-	if usage.CompletionTokens == 0 || !result.StopSeen {
-		var text strings.Builder
-		for _, part := range result.Parts {
-			text.WriteString(part.Text)
-		}
-		fallback := service.ResponseText2Usage(text.String(), info.UpstreamModelName, usage.PromptTokens)
-		if usage.PromptTokens == 0 && usage.InputTokenSource != dto.UsageSourceProvider {
-			if text.Len() > 0 || service.ValidUsage(usage) {
-				service.ApplyLocalPromptUsage(c, info, usage)
-			}
-		}
-		if usage.CompletionTokens == 0 {
-			usage.CompletionTokens = fallback.CompletionTokens
-			usage.OutputTokenSource = dto.UsageSourceLocalEstimate
-		}
-	}
-	if usage.TotalTokens < usage.PromptTokens+usage.CompletionTokens {
-		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
-	}
-	return usage
-}
-
 // HubStreamHandler serves a streamed Messages reply to a Chat or Responses
 // client.
 func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
@@ -296,7 +267,7 @@ func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 	if relayErr == nil {
 		relayErr = scan.RelayError(forwarded)
 	}
-	usage := settleUsage(c, info, col.Result())
+	usage := channel.SettleHubUsage(c, info, col.Result())
 	if upstreamFailed != nil {
 		if !forwarded {
 			return usage, types.NewErrorWithStatusCode(fmt.Errorf("%s", upstreamFailed.Message), types.ErrorCodeUpstreamError, http.StatusBadGateway)
@@ -351,7 +322,7 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 	if result.Error != nil {
 		return nil, types.NewErrorWithStatusCode(fmt.Errorf("%s", result.Error.Message), types.ErrorCodeUpstreamError, http.StatusBadGateway)
 	}
-	usage := settleUsage(c, info, result)
+	usage := channel.SettleHubUsage(c, info, result)
 	result.Usage = usage
 	chat := openai_chat.Render(result, info.UpstreamModelName)
 	chat.Id = openai_chat.CompletionID(helper.GetResponseID(c))

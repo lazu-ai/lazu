@@ -2031,6 +2031,8 @@
     "page.console.settingV2.upstream.field.geminiVersionLabel": "API 版本",
     "page.console.settingV2.upstream.field.passThrough": "请求透传",
     "page.console.settingV2.upstream.field.passThroughHelp": "开启后不做协议桥接直接转发，只在你确认所有通道方言一致时使用。",
+    "page.console.settingV2.upstream.field.legacyClaudeConversion": "旧版 Claude 客户端转换",
+    "page.console.settingV2.upstream.field.legacyClaudeConversionHelp": "把发往非 Anthropic 渠道的 /v1/messages 请求交给旧的两两转换器，而不是协议中枢。只在本版本保留作为回退；仅当中枢拒绝了本应服务的 Claude 流量时才打开。",
     "page.console.settingV2.upstream.field.pingInterval": "流式心跳",
     "page.console.settingV2.upstream.field.pingIntervalHelp": "长时间无输出时向客户端发空行保活，避免代理层掐断连接。",
     "page.console.settingV2.upstream.field.window": "窗口与阈值",

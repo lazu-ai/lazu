@@ -2031,6 +2031,8 @@
     "page.console.settingV2.upstream.field.geminiVersionLabel": "API バージョン",
     "page.console.settingV2.upstream.field.passThrough": "Request pass-through",
     "page.console.settingV2.upstream.field.passThroughHelp": "プロトコル変換をせずそのまま転送します。すべてのチャネルの方言が同じだと確認できている場合にだけ使ってください。",
+    "page.console.settingV2.upstream.field.legacyClaudeConversion": "旧 Claude クライアント変換",
+    "page.console.settingV2.upstream.field.legacyClaudeConversionHelp": "Anthropic 以外のチャネルへの /v1/messages リクエストを、プロトコルハブではなく旧来のペア変換器で送ります。このリリース限りのフォールバックです。ハブが本来処理すべき Claude のトラフィックを拒否した場合にのみ有効にしてください。",
     "page.console.settingV2.upstream.field.pingInterval": "ストリームのキープアライブ",
     "page.console.settingV2.upstream.field.pingIntervalHelp": "出力が長く途切れたときに空行を送って接続を保ち、プロキシに切られるのを防ぎます。",
     "page.console.settingV2.upstream.field.window": "ウィンドウとしきい値",

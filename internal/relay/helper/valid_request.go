@@ -27,6 +27,14 @@ func GetAndValidateRequest(c *gin.Context, format types.RelayFormat) (request dt
 			}
 			return validateTextRequest(c, wire, relayconstant.Path2RelayMode(c.Request.URL.Path))
 		}
+		if format == types.RelayFormatClaude && parsed.Client.Family == textgen.ProtocolAnthropic {
+			wire, valid := parsed.Wire.(*dto.ClaudeRequest)
+			if !valid {
+				return nil, errors.New("parsed Messages request has an invalid wire type")
+			}
+			// the decoder required model and messages
+			return wire, nil
+		}
 		if format == types.RelayFormatOpenAIResponses && parsed.Client.Family == textgen.ProtocolOpenAIResponses {
 			wire, valid := parsed.Wire.(*dto.OpenAIResponsesRequest)
 			if !valid {

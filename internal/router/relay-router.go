@@ -145,14 +145,20 @@ func SetRelayRouter(router *gin.Engine) {
 	}
 	{
 		//http router
+		// claude related routes: parsed once and planned like Chat and
+		// Responses (middleware.ClaudeClientParse)
+		messagesRouter := relayV1Router.Group("")
+		messagesRouter.Use(middleware.ModelRequestRateLimit())
+		messagesRouter.Use(middleware.ClaudeClientParse())
+		messagesRouter.Use(middleware.Distribute())
+		messagesRouter.POST("/messages", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatClaude)
+		})
+	}
+	{
 		httpRouter := relayV1Router.Group("")
 		httpRouter.Use(middleware.ModelRequestRateLimit())
 		httpRouter.Use(middleware.Distribute())
-
-		// claude related routes
-		httpRouter.POST("/messages", func(c *gin.Context) {
-			controller.Relay(c, types.RelayFormatClaude)
-		})
 
 		// chat related routes
 		httpRouter.POST("/completions", func(c *gin.Context) {

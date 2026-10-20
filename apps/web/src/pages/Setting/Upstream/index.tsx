@@ -220,6 +220,17 @@ const createSections = (
         label: t('page.console.settingV2.upstream.field.passThrough'),
         description: t('page.console.settingV2.upstream.field.passThroughHelp'),
       },
+      {
+        key: 'global.legacy_claude_client_conversion',
+        kind: 'boolean',
+        danger: true,
+        label: t(
+          'page.console.settingV2.upstream.field.legacyClaudeConversion',
+        ),
+        description: t(
+          'page.console.settingV2.upstream.field.legacyClaudeConversionHelp',
+        ),
+      },
     ],
   },
   /* Rate limiting used to be defined twice — once here under a group called
