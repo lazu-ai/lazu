@@ -37,6 +37,15 @@ func setupModelCatalogRouteTestDB(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
+	// Shared-cache SQLite reports table-lock deadlocks (SQLITE_LOCKED) at
+	// once instead of waiting. The global relay-diagnostics workers update
+	// logs while the next request flushes its consume log, so one pooled
+	// connection serializes those writers the way a busy timeout would.
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("failed to get sqlite handle: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
 	model.SetCoreDB(db)
 	model.EnsureColumnNamesInitialized()
 
@@ -60,7 +69,6 @@ func setupModelCatalogRouteTestDB(t *testing.T) func() {
 
 	return func() {
 		drainRelayDiagnosticFixture(t)
-		sqlDB, _ := db.DB()
 		_ = sqlDB.Close()
 		common.RedisEnabled = previousRedisEnabled
 		model.SetCoreDB(previousDB)

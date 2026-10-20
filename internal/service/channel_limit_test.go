@@ -100,7 +100,7 @@ func TestChannelCapacityRedisSharedAtomicAndExpiry(t *testing.T) {
 	channelScope := channelLimitScope{key: prefix + ":channel", rps: 10, inFlight: 10}
 	groupScope := channelLimitScope{key: prefix + ":group", rps: 2, inFlight: 1}
 	defer client.Del(ctx, channelScope.key+":rate", channelScope.key+":leases", groupScope.key+":rate", groupScope.key+":leases")
-	first, err := acquireRedisChannelCapacity(ctx, []channelLimitScope{channelScope, groupScope}, "old", 40*time.Millisecond)
+	first, err := acquireRedisChannelCapacity(ctx, []channelLimitScope{channelScope, groupScope}, "old", 300*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,9 @@ func TestChannelCapacityRedisSharedAtomicAndExpiry(t *testing.T) {
 	if err != nil || tokens < 9 {
 		t.Fatalf("partial scope admission tokens=%f err=%v", tokens, err)
 	}
-	time.Sleep(70 * time.Millisecond)
+	// The old lease outlives the rejection checks on a loaded runner; Redis
+	// TIME then expires it before the next admission.
+	time.Sleep(400 * time.Millisecond)
 	second, err := acquireRedisChannelCapacity(ctx, []channelLimitScope{channelScope, groupScope}, "new", time.Second)
 	if err != nil {
 		t.Fatal(err)
