@@ -37,5 +37,8 @@
     "jiti": "^2.7.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.4"
+  },
+  "overrides": {
+    "toml": "^4.3.0"
   }
 }
