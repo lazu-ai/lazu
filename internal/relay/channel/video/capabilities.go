@@ -14,20 +14,37 @@ func DefaultCapabilities(modelName string) *dto.VideoCapabilities {
 	name := strings.ToLower(strings.TrimSpace(modelName))
 	audio := true
 	switch {
+	case strings.Contains(name, "seedance-2.5"), strings.Contains(name, "seedance-2-5"), strings.Contains(name, "seedance_2_5"):
+		return &dto.VideoCapabilities{
+			MinSeconds:               4,
+			MaxSeconds:               30,
+			Resolutions:              []string{"480p", "720p", "1080p"},
+			Ratios:                   []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"},
+			Inputs:                   []string{dto.VideoInputText, dto.VideoInputFirstFrame, dto.VideoInputLastFrame, dto.VideoInputReferenceImage, dto.VideoInputReferenceVideo, dto.VideoInputReferenceAudio},
+			MaxReferences:            30,
+			MaxReferenceVideoSeconds: 30,
+			Audio:                    &audio,
+			Passthrough:              []string{"camera_fixed", "watermark", "return_last_frame", "frames", "service_tier", "callback_url", "draft", "omni_reference_task_type"},
+			DefaultSeconds:           5,
+			DefaultResolution:        "720p",
+			DefaultRatio:             "16:9",
+			FPS:                      arkDefaultFPS,
+		}
 	case strings.Contains(name, "seedance-2"), strings.Contains(name, "seedance_2"):
 		return &dto.VideoCapabilities{
-			MinSeconds:        2,
-			MaxSeconds:        15,
-			Resolutions:       []string{"480p", "720p", "1080p"},
-			Ratios:            []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"},
-			Inputs:            []string{dto.VideoInputText, dto.VideoInputFirstFrame, dto.VideoInputLastFrame, dto.VideoInputReferenceImage, dto.VideoInputReferenceVideo, dto.VideoInputReferenceAudio},
-			MaxReferences:     9,
-			Audio:             &audio,
-			Passthrough:       []string{"camera_fixed", "watermark", "return_last_frame", "frames", "service_tier", "callback_url", "draft", "omni_reference_task_type"},
-			DefaultSeconds:    5,
-			DefaultResolution: "720p",
-			DefaultRatio:      "16:9",
-			FPS:               arkDefaultFPS,
+			MinSeconds:               2,
+			MaxSeconds:               15,
+			Resolutions:              []string{"480p", "720p", "1080p"},
+			Ratios:                   []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"},
+			Inputs:                   []string{dto.VideoInputText, dto.VideoInputFirstFrame, dto.VideoInputLastFrame, dto.VideoInputReferenceImage, dto.VideoInputReferenceVideo, dto.VideoInputReferenceAudio},
+			MaxReferences:            9,
+			MaxReferenceVideoSeconds: 15,
+			Audio:                    &audio,
+			Passthrough:              []string{"camera_fixed", "watermark", "return_last_frame", "frames", "service_tier", "callback_url", "draft", "omni_reference_task_type"},
+			DefaultSeconds:           5,
+			DefaultResolution:        "720p",
+			DefaultRatio:             "16:9",
+			FPS:                      arkDefaultFPS,
 		}
 	case strings.Contains(name, "seedance-1-5"), strings.Contains(name, "seedance-1.5"):
 		return &dto.VideoCapabilities{
@@ -74,4 +91,27 @@ func DefaultCapabilities(modelName string) *dto.VideoCapabilities {
 	default:
 		return &dto.VideoCapabilities{}
 	}
+}
+
+// DefaultMaxReferenceVideoSeconds is the reference-video hold when the
+// model's row names no limit: the longest any supported provider accepts.
+const DefaultMaxReferenceVideoSeconds = 30
+
+// WithReferenceVideoHold adds, for a request with reference video, the
+// longest reference the model accepts to the estimate a submission holds
+// on: providers bill input video by the second (or, on Ark, as tokens of
+// input plus output). Settlement prices the provider's own report.
+func WithReferenceVideoHold(facts dto.VideoFacts, req dto.VideoRequest, caps *dto.VideoCapabilities) dto.VideoFacts {
+	if !req.HasReferenceVideo() {
+		return facts
+	}
+	seconds := DefaultMaxReferenceVideoSeconds
+	if caps != nil && caps.MaxReferenceVideoSeconds > 0 {
+		seconds = caps.MaxReferenceVideoSeconds
+	}
+	facts.ReferenceSeconds = int64(seconds)
+	if facts.OutputTokens > 0 {
+		facts.OutputTokens = ArkVideoTokens(facts.Resolution, facts.Ratio, facts.FPS, facts.Seconds+facts.ReferenceSeconds)
+	}
+	return facts
 }

@@ -1579,3 +1579,118 @@ func TestReservedVideoJobSettlesAtItsHoldWhenTheReportIsFarAboveIt(t *testing.T)
 		t.Fatalf("the user pays the hold only: quota=%d", quota)
 	}
 }
+
+// seedOfficialPriceReferenceJob prices the job's lane like Seedance 2.5 at the
+// official rate on an aggregator (720p at $0.231/s for the hold, the
+// provider's cost × 1.07 for the charge), funds the user, and records an
+// estimate of 5 s of 720p output with a 30 s reference-video hold.
+func seedOfficialPriceReferenceJob(t *testing.T, db *gorm.DB) MediaJob {
+	t.Helper()
+	job := seedPricedVideoMediaJob(t, db)
+	price := ModelSellPrice{}
+	if err := db.Where("model_name = ?", job.ModelName).First(&price).Error; err != nil {
+		t.Fatalf("load sell price: %v", err)
+	}
+	price.SecondUSD = nil
+	price.VideoPricing = &billing.VideoPrices{
+		ResolutionSecondUSD:                map[string]float64{"720p": 0.231},
+		ProviderCostMultiplierByResolution: map[string]float64{"720p": 1.07},
+	}
+	if err := db.Save(&price).Error; err != nil {
+		t.Fatalf("price the lane: %v", err)
+	}
+	if err := db.Model(&User{}).Where("id = ?", job.UserID).Update("quota", billing.USD(100)).Error; err != nil {
+		t.Fatalf("fund user: %v", err)
+	}
+	if err := db.Model(&Token{}).Where("id = ?", *job.TokenID).Update("remain_quota", billing.USD(100)).Error; err != nil {
+		t.Fatalf("fund token: %v", err)
+	}
+	snapshot, err := SnapshotWithVideoFacts(job.RequestSnapshot, MediaJobProviderFactsEstimateSnapshotKey, dto.VideoFacts{
+		Seconds: 5, Resolution: "720p", Ratio: "16:9", ReferenceSeconds: 30,
+	})
+	if err != nil {
+		t.Fatalf("estimate: %v", err)
+	}
+	job.RequestSnapshot = snapshot
+	if err := db.Model(&MediaJob{}).Where("id = ?", job.ID).Update("request_snapshot", snapshot).Error; err != nil {
+		t.Fatalf("persist estimate: %v", err)
+	}
+	return job
+}
+
+func TestReferenceVideoJobHoldsTheLongestReferenceAndChargesTheReportedCost(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	job := seedOfficialPriceReferenceJob(t, db)
+	reserved, err := ReserveMediaJobBillingBeforeSubmit(&job, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("ReserveMediaJobBillingBeforeSubmit error: %v", err)
+	}
+	if reserved.CustomerCharge != billing.USD(0.231*35) {
+		t.Fatalf("5 s of output plus a 30 s reference hold at $0.231/s, got %d", reserved.CustomerCharge)
+	}
+	// APIMart billed 10 s of reference plus 5 s of output at its input rate.
+	cost := 15 * 0.1296
+	settled := settleVideoJobWithReportedFacts(t, db, job, dto.VideoFacts{ProviderCostUSD: &cost, Reported: true}, time.Now().UTC().Add(time.Minute))
+	if settled.CustomerCharge != billing.USD(cost*1.07) || settled.ReferenceUnpriced {
+		t.Fatalf("the reported cost at the 720p multiplier settles the job, got %+v", settled)
+	}
+	if quota := mediaJobBillingUserQuota(t, db, job.UserID); quota != billing.USD(100)-billing.USD(cost*1.07) {
+		t.Fatalf("the rest of the hold is refunded: quota=%d", quota)
+	}
+}
+
+func TestReferenceVideoJobWithoutACostReportSettlesOnTheOutput(t *testing.T) {
+	for name, report := range map[string]*dto.VideoFacts{
+		"report without cost or tokens": {Seconds: 5, Resolution: "720p", Reported: true},
+		"no report at all":              nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			db := setupMediaJobBillingTestDB(t)
+			job := seedOfficialPriceReferenceJob(t, db)
+			if _, err := ReserveMediaJobBillingBeforeSubmit(&job, time.Now().UTC()); err != nil {
+				t.Fatalf("ReserveMediaJobBillingBeforeSubmit error: %v", err)
+			}
+			var settled MediaJobBillingResult
+			if report != nil {
+				settled = settleVideoJobWithReportedFacts(t, db, job, *report, time.Now().UTC().Add(time.Minute))
+			} else {
+				var persisted MediaJob
+				if err := db.Model(&MediaJob{}).Where("id = ?", job.ID).Update("cost_snapshot", job.CostSnapshot).Error; err != nil {
+					t.Fatalf("persist hold: %v", err)
+				}
+				if err := db.First(&persisted, job.ID).Error; err != nil {
+					t.Fatalf("reload: %v", err)
+				}
+				var err error
+				if settled, err = SettleMediaJobBilling(persisted, time.Now().UTC().Add(time.Minute)); err != nil {
+					t.Fatalf("SettleMediaJobBilling error: %v", err)
+				}
+			}
+			if settled.CustomerCharge != billing.USD(0.231*5) || !settled.ReferenceUnpriced {
+				t.Fatalf("the reference hold is never charged; 5 s of output is, and the operator is told: %+v", settled)
+			}
+			if quota := mediaJobBillingUserQuota(t, db, job.UserID); quota != billing.USD(100)-billing.USD(0.231*5) {
+				t.Fatalf("the user pays the output only: quota=%d", quota)
+			}
+		})
+	}
+}
+
+func TestPublicPricingWithholdsTheProviderCostMultiplier(t *testing.T) {
+	flat := 1.2
+	lane := modelSellPriceToPricingLane(ModelSellPrice{
+		ModelName: "seedance-2.5", ChannelGroup: ChannelLaneDirect, Active: true,
+		VideoPricing: &billing.VideoPrices{
+			ResolutionSecondUSD:                map[string]float64{"720p": 0.231},
+			ProviderCostMultiplier:             &flat,
+			ProviderCostMultiplierByResolution: map[string]float64{"720p": 1.07},
+		},
+	})
+	video := lane.VideoPricing
+	if video == nil || video.ProviderCostMultiplier != nil || len(video.ProviderCostMultiplierByResolution) != 0 || !video.ProviderCostBilled {
+		t.Fatalf("public lane pricing must hide the markup but say it follows cost: %+v", video)
+	}
+	if video.ResolutionSecondUSD["720p"] != 0.231 {
+		t.Fatalf("public lane pricing keeps the per-second price: %+v", video)
+	}
+}

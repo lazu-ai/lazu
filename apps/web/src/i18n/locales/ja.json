@@ -1250,7 +1250,7 @@
     "page.console.modelOps.tier.sourceRecordLabel": "{{name}} の過去 {{hours}} 時間の記録",
     "page.console.modelOps.tier.stable": "安定",
     "page.console.modelOps.tier.videoPricing": "動画価格 JSON",
-    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd は解像度別の秒単価、provider_cost_multiplier は上流の cost を基準に課金（事前確保のため秒単価も必要）。トークン課金は出力単価のみで足ります。",
+    "page.console.modelOps.tier.videoPricingHelp": "resolution_second_usd は解像度別の秒単価、provider_cost_multiplier は上流の cost を基準に課金（provider_cost_multiplier_by_resolution で解像度別に設定可、事前確保のため秒単価も必要）。トークン課金は出力単価のみで足ります。",
     "page.console.modelOps.tier.weight": "重み",
     "page.console.modelOps.tier.weightFor": "このティアでの {{name}} の重み",
     "page.console.modelOps.title": "モデル運用",

@@ -102,13 +102,15 @@ func prepareVideoProviderRequest(c *gin.Context, request dto.VideoRequest) (*pre
 	if info.ChannelMeta != nil {
 		proxy = info.ChannelSetting.Proxy
 	}
+	caps := model.ModelVideoCapabilities(originalModel)
+	facts := video.WithReferenceVideoHold(driver.EstimateFacts(body, caps), request, caps)
 	return &preparedVideoProviderRequest{
 		Driver:  driver,
 		Channel: ch,
 		Submit:  submit,
 		Body:    body,
 		Info:    info,
-		Facts:   driver.EstimateFacts(body, model.ModelVideoCapabilities(originalModel)),
+		Facts:   facts,
 		Proxy:   proxy,
 	}, nil
 }

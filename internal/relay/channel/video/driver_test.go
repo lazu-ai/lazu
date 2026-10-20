@@ -423,3 +423,40 @@ func TestArkEstimateDoesNotPriceSoundAModelCannotMake(t *testing.T) {
 		t.Fatalf("an explicit generate_audio=false wins: %+v", facts)
 	}
 }
+
+func TestReferenceVideoHold(t *testing.T) {
+	facts := dto.VideoFacts{Seconds: 5, Resolution: "720p", Ratio: "16:9"}
+	text := dto.VideoRequest{Prompt: "p"}
+	if got := WithReferenceVideoHold(facts, text, nil); got.ReferenceSeconds != 0 {
+		t.Fatalf("no reference video, no hold: %+v", got)
+	}
+	audioOnly := dto.VideoRequest{InputRefs: []dto.VideoInputReference{{URL: "https://x/a.mp3", Type: "audio"}}}
+	if got := WithReferenceVideoHold(facts, audioOnly, nil); got.ReferenceSeconds != 0 {
+		t.Fatalf("reference audio is not billed by the second: %+v", got)
+	}
+	withVideo := dto.VideoRequest{InputRefs: []dto.VideoInputReference{{URL: "https://x/a.png", Type: "image"}, {URL: "https://x/r.mp4", Type: "video"}}}
+	if got := WithReferenceVideoHold(facts, withVideo, nil); got.ReferenceSeconds != DefaultMaxReferenceVideoSeconds {
+		t.Fatalf("no row limit holds the default 30 s: %+v", got)
+	}
+	if got := WithReferenceVideoHold(facts, withVideo, &dto.VideoCapabilities{MaxReferenceVideoSeconds: 15}); got.ReferenceSeconds != 15 {
+		t.Fatalf("the row's limit is the hold: %+v", got)
+	}
+	ark := dto.VideoFacts{Seconds: 5, Resolution: "720p", Ratio: "16:9", FPS: 24, OutputTokens: ArkVideoTokens("720p", "16:9", 24, 5)}
+	got := WithReferenceVideoHold(ark, withVideo, &dto.VideoCapabilities{MaxReferenceVideoSeconds: 15})
+	if got.OutputTokens != ArkVideoTokens("720p", "16:9", 24, 20) {
+		t.Fatalf("an Ark token estimate counts input plus output seconds: %+v", got)
+	}
+}
+
+func TestSeedanceReferenceLimitsByVersion(t *testing.T) {
+	v25 := DefaultCapabilities("seedance-2.5")
+	if v25.MinSeconds != 4 || v25.MaxSeconds != 30 || v25.MaxReferenceVideoSeconds != 30 {
+		t.Fatalf("Seedance 2.5 takes 4-30 s and up to 30 s of reference video: %+v", v25)
+	}
+	if got := DefaultCapabilities("dreamina-seedance-2-5-260628"); got.MaxReferenceVideoSeconds != 30 {
+		t.Fatalf("the dated Ark name is 2.5 too: %+v", got)
+	}
+	if got := DefaultCapabilities("dreamina-seedance-2-0-260128"); got.MaxReferenceVideoSeconds != 15 || got.MaxSeconds != 15 {
+		t.Fatalf("Seedance 2.0 takes up to 15 s of reference video: %+v", got)
+	}
+}

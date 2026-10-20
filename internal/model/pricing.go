@@ -546,7 +546,8 @@ func (pricing *Pricing) applyModelSellPrice(sellPrice ModelSellPrice) {
 	pricing.ImageInputPerMtok = sellPrice.ImageInputPerMtok
 	pricing.ImageOutputPerMtok = sellPrice.ImageOutputPerMtok
 	pricing.ImagePricing = sellPrice.ImagePricing
-	pricing.VideoPricing = sellPrice.VideoPricing
+	// The public copy: per-second prices, not the provider-cost multiplier.
+	pricing.VideoPricing = sellPrice.VideoPricing.Public()
 	pricing.RequestUSD = sellPrice.RequestUSD
 	pricing.SecondUSD = sellPrice.SecondUSD
 	pricing.PeakHoursUTC = sellPrice.PeakHoursUTC
@@ -658,7 +659,7 @@ func modelSellPriceToPricingLane(row ModelSellPrice) PricingLane {
 		ImageInputPerMtok:   row.ImageInputPerMtok,
 		ImageOutputPerMtok:  row.ImageOutputPerMtok,
 		ImagePricing:        row.ImagePricing,
-		VideoPricing:        row.VideoPricing,
+		VideoPricing:        row.VideoPricing.Public(),
 		RequestUSD:          row.RequestUSD,
 		SecondUSD:           row.SecondUSD,
 		PeakHoursUTC:        row.PeakHoursUTC,

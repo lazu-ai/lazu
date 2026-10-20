@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   clampVideoChoice,
   normalizeResolution,
+  readVideoPricing,
   videoEstimateHasAudio,
   videoOptionsFor,
+  videoPriceFollowsProviderCost,
   videoSecondPrice,
   videoSizeFor,
   videoTokensPerSecond,
@@ -132,5 +134,27 @@ describe('video prices', () => {
       videoSecondPrice({ output_per_mtok: 2 }, '720p', '16:9'),
     ).toBeCloseTo(0.0432);
     expect(videoSecondPrice({}, '720p')).toBeNull();
+  });
+});
+
+describe('provider-cost lanes', () => {
+  it('reads the public provider-cost signal and the per-tier multipliers', () => {
+    const pricing = readVideoPricing({
+      provider_cost_billed: true,
+      provider_cost_multiplier_by_resolution: { '720p': 1.07, bad: 'x' },
+      resolution_second_usd: { '720p': 0.231 },
+    });
+    expect(pricing?.provider_cost_billed).toBe(true);
+    expect(pricing?.provider_cost_multiplier_by_resolution).toEqual({
+      '720p': 1.07,
+    });
+    expect(videoPriceFollowsProviderCost({ video_pricing: pricing })).toBe(
+      true,
+    );
+    expect(
+      videoPriceFollowsProviderCost({
+        video_pricing: { resolution_second_usd: { '720p': 0.231 } },
+      }),
+    ).toBe(false);
   });
 });

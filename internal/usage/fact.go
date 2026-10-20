@@ -74,6 +74,8 @@ type MediaUnits struct {
 	FPS             int      `json:"fps,omitempty"`
 	Audio           bool     `json:"audio,omitempty"`
 	Reported        bool     `json:"reported,omitempty"`
+	// ReferenceSeconds is reference video held for at submission.
+	ReferenceSeconds int64 `json:"reference_seconds,omitempty"`
 }
 
 func FactFromDTO(usage *dto.Usage) Fact {
