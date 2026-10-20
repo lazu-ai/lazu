@@ -870,13 +870,13 @@ func TestCatalogDoesNotRestoreLegacyListingDate(t *testing.T) {
 }
 
 func TestBuildCatalogPricingPublishesVideoTiersWithoutTheMarkup(t *testing.T) {
-	multiplier := 1.07
+	multiplier := 1.1
 	pricing := model.Pricing{
 		ModelName: "seedance-2.5",
 		VideoPricing: (&billing.VideoPrices{
 			ResolutionSecondUSD:                map[string]float64{"480p": 0.103, "720p": 0.231, "1080p": 0.569},
 			ProviderCostMultiplier:             &multiplier,
-			ProviderCostMultiplierByResolution: map[string]float64{"1080p": 1.06},
+			ProviderCostMultiplierByResolution: map[string]float64{"1080p": 1.2},
 		}).Public(),
 		SupportedEndpointTypes: []constant.EndpointType{constant.EndpointTypeVideoGeneration},
 	}

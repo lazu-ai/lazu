@@ -141,12 +141,12 @@ describe('provider-cost lanes', () => {
   it('reads the public provider-cost signal and the per-tier multipliers', () => {
     const pricing = readVideoPricing({
       provider_cost_billed: true,
-      provider_cost_multiplier_by_resolution: { '720p': 1.07, bad: 'x' },
+      provider_cost_multiplier_by_resolution: { '720p': 1.1, bad: 'x' },
       resolution_second_usd: { '720p': 0.231 },
     });
     expect(pricing?.provider_cost_billed).toBe(true);
     expect(pricing?.provider_cost_multiplier_by_resolution).toEqual({
-      '720p': 1.07,
+      '720p': 1.1,
     });
     expect(videoPriceFollowsProviderCost({ video_pricing: pricing })).toBe(
       true,
