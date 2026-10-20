@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	"io"
 	"net/http"
 	"strings"
@@ -46,7 +47,7 @@ func GeminiTextGenerationHandler(c *gin.Context, info *relaycommon.RelayInfo, re
 	if geminiResponse.UsageMetadata.PromptTokenCount+geminiResponse.UsageMetadata.ToolUsePromptTokenCount <= 0 {
 		fallbackPromptTokens = service.PromptTokensForUsage(c, info)
 	}
-	usage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, fallbackPromptTokens)
+	usage := geminicodec.UsageOf(geminiResponse.UsageMetadata, fallbackPromptTokens)
 
 	service.IOCopyBytesGracefully(c, resp, responseBody)
 
@@ -134,13 +135,13 @@ func GeminiTextGenerationStreamHandler(c *gin.Context, info *relaycommon.RelayIn
 		}
 
 		// 更新使用量统计
-		if hasGeminiUsageMetadata(geminiResponse.UsageMetadata) {
+		if geminicodec.HasUsage(geminiResponse.UsageMetadata) {
 			hasProviderUsage = true
 			fallbackPromptTokens := 0
 			if geminiResponse.UsageMetadata.PromptTokenCount+geminiResponse.UsageMetadata.ToolUsePromptTokenCount <= 0 {
 				fallbackPromptTokens = service.PromptTokensForUsage(c, info)
 			}
-			mappedUsage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, fallbackPromptTokens)
+			mappedUsage := geminicodec.UsageOf(geminiResponse.UsageMetadata, fallbackPromptTokens)
 			*usage = mappedUsage
 		}
 
