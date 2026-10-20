@@ -375,6 +375,7 @@ func InitResources() error {
 	// The digest is safe on replicated/hosted API processes because Redis
 	// claims one delivery per day. Keep it outside the all-in-one-only block so
 	// hosted deployments also receive the operations summary.
+	service.RegisterOpsDigestSections()
 	alerting.StartDailyDigestScheduler()
 
 	if apiBackgroundTasksEnabled() {
