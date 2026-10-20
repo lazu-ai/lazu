@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/robfig/cron/v3"
 )
 
 // digestTask names a recorded task in the digest and says how often it is
@@ -19,6 +20,54 @@ import (
 type digestTask struct {
 	name    string
 	cadence time.Duration
+}
+
+// digestTaskCadence is the cadence a task is judged by: the upload follows
+// its configured cron schedule, everything else its fixed one.
+func digestTaskCadence(key string, task digestTask, now time.Time) time.Duration {
+	if key == "hourly-upload" {
+		if cadence, ok := cronCadence(common.AppConfig.Upload.Schedule, now); ok {
+			return cadence
+		}
+	}
+	return task.cadence
+}
+
+// cronCadence returns the longest gap between the next few runs of a cron
+// schedule, so a schedule that fires unevenly is judged by its slowest gap.
+func cronCadence(spec string, now time.Time) (time.Duration, bool) {
+	schedule, err := cron.ParseStandard(strings.TrimSpace(spec))
+	if err != nil {
+		return 0, false
+	}
+	var longest time.Duration
+	previous := schedule.Next(now)
+	for i := 0; i < 24; i++ {
+		next := schedule.Next(previous)
+		if next.IsZero() {
+			break
+		}
+		if gap := next.Sub(previous); gap > longest {
+			longest = gap
+		}
+		previous = next
+	}
+	return longest, longest > 0
+}
+
+// digestTaskExpected reports whether this deployment starts the task at all,
+// so a task that is configured off is not listed as never reported.
+var digestTaskExpected = func(key string) bool {
+	switch key {
+	case "hourly-upload":
+		return common.AppConfig.Upload.Enable
+	case "pg-dump":
+		return common.UsingPostgreSQL && common.AppConfig.ArtifactStorage.S3.IsConfigured()
+	case "archive-compactor":
+		return common.AppConfig.ArtifactStorage.S3.IsConfigured()
+	default:
+		return true
+	}
 }
 
 var digestTasks = map[string]digestTask{
@@ -44,8 +93,11 @@ var digestStatuses = map[string]digestStatus{
 	"stale":    {rank: 1, icon: "⏸️", label: "已停止运行"},
 	"warning":  {rank: 2, icon: "⚠️", label: "有警告"},
 	"unknown":  {rank: 3, icon: "➖", label: "未检测", quiet: true},
-	"skipped":  {rank: 4, icon: "➖", label: "已跳过", quiet: true},
-	"ok":       {rank: 5, icon: "✅", label: "正常", quiet: true},
+	// missing is quiet: right after a deploy a daily task has simply not
+	// reached its first run yet, which is not worth a warning.
+	"missing": {rank: 3, icon: "➖", label: "从未上报", quiet: true},
+	"skipped": {rank: 4, icon: "➖", label: "已跳过", quiet: true},
+	"ok":      {rank: 5, icon: "✅", label: "正常", quiet: true},
 }
 
 type digestLine struct {
@@ -54,7 +106,8 @@ type digestLine struct {
 	status   string
 	age      time.Duration
 	incident *incidentState
-	// alertOnly marks an open alert whose task records no health snapshot.
+	// alertOnly marks a line with no health snapshot behind it: an open alert
+	// from a task that records none, or an expected task that never reported.
 	alertOnly bool
 }
 
@@ -204,7 +257,7 @@ func digestTaskLines(now time.Time, snapshots []HealthSnapshot, incidents map[st
 		}
 		if task, ok := digestTasks[snapshot.Key]; ok {
 			line.name = task.name
-			if line.age > 2*task.cadence {
+			if line.age > 2*digestTaskCadence(snapshot.Key, task, now) {
 				line.status = "stale"
 			}
 		}
@@ -217,6 +270,17 @@ func digestTaskLines(now time.Time, snapshots []HealthSnapshot, incidents map[st
 			}
 		}
 		withHealth[snapshot.Key] = true
+		lines = append(lines, line)
+	}
+	for key, task := range digestTasks {
+		if withHealth[key] || !digestTaskExpected(key) {
+			continue
+		}
+		withHealth[key] = true
+		line := digestLine{snapshot: HealthSnapshot{Key: key}, name: task.name, status: "missing", alertOnly: true}
+		if state, ok := incidents[key]; ok {
+			line.incident, line.status = &state, "alerting"
+		}
 		lines = append(lines, line)
 	}
 	for key, state := range incidents {
@@ -253,7 +317,7 @@ func writeDigestProblem(b *strings.Builder, now time.Time, line digestLine) {
 		fmt.Fprintf(b, "\n   最后一次%s在 %s前（应%s运行一次）",
 			lookupDigestStatus(line.snapshot.Status).label,
 			formatDigestAge(line.age),
-			formatDigestCadence(digestTasks[line.snapshot.Key].cadence))
+			formatDigestCadence(digestTaskCadence(line.snapshot.Key, digestTasks[line.snapshot.Key], now)))
 		if line.snapshot.Summary != "" {
 			fmt.Fprintf(b, "\n   上次结果：%s", line.snapshot.Summary)
 		}

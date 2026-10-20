@@ -875,23 +875,28 @@ func loadHealthSnapshots() ([]HealthSnapshot, error) {
 
 // loadOpenIncidents returns every incident that has not been resolved, keyed
 // by incident key. Resolve deletes an incident, so whatever remains is open.
+// When Redis answers, it is authoritative: another process may have resolved
+// an incident this process still caches, so local state only refines keys
+// Redis still holds. Without Redis, the local cache is all there is.
 func loadOpenIncidents() (map[string]incidentState, error) {
 	open := map[string]incidentState{}
 	var loadErr error
+	redisAnswered := false
 	if common.RedisEnabled && common.RDB != nil {
+		redisAnswered = true
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		var cursor uint64
 		for {
 			keys, next, err := common.RDB.Scan(ctx, cursor, incidentKeyPrefix+"*", 200).Result()
 			if err != nil {
-				loadErr = err
+				loadErr, redisAnswered = err, false
 				break
 			}
 			for _, redisKey := range keys {
 				state, exists, err := loadIncidentState(ctx, common.RDB, redisKey)
 				if err != nil {
-					loadErr = err
+					loadErr, redisAnswered = err, false
 					continue
 				}
 				if exists {
@@ -906,7 +911,11 @@ func loadOpenIncidents() (map[string]incidentState, error) {
 	}
 	localMu.Lock()
 	for key, state := range localIncidents {
-		if existing, ok := open[key]; ok {
+		existing, inRedis := open[key]
+		if redisAnswered && !inRedis {
+			continue
+		}
+		if inRedis {
 			state, _ = mergeIncidentState(existing, true, state, true)
 		}
 		open[key] = state
