@@ -337,6 +337,16 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 	if upstream == ProtocolAnthropic {
 		return messagesBridgeIssue(request, uses)
 	}
+	if upstream == ProtocolOpenAIChat && request != nil {
+		for index, item := range request.Conversation {
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentFile && part.URL != "" && part.Data == "" && part.FileID == "" {
+					// Chat's file part takes data or a file id, not a URL
+					return &Issue{Feature: FeatureInputFile, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].file_url", Message: "Chat Completions has no lossless file URL representation"}
+				}
+			}
+		}
+	}
 	// Anthropic's cache markers are advisory and fall out of other encoders;
 	// its speed tier is not, and has no equivalent elsewhere.
 	if path, ok := request.SpeedPath(); ok {

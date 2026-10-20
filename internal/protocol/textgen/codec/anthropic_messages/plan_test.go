@@ -73,3 +73,20 @@ func TestClaudeClientBridgeRefusesAnthropicOnlyFeatures(t *testing.T) {
 		}
 	}
 }
+
+// A Claude document by URL cannot go over Chat (its file part takes data or
+// an id): a channel with Responses takes it there, a Chat-only one refuses.
+func TestClaudeDocumentURLGoesToResponsesOrIsRefused(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","max_tokens":10,"messages":[{"role":"user","content":[{"type":"document","source":{"type":"url","url":"https://example.com/a.pdf"}},{"type":"text","text":"summarise"}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	both := capability("deepseek", textgen.FeatureEndpointChat, textgen.FeatureEndpointResponses)
+	plan, err := textgen.PlanAttempt(claudeClient, both, request, 1, "m")
+	if err != nil || plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIResponses {
+		t.Fatalf("expected Responses: %+v %v", plan, err)
+	}
+	if _, err := textgen.PlanAttempt(claudeClient, capability("openai_chat_compatible", textgen.FeatureEndpointChat), request, 1, "m"); err == nil {
+		t.Fatal("a Chat-only channel must refuse a document by URL")
+	}
+}

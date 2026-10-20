@@ -119,3 +119,16 @@ func TestDecoderKeepsAnEmbeddedFailureTypeAndAnEmptyMessageTurn(t *testing.T) {
 		t.Fatalf("an empty message item is still a turn: %+v %v", events, err)
 	}
 }
+
+func TestDecodeResponseKeepsReasoning(t *testing.T) {
+	response := &dto.OpenAIResponsesResponse{Status: "completed", Output: []dto.ResponsesOutput{
+		{Type: "reasoning", ID: "rs_1", Content: []dto.ResponsesOutputContent{{Type: "reasoning_text", Text: "thinking"}}},
+		{Type: "message", Role: "assistant", Content: []dto.ResponsesOutputContent{{Type: "output_text", Text: "hi"}}},
+	}}
+	var col textgen.Collector
+	col.Add(DecodeResponse(response)...)
+	parts := col.Result().Parts
+	if len(parts) != 2 || parts[0].Kind != textgen.PartReasoning || parts[0].Text != "thinking" {
+		t.Fatalf("parts: %+v", parts)
+	}
+}
