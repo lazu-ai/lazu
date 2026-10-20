@@ -126,6 +126,11 @@ func buildLane(lane Lane, model Model, locale string) LaneView {
 	case list.PerSecond != nil:
 		view.Price, view.Unit = Money(*list.PerSecond), T(locale, "unit.second")
 		view.Flat = MoneyShort(*list.PerSecond)
+		if p := laneVideoPrices(lane, model); p != nil && len(p.ResolutionSecondUSD) > 1 {
+			// The cheapest tier, marked as a starting price as image tiers are.
+			view.Price += "+"
+			view.Flat += "+"
+		}
 	case list.Input != nil:
 		view.Price, view.Unit = Money(*list.Input), T(locale, "unit.in")
 		if list.Output != nil {
@@ -340,6 +345,7 @@ type ModelPage struct {
 	PerToken       bool
 	HasCache       bool
 	ImagePriceRows []ImagePriceRow
+	VideoPriceRows []ImagePriceRow
 	PriceRows      []PriceRow
 	PricesNote     string
 	Updated        string
@@ -644,6 +650,9 @@ func BuildModelPage(catalog Catalog, model Model, locale string, docsBase string
 	for _, lane := range lanes {
 		view := buildLane(lane, model, locale)
 		page.ImagePriceRows = append(page.ImagePriceRows, ImagePriceRows(laneImagePrices(lane, model), locale)...)
+		if len(page.VideoPriceRows) == 0 {
+			page.VideoPriceRows = VideoPriceRows(laneVideoPrices(lane, model), locale)
+		}
 		page.PerImage = page.PerImage || laneImagePrices(lane, model) != nil
 		row := PriceRow{Label: view.Label, Uptime: view.Uptime, Bars: view.Bars,
 			Input: dash(view.Input), Output: dash(view.Output), CacheRead: dash(view.CacheRead),

@@ -12,6 +12,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
+	"github.com/lazu-ai/lazu/pkg/billing"
 )
 
 func TestSelectPreferredEndpointType_PreservesModelPreferredOrder(t *testing.T) {
@@ -865,5 +866,48 @@ func TestCatalogDoesNotRestoreLegacyListingDate(t *testing.T) {
 	items = buildModelCatalogItemsWithOptions([]string{name}, catalogBuildOptions{pricingMode: catalogPricingModeList})
 	if len(items) != 1 || items[0].ReleasedAt == nil || items[0].ReleaseDate != "2026-09-01" {
 		t.Fatalf("verified release lost: %+v", items)
+	}
+}
+
+func TestBuildCatalogPricingPublishesVideoTiersWithoutTheMarkup(t *testing.T) {
+	multiplier := 1.07
+	pricing := model.Pricing{
+		ModelName: "seedance-2.5",
+		VideoPricing: (&billing.VideoPrices{
+			ResolutionSecondUSD:                map[string]float64{"480p": 0.103, "720p": 0.231, "1080p": 0.569},
+			ProviderCostMultiplier:             &multiplier,
+			ProviderCostMultiplierByResolution: map[string]float64{"1080p": 1.06},
+		}).Public(),
+		SupportedEndpointTypes: []constant.EndpointType{constant.EndpointTypeVideoGeneration},
+	}
+	catalogPricing := buildCatalogPricing(true, pricing, catalogPricingContext{usingGroup: "direct"})
+	if catalogPricing.Second == nil || *catalogPricing.Second != 0.103 || catalogPricing.BillingType != "per_second" {
+		t.Fatalf("a tiered video lane starts at its cheapest tier: %+v", catalogPricing)
+	}
+	video := catalogPricing.VideoPricing
+	if video == nil || video.ResolutionSecondUSD["1080p"] != 0.569 || !video.ProviderCostBilled {
+		t.Fatalf("the catalog carries the per-second tiers: %+v", video)
+	}
+	if video.ProviderCostMultiplier != nil || len(video.ProviderCostMultiplierByResolution) != 0 {
+		t.Fatalf("the catalog must not publish the markup: %+v", video)
+	}
+	usage := buildCatalogUsageCapabilities("seedance-2.5", pricing, catalogPricing, "ByteDance",
+		[]constant.EndpointType{constant.EndpointTypeVideoGeneration},
+		dto.ModelCatalogModality{Input: []string{"text"}, Output: []string{"video"}})
+	assertStringSliceContains(t, usage.BillableDimensions, "second")
+}
+
+func TestVideoCatalogExampleShowsTheWholeAsyncFlow(t *testing.T) {
+	example := videoCatalogExample("https://lazu.ai", "/v1/videos", "seedance-2.5")
+	for _, want := range []string{
+		"curl https://lazu.ai/v1/videos -H",
+		`"model":"seedance-2.5"`,
+		"curl https://lazu.ai/v1/videos/JOB_ID",
+		"curl https://lazu.ai/v1/files/FILE_ID/content",
+		"-o video.mp4",
+	} {
+		if !strings.Contains(example, want) {
+			t.Fatalf("video example lacks %q:\n%s", want, example)
+		}
 	}
 }

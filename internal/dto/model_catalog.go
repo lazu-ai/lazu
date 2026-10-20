@@ -96,7 +96,10 @@ type ModelCatalogEndpoint struct {
 }
 
 type ModelCatalogPricing struct {
-	ImagePricing           *billing.ImagePrices      `json:"image_pricing,omitempty"`
+	ImagePricing *billing.ImagePrices `json:"image_pricing,omitempty"`
+	// VideoPricing is the public copy: per-second tiers, the audio
+	// surcharge, and whether the charge follows the provider's report.
+	VideoPricing           *billing.VideoPrices      `json:"video_pricing,omitempty"`
 	ContextTiers           []ModelCatalogContextTier `json:"context_tiers,omitempty"`
 	PeakPricing            *ModelCatalogPricing      `json:"peak_pricing,omitempty"`
 	Currency               string                    `json:"currency"`

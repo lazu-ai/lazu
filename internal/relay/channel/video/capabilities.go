@@ -115,3 +115,23 @@ func WithReferenceVideoHold(facts dto.VideoFacts, req dto.VideoRequest, caps *dt
 	}
 	return facts
 }
+
+// AdaptiveRatioForReferences sets aspect_ratio to adaptive for a request
+// that sends reference video or first/last frames and names no ratio, when
+// the model takes adaptive: providers treat such tasks as editing,
+// extending or framing the input, and then accept only the input's own
+// ratio. An explicit ratio or size is left alone.
+func AdaptiveRatioForReferences(req *dto.VideoRequest, caps *dto.VideoCapabilities) {
+	if req == nil || caps == nil || strings.TrimSpace(req.AspectRatio) != "" || strings.TrimSpace(req.Size) != "" {
+		return
+	}
+	if !req.HasReferenceVideo() && len(req.FrameImages) == 0 {
+		return
+	}
+	for _, ratio := range caps.Ratios {
+		if strings.EqualFold(strings.TrimSpace(ratio), "adaptive") {
+			req.AspectRatio = "adaptive"
+			return
+		}
+	}
+}

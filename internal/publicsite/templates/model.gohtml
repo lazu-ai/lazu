@@ -72,6 +72,7 @@
       {{- end}}
     </div>
     {{if $m.ImagePriceRows}}<dl class="lazu-model__traits">{{range $m.ImagePriceRows}}<dt>{{.Label}}</dt><dd class="lazu-num">{{.Price}}</dd>{{end}}</dl>{{end}}
+    {{if $m.VideoPriceRows}}<dl class="lazu-model__traits">{{range $m.VideoPriceRows}}<dt>{{.Label}}</dt><dd class="lazu-num">{{.Price}}</dd>{{end}}</dl>{{end}}
     <p class="lazu-model__stamp">{{$m.Updated}} · <a href="{{docs "pricing"}}">{{t "prices.howToChoose"}}</a> · <a class="lazu-site-mono" href="{{$m.JSONHref}}">{{base $m.JSONHref}}</a> · <a class="lazu-site-mono" href="{{$m.MDHref}}">{{base $m.MDHref}}</a></p>
   </section>
 

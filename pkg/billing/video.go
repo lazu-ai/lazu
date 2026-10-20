@@ -127,7 +127,7 @@ func (p *VideoPrices) Public() *VideoPrices {
 		SecondUSD:           p.SecondUSD,
 		ResolutionSecondUSD: p.ResolutionSecondUSD,
 		AudioSurchargeRatio: p.AudioSurchargeRatio,
-		ProviderCostBilled:  p.FollowsProviderCost(),
+		ProviderCostBilled:  p.FollowsProviderCost() || p.ProviderCostBilled,
 	}
 	return &out
 }
@@ -157,6 +157,28 @@ func (p *VideoPrices) Scaled(factor float64) *VideoPrices {
 		}
 	}
 	return &out
+}
+
+// LowestSecondUSD is the cheapest per-second price the row lists (a tier or
+// the flat second price), or nil when it lists none.
+func (p *VideoPrices) LowestSecondUSD() *float64 {
+	if p == nil {
+		return nil
+	}
+	var lowest *float64
+	consider := func(value float64) {
+		if value > 0 && (lowest == nil || value < *lowest) {
+			v := value
+			lowest = &v
+		}
+	}
+	for _, value := range p.ResolutionSecondUSD {
+		consider(value)
+	}
+	if p.SecondUSD != nil {
+		consider(*p.SecondUSD)
+	}
+	return lowest
 }
 
 // SecondPriceFor returns the per-second price for a resolution tier, or nil.
