@@ -25,3 +25,27 @@ func TestRenderTypesARefusal(t *testing.T) {
 		t.Fatalf("a refusal-only reply has no content: %+v", message.Content)
 	}
 }
+
+// Chat writes a call's id and name once; a client that concatenates deltas
+// would otherwise double the name.
+func TestChatEmitterNamesACallOnce(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m")
+	chunks := emitter.Emit(
+		textgen.Event{Kind: textgen.EventToolStart, ToolIndex: 0, ToolCallID: "call_1", ToolName: "get_weather"},
+		textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: 0, ToolCallID: "call_1", ToolName: "get_weather", Text: `{"city":`},
+		textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: 0, Text: `"Paris"}`},
+	)
+	var ids, names, args string
+	for _, chunk := range chunks {
+		for _, choice := range chunk.Choices {
+			for _, call := range choice.Delta.ToolCalls {
+				ids += call.ID
+				names += call.Function.Name
+				args += call.Function.Arguments
+			}
+		}
+	}
+	if ids != "call_1" || names != "get_weather" || args != `{"city":"Paris"}` {
+		t.Fatalf("concatenated deltas: id %q name %q args %q", ids, names, args)
+	}
+}

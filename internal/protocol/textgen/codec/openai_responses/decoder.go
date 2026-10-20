@@ -79,7 +79,14 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		switch ev.Item.Type {
 		case "function_call":
-			return []textgen.Event{{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, Text: ev.Item.Arguments}}, nil
+			done := textgen.Event{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, Text: ev.Item.Arguments}
+			if !d.calls[index] {
+				// a call reported only by its done item (no added event, no
+				// argument deltas) still opens first
+				d.calls[index], d.called = true, true
+				return []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, ItemID: ev.Item.ID}, done}, nil
+			}
+			return []textgen.Event{done}, nil
 		case "reasoning":
 			// sealed: the item as the upstream wrote it, for a Responses
 			// client and for its next request

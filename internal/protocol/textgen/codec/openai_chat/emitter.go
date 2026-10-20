@@ -23,13 +23,17 @@ type StreamEmitter struct {
 	terminal  bool
 	tools     map[int]int // upstream ToolIndex -> Chat tool index
 	toolCount int
-	col       textgen.Collector
+	// named is whether a call's id and name have been written: Chat sends
+	// them once, and clients that concatenate deltas would double a name
+	// written twice
+	named map[int][2]bool
+	col   textgen.Collector
 }
 
 // NewStreamEmitter makes the emitter for one reply; id is used until an
 // EventStart names the upstream's.
 func NewStreamEmitter(id, model string) *StreamEmitter {
-	return &StreamEmitter{id: CompletionID(id), model: model, created: time.Now().Unix(), tools: map[int]int{}}
+	return &StreamEmitter{id: CompletionID(id), model: model, created: time.Now().Unix(), tools: map[int]int{}, named: map[int][2]bool{}}
 }
 
 // CompletionID is a reply's id as Chat gives one, chatcmpl-…
@@ -113,6 +117,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStre
 			e.tools[event.ToolIndex] = index
 			call := dto.ToolCallResponse{ID: event.ToolCallID, Type: "function", Function: dto.FunctionResponse{Name: event.ToolName, Arguments: ""}}
 			call.SetIndex(index)
+			e.named[event.ToolIndex] = [2]bool{event.ToolCallID != "", event.ToolName != ""}
 			out = append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{call}}, nil, nil))
 		case textgen.EventToolArguments, textgen.EventToolDone:
 			index, open := e.tools[event.ToolIndex]
@@ -128,10 +133,19 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStre
 					continue
 				}
 			}
-			if text == "" && event.ToolCallID == "" && event.ToolName == "" {
+			id, name := event.ToolCallID, event.ToolName
+			named := e.named[event.ToolIndex]
+			if named[0] {
+				id = ""
+			}
+			if named[1] {
+				name = ""
+			}
+			if text == "" && id == "" && name == "" {
 				continue
 			}
-			call := dto.ToolCallResponse{ID: event.ToolCallID, Type: "function", Function: dto.FunctionResponse{Name: event.ToolName, Arguments: text}}
+			e.named[event.ToolIndex] = [2]bool{named[0] || id != "", named[1] || name != ""}
+			call := dto.ToolCallResponse{ID: id, Type: "function", Function: dto.FunctionResponse{Name: name, Arguments: text}}
 			call.SetIndex(index)
 			out = append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{call}}, nil, nil))
 		case textgen.EventError:
