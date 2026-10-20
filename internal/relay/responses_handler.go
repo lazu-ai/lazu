@@ -9,9 +9,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
-	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
-	claudechannel "github.com/lazu-ai/lazu/internal/relay/channel/claude"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
@@ -47,10 +45,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		return types.NewError(fmt.Errorf("invalid api type: %d", info.ApiType), types.ErrorCodeInvalidApiType, types.ErrOptionWithSkipRetry())
 	}
 	adaptor.Init(info)
-	bridgeToChat := info.ProtocolPlan != nil && !info.ProtocolPlan.Native &&
-		info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses &&
-		info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat
-	bridgeToMessages := claudechannel.BridgesToMessages(info)
+	bridged := planBridges(info)
 	// A degraded native plan is sent encoded from the IR (see TextHelper).
 	degradedNative := info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.Degraded() && info.ProtocolRequest != nil
 	if degradedNative {
@@ -68,7 +63,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 	nativeConverter, nativeConvertible := adaptor.(interface {
 		ConvertNativeRequest([]byte, *relaycommon.RelayInfo, bool) ([]byte, error)
 	})
-	if nativeConvertible && !bridgeToChat && !bridgeToMessages && !degradedNative {
+	if nativeConvertible && !bridged && !degradedNative {
 		bodyTimer := common.StartHotPathStage(common.HotPathStageOutboundBody)
 		if info.NativeBodyCache != nil && info.NativeBodyChannelID == info.ChannelId {
 			outboundBody = info.NativeBodyCache
@@ -87,49 +82,18 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
-	} else if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !bridgeToChat && !bridgeToMessages && !degradedNative {
+	} else if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !bridged && !degradedNative {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)
 		}
 		outboundBody = body
-	} else if bridgeToMessages {
-		body, _, encodeErr := MessagesBridgeBody(c, info)
+	} else if bridged {
+		body, _, encodeErr := BridgeBody(c, info, adaptor)
 		if encodeErr != nil {
 			return encodeErr
 		}
 		outboundBody = body
-	} else if bridgeToChat {
-		semantic := info.ProtocolRequest.Clone()
-		if semantic == nil {
-			return types.NewError(fmt.Errorf("missing immutable protocol request"), types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-		stripLazuMetadataFromSemantic(semantic)
-		semantic.Model.Upstream = info.UpstreamModelName
-		chatRequest, encodeErr := openai_chat.Encode(semantic)
-		if encodeErr != nil {
-			return types.NewErrorWithStatusCode(encodeErr, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
-		}
-		openAIConverter, converterErr := requireOpenAIRequestConverter(adaptor, info)
-		if converterErr != nil {
-			return converterErr
-		}
-		convertedRequest, convertErr := openAIConverter.ConvertOpenAIRequest(c, info, chatRequest)
-		if convertErr != nil {
-			return types.NewError(convertErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-		jsonData, marshalErr := common.Marshal(convertedRequest)
-		if marshalErr != nil {
-			return types.NewError(marshalErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-		jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
-		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-		// wire dialect patch on the bridged Chat body (internal/relay/wirepatch):
-		// a Responses client reaching a Chat-only vendor takes this path.
-		jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
-		outboundBody = jsonData
 	} else {
 		responsesConverter, converterErr := requireResponsesRequestConverter(adaptor, info)
 		if converterErr != nil {
@@ -180,7 +144,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 	// or a param override may force `store: false` on a request that never
 	// asked for it. So validate the body that really goes upstream, not the
 	// one the client sent.
-	if !bridgeToChat {
+	if !bridged || info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIResponses {
 		if err := helper.ValidateOutboundResponsesStore(outboundBody); err != nil {
 			return types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 		}

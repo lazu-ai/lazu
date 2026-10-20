@@ -10,9 +10,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
-	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
-	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
-	"github.com/lazu-ai/lazu/internal/relay/channel"
 	claudechannel "github.com/lazu-ai/lazu/internal/relay/channel/claude"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
@@ -63,7 +60,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 	var requestBody io.Reader
 	if bridgesClaudeClient(info) {
 		// hub: the IR encoded for the OpenAI-shaped upstream the plan chose
-		body, bridgeErr := claudeClientBridgeBody(c, info, adaptor)
+		body, _, bridgeErr := BridgeBody(c, info, adaptor)
 		if bridgeErr != nil {
 			return bridgeErr
 		}
@@ -172,61 +169,4 @@ func bridgesClaudeClient(info *relaycommon.RelayInfo) bool {
 		return true
 	}
 	return false
-}
-
-// claudeClientBridgeBody is the outbound body for a Claude client planned
-// onto Chat Completions or Responses: the attempt's IR encoded by the
-// upstream's codec, converted by the channel's adaptor as any request of
-// that protocol is, then the same field removal and wire patch as the other
-// bridges (TextHelper, ResponsesHelper).
-func claudeClientBridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.BaseAdaptor) ([]byte, *types.LazuError) {
-	semantic := info.ProtocolRequest.Clone()
-	stripLazuMetadataFromSemantic(semantic)
-	semantic.Model.Upstream = info.UpstreamModelName
-	var converted any
-	switch info.ProtocolPlan.UpstreamProtocol.Family {
-	case textgen.ProtocolOpenAIResponses:
-		responsesReq, err := openai_responses.Encode(semantic)
-		if err != nil {
-			return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
-		}
-		relaycommon.PopulateResponsesUsageInfo(info, responsesReq)
-		converter, converterErr := requireResponsesRequestConverter(adaptor, info)
-		if converterErr != nil {
-			return nil, converterErr
-		}
-		converted, err = converter.ConvertOpenAIResponsesRequest(c, info, *responsesReq)
-		if err != nil {
-			return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-	default:
-		chatReq, err := openai_chat.Encode(semantic)
-		if err != nil {
-			return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
-		}
-		if info.IsStream && info.SupportStreamOptions {
-			// the hub settles from the provider's usage, which a Chat
-			// stream reports only when asked
-			chatReq.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
-		}
-		converter, converterErr := requireOpenAIRequestConverter(adaptor, info)
-		if converterErr != nil {
-			return nil, converterErr
-		}
-		converted, err = converter.ConvertOpenAIRequest(c, info, chatReq)
-		if err != nil {
-			return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-	}
-	jsonData, err := common.Marshal(converted)
-	if err != nil {
-		return nil, types.NewError(err, types.ErrorCodeJsonMarshalFailed, types.ErrOptionWithSkipRetry())
-	}
-	jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
-	if err != nil {
-		return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-	}
-	// wire dialect patch: vendor quirks on the compiled body, once per
-	// attempt (internal/relay/wirepatch).
-	return wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData), nil
 }

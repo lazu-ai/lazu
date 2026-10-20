@@ -79,3 +79,32 @@ func TestClaudeHelperBridgesClaudeCodeToChat(t *testing.T) {
 		t.Fatalf("system or tools not in Chat's shape: %s", gjson.GetBytes(body, "messages.0").Raw)
 	}
 }
+
+// Every bridge onto a Chat stream asks for the provider's usage, which a
+// Chat stream reports only when asked; the hubs settle from it.
+func TestBridgeBodyAsksAChatStreamForUsage(t *testing.T) {
+	raw := []byte(`{"model":"m","input":"hi","stream":true}`)
+	parsed, err := textgenruntime.Parse(textgen.ProtocolOpenAIResponses, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1/responses", bytes.NewReader(raw))
+	info := &relaycommon.RelayInfo{
+		IsStream:        true,
+		OriginModelName: "m",
+		ChannelMeta:     &relaycommon.ChannelMeta{UpstreamModelName: "m", SupportStreamOptions: true},
+		ProtocolRequest: parsed.Semantic,
+		ProtocolPlan: &textgen.RelayPlan{
+			ClientProtocol:   parsed.Client,
+			UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIChat, Dialect: "openai_chat_compatible"},
+		},
+	}
+	body, bridged, bridgeErr := BridgeBody(c, info, &captureChatAdaptor{})
+	if bridgeErr != nil || !bridged {
+		t.Fatalf("bridged=%t err=%v", bridged, bridgeErr)
+	}
+	if !gjson.GetBytes(body, "stream_options.include_usage").Bool() || !gjson.GetBytes(body, "messages").IsArray() {
+		t.Fatalf("a bridged Chat stream must ask for usage: %s", body)
+	}
+}

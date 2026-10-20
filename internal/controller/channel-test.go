@@ -329,9 +329,9 @@ func testChannelForLaneWithRequest(
 	}
 
 	var jsonData []byte
-	if body, bridged, bridgeErr := relay.MessagesBridgeBody(c, info); bridged {
-		// An OpenAI-shaped probe planned onto the Messages API takes the
-		// same bridge as a request does.
+	if body, bridged, bridgeErr := relay.BridgeBody(c, info, adaptor); bridged {
+		// A probe planned as a bridge takes the same bridge as a request
+		// does.
 		if bridgeErr != nil {
 			return testResult{context: c, localErr: bridgeErr, lazuErr: bridgeErr}
 		}

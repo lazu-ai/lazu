@@ -77,16 +77,22 @@ func messagesBridgeContext(t *testing.T, family textgen.ProtocolFamily, path str
 	old := adaptorFactories[constant.APITypeAnthropic]
 	adaptorFactories[constant.APITypeAnthropic] = func() channel.BaseAdaptor { return adapter }
 	t.Cleanup(func() { adaptorFactories[constant.APITypeAnthropic] = old })
+	// planned as the controller plans it: the channel's typed override
+	// (temperature) is applied to the IR here, which is the only way an
+	// override reaches a bridged body
+	override := `{"operations":[{"path":"temperature","mode":"set","value":0.2}]}`
+	attempt, err := textgenruntime.PrepareAttempt(parsed, &model.Channel{Type: constant.ChannelTypeAnthropic, ParamOverride: &override}, "claude-haiku-5-5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempt.Plan.Native || attempt.Plan.UpstreamProtocol.Family != textgen.ProtocolAnthropic {
+		t.Fatalf("expected a Messages bridge, got %+v", attempt.Plan)
+	}
 	info := &relaycommon.RelayInfo{
 		Request:         parsed.Wire,
 		OriginModelName: "claude-haiku-5-5",
-		ProtocolRequest: parsed.Semantic,
-		ProtocolPlan: &textgen.RelayPlan{
-			ClientProtocol:   parsed.Client,
-			UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolAnthropic, Dialect: "anthropic"},
-			RequestCodec:     string(textgen.ProtocolAnthropic),
-			ResponseEmitter:  string(family),
-		},
+		ProtocolRequest: attempt.Request,
+		ProtocolPlan:    attempt.Plan,
 	}
 	return c, info, adapter
 }
@@ -115,7 +121,7 @@ func TestTextHelperBridgesAChatClientToMessages(t *testing.T) {
 		"metadata.user_id":                "u-1",
 		"max_tokens":                      "1280", // raised to the thinking minimum beside the budget
 		"stream":                          "true",
-		"temperature":                     "0.2",
+		"temperature":                     "1", // thinking is on: Anthropic takes temperature 1 beside it, and the override is fitted with the rest
 		"thinking.type":                   "enabled",
 	} {
 		if got := gjson.GetBytes(body, path).String(); got != want {
