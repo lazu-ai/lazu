@@ -1,6 +1,6 @@
 # Lazu
 
-> Call Claude, GPT, Gemini and DeepSeek with one OpenAI-compatible API key. Pay as you go, no subscription. The stable lane runs on official APIs, every request is itemized, and Lazu never trains on your data.
+> Every model your agent needs, on one key: Claude, GPT, Gemini and DeepSeek for code, GPT Image for images, Seedance for video. Pay as you go.
 
 ## Key facts
 

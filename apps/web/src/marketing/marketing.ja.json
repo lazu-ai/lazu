@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu｜Claude・GPT・Gemini の API を 1 つのキーで。料金を比較して使い分け",
-      "description": "Claude、GPT、Gemini、DeepSeek を OpenAI 互換の API キー 1 つで呼び出せます。モデルごとの料金を一覧で比較でき、従量課金でサブスク不要、請求はリクエスト単位で確認できます。データを学習に使うことはありません。"
+      "title": "Lazu｜エージェントのためのモデル供給：Claude・GPT・Gemini・Seedance を 1 つのキーで",
+      "description": "エージェントに必要なモデルを 1 つのキーで。Claude・GPT・Gemini・DeepSeek でコード、GPT Image・Seedream で画像、Seedance で動画。Claude Code や Codex からそのまま使え、従量課金です。"
     },
     "nav": {
       "models": "モデル",
@@ -35,12 +35,12 @@
       "menu": "メニュー"
     },
     "hero": {
-      "eyebrow": "AI ゲートウェイ · 開発者と小規模チーム向け",
-      "headline": "すべてのモデルをひとつのアカウントで。請求は",
-      "headlineEm": "読める一枚に。",
-      "whatBefore": "Lazu は",
-      "whatBold": "開発者と小規模チーム向けの AI ゲートウェイ",
-      "whatAfter": "です。Claude Code、Codex、SDK を接続し、セッション、リクエスト明細、メンバー別の使用量から各タスクの費用を確認できます。",
+      "eyebrow": "エージェント、アプリ、チームのために",
+      "headline": "エージェントのための",
+      "headlineEm": "モデル供給。",
+      "whatBefore": "エージェントに必要なモデルが、",
+      "whatBold": "1 つのキーですべて",
+      "whatAfter": "。Opus でコード、GPT Image で画像、Seedance で動画。Claude Code、Codex、SDK からそのまま接続でき、呼び出しごとに明細が残ります。",
       "ctaPrimary": "無料で登録",
       "ctaSecondary": "画面を見る",
       "free": "初回チャージは 10% 上乗せ（最大 $10）"

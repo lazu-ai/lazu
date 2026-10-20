@@ -1,8 +1,8 @@
-<!-- Lazu · Lazu｜Claude・GPT・Gemini の API を 1 つのキーで。料金を比較して使い分け · https://lazu.ai/ja/ -->
+<!-- Lazu · Lazu｜エージェントのためのモデル供給：Claude・GPT・Gemini・Seedance を 1 つのキーで · https://lazu.ai/ja/ -->
 
-# すべてのモデルをひとつのアカウントで。請求は読める一枚に。
+# エージェントのためのモデル供給。
 
-Lazu は開発者と小規模チーム向けの AI ゲートウェイです。Claude Code、Codex、SDK を接続し、セッション、リクエスト明細、メンバー別の使用量から各タスクの費用を確認できます。
+エージェントに必要なモデルが、1 つのキーですべて。Opus でコード、GPT Image で画像、Seedance で動画。Claude Code、Codex、SDK からそのまま接続でき、呼び出しごとに明細が残ります。
 
 ## よくある 4 つの困りごとを、ひとつの管理画面で
 
