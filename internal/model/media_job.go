@@ -564,7 +564,7 @@ func recordMediaJobBreakerEvidence(job MediaJob, eligible bool, failed bool, rea
 	if !ShouldRecordRouteHealthEvidence(modelName, lane, *job.ChannelID, !failed) {
 		return
 	}
-	if err := RecordRouteHealthEvidence(modelName, lane, *job.ChannelID, !failed, reason, now); err != nil {
+	if err := RecordRouteHealthEvidence(modelName, lane, *job.ChannelID, !failed, RouteHealthGenerationReason(reason), now); err != nil {
 		common.SysLog("media job: failed to record route health evidence: " + err.Error())
 	}
 }
@@ -582,6 +582,23 @@ func MediaJobProviderExecuted(job MediaJob) bool {
 	}
 	enabled, _ := snapshot[MediaJobProviderExecutionSnapshotKey].(bool)
 	return enabled
+}
+
+// LatestDeliveredVideoUpstreamID is the newest task a channel delivered for a
+// model, for a liveness check to read back. Empty when there is none.
+func LatestDeliveredVideoUpstreamID(channelID int, modelName string) string {
+	if CoreDB() == nil || channelID <= 0 {
+		return ""
+	}
+	var row MediaJob
+	err := CoreDB().Select("upstream_job_id").
+		Where("channel_id = ? AND model_name = ? AND kind = ? AND status = ? AND upstream_job_id <> ''",
+			channelID, strings.TrimSpace(modelName), MediaJobKindVideo, MediaJobStatusSucceeded).
+		Order("id DESC").Limit(1).Find(&row).Error
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(row.UpstreamJobID)
 }
 
 func mediaJobRoutingFinalGroup(snapshot JSONValue) string {

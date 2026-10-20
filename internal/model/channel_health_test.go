@@ -1228,3 +1228,35 @@ func healthFigureNear(got, want float64) bool {
 	}
 	return math.Abs(got-want) <= 0.1*want
 }
+
+// A video liveness check reads a task's status. It must not enter the
+// route's success rate: a lane whose API answers but whose every generation
+// fails would otherwise read as healthy. A canary generation does count.
+func TestChannelHealthEvidenceExcludesVideoLivenessChecks(t *testing.T) {
+	db := setupChannelHealthTestDB(t)
+	now := time.Now().UTC()
+	for index, row := range []ChannelProbeResult{
+		{Success: true, Modality: ChannelProbeModalityVideoLiveness},
+		{Success: false, Modality: ChannelProbeModalityVideoLiveness},
+		{Success: false, Modality: "video", LatencyMs: 90000},
+	} {
+		row.Lane, row.ModelName, row.ChannelId = ChannelLaneDirect, "seedance-health", 7
+		row.ProbedAt = now.Add(-time.Duration(10+index) * time.Minute)
+		if err := db.Create(&row).Error; err != nil {
+			t.Fatalf("seed probe: %v", err)
+		}
+	}
+	rows, err := QueryChannelHealthEvidence(now.Add(-time.Hour))
+	if err != nil {
+		t.Fatalf("query evidence: %v", err)
+	}
+	var probes []ChannelHealthEvidenceRow
+	for _, row := range rows {
+		if row.Kind == ChannelHealthKindProbe && row.ModelName == "seedance-health" {
+			probes = append(probes, row)
+		}
+	}
+	if len(probes) != 1 || probes[0].RequestCount != 1 || probes[0].ErrorCount != 1 {
+		t.Fatalf("probe evidence = %+v, want only the canary generation", probes)
+	}
+}

@@ -568,8 +568,9 @@ func channelHealthEventsCTE(db *gorm.DB, from, to time.Time) (string, []any, boo
 		CASE WHEN NOT p.success AND COALESCE(p.ttft_ms, 0) > 0 THEN 1 ELSE 0 END AS interrupted,
 		CASE WHEN COALESCE(p.ttft_ms, 0) > 0 THEN 1 ELSE 0 END AS streamed
 	FROM channel_probe_result AS p
-	WHERE p.probed_at >= ? AND p.probed_at < ? AND p.skipped = ?`, ChannelHealthKindProbe, decoded, channelHealthSampledDurationModalities))
-		args = append(args, from, to, false)
+	WHERE p.probed_at >= ? AND p.probed_at < ? AND p.skipped = ?
+		AND COALESCE(p.modality, '') <> ?`, ChannelHealthKindProbe, decoded, channelHealthSampledDurationModalities))
+		args = append(args, from, to, false, ChannelProbeModalityVideoLiveness)
 	}
 	if len(branches) == 0 {
 		return "", nil, false

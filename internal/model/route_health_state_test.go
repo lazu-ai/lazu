@@ -305,3 +305,46 @@ func TestRouteHealthRefreshLetsJobsClearTrippedRoutes(t *testing.T) {
 		t.Fatalf("success did not clear the route: %+v", row)
 	}
 }
+
+// Reaching a video provider proves the API answers and the key works. It ends
+// a streak of reachability failures, but not a streak of failed generations:
+// those only a delivered video can end.
+func TestRouteReachabilityEvidenceClearsOnlyReachabilityStreaks(t *testing.T) {
+	setupRouteHealthTestDB(t)
+	at := time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC)
+	trip := func(channelID int, reason string) {
+		for i := 0; i < RouteHealthFailureThreshold; i++ {
+			if err := RecordRouteHealthEvidence("seedance-2.5", ChannelLaneDirect, channelID, false, reason, at.Add(time.Duration(i)*time.Second)); err != nil {
+				t.Fatalf("trip route %d: %v", channelID, err)
+			}
+		}
+	}
+	failures := func(channelID int) int {
+		var row RouteHealthState
+		if err := coreDB.First(&row, "channel_id = ?", channelID).Error; err != nil {
+			t.Fatalf("load route %d: %v", channelID, err)
+		}
+		return row.ConsecutiveFailures
+	}
+	trip(11, "upstream_overloaded")
+	trip(12, RouteHealthGenerationReason("InternalServiceError"))
+
+	for _, channelID := range []int{11, 12} {
+		if err := RecordRouteReachabilityEvidence("seedance-2.5", ChannelLaneDirect, channelID, true, "", at.Add(time.Minute)); err != nil {
+			t.Fatalf("reachable check on %d: %v", channelID, err)
+		}
+	}
+	if got := failures(11); got != 0 {
+		t.Fatalf("reachability streak after a reachable check = %d, want 0", got)
+	}
+	if got := failures(12); got != RouteHealthFailureThreshold {
+		t.Fatalf("generation streak after a reachable check = %d, want it untouched", got)
+	}
+
+	if err := RecordRouteReachabilityEvidence("seedance-2.5", ChannelLaneDirect, 12, false, "auth", at.Add(2*time.Minute)); err != nil {
+		t.Fatalf("unreachable check: %v", err)
+	}
+	if got := failures(12); got != RouteHealthFailureThreshold+1 {
+		t.Fatalf("an unreachable check must count: failures = %d", got)
+	}
+}

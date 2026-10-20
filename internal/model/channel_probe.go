@@ -65,6 +65,12 @@ type ChannelProbeResult struct {
 	Modality string `json:"modality,omitempty" gorm:"type:varchar(16)"`
 }
 
+// ChannelProbeModalityVideoLiveness marks a video route's liveness check. It
+// reads a task's status and generates nothing, so it speaks for whether the
+// provider answers — the breaker and the "last checked" view — and never for
+// the route's success rate or latency, which only generations measure.
+const ChannelProbeModalityVideoLiveness = "video-liveness"
+
 func (ChannelProbeResult) TableName() string {
 	return "channel_probe_result"
 }
