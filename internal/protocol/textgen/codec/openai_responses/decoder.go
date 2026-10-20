@@ -17,6 +17,10 @@ type StreamDecoder struct {
 	reasoning map[int]string
 	called    bool
 	turn      bool
+	// done-only calls not marked completed: held until the terminal event
+	// says whether the reply was cut at its output cap (kept, a partial call
+	// the caller may resume) or stopped for another reason (dropped)
+	unfinished []textgen.Event
 }
 
 // Decode is the events of one SSE event's data. Shapes it does not know
@@ -92,7 +96,12 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 				// a call reported only by its done item (no added event, no
 				// argument deltas) still opens first
 				d.calls[index], d.called = true, true
-				return []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, ItemID: ev.Item.ID}, done}, nil
+				call := []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, ItemID: ev.Item.ID}, done}
+				if ev.Item.Status != "" && !strings.EqualFold(ev.Item.Status, "completed") {
+					d.unfinished = append(d.unfinished, call...)
+					return nil, nil
+				}
+				return call, nil
 			}
 			return []textgen.Event{done}, nil
 		case "reasoning":
@@ -111,18 +120,32 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 			if ev.Response != nil && ev.Response.Usage != nil {
 				events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: UsageOf(ev.Response.Usage)})
 			}
+			d.unfinished = nil
 			return append(events, textgen.Event{Kind: textgen.EventError, Error: failedError(ev)}), nil
 		}
 		var events []textgen.Event
 		stop := textgen.StopEnd
+		unfinished := d.unfinished
+		d.unfinished = nil
 		if ev.Type == "response.incomplete" || (ev.Response != nil && ev.Response.Status == "incomplete") {
 			stop = textgen.StopLength
-			if ev.Response != nil && ev.Response.IncompleteDetails != nil && ev.Response.IncompleteDetails.Reason == "content_filter" {
+			reason := ""
+			if ev.Response != nil && ev.Response.IncompleteDetails != nil {
+				reason = ev.Response.IncompleteDetails.Reason
+			}
+			if reason == "content_filter" {
 				stop = textgen.StopFilter
 			}
-		} else if d.called {
+			if reason != "max_output_tokens" {
+				// a filtered or otherwise stopped reply does not hand out
+				// the calls it never finished
+				unfinished = nil
+			}
+		}
+		events = append(events, unfinished...)
+		if stop == textgen.StopEnd && d.called {
 			stop = textgen.StopTool
-		} else if ev.Response != nil {
+		} else if stop == textgen.StopEnd && ev.Response != nil {
 			for _, item := range ev.Response.Output {
 				if item.Type == "function_call" {
 					stop = textgen.StopTool
@@ -182,35 +205,42 @@ func codeString(code any) string {
 }
 
 // UsageOf is Responses' usage as the shared usage fact: input_tokens is the
-// whole prompt, the cached part among it.
+// whole prompt, the cached part among it. Every dimension the provider
+// reported is kept (modality and cache-write splits, image counts, cost),
+// since prices differ by dimension.
 func UsageOf(usage *dto.Usage) *dto.Usage {
 	if usage == nil {
 		return nil
 	}
-	out := &dto.Usage{}
-	prompt := usage.InputTokens
-	if prompt == 0 {
-		prompt = usage.PromptTokens
+	out := *usage
+	out.InputTokenSource, out.OutputTokenSource = "", ""
+	if usage.InputTokens != 0 || usage.PromptTokens == 0 {
+		out.PromptTokens = usage.InputTokens
 	}
-	output := usage.OutputTokens
-	if output == 0 {
-		output = usage.CompletionTokens
-	}
-	if prompt > 0 {
-		out.PromptTokens = prompt
-		out.InputTokenSource = dto.UsageSourceProvider
-	}
-	if output > 0 {
-		out.CompletionTokens = output
-		out.OutputTokenSource = dto.UsageSourceProvider
+	if usage.OutputTokens != 0 || usage.CompletionTokens == 0 {
+		out.CompletionTokens = usage.OutputTokens
 	}
 	if usage.InputTokensDetails != nil {
-		out.PromptTokensDetails.CachedTokens = usage.InputTokensDetails.CachedTokens
-		out.PromptTokensDetails.CachedCreationTokens = usage.InputTokensDetails.CacheWriteTokens
+		details := *usage.InputTokensDetails
+		if details.CachedCreationTokens == 0 {
+			details.CachedCreationTokens = details.CacheWriteTokens
+		}
+		out.InputTokensDetails = &details
+		out.PromptTokensDetails = details
 	}
 	if usage.OutputTokensDetails != nil {
-		out.CompletionTokenDetails.ReasoningTokens = usage.OutputTokensDetails.ReasoningTokens
+		details := *usage.OutputTokensDetails
+		out.OutputTokensDetails = &details
+		out.CompletionTokenDetails = details
 	}
-	out.TotalTokens = out.PromptTokens + out.CompletionTokens
-	return out
+	if out.PromptTokens > 0 {
+		out.InputTokenSource = dto.UsageSourceProvider
+	}
+	if out.CompletionTokens > 0 {
+		out.OutputTokenSource = dto.UsageSourceProvider
+	}
+	if out.TotalTokens < out.PromptTokens+out.CompletionTokens {
+		out.TotalTokens = out.PromptTokens + out.CompletionTokens
+	}
+	return &out
 }

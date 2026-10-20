@@ -132,3 +132,50 @@ func TestDecodeResponseKeepsReasoning(t *testing.T) {
 		t.Fatalf("parts: %+v", parts)
 	}
 }
+
+// A done-only call the provider did not finish is held for the terminal
+// event: kept when the reply hit its output cap, dropped otherwise.
+func TestDecoderHoldsUnfinishedCallsForTheTerminal(t *testing.T) {
+	for _, tc := range []struct {
+		reason string
+		keep   bool
+	}{{"max_output_tokens", true}, {"content_filter", false}} {
+		d := &StreamDecoder{}
+		events, err := d.Decode(`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","status":"incomplete","id":"fc_1","call_id":"call_1","name":"lookup","arguments":"{\"q\":"}}`)
+		if err != nil || len(events) != 0 {
+			t.Fatalf("%s: an unfinished call must be held: %+v %v", tc.reason, events, err)
+		}
+		events, _ = d.Decode(`{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"` + tc.reason + `"}}}`)
+		calls := 0
+		for _, event := range events {
+			if event.Kind == textgen.EventToolStart {
+				calls++
+			}
+		}
+		if (calls == 1) != tc.keep {
+			t.Fatalf("%s: events %+v", tc.reason, events)
+		}
+	}
+}
+
+// Every dimension the provider reported survives, since prices differ by
+// dimension.
+func TestUsageOfKeepsEveryDimension(t *testing.T) {
+	images := 2
+	usage := UsageOf(&dto.Usage{
+		InputTokens: 100, OutputTokens: 40, GeneratedImages: &images,
+		InputTokensDetails:  &dto.InputTokenDetails{CachedTokens: 10, ImageTokens: 30, CachedCreation1hTokens: 5, CacheMissTokens: 7},
+		OutputTokensDetails: &dto.OutputTokenDetails{ReasoningTokens: 8, ImageTokens: 20},
+	})
+	if usage.PromptTokens != 100 || usage.CompletionTokens != 40 || usage.GeneratedImages == nil || *usage.GeneratedImages != 2 {
+		t.Fatalf("usage: %+v", usage)
+	}
+	in, out := usage.PromptTokensDetails, usage.CompletionTokenDetails
+	if in.CachedTokens != 10 || in.ImageTokens != 30 || in.CachedCreation1hTokens != 5 || in.CacheMissTokens != 7 || out.ReasoningTokens != 8 || out.ImageTokens != 20 {
+		t.Fatalf("details: %+v %+v", in, out)
+	}
+	merged := textgen.MergeUsage(&dto.Usage{PromptTokens: 100}, usage)
+	if merged.PromptTokensDetails.ImageTokens != 30 || merged.CompletionTokenDetails.ImageTokens != 20 || merged.GeneratedImages == nil {
+		t.Fatalf("merge lost a dimension: %+v", merged)
+	}
+}

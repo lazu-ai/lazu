@@ -104,8 +104,10 @@ func chatClientResponsesStream(c *gin.Context, info *relaycommon.RelayInfo, resp
 	}
 	if failed && !forwarded {
 		// nothing reached the client: as a pre-stream failure, retryable,
-		// recorded as an error, classified by what the upstream said
-		info.StreamFailedWithoutUsage = !service.ValidUsage(col.Result().Usage)
+		// recorded as an error, classified by what the upstream said. The
+		// gateway absorbs the attempt, so its reservation is refunded even
+		// when the failure carried usage, as on the native Responses path.
+		info.StreamFailedWithoutUsage = true
 		common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
 		return usage, responsesFirstEventLazuError(c, failure)
 	}
@@ -132,6 +134,10 @@ func chatClientResponsesStream(c *gin.Context, info *relaycommon.RelayInfo, resp
 	if finishErr != nil {
 		// cut off before the upstream said how the reply ended
 		if !forwarded {
+			// metadata may have arrived, but no output did: a retryable
+			// pre-stream failure, refunded
+			info.StreamFailedWithoutUsage = true
+			common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
 			return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse)
 		}
 		failResponsesCompatChatStream(c, types.ErrorCodeUpstreamStreamFailed, "")
@@ -142,6 +148,9 @@ func chatClientResponsesStream(c *gin.Context, info *relaycommon.RelayInfo, resp
 			chunk.Usage = nil
 		}
 		if err := helper.ObjectData(c, chunk); err != nil {
+			// the upstream finished and its usage is known: settle it even
+			// though the client went away before the last chunk
+			common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
 			return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 	}

@@ -320,6 +320,9 @@ func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 	usage := channel.SettleHubUsage(c, info, col.Result())
 	if upstreamFailed != nil {
 		if !forwarded {
+			// the gateway absorbs the attempt: refunded even when the
+			// failure carried usage
+			info.StreamFailedWithoutUsage = true
 			return usage, types.NewErrorWithStatusCode(fmt.Errorf("%s", upstreamFailed.Message), types.ErrorCodeUpstreamError, http.StatusBadGateway)
 		}
 		// Once the client has seen output, replaying would duplicate it; the
@@ -340,6 +343,8 @@ func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 		// like a pre-stream failure; after, the client is told in its own
 		// protocol and the attempt is not replayed.
 		if !forwarded {
+			info.StreamFailedWithoutUsage = true
+			common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
 			return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse)
 		}
 		client.fail(c, &textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: "upstream stream ended before the reply finished"}, usage)
@@ -348,6 +353,9 @@ func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 		return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse, types.ErrOptionWithSkipRetry())
 	}
 	if err := client.finish(c, usage, info.ShouldIncludeUsage); err != nil {
+		// the upstream finished and its usage is known: settled even
+		// though the client went away before the last frame
+		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
 		return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
 	return usage, nil

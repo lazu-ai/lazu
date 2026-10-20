@@ -176,6 +176,9 @@ func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relayc
 	usage := channel.SettleHubUsage(c, info, col.Result())
 	if upstreamFailed != nil {
 		if !forwarded {
+			// the gateway absorbs the attempt: refunded even when the
+			// failure carried usage
+			info.StreamFailedWithoutUsage = true
 			return usage, types.NewErrorWithStatusCode(fmt.Errorf("%s", upstreamFailed.Message), types.ErrorCodeUpstreamError, http.StatusBadGateway)
 		}
 		// the emitter already wrote the failure in Messages' error event
@@ -203,6 +206,8 @@ func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relayc
 		// ended: cut off. Retryable before any output; after, the client
 		// gets Messages' error event and the attempt is not replayed.
 		if !forwarded {
+			info.StreamFailedWithoutUsage = true
+			common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
 			return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse)
 		}
 		_ = writeFrames(c, emitter.Fail(fmt.Errorf("upstream stream ended before the reply finished")))
@@ -211,6 +216,9 @@ func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relayc
 		return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse, types.ErrOptionWithSkipRetry())
 	}
 	if err := writeFrames(c, frames); err != nil {
+		// the upstream finished and its usage is known: settled even
+		// though the client went away before the last frame
+		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
 		return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
 	return usage, nil
