@@ -645,8 +645,8 @@ func stripLazuFromCachedBody(c *gin.Context) {
 // MessagesBridgeBody is the outbound body for a Chat or Responses client whose
 // attempt is planned onto Anthropic's Messages API (the hub in
 // internal/relay/channel/claude): the IR encoded, the thinking fitted to the
-// model, then the same field removal, operator override and wire patch as
-// every other outbound path. bridged is false when the attempt is not such a
+// model, then the same field removal and wire patch as every other outbound
+// path (the operator's overrides were applied to the IR). bridged is false when the attempt is not such a
 // bridge, and the body is then nil.
 func MessagesBridgeBody(c *gin.Context, info *relaycommon.RelayInfo) (body []byte, bridged bool, lazuErr *types.LazuError) {
 	if !claudechannel.BridgesToMessages(info) {
@@ -675,14 +675,11 @@ func encodeMessagesBridge(c *gin.Context, info *relaycommon.RelayInfo, semantic 
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
-	if len(info.ParamOverride) > 0 {
-		jsonData, err = relaycommon.ApplyParamOverride(jsonData, info.ParamOverride)
-		if err != nil {
-			return nil, types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
-		}
-	}
-	// wire dialect patch: vendor quirks on the compiled body, once per
-	// attempt, after ParamOverride (internal/relay/wirepatch).
+	// No raw param_override: a bridge's overrides are the semantic ones,
+	// already applied to the IR when the attempt was planned
+	// (textgenruntime.PrepareAttempt), and any other refuses the bridge
+	// there. Patching the OpenAI-shaped override onto this Messages body
+	// would add fields Anthropic rejects.
 	jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 	return jsonData, nil
 }

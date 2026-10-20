@@ -289,3 +289,15 @@ func TestEncodeKeepsRolesStrictToolsCacheMarkersAndSummaries(t *testing.T) {
 		t.Fatalf("strict or summary lost: %s", raw)
 	}
 }
+
+// safety_identifier is OpenAI's successor to user and wins over it.
+func TestEncodeCarriesTheSafetyIdentifier(t *testing.T) {
+	request := &textgen.Request{Metadata: textgen.MetadataOptions{User: "old", SafetyIdentifier: "sid-1"}, Conversation: []textgen.InputItem{{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "q"}}}}}
+	out, err := Encode(request, EncodeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out.Metadata) != `{"user_id":"sid-1"}` {
+		t.Fatalf("metadata: %s", out.Metadata)
+	}
+}
