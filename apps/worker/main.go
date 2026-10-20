@@ -152,6 +152,7 @@ func buildWorkerTasks(resources *workerResources, oneShot bool) []worker.Task {
 			worker.NewRoutingQualityBackfillTask(), // runs worker.BackfillQualitySignals
 			worker.NewRoutingRetentionTask(),       // runs worker.PurgeOldRoutingData
 			worker.NewChannelProbeTask(),           // fills health gaps real traffic leaves
+			worker.NewVideoCanaryTask(),            // a daily smallest clip on idle video routes
 			worker.NewPricingCalendarTask(),
 			worker.NewAbilityAuditTask(),           // keeps abilities in step with channel model lists
 			worker.NewModelsDevSyncTask(),          // daily model facts + review queue from models.dev

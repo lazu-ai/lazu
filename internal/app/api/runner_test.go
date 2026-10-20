@@ -30,7 +30,7 @@ func TestAPIBackgroundTasksCanBeDisabled(t *testing.T) {
 
 func TestAPIBackgroundWorkerTasksIncludeChannelProbe(t *testing.T) {
 	tasks := apiBackgroundWorkerTasks()
-	want := []string{"channel_probe", "ability_audit", "models_dev_sync", "project_notifications", "usage_digests", "mail_archive", "project_payment_documents", "dashboard_usage_rollup", "routing_retention", "route_health_rollup", "route_health_rollup_watch"}
+	want := []string{"channel_probe", "video_canary", "ability_audit", "models_dev_sync", "project_notifications", "usage_digests", "mail_archive", "project_payment_documents", "dashboard_usage_rollup", "routing_retention", "route_health_rollup", "route_health_rollup_watch"}
 	if len(tasks) != len(want) {
 		t.Fatalf("background worker tasks = %d, want %v", len(tasks), want)
 	}

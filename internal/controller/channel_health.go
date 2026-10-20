@@ -65,6 +65,10 @@ const (
 	// breaker's verdict, not a percentage.
 	channelHealthDegradedRate = healthAvailabilityDegraded
 	channelHealthOutageRate   = healthAvailabilityOutage
+
+	// channelHealthMinVideoSamples is how many generations a video lane needs
+	// in the window before its success rate is published.
+	channelHealthMinVideoSamples = 5
 )
 
 type channelHealthBucketView struct {
@@ -1337,6 +1341,12 @@ func foldChannelHealth(input channelHealthFoldInput) []channelHealthLaneView {
 			view.Source = channelHealthSourceNone
 		}
 		view.SuccessRate = successRate(samples, view.ErrorCount+view.ProbeErrorCount)
+		if view.Kind == channelHealthKindVideo && samples < channelHealthMinVideoSamples {
+			// Generations are rare and each is minutes long; two in a week is
+			// an anecdote, not a rate, and printing "0%" for it reads as an
+			// outage. The status and the wall still show what happened.
+			view.SuccessRate = nil
+		}
 		if durationCount > 0 {
 			avg := float64(durationSum) / float64(durationCount)
 			view.AvgLatencyMs = &avg
