@@ -73,15 +73,21 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 	// and the refusal stands instead. Counting happens where the attempt is
 	// chosen (controller), not here, since routing plans every candidate.
 	var degradations []textgen.Issue
+	inputTokens := parsed.InputTokens
 	if !hasNestedUnknownField(effective) {
 		var degraded *textgen.Request
 		degraded, degradations = textgen.Degrade(snapshot, effective)
 		if len(degradations) > 0 {
+			// the stand-in puts text in the prompt: the context-window
+			// check counts it
+			if added := instructionText(degraded)[len(instructionPrefix(effective, degraded)):]; added != "" && inputTokens > 0 {
+				inputTokens += EstimateTextTokens(added, modelName)
+			}
 			effective = degraded
 		}
 	}
 	client.Dialect = "openai"
-	plan, err := textgen.PlanAttempt(client, snapshot, effective, channel.Id, modelName, parsed.InputTokens)
+	plan, err := textgen.PlanAttempt(client, snapshot, effective, channel.Id, modelName, inputTokens)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +97,31 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		return nil, err
 	}
 	return &Attempt{Request: effective, Plan: plan}, nil
+}
+
+// EstimateTextTokens counts the tokens of text for the model. The service
+// package sets the tokenizer's count (it depends on this package); the
+// default overestimates, which only narrows the context-window check.
+var EstimateTextTokens = func(text, _ string) int { return (len(text) + 2) / 3 }
+
+// instructionText is the request's instructions, joined.
+func instructionText(request *textgen.Request) string {
+	var out strings.Builder
+	for _, instruction := range request.Instructions {
+		out.WriteString(instruction.Text)
+	}
+	return out.String()
+}
+
+// instructionPrefix is the part of before's instructions after keeps
+// unchanged at its start: a degradation only appends.
+func instructionPrefix(before, after *textgen.Request) string {
+	old, now := instructionText(before), instructionText(after)
+	n := 0
+	for n < len(old) && n < len(now) && old[n] == now[n] {
+		n++
+	}
+	return now[:n]
 }
 
 // hasNestedUnknownField says whether the request carries a field below the
