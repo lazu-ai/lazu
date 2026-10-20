@@ -21,7 +21,7 @@ func TestFormatBusinessDigestComparesWithTheWeek(t *testing.T) {
 	current := model.Overview{
 		Totals: model.OverviewTotals{
 			RequestCount: 124_000, OutcomeCount: 124_000, SuccessRate: floatPtr(0.996), P95LatencyMs: floatPtr(2300),
-			AmountMicrousd: 3_210_500_000, GrossMarginMicrousd: 820_000_000, CostSampleCount: 10,
+			AmountMicrousd: 3_210_500_000, GrossMarginMicrousd: 820_000_000, CostSampleCount: 124_000,
 		},
 		Growth: &model.OverviewGrowth{NewUsers: 23, Paid: 4, ActiveUsers: 310},
 		Topups: &model.OverviewTopups{Count: 4, AmountMicrousd: 5_000_000_000},
@@ -53,7 +53,7 @@ func TestFormatBusinessDigestRaisesAttention(t *testing.T) {
 	day := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
 	current := model.Overview{Totals: model.OverviewTotals{
 		RequestCount: 4_000, OutcomeCount: 4_000, SuccessRate: floatPtr(0.95),
-		AmountMicrousd: 20_000_000, GrossMarginMicrousd: -5_000_000, CostSampleCount: 1,
+		AmountMicrousd: 20_000_000, GrossMarginMicrousd: -5_000_000, CostSampleCount: 4_000,
 	}}
 	week := model.OverviewTotals{RequestCount: 70_000, AmountMicrousd: 700_000_000}
 	section := formatBusinessDigest(day, current, week, 7, relaymetrics.ZeroTokenQuotaZeroSnapshot{Zero: 80, Total: 4_000, Rate: 0.02})
@@ -62,6 +62,37 @@ func TestFormatBusinessDigestRaisesAttention(t *testing.T) {
 		if !strings.Contains(joined, expected) {
 			t.Fatalf("attention missing %q:\n%s", expected, joined)
 		}
+	}
+}
+
+func TestFormatBusinessDigestLabelsPartialMargin(t *testing.T) {
+	day := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	current := model.Overview{Totals: model.OverviewTotals{
+		RequestCount: 1_000, OutcomeCount: 1_000, SuccessRate: floatPtr(1),
+		AmountMicrousd: 50_000_000, GrossMarginMicrousd: -2_000_000, CostSampleCount: 40,
+	}}
+	section := formatBusinessDigest(day, current, model.OverviewTotals{}, 7, relaymetrics.ZeroTokenQuotaZeroSnapshot{})
+	if !strings.Contains(section.Lines[1], "毛利 -$2.00（仅 40 / 1,000 个请求有成本数据）") {
+		t.Fatalf("partial margin should say how much it covers: %q", section.Lines[1])
+	}
+	if len(section.Attention) != 0 {
+		t.Fatalf("a margin over part of the traffic must not raise attention: %v", section.Attention)
+	}
+}
+
+func TestDigestDayWindowAlignsToRollupHours(t *testing.T) {
+	kolkata := time.FixedZone("IST", 5*3600+30*60)
+	today, day := digestDayWindow(time.Date(2026, 10, 20, 9, 10, 0, 0, kolkata))
+	if today.Unix()%3600 != 0 || today.Sub(day) != 24*time.Hour {
+		t.Fatalf("window must be 24 whole rollup hours: %s to %s", day, today)
+	}
+	if want := time.Date(2026, 10, 19, 23, 30, 0, 0, kolkata); !today.Equal(want) {
+		t.Fatalf("half-hour zone should floor midnight to the hour: got %s want %s", today, want)
+	}
+	shanghai := time.FixedZone("CST", 8*3600)
+	today, _ = digestDayWindow(time.Date(2026, 10, 20, 9, 10, 0, 0, shanghai))
+	if want := time.Date(2026, 10, 20, 0, 0, 0, 0, shanghai); !today.Equal(want) {
+		t.Fatalf("whole-hour zone keeps local midnight: got %s want %s", today, want)
 	}
 }
 

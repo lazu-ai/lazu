@@ -44,8 +44,7 @@ func RegisterOpsDigestSections() {
 }
 
 func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.DigestSection, error) {
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	dayStart := todayStart.AddDate(0, 0, -1)
+	todayStart, dayStart := digestDayWindow(now)
 	_, offset := now.Zone()
 	day, err := model.BuildOverviewContext(ctx, model.OverviewRequest{
 		Platform: true,
@@ -59,7 +58,7 @@ func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.Di
 		return alerting.DigestSection{}, fmt.Errorf("yesterday overview: %w", err)
 	}
 	week, err := model.BuildOverviewContext(ctx, model.OverviewRequest{
-		Start:    dayStart.AddDate(0, 0, -7).Unix(),
+		Start:    dayStart.Add(-7 * 24 * time.Hour).Unix(),
 		End:      dayStart.Unix(),
 		Bucket:   model.OverviewBucketDay,
 		TZOffset: int64(offset),
@@ -76,7 +75,18 @@ func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.Di
 	if err != nil {
 		return alerting.DigestSection{}, fmt.Errorf("zero-token rate: %w", err)
 	}
-	return formatBusinessDigest(dayStart, day, week.Totals, 7, zero), nil
+	return formatBusinessDigest(time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, now.Location()), day, week.Totals, 7, zero), nil
+}
+
+// digestDayWindow returns yesterday as [dayStart, todayStart). The rollups
+// are whole UTC hours, so in a zone whose offset is not a whole hour (such
+// as Asia/Kolkata) local midnight is floored to the hour; otherwise the
+// reader would drop the bucket before the start but keep the one before the
+// end, and the comparison window would not match.
+func digestDayWindow(now time.Time) (todayStart time.Time, dayStart time.Time) {
+	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	todayStart = time.Unix(midnight.Unix()-midnight.Unix()%3600, 0).In(now.Location())
+	return todayStart, todayStart.Add(-24 * time.Hour)
 }
 
 // formatBusinessDigest compares yesterday with the average day of the
@@ -98,11 +108,19 @@ func formatBusinessDigest(day time.Time, current model.Overview, previous model.
 	section.Lines = append(section.Lines, requestLine)
 
 	amountLine := "消耗 " + formatDigestUSD(totals.AmountMicrousd) + compareDigestAverage(float64(totals.AmountMicrousd), avgAmount, formatDigestUSD(int64(avgAmount+0.5)))
-	if totals.CostSampleCount > 0 {
+	// The rollup only adds margin for requests with cost data, so a margin
+	// over part of the traffic is labelled as such and never compared with
+	// the whole day's spend.
+	marginComplete := totals.CostSampleCount > 0 && totals.CostSampleCount >= totals.RequestCount
+	switch {
+	case marginComplete:
 		amountLine += " · 毛利 " + formatDigestUSD(totals.GrossMarginMicrousd)
 		if totals.AmountMicrousd > 0 {
 			amountLine += fmt.Sprintf("（%.0f%%）", float64(totals.GrossMarginMicrousd)/float64(totals.AmountMicrousd)*100)
 		}
+	case totals.CostSampleCount > 0:
+		amountLine += fmt.Sprintf(" · 毛利 %s（仅 %s / %s 个请求有成本数据）",
+			formatDigestUSD(totals.GrossMarginMicrousd), formatDigestCount(totals.CostSampleCount), formatDigestCount(totals.RequestCount))
 	}
 	section.Lines = append(section.Lines, amountLine)
 
@@ -147,7 +165,7 @@ func formatBusinessDigest(day time.Time, current model.Overview, previous model.
 		section.Attention = append(section.Attention, fmt.Sprintf("昨日消耗 %s，比前 7 天日均 %s 少了 %.0f%%",
 			formatDigestUSD(totals.AmountMicrousd), formatDigestUSD(int64(avgAmount+0.5)), (1-float64(totals.AmountMicrousd)/avgAmount)*100))
 	}
-	if totals.CostSampleCount > 0 && totals.GrossMarginMicrousd < 0 {
+	if marginComplete && totals.GrossMarginMicrousd < 0 {
 		section.Attention = append(section.Attention, "昨日毛利为负（"+formatDigestUSD(totals.GrossMarginMicrousd)+"），请检查定价和上游成本")
 	}
 	if zero.Total >= opsDigestMinZeroTokenTotal && zero.Rate >= opsDigestZeroTokenRate {
@@ -172,10 +190,12 @@ type opsCapacitySample struct {
 func buildCapacityDigestSection(ctx context.Context, now time.Time) (alerting.DigestSection, error) {
 	section := alerting.DigestSection{Title: "数据与容量"}
 
-	if common.AppConfig.ArtifactStorage.S3.IsConfigured() {
+	// pg_dump only runs for PostgreSQL into the artifact bucket; anywhere
+	// else an empty pg-dump/ prefix is expected, not a missing backup.
+	if common.UsingPostgreSQL && common.AppConfig.ArtifactStorage.S3.IsConfigured() {
 		backups, err := listDigestBackups(ctx)
 		if err != nil {
-			section.Lines = append(section.Lines, "⚠️ 读取 R2 备份列表失败："+err.Error())
+			section.Attention = append(section.Attention, "无法读取 R2 备份列表，备份是否存在没有检查："+truncateOpsDigestError(err))
 		} else {
 			line, attention := formatBackupDigest(now, backups)
 			section.Lines = append(section.Lines, line)
@@ -186,9 +206,14 @@ func buildCapacityDigestSection(ctx context.Context, now time.Time) (alerting.Di
 	disk := common.GetDiskSpaceInfo()
 	sample := opsCapacitySample{DiskUsed: disk.Used, DiskTotal: disk.Total, DiskFree: disk.Free}
 	if common.UsingPostgreSQL {
-		sample.CoreBytes = digestDatabaseSize(ctx, model.CoreDB())
+		var err error
+		if sample.CoreBytes, err = digestDatabaseSize(ctx, model.CoreDB()); err != nil {
+			section.Attention = append(section.Attention, "无法读取主库大小："+truncateOpsDigestError(err))
+		}
 		if telemetry := model.TelemetryDB(); telemetry != nil && telemetry != model.CoreDB() {
-			sample.TelemetryBytes = digestDatabaseSize(ctx, telemetry)
+			if sample.TelemetryBytes, err = digestDatabaseSize(ctx, telemetry); err != nil {
+				section.Attention = append(section.Attention, "无法读取遥测库大小："+truncateOpsDigestError(err))
+			}
 		}
 	}
 	history := recordCapacitySample(ctx, now, sample)
@@ -196,11 +221,12 @@ func buildCapacityDigestSection(ctx context.Context, now time.Time) (alerting.Di
 	section.Lines = append(section.Lines, lines...)
 	section.Attention = append(section.Attention, attention...)
 
-	if line, warn := redisMemoryDigest(ctx); line != "" {
+	line, warn := redisMemoryDigest(ctx)
+	if line != "" {
 		section.Lines = append(section.Lines, line)
-		if warn != "" {
-			section.Attention = append(section.Attention, warn)
-		}
+	}
+	if warn != "" {
+		section.Attention = append(section.Attention, warn)
 	}
 	return section, nil
 }
@@ -254,16 +280,26 @@ func formatBackupDigest(now time.Time, objects []storage.ObjectInfo) (string, []
 	return line, attention
 }
 
-func digestDatabaseSize(ctx context.Context, db *gorm.DB) int64 {
+func digestDatabaseSize(ctx context.Context, db *gorm.DB) (int64, error) {
 	if db == nil {
-		return 0
+		return 0, nil
+	}
+	if db.Dialector.Name() != "postgres" {
+		return 0, nil
 	}
 	var size int64
 	if err := db.WithContext(ctx).Raw("SELECT pg_database_size(current_database())").Scan(&size).Error; err != nil {
-		common.SysError("ops digest: database size query failed: " + err.Error())
-		return 0
+		return 0, err
 	}
-	return size
+	return size, nil
+}
+
+func truncateOpsDigestError(err error) string {
+	runes := []rune(strings.TrimSpace(err.Error()))
+	if len(runes) > 160 {
+		return string(runes[:160]) + "…"
+	}
+	return string(runes)
 }
 
 // recordCapacitySample stores today's sample and returns the stored history
@@ -364,7 +400,7 @@ func redisMemoryDigest(ctx context.Context) (string, string) {
 	}
 	info, err := common.RDB.Info(ctx, "memory").Result()
 	if err != nil {
-		return "⚠️ 读取 Redis 内存失败：" + err.Error(), ""
+		return "", "无法读取 Redis 内存：" + truncateOpsDigestError(err)
 	}
 	used, max := redisInfoInt(info, "used_memory"), redisInfoInt(info, "maxmemory")
 	if used <= 0 {
