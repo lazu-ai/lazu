@@ -1,0 +1,278 @@
+/* The Tasks view reads like the usage log: the log's summary strip, table and
+   expanded receipt (log-table.css), plus what a media job adds. */
+.tasks-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tasks-summary {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.tasks-filters {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tasks-seg {
+  background: var(--lazu-surface-muted);
+  border-radius: var(--lazu-radius-control);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+}
+
+.tasks-seg__button {
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.tasks-seg__button[aria-pressed='true'] {
+  background: var(--lazu-surface);
+  box-shadow: 0 1px 2px rgb(20 22 28 / 8%);
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+.tasks-search {
+  margin-left: auto;
+}
+
+.tasks-search input {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-control);
+  color: var(--lazu-ink);
+  font: inherit;
+  font-size: 13px;
+  min-height: 40px;
+  padding: 0 12px;
+  width: min(280px, 100%);
+}
+
+.tasks-table {
+  min-width: 1040px;
+}
+
+.tasks-nowrap {
+  white-space: nowrap;
+}
+
+.tasks-prompt {
+  display: inline-block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.tasks-chip {
+  margin-left: 6px;
+}
+
+.tasks-empty {
+  color: var(--lazu-text-muted);
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.logv2-row[data-open='true'] td {
+  background: var(--lazu-evidence-soft);
+}
+
+.tasks-status--running {
+  color: var(--lazu-evidence-strong);
+  font-weight: 500;
+}
+
+.tasks-status--running .logv2-status__dot {
+  background: var(--lazu-evidence);
+}
+
+.tasks-status--pending .logv2-status__dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.tasks-status--expired .logv2-status__dot {
+  background: var(--lazu-border-strong);
+}
+
+.tasks-tone--ok {
+  color: var(--lazu-evidence-strong);
+}
+
+.tasks-tone--bad {
+  color: var(--lazu-danger);
+  font-weight: 500;
+}
+
+.tasks-tone--warn {
+  color: var(--lazu-warning-strong);
+  font-weight: 500;
+}
+
+.tasks-tone--soft {
+  color: var(--lazu-text-muted);
+}
+
+.tasks-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 14px 10px 6px;
+}
+
+.tasks-detail h3 {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+}
+
+.tasks-detail__preview {
+  display: flex;
+  flex: 0 1 320px;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 240px;
+}
+
+.tasks-detail__preview video,
+.tasks-detail__preview img,
+.tasks-detail__placeholder {
+  aspect-ratio: 16 / 9;
+  background: var(--lazu-surface-muted);
+  border-radius: 12px;
+  object-fit: contain;
+  width: 100%;
+}
+
+.tasks-detail__placeholder {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 12.5px;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+}
+
+.tasks-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tasks-detail__col {
+  flex: 1 1 240px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+
+.tasks-timeline {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tasks-timeline li {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 116px minmax(0, 1fr);
+}
+
+.tasks-detail__error {
+  background: var(--lazu-danger-soft);
+  border-radius: 10px;
+  color: var(--lazu-danger);
+  margin: 10px 0 0;
+  padding: 8px 10px;
+}
+
+.tasks-bill,
+.tasks-ids {
+  display: grid;
+  gap: 6px 12px;
+  grid-template-columns: max-content minmax(0, 1fr);
+  margin: 0;
+}
+
+.tasks-bill dt,
+.tasks-ids dt {
+  color: var(--lazu-text-muted);
+}
+
+.tasks-bill dd,
+.tasks-ids dd {
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tasks-bill dd {
+  font-family: var(--lazu-font-mono);
+  text-align: right;
+}
+
+.tasks-detail__prompt {
+  color: var(--lazu-ink);
+  margin: 10px 0 0;
+}
+
+.tasks-button {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 10px;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12.5px;
+  min-height: 36px;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.tasks-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.tasks-button--primary {
+  background: var(--lazu-action);
+  border-color: var(--lazu-action);
+  color: var(--lazu-on-action);
+}
+
+.tasks-pager {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 8px 16px;
+  justify-content: space-between;
+}
+
+.tasks-pager__buttons {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}

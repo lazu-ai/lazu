@@ -1443,6 +1443,14 @@
   color: var(--lazu-text-muted);
 }
 
+.logv2-inflight__link {
+  color: var(--lazu-evidence);
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: auto;
+  text-decoration: none;
+}
+
 .logv2-inflight__id {
   margin-left: auto;
   color: var(--lazu-text-muted);

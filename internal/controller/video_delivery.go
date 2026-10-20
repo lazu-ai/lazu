@@ -29,21 +29,32 @@ var videoWaitInterval = 2 * time.Second
 // fresh signed link, its type, size and the time the file is deleted, so a
 // finished job can be played or downloaded without another call.
 func videoJobViews(ctx context.Context, jobs []model.MediaJob, includeRequest bool, now time.Time) []dto.MediaJobObject {
-	views := make([]dto.MediaJobObject, len(jobs))
+	views, _ := mediaJobViews(ctx, jobs, includeRequest, now)
+	for i := range views {
+		views[i].Object = "video"
+	}
+	return views
+}
+
+// mediaJobViews renders media jobs with their stored files described and
+// signed. stored[i] says whether job i's file still exists; a finished job
+// whose file is gone has passed its storage period.
+func mediaJobViews(ctx context.Context, jobs []model.MediaJob, includeRequest bool, now time.Time) (views []dto.MediaJobObject, stored []bool) {
+	views = make([]dto.MediaJobObject, len(jobs))
+	stored = make([]bool, len(jobs))
 	fileIDs := make([]string, 0, len(jobs))
 	for i, job := range jobs {
 		views[i] = job.ToDTO(includeRequest)
-		views[i].Object = "video"
 		if views[i].Artifact != nil && views[i].Artifact.FileID != "" {
 			fileIDs = append(fileIDs, views[i].Artifact.FileID)
 		}
 	}
 	if len(fileIDs) == 0 {
-		return views
+		return views, stored
 	}
 	files, err := model.GetFilesByIDs(fileIDs)
 	if err != nil {
-		return views
+		return views, stored
 	}
 	for i := range views {
 		artifact := views[i].Artifact
@@ -54,6 +65,10 @@ func videoJobViews(ctx context.Context, jobs []model.MediaJob, includeRequest bo
 		if !ok || file.ProjectID != jobs[i].ProjectID {
 			continue
 		}
+		if file.ExpiresAt != nil && *file.ExpiresAt > 0 && *file.ExpiresAt <= now.Unix() {
+			continue
+		}
+		stored[i] = true
 		artifact.MimeType = file.MimeType
 		artifact.Bytes = file.Bytes
 		if file.ExpiresAt != nil {
@@ -65,7 +80,7 @@ func videoJobViews(ctx context.Context, jobs []model.MediaJob, includeRequest bo
 			artifact.URLExpiresAt = link.ExpiresAt
 		}
 	}
-	return views
+	return views, stored
 }
 
 // videoDownloadFilename names a downloaded video after its job. The stored

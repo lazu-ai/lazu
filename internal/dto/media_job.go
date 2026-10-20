@@ -48,3 +48,31 @@ type MediaJobListResponse struct {
 	Object string           `json:"object"`
 	Data   []MediaJobObject `json:"data"`
 }
+
+// ConsoleTaskObject is one row of the console's Tasks view: the job as the API
+// shows it, plus what the console needs to read it like a usage-log row.
+type ConsoleTaskObject struct {
+	MediaJobObject
+	TokenName string          `json:"token_name,omitempty"`
+	Prompt    string          `json:"prompt,omitempty"`
+	Spec      ConsoleTaskSpec `json:"spec"`
+	// HoldMicrousd is what submission held; ChargeMicrousd what settlement
+	// charged; RefundMicrousd what went back (the whole hold on failure).
+	HoldMicrousd   int64 `json:"hold_microusd"`
+	ChargeMicrousd int64 `json:"charge_microusd"`
+	RefundMicrousd int64 `json:"refund_microusd"`
+	// FileExpired marks a finished job whose stored file has been deleted.
+	FileExpired bool `json:"file_expired,omitempty"`
+}
+
+// ConsoleTaskSpec is the request's shape in a few fields.
+type ConsoleTaskSpec struct {
+	Seconds         int    `json:"seconds,omitempty"`
+	Resolution      string `json:"resolution,omitempty"`
+	AspectRatio     string `json:"aspect_ratio,omitempty"`
+	Audio           *bool  `json:"audio,omitempty"`
+	ReferenceImages int    `json:"reference_images,omitempty"`
+	ReferenceVideos int    `json:"reference_videos,omitempty"`
+	ReferenceAudios int    `json:"reference_audios,omitempty"`
+	Frames          int    `json:"frames,omitempty"`
+}

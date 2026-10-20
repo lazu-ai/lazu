@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { createSearchParams } from '../../components/ui/table-tools';
 import { API } from '../../helpers/api';
 import { unwrap } from '../../lib/api-error';
@@ -90,6 +91,12 @@ export function InFlightJobs({
         <span className='logv2-inflight__hint'>
           {t('page.console.log.inFlight.hint')}
         </span>
+        <Link
+          className='logv2-inflight__link'
+          to={`/console/usage?tab=tasks&status=active${project.project_id ? `&project_id=${encodeURIComponent(project.project_id)}` : ''}`}
+        >
+          {t('page.console.log.inFlight.viewAll')}
+        </Link>
       </div>
       <ul className='logv2-inflight__list'>
         {jobs.map((job) => {
@@ -119,7 +126,12 @@ export function InFlightJobs({
                   })}
                 </span>
               ) : null}
-              <code className='logv2-inflight__id'>{job.id}</code>
+              <Link
+                className='logv2-inflight__id'
+                to={`/console/usage?tab=tasks&task=${encodeURIComponent(job.id)}${project.project_id ? `&project_id=${encodeURIComponent(project.project_id)}` : ''}`}
+              >
+                {job.id}
+              </Link>
             </li>
           );
         })}

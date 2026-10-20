@@ -1141,6 +1141,9 @@ export function LogDetailPanel({
   const reasoning = effortClamped || String(other.reasoning_effort || '');
   const path = String(other.request_path || '');
   const requestId = String(record.request_id || '');
+  // A video or image job settles minutes after its request; its own page has
+  // the file, the timeline and the hold.
+  const mediaJobId = String(other.media_job_id || '');
   const decisionMeta = isUnknownRecord(other.decision) ? other.decision : null;
   const generationId = String(decisionMeta?.generation_request_id || '');
   const parentId = String(other.parent_request_id || '');
@@ -1354,6 +1357,15 @@ export function LogDetailPanel({
           </DetailFact>
         ) : null}
         <span className='logv2-m3__spacer' />
+        {mediaJobId ? (
+          <Link
+            className='logv2-m3__fact logv2-link'
+            to={`/console/usage?tab=tasks&days=30&task=${encodeURIComponent(mediaJobId)}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {t('page.console.log.detail.viewTask')}
+          </Link>
+        ) : null}
         {requestId ? (
           <span className='logv2-m3__fact logv2-m3__rid'>
             {t('page.console.log.m3.requestId')}{' '}
