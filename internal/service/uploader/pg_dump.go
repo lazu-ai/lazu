@@ -89,12 +89,14 @@ func StartPgDumpScheduler() {
 	pgDumpCron.Start()
 }
 
+const pgDumpAlreadyRunning = "skipped: already running"
+
 // RunPgDumpOnce performs one pg_dump and uploads the gzipped output to R2.
 // Exposed so admin endpoints / restore drills can trigger an immediate dump.
 func RunPgDumpOnce(ctx context.Context, dsn string) PgDumpResult {
 	res := PgDumpResult{StartedAt: time.Now()}
 	if !atomic.CompareAndSwapInt32(&pgDumpRunning, 0, 1) {
-		res.Reason = "skipped: already running"
+		res.Reason = pgDumpAlreadyRunning
 		return res
 	}
 	defer atomic.StoreInt32(&pgDumpRunning, 0)

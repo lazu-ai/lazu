@@ -185,7 +185,8 @@ func compactOne(ctx context.Context, client storage.ObjectStorage, key string) e
 func NotifyCompactorResult(res CompactorResult) {
 	if res.Err != nil {
 		summary := fmt.Sprintf("scanned=%d compressed=%d failed=%d", res.Scanned, res.Compressed, res.Failed)
-		alerting.RecordHealth("archive-compactor", "R2 archive compactor", "failed", summary)
+		alerting.RecordHealth("archive-compactor", "R2 archive compactor", "failed",
+			fmt.Sprintf("错误：%v；%s", res.Err, compactorHealthSummary(res)))
 		alerting.Report(alerting.Incident{
 			Key:         "archive-compactor",
 			Fingerprint: compactorErrorFingerprint(res.Err),
@@ -197,7 +198,7 @@ func NotifyCompactorResult(res CompactorResult) {
 	}
 	if res.Failed > 0 {
 		summary := fmt.Sprintf("scanned=%d compressed=%d failed=%d", res.Scanned, res.Compressed, res.Failed)
-		alerting.RecordHealth("archive-compactor", "R2 archive compactor", "failed", summary)
+		alerting.RecordHealth("archive-compactor", "R2 archive compactor", "failed", compactorHealthSummary(res))
 		alerting.Report(alerting.Incident{
 			Key:         "archive-compactor",
 			Fingerprint: "compactor-object-failures",
@@ -207,9 +208,12 @@ func NotifyCompactorResult(res CompactorResult) {
 		})
 		return
 	}
-	summary := fmt.Sprintf("scanned=%d compressed=%d failed=0", res.Scanned, res.Compressed)
-	alerting.RecordHealth("archive-compactor", "R2 archive compactor", "ok", summary)
+	alerting.RecordHealth("archive-compactor", "R2 archive compactor", "ok", compactorHealthSummary(res))
 	alerting.Resolve("archive-compactor", "✅ Lazu archive compactor recovered")
+}
+
+func compactorHealthSummary(res CompactorResult) string {
+	return fmt.Sprintf("检查 %d 个文件，压缩 %d 个，失败 %d 个", res.Scanned, res.Compressed, res.Failed)
 }
 
 func compactorErrorFingerprint(err error) string {

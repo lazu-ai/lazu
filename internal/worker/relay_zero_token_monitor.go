@@ -63,7 +63,7 @@ func (t *RelayZeroTokenMonitorTask) Run(ctx context.Context) error {
 		return nil
 	}
 	t.consecutiveBreaches = NextZeroTokenBreachCount(t.consecutiveBreaches, snapshot.Rate, snapshot.Total)
-	summary := fmt.Sprintf("rate=%.2f%% zero=%d total=%d", snapshot.Rate*100, snapshot.Zero, snapshot.Total)
+	summary := zeroTokenHealthSummary(snapshot)
 	if t.consecutiveBreaches < zeroTokenMonitorConsecutiveLimit {
 		alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "ok", summary)
 		if t.consecutiveBreaches == 0 {
@@ -107,15 +107,13 @@ func runZeroTokenOneShot(ctx context.Context, db *gorm.DB, now time.Time) error 
 			return nil
 		}
 		if NextZeroTokenBreachCount(0, snapshot.Rate, snapshot.Total) == 0 {
-			alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "ok",
-				fmt.Sprintf("rate=%.2f%% zero=%d total=%d", snapshot.Rate*100, snapshot.Zero, snapshot.Total))
+			alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "ok", zeroTokenHealthSummary(snapshot))
 			alerting.Resolve(zeroTokenIncidentKey, "✅ Lazu zero-token billing anomaly recovered")
 			return nil
 		}
 		latest = snapshot
 	}
-	summary := fmt.Sprintf("rate=%.2f%% zero=%d total=%d", latest.Rate*100, latest.Zero, latest.Total)
-	alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "failed", summary)
+	alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "failed", zeroTokenHealthSummary(latest))
 	alerting.Report(alerting.Incident{
 		Key:         zeroTokenIncidentKey,
 		Fingerprint: relaymetrics.ZeroTokenQuotaZeroMetricName,
@@ -133,16 +131,21 @@ func runZeroTokenOneShot(ctx context.Context, db *gorm.DB, now time.Time) error 
 
 func recordZeroTokenUnknown(snapshot relaymetrics.ZeroTokenQuotaZeroSnapshot) {
 	alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "unknown",
-		fmt.Sprintf("insufficient samples: rate=%.2f%% zero=%d total=%d min=%d",
-			snapshot.Rate*100, snapshot.Zero, snapshot.Total, zeroTokenMonitorMinSamples))
+		fmt.Sprintf("最近 1 分钟只有 %d 个请求，不到 %d 个，不做判断（流量低，不是故障）",
+			snapshot.Total, zeroTokenMonitorMinSamples))
+}
+
+func zeroTokenHealthSummary(snapshot relaymetrics.ZeroTokenQuotaZeroSnapshot) string {
+	return fmt.Sprintf("最近 1 分钟 %d 个请求，其中 %d 个记为 0 token（%.2f%%）",
+		snapshot.Total, snapshot.Zero, snapshot.Rate*100)
 }
 
 func reportZeroTokenQueryFailure(err error) {
 	if err == nil {
 		return
 	}
-	summary := "query error=" + truncateZeroTokenError(err.Error(), 180)
-	alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "failed", summary)
+	alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "failed",
+		"查询失败："+truncateZeroTokenError(err.Error(), 180))
 	alerting.Report(alerting.Incident{
 		Key:         zeroTokenIncidentKey,
 		Fingerprint: "query:" + truncateZeroTokenError(strings.ToLower(err.Error()), 180),

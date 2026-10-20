@@ -15,13 +15,18 @@ const (
 )
 
 func NotifyPgDumpResult(res PgDumpResult) {
+	if res.Reason == pgDumpAlreadyRunning && res.Err == nil {
+		// A run that is still going has no new outcome. Keep the last real
+		// result, so a dump that hangs ages into a stopped backup in the
+		// digest instead of refreshing a quiet skip every day.
+		return
+	}
 	if res.Reason != "" && res.Err == nil {
 		alerting.RecordHealth(pgDumpIncidentKey, "Database backup", "skipped", res.Reason)
 		return
 	}
 	if res.Err != nil {
-		summary := fmt.Sprintf("error=%v", res.Err)
-		alerting.RecordHealth(pgDumpIncidentKey, "Database backup", "failed", summary)
+		alerting.RecordHealth(pgDumpIncidentKey, "Database backup", "failed", fmt.Sprintf("错误：%v", res.Err))
 		alerting.Report(alerting.Incident{
 			Key:         pgDumpIncidentKey,
 			Fingerprint: pgDumpFailureFingerprint(res),
@@ -31,7 +36,7 @@ func NotifyPgDumpResult(res PgDumpResult) {
 		})
 		return
 	}
-	summary := fmt.Sprintf("size=%s duration=%s", humanSize(res.SizeBytes), res.Duration.Truncate(time.Millisecond))
+	summary := fmt.Sprintf("大小 %s，耗时 %s", humanSize(res.SizeBytes), formatHealthDuration(res.Duration))
 	alerting.RecordHealth(pgDumpIncidentKey, "Database backup", "ok", summary)
 	alerting.Resolve(pgDumpIncidentKey, fmt.Sprintf("✅ Lazu pg_dump recovered\nkey=%s", res.Key))
 }
@@ -46,7 +51,7 @@ func notifyUploadResult(summary *UploadSummary, runErr error) {
 	uploaded, failed, warnings := uploadCounts(summary)
 	if runErr == nil && failed == 0 && warnings == 0 {
 		alerting.RecordHealth(hourlyUploadIncidentKey, "R2 JSONL upload", "ok",
-			fmt.Sprintf("uploaded=%d failed=0 warnings=0", uploaded))
+			fmt.Sprintf("上传 %d 个文件", uploaded))
 		alerting.Resolve(hourlyUploadIncidentKey,
 			fmt.Sprintf("✅ Lazu hourly upload recovered\nuploaded=%d failed=0 warnings=0", uploaded))
 		return
@@ -57,7 +62,7 @@ func notifyUploadResult(summary *UploadSummary, runErr error) {
 		status = "failed"
 	}
 	alerting.RecordHealth(hourlyUploadIncidentKey, "R2 JSONL upload", status,
-		fmt.Sprintf("uploaded=%d failed=%d warnings=%d", uploaded, failed, warnings))
+		fmt.Sprintf("上传 %d 个文件，失败 %d 个，警告 %d 条", uploaded, failed, warnings))
 
 	msg := fmt.Sprintf("⚠️ Lazu hourly upload needs attention\nuploaded=%d failed=%d warnings=%d",
 		uploaded, failed, warnings)
@@ -94,6 +99,15 @@ func notifyUploadResult(summary *UploadSummary, runErr error) {
 		Priority:    alerting.PriorityMaintenance,
 		Message:     msg,
 	})
+}
+
+// formatHealthDuration renders a run time for the Chinese operations digest.
+func formatHealthDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	if d < time.Minute {
+		return fmt.Sprintf("%d 秒", int(d/time.Second))
+	}
+	return fmt.Sprintf("%d 分 %d 秒", int(d/time.Minute), int(d%time.Minute/time.Second))
 }
 
 func pgDumpFailureFingerprint(res PgDumpResult) string {

@@ -102,15 +102,232 @@ func TestIncidentDeliveryReservationSuppressesConcurrentReporter(t *testing.T) {
 	}
 }
 
+// onlyExpectDigestTasks limits the never-reported check to the given keys,
+// so a test sees missing tasks only when it asks for them.
+func onlyExpectDigestTasks(t *testing.T, keys ...string) {
+	t.Helper()
+	previous := digestTaskExpected
+	expected := map[string]bool{}
+	for _, key := range keys {
+		expected[key] = true
+	}
+	digestTaskExpected = func(key string) bool { return expected[key] }
+	t.Cleanup(func() { digestTaskExpected = previous })
+}
+
 func TestDailyDigestFormatsOneCompactSummary(t *testing.T) {
+	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump")
 	now := time.Date(2026, 8, 19, 9, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
-		{Label: "R2 JSONL upload", Status: "ok", Summary: "uploaded=14 failed=0", UpdatedAt: now.Add(-time.Hour).Unix()},
-		{Label: "Database backup", Status: "failed", Summary: "connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
-	})
-	for _, expected := range []string{"Lazu daily operations summary", "R2 JSONL upload: ok", "Database backup: failed"} {
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 14 个文件", UpdatedAt: now.Add(-time.Hour).Unix()},
+		{Key: "pg-dump", Label: "Database backup", Status: "failed", Summary: "错误：connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
+	}, nil)
+	for _, expected := range []string{
+		"Lazu 每日运维报告 · 2026-08-19",
+		"⚠️ 失败 1 项，正常 1 项",
+		"❌ 数据库备份：失败\n   30 分钟前更新 · 错误：connection refused",
+		"✅ 请求日志上传 R2：正常\n   1 小时前更新 · 上传 14 个文件",
+	} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+	if strings.Index(message, "数据库备份") > strings.Index(message, "请求日志上传") {
+		t.Fatalf("failed task should be listed before ok task: %s", message)
+	}
+}
+
+func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
+	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump", "relay-zero-token")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.FixedZone("CST", 8*60*60))
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", Summary: "size=671.7 MiB", UpdatedAt: now.Add(-(291*time.Hour + 38*time.Minute)).Unix()},
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 3 个文件", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
+		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", Summary: "流量低", UpdatedAt: now.Unix()},
+	}, nil)
+	for _, expected := range []string{
+		"⚠️ 已停止运行 1 项，未检测 1 项，正常 1 项",
+		"⏸️ 数据库备份：已停止运行\n   最后一次正常在 12 天 3 小时前（应每天运行一次）\n   上次结果：size=671.7 MiB",
+		"➖ 零 token 计费监控：未检测\n   刚刚更新 · 流量低",
+		"✅ 请求日志上传 R2：正常\n   10 分钟前更新",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+}
+
+func TestDailyDigestHeadline(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	allOK := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+		{Label: "Unregistered task", Status: "ok", UpdatedAt: now.Add(-30 * 24 * time.Hour).Unix()},
+	}, nil)
+	if !strings.Contains(allOK, "\n✅ 全部 2 项正常\n") || !strings.Contains(allOK, "✅ Unregistered task：正常") {
+		t.Fatalf("expected all-ok headline; tasks without a cadence keep their label and never go stale: %s", allOK)
+	}
+	onlyExpectDigestTasks(t, "relay-zero-token")
+	quiet := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", UpdatedAt: now.Unix()},
+	}, nil)
+	if !strings.Contains(quiet, "\n➖ 未检测 1 项\n") {
+		t.Fatalf("unknown alone should not raise a warning: %s", quiet)
+	}
+	odd := formatDailyDigest(now, []HealthSnapshot{
+		{Label: "Custom task", Status: "degraded", UpdatedAt: now.Unix()},
+	}, nil)
+	if !strings.Contains(odd, "⚠️ degraded 1 项") || !strings.Contains(odd, "⚠️ Custom task：degraded") {
+		t.Fatalf("unrecognized status should show verbatim as a warning: %s", odd)
+	}
+}
+
+func TestDailyDigestShowsOpenAlerts(t *testing.T) {
+	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	incidents := map[string]incidentState{
+		// Health still reads ok, but the alert was never resolved.
+		"hourly-upload": {Fingerprint: "storage-401", FirstSeen: now.Add(-50 * time.Hour).Unix(), LastSeen: now.Add(-20 * time.Minute).Unix(), Occurrences: 48, Title: "⚠️ Lazu hourly upload needs attention"},
+		// No health record names this one, so the title must.
+		"settlement-outbox": {Fingerprint: "stuck", FirstSeen: now.Add(-3 * time.Hour).Unix(), LastSeen: now.Unix(), Occurrences: 3, Title: "❌ settlement outbox stuck"},
+	}
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 2 个文件", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+	}, incidents)
+	for _, expected := range []string{
+		"⚠️ 告警未恢复 2 项，正常 1 项",
+		"🔔 请求日志上传 R2：告警未恢复\n   告警已持续 2 天 2 小时，共触发 48 次，最近一次：20 分钟前\n   10 分钟前更新 · 上传 2 个文件",
+		"🔔 settlement-outbox：告警未恢复\n   ❌ settlement outbox stuck\n   告警已持续 3 小时，共触发 3 次，最近一次：刚刚",
+		"✅ 数据库备份：正常",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+}
+
+func TestDailyDigestListsExpectedTasksThatNeverReported(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump", "relay-zero-token")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+	}, map[string]incidentState{})
+	for _, expected := range []string{
+		"➖ 从未上报 1 项，正常 1 项",
+		"➖ 零 token 计费监控：从未上报\n   还没有任何运行记录",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+	if strings.Contains(message, "R2 旧归档压缩") {
+		t.Fatalf("a task this deployment does not run must not be listed: %s", message)
+	}
+}
+
+func TestDailyDigestSkipsSnapshotsOfDisabledTasks(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	old := now.Add(-30 * 24 * time.Hour).Unix()
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+		// Upload and compactor were switched off after they last reported.
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", UpdatedAt: old},
+		{Key: "archive-compactor", Label: "R2 archive compactor", Status: "ok", UpdatedAt: old},
+	}, map[string]incidentState{
+		"archive-compactor": {Fingerprint: "x", FirstSeen: old, LastSeen: old, Occurrences: 1, Title: "❌ compactor FAILED"},
+	})
+	if strings.Contains(message, "已停止运行") || strings.Contains(message, "请求日志上传") {
+		t.Fatalf("a disabled task must not be reported as stopped: %s", message)
+	}
+	if !strings.Contains(message, "🔔 R2 旧归档压缩：告警未恢复") {
+		t.Fatalf("an open alert for a disabled task is still listed: %s", message)
+	}
+}
+
+func TestZeroTokenMonitorIsExpectedOnlyWithASeparateWorker(t *testing.T) {
+	t.Setenv("PROCESS_ROLE", "all-in-one")
+	if digestTaskExpected("relay-zero-token") {
+		t.Fatal("an all-in-one API never schedules the zero-token monitor")
+	}
+	t.Setenv("PROCESS_ROLE", "api")
+	if !digestTaskExpected("relay-zero-token") {
+		t.Fatal("a split deployment runs the monitor in its worker")
+	}
+}
+
+func TestUploadCadenceFollowsConfiguredSchedule(t *testing.T) {
+	previous := common.AppConfig.Upload.Schedule
+	defer func() { common.AppConfig.Upload.Schedule = previous }()
+	onlyExpectDigestTasks(t, "hourly-upload")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	snapshots := []HealthSnapshot{{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", UpdatedAt: now.Add(-5*time.Hour - 10*time.Minute).Unix()}}
+
+	common.AppConfig.Upload.Schedule = "0 4 * * *"
+	if message := formatDailyDigest(now, snapshots, nil); strings.Contains(message, "已停止运行") {
+		t.Fatalf("a daily upload five hours after its run is not stale: %s", message)
+	}
+	common.AppConfig.Upload.Schedule = "0 * * * *"
+	if message := formatDailyDigest(now, snapshots, nil); !strings.Contains(message, "应每小时运行一次") {
+		t.Fatalf("an hourly upload five hours late is stale: %s", message)
+	}
+	common.AppConfig.Upload.Schedule = "not a cron spec"
+	if cadence := digestTaskCadence("hourly-upload", digestTasks["hourly-upload"], now); cadence != time.Hour {
+		t.Fatalf("an unparsable schedule falls back to hourly, got %s", cadence)
+	}
+	if cadence, ok := cronCadence("0 9,21 * * *", now); !ok || cadence != 12*time.Hour {
+		t.Fatalf("cronCadence(0 9,21) = %s %v", cadence, ok)
+	}
+}
+
+func TestLoadOpenIncidentsUsesLocalCacheOnlyWithoutRedis(t *testing.T) {
+	previousEnabled, previousRDB := common.RedisEnabled, common.RDB
+	common.RedisEnabled, common.RDB = false, nil
+	localMu.Lock()
+	previousLocal := localIncidents
+	localIncidents = map[string]incidentState{"pg-dump": {Fingerprint: "x", Occurrences: 2}}
+	localMu.Unlock()
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RDB = previousEnabled, previousRDB
+		localMu.Lock()
+		localIncidents = previousLocal
+		localMu.Unlock()
+	})
+	open, err := loadOpenIncidents()
+	if err != nil || open["pg-dump"].Occurrences != 2 {
+		t.Fatalf("without Redis the local cache is the source: open=%+v err=%v", open, err)
+	}
+}
+
+func TestNextIncidentStateKeepsLatestTitle(t *testing.T) {
+	start := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
+	event := Incident{Fingerprint: "storage-401", Priority: PriorityMaintenance, Message: "⚠️ first line\ndetail"}
+	state, _, _ := nextIncidentState(incidentState{}, false, event, start, "one")
+	if state.Title != "⚠️ first line" {
+		t.Fatalf("title = %q", state.Title)
+	}
+	event.Message = "⚠️ newer line\ndetail"
+	state, _, _ = nextIncidentState(state, true, event, start.Add(time.Minute), "two")
+	if state.Title != "⚠️ newer line" {
+		t.Fatalf("continuing incident should keep the latest title, got %q", state.Title)
+	}
+}
+
+func TestFormatDigestAge(t *testing.T) {
+	for _, tc := range []struct {
+		in   time.Duration
+		want string
+	}{
+		{40 * time.Second, "0 分钟"},
+		{59 * time.Minute, "59 分钟"},
+		{2 * time.Hour, "2 小时"},
+		{2*time.Hour + 28*time.Minute, "2 小时 28 分钟"},
+		{24 * time.Hour, "1 天"},
+		{291*time.Hour + 38*time.Minute, "12 天 3 小时"},
+	} {
+		if got := formatDigestAge(tc.in); got != tc.want {
+			t.Fatalf("formatDigestAge(%s) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
@@ -356,6 +573,136 @@ func TestResolveReconcilesLocalFallbackAfterRedisRecovers(t *testing.T) {
 	Resolve("fallback", "recovered")
 	if len(messages) != 2 || !strings.Contains(messages[1], "recovered") {
 		t.Fatalf("expected one recovery from local fallback after Redis recovered, got %v", messages)
+	}
+}
+
+// alertingTestRedis returns a flushed client for ALERTING_TEST_REDIS_URL and
+// installs it as the package Redis with clean local state for the test.
+func alertingTestRedis(t *testing.T) *redis.Client {
+	t.Helper()
+	redisURL := os.Getenv("ALERTING_TEST_REDIS_URL")
+	if redisURL == "" {
+		t.Skip("ALERTING_TEST_REDIS_URL is not set")
+	}
+	if !strings.Contains(redisURL, "127.0.0.1") && !strings.Contains(redisURL, "localhost") {
+		t.Fatal("ALERTING_TEST_REDIS_URL must target a loopback Redis instance")
+	}
+	options, err := redis.ParseURL(redisURL)
+	if err != nil {
+		t.Fatalf("parse Redis URL: %v", err)
+	}
+	client := redis.NewClient(options)
+	if err := client.FlushDB(context.Background()).Err(); err != nil {
+		t.Fatalf("flush test Redis: %v", err)
+	}
+	previousEnabled, previousRDB := common.RedisEnabled, common.RDB
+	common.RedisEnabled, common.RDB = true, client
+	localMu.Lock()
+	previousLocal, previousDay := localIncidents, localDigestDay
+	localIncidents, localDigestDay = map[string]incidentState{}, ""
+	localMu.Unlock()
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RDB = previousEnabled, previousRDB
+		localMu.Lock()
+		localIncidents, localDigestDay = previousLocal, previousDay
+		localMu.Unlock()
+		_ = client.Close()
+	})
+	return client
+}
+
+func TestLoadOpenIncidentsTrustsRedisOverLocalCache(t *testing.T) {
+	client := alertingTestRedis(t)
+	localMu.Lock()
+	localIncidents = map[string]incidentState{
+		// Resolved by another process: gone from Redis.
+		"pg-dump": {Fingerprint: "x", FirstSeen: 100, LastSeen: 200, Occurrences: 5},
+		// Resolved elsewhere, then recurred with the same fingerprint.
+		"hourly-upload": {Fingerprint: "y", FirstSeen: 100, LastSeen: 200, Occurrences: 9},
+	}
+	localMu.Unlock()
+	recurrence := `{"fingerprint":"y","first_seen":500,"last_seen":600,"occurrences":2}`
+	if err := client.Set(context.Background(), incidentKeyPrefix+"hourly-upload", recurrence, 0).Err(); err != nil {
+		t.Fatalf("seed incident: %v", err)
+	}
+	open, err := loadOpenIncidents()
+	if err != nil {
+		t.Fatalf("loadOpenIncidents: %v", err)
+	}
+	if _, ok := open["pg-dump"]; ok {
+		t.Fatalf("an incident resolved in Redis came back from the local cache: %+v", open)
+	}
+	if got := open["hourly-upload"]; got.FirstSeen != 500 || got.Occurrences != 2 {
+		t.Fatalf("a recurrence must not inherit the resolved lifecycle: %+v", got)
+	}
+}
+
+func TestDigestClaimSurvivesRedisOutageAfterDelivery(t *testing.T) {
+	alertingTestRedis(t)
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	if !claimDigest(now) {
+		t.Fatal("first claim of the day should succeed")
+	}
+	// Redis goes away before the 09:25 retry tick.
+	down := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1", DialTimeout: 50 * time.Millisecond, MaxRetries: -1})
+	defer down.Close()
+	common.RDB = down
+	if claimDigest(now.Add(15 * time.Minute)) {
+		t.Fatal("a retry tick must not send again after a successful Redis-backed claim")
+	}
+}
+
+func TestDigestClaimIsShortUntilDelivered(t *testing.T) {
+	client := alertingTestRedis(t)
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	key := digestClaimKey("2026-10-20")
+	if !claimDigest(now) {
+		t.Fatal("first claim of the day should succeed")
+	}
+	// If the attempt fails and its release never reaches Redis, the hold must
+	// lapse before the 09:25 retry.
+	if ttl := client.TTL(context.Background(), key).Val(); ttl <= 0 || ttl > digestSendingTTL || ttl >= 15*time.Minute {
+		t.Fatalf("sending claim should expire before the next retry tick, ttl=%s", ttl)
+	}
+	markDigestDelivered(now)
+	if ttl := client.TTL(context.Background(), key).Val(); ttl < 24*time.Hour {
+		t.Fatalf("a delivered digest should hold the day, ttl=%s", ttl)
+	}
+}
+
+// failFirstCommands makes the first n Redis commands fail, as a brief outage.
+type failFirstCommands struct{ remaining int }
+
+func (h *failFirstCommands) BeforeProcess(ctx context.Context, _ redis.Cmder) (context.Context, error) {
+	if h.remaining > 0 {
+		h.remaining--
+		return ctx, errors.New("redis briefly unavailable")
+	}
+	return ctx, nil
+}
+func (h *failFirstCommands) AfterProcess(context.Context, redis.Cmder) error { return nil }
+func (h *failFirstCommands) BeforeProcessPipeline(ctx context.Context, _ []redis.Cmder) (context.Context, error) {
+	return ctx, nil
+}
+func (h *failFirstCommands) AfterProcessPipeline(context.Context, []redis.Cmder) error { return nil }
+
+func TestDigestDeliveryRecordRetriesThroughABriefOutage(t *testing.T) {
+	client := alertingTestRedis(t)
+	previousSleep := digestRetrySleep
+	var slept []time.Duration
+	digestRetrySleep = func(d time.Duration) { slept = append(slept, d) }
+	t.Cleanup(func() { digestRetrySleep = previousSleep })
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	if !claimDigest(now) {
+		t.Fatal("first claim of the day should succeed")
+	}
+	client.AddHook(&failFirstCommands{remaining: 2})
+	markDigestDelivered(now)
+	if got := client.Get(context.Background(), digestClaimKey("2026-10-20")).Val(); got != "sent" {
+		t.Fatalf("delivery should be recorded once Redis is back, got %q after sleeping %v", got, slept)
+	}
+	if len(slept) != 2 {
+		t.Fatalf("expected two retries, slept %v", slept)
 	}
 }
 

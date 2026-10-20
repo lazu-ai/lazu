@@ -49,12 +49,13 @@ func RunUserFileCleanupOnce(now int64) error {
 
 func notifyUserFileCleanupResult(stats UserFileCleanupStats) {
 	summary := fmt.Sprintf("scanned=%d deleted=%d failed=%d", stats.Scanned, stats.Deleted, stats.Failed)
+	healthSummary := fmt.Sprintf("检查 %d 个文件，删除 %d 个，失败 %d 个", stats.Scanned, stats.Deleted, stats.Failed)
 	if stats.Failed == 0 {
-		alerting.RecordHealth("user-file-cleanup", "User file cleanup", "ok", summary)
+		alerting.RecordHealth("user-file-cleanup", "User file cleanup", "ok", healthSummary)
 		alerting.Resolve("user-file-cleanup", "✅ Lazu user-file cleanup recovered")
 		return
 	}
-	alerting.RecordHealth("user-file-cleanup", "User file cleanup", "failed", summary)
+	alerting.RecordHealth("user-file-cleanup", "User file cleanup", "failed", healthSummary)
 	alerting.Report(alerting.Incident{
 		Key:         "user-file-cleanup",
 		Fingerprint: "user-file-delete-failures",
