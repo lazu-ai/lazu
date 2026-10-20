@@ -172,7 +172,10 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 		return failAfterOutput(types.ErrorCodeUpstreamStreamFailed, openAIErrorOf(failure), http.StatusBadGateway, nil)
 	case decodeErr != nil:
 		if !forwarded {
-			// the upstream's stream is corrupt, not the request
+			// the upstream's stream is corrupt, not the request: a
+			// retryable pre-stream failure, refunded
+			info.StreamFailedWithoutUsage = true
+			common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
 			return usage, types.NewError(fmt.Errorf("decode upstream stream event: %w", decodeErr), types.ErrorCodeBadResponseBody)
 		}
 		frame, _ := StreamFailureFrame(types.ErrorCodeBadResponse, nil)

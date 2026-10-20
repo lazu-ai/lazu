@@ -96,6 +96,14 @@ func TestRunHubStreamReadsPastAChatStop(t *testing.T) {
 	}
 }
 
+// A compatible upstream that ends without [DONE] still finishes cleanly.
+func TestRunHubStreamReadPastStopEndsAtEOF(t *testing.T) {
+	_, _, usage, err := runScripted(t, HubStream{ReadPastStop: true}, &fakeClient{}, "text", "stop", "usage")
+	if err != nil || usage.CompletionTokens != 3 {
+		t.Fatalf("a stream without [DONE]: %+v %v", usage, err)
+	}
+}
+
 // A failure before output is absorbed: retryable, refunded even though it
 // reported usage, and its exchange left for the attempt that answers.
 func TestRunHubStreamHeldFailureIsRefundedAndNotLogged(t *testing.T) {
@@ -123,9 +131,12 @@ func TestRunHubStreamCutOffBeforeOutputIsRetryable(t *testing.T) {
 
 // A corrupt upstream event is the upstream's fault, retryable before output.
 func TestRunHubStreamDecodeFailureIsABadUpstreamBody(t *testing.T) {
-	_, _, _, err := runScripted(t, HubStream{}, &fakeClient{}, "{garbage")
+	c, info, _, err := runScripted(t, HubStream{}, &fakeClient{}, "{garbage")
 	if err == nil || err.GetErrorCode() != types.ErrorCodeBadResponseBody || types.IsSkipRetryError(err) {
 		t.Fatalf("decode failure before output: %v", err)
+	}
+	if !info.StreamFailedWithoutUsage || !common.GetContextKeyBool(c, constant.ContextKeyStreamFirstEventFailed) {
+		t.Fatal("a decode failure before output must be refunded and marked a first-event failure")
 	}
 }
 

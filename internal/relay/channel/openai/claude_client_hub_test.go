@@ -189,3 +189,30 @@ func TestClaudeClientHubServesAnEmptyReply(t *testing.T) {
 		t.Fatalf("empty reply frames: %v", names)
 	}
 }
+
+// A Chat upstream's include_usage chunk comes after its finish; the Claude
+// client's message_delta carries the provider's count from it.
+func TestClaudeClientHubReadsTheChatUsageChunk(t *testing.T) {
+	service.InitTokenEncoders()
+	c, recorder := claudeClientContext()
+	stream := "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"hello\"},\"finish_reason\":null}]}\n\n" +
+		"data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
+		"data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[],\"usage\":{\"prompt_tokens\":21,\"completion_tokens\":42,\"total_tokens\":63}}\n\n" +
+		"data: [DONE]\n\n"
+	usage, err := ClaudeClientStreamHandler(c, upstreamBody(stream), claudeClientInfo(textgen.ProtocolOpenAIChat, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.CompletionTokens != 42 || usage.PromptTokens != 21 {
+		t.Fatalf("settled usage: %+v", usage)
+	}
+	var delta string
+	for _, frame := range sseFrames(recorder.Body.String()) {
+		if frame[0] == "message_delta" {
+			delta = frame[1]
+		}
+	}
+	if got := gjson.Get(delta, "usage.output_tokens").Int(); got != 42 {
+		t.Fatalf("message_delta output_tokens = %d: %s", got, delta)
+	}
+}
