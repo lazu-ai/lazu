@@ -1,0 +1,351 @@
+---
+title: "Seedance 2.5"
+description: "在 Lazu 上用字節跳動 Seedance 2.5 生成影片：提交、輪詢與下載，請求欄位，參考圖片、影片與音訊，價格、預留與錯誤處理。"
+---
+
+# Seedance 2.5
+
+Seedance 2.5 是字節跳動的影片生成模型，2026-07-31 發布。在 Lazu 上用模型 ID `seedance-2.5` 呼叫[影片端點](/zh-TW/endpoints/media#提交並輪詢影片)，金鑰與其他端點通用。
+
+| 能力     | Seedance 2.5                                            |
+| -------- | ------------------------------------------------------- |
+| 模型 ID  | `seedance-2.5`                                          |
+| 輸入     | 文字、首幀、尾幀、參考圖片、參考影片、參考音訊          |
+| 影片長度 | 4–30 秒                                                 |
+| 解析度   | `480p`、`720p`、`1080p`                                 |
+| 畫面比例 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive` |
+| 聲音     | 預設隨影片生成，不另收費                                |
+| 參考素材 | 每次請求最多 30 個                                      |
+| 價格     | 480p 每秒 $0.103 起；只對成功生成的影片收費             |
+| 免寫程式 | [Lazu Studio](https://lazu.ai/studio)                   |
+
+## 快速開始
+
+影片生成是非同步任務：先提交，再輪詢到結束，最後下載檔案。每一步都用同一把金鑰。
+
+提交任務。Lazu 回傳 HTTP 202 與任務物件，其中 `cost_snapshot` 是從餘額預留的金額。
+
+```bash
+curl https://api.lazu.ai/v1/videos \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "seedance-2.5",
+    "prompt": "雨後的街道上，一艘紙船順水漂過，近景，清晨柔光",
+    "seconds": 5,
+    "resolution": "480p"
+  }'
+```
+
+用任務 `id` 每 10–15 秒查詢一次。`pending` 和 `running` 都還沒結束。一段 4–5 秒的 480p 影片通常需要兩分半鐘左右。
+
+```bash
+curl https://api.lazu.ai/v1/videos/mjob_... \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+`status` 變為 `succeeded` 後，用 `artifact.file_id` 下載影片，檔案類型為 `video/mp4`。
+
+```bash
+curl https://api.lazu.ai/v1/files/file-lazu-.../content \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -o seedance.mp4
+```
+
+下面的完整腳本會提交任務、輪詢到結束、儲存影片並印出實際扣費。需要 Python 3 與 `requests`（`python -m pip install requests`）。要接續查詢已提交的任務，把任務 ID 作為參數傳入：`python seedance.py mjob_...`。
+
+```python
+import os
+import sys
+import time
+
+import requests
+
+BASE = "https://api.lazu.ai"
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+
+if len(sys.argv) > 1:
+    # Resume a job that was already submitted. Do not submit it again.
+    job = {"id": sys.argv[1], "status": "pending"}
+else:
+    response = requests.post(BASE + "/v1/videos", headers=headers, json={
+        "model": "seedance-2.5",
+        "prompt": "雨後的街道上，一艘紙船順水漂過，近景，清晨柔光",
+        "seconds": 5,
+        "resolution": "480p",
+        "aspect_ratio": "16:9",
+    }, timeout=60)
+    response.raise_for_status()
+    job = response.json()
+    print("Job:", job["id"], "held:", job["cost_snapshot"]["customer_charge_usd"], "USD", flush=True)
+
+job_id = job["id"]
+while job["status"] in ("pending", "running"):
+    time.sleep(12)
+    response = requests.get(BASE + "/v1/videos/" + job_id, headers=headers, timeout=30)
+    if response.status_code in (429, 503):
+        retry_after = response.headers.get("Retry-After", "15")
+        time.sleep(float(retry_after) if retry_after.isdecimal() else 15)
+        continue
+    response.raise_for_status()
+    job = response.json()
+    print("Status:", job["status"], flush=True)
+
+if job["status"] == "failed":
+    error = job.get("error", {})
+    sys.exit(f"Job failed: {error.get('code')}: {error.get('message')} (the hold was refunded)")
+
+file_id = job["artifact"]["file_id"]
+with requests.get(BASE + "/v1/files/" + file_id + "/content",
+                  headers=headers, stream=True, timeout=300) as download:
+    download.raise_for_status()
+    with open(job_id + ".mp4", "wb") as out:
+        for chunk in download.iter_content(chunk_size=1024 * 1024):
+            out.write(chunk)
+
+print("Saved", job_id + ".mp4")
+print("Charged:", job["cost_snapshot"]["customer_charge_usd"], "USD")
+```
+
+用戶端逾時不會取消任務。腳本中途結束時，繼續用同一個 ID 查詢即可；不要重新提交，否則會再生成並支付一段影片。
+
+## 請求參數
+
+以 JSON 傳送到 `POST /v1/videos`。只有 `model` 和 `prompt` 必填。
+
+| 欄位                | 類型    | 預設值 | 取值                                                                            |
+| ------------------- | ------- | ------ | ------------------------------------------------------------------------------- |
+| `model`             | string  |        | `seedance-2.5`                                                                  |
+| `prompt`            | string  |        | 畫面描述。用 `@图片1`、`@视频1`、`@音频1` 指代參考素材（見下文）。              |
+| `seconds`           | integer | `5`    | 4–30                                                                            |
+| `resolution`        | string  | `720p` | `480p`、`720p`、`1080p`                                                         |
+| `aspect_ratio`      | string  | `16:9` | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive`                         |
+| `generate_audio`    | boolean | `true` | 預設生成聲音；傳 `false` 得到無聲影片。                                         |
+| `seed`              | integer |        | 固定隨機種子。                                                                  |
+| `frame_images`      | array   |        | 每項為 `{"url", "frame_type"}`，`frame_type` 取 `first_frame` 或 `last_frame`。 |
+| `input_references`  | array   |        | 每項為 `{"url", "type"}`，`type` 取 `image`、`video` 或 `audio`。               |
+| `watermark`         | boolean |        | 原樣轉交給模型供應商。                                                          |
+| `return_last_frame` | boolean |        | 原樣轉交給模型供應商。                                                          |
+
+超出上述範圍的值會直接回傳 HTTP 400，不產生任何費用；錯誤訊息會列出該欄位可用的值。
+
+在提示詞裡，依類型和順序指代參考素材：順序從 1 開始，依該類型素材在請求中出現的先後計數。第一張圖片是 `@图片1`，第二張是 `@图片2`，第一段影片是 `@视频1`，第一段音訊是 `@音频1`。這些標記須照原樣使用簡體字。
+
+`frame_images` 和 `input_references` 裡的 URL 必須能從公開網路存取，模型供應商會直接下載。
+
+## 範例
+
+以下都是 `POST /v1/videos` 的請求內容。
+
+### 文字生成影片
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "黃昏時分，一隻紅狐狸走過新雪，慢速跟拍",
+  "seconds": 8,
+  "resolution": "720p",
+  "aspect_ratio": "16:9"
+}
+```
+
+### 首尾幀
+
+影片從首幀開始，到尾幀結束。畫面比例跟隨輸入圖片，所以傳 `aspect_ratio: "adaptive"`。
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "花苞在晨光中慢慢綻放",
+  "seconds": 5,
+  "resolution": "720p",
+  "aspect_ratio": "adaptive",
+  "frame_images": [
+    { "url": "https://example.com/bud.png", "frame_type": "first_frame" },
+    { "url": "https://example.com/bloom.png", "frame_type": "last_frame" }
+  ]
+}
+```
+
+### 參考圖片
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "@图片1 中的貓跳上灑滿陽光的窗台，望向窗外",
+  "seconds": 5,
+  "resolution": "720p",
+  "aspect_ratio": "9:16",
+  "input_references": [
+    { "url": "https://example.com/cat.jpg", "type": "image" }
+  ]
+}
+```
+
+### 參考影片與參考音訊
+
+沿用一段影片的運鏡，配合一段音樂的節奏。帶參考影片時傳 `aspect_ratio: "adaptive"`。
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "沿用 @视频1 的運鏡，@图片1 中的舞者起舞，跟著 @音频1 的節拍切換鏡頭",
+  "seconds": 10,
+  "resolution": "720p",
+  "aspect_ratio": "adaptive",
+  "input_references": [
+    { "url": "https://example.com/camera-move.mp4", "type": "video" },
+    { "url": "https://example.com/dancer.png", "type": "image" },
+    { "url": "https://example.com/track.mp3", "type": "audio" }
+  ]
+}
+```
+
+### 無聲影片
+
+Seedance 預設生成聲音。傳 `generate_audio: false` 得到無聲影片，價格不變。
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "山脊上空的雲海縮時攝影",
+  "seconds": 6,
+  "resolution": "1080p",
+  "aspect_ratio": "21:9",
+  "generate_audio": false
+}
+```
+
+## 計費
+
+Lazu 依字節跳動 BytePlus 官方牌價收費，單位為美元／秒。
+
+| 解析度  | 無參考影片（依輸出秒數） | 有參考影片（依參考秒數 + 輸出秒數） |
+| ------- | ------------------------ | ----------------------------------- |
+| `480p`  | $0.103                   | 約 $0.0615                          |
+| `720p`  | $0.231                   | 約 $0.138                           |
+| `1080p` | $0.569                   | 約 $0.340                           |
+
+無參考影片的價格以 16:9 輸出為準。有參考影片時，模型供應商把參考影片秒數與輸出秒數相加，依較低的輸入單價計費。生成聲音不加價。只對成功生成的影片收費。
+
+**預留與結算。** 提交時，Lazu 依 `seconds × 每秒單價` 從餘額預留費用，金額即 202 回應裡的 `cost_snapshot`。餘額不足以支應預留時，請求會被拒絕。任務結束後，Lazu 依模型供應商回報的用量、以官方單價扣費，剩餘預留立即釋放。
+
+**參考影片。** 參考影片的實際長度只有模型供應商知道，所以帶參考影片的請求依最長允許的 30 秒參考影片、以輸出單價預留。結算時依實際的參考秒數與輸出秒數扣費，差額隨即釋放。
+
+**退款。** 失敗的任務全額退還。
+
+兩次真實呼叫：
+
+| 請求                           | 預留                           | 實際扣費 | 釋放       |
+| ------------------------------ | ------------------------------ | -------- | ---------- |
+| 480p，4 秒，無聲               | $0.412（4 秒 × $0.103）        | 約 $0.41 | 不到 $0.01 |
+| 480p，輸出 4 秒，參考影片 4 秒 | $3.502（(4 + 30) 秒 × $0.103） | 約 $0.49 | 約 $3.01   |
+
+## 限制與常見錯誤
+
+模型供應商對參考素材的限制：
+
+| 素材     | 限制                                                                                                                    |
+| -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 全部素材 | 每次請求最多 30 個。URL 必須能從公開網路存取。                                                                          |
+| 參考影片 | 最多 10 段，每段 2–30 秒，合計不超過 30 秒。mp4 或 mov，單一檔案不超過 200 MB，24–60 fps，每幀 409,600–8,295,044 像素。 |
+| 參考圖片 | jpeg、png、webp、bmp、tiff、gif 或 heic。每邊 300–6000 像素，寬高比 0.4–2.5，小於 30 MB。                               |
+| 參考音訊 | wav 或 mp3。最多 10 段，每段 2–30 秒，合計不超過 30 秒，單一檔案不超過 15 MB。                                          |
+
+**使用參考影片或首尾幀時，傳 `adaptive`。** 若模型供應商將任務判定為編輯或延長參考影片，或首尾幀生成，輸出會跟隨輸入的畫面比例，`aspect_ratio` 必須是 `adaptive`；傳其他比例會導致任務失敗（全額退還）。請求帶參考影片或首尾幀、而未傳 `aspect_ratio` 時，Lazu 會傳送 `adaptive`。
+
+**模型不支援的取值**會在扣費前回傳 HTTP 400。`param` 和 `details.field` 是出錯的欄位，`details.allowed` 列出可用的值。參見 [`LZ-1001`](/zh-TW/errors#lz-1001)。
+
+```json
+{
+  "error": {
+    "message": "Invalid request: resolution \"4k\" is not supported by this model; allowed: 480p, 720p, 1080p.",
+    "type": "invalid_request_error",
+    "param": "resolution",
+    "code": "invalid_request",
+    "lazu": "LZ-1001",
+    "docs": "https://lazu.ai/docs/errors#lz-1001",
+    "request_id": "req_lazu_...",
+    "details": {
+      "field": "resolution",
+      "reason": "resolution \"4k\" is not supported by this model; allowed: 480p, 720p, 1080p",
+      "allowed": "480p, 720p, 1080p"
+    }
+  }
+}
+```
+
+**模型供應商無法完成的任務**以 `status: "failed"` 結束，`error.code` 和 `error.message` 說明原因，預留全額退還。重新提交前先修正請求，例如畫面比例，或超出上述限制的參考素材。
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "failed",
+  "created_at": 1792466151,
+  "completed_at": 1792466190,
+  "error": {
+    "code": "task_failed",
+    "message": "..."
+  }
+}
+```
+
+餘額不足以支應預留時，回傳 HTTP 429 與 `insufficient_quota`，參見[錯誤碼](/zh-TW/errors#lz-3101)。
+
+## 回應物件
+
+`POST /v1/videos` 回傳 HTTP 202，`cost_snapshot` 是預留金額。
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "pending",
+  "created_at": 1792466151,
+  "cost_snapshot": {
+    "customer_charge_microusd": 412000,
+    "customer_charge_usd": 0.412,
+    "line_items": [...],
+    "pricing_version": ...
+  }
+}
+```
+
+成功任務的 `GET /v1/videos/{id}`。此時 `cost_snapshot` 是最終扣費，`usage` 是模型供應商回報的用量。
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "succeeded",
+  "created_at": 1792466151,
+  "completed_at": 1792466297,
+  "artifact": { "file_id": "file-lazu-..." },
+  "cost_snapshot": {
+    "customer_charge_microusd": 411500,
+    "customer_charge_usd": 0.4115,
+    "line_items": [
+      {
+        "dimension": "video_provider_cost",
+        "quantity": 1,
+        "unit_microusd": 411500,
+        "amount_microusd": 411500
+      }
+    ],
+    "pricing_version": ...
+  },
+  "usage": { "seconds": 4, "resolution": "480p", "ratio": "16:9", "fps": 24 }
+}
+```
+
+成品影片由 Lazu 下載並保存，模型供應商的臨時連結不會交給你。透過 API 生成的影片保留 3 天後刪除，需要長期使用請及時下載保存。

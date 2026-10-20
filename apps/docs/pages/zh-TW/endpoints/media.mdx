@@ -30,12 +30,12 @@ print(response.json()["data"])
 
 上線時標準美元價格如下；實際價格以帶金鑰查詢的目錄為準：
 
-| Model | USD / successful output |
-| --- | --- |
-| `seedream-5.0-flash` | $0.018 |
-| `seedream-5.0-lite` | $0.035 |
-| `seedream-4.5` | $0.040 |
-| `seedream-5.0-pro` | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
+| Model                | USD / successful output                                  |
+| -------------------- | -------------------------------------------------------- |
+| `seedream-5.0-flash` | $0.018                                                   |
+| `seedream-5.0-lite`  | $0.035                                                   |
+| `seedream-4.5`       | $0.040                                                   |
+| `seedream-5.0-pro`   | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
 
 Pro 分層的每張回傳圖片（含底圖）在 ≤ 2,610,000 像素時為 $0.0225，超過為 $0.045。首張參考圖免費，每增加一張每次成功請求加收 $0.003；其他三款參考圖免費。Flash 分層為 $0.018/張。只計成功回傳的圖片，失敗或攔截結果不計費；以各張 `data[].size` 判斷像素級距，不另收回傳 output tokens 的 token 費用。
 
@@ -47,7 +47,7 @@ Pro/Flash 支援 `1K`、`1.5K`、`2K`，最多 10 張參考圖。Lite 支援 `2K
   "prompt": "Create two matching blue ceramic cup designs",
   "size": "2K",
   "sequential_image_generation": "auto",
-  "sequential_image_generation_options": {"max_images": 2}
+  "sequential_image_generation_options": { "max_images": 2 }
 }
 ```
 
@@ -56,7 +56,6 @@ Pro/Flash 分層使用 `layer_decomposition: true` 與恰好一張 `image`，`pr
 價格欄位 `pricing.image_pricing` 包含 `output_usd`、`pixel_threshold`、`high_resolution_output_usd`、`layer_usd`、`high_resolution_layer_usd`、`reference_usd`、`free_references`。網關先預留最大可能費用（分層最多 17 張），再以實際成功輸出結算並釋放差額；金鑰與專案餘額需足夠預留。用 `usage.cost`、`usage.generated_images` 和請求用量記錄對帳。
 
 官方參考：[圖片 API](https://docs.byteplus.com/en/docs/modelark/image-generation-api)、[價格](https://docs.byteplus.com/en/docs/modelark/model-pricing)。
-
 
 ## 提交並輪詢影片
 
@@ -99,6 +98,8 @@ else:
     print("Still waiting; resume GET for job:", job_id)
 # A local timeout does not cancel the remote job. Keep job_id for later GETs.
 ```
+
+Seedance 2.5 的參考素材寫法、價格、預留與限制，見 [Seedance 2.5](/zh-TW/endpoints/seedance)。
 
 ## 語音生成與轉寫
 
