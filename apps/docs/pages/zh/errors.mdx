@@ -402,6 +402,8 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 | <a id="lz-7826"></a>`LZ-7826` | `invalid_precreated_media_job` | 400 | `invalid_request_error` | 请求中指定的媒体任务与本次请求不匹配。请重新发起生成。 |
 | <a id="lz-7827"></a>`LZ-7827` | `artifact_too_large` | 502 | `api_error` | 生成的文件超出了可保存的大小，结果没有保留。请调小尺寸或缩短时长后再试。 |
 | <a id="lz-7828"></a>`LZ-7828` | `video_artifact_missing` | 502 | `api_error` | 视频已生成结束，但没有可下载的文件。请重新生成。 |
+| <a id="lz-7829"></a>`LZ-7829` | `video_not_ready` | 409 | `conflict_error` | 这个视频还没有可下载的文件。等状态变成 succeeded 后再下载。 |
+| <a id="lz-7830"></a>`LZ-7830` | `invalid_wait` | 400 | `invalid_request_error` | wait 必须是 0 到 60 之间的整数秒。 |
 | <a id="lz-7861"></a>`LZ-7861` | `search_backend_not_found` | 404 | `not_found_error` | 找不到这个搜索后端。请刷新列表。 |
 | <a id="lz-7862"></a>`LZ-7862` | `search_backend_provider_invalid` | 400 | `invalid_request_error` | 不支持这个搜索服务商，或它与渠道类型不一致。请从列表中选择服务商。 |
 | <a id="lz-7864"></a>`LZ-7864` | `upload_file_not_found` | 404 | `not_found_error` | 服务器上找不到这个数据文件。请检查文件路径。 |

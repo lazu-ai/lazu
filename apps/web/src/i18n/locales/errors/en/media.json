@@ -16,6 +16,8 @@
   "invalid_precreated_media_job": "The media job named in this request does not match it. Start the generation again.",
   "artifact_too_large": "The generated file is larger than the size that can be stored, so the result was not kept. Try a smaller size or shorter duration.",
   "video_artifact_missing": "The video finished without a file to download. Generate it again.",
+  "video_not_ready": "This video has no file yet. Wait until its status is succeeded, then download it.",
+  "invalid_wait": "wait must be a whole number of seconds from 0 to 60.",
   "search_backend_not_found": "This search backend was not found. Refresh the list.",
   "search_backend_provider_invalid": "This search provider is not supported or does not match the channel type. Choose a listed provider.",
   "upload_file_not_found": "This data file was not found on the server. Check the file path.",

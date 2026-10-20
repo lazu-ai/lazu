@@ -355,6 +355,7 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/sessions/:session_id", middleware.RootAuth(), controller.GetAllLogSessionDetail)
 		logRoute.GET("/search", middleware.RootAuth(), controller.SearchAllLogs)
 		logRoute.GET("/self", middleware.UserAuth(), controller.GetUserLogs)
+		logRoute.GET("/self/in_flight", middleware.UserAuth(), controller.GetUserInFlightMediaJobs)
 		logRoute.GET("/self/sessions", middleware.UserAuth(), controller.GetUserLogSessions)
 		logRoute.GET("/self/sessions/:session_id", middleware.UserAuth(), controller.GetUserLogSessionDetail)
 		logRoute.GET("/self/search", middleware.UserAuth(), controller.SearchUserLogs)

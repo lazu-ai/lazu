@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -114,6 +116,27 @@ func (s *s3Storage) GetRange(ctx context.Context, key string, start int64, end i
 		return nil, err
 	}
 	return out.Body, nil
+}
+
+func (s *s3Storage) PresignGet(ctx context.Context, key string, ttl time.Duration, filename string, contentType string) (string, error) {
+	if ttl <= 0 {
+		return "", fmt.Errorf("presign ttl must be positive")
+	}
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	}
+	if filename != "" {
+		input.ResponseContentDisposition = aws.String(mime.FormatMediaType("inline", map[string]string{"filename": filename}))
+	}
+	if contentType != "" {
+		input.ResponseContentType = aws.String(contentType)
+	}
+	out, err := s3.NewPresignClient(s.client).PresignGetObject(ctx, input, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", err
+	}
+	return out.URL, nil
 }
 
 func (s *s3Storage) Head(ctx context.Context, key string) (ObjectMeta, error) {

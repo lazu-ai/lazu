@@ -167,6 +167,24 @@ func GetFileByIDAndOwner(id string, userID int, principals ...ProjectPrincipal) 
 	return &file, nil
 }
 
+// GetFilesByIDs loads files by id in one query, keyed by id. Callers pass ids
+// they already hold through an owned row (a job's artifact), so it does not
+// scope by owner; ids that no longer exist are simply absent.
+func GetFilesByIDs(ids []string) (map[string]File, error) {
+	out := make(map[string]File, len(ids))
+	if len(ids) == 0 || CoreDB() == nil {
+		return out, nil
+	}
+	var rows []File
+	if err := CoreDB().Where("id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row
+	}
+	return out, nil
+}
+
 func ListFilesByOwner(userID int, purpose string, limit int, order string, principals ...ProjectPrincipal) ([]File, error) {
 	files := make([]File, 0)
 	if limit <= 0 || limit > 10000 {

@@ -44,6 +44,14 @@ type ObjectRangeStorage interface {
 	GetRange(ctx context.Context, key string, start int64, end int64) (io.ReadCloser, error)
 }
 
+// ObjectPresignStorage is implemented by backends that can sign a temporary
+// GET link to a private object, so a client downloads it from the bucket
+// directly. filename and contentType, when set, become the response's
+// Content-Disposition (inline) and Content-Type.
+type ObjectPresignStorage interface {
+	PresignGet(ctx context.Context, key string, ttl time.Duration, filename string, contentType string) (string, error)
+}
+
 // ObjectCacheStorage is implemented by backends that can store an object
 // with the Cache-Control header it is later served with (a public bucket
 // behind a CDN).

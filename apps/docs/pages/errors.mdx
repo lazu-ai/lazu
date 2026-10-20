@@ -416,6 +416,8 @@ message; the cause is recorded against the request ID.
 | <a id="lz-7826"></a>`LZ-7826` | `invalid_precreated_media_job` | 400 | `invalid_request_error` | The media job named in this request does not match it. Start the generation again. |
 | <a id="lz-7827"></a>`LZ-7827` | `artifact_too_large` | 502 | `api_error` | The generated file is larger than the size that can be stored, so the result was not kept. Try a smaller size or shorter duration. |
 | <a id="lz-7828"></a>`LZ-7828` | `video_artifact_missing` | 502 | `api_error` | The video finished without a file to download. Generate it again. |
+| <a id="lz-7829"></a>`LZ-7829` | `video_not_ready` | 409 | `conflict_error` | This video has no file yet. Wait until its status is succeeded, then download it. |
+| <a id="lz-7830"></a>`LZ-7830` | `invalid_wait` | 400 | `invalid_request_error` | wait must be a whole number of seconds from 0 to 60. |
 | <a id="lz-7861"></a>`LZ-7861` | `search_backend_not_found` | 404 | `not_found_error` | This search backend was not found. Refresh the list. |
 | <a id="lz-7862"></a>`LZ-7862` | `search_backend_provider_invalid` | 400 | `invalid_request_error` | This search provider is not supported or does not match the channel type. Choose a listed provider. |
 | <a id="lz-7864"></a>`LZ-7864` | `upload_file_not_found` | 404 | `not_found_error` | This data file was not found on the server. Check the file path. |

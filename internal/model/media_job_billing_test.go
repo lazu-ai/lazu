@@ -1694,3 +1694,34 @@ func TestPublicPricingWithholdsTheProviderCostMultiplier(t *testing.T) {
 		t.Fatalf("public lane pricing keeps the per-second price: %+v", video)
 	}
 }
+
+func TestFailedMediaJobLeavesAnErrorRowInTheUsageLog(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	job, err := CreateMediaJob(CreateMediaJobInput{
+		UserID: 1, ModelName: "seedance-2.5", Kind: MediaJobKindVideo,
+		RequestID: "req-video-failed", Now: now.Add(-time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("create media job: %v", err)
+	}
+	if err := MarkMediaJobFailed(job.ID, "video_provider_failed", "reference video unreachable", now); err != nil {
+		t.Fatalf("mark failed: %v", err)
+	}
+	RecordMediaJobFailureLog(job.ID, now)
+	// A retried worker records it again; that must not add another row.
+	RecordMediaJobFailureLog(job.ID, now)
+
+	var logs []Log
+	if err := db.Where("request_id = ?", "req-video-failed").Find(&logs).Error; err != nil {
+		t.Fatalf("load logs: %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("want one log row, got %d: %+v", len(logs), logs)
+	}
+	row := logs[0]
+	if row.Type != LogTypeError || row.AmountMicrousd != 0 || row.RejectionReason != "video_provider_failed" ||
+		row.ModelName != "seedance-2.5" || !strings.Contains(row.Other, `"refunded":true`) || !strings.Contains(row.Other, job.PublicID) {
+		t.Fatalf("unexpected failure log: %+v", row)
+	}
+}

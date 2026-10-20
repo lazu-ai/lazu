@@ -21,7 +21,7 @@ Seedance 2.5 は ByteDance の動画生成モデルで、2026-07-31 に公開さ
 
 ## クイックスタート
 
-動画生成はジョブです。送信し、終了するまでポーリングし、ファイルをダウンロードします。すべて同じキーで呼び出します。
+動画生成はジョブです。送信し、終わるのを待ってから、ファイルをダウンロードします。すべて同じキーで呼び出します。
 
 ジョブを送信します。Lazu は HTTP 202 とジョブオブジェクトを返します。`cost_snapshot` は残高から予約された金額です。
 
@@ -37,22 +37,24 @@ curl https://api.lazu.ai/v1/videos \
   }'
 ```
 
-ジョブの `id` で 10〜15 秒ごとに取得します。`pending` と `running` は未完了です。4〜5 秒の 480p 動画は通常 2 分半ほどかかります。
+ジョブの `id` で結果を待ちます。`?wait=60` を付けると、ジョブが終わった瞬間に応答します。60 秒たってもまだ `pending` か `running` ならその状態で応答するので、同じ呼び出しをもう一度送ります。4–5 秒の 480p 動画は通常 2 分半ほどかかるため、呼び出しは 3〜4 回程度です。終わるまで、ジョブはコンソールの利用ログ上部の「実行中」に表示されます。
 
 ```bash
-curl https://api.lazu.ai/v1/videos/mjob_... \
+curl "https://api.lazu.ai/v1/videos/mjob_...?wait=60" \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
-`status` が `succeeded` になったら、`artifact.file_id` で動画をダウンロードします。ファイルは `video/mp4` です。
+`status` が `succeeded` になると、`artifact.url` は MP4 へのリンクになり、1 時間はキーなしで開けます。`<video>` タグに入れる、共有する、ダウンロードするなどに使えます。期限が切れたらジョブを再取得すると新しいリンクが返ります。`artifact.expires_at` はファイルの削除時刻で、生成から 3 日後です。キーを付けてダウンロードする場合：
 
 ```bash
-curl https://api.lazu.ai/v1/files/file-lazu-.../content \
+curl --fail https://api.lazu.ai/v1/videos/mjob_.../content \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -o seedance.mp4
 ```
 
-次のスクリプトは、ジョブを送信し、終了までポーリングし、動画を保存して請求額を表示します。Python 3 と `requests`（`python -m pip install requests`）が必要です。送信済みのジョブを再開するには ID を渡します：`python seedance.py mjob_...`。
+`--fail` を付けると、エラー時にエラーメッセージを `seedance.mp4` として保存せず、curl が終了します。
+
+次のスクリプトは、ジョブを送信し、終わるまで待ち、動画を保存して請求額を表示します。Python 3 と `requests`（`python -m pip install requests`）が必要です。送信済みのジョブを再開するには ID を渡します：`python seedance.py mjob_...`。
 
 ```python
 import os
@@ -81,8 +83,9 @@ else:
 
 job_id = job["id"]
 while job["status"] in ("pending", "running"):
-    time.sleep(12)
-    response = requests.get(BASE + "/v1/videos/" + job_id, headers=headers, timeout=30)
+    # wait=60 answers as soon as the job finishes, or after 60 s.
+    response = requests.get(BASE + "/v1/videos/" + job_id, params={"wait": 60},
+                            headers=headers, timeout=90)
     if response.status_code in (429, 503):
         retry_after = response.headers.get("Retry-After", "15")
         time.sleep(float(retry_after) if retry_after.isdecimal() else 15)
@@ -95,9 +98,8 @@ if job["status"] == "failed":
     error = job.get("error", {})
     sys.exit(f"Job failed: {error.get('code')}: {error.get('message')} (the hold was refunded)")
 
-file_id = job["artifact"]["file_id"]
-with requests.get(BASE + "/v1/files/" + file_id + "/content",
-                  headers=headers, stream=True, timeout=300) as download:
+# artifact.url needs no key and works for an hour.
+with requests.get(job["artifact"]["url"], stream=True, timeout=300) as download:
     download.raise_for_status()
     with open(job_id + ".mp4", "wb") as out:
         for chunk in download.iter_content(chunk_size=1024 * 1024):
@@ -330,7 +332,14 @@ Lazu は ByteDance の BytePlus 公式定価で課金します。単位は 1 秒
   "status": "succeeded",
   "created_at": 1792466151,
   "completed_at": 1792466297,
-  "artifact": { "file_id": "file-lazu-..." },
+  "artifact": {
+    "file_id": "file-lazu-...",
+    "url": "https://...?X-Amz-Signature=...",
+    "url_expires_at": 1792469897,
+    "mime_type": "video/mp4",
+    "bytes": 441133,
+    "expires_at": 1792725497
+  },
   "cost_snapshot": {
     "customer_charge_microusd": 411500,
     "customer_charge_usd": 0.4115,

@@ -402,6 +402,8 @@ Lazu 側の問題（一時的に壊れたモデルルートなど）を表すエ
 | <a id="lz-7826"></a>`LZ-7826` | `invalid_precreated_media_job` | 400 | `invalid_request_error` | リクエストで指定したメディアジョブがこのリクエストと一致しません。生成をやり直してください。 |
 | <a id="lz-7827"></a>`LZ-7827` | `artifact_too_large` | 502 | `api_error` | 生成されたファイルが保存できるサイズを超えたため、結果は保存されませんでした。サイズを小さくするか、長さを短くしてお試しください。 |
 | <a id="lz-7828"></a>`LZ-7828` | `video_artifact_missing` | 502 | `api_error` | 動画の生成は終わりましたが、ダウンロードできるファイルがありません。もう一度生成してください。 |
+| <a id="lz-7829"></a>`LZ-7829` | `video_not_ready` | 409 | `conflict_error` | この動画にはまだダウンロードできるファイルがありません。status が succeeded になってからダウンロードしてください。 |
+| <a id="lz-7830"></a>`LZ-7830` | `invalid_wait` | 400 | `invalid_request_error` | wait には 0〜60 の整数（秒）を指定してください。 |
 | <a id="lz-7861"></a>`LZ-7861` | `search_backend_not_found` | 404 | `not_found_error` | この検索バックエンドが見つかりません。一覧を再読み込みしてください。 |
 | <a id="lz-7862"></a>`LZ-7862` | `search_backend_provider_invalid` | 400 | `invalid_request_error` | この検索プロバイダーには対応していないか、チャネルの種類と一致しません。一覧からプロバイダーを選んでください。 |
 | <a id="lz-7864"></a>`LZ-7864` | `upload_file_not_found` | 404 | `not_found_error` | このデータファイルがサーバー上に見つかりません。ファイルのパスを確認してください。 |

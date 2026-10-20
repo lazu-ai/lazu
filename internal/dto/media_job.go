@@ -28,7 +28,15 @@ type MediaJobObject struct {
 
 type MediaJobArtifact struct {
 	FileID string `json:"file_id,omitempty"`
-	URL    string `json:"url,omitempty"`
+	// URL downloads the file straight from storage. For a stored file it is a
+	// signed link that works until URLExpiresAt; read the job again for a
+	// fresh one.
+	URL          string `json:"url,omitempty"`
+	URLExpiresAt int64  `json:"url_expires_at,omitempty"`
+	MimeType     string `json:"mime_type,omitempty"`
+	Bytes        int64  `json:"bytes,omitempty"`
+	// ExpiresAt is when the stored file is deleted.
+	ExpiresAt int64 `json:"expires_at,omitempty"`
 }
 
 type MediaJobError struct {

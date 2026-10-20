@@ -1362,11 +1362,73 @@ func buildMediaJobConsumeLog(job MediaJob, result MediaJobBillingResult, now tim
 	}
 }
 
+// RecordMediaJobFailureLog shows a job that failed after it was accepted in
+// the usage log the way a failed request shows: an error row that charged
+// nothing, its hold returned. Without it such a job leaves no trace in the
+// log. The worker calls it; a submission refused synchronously logs its
+// error through the request instead.
+func RecordMediaJobFailureLog(jobID uint, now time.Time) {
+	if !common.LogConsumeEnabled || TelemetryDB() == nil || CoreDB() == nil {
+		return
+	}
+	var job MediaJob
+	if err := CoreDB().First(&job, jobID).Error; err != nil {
+		return
+	}
+	// A submission the provider refused outright already logged its error
+	// under the same request id.
+	if mediaJobLogExists(job, LogTypeError) || mediaJobLogExists(job, LogTypeConsume) {
+		return
+	}
+	tokenID := 0
+	if job.TokenID != nil {
+		tokenID = *job.TokenID
+	}
+	channelID := 0
+	if job.ChannelID != nil {
+		channelID = *job.ChannelID
+	}
+	log := &Log{
+		ProjectID: job.ProjectID, PayerUserID: job.BillingUserID(),
+		UserId:          job.ActorID(),
+		RequestID:       job.RequestID,
+		CreatedAt:       normalizeMediaJobTime(now).Unix(),
+		Type:            LogTypeError,
+		RejectionReason: truncateMediaJobString(job.ErrorCode, 64),
+		Content:         fmt.Sprintf("%s media job %s %s failed", mediaJobSource(job), job.Kind, job.PublicID),
+		ModelName:       job.ModelName,
+		ChannelId:       channelID,
+		TokenId:         tokenID,
+		SessionID:       job.SessionID,
+		AgentID:         job.AgentID,
+		Other: common.MapToJsonStr(map[string]any{
+			"source":        mediaJobSource(job),
+			"media_job_id":  job.PublicID,
+			"kind":          job.Kind,
+			"refunded":      true,
+			"error_code":    job.ErrorCode,
+			"error_message": job.ErrorMessage,
+		}),
+	}
+	if err := TelemetryDB().Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(log).Error; err != nil {
+			return err
+		}
+		return recordUsageSlicesForLogTx(tx, log)
+	}); err != nil {
+		common.SysLog("failed to record media job failure log: " + err.Error())
+	}
+}
+
 func mediaJobConsumeLogExists(job MediaJob) bool {
+	return mediaJobLogExists(job, LogTypeConsume)
+}
+
+func mediaJobLogExists(job MediaJob, logType int) bool {
 	if TelemetryDB() == nil {
 		return false
 	}
-	tx := TelemetryDB().Model(&Log{}).Where("type = ?", LogTypeConsume)
+	tx := TelemetryDB().Model(&Log{}).Where("type = ?", logType)
 	if job.RequestID != "" {
 		tx = tx.Where("request_id = ?", job.RequestID)
 	} else if job.PublicID != "" {

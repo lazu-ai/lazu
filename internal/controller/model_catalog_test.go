@@ -902,8 +902,9 @@ func TestVideoCatalogExampleShowsTheWholeAsyncFlow(t *testing.T) {
 	for _, want := range []string{
 		"curl https://lazu.ai/v1/videos -H",
 		`"model":"seedance-2.5"`,
-		"curl https://lazu.ai/v1/videos/JOB_ID",
-		"curl https://lazu.ai/v1/files/FILE_ID/content",
+		"curl 'https://lazu.ai/v1/videos/JOB_ID?wait=60'",
+		"artifact.url",
+		"curl --fail https://lazu.ai/v1/videos/JOB_ID/content",
 		"-o video.mp4",
 	} {
 		if !strings.Contains(example, want) {
