@@ -31,7 +31,7 @@ func NotifyPgDumpResult(res PgDumpResult) {
 		})
 		return
 	}
-	summary := fmt.Sprintf("size=%s duration=%s", humanSize(res.SizeBytes), res.Duration.Truncate(time.Millisecond))
+	summary := fmt.Sprintf("size=%s duration=%s", humanSize(res.SizeBytes), res.Duration.Round(time.Second))
 	alerting.RecordHealth(pgDumpIncidentKey, "Database backup", "ok", summary)
 	alerting.Resolve(pgDumpIncidentKey, fmt.Sprintf("✅ Lazu pg_dump recovered\nkey=%s", res.Key))
 }

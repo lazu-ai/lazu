@@ -889,23 +889,154 @@ func releaseDigestClaim(now time.Time) {
 	localMu.Unlock()
 }
 
+// healthCadence is how often each recorded task is expected to report. A
+// snapshot older than twice its cadence means the task stopped running, so
+// the digest shows it as stale instead of repeating its last status. Keys
+// without a cadence are never marked stale.
+var healthCadence = map[string]time.Duration{
+	"pg-dump":           24 * time.Hour,
+	"hourly-upload":     time.Hour,
+	"archive-compactor": 24 * time.Hour,
+	"user-file-cleanup": 24 * time.Hour,
+	"relay-zero-token":  15 * time.Minute,
+}
+
+// digestStatusOrder lists problems first so the top of the message answers
+// whether anything needs attention.
+var digestStatusOrder = map[string]int{
+	"failed":  0,
+	"stale":   1,
+	"warning": 2,
+	"unknown": 3,
+	"skipped": 4,
+	"ok":      5,
+}
+
+var digestStatusIcon = map[string]string{
+	"failed":  "❌",
+	"stale":   "⏸️",
+	"warning": "⚠️",
+	"unknown": "➖",
+	"skipped": "➖",
+	"ok":      "✅",
+}
+
+type digestLine struct {
+	snapshot HealthSnapshot
+	status   string
+	age      time.Duration
+}
+
 func formatDailyDigest(now time.Time, snapshots []HealthSnapshot) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "📊 Lazu daily operations summary\ndate=%s", now.Format("2006-01-02"))
+	fmt.Fprintf(&b, "📊 Lazu daily operations summary · %s", now.Format("2006-01-02"))
 	if len(snapshots) == 0 {
-		b.WriteString("\n- no task results recorded")
+		b.WriteString("\n⚠️ no task results recorded")
 		return b.String()
 	}
+	lines := make([]digestLine, 0, len(snapshots))
 	for _, snapshot := range snapshots {
-		age := now.Sub(time.Unix(snapshot.UpdatedAt, 0)).Truncate(time.Minute)
-		if age < 0 {
-			age = 0
+		line := digestLine{snapshot: snapshot, status: snapshot.Status, age: now.Sub(time.Unix(snapshot.UpdatedAt, 0))}
+		if line.age < 0 {
+			line.age = 0
 		}
-		fmt.Fprintf(&b, "\n- %s: %s", snapshot.Label, snapshot.Status)
-		if snapshot.Summary != "" {
-			fmt.Fprintf(&b, " · %s", snapshot.Summary)
+		if cadence, ok := healthCadence[snapshot.Key]; ok && line.age > 2*cadence {
+			line.status = "stale"
 		}
-		fmt.Fprintf(&b, " · %s ago", age)
+		lines = append(lines, line)
+	}
+	sort.SliceStable(lines, func(i, j int) bool {
+		return digestRank(lines[i].status) < digestRank(lines[j].status)
+	})
+
+	b.WriteString("\n")
+	b.WriteString(digestHeadline(lines))
+	for _, line := range lines {
+		icon := digestStatusIcon[line.status]
+		if icon == "" {
+			icon = "•"
+		}
+		fmt.Fprintf(&b, "\n%s %s: %s", icon, line.snapshot.Label, line.status)
+		if line.status == "stale" {
+			fmt.Fprintf(&b, " · last %s %s ago, expected every %s",
+				line.snapshot.Status, formatDigestAge(line.age), formatDigestAge(healthCadence[line.snapshot.Key]))
+		} else {
+			fmt.Fprintf(&b, " · %s", formatDigestWhen(line.age))
+		}
+		if line.snapshot.Summary != "" {
+			fmt.Fprintf(&b, " · %s", line.snapshot.Summary)
+		}
 	}
 	return b.String()
+}
+
+func digestRank(status string) int {
+	if rank, ok := digestStatusOrder[status]; ok {
+		return rank
+	}
+	// Unrecognized statuses sit with the problems rather than below ok.
+	return digestStatusOrder["warning"]
+}
+
+// digestHeadline counts statuses in the order the lines are sorted, so the
+// worst status leads. Only unknown and skipped are quiet; anything else that
+// is not ok, including statuses this file does not know, raises the warning.
+func digestHeadline(lines []digestLine) string {
+	counts := map[string]int{}
+	order := make([]string, 0, len(lines))
+	alarming := false
+	for _, line := range lines {
+		if counts[line.status] == 0 {
+			order = append(order, line.status)
+		}
+		counts[line.status]++
+		switch line.status {
+		case "ok", "unknown", "skipped":
+		default:
+			alarming = true
+		}
+	}
+	if counts["ok"] == len(lines) {
+		return fmt.Sprintf("✅ all %d tasks ok", len(lines))
+	}
+	parts := make([]string, 0, len(order))
+	for _, status := range order {
+		if status != "ok" {
+			parts = append(parts, fmt.Sprintf("%d %s", counts[status], status))
+		}
+	}
+	icon := "➖"
+	if alarming {
+		icon = "⚠️"
+	}
+	return fmt.Sprintf("%s %s · %d ok", icon, strings.Join(parts, " · "), counts["ok"])
+}
+
+func formatDigestWhen(age time.Duration) string {
+	if age < time.Minute {
+		return "just now"
+	}
+	return formatDigestAge(age) + " ago"
+}
+
+// formatDigestAge renders a duration at the precision a daily reader needs:
+// minutes under an hour, hours and minutes under a day, then days and hours.
+func formatDigestAge(d time.Duration) string {
+	d = d.Truncate(time.Minute)
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d/time.Minute))
+	case d < 24*time.Hour:
+		hours, minutes := int(d/time.Hour), int(d%time.Hour/time.Minute)
+		if minutes == 0 {
+			return fmt.Sprintf("%dh", hours)
+		}
+		return fmt.Sprintf("%dh%dm", hours, minutes)
+	default:
+		days, hours := int(d/(24*time.Hour)), int(d%(24*time.Hour)/time.Hour)
+		if hours == 0 {
+			return fmt.Sprintf("%dd", days)
+		}
+		return fmt.Sprintf("%dd%dh", days, hours)
+	}
 }

@@ -133,8 +133,8 @@ func runZeroTokenOneShot(ctx context.Context, db *gorm.DB, now time.Time) error 
 
 func recordZeroTokenUnknown(snapshot relaymetrics.ZeroTokenQuotaZeroSnapshot) {
 	alerting.RecordHealth(zeroTokenIncidentKey, "Zero-token billing monitor", "unknown",
-		fmt.Sprintf("insufficient samples: rate=%.2f%% zero=%d total=%d min=%d",
-			snapshot.Rate*100, snapshot.Zero, snapshot.Total, zeroTokenMonitorMinSamples))
+		fmt.Sprintf("not evaluated: %d requests in the last minute, needs %d",
+			snapshot.Total, zeroTokenMonitorMinSamples))
 }
 
 func reportZeroTokenQueryFailure(err error) {

@@ -105,12 +105,74 @@ func TestIncidentDeliveryReservationSuppressesConcurrentReporter(t *testing.T) {
 func TestDailyDigestFormatsOneCompactSummary(t *testing.T) {
 	now := time.Date(2026, 8, 19, 9, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
-		{Label: "R2 JSONL upload", Status: "ok", Summary: "uploaded=14 failed=0", UpdatedAt: now.Add(-time.Hour).Unix()},
-		{Label: "Database backup", Status: "failed", Summary: "connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "uploaded=14 failed=0", UpdatedAt: now.Add(-time.Hour).Unix()},
+		{Key: "pg-dump", Label: "Database backup", Status: "failed", Summary: "connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
 	})
-	for _, expected := range []string{"Lazu daily operations summary", "R2 JSONL upload: ok", "Database backup: failed"} {
+	for _, expected := range []string{
+		"Lazu daily operations summary · 2026-08-19",
+		"⚠️ 1 failed · 1 ok",
+		"❌ Database backup: failed · 30m ago · connection refused",
+		"✅ R2 JSONL upload: ok · 1h ago · uploaded=14 failed=0",
+	} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+	if strings.Index(message, "Database backup") > strings.Index(message, "R2 JSONL upload") {
+		t.Fatalf("failed task should be listed before ok task: %s", message)
+	}
+}
+
+func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.FixedZone("CST", 8*60*60))
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", Summary: "size=671.7 MiB", UpdatedAt: now.Add(-(291*time.Hour + 38*time.Minute)).Unix()},
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "uploaded=3", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
+		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", Summary: "not evaluated", UpdatedAt: now.Unix()},
+	})
+	for _, expected := range []string{
+		"⚠️ 1 stale · 1 unknown · 1 ok",
+		"⏸️ Database backup: stale · last ok 12d3h ago, expected every 1d · size=671.7 MiB",
+		"➖ Zero-token billing monitor: unknown · just now",
+		"✅ R2 JSONL upload: ok · 10m ago",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+}
+
+func TestDailyDigestHeadline(t *testing.T) {
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	allOK := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+		{Label: "Unregistered task", Status: "ok", UpdatedAt: now.Add(-30 * 24 * time.Hour).Unix()},
+	})
+	if !strings.Contains(allOK, "\n✅ all 2 tasks ok\n") {
+		t.Fatalf("expected all-ok headline; tasks without a cadence never go stale: %s", allOK)
+	}
+	quiet := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", UpdatedAt: now.Unix()},
+	})
+	if !strings.Contains(quiet, "\n➖ 1 unknown · 0 ok\n") {
+		t.Fatalf("unknown alone should not raise a warning: %s", quiet)
+	}
+}
+
+func TestFormatDigestAge(t *testing.T) {
+	for _, tc := range []struct {
+		in   time.Duration
+		want string
+	}{
+		{40 * time.Second, "0m"},
+		{59 * time.Minute, "59m"},
+		{2 * time.Hour, "2h"},
+		{2*time.Hour + 28*time.Minute, "2h28m"},
+		{24 * time.Hour, "1d"},
+		{291*time.Hour + 38*time.Minute, "12d3h"},
+	} {
+		if got := formatDigestAge(tc.in); got != tc.want {
+			t.Fatalf("formatDigestAge(%s) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
