@@ -1,70 +1,102 @@
 package openai_responses
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 )
 
-func TestChatStreamBridgeEmitsCompleteOrderedResponsesLifecycle(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_test", "m")
-	finish := "tool_calls"
-	chunks := []*dto.ChatCompletionsStreamResponse{
-		{Id: "chatcmpl_test", Created: 123, Model: "m", Choices: []dto.ChatCompletionsStreamResponseChoice{{Index: 0, Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: stringPointer("hel")}}}},
-		{Id: "chatcmpl_test", Created: 123, Model: "m", Choices: []dto.ChatCompletionsStreamResponseChoice{{Index: 0, Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: stringPointer("lo"), ToolCalls: []dto.ToolCallResponse{toolDelta(3, "call_3", "lookup", "{\"x\":")}}}}},
-		{Id: "chatcmpl_test", Created: 123, Model: "m", Choices: []dto.ChatCompletionsStreamResponseChoice{{Index: 0, Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{toolDelta(3, "", "", "1}")}}, FinishReason: &finish}}},
-	}
-	var events []textgen.Event
+// chatStream drives Chat chunks through the Chat decoder and the Responses
+// emitter and returns every Responses event written, Finish included when
+// finish is true.
+func chatStream(t *testing.T, emitter *StreamEmitter, finishUsage *dto.Usage, finish bool, chunks ...*dto.ChatCompletionsStreamResponse) []map[string]any {
+	t.Helper()
+	decoder := &openai_chat.StreamDecoder{}
+	var out []map[string]any
 	for _, chunk := range chunks {
-		got, err := bridge.Consume(chunk)
+		payloads, err := emitter.Emit(decoder.Decode(chunk)...)
 		if err != nil {
 			t.Fatal(err)
 		}
-		events = append(events, got...)
+		out = append(out, payloads...)
 	}
-	terminal, err := bridge.Finalize(&dto.Usage{PromptTokens: 2, CompletionTokens: 3, TotalTokens: 5})
-	if err != nil {
-		t.Fatal(err)
+	if finish {
+		payloads, err := emitter.Finish(finishUsage)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, payloads...)
 	}
-	events = append(events, terminal...)
-	for index, event := range events {
-		if event.Sequence != uint64(index) {
-			t.Fatalf("sequence[%d]=%d", index, event.Sequence)
+	return out
+}
+
+func types(payloads []map[string]any) []string {
+	out := make([]string, 0, len(payloads))
+	for _, payload := range payloads {
+		out = append(out, payload["type"].(string))
+	}
+	return out
+}
+
+func terminalOutput(t *testing.T, payloads []map[string]any) []map[string]any {
+	t.Helper()
+	last := payloads[len(payloads)-1]
+	response, ok := last["response"].(map[string]any)
+	if !ok {
+		t.Fatalf("last event is not terminal: %+v", last)
+	}
+	var out []map[string]any
+	for _, item := range response["output"].([]any) {
+		out = append(out, wireObject(t, item))
+	}
+	return out
+}
+
+func TestChatStreamEmitsCompleteOrderedResponsesLifecycle(t *testing.T) {
+	emitter := NewStreamEmitter("chatcmpl_test", "m", nil)
+	finish := "tool_calls"
+	payloads := chatStream(t, emitter, &dto.Usage{PromptTokens: 2, CompletionTokens: 3, TotalTokens: 5}, true,
+		&dto.ChatCompletionsStreamResponse{Id: "chatcmpl_test", Created: 123, Model: "m", Choices: []dto.ChatCompletionsStreamResponseChoice{{Index: 0, Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: stringPointer("hel")}}}},
+		&dto.ChatCompletionsStreamResponse{Id: "chatcmpl_test", Created: 123, Model: "m", Choices: []dto.ChatCompletionsStreamResponseChoice{{Index: 0, Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: stringPointer("lo"), ToolCalls: []dto.ToolCallResponse{toolDelta(3, "call_3", "lookup", "{\"x\":")}}}}},
+		&dto.ChatCompletionsStreamResponse{Id: "chatcmpl_test", Created: 123, Model: "m", Choices: []dto.ChatCompletionsStreamResponseChoice{{Index: 0, Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{toolDelta(3, "", "", "1}")}}, FinishReason: &finish}}},
+	)
+	for index, payload := range payloads {
+		if payload["sequence_number"] != uint64(index) {
+			t.Fatalf("sequence[%d]=%v", index, payload["sequence_number"])
 		}
 	}
-	last := events[len(events)-1]
-	if last.Kind != textgen.EventResponseCompleted || last.CreatedAt != 123 || len(last.Output) != 2 {
+	last := payloads[len(payloads)-1]
+	response := last["response"].(map[string]any)
+	if last["type"] != "response.completed" || response["created_at"] != int64(123) || response["id"] != "resp_chatcmpl_test" {
 		t.Fatalf("unexpected terminal event: %+v", last)
 	}
-	if last.Output[0].Text != "hello" || last.Output[1].Arguments != `{"x":1}` || last.Output[1].CallID != "call_3" {
-		t.Fatalf("terminal output incomplete: %+v", last.Output)
+	output := terminalOutput(t, payloads)
+	if len(output) != 2 || output[0]["type"] != "message" || output[1]["type"] != "function_call" {
+		t.Fatalf("terminal output incomplete: %+v", output)
 	}
-	textDoneIndex, contentDoneIndex, argumentsDoneIndex, toolDoneIndex := -1, -1, -1, -1
-	for index, event := range events {
-		wireType, _ := EmitEvent(event)["type"].(string)
-		switch wireType {
-		case "response.output_text.done":
-			textDoneIndex = index
+	if output[0]["content"].([]any)[0].(map[string]any)["text"] != "hello" || output[1]["arguments"] != `{"x":1}` || output[1]["call_id"] != "call_3" {
+		t.Fatalf("terminal output wrong: %+v", output)
+	}
+	order := map[string]int{}
+	for index, payload := range payloads {
+		switch payload["type"] {
+		case "response.output_text.done", "response.function_call_arguments.done":
+			order[payload["type"].(string)] = index
 		case "response.content_part.done":
-			if event.Delta.Kind == textgen.DeltaText {
-				contentDoneIndex = index
+			if order["part"] == 0 {
+				order["part"] = index
 			}
-		case "response.function_call_arguments.done":
-			argumentsDoneIndex = index
 		case "response.output_item.done":
-			if event.Delta.Kind == textgen.DeltaToolArguments {
-				toolDoneIndex = index
+			if item, _ := payload["item"].(map[string]any); item != nil && item["type"] == "function_call" {
+				order["tool"] = index
 			}
 		}
 	}
-	if textDoneIndex < 0 || textDoneIndex >= contentDoneIndex || argumentsDoneIndex < 0 || argumentsDoneIndex >= toolDoneIndex {
-		t.Fatalf("protocol-specific done events are missing or out of order: %+v", events)
-	}
-	wire := EmitEvent(last)
-	response := wire["response"].(map[string]any)
-	if response["created_at"] != int64(123) || len(response["output"].([]any)) != 2 {
-		t.Fatalf("terminal wire envelope incomplete: %#v", response)
+	if order["response.output_text.done"] >= order["part"] || order["response.function_call_arguments.done"] >= order["tool"] {
+		t.Fatalf("protocol-specific done events are missing or out of order: %v", types(payloads))
 	}
 	usage := response["usage"].(*dto.ResponsesUsage)
 	if usage.InputTokens != 2 || usage.OutputTokens != 3 {
@@ -72,341 +104,252 @@ func TestChatStreamBridgeEmitsCompleteOrderedResponsesLifecycle(t *testing.T) {
 	}
 }
 
-func TestChatStreamBridgePreservesReasoningLifecycle(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_reasoning", "m")
-	reasoning := "think"
-	answer := "done"
-	finish := "stop"
-	chunks := []*dto.ChatCompletionsStreamResponse{
-		{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ReasoningContent: &reasoning}}}},
-		{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &answer}, FinishReason: &finish}}},
+func TestChatStreamPreservesReasoningLifecycle(t *testing.T) {
+	emitter := NewStreamEmitter("chatcmpl_reasoning", "m", nil)
+	reasoning, answer, finish := "think", "done", "stop"
+	payloads := chatStream(t, emitter, nil, true,
+		&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ReasoningContent: &reasoning}}}},
+		&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &answer}, FinishReason: &finish}}},
+	)
+	output := terminalOutput(t, payloads)
+	if output[0]["type"] != "reasoning" {
+		t.Fatalf("reasoning output was not retained first in the terminal response: %+v", output)
 	}
-	var events []textgen.Event
-	for _, chunk := range chunks {
-		got, err := bridge.Consume(chunk)
-		if err != nil {
-			t.Fatal(err)
-		}
-		events = append(events, got...)
-	}
-	terminal, err := bridge.Finalize(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	events = append(events, terminal...)
-	if len(events) == 0 || events[len(events)-1].Output[0].Kind != textgen.InputReasoning || events[len(events)-1].Output[0].Text != reasoning {
-		t.Fatalf("reasoning output was not retained in terminal response: %+v", events)
+	assertReasoningSchema(t, output[0])
+	if output[0]["content"].([]any)[0].(map[string]any)["text"] != reasoning {
+		t.Fatalf("reasoning text lost: %+v", output[0])
 	}
 	seen := map[string]bool{}
-	for _, event := range events {
-		if event.Delta.Kind == textgen.DeltaReasoning {
-			if wireType, _ := EmitEvent(event)["type"].(string); wireType != "" {
-				seen[wireType] = true
-			}
-		}
+	for _, payload := range payloads {
+		seen[payload["type"].(string)] = true
 	}
 	for _, want := range []string{"response.output_item.added", "response.content_part.added", "response.reasoning_text.delta", "response.reasoning_text.done", "response.content_part.done", "response.output_item.done"} {
 		if !seen[want] {
-			t.Fatalf("missing reasoning lifecycle event %q: %+v", want, events)
+			t.Fatalf("missing reasoning lifecycle event %q: %v", want, types(payloads))
 		}
 	}
 }
 
-func TestChatStreamBridgeTerminalOutputPreservesAssignedOutputIndexes(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_tool_first", "m")
-	toolFirst := &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
-		Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_0", "lookup", `{}`)}},
-	}}}
-	if _, err := bridge.Consume(toolFirst); err != nil {
-		t.Fatal(err)
-	}
-	text := "after tool"
-	finish := "stop"
-	if _, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
-		Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &text}, FinishReason: &finish,
-	}}}); err != nil {
-		t.Fatal(err)
-	}
-	events, err := bridge.Finalize(nil)
+// A reasoning boundary (Anthropic's thinking blocks) opens a second
+// reasoning item; the Chat decoder never emits one, so it is driven here.
+func TestEmitterOpensANewReasoningItemAtABoundary(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil)
+	payloads, err := emitter.Emit(
+		textgen.Event{Kind: textgen.EventStart, ResponseID: "id"},
+		textgen.Event{Kind: textgen.EventReasoningStart},
+		textgen.Event{Kind: textgen.EventReasoning, Text: "first"},
+		textgen.Event{Kind: textgen.EventReasoningStart},
+		textgen.Event{Kind: textgen.EventReasoning, Text: "second"},
+		textgen.Event{Kind: textgen.EventText, Text: "answer"},
+		textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopEnd},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	terminal := events[len(events)-1]
-	if len(terminal.Output) != 2 || terminal.Output[0].Kind != textgen.InputFunctionCall || terminal.Output[1].Kind != textgen.InputMessage {
-		t.Fatalf("terminal output disagreed with assigned output indexes: %+v", terminal.Output)
+	end, err := emitter.Finish(nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-	wire := EmitEvent(terminal)["response"].(map[string]any)["output"].([]any)
-	if wire[0].(map[string]any)["type"] != "function_call" || wire[1].(map[string]any)["type"] != "message" {
-		t.Fatalf("wire terminal output order changed: %#v", wire)
+	output := terminalOutput(t, append(payloads, end...))
+	if len(output) != 3 || output[0]["type"] != "reasoning" || output[1]["type"] != "reasoning" || output[2]["type"] != "message" {
+		t.Fatalf("expected two reasoning items then a message, got %+v", output)
 	}
-}
-
-func TestChatStreamBridgeFailureIsTerminalExactlyOnce(t *testing.T) {
-	bridge := NewChatStreamBridge("id", "m")
-	events := bridge.Fail(assertionError("boom"))
-	if len(events) != 3 || events[2].Kind != textgen.EventResponseFailed {
-		t.Fatalf("expected created, in_progress, failed: %+v", events)
-	}
-	if again := bridge.Fail(assertionError("again")); len(again) != 0 {
-		t.Fatalf("terminal must be emitted once: %+v", again)
+	if output[0]["id"] == output[1]["id"] {
+		t.Fatal("reasoning items must have distinct ids")
 	}
 }
 
-func TestChatStreamBridgeRejectsRetainedOutputBeyondLimit(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_bounded", "m", 8)
-	content := "123456789"
-	_, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &content}}}})
+func TestChatStreamTerminalOutputPreservesAssignedOutputIndexes(t *testing.T) {
+	emitter := NewStreamEmitter("chatcmpl_tool_first", "m", nil)
+	text, finish := "after tool", "stop"
+	payloads := chatStream(t, emitter, nil, true,
+		&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_0", "lookup", `{}`)}}}}},
+		&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &text}, FinishReason: &finish}}},
+	)
+	output := terminalOutput(t, payloads)
+	if len(output) != 2 || output[0]["type"] != "function_call" || output[1]["type"] != "message" {
+		t.Fatalf("terminal output disagreed with assigned output indexes: %+v", output)
+	}
+}
+
+func TestChatStreamFailureIsTerminalExactlyOnce(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil)
+	first := emitter.Fail(assertionError("boom"))
+	if len(first) == 0 || first[len(first)-1]["type"] != "response.failed" {
+		t.Fatalf("expected response.failed, got %v", types(first))
+	}
+	if again := emitter.Fail(assertionError("again")); len(again) != 0 {
+		t.Fatalf("failure emitted twice: %v", types(again))
+	}
+	if payloads, err := emitter.Finish(nil); err != nil || len(payloads) != 0 {
+		t.Fatalf("finish after failure must be a no-op: %v %v", payloads, err)
+	}
+}
+
+func TestChatStreamRejectsRetainedOutputBeyondLimit(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil, minimumChatStreamRetainedOutputBytes)
+	decoder := &openai_chat.StreamDecoder{}
+	big := strings.Repeat("x", minimumChatStreamRetainedOutputBytes+1)
+	payloads, err := emitter.Emit(decoder.Decode(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &big}}}})...)
 	if err == nil {
-		t.Fatal("expected retained output limit failure")
+		t.Fatal("expected the retained output limit to be enforced")
 	}
-	events := bridge.Fail(err)
-	if len(events) == 0 || events[len(events)-1].Kind != textgen.EventResponseFailed {
-		t.Fatalf("retained output overflow did not fail cleanly: %+v", events)
-	}
-	if again := bridge.Fail(err); len(again) != 0 {
-		t.Fatalf("retained output overflow emitted more than one terminal: %+v", again)
+	for _, payload := range payloads {
+		if payload["type"] == "response.output_text.delta" {
+			t.Fatal("the offending delta must not be written")
+		}
 	}
 }
 
-func TestChatStreamBridgeFailureClosesAndRetainsPartialItems(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_partial", "m")
-	partial := "partial"
-	events, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
-		Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
-			Content:   &partial,
-			ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_0", "lookup", `{"x":`)},
-		},
-	}}})
-	if err != nil {
-		t.Fatal(err)
+func TestChatStreamFailureClosesAndRetainsPartialItems(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil)
+	text := "partial"
+	payloads := chatStream(t, emitter, nil, false, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &text, ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_0", "lookup", `{"a":`)}}}}})
+	failed := emitter.Fail(assertionError("cut"), &dto.Usage{PromptTokens: 1, CompletionTokens: 1})
+	payloads = append(payloads, failed...)
+	last := payloads[len(payloads)-1]
+	if last["type"] != "response.failed" {
+		t.Fatalf("expected response.failed last, got %v", types(payloads))
 	}
-	failed := bridge.Fail(assertionError("malformed chunk"), &dto.Usage{PromptTokens: 4, CompletionTokens: 2, TotalTokens: 6})
-	events = append(events, failed...)
-	last := events[len(events)-1]
-	if last.Kind != textgen.EventResponseFailed || len(last.Output) != 2 {
-		t.Fatalf("failed envelope did not retain partial outputs: %+v", last)
+	response := last["response"].(map[string]any)
+	if response["status"] != "failed" || response["error"] == nil {
+		t.Fatalf("failed envelope incomplete: %+v", response)
 	}
-	if last.Output[0].Text != partial || last.Output[0].Status != textgen.StatusIncomplete {
-		t.Fatalf("partial message was not retained as incomplete: %+v", last.Output[0])
+	output := terminalOutput(t, payloads)
+	if len(output) != 2 || output[0]["status"] != "incomplete" || output[1]["status"] != "incomplete" || output[1]["arguments"] != `{"a":` {
+		t.Fatalf("partial items must be closed as incomplete and retained: %+v", output)
 	}
-	if last.Output[1].Arguments != `{"x":` || last.Output[1].Status != textgen.StatusIncomplete {
-		t.Fatalf("partial tool call was not retained as incomplete: %+v", last.Output[1])
+	seen := map[string]bool{}
+	for _, payload := range failed {
+		seen[payload["type"].(string)] = true
 	}
-
-	wantDone := map[string]bool{
-		"response.output_text.done":               false,
-		"response.content_part.done":              false,
-		"response.function_call_arguments.done":   false,
-		"response.output_item.done:message":       false,
-		"response.output_item.done:function_call": false,
-	}
-	for index, event := range events {
-		if event.Sequence != uint64(index) {
-			t.Fatalf("sequence[%d]=%d", index, event.Sequence)
-		}
-		wire := EmitEvent(event)
-		typeName, _ := wire["type"].(string)
-		switch typeName {
-		case "response.output_text.done", "response.content_part.done", "response.function_call_arguments.done":
-			wantDone[typeName] = true
-		case "response.output_item.done":
-			item := wire["item"].(map[string]any)
-			wantDone[typeName+":"+item["type"].(string)] = true
-		}
-	}
-	for eventType, seen := range wantDone {
-		if !seen {
-			t.Fatalf("missing %s before failed terminal: %+v", eventType, events)
-		}
-	}
-	response := EmitEvent(last)["response"].(map[string]any)
-	if output := response["output"].([]any); len(output) != 2 {
-		t.Fatalf("failed wire envelope lost partial output: %#v", response)
-	}
-	usage := response["usage"].(*dto.ResponsesUsage)
-	if usage.InputTokens != 4 || usage.OutputTokens != 2 || usage.TotalTokens != 6 {
-		t.Fatalf("failed wire envelope lost settled usage: %+v", usage)
+	if !seen["response.output_item.done"] || !seen["response.function_call_arguments.done"] {
+		t.Fatalf("open items were not closed before failing: %v", types(failed))
 	}
 }
 
 func TestChatStreamEnvelopeCarriesSemanticRequestConfiguration(t *testing.T) {
-	request := &textgen.Request{
-		ToolPolicy: textgen.ToolPolicy{Mode: "auto", ParallelToolCalls: textgen.Some(false)},
-		Sampling: textgen.SamplingOptions{
-			Temperature: textgen.Some(0.25),
-			TopP:        textgen.Some(0.9),
-			MaxOutput:   textgen.Some(uint(99)),
-		},
-	}
-	event := textgen.Event{Kind: textgen.EventResponseCompleted, ResponseID: "resp_config", Model: "m"}
-	response := EmitEvent(event, request)["response"].(map[string]any)
-	if response["temperature"] != 0.25 || response["top_p"] != 0.9 || response["max_output_tokens"] != uint(99) {
-		t.Fatalf("stream response sampling configuration was lost: %#v", response)
-	}
-	if response["parallel_tool_calls"] != false || response["tool_choice"] != "auto" {
-		t.Fatalf("stream response tool configuration was lost: %#v", response)
+	request := &textgen.Request{Model: textgen.ModelRef{Canonical: "m"}, Instructions: []textgen.Instruction{{Role: "system", Text: "be brief"}}, Sampling: textgen.SamplingOptions{MaxOutput: textgen.Some[uint](64), Temperature: textgen.Some(0.2)}, Metadata: textgen.MetadataOptions{User: "u1"}}
+	emitter := NewStreamEmitter("id", "m", request)
+	finish := "stop"
+	text := "ok"
+	payloads := chatStream(t, emitter, nil, true, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &text}, FinishReason: &finish}}})
+	response := wireObject(t, payloads[len(payloads)-1]["response"])
+	if response["instructions"] != "be brief" || response["max_output_tokens"] != float64(64) || response["temperature"] != 0.2 || response["user"] != "u1" {
+		t.Fatalf("envelope did not carry the request configuration: %+v", response)
 	}
 }
 
 func TestChatStreamEnvelopeUsesChatConfigurationDefaults(t *testing.T) {
-	request := &textgen.Request{}
-	response := EmitEvent(textgen.Event{Kind: textgen.EventResponseCompleted, ResponseID: "resp_defaults", Model: "m"}, request)["response"].(map[string]any)
+	emitter := NewStreamEmitter("id", "m", nil)
+	finish := "stop"
+	text := "ok"
+	payloads := chatStream(t, emitter, nil, true, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &text}, FinishReason: &finish}}})
+	response := wireObject(t, payloads[len(payloads)-1]["response"])
 	if response["temperature"] != float64(1) || response["top_p"] != float64(1) || response["parallel_tool_calls"] != true || response["truncation"] != "disabled" {
-		t.Fatalf("stream response defaults were not represented: %#v", response)
+		t.Fatalf("stream response defaults were not represented: %+v", response)
 	}
-	if response["max_output_tokens"] != nil || response["tool_choice"] != "none" {
-		t.Fatalf("omitted stream configuration was misrepresented: %#v", response)
-	}
-}
-
-func TestChatStreamBridgeRejectsMissingTerminalFinishReason(t *testing.T) {
-	bridge := NewChatStreamBridge("id", "m")
-	partial := "partial"
-	if _, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &partial}}}}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := bridge.Finalize(nil); err == nil {
-		t.Fatal("expected truncated stream without finish_reason to fail")
-	}
-	events := bridge.Fail(assertionError("truncated"))
-	if len(events) == 0 || events[len(events)-1].Kind != textgen.EventResponseFailed {
-		t.Fatalf("expected response.failed after truncated stream, got %+v", events)
+	if response["max_output_tokens"] != nil || response["tool_choice"] != "none" || response["store"] != false {
+		t.Fatalf("omitted stream configuration was misrepresented: %+v", response)
 	}
 }
 
-func TestChatStreamBridgeContentFilterIsIncomplete(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_filter", "m")
-	finish := "content_filter"
-	partial := "partial"
-	if _, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &partial}, FinishReason: &finish}}}); err != nil {
-		t.Fatal(err)
+func TestChatStreamRejectsMissingTerminalFinishReason(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil)
+	text := "ok"
+	chatStream(t, emitter, nil, false, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &text}}}})
+	if _, err := emitter.Finish(nil); err == nil {
+		t.Fatal("a stream without a stop reason must not complete")
 	}
-	events, err := bridge.Finalize(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	last := events[len(events)-1]
-	if last.Kind != textgen.EventResponseIncomplete || last.Status != textgen.StatusIncomplete || last.IncompleteReason != "content_filter" {
-		t.Fatalf("content filter terminal state was misreported: %+v", last)
-	}
-	for _, event := range events {
-		if event.Kind == textgen.EventItemDone {
-			item := EmitEvent(event)["item"].(map[string]any)
-			if item["status"] != "incomplete" {
-				t.Fatalf("content-filtered item was misreported: %#v", item)
-			}
+}
+
+func TestChatStreamContentFilterIsIncomplete(t *testing.T) {
+	for reason, want := range map[string]string{"length": "max_output_tokens", "content_filter": "content_filter"} {
+		emitter := NewStreamEmitter("id", "m", nil)
+		finish := reason
+		text := "ok"
+		payloads := chatStream(t, emitter, nil, true, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Content: &text}, FinishReason: &finish}}})
+		last := payloads[len(payloads)-1]
+		details, _ := last["response"].(map[string]any)["incomplete_details"].(map[string]any)
+		if last["type"] != "response.incomplete" || details["reason"] != want {
+			t.Fatalf("%s: expected response.incomplete with %s, got %+v", reason, want, last)
 		}
 	}
 }
 
-func TestChatStreamBridgePreservesRefusalLifecycle(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_refusal", "m")
-	finish := "stop"
-	refusal := "not allowed"
-	events, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Refusal: &refusal}, FinishReason: &finish}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	terminal, err := bridge.Finalize(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	events = append(events, terminal...)
+func TestChatStreamPreservesRefusalLifecycle(t *testing.T) {
+	emitter := NewStreamEmitter("chatcmpl_refusal", "m", nil)
+	finish, refusal := "stop", "not allowed"
+	payloads := chatStream(t, emitter, nil, true, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Refusal: &refusal}, FinishReason: &finish}}})
 	var deltaSeen, refusalDoneSeen, partDoneSeen bool
-	for _, event := range events {
-		wire := EmitEvent(event)
-		switch wire["type"] {
+	for _, payload := range payloads {
+		switch payload["type"] {
 		case "response.refusal.delta":
-			deltaSeen = wire["delta"] == refusal
+			deltaSeen = payload["delta"] == refusal
 		case "response.refusal.done":
-			refusalDoneSeen = wire["refusal"] == refusal
+			refusalDoneSeen = payload["refusal"] == refusal
 		case "response.content_part.done":
-			part, _ := wire["part"].(map[string]any)
+			part, _ := payload["part"].(map[string]any)
 			partDoneSeen = part["type"] == "refusal" && part["refusal"] == refusal
 		}
 	}
 	if !deltaSeen || !refusalDoneSeen || !partDoneSeen {
-		t.Fatalf("refusal lifecycle was incomplete: %+v", events)
+		t.Fatalf("refusal lifecycle was incomplete: %v", types(payloads))
 	}
-	last := events[len(events)-1]
-	if len(last.Output) != 1 || last.Output[0].Refusal != refusal || last.Output[0].Text != "" {
-		t.Fatalf("terminal refusal output was lost: %+v", last.Output)
-	}
-	response := wireObject(t, EmitEvent(last))["response"].(map[string]any)
-	output := response["output"].([]any)
-	message := output[0].(map[string]any)
-	content := message["content"].([]any)
-	if len(content) != 1 || content[0].(map[string]any)["type"] != "refusal" {
-		t.Fatalf("terminal refusal wire output was malformed: %#v", response)
+	output := terminalOutput(t, payloads)
+	content := output[0]["content"].([]any)
+	if len(output) != 1 || len(content) != 1 || content[0].(map[string]any)["type"] != "refusal" || content[0].(map[string]any)["refusal"] != refusal {
+		t.Fatalf("terminal refusal wire output was malformed: %+v", output)
 	}
 }
 
-func TestChatStreamBridgePreservesRoleOnlyEmptyAssistantOutput(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_empty", "m")
+func TestChatStreamPreservesRoleOnlyEmptyAssistantOutput(t *testing.T) {
+	emitter := NewStreamEmitter("chatcmpl_empty", "m", nil)
 	finish := "stop"
-	events, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
-		Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Role: "assistant"}, FinishReason: &finish,
-	}}})
-	if err != nil {
-		t.Fatal(err)
+	payloads := chatStream(t, emitter, nil, true, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Role: "assistant"}, FinishReason: &finish}}})
+	want := []string{"response.created", "response.in_progress", "response.output_item.added", "response.content_part.added", "response.output_text.done", "response.content_part.done", "response.output_item.done", "response.completed"}
+	if got := types(payloads); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("empty assistant lifecycle = %v, want %v", got, want)
 	}
-	terminal, err := bridge.Finalize(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	events = append(events, terminal...)
-	wantTypes := []string{
-		"response.created",
-		"response.in_progress",
-		"response.output_item.added",
-		"response.content_part.added",
-		"response.output_text.done",
-		"response.content_part.done",
-		"response.output_item.done",
-		"response.completed",
-	}
-	if len(events) != len(wantTypes) {
-		t.Fatalf("empty assistant lifecycle length = %d, want %d: %+v", len(events), len(wantTypes), events)
-	}
-	for index, event := range events {
-		if got, _ := EmitEvent(event)["type"].(string); got != wantTypes[index] {
-			t.Fatalf("event[%d] = %q, want %q: %+v", index, got, wantTypes[index], events)
-		}
-	}
-	last := events[len(events)-1]
-	if len(last.Output) != 1 || last.Output[0].Role != "assistant" || last.Output[0].Text != "" {
-		t.Fatalf("empty assistant terminal output was lost: %+v", last.Output)
-	}
-	response := wireObject(t, EmitEvent(last))["response"].(map[string]any)
-	output := response["output"].([]any)
-	content := output[0].(map[string]any)["content"].([]any)
-	if len(content) != 1 || content[0].(map[string]any)["type"] != "output_text" || content[0].(map[string]any)["text"] != "" {
-		t.Fatalf("empty assistant wire output was malformed: %#v", response)
+	output := terminalOutput(t, payloads)
+	content := output[0]["content"].([]any)
+	if len(output) != 1 || output[0]["role"] != "assistant" || len(content) != 1 || content[0].(map[string]any)["type"] != "output_text" || content[0].(map[string]any)["text"] != "" {
+		t.Fatalf("empty assistant wire output was malformed: %+v", output)
 	}
 }
 
-func TestChatStreamBridgeDoesNotAddEmptyMessageBeforeToolOnlyOutput(t *testing.T) {
-	bridge := NewChatStreamBridge("chatcmpl_tool_only", "m")
+func TestChatStreamDoesNotAddEmptyMessageBeforeToolOnlyOutput(t *testing.T) {
+	emitter := NewStreamEmitter("chatcmpl_tool_only", "m", nil)
 	finish := "tool_calls"
-	_, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
-		Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Role: "assistant"},
-	}}})
+	payloads := chatStream(t, emitter, nil, true,
+		&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Role: "assistant"}}}},
+		&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_0", "lookup", "{}")}}, FinishReason: &finish}}},
+	)
+	output := terminalOutput(t, payloads)
+	if len(output) != 1 || output[0]["type"] != "function_call" {
+		t.Fatalf("tool-only stream gained a spurious empty message: %+v", output)
+	}
+}
+
+// A sealed Responses reasoning item goes back to a Responses client as it
+// came; another dialect's seal is not something a Responses client can read.
+func TestEmitterPassesOwnSealedReasoningThrough(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil)
+	raw := `{"id":"rs_up","type":"reasoning","summary":[],"encrypted_content":"abc"}`
+	payloads, err := emitter.Emit(
+		textgen.Event{Kind: textgen.EventStart},
+		textgen.Event{Kind: textgen.EventReasoningSealed, Sealed: []byte(raw), SealedBy: SealedBy},
+		textgen.Event{Kind: textgen.EventReasoningSealed, Sealed: []byte(`{"type":"redacted_thinking","data":"x"}`), SealedBy: "anthropic"},
+		textgen.Event{Kind: textgen.EventText, Text: "ok"},
+		textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopEnd},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{
-		Delta: dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_0", "lookup", "{}")}}, FinishReason: &finish,
-	}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	events, err := bridge.Finalize(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	last := events[len(events)-1]
-	if len(last.Output) != 1 || last.Output[0].Kind != textgen.InputFunctionCall {
-		t.Fatalf("tool-only stream gained a spurious empty message: %+v", last.Output)
+	end, _ := emitter.Finish(nil)
+	output := terminalOutput(t, append(payloads, end...))
+	if len(output) != 2 || output[0]["id"] != "rs_up" || output[0]["encrypted_content"] != "abc" || output[1]["type"] != "message" {
+		t.Fatalf("sealed item not passed through as it came, or a foreign seal leaked: %+v", output)
 	}
 }
 
@@ -418,6 +361,6 @@ func stringPointer(value string) *string { return &value }
 
 func toolDelta(index int, id, name, arguments string) dto.ToolCallResponse {
 	call := dto.ToolCallResponse{ID: id, Type: "function", Function: dto.FunctionResponse{Name: name, Arguments: arguments}}
-	call.SetIndex(index)
+	call.Index = &index
 	return call
 }

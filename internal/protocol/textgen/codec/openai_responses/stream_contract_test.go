@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
-	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 )
 
 // Reconstruct the wire content by the indexes a client actually receives, then
@@ -20,53 +19,43 @@ func TestStreamContentReconstruction(t *testing.T) {
 		"reasoning and tool":       {{ReasoningContent: stringPointer("think"), ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_1", "lookup", `{}`)}}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			bridge := NewChatStreamBridge("id", "m")
-			var events []textgen.Event
+			emitter := NewStreamEmitter("id", "m", nil)
+			chunks := make([]*dto.ChatCompletionsStreamResponse, 0, len(deltas))
 			for _, delta := range deltas {
-				got, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: delta, FinishReason: stringPointer("stop")}}})
-				if err != nil {
-					t.Fatal(err)
-				}
-				events = append(events, got...)
+				chunks = append(chunks, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: delta, FinishReason: stringPointer("stop")}}})
 			}
-			end, err := bridge.Finalize(nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			events = append(events, end...)
+			payloads := chatStream(t, emitter, nil, true, chunks...)
 			parts := map[int][]map[string]interface{}{}
-			for _, event := range events {
-				wire := wireObject(t, EmitEvent(event))
+			for _, payload := range payloads {
+				wire := wireObject(t, payload)
 				if item, ok := wire["item"].(map[string]interface{}); ok && item["type"] == "reasoning" {
 					assertReasoningSchema(t, item)
 				}
-				switch event.Kind {
-				case textgen.EventContentPartAdded:
-					if event.ContentIndex != len(parts[event.ItemIndex]) {
-						t.Fatalf("content index %d is not local to output %d: %+v", event.ContentIndex, event.ItemIndex, parts)
+				itemIndex := int(number(wire["output_index"]))
+				switch wire["type"] {
+				case "response.content_part.added":
+					if int(number(wire["content_index"])) != len(parts[itemIndex]) {
+						t.Fatalf("content index %v is not local to output %d: %+v", wire["content_index"], itemIndex, parts)
 					}
-					parts[event.ItemIndex] = append(parts[event.ItemIndex], wire["part"].(map[string]interface{}))
-				case textgen.EventDelta:
-					if event.Delta.Kind == textgen.DeltaToolArguments {
-						continue
-					}
-					part := parts[event.ItemIndex][event.ContentIndex]
+					parts[itemIndex] = append(parts[itemIndex], wire["part"].(map[string]interface{}))
+				case "response.output_text.delta", "response.reasoning_text.delta", "response.refusal.delta":
+					part := parts[itemIndex][int(number(wire["content_index"]))]
 					field := "text"
-					if event.Delta.Kind == textgen.DeltaRefusal {
+					if wire["type"] == "response.refusal.delta" {
 						field = "refusal"
 					}
 					part[field] = part[field].(string) + wire["delta"].(string)
-				case textgen.EventItemDone:
-					if event.Delta.Kind == textgen.DeltaToolArguments {
+				case "response.output_item.done":
+					item := wire["item"].(map[string]interface{})
+					if item["type"] == "function_call" {
 						continue
 					}
-					item := wire["item"].(map[string]interface{})
-					if !reflect.DeepEqual(wireObject(t, map[string]interface{}{"content": parts[event.ItemIndex]})["content"], item["content"]) {
-						t.Fatalf("item.done disagrees with deltas: %+v vs %+v", parts[event.ItemIndex], item)
+					if !reflect.DeepEqual(wireObject(t, map[string]interface{}{"content": parts[itemIndex]})["content"], item["content"]) {
+						t.Fatalf("item.done disagrees with deltas: %+v vs %+v", parts[itemIndex], item)
 					}
 				}
 			}
-			terminal := wireObject(t, EmitEvent(events[len(events)-1]))["response"].(map[string]interface{})["output"].([]interface{})
+			terminal := wireObject(t, payloads[len(payloads)-1])["response"].(map[string]interface{})["output"].([]interface{})
 			for index, value := range terminal {
 				item := value.(map[string]interface{})
 				if item["type"] == "reasoning" {
@@ -84,6 +73,16 @@ func TestStreamContentReconstruction(t *testing.T) {
 			}
 		})
 	}
+}
+
+func number(value interface{}) float64 {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	}
+	return 0
 }
 
 func wireObject(t *testing.T, value interface{}) map[string]interface{} {

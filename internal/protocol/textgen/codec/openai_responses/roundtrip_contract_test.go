@@ -17,16 +17,9 @@ func TestGatewayToolReasoningRoundTrip(t *testing.T) {
 			var output []json.RawMessage
 			var raw []byte
 			if stream {
-				bridge := NewChatStreamBridge("roundtrip", "m")
-				_, err := bridge.Consume(&dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Role: "assistant", Content: stringPointer("checking"), ReasoningContent: stringPointer("use lookup"), ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_1", "lookup", `{}`)}}, FinishReason: stringPointer("tool_calls")}}})
-				if err != nil {
-					t.Fatal(err)
-				}
-				events, err := bridge.Finalize(nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				raw, _ = json.Marshal(EmitEvent(events[len(events)-1])["response"].(map[string]any)["output"])
+				emitter := NewStreamEmitter("roundtrip", "m", nil)
+				payloads := chatStream(t, emitter, nil, true, &dto.ChatCompletionsStreamResponse{Choices: []dto.ChatCompletionsStreamResponseChoice{{Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Role: "assistant", Content: stringPointer("checking"), ReasoningContent: stringPointer("use lookup"), ToolCalls: []dto.ToolCallResponse{toolDelta(0, "call_1", "lookup", `{}`)}}, FinishReason: stringPointer("tool_calls")}}})
+				raw, _ = json.Marshal(payloads[len(payloads)-1]["response"].(map[string]any)["output"])
 			} else {
 				message := dto.Message{Role: "assistant", ReasoningContent: "use lookup"}
 				message.SetStringContent("checking")
