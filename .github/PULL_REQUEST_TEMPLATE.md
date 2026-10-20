@@ -17,4 +17,5 @@
 - [ ] No new `any` or `@ts-ignore`
 - [ ] New UI primitives live in `apps/web/src/components/ui`
 - [ ] Relevant typecheck/lint/tests were run
+- [ ] Vendor quirks, if any, are `internal/relay/wirepatch` entries (quirk ID: ____)
 - [ ] Screenshots or notes included for UI changes

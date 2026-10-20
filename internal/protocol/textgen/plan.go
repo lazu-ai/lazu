@@ -154,7 +154,7 @@ func requireConstraints(snapshot CapabilitySnapshot, request *Request, inputToke
 
 func supportsOpenAIChatWireBridge(dialect string) bool {
 	switch dialect {
-	case "openai", "azure_openai", "openrouter", "cloudflare_ai_v1", "openai_chat_compatible":
+	case "openai", "azure_openai", "openrouter", "cloudflare_ai_v1", "openai_chat_compatible", "deepseek":
 		return true
 	default:
 		return false

@@ -470,6 +470,9 @@ func migrateDB() error {
 	if err = BackfillProtocolCapabilityIdentity(coreDB); err != nil {
 		return err
 	}
+	if err = backfillDeepSeekDialectOnce(coreDB); err != nil {
+		return err
+	}
 	if err = migrateTokenGroupDefaults(coreDB); err != nil {
 		return err
 	}

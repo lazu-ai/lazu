@@ -25,6 +25,9 @@ describe('channel protocol dialect inference', () => {
       ),
     ).toBe('cloudflare_ai_v1');
     expect(inferProtocolDialect('https://api.openai.com', 1)).toBe('openai');
+    expect(inferProtocolDialect('https://api.deepseek.com', 1)).toBe(
+      'deepseek',
+    );
     expect(inferProtocolDialect('https://openrouter.ai', 1)).toBe('openrouter');
     expect(inferProtocolDialect('https://tenant.openai.azure.com', 1)).toBe(
       'azure_openai',

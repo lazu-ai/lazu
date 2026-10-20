@@ -44,6 +44,7 @@ export const inferProtocolDialect = (
     return 'openrouter';
   }
   if (hostname === 'api.openai.com') return 'openai';
+  if (hostname === 'api.deepseek.com') return 'deepseek';
   if (
     hostname === 'openai.azure.com' ||
     hostname.endsWith('.openai.azure.com') ||

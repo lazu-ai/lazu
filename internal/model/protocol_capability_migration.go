@@ -17,6 +17,7 @@ const (
 	protocolDialectOpenRouter           = "openrouter"
 	protocolDialectCloudflare           = "cloudflare_ai_v1"
 	protocolDialectOpenAIChatCompatible = "openai_chat_compatible"
+	protocolDialectDeepSeek             = "deepseek"
 	protocolDialectAnthropic            = "anthropic"
 	protocolDialectGemini               = "gemini"
 )
@@ -156,6 +157,8 @@ func inferLegacyProtocolDialect(channelType int, baseURL string) string {
 		return protocolDialectAzureOpenAI
 	case host == "api.openai.com":
 		return protocolDialectOpenAI
+	case host == "api.deepseek.com":
+		return protocolDialectDeepSeek
 	}
 	apiType, ok := common.ChannelType2APIType(channelType)
 	if !ok {
@@ -177,4 +180,62 @@ func protocolURLHostname(value string) string {
 		return ""
 	}
 	return strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+}
+
+// backfillDeepSeekDialect moves channels that reach api.deepseek.com from the
+// generic openai_chat_compatible dialect (or none) to the deepseek dialect, so
+// the wire dialect patch layer can address DeepSeek's quirks on channels
+// created before the dialect existed. A channel whose operator chose another
+// dialect is left alone. Runs once (deepseek_dialect_v1).
+func backfillDeepSeekDialect(db *gorm.DB) error {
+	if db == nil || !db.Migrator().HasTable(&Channel{}) {
+		return nil
+	}
+	var channels []Channel
+	if err := db.Select("id, type, base_url, settings").Find(&channels).Error; err != nil {
+		return err
+	}
+	for _, channel := range channels {
+		if protocolURLHostname(channel.GetBaseURL()) != "api.deepseek.com" {
+			continue
+		}
+		settings := make(map[string]json.RawMessage)
+		if raw := strings.TrimSpace(channel.OtherSettings); raw != "" {
+			if err := json.Unmarshal([]byte(raw), &settings); err != nil {
+				common.SysLog(fmt.Sprintf("skipping deepseek dialect backfill for malformed channel settings: channel_id=%d error=%v", channel.Id, err))
+				continue
+			}
+		}
+		var configured string
+		if raw, ok := settings["protocol_dialect"]; ok {
+			_ = json.Unmarshal(raw, &configured)
+		}
+		switch strings.TrimSpace(configured) {
+		case "", protocolDialectOpenAIChatCompatible:
+		default:
+			continue
+		}
+		dialect, _ := json.Marshal(protocolDialectDeepSeek)
+		settings["protocol_dialect"] = dialect
+		payload, err := json.Marshal(settings)
+		if err != nil {
+			return err
+		}
+		if err := db.Model(&Channel{}).Where("id = ?", channel.Id).Update("settings", string(payload)).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// backfillDeepSeekDialectOnce runs backfillDeepSeekDialect under its one-time
+// marker where the marker table exists, and unrecorded where it does not.
+func backfillDeepSeekDialectOnce(db *gorm.DB) error {
+	if db == nil {
+		return nil
+	}
+	if !db.Migrator().HasTable(&SchemaVersion{}) {
+		return backfillDeepSeekDialect(db)
+	}
+	return runOneTimeMigration(db, "deepseek_dialect_v1", func() error { return backfillDeepSeekDialect(db) })
 }

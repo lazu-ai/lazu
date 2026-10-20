@@ -172,7 +172,7 @@ type ParameterSpec struct {
 现状是 override 在转换后直接打在 raw JSON 上（`ApplyParamOverride`），可能绕过能力校验、注入 plan 未批准的 feature。目标分层：
 
 1. **typed semantic override**（temperature、max tokens 等语义参数）：在候选渠道规划阶段应用到 IR 副本，随后**重新提取 effective feature set** 再进 plan；
-2. **wire dialect patch**：outbound 编译后应用，只允许 provider 字段形状/URL 方言修补，应用后重跑 outbound 校验；不得改 model、新增 feature、改变工具执行责任。
+2. **wire dialect patch**：outbound 编译后应用，只允许 provider 字段形状/URL 方言修补，应用后重跑 outbound 校验；不得改 model、新增 feature、改变工具执行责任。已落地为 `internal/relay/wirepatch`（注册表 + 每 handler 一个挂点，位于 ParamOverride 之后）；每个 quirk 是一条带 ID、方言、原因、来源链接和回归测试的注册项，细节见 [wire-dialect-patch.md](./wire-dialect-patch.md)，规则见 AGENTS.md Protocol Layer 第 6 条。
 
 迁移前先盘点线上渠道 `param_override` 的真实使用情况，把存量配置归类进两层，避免破坏管理页面已有配置；盘点结果决定兼容期的解释规则。
 
@@ -261,7 +261,7 @@ type RelayPlan struct {
 }
 ```
 
-一经创建不可修改。规划顺序：解析 canonical model → 提取 feature set →（typed semantic override 后重提取）→ 候选渠道能力预筛 → 健康度/优先级选 attempt 渠道 → 生成 plan → 编译 outbound → wire dialect patch → outbound 校验。
+一经创建不可修改。规划顺序：解析 canonical model → 提取 feature set →（typed semantic override 后重提取）→ 候选渠道能力预筛 → 健康度/优先级选 attempt 渠道 → 生成 plan → 编译 outbound → ParamOverride → wire dialect patch（[`internal/relay/wirepatch`](./wire-dialect-patch.md)）→ outbound 校验。
 
 ## 响应与流式
 

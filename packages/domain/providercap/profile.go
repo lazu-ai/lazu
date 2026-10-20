@@ -21,6 +21,10 @@ const (
 	DialectOpenAIChatCompatible = "openai_chat_compatible"
 	DialectAnthropic            = "anthropic"
 	DialectGemini               = "gemini"
+	// DialectDeepSeek is DeepSeek's OpenAI-compatible Chat API. It plans like
+	// openai_chat_compatible; the name exists so the wire dialect patch layer
+	// (internal/relay/wirepatch) can address DeepSeek's quirks by dialect.
+	DialectDeepSeek = "deepseek"
 )
 
 type ProtocolFamily string
@@ -117,7 +121,7 @@ func NormalizeDialect(apiType int, configured string) string {
 		return DialectGemini
 	}
 	switch dialect {
-	case DialectOpenAI, DialectAzureOpenAI, DialectOpenRouter, DialectCloudflareAIV1, DialectOpenAIChatCompatible:
+	case DialectOpenAI, DialectAzureOpenAI, DialectOpenRouter, DialectCloudflareAIV1, DialectOpenAIChatCompatible, DialectDeepSeek:
 		return dialect
 	}
 	return DefaultDialect(apiType)

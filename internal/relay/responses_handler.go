@@ -12,6 +12,7 @@ import (
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
+	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
@@ -103,6 +104,9 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
+		// wire dialect patch on the bridged Chat body (internal/relay/wirepatch):
+		// a Responses client reaching a Chat-only vendor takes this path.
+		jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 		outboundBody = jsonData
 	} else {
 		responsesConverter, converterErr := requireResponsesRequestConverter(adaptor, info)
@@ -139,6 +143,9 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 				return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
 			}
 		}
+		// wire dialect patch: vendor quirks on the compiled body, once per
+		// attempt, after ParamOverride (internal/relay/wirepatch).
+		jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 
 		if common.DebugEnabled {
 			println("requestBody: ", string(jsonData))

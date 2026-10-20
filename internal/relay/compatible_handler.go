@@ -19,6 +19,7 @@ import (
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
+	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
@@ -192,6 +193,9 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 					return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
 				}
 			}
+			// wire dialect patch: vendor quirks on the compiled body, once per
+			// attempt, after ParamOverride (internal/relay/wirepatch).
+			jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 
 			logger.LogDebug(c, fmt.Sprintf("text request body: %s", string(jsonData)))
 			requestBody = bytes.NewBuffer(jsonData)
