@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -223,11 +224,14 @@ func openAIErrorOf(semantic *textgen.SemanticError) *types.OpenAIError {
 	return &types.OpenAIError{Type: semantic.Type, Code: semantic.Code, Message: semantic.Message}
 }
 
+// clientCanceled is the client going away mid-stream, and only that: a
+// deadline is the scanner's to classify (StreamScanResult.RelayError), as a
+// timeout, logged.
 func clientCanceled(c *gin.Context) *types.LazuError {
-	if c == nil || c.Request == nil || c.Request.Context().Err() == nil {
+	if c == nil || c.Request == nil || c.Request.Context().Err() != context.Canceled {
 		return nil
 	}
-	return types.NewError(c.Request.Context().Err(), types.ErrorCodeClientCanceled, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog(), types.ErrOptionWithHideErrMsg("request canceled by client"))
+	return types.NewError(context.Canceled, types.ErrorCodeClientCanceled, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog(), types.ErrOptionWithHideErrMsg("request canceled by client"))
 }
 
 func recordHubExchange(c *gin.Context, log *StreamLog, lastData string, usage *dto.Usage, status int) {
