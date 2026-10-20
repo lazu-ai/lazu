@@ -17,7 +17,7 @@ type StreamEmitter struct {
 	terminal bool
 	calls    map[int]*call // open calls by ToolIndex, in start order
 	order    []int
-	col      textgen.Collector
+	col      textgen.Ending
 }
 
 type call struct {
@@ -51,7 +51,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.GeminiChatResponse 
 		return nil
 	}
 	var out []*dto.GeminiChatResponse
-	for _, event := range events {
+	for _, event := range textgen.ForClient(events) {
 		e.col.Add(event)
 		switch event.Kind {
 		case textgen.EventText, textgen.EventRefusal:
@@ -166,7 +166,8 @@ func (e *StreamEmitter) Fail(semantic *textgen.SemanticError) map[string]any {
 	return map[string]any{"error": map[string]any{"code": 502, "message": message, "status": "UNAVAILABLE"}}
 }
 
-// Result is the reply collected so far.
+// Result is how the reply ended so far, without its content: the
+// emitter keeps none (textgen.Ending).
 func (e *StreamEmitter) Result() textgen.Result { return e.col.Result() }
 
 // usageMetadataOf is the shared usage fact as Gemini's usage metadata:
