@@ -1,0 +1,351 @@
+---
+title: "Seedance 2.5"
+description: "ByteDance の Seedance 2.5 で Lazu から動画を生成します。送信・ポーリング・ダウンロード、リクエスト項目、参照画像・動画・音声、料金、予約額、エラーを解説します。"
+---
+
+# Seedance 2.5
+
+Seedance 2.5 は ByteDance の動画生成モデルで、2026-07-31 に公開されました。Lazu ではモデル ID `seedance-2.5` を指定して[動画 API](/ja/endpoints/media#動画を送信してポーリングする) を呼び出します。キーは他のエンドポイントと共通です。
+
+| 機能         | Seedance 2.5                                                       |
+| ------------ | ------------------------------------------------------------------ |
+| モデル ID    | `seedance-2.5`                                                     |
+| 入力         | テキスト、先頭フレーム、末尾フレーム、参照画像、参照動画、参照音声 |
+| 動画の長さ   | 4〜30 秒                                                           |
+| 解像度       | `480p`、`720p`、`1080p`                                            |
+| アスペクト比 | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive`            |
+| 音声         | 既定で動画と一緒に生成。追加料金なし                               |
+| 参照素材     | 1 リクエストあたり最大 30 個                                       |
+| 料金         | 480p で 1 秒あたり $0.103 から。成功した動画にのみ課金             |
+| コード不要   | [Lazu Studio](https://lazu.ai/studio)                              |
+
+## クイックスタート
+
+動画生成はジョブです。送信し、終了するまでポーリングし、ファイルをダウンロードします。すべて同じキーで呼び出します。
+
+ジョブを送信します。Lazu は HTTP 202 とジョブオブジェクトを返します。`cost_snapshot` は残高から予約された金額です。
+
+```bash
+curl https://lazu.ai/v1/videos \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "seedance-2.5",
+    "prompt": "雨上がりの通りを紙の舟が流れていく、クローズアップ、柔らかな朝の光",
+    "seconds": 5,
+    "resolution": "480p"
+  }'
+```
+
+ジョブの `id` で 10〜15 秒ごとに取得します。`pending` と `running` は未完了です。4〜5 秒の 480p 動画は通常 2 分半ほどかかります。
+
+```bash
+curl https://lazu.ai/v1/videos/mjob_... \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+`status` が `succeeded` になったら、`artifact.file_id` で動画をダウンロードします。ファイルは `video/mp4` です。
+
+```bash
+curl https://lazu.ai/v1/files/file-lazu-.../content \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -o seedance.mp4
+```
+
+次のスクリプトは、ジョブを送信し、終了までポーリングし、動画を保存して請求額を表示します。Python 3 と `requests`（`python -m pip install requests`）が必要です。送信済みのジョブを再開するには ID を渡します：`python seedance.py mjob_...`。
+
+```python
+import os
+import sys
+import time
+
+import requests
+
+BASE = "https://lazu.ai"
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+
+if len(sys.argv) > 1:
+    # Resume a job that was already submitted. Do not submit it again.
+    job = {"id": sys.argv[1], "status": "pending"}
+else:
+    response = requests.post(BASE + "/v1/videos", headers=headers, json={
+        "model": "seedance-2.5",
+        "prompt": "雨上がりの通りを紙の舟が流れていく、クローズアップ、柔らかな朝の光",
+        "seconds": 5,
+        "resolution": "480p",
+        "aspect_ratio": "16:9",
+    }, timeout=60)
+    response.raise_for_status()
+    job = response.json()
+    print("Job:", job["id"], "held:", job["cost_snapshot"]["customer_charge_usd"], "USD", flush=True)
+
+job_id = job["id"]
+while job["status"] in ("pending", "running"):
+    time.sleep(12)
+    response = requests.get(BASE + "/v1/videos/" + job_id, headers=headers, timeout=30)
+    if response.status_code in (429, 503):
+        retry_after = response.headers.get("Retry-After", "15")
+        time.sleep(float(retry_after) if retry_after.isdecimal() else 15)
+        continue
+    response.raise_for_status()
+    job = response.json()
+    print("Status:", job["status"], flush=True)
+
+if job["status"] == "failed":
+    error = job.get("error", {})
+    sys.exit(f"Job failed: {error.get('code')}: {error.get('message')} (the hold was refunded)")
+
+file_id = job["artifact"]["file_id"]
+with requests.get(BASE + "/v1/files/" + file_id + "/content",
+                  headers=headers, stream=True, timeout=300) as download:
+    download.raise_for_status()
+    with open(job_id + ".mp4", "wb") as out:
+        for chunk in download.iter_content(chunk_size=1024 * 1024):
+            out.write(chunk)
+
+print("Saved", job_id + ".mp4")
+print("Charged:", job["cost_snapshot"]["customer_charge_usd"], "USD")
+```
+
+クライアント側のタイムアウトでジョブはキャンセルされません。スクリプトが途中で止まったら、同じ ID で取得を続けてください。再送信すると、もう 1 本分の動画が生成され課金されます。
+
+## パラメーター
+
+`POST /v1/videos` に JSON で送信します。必須は `model` と `prompt` だけです。
+
+| 項目                | 型      | 既定値 | 値                                                                              |
+| ------------------- | ------- | ------ | ------------------------------------------------------------------------------- |
+| `model`             | string  |        | `seedance-2.5`                                                                  |
+| `prompt`            | string  |        | 生成する内容。参照素材は `@图片1`、`@视频1`、`@音频1` で指します（後述）。      |
+| `seconds`           | integer | `5`    | 4〜30                                                                           |
+| `resolution`        | string  | `720p` | `480p`、`720p`、`1080p`                                                         |
+| `aspect_ratio`      | string  | `16:9` | `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive`                         |
+| `generate_audio`    | boolean | `true` | 既定で音声を生成します。無音にするには `false`。                                |
+| `seed`              | integer |        | 乱数シードを固定します。                                                        |
+| `frame_images`      | array   |        | 要素は `{"url", "frame_type"}`。`frame_type` は `first_frame` か `last_frame`。 |
+| `input_references`  | array   |        | 要素は `{"url", "type"}`。`type` は `image`、`video`、`audio` のいずれか。      |
+| `watermark`         | boolean |        | そのままプロバイダーに渡します。                                                |
+| `return_last_frame` | boolean |        | そのままプロバイダーに渡します。                                                |
+
+これ以外の値は、課金前に HTTP 400 で拒否されます。エラーにはその項目で使える値が示されます。
+
+プロンプトでは、参照素材を種類と順番で指します。順番は 1 から始まり、リクエスト内でその種類の素材が現れる順に数えます。1 枚目の画像は `@图片1`、2 枚目は `@图片2`、1 本目の動画は `@视频1`、1 本目の音声は `@音频1` です。プロンプトの言語にかかわらず、この表記（中国語の簡体字）のまま使ってください。
+
+`frame_images` と `input_references` の URL は公開アクセスできる必要があります。プロバイダーが直接ダウンロードします。
+
+## 例
+
+いずれも `POST /v1/videos` のリクエストボディです。
+
+### テキストから動画
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "夕暮れの新雪の上を赤いキツネが歩く、ゆっくりした追従ショット",
+  "seconds": 8,
+  "resolution": "720p",
+  "aspect_ratio": "16:9"
+}
+```
+
+### 先頭フレームと末尾フレーム
+
+動画は先頭フレームで始まり、末尾フレームで終わります。出力は入力画像の形に合わせるため、`aspect_ratio: "adaptive"` を指定します。
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "朝の光の中でつぼみがゆっくり開く",
+  "seconds": 5,
+  "resolution": "720p",
+  "aspect_ratio": "adaptive",
+  "frame_images": [
+    { "url": "https://example.com/bud.png", "frame_type": "first_frame" },
+    { "url": "https://example.com/bloom.png", "frame_type": "last_frame" }
+  ]
+}
+```
+
+### 参照画像
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "@图片1 の猫が日の当たる窓辺に跳び乗り、外を眺める",
+  "seconds": 5,
+  "resolution": "720p",
+  "aspect_ratio": "9:16",
+  "input_references": [
+    { "url": "https://example.com/cat.jpg", "type": "image" }
+  ]
+}
+```
+
+### 参照動画と参照音声
+
+動画のカメラワークと楽曲のリズムを取り入れます。参照動画を使うときは `aspect_ratio: "adaptive"` を指定します。
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "@视频1 のカメラワークで、@图片1 のダンサーが踊り、@音频1 のビートに合わせてカットを切り替える",
+  "seconds": 10,
+  "resolution": "720p",
+  "aspect_ratio": "adaptive",
+  "input_references": [
+    { "url": "https://example.com/camera-move.mp4", "type": "video" },
+    { "url": "https://example.com/dancer.png", "type": "image" },
+    { "url": "https://example.com/track.mp3", "type": "audio" }
+  ]
+}
+```
+
+### 無音の動画
+
+Seedance は既定で音声を生成します。無音にするには `generate_audio: false` を送ります。料金は変わりません。
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "山の稜線を流れる雲のタイムラプス",
+  "seconds": 6,
+  "resolution": "1080p",
+  "aspect_ratio": "21:9",
+  "generate_audio": false
+}
+```
+
+## 料金
+
+Lazu は ByteDance の BytePlus 公式定価で課金します。単位は 1 秒あたりの米ドルです。
+
+| 解像度  | 参照動画なし（出力秒数） | 参照動画あり（参照秒数 + 出力秒数） |
+| ------- | ------------------------ | ----------------------------------- |
+| `480p`  | $0.103                   | 約 $0.0615                          |
+| `720p`  | $0.231                   | 約 $0.138                           |
+| `1080p` | $0.569                   | 約 $0.340                           |
+
+参照動画なしの料金は 16:9 出力の場合です。参照動画があると、プロバイダーは参照動画の秒数と出力秒数の合計を、より低い入力単価で課金します。音声の追加料金はありません。成功した動画にのみ課金します。
+
+**予約と精算。** 送信時、Lazu は `seconds × 1 秒あたりの単価` を残高から予約します。この額が 202 レスポンスの `cost_snapshot` です。残高が予約額に満たない場合、リクエストは拒否されます。ジョブが終わると、プロバイダーが報告した使用量を公式単価で請求し、残りの予約額をすぐに解放します。
+
+**参照動画。** 参照動画の実際の長さはプロバイダーにしかわからないため、参照動画を含むリクエストは、参照動画を上限の 30 秒として出力単価で予約します。精算では実際の参照秒数と出力秒数で請求し、差額を解放します。
+
+**返金。** 失敗したジョブは全額返金されます。
+
+実際の実行例：
+
+| リクエスト                     | 予約額                         | 請求額   | 解放額     |
+| ------------------------------ | ------------------------------ | -------- | ---------- |
+| 480p、4 秒、無音               | $0.412（4 秒 × $0.103）        | 約 $0.41 | $0.01 未満 |
+| 480p、出力 4 秒、参照動画 4 秒 | $3.502（(4 + 30) 秒 × $0.103） | 約 $0.49 | 約 $3.01   |
+
+## 制限とよくあるエラー
+
+プロバイダーによる参照素材の制限：
+
+| 素材         | 制限                                                                                                                            |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| 参照素材全体 | 1 リクエストあたり最大 30 個。URL は公開アクセスできること。                                                                    |
+| 参照動画     | 最大 10 本、各 2〜30 秒、合計 30 秒まで。mp4 または mov、1 本 200 MB まで、24〜60 fps、1 フレーム 409,600〜8,295,044 ピクセル。 |
+| 参照画像     | jpeg、png、webp、bmp、tiff、gif、heic。各辺 300〜6000 ピクセル、縦横比（幅 / 高さ）0.4〜2.5、30 MB 未満。                       |
+| 参照音声     | wav または mp3。最大 10 本、各 2〜30 秒、合計 30 秒まで、1 本 15 MB まで。                                                      |
+
+**参照動画や先頭・末尾フレームを使うときは `adaptive` を指定します。** プロバイダーがタスクを参照動画の編集・延長、または先頭・末尾フレームからの生成と判断した場合、出力は入力に合わせるため、`aspect_ratio` は `adaptive` でなければなりません。それ以外の比率ではジョブが失敗します（全額返金）。参照動画があり `aspect_ratio` がないリクエストでは、Lazu が `adaptive` を送ります。
+
+**モデルが受け付けない値**は、課金前に HTTP 400 で拒否されます。`param` と `details.field` が該当項目、`details.allowed` が使える値です。[`LZ-1001`](/ja/errors#lz-1001) を参照してください。
+
+```json
+{
+  "error": {
+    "message": "Invalid request: resolution \"4k\" is not supported by this model; allowed: 480p, 720p, 1080p.",
+    "type": "invalid_request_error",
+    "param": "resolution",
+    "code": "invalid_request",
+    "lazu": "LZ-1001",
+    "docs": "https://lazu.ai/docs/errors#lz-1001",
+    "request_id": "req_lazu_...",
+    "details": {
+      "field": "resolution",
+      "reason": "resolution \"4k\" is not supported by this model; allowed: 480p, 720p, 1080p",
+      "allowed": "480p, 720p, 1080p"
+    }
+  }
+}
+```
+
+**プロバイダーが完了できなかったジョブ**は `status: "failed"` で終わります。`error.code` と `error.message` に理由が入り、予約額は全額返金されます。再送信の前に、アスペクト比や上記の制限を超える参照素材など、リクエストを直してください。
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "failed",
+  "created_at": 1792466151,
+  "completed_at": 1792466190,
+  "error": {
+    "code": "task_failed",
+    "message": "..."
+  }
+}
+```
+
+残高が予約額に満たない場合は HTTP 429 と `insufficient_quota` が返ります。[エラーコード](/ja/errors#lz-3101)を参照してください。
+
+## レスポンスオブジェクト
+
+`POST /v1/videos` は HTTP 202 を返します。`cost_snapshot` は予約額です。
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "pending",
+  "created_at": 1792466151,
+  "cost_snapshot": {
+    "customer_charge_microusd": 412000,
+    "customer_charge_usd": 0.412,
+    "line_items": [...],
+    "pricing_version": ...
+  }
+}
+```
+
+成功したジョブの `GET /v1/videos/{id}`。`cost_snapshot` は最終的な請求額、`usage` はプロバイダーが報告した使用量です。
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "succeeded",
+  "created_at": 1792466151,
+  "completed_at": 1792466297,
+  "artifact": { "file_id": "file-lazu-..." },
+  "cost_snapshot": {
+    "customer_charge_microusd": 411500,
+    "customer_charge_usd": 0.4115,
+    "line_items": [
+      {
+        "dimension": "video_provider_cost",
+        "quantity": 1,
+        "unit_microusd": 411500,
+        "amount_microusd": 411500
+      }
+    ],
+    "pricing_version": ...
+  },
+  "usage": { "seconds": 4, "resolution": "480p", "ratio": "16:9", "fps": 24 }
+}
+```
+
+完成した動画は Lazu がダウンロードして保存するため、プロバイダーの短期リンクが届くことはありません。API で生成した動画の保存期間は 3 日で、その後削除されます。長く使う場合はファイルを保存してください。

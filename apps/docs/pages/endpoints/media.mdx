@@ -123,6 +123,8 @@ A succeeded job carries `usage` with what the provider reported: `seconds`, `res
 
 Lazu stores the finished video itself, so the provider's short-lived link never reaches you: download it with `GET /v1/files/{artifact.file_id}/content` using the same key. Videos generated through the API are kept for a limited time (three days on lazu.ai), then deleted; save the file if you need it longer.
 
+For Seedance 2.5 (reference syntax, prices, holds and limits), see [Seedance 2.5](/endpoints/seedance).
+
 ## Generate speech or transcribe audio
 
 Set `LAZU_AUDIO_MODEL` to a speech model and `LAZU_VOICE` to a supported voice. `/v1/audio/speech` returns binary audio, not JSON. For transcription, choose a compatible model and upload a local audio file to `/v1/audio/transcriptions` as multipart data. These are separate model capabilities.

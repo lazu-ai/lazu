@@ -30,12 +30,12 @@ print(response.json()["data"])
 
 公開時の標準料金（USD）は次のとおりです。適用料金はキー付きカタログで確認してください。
 
-| Model | USD / successful output |
-| --- | --- |
-| `seedream-5.0-flash` | $0.018 |
-| `seedream-5.0-lite` | $0.035 |
-| `seedream-4.5` | $0.040 |
-| `seedream-5.0-pro` | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
+| Model                | USD / successful output                                  |
+| -------------------- | -------------------------------------------------------- |
+| `seedream-5.0-flash` | $0.018                                                   |
+| `seedream-5.0-lite`  | $0.035                                                   |
+| `seedream-4.5`       | $0.040                                                   |
+| `seedream-5.0-pro`   | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
 
 Pro のレイヤー分解はベース画像も含め、1 枚あたり 2,610,000 ピクセル以下が $0.0225、それを超える場合は $0.045 です。Pro の参照画像は最初の 1 枚が無料、追加は成功したリクエストごとに 1 枚 $0.003。他の 3 モデルでは参照画像は無料です。Flash の分解は通常の $0.018/枚です。成功した出力だけを課金し、失敗・ブロックされた画像は課金しません。各 `data[].size` で料金区分を決め、返された output tokens に別途トークン料金はかかりません。
 
@@ -47,7 +47,7 @@ Pro/Flash は `1K`、`1.5K`、`2K` と最大 10 枚の参照、Lite は `2K`、`
   "prompt": "Create two matching blue ceramic cup designs",
   "size": "2K",
   "sequential_image_generation": "auto",
-  "sequential_image_generation_options": {"max_images": 2}
+  "sequential_image_generation_options": { "max_images": 2 }
 }
 ```
 
@@ -56,7 +56,6 @@ Pro/Flash の分解では `layer_decomposition: true` と 1 枚の `image` を�
 `pricing.image_pricing` に `output_usd`、`pixel_threshold`、`high_resolution_output_usd`、`layer_usd`、`high_resolution_layer_usd`、`reference_usd`、`free_references` を公開します。最大料金を先に予約し（分解は最大 17 枚）、成功した実際の出力で精算して差額を解放します。キー・プロジェクト残高は予約額を満たす必要があります。`usage.cost`、`usage.generated_images` とリクエスト使用量で照合してください。
 
 公式：[画像 API](https://docs.byteplus.com/en/docs/modelark/image-generation-api)、[料金](https://docs.byteplus.com/en/docs/modelark/model-pricing)。
-
 
 ## 動画を送信してポーリングする
 
@@ -99,6 +98,8 @@ else:
     print("Still waiting; resume GET for job:", job_id)
 # A local timeout does not cancel the remote job. Keep job_id for later GETs.
 ```
+
+Seedance 2.5 の参照素材の書き方、料金、予約額、制限は [Seedance 2.5](/ja/endpoints/seedance) を参照してください。
 
 ## 音声の生成と文字起こし
 

@@ -1,0 +1,351 @@
+---
+title: "Seedance 2.5"
+description: "Generate video with ByteDance Seedance 2.5 through Lazu: submit, poll and download, request fields, reference images, video and audio, prices, holds and errors."
+---
+
+# Seedance 2.5
+
+Seedance 2.5 is ByteDance's video model, released on 2026-07-31. On Lazu you call it with the model id `seedance-2.5` through the [video API](/endpoints/media#submit-and-poll-a-video), with the same key you use for everything else.
+
+| Capability   | Seedance 2.5                                                                      |
+| ------------ | --------------------------------------------------------------------------------- |
+| Model id     | `seedance-2.5`                                                                    |
+| Inputs       | Text, first frame, last frame, reference images, reference video, reference audio |
+| Clip length  | 4–30 seconds                                                                      |
+| Resolution   | `480p`, `720p`, `1080p`                                                           |
+| Aspect ratio | `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9`, `adaptive`                           |
+| Sound        | Generated with the video by default, no extra charge                              |
+| References   | Up to 30 per request                                                              |
+| Price        | From $0.103 per second of video (480p); only successful videos are charged        |
+| Without code | [Lazu Studio](https://lazu.ai/studio)                                             |
+
+## Quick start
+
+Video generation is a job: you submit it, poll it until it finishes, then download the file. Every call uses the same API key.
+
+Submit a job. Lazu answers with HTTP 202 and a job object whose `cost_snapshot` is the amount held from your balance.
+
+```bash
+curl https://lazu.ai/v1/videos \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "seedance-2.5",
+    "prompt": "A paper boat drifts down a rainy street, close-up, soft morning light",
+    "seconds": 5,
+    "resolution": "480p"
+  }'
+```
+
+Poll the job with its `id` every 10–15 seconds. `pending` and `running` are not final. A 4–5 second 480p clip usually takes about two and a half minutes.
+
+```bash
+curl https://lazu.ai/v1/videos/mjob_... \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+When `status` is `succeeded`, download the video with `artifact.file_id`. The file is `video/mp4`.
+
+```bash
+curl https://lazu.ai/v1/files/file-lazu-.../content \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -o seedance.mp4
+```
+
+The complete script below submits a job, polls until it finishes, saves the video and prints the charge. It needs Python 3 and `requests` (`python -m pip install requests`). To resume a job you already submitted, pass its id: `python seedance.py mjob_...`.
+
+```python
+import os
+import sys
+import time
+
+import requests
+
+BASE = "https://lazu.ai"
+headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
+
+if len(sys.argv) > 1:
+    # Resume a job that was already submitted. Do not submit it again.
+    job = {"id": sys.argv[1], "status": "pending"}
+else:
+    response = requests.post(BASE + "/v1/videos", headers=headers, json={
+        "model": "seedance-2.5",
+        "prompt": "A paper boat drifts down a rainy street, close-up, soft morning light",
+        "seconds": 5,
+        "resolution": "480p",
+        "aspect_ratio": "16:9",
+    }, timeout=60)
+    response.raise_for_status()
+    job = response.json()
+    print("Job:", job["id"], "held:", job["cost_snapshot"]["customer_charge_usd"], "USD", flush=True)
+
+job_id = job["id"]
+while job["status"] in ("pending", "running"):
+    time.sleep(12)
+    response = requests.get(BASE + "/v1/videos/" + job_id, headers=headers, timeout=30)
+    if response.status_code in (429, 503):
+        retry_after = response.headers.get("Retry-After", "15")
+        time.sleep(float(retry_after) if retry_after.isdecimal() else 15)
+        continue
+    response.raise_for_status()
+    job = response.json()
+    print("Status:", job["status"], flush=True)
+
+if job["status"] == "failed":
+    error = job.get("error", {})
+    sys.exit(f"Job failed: {error.get('code')}: {error.get('message')} (the hold was refunded)")
+
+file_id = job["artifact"]["file_id"]
+with requests.get(BASE + "/v1/files/" + file_id + "/content",
+                  headers=headers, stream=True, timeout=300) as download:
+    download.raise_for_status()
+    with open(job_id + ".mp4", "wb") as out:
+        for chunk in download.iter_content(chunk_size=1024 * 1024):
+            out.write(chunk)
+
+print("Saved", job_id + ".mp4")
+print("Charged:", job["cost_snapshot"]["customer_charge_usd"], "USD")
+```
+
+A client timeout does not cancel the job. If your script stops while the job is running, keep polling the same id; do not submit again, or you pay for a second video.
+
+## Parameters
+
+Send these fields as JSON to `POST /v1/videos`. Only `model` and `prompt` are required.
+
+| Field               | Type    | Default | Values                                                                             |
+| ------------------- | ------- | ------- | ---------------------------------------------------------------------------------- |
+| `model`             | string  |         | `seedance-2.5`                                                                     |
+| `prompt`            | string  |         | What to generate. Refer to references as `@图片1`, `@视频1`, `@音频1` (see below). |
+| `seconds`           | integer | `5`     | 4–30                                                                               |
+| `resolution`        | string  | `720p`  | `480p`, `720p`, `1080p`                                                            |
+| `aspect_ratio`      | string  | `16:9`  | `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9`, `adaptive`                            |
+| `generate_audio`    | boolean | `true`  | Seedance makes sound unless you send `false`.                                      |
+| `seed`              | integer |         | Fixes the random seed.                                                             |
+| `frame_images`      | array   |         | Items `{"url", "frame_type"}`; `frame_type` is `first_frame` or `last_frame`.      |
+| `input_references`  | array   |         | Items `{"url", "type"}`; `type` is `image`, `video` or `audio`.                    |
+| `watermark`         | boolean |         | Passed to the provider unchanged.                                                  |
+| `return_last_frame` | boolean |         | Passed to the provider unchanged.                                                  |
+
+A value outside these is refused with HTTP 400 before anything is charged. The error names the values the field accepts.
+
+In the prompt, refer to each reference by its type and its 1-based position among references of that type in the request: the first image is `@图片1`, the second image `@图片2`, the first video `@视频1`, the first audio `@音频1`. Use these tokens as written, whatever language the rest of the prompt is in.
+
+URLs in `frame_images` and `input_references` must be publicly reachable; the provider downloads them.
+
+## Examples
+
+Each example is the JSON body of `POST /v1/videos`.
+
+### Text to video
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "A red fox walks through fresh snow at dusk, slow tracking shot",
+  "seconds": 8,
+  "resolution": "720p",
+  "aspect_ratio": "16:9"
+}
+```
+
+### First and last frame
+
+The video starts on the first image and ends on the last. The output follows the frames' shape, so send `aspect_ratio: "adaptive"`.
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "The flower bud opens slowly in the morning light",
+  "seconds": 5,
+  "resolution": "720p",
+  "aspect_ratio": "adaptive",
+  "frame_images": [
+    { "url": "https://example.com/bud.png", "frame_type": "first_frame" },
+    { "url": "https://example.com/bloom.png", "frame_type": "last_frame" }
+  ]
+}
+```
+
+### Reference image
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "The cat in @图片1 jumps onto a sunlit windowsill and looks outside",
+  "seconds": 5,
+  "resolution": "720p",
+  "aspect_ratio": "9:16",
+  "input_references": [
+    { "url": "https://example.com/cat.jpg", "type": "image" }
+  ]
+}
+```
+
+### Reference video and reference audio
+
+Take the camera move from a video and the rhythm from a track. With a reference video, send `aspect_ratio: "adaptive"`.
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "Follow the camera move of @视频1. The dancer in @图片1 performs, cutting on the beat of @音频1",
+  "seconds": 10,
+  "resolution": "720p",
+  "aspect_ratio": "adaptive",
+  "input_references": [
+    { "url": "https://example.com/camera-move.mp4", "type": "video" },
+    { "url": "https://example.com/dancer.png", "type": "image" },
+    { "url": "https://example.com/track.mp3", "type": "audio" }
+  ]
+}
+```
+
+### Silent video
+
+Seedance makes sound by default. Send `generate_audio: false` for a silent clip. The price is the same.
+
+```json
+{
+  "model": "seedance-2.5",
+  "prompt": "Time-lapse of clouds over a mountain ridge",
+  "seconds": 6,
+  "resolution": "1080p",
+  "aspect_ratio": "21:9",
+  "generate_audio": false
+}
+```
+
+## Billing
+
+Lazu charges ByteDance's official BytePlus list prices, in USD per second.
+
+| Resolution | Without reference video (output seconds) | With reference video (reference + output seconds) |
+| ---------- | ---------------------------------------- | ------------------------------------------------- |
+| `480p`     | $0.103                                   | about $0.0615                                     |
+| `720p`     | $0.231                                   | about $0.138                                      |
+| `1080p`    | $0.569                                   | about $0.340                                      |
+
+Prices without reference video are for 16:9 output. With a reference video, the provider bills the reference seconds plus the output seconds at the lower input rate. Sound has no surcharge. Only successful videos are charged.
+
+**Hold and settlement.** When you submit, Lazu holds `seconds × price per second` from your balance; the held amount is the `cost_snapshot` on the 202 response. Your balance must cover the hold, or the request is refused. When the job finishes, Lazu charges what the provider reported, at the official rate, and releases the rest of the hold at once.
+
+**Reference video.** Only the provider knows how long a reference video is, so a request with a reference video holds as if the reference were 30 seconds, the longest allowed, priced at the output rate. Settlement then charges the real reference and output seconds, and the difference is released.
+
+**Refunds.** A failed job is refunded in full.
+
+Two real runs:
+
+| Request                               | Held                         | Charged     | Released    |
+| ------------------------------------- | ---------------------------- | ----------- | ----------- |
+| 480p, 4 s, no sound                   | $0.412 (4 s × $0.103)        | about $0.41 | under $0.01 |
+| 480p, 4 s output, 4 s reference video | $3.502 ((4 + 30) s × $0.103) | about $0.49 | about $3.01 |
+
+## Limits and common errors
+
+Provider limits on references:
+
+| Input           | Limits                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| All references  | Up to 30 per request. URLs must be publicly reachable.                                                                    |
+| Reference video | Up to 10 clips, each 2–30 s, 30 s in total. mp4 or mov, up to 200 MB each, 24–60 fps, 409,600–8,295,044 pixels per frame. |
+| Reference image | jpeg, png, webp, bmp, tiff, gif or heic. 300–6000 px per side, aspect ratio (width / height) 0.4–2.5, under 30 MB.        |
+| Reference audio | wav or mp3. Up to 10 clips, each 2–30 s, 30 s in total, up to 15 MB each.                                                 |
+
+**Use `adaptive` with a reference video or first and last frames.** When the provider treats a task as editing or extending a reference video, or as first and last frame generation, the output follows the input and `aspect_ratio` must be `adaptive`; any other ratio makes the job fail (it is refunded in full). When a request has a reference video and no `aspect_ratio`, Lazu sends `adaptive`.
+
+**A value the model does not take** is refused with HTTP 400 before any charge. `param` and `details.field` name the field; `details.allowed` lists the accepted values. See [`LZ-1001`](/errors#lz-1001).
+
+```json
+{
+  "error": {
+    "message": "Invalid request: resolution \"4k\" is not supported by this model; allowed: 480p, 720p, 1080p.",
+    "type": "invalid_request_error",
+    "param": "resolution",
+    "code": "invalid_request",
+    "lazu": "LZ-1001",
+    "docs": "https://lazu.ai/docs/errors#lz-1001",
+    "request_id": "req_lazu_...",
+    "details": {
+      "field": "resolution",
+      "reason": "resolution \"4k\" is not supported by this model; allowed: 480p, 720p, 1080p",
+      "allowed": "480p, 720p, 1080p"
+    }
+  }
+}
+```
+
+**A job the provider cannot complete** ends with `status: "failed"`. `error.code` and `error.message` say why, and the hold is refunded in full. Fix the request (for example, the aspect ratio or a reference that breaks the limits above) before submitting again.
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "failed",
+  "created_at": 1792466151,
+  "completed_at": 1792466190,
+  "error": {
+    "code": "task_failed",
+    "message": "..."
+  }
+}
+```
+
+A balance too low for the hold returns HTTP 429 with `insufficient_quota`; see [Errors](/errors#lz-3101).
+
+## Response objects
+
+`POST /v1/videos` returns HTTP 202. `cost_snapshot` is the hold.
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "pending",
+  "created_at": 1792466151,
+  "cost_snapshot": {
+    "customer_charge_microusd": 412000,
+    "customer_charge_usd": 0.412,
+    "line_items": [...],
+    "pricing_version": ...
+  }
+}
+```
+
+`GET /v1/videos/{id}` for a succeeded job. `cost_snapshot` is now the final charge, and `usage` is what the provider reported.
+
+```json
+{
+  "id": "mjob_...",
+  "object": "video",
+  "kind": "video",
+  "source": "media_job",
+  "model": "seedance-2.5",
+  "status": "succeeded",
+  "created_at": 1792466151,
+  "completed_at": 1792466297,
+  "artifact": { "file_id": "file-lazu-..." },
+  "cost_snapshot": {
+    "customer_charge_microusd": 411500,
+    "customer_charge_usd": 0.4115,
+    "line_items": [
+      {
+        "dimension": "video_provider_cost",
+        "quantity": 1,
+        "unit_microusd": 411500,
+        "amount_microusd": 411500
+      }
+    ],
+    "pricing_version": ...
+  },
+  "usage": { "seconds": 4, "resolution": "480p", "ratio": "16:9", "fps": 24 }
+}
+```
+
+Lazu downloads and stores the finished video itself; the provider's short-lived link never reaches you. Videos generated through the API are kept for 3 days, then deleted. Save the file if you need it longer.

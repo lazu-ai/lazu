@@ -30,12 +30,12 @@ print(response.json()["data"])
 
 上线时的标准美元价格如下；个人实际价格以带密钥查询的模型目录为准：
 
-| Model | USD / successful output |
-| --- | --- |
-| `seedream-5.0-flash` | $0.018 |
-| `seedream-5.0-lite` | $0.035 |
-| `seedream-4.5` | $0.040 |
-| `seedream-5.0-pro` | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
+| Model                | USD / successful output                                  |
+| -------------------- | -------------------------------------------------------- |
+| `seedream-5.0-flash` | $0.018                                                   |
+| `seedream-5.0-lite`  | $0.035                                                   |
+| `seedream-4.5`       | $0.040                                                   |
+| `seedream-5.0-pro`   | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
 
 Pro 分层按每张返回图片（**包括底图**）收费：像素数 ≤ 2,610,000 为 $0.0225，超过为 $0.045。Pro 首张参考图免费，每增加一张参考图，每次成功请求另收 $0.003；其余三款参考图免费。Flash 分层仍按 $0.018/张计算。批量不足或部分图片被拦截，只收成功返回的图片；失败和拦截图片不计费。每张 `data[].size` 决定其像素档位，返回的 output tokens 不另收 token 费用。
 
@@ -49,7 +49,7 @@ Lite/4.5 使用 `sequential_image_generation: "auto"` 与 `max_images` 开启批
   "prompt": "Create two matching blue ceramic cup designs",
   "size": "2K",
   "sequential_image_generation": "auto",
-  "sequential_image_generation_options": {"max_images": 2}
+  "sequential_image_generation_options": { "max_images": 2 }
 }
 ```
 
@@ -58,7 +58,6 @@ Pro/Flash 分层传入 `layer_decomposition: true` 和恰好一张 `image`，`pr
 目录 `pricing.image_pricing`（也位于各渠道价格内）包含 `output_usd`、`pixel_threshold`、`high_resolution_output_usd`、`layer_usd`、`high_resolution_layer_usd`、`reference_usd`、`free_references`。用返回的 `usage.cost`、`usage.generated_images` 和请求用量记录对账。网关先预留最大可能费用，再按实际尺寸结算；密钥与项目余额需覆盖预留。
 
 官方参考：[图片 API](https://docs.byteplus.com/en/docs/modelark/image-generation-api)、[价格](https://docs.byteplus.com/en/docs/modelark/model-pricing)。
-
 
 ## 提交并轮询视频
 
@@ -101,6 +100,8 @@ else:
     print("Still waiting; resume GET for job:", job_id)
 # A local timeout does not cancel the remote job. Keep job_id for later GETs.
 ```
+
+Seedance 2.5 的参考素材写法、价格、预留与限制，见 [Seedance 2.5](/zh/endpoints/seedance)。
 
 ## 语音生成与转写
 

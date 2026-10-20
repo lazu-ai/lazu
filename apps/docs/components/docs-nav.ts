@@ -28,6 +28,7 @@ type SidebarCopy = {
     string,
     string,
     string,
+    string,
   ];
 };
 
@@ -62,6 +63,7 @@ export const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Changelog",
       "Images, video and audio",
       "Agent session costs",
+      "Seedance 2.5",
     ],
   },
   zh: {
@@ -87,6 +89,7 @@ export const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "更新日志",
       "图片、视频与音频",
       "Agent 会话费用",
+      "Seedance 2.5",
     ],
   },
   "zh-TW": {
@@ -112,6 +115,7 @@ export const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "更新日誌",
       "圖片、影片與音訊",
       "Agent 工作階段費用",
+      "Seedance 2.5",
     ],
   },
   ja: {
@@ -144,6 +148,7 @@ export const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "更新履歴",
       "画像・動画・音声",
       "Agent セッション費用",
+      "Seedance 2.5",
     ],
   },
 };
@@ -183,6 +188,7 @@ export function createSidebar(prefix: string, copy: SidebarCopy) {
         { link: link("/endpoints/models"), text: p[10] },
         { link: link("/endpoints/usage-requests"), text: p[11] },
         { link: link("/endpoints/media"), text: p[18] },
+        { link: link("/endpoints/seedance"), text: p[20] },
       ],
     },
     {
