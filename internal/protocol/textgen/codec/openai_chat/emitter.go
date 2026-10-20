@@ -65,6 +65,7 @@ func (e *StreamEmitter) role() []*dto.ChatCompletionsStreamResponse {
 
 // Emit is the chunks for the content events given, in order.
 func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStreamResponse {
+	events = textgen.ForClient(events)
 	if e == nil || e.terminal {
 		return nil
 	}
@@ -186,7 +187,20 @@ func (e *StreamEmitter) Finish(usage *dto.Usage) ([]*dto.ChatCompletionsStreamRe
 	e.terminal = true
 	out := e.role()
 	finish := FinishReasonOf(result.Stop)
-	return append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, &finish, result.Usage)), nil
+	out = append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, &finish, nil))
+	if result.Usage != nil {
+		// include_usage's own chunk: no choices, the usage in Chat's shape
+		usageChunk := e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, nil, dto.ProjectChatUsage(result.Usage))
+		usageChunk.Choices = []dto.ChatCompletionsStreamResponseChoice{}
+		out = append(out, usageChunk)
+	}
+	return out, nil
+}
+
+// IsUsageChunk says whether the chunk is the usage-only one Finish writes
+// last, which a client that did not ask for usage does not get.
+func IsUsageChunk(chunk *dto.ChatCompletionsStreamResponse) bool {
+	return chunk != nil && chunk.Usage != nil && len(chunk.Choices) == 0 && chunk.Error == nil
 }
 
 // errStreamWithoutStop is a stream that ended without its stop reason.

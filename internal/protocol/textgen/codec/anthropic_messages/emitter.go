@@ -203,6 +203,7 @@ func (e *StreamEmitter) delta(delta map[string]any) Frame {
 
 // Emit is the frames for the content events given, in order.
 func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
+	events = textgen.ForClient(events)
 	if e == nil || e.terminal {
 		return nil
 	}

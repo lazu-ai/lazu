@@ -77,3 +77,41 @@ func TestChatClientHubHeldFailureWithUsageKeepsTheRefund(t *testing.T) {
 		t.Fatal("the refund signal was cleared by the failure's usage")
 	}
 }
+
+// A reply that ended well but said nothing and reported no usage still
+// consumed its prompt.
+func TestChatClientHubEstimatesThePromptOfAnEmptyReply(t *testing.T) {
+	_, _, usage, err := runChatClientHub(t, httptest.NewRecorder(), `{"type":"response.completed","response":{"status":"completed"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage == nil || usage.PromptTokens == 0 {
+		t.Fatalf("the prompt of an empty reply must be estimated: %+v", usage)
+	}
+}
+
+// include_usage gets its own chunk after the finish: no choices, Chat's
+// usage shape.
+func TestChatClientHubWritesAUsageOnlyChunk(t *testing.T) {
+	w := httptest.NewRecorder()
+	_, _, _, err := runChatClientHub(t, w,
+		`{"type":"response.output_text.delta","delta":"hello"}`,
+		`{"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":12,"output_tokens":3,"total_tokens":15}}}`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var data []string
+	for _, line := range strings.Split(w.Body.String(), "\n") {
+		if strings.HasPrefix(line, "data: ") && line != "data: [DONE]" {
+			data = append(data, strings.TrimPrefix(line, "data: "))
+		}
+	}
+	finish, usage := data[len(data)-2], data[len(data)-1]
+	if !strings.Contains(finish, `"finish_reason":"stop"`) || strings.Contains(finish, `"prompt_tokens"`) {
+		t.Fatalf("finish chunk: %s", finish)
+	}
+	if !strings.Contains(usage, `"choices":[]`) || !strings.Contains(usage, `"prompt_tokens":12`) || strings.Contains(usage, `"input_tokens"`) {
+		t.Fatalf("usage chunk: %s", usage)
+	}
+}

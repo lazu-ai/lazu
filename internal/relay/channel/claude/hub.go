@@ -190,6 +190,9 @@ func (e *chatClient) finish(c *gin.Context, usage *dto.Usage, includeUsage bool)
 	}
 	for _, chunk := range chunks {
 		if !includeUsage {
+			if openai_chat.IsUsageChunk(chunk) {
+				continue
+			}
 			chunk.Usage = nil
 		}
 		if err := helper.ObjectData(c, chunk); err != nil {

@@ -132,6 +132,7 @@ func RetainedOutputLimit(request *textgen.Request) int {
 // error (retained output over its limit) leaves the emitter in a state Fail
 // closes; nothing after the failing event is applied.
 func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) {
+	events = textgen.ForClient(events)
 	if e == nil || e.terminal {
 		return nil, nil
 	}

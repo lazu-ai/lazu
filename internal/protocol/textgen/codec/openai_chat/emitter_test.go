@@ -20,6 +20,11 @@ func TestEmitterRoleOnceToolIndexesAndFinish(t *testing.T) {
 		textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopTool},
 	)
 	chunks = append(chunks, mustFinish(emitter.Finish(&dto.Usage{PromptTokens: 1, CompletionTokens: 2}))...)
+	var usageChunk *dto.ChatCompletionsStreamResponse
+	if n := len(chunks); n > 0 && IsUsageChunk(chunks[n-1]) {
+		usageChunk, chunks = chunks[n-1], chunks[:n-1]
+	}
+	_ = usageChunk
 	if chunks[0].Choices[0].Delta.Role != "assistant" || chunks[0].Id != "chatcmpl-abc" || chunks[0].Model != "upstream-model" || chunks[0].Created != 5 {
 		t.Fatalf("role chunk: %+v", chunks[0])
 	}
@@ -43,7 +48,7 @@ func TestEmitterRoleOnceToolIndexesAndFinish(t *testing.T) {
 		t.Fatalf("roles=%d indexes=%v args=%v", roles, indexes, args)
 	}
 	last := chunks[len(chunks)-1]
-	if last.Choices[0].FinishReason == nil || *last.Choices[0].FinishReason != "tool_calls" || last.Usage == nil || last.Usage.TotalTokens != 3 {
+	if last.Choices[0].FinishReason == nil || *last.Choices[0].FinishReason != "tool_calls" || usageChunk == nil || usageChunk.Usage.TotalTokens != 3 {
 		t.Fatalf("finish chunk: %+v", last)
 	}
 	if again, _ := emitter.Finish(nil); len(again) != 0 {

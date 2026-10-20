@@ -38,7 +38,9 @@ func SettleHubUsage(c *gin.Context, info *relaycommon.RelayInfo, result textgen.
 		fallback := service.ResponseText2Usage(text.String(), info.UpstreamModelName, usage.PromptTokens)
 		fallback.CompletionTokens += calls * toolCallFramingTokens
 		if usage.PromptTokens == 0 && usage.InputTokenSource != dto.UsageSourceProvider {
-			if text.Len() > 0 || service.ValidUsage(usage) {
+			// a reply that ended well consumed its prompt even when it
+			// said nothing
+			if text.Len() > 0 || service.ValidUsage(usage) || result.StopSeen {
 				service.ApplyLocalPromptUsage(c, info, usage)
 			}
 		}

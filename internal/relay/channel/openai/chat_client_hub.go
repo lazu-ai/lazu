@@ -145,6 +145,9 @@ func chatClientResponsesStream(c *gin.Context, info *relaycommon.RelayInfo, resp
 	}
 	for _, chunk := range chunks {
 		if !info.ShouldIncludeUsage {
+			if openai_chat.IsUsageChunk(chunk) {
+				continue
+			}
 			chunk.Usage = nil
 		}
 		if err := helper.ObjectData(c, chunk); err != nil {

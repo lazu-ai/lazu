@@ -146,13 +146,17 @@ func TestDecoderHoldsUnfinishedCallsForTheTerminal(t *testing.T) {
 			t.Fatalf("%s: an unfinished call must be held: %+v %v", tc.reason, events, err)
 		}
 		events, _ = d.Decode(`{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"` + tc.reason + `"}}}`)
-		calls := 0
+		// a dropped call is withheld from the client, still billed
+		calls, withheld := 0, 0
 		for _, event := range events {
 			if event.Kind == textgen.EventToolStart {
 				calls++
+				if event.Withheld {
+					withheld++
+				}
 			}
 		}
-		if (calls == 1) != tc.keep {
+		if calls != 1 || (withheld == 0) != tc.keep {
 			t.Fatalf("%s: events %+v", tc.reason, events)
 		}
 	}
@@ -226,5 +230,34 @@ func TestResponsesUsageCountsTheCacheAsInput(t *testing.T) {
 	projected := final[len(final)-1]["response"].(map[string]any)["usage"].(*dto.ResponsesUsage)
 	if projected.InputTokens != 100 || projected.TotalTokens != 105 {
 		t.Fatalf("usage: %+v", projected)
+	}
+}
+
+// A call that streamed from its added event is held too, until the
+// terminal event says whether the client gets it; a withheld call is still
+// billed, and a call without call_id takes its item id.
+func TestDecoderHoldsStreamedCallsAndBillsWithheldOnes(t *testing.T) {
+	d := &StreamDecoder{}
+	var all []textgen.Event
+	for _, data := range []string{
+		`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","name":"lookup"}}`,
+		`{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{\"q\":"}`,
+		`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_1","name":"lookup","arguments":"{\"q\":","status":"incomplete"}}`,
+	} {
+		events, err := d.Decode(data)
+		if err != nil || len(events) != 0 {
+			t.Fatalf("a call is held until the terminal: %+v %v", events, err)
+		}
+	}
+	events, _ := d.Decode(`{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"content_filter"}}}`)
+	all = append(all, events...)
+	if visible := textgen.ForClient(all); len(visible) != 1 || visible[0].Kind != textgen.EventStop {
+		t.Fatalf("only the stop reaches the client: %+v", visible)
+	}
+	var col textgen.Collector
+	col.Add(all...)
+	parts := col.Result().Parts
+	if len(parts) != 1 || parts[0].Kind != textgen.PartTool || parts[0].Name != "lookup" || parts[0].CallID != "fc_1" {
+		t.Fatalf("the withheld call must still be collected for billing, with its item id: %+v", parts)
 	}
 }
