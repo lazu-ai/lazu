@@ -69,7 +69,57 @@ func encodeBridged(semantic *textgen.Request, inline func(string) (string, strin
 	}
 	fitBridgedThinking(request, resolve)
 	PrepareNativeThinking(request, resolve)
+	continueToolLoopWithoutThinking(request, resolve)
 	return request, nil
+}
+
+// continueToolLoopWithoutThinking turns thinking off for a request that
+// continues a tool loop whose assistant turn carries no thinking block.
+// With thinking on, the Messages API requires the last assistant turn of a
+// tool loop to start with the thinking block Anthropic signed, which a Chat
+// or Responses client cannot hand back; the continuation goes without
+// thinking, as the API allows, rather than failing.
+func continueToolLoopWithoutThinking(request *dto.ClaudeRequest, resolve PolicyResolver) {
+	if request == nil || request.Thinking == nil || request.Thinking.Type == "disabled" || len(request.Messages) < 2 {
+		return
+	}
+	last := request.Messages[len(request.Messages)-1]
+	lastBlocks, _ := last.Content.([]dto.ClaudeMediaMessage)
+	answering := false
+	for _, block := range lastBlocks {
+		answering = answering || block.Type == "tool_result"
+	}
+	if last.Role != "user" || !answering {
+		return
+	}
+	for index := len(request.Messages) - 2; index >= 0; index-- {
+		message := request.Messages[index]
+		if message.Role != "assistant" {
+			continue
+		}
+		blocks, _ := message.Content.([]dto.ClaudeMediaMessage)
+		if len(blocks) > 0 && (blocks[0].Type == "thinking" || blocks[0].Type == "redacted_thinking") {
+			return
+		}
+		request.Thinking = &dto.Thinking{Type: "disabled"}
+		request.OutputConfig = withoutOutputConfigEffort(request.OutputConfig)
+		NormalizeThinking(request, resolve(request.Model))
+		return
+	}
+}
+
+// clientUsage is the usage as a Chat or Responses client reads it: input
+// counts the cached tokens, which Anthropic's input_tokens leaves out. The
+// cache-exclusive form stays the one settled.
+func clientUsage(usage *dto.Usage) *dto.Usage {
+	if usage == nil || !usage.PromptExcludesCache {
+		return usage
+	}
+	copyUsage := *usage
+	copyUsage.PromptTokens += usage.PromptTokensDetails.CachedTokens + usage.PromptTokensDetails.CachedCreationTokens
+	copyUsage.PromptExcludesCache = false
+	copyUsage.TotalTokens = copyUsage.PromptTokens + copyUsage.CompletionTokens
+	return &copyUsage
 }
 
 // fitBridgedThinking fits the thinking the encoder wrote for a Chat or
@@ -134,7 +184,7 @@ func (e *chatClient) emit(c *gin.Context, events ...textgen.Event) error {
 }
 
 func (e *chatClient) finish(c *gin.Context, usage *dto.Usage, includeUsage bool) error {
-	chunks, err := e.emitter.Finish(usage)
+	chunks, err := e.emitter.Finish(clientUsage(usage))
 	if err != nil {
 		return err
 	}
@@ -182,7 +232,7 @@ func (e *responsesClient) emit(c *gin.Context, events ...textgen.Event) error {
 }
 
 func (e *responsesClient) finish(c *gin.Context, usage *dto.Usage, _ bool) error {
-	payloads, err := e.emitter.Finish(usage)
+	payloads, err := e.emitter.Finish(clientUsage(usage))
 	if err != nil {
 		return err
 	}
@@ -323,7 +373,7 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 		return nil, types.NewErrorWithStatusCode(fmt.Errorf("%s", result.Error.Message), types.ErrorCodeUpstreamError, http.StatusBadGateway)
 	}
 	usage := channel.SettleHubUsage(c, info, result)
-	result.Usage = usage
+	result.Usage = clientUsage(usage)
 	chat := openai_chat.Render(result, info.UpstreamModelName)
 	chat.Id = openai_chat.CompletionID(helper.GetResponseID(c))
 	var payload any = chat

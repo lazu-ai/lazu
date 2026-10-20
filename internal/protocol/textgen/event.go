@@ -100,6 +100,10 @@ type Event struct {
 	Stop       StopReason
 	Usage      *dto.Usage
 	Error      *SemanticError
+	// Summary is EventReasoning's: the text summarizes the reasoning
+	// (Responses' reasoning summary) rather than being it. Protocols with
+	// one kind of reasoning text read both alike.
+	Summary bool
 	// Sealed and SealedBy are EventReasoningSealed's, SealedBy also
 	// EventReasoningSignature's: the dialect the content belongs to.
 	Sealed   json.RawMessage

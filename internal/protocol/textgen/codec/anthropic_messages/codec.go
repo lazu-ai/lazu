@@ -22,10 +22,6 @@ type EncodeOptions struct {
 // the Messages API refuses empty content and empty text blocks.
 const placeholderText = "..."
 
-// interruptedResult answers a tool_use the conversation never answered, as
-// the Messages API refuses an unanswered call.
-const interruptedResult = "The tool call was interrupted before it returned a result."
-
 // Encode is the Messages request for an IR request: system from the
 // instructions, alternating user and assistant turns with tool calls and
 // results as blocks, tools, tool choice, sampling, stop sequences, the JSON
@@ -97,6 +93,10 @@ func Encode(request *textgen.Request, opts EncodeOptions) (*dto.ClaudeRequest, e
 		// the generic adaptive shape; the channel fits it to the model
 		out.Thinking = &dto.Thinking{Type: "adaptive", Display: "summarized"}
 		out.OutputConfig = withOutputConfigEffort(out.OutputConfig, effort)
+	case request.Reasoning.Summary != "":
+		// a summary of reasoning asked without an effort: thinking at the
+		// model's own effort, shown summarized
+		out.Thinking = &dto.Thinking{Type: "adaptive", Display: "summarized"}
 	}
 	if userID := metadataUserID(request.Metadata); userID != "" {
 		metadata, _ := json.Marshal(map[string]string{"user_id": userID})
@@ -151,7 +151,8 @@ func encodeSystem(instructions []textgen.Instruction) []dto.ClaudeMediaMessage {
 // encodeMessages is the conversation as Messages turns: consecutive items
 // of one role fold into one message (Messages alternates roles), tool
 // results go into the user message after their call, and the first turn is
-// the user's. Then the tool exchange is mended (pairToolBlocks).
+// the user's. A tool exchange Messages would refuse is refused
+// (checkToolExchange).
 func encodeMessages(items []textgen.InputItem, opts EncodeOptions) ([]dto.ClaudeMessage, error) {
 	var messages []dto.ClaudeMessage
 	push := func(role string, blocks ...dto.ClaudeMediaMessage) {
@@ -169,8 +170,13 @@ func encodeMessages(items []textgen.InputItem, opts EncodeOptions) ([]dto.Claude
 		switch item.Kind {
 		case textgen.InputMessage:
 			role := "user"
-			if item.Role == "assistant" {
+			switch item.Role {
+			case "assistant":
 				role = "assistant"
+			case "system", "developer":
+				// a system turn keeps its authority: Messages takes system
+				// messages in the conversation
+				role = "system"
 			}
 			blocks, err := encodeContent(item.Content, opts)
 			if err != nil {
@@ -212,7 +218,10 @@ func encodeMessages(items []textgen.InputItem, opts EncodeOptions) ([]dto.Claude
 		text := placeholderText
 		messages = append([]dto.ClaudeMessage{{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "text", Text: &text}}}}, messages...)
 	}
-	return pairToolBlocks(messages), nil
+	if err := checkToolExchange(messages); err != nil {
+		return nil, err
+	}
+	return messages, nil
 }
 
 func encodeContent(parts []textgen.ContentPart, opts EncodeOptions) ([]dto.ClaudeMediaMessage, error) {
@@ -220,10 +229,15 @@ func encodeContent(parts []textgen.ContentPart, opts EncodeOptions) ([]dto.Claud
 	for _, part := range parts {
 		switch part.Kind {
 		case textgen.ContentText:
-			if part.Text == "" {
-				continue
-			}
 			text := part.Text
+			if text == "" {
+				if len(part.CacheControl) == 0 {
+					continue
+				}
+				// an empty block that marks a cache breakpoint: Messages
+				// refuses empty text, so the marker rides on a placeholder
+				text = placeholderText
+			}
 			blocks = append(blocks, dto.ClaudeMediaMessage{Type: "text", Text: &text, CacheControl: part.CacheControl})
 		case textgen.ContentImage:
 			source, err := imageSource(part, opts)
@@ -271,85 +285,51 @@ func imageSource(part textgen.ContentPart, opts EncodeOptions) (*dto.ClaudeMessa
 	return &dto.ClaudeMessageSource{Type: "url", Url: url}, nil
 }
 
-// pairToolBlocks mends the tool exchange as the Messages API requires: a
-// tool_use the next message does not answer gets a synthetic error result
-// there (or in a user message of its own), a tool_result naming no call of
-// the message before becomes a text block, a second answer to one call is
-// dropped. A well-formed exchange is returned as it was.
-func pairToolBlocks(messages []dto.ClaudeMessage) []dto.ClaudeMessage {
-	out := make([]dto.ClaudeMessage, 0, len(messages))
-	var pending []string
-	open := map[string]bool{}
-	answered := map[string]bool{}
-	synthetic := func(id string) dto.ClaudeMediaMessage {
-		return dto.ClaudeMediaMessage{Type: "tool_result", ToolUseId: id, Content: interruptedResult}
-	}
-	closeExchange := func() {
-		var blocks []dto.ClaudeMediaMessage
-		for _, id := range pending {
-			if !answered[id] {
-				blocks = append(blocks, synthetic(id))
-			}
-		}
-		if len(blocks) > 0 {
-			out = append(out, dto.ClaudeMessage{Role: "user", Content: blocks})
-		}
-		pending, open, answered = nil, map[string]bool{}, map[string]bool{}
-	}
-	for _, message := range messages {
+// checkToolExchange holds the conversation to what the Messages API takes:
+// every tool_use answered by a tool_result in the next message, every
+// tool_result answering a call of the message before, once. A history that
+// breaks it is refused by its path; inventing a result the client never
+// gave, or dropping one, would change what the model sees.
+func checkToolExchange(messages []dto.ClaudeMessage) error {
+	var open map[string]bool
+	for index, message := range messages {
 		blocks, _ := message.Content.([]dto.ClaudeMediaMessage)
 		if message.Role == "assistant" {
-			closeExchange()
+			if len(open) > 0 {
+				return fmt.Errorf("messages[%d]: tool_use %s has no tool_result in the next message", index-1, firstKey(open))
+			}
+			open = map[string]bool{}
 			for _, block := range blocks {
 				if block.Type == "tool_use" {
-					pending = append(pending, block.Id)
 					open[block.Id] = true
 				}
 			}
-			out = append(out, message)
 			continue
 		}
-		var kept, rest []dto.ClaudeMediaMessage
-		for _, block := range blocks {
+		for blockIndex, block := range blocks {
 			if block.Type != "tool_result" {
-				rest = append(rest, block)
 				continue
 			}
 			if !open[block.ToolUseId] {
-				rest = append(rest, resultAsText(block))
-				continue
+				return fmt.Errorf("messages[%d].content[%d]: tool_result %s answers no tool_use of the message before", index, blockIndex, block.ToolUseId)
 			}
-			if answered[block.ToolUseId] {
-				continue
-			}
-			answered[block.ToolUseId] = true
-			kept = append(kept, block)
+			delete(open, block.ToolUseId)
 		}
-		for _, id := range pending {
-			if !answered[id] {
-				kept = append(kept, synthetic(id))
-			}
+		if message.Role == "user" && len(open) > 0 {
+			return fmt.Errorf("messages[%d]: tool_use %s has no tool_result", index, firstKey(open))
 		}
-		out = append(out, dto.ClaudeMessage{Role: "user", Content: append(kept, rest...)})
-		pending, open, answered = nil, map[string]bool{}, map[string]bool{}
+		if message.Role == "user" {
+			open = nil
+		}
 	}
-	closeExchange()
-	return out
+	return nil
 }
 
-func resultAsText(block dto.ClaudeMediaMessage) dto.ClaudeMediaMessage {
-	text := "Tool result received."
-	switch content := block.Content.(type) {
-	case string:
-		if strings.TrimSpace(content) != "" {
-			text = content
-		}
-	default:
-		if raw, err := json.Marshal(content); err == nil && len(raw) > 0 && string(raw) != "null" {
-			text = string(raw)
-		}
+func firstKey(set map[string]bool) string {
+	for key := range set {
+		return key
 	}
-	return dto.ClaudeMediaMessage{Type: "text", Text: &text}
+	return ""
 }
 
 func encodeTools(tools []textgen.ToolDefinition) ([]any, error) {
@@ -370,7 +350,12 @@ func encodeTools(tools []textgen.ToolDefinition) ([]any, error) {
 					schema = parsed
 				}
 			}
-			out = append(out, &dto.Tool{Name: tool.Name, Description: tool.Description, InputSchema: schema, CacheControl: tool.CacheControl})
+			definition := &dto.Tool{Name: tool.Name, Description: tool.Description, InputSchema: schema, CacheControl: tool.CacheControl}
+			if tool.Strict.Set {
+				strict := tool.Strict.Value
+				definition.Strict = &strict
+			}
+			out = append(out, definition)
 		case "web_search", "web_search_preview":
 			out = append(out, &dto.ClaudeWebSearchTool{Type: "web_search_20250305", Name: "web_search", MaxUses: 5})
 		default:
