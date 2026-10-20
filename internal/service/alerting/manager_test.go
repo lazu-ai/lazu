@@ -115,25 +115,25 @@ func onlyExpectDigestTasks(t *testing.T, keys ...string) {
 	t.Cleanup(func() { digestTaskExpected = previous })
 }
 
-func TestDailyDigestFormatsOneCompactSummary(t *testing.T) {
-	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump")
+func TestDailyDigestLeadsWithProblemsAndFoldsHealthyTasks(t *testing.T) {
+	onlyExpectDigestTasks(t, "hourly-upload", "pg-dump", "relay-zero-token")
 	now := time.Date(2026, 8, 19, 9, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 14 个文件", UpdatedAt: now.Add(-time.Hour).Unix()},
 		{Key: "pg-dump", Label: "Database backup", Status: "failed", Summary: "错误：connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
-	}, nil)
-	for _, expected := range []string{
-		"Lazu 每日运维报告 · 2026-08-19",
-		"⚠️ 失败 1 项，正常 1 项",
-		"❌ 数据库备份：失败\n   30 分钟前更新 · 错误：connection refused",
-		"✅ 请求日志上传 R2：正常\n   1 小时前更新 · 上传 14 个文件",
-	} {
-		if !strings.Contains(message, expected) {
-			t.Fatalf("digest missing %q: %s", expected, message)
-		}
-	}
-	if strings.Index(message, "数据库备份") > strings.Index(message, "请求日志上传") {
-		t.Fatalf("failed task should be listed before ok task: %s", message)
+		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", Summary: "流量低", UpdatedAt: now.Unix()},
+	}, nil, nil)
+	want := `📊 Lazu 每日运维报告 · 2026-08-19
+⚠️ 需要处理 1 项
+
+❌ 数据库备份：失败
+   30 分钟前更新 · 错误：connection refused
+
+【定时任务】
+✅ 正常 1 项：请求日志上传 R2
+➖ 未检测 1 项：零 token 计费监控`
+	if message != want {
+		t.Fatalf("digest =\n%s\nwant\n%s", message, want)
 	}
 }
 
@@ -143,13 +143,11 @@ func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", Summary: "size=671.7 MiB", UpdatedAt: now.Add(-(291*time.Hour + 38*time.Minute)).Unix()},
 		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 3 个文件", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
-		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", Summary: "流量低", UpdatedAt: now.Unix()},
-	}, nil)
+	}, nil, nil)
 	for _, expected := range []string{
-		"⚠️ 已停止运行 1 项，未检测 1 项，正常 1 项",
+		"⚠️ 需要处理 1 项",
 		"⏸️ 数据库备份：已停止运行\n   最后一次正常在 12 天 3 小时前（应每天运行一次）\n   上次结果：size=671.7 MiB",
-		"➖ 零 token 计费监控：未检测\n   刚刚更新 · 流量低",
-		"✅ 请求日志上传 R2：正常\n   10 分钟前更新",
+		"✅ 正常 1 项：请求日志上传 R2",
 	} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
@@ -158,27 +156,75 @@ func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
 }
 
 func TestDailyDigestHeadline(t *testing.T) {
-	onlyExpectDigestTasks(t, "pg-dump")
+	onlyExpectDigestTasks(t, "pg-dump", "relay-zero-token")
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	allOK := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
 		{Label: "Unregistered task", Status: "ok", UpdatedAt: now.Add(-30 * 24 * time.Hour).Unix()},
-	}, nil)
-	if !strings.Contains(allOK, "\n✅ 全部 2 项正常\n") || !strings.Contains(allOK, "✅ Unregistered task：正常") {
-		t.Fatalf("expected all-ok headline; tasks without a cadence keep their label and never go stale: %s", allOK)
-	}
-	onlyExpectDigestTasks(t, "relay-zero-token")
-	quiet := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", UpdatedAt: now.Unix()},
-	}, nil)
-	if !strings.Contains(quiet, "\n➖ 未检测 1 项\n") {
-		t.Fatalf("unknown alone should not raise a warning: %s", quiet)
+	}, nil, nil)
+	if !strings.Contains(allOK, "\n✅ 没有需要处理的事\n") || !strings.Contains(allOK, "✅ 正常 2 项：Unregistered task、数据库备份") {
+		t.Fatalf("unknown and keyless tasks need no action: %s", allOK)
 	}
 	odd := formatDailyDigest(now, []HealthSnapshot{
 		{Label: "Custom task", Status: "degraded", UpdatedAt: now.Unix()},
-	}, nil)
-	if !strings.Contains(odd, "⚠️ degraded 1 项") || !strings.Contains(odd, "⚠️ Custom task：degraded") {
-		t.Fatalf("unrecognized status should show verbatim as a warning: %s", odd)
+	}, nil, nil)
+	if !strings.Contains(odd, "⚠️ 需要处理 1 项") || !strings.Contains(odd, "⚠️ Custom task：degraded") {
+		t.Fatalf("unrecognized status should show verbatim as a problem: %s", odd)
+	}
+}
+
+func TestDailyDigestShowsSections(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+	}, nil, []DigestSection{
+		{Title: "昨日业务（10-19）", Lines: []string{"请求 12.4 万"}, Attention: []string{"昨日成功率 95.0%"}},
+		{Title: "数据与容量", Lines: []string{"磁盘已用 41%"}},
+	})
+	want := `📊 Lazu 每日运维报告 · 2026-10-20
+⚠️ 需要处理 1 项
+
+⚠️ 昨日成功率 95.0%
+
+【昨日业务（10-19）】
+请求 12.4 万
+
+【数据与容量】
+磁盘已用 41%
+
+【定时任务】
+✅ 正常 1 项：数据库备份`
+	if message != want {
+		t.Fatalf("digest =\n%s\nwant\n%s", message, want)
+	}
+}
+
+func TestDigestSectionFailureRaisesAttention(t *testing.T) {
+	previous := digestSections
+	digestSections = nil
+	defer func() { digestSections = previous }()
+	RegisterDigestSection("昨日业务", func(context.Context, time.Time) (DigestSection, error) {
+		return DigestSection{}, errors.New("telemetry down")
+	})
+	RegisterDigestSection("数据与容量", func(context.Context, time.Time) (DigestSection, error) {
+		var missing map[string]int
+		missing["boom"]++
+		return DigestSection{}, nil
+	})
+	sections := buildDigestSections(time.Date(2026, 10, 20, 1, 10, 0, 0, time.UTC))
+	if len(sections) != 2 || sections[1].Title != "数据与容量" || len(sections[1].Attention) != 1 || !strings.Contains(sections[1].Attention[0], "panic") {
+		t.Fatalf("a panicking section must not take the digest down: %+v", sections)
+	}
+	if len(sections) != 2 || sections[0].Title != "昨日业务" || len(sections[0].Attention) != 1 ||
+		!strings.Contains(sections[0].Attention[0], "昨日业务数据读取失败：telemetry down") {
+		t.Fatalf("a failed section should raise attention: %+v", sections)
+	}
+	onlyExpectDigestTasks(t)
+	message := formatDailyDigest(time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC), nil, nil, sections)
+	if !strings.Contains(message, "⚠️ 需要处理 2 项") || strings.Contains(message, "没有需要处理的事") {
+		t.Fatalf("unreadable sections must not produce an all-clear headline: %s", message)
 	}
 }
 
@@ -194,12 +240,12 @@ func TestDailyDigestShowsOpenAlerts(t *testing.T) {
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 2 个文件", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
-	}, incidents)
+	}, incidents, nil)
 	for _, expected := range []string{
-		"⚠️ 告警未恢复 2 项，正常 1 项",
+		"⚠️ 需要处理 2 项",
 		"🔔 请求日志上传 R2：告警未恢复\n   告警已持续 2 天 2 小时，共触发 48 次，最近一次：20 分钟前\n   10 分钟前更新 · 上传 2 个文件",
 		"🔔 settlement-outbox：告警未恢复\n   ❌ settlement outbox stuck\n   告警已持续 3 小时，共触发 3 次，最近一次：刚刚",
-		"✅ 数据库备份：正常",
+		"✅ 正常 1 项：数据库备份",
 	} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
@@ -212,10 +258,10 @@ func TestDailyDigestListsExpectedTasksThatNeverReported(t *testing.T) {
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
-	}, map[string]incidentState{})
+	}, map[string]incidentState{}, nil)
 	for _, expected := range []string{
-		"➖ 从未上报 1 项，正常 1 项",
-		"➖ 零 token 计费监控：从未上报\n   还没有任何运行记录",
+		"✅ 没有需要处理的事",
+		"✅ 正常 1 项：数据库备份\n➖ 从未上报 1 项：零 token 计费监控",
 	} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
@@ -237,7 +283,7 @@ func TestDailyDigestSkipsSnapshotsOfDisabledTasks(t *testing.T) {
 		{Key: "archive-compactor", Label: "R2 archive compactor", Status: "ok", UpdatedAt: old},
 	}, map[string]incidentState{
 		"archive-compactor": {Fingerprint: "x", FirstSeen: old, LastSeen: old, Occurrences: 1, Title: "❌ compactor FAILED"},
-	})
+	}, nil)
 	if strings.Contains(message, "已停止运行") || strings.Contains(message, "请求日志上传") {
 		t.Fatalf("a disabled task must not be reported as stopped: %s", message)
 	}
@@ -257,6 +303,43 @@ func TestZeroTokenMonitorIsExpectedOnlyWithASeparateWorker(t *testing.T) {
 	}
 }
 
+func TestDailyDigestRaisesTasksMissingPastTheirGracePeriod(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump", "relay-zero-token")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	message := formatDailyDigestSince(now, nil, nil, nil, map[string]time.Time{
+		"pg-dump":          now.Add(-3 * 24 * time.Hour), // past two days
+		"relay-zero-token": now.Add(-10 * time.Minute),   // within 30 minutes
+	})
+	for _, expected := range []string{
+		"⚠️ 需要处理 1 项",
+		"⏸️ 数据库备份：一直没有上报\n   已 3 天没有任何运行记录（应每天运行一次）",
+		"➖ 从未上报 1 项：零 token 计费监控",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+}
+
+func TestTrackMissingTasksRemembersFirstSeenAndForgetsReported(t *testing.T) {
+	alertingTestRedis(t)
+	onlyExpectDigestTasks(t, "pg-dump")
+	start := time.Date(2026, 10, 17, 9, 10, 0, 0, time.UTC)
+	if got := trackMissingTasks(start, nil)["pg-dump"]; !got.Equal(start) {
+		t.Fatalf("first sighting = %s, want %s", got, start)
+	}
+	if got := trackMissingTasks(start.Add(72*time.Hour), nil)["pg-dump"]; !got.Equal(start) {
+		t.Fatalf("a later digest must keep the first sighting, got %s", got)
+	}
+	reported := []HealthSnapshot{{Key: "pg-dump", Status: "ok"}}
+	if since := trackMissingTasks(start.Add(73*time.Hour), reported); len(since) != 0 {
+		t.Fatalf("a task that reported is no longer missing: %v", since)
+	}
+	if got := trackMissingTasks(start.Add(96*time.Hour), nil)["pg-dump"]; !got.Equal(start.Add(96 * time.Hour)) {
+		t.Fatalf("a task that goes missing again starts a new grace period, got %s", got)
+	}
+}
+
 func TestUploadCadenceFollowsConfiguredSchedule(t *testing.T) {
 	previous := common.AppConfig.Upload.Schedule
 	defer func() { common.AppConfig.Upload.Schedule = previous }()
@@ -265,11 +348,11 @@ func TestUploadCadenceFollowsConfiguredSchedule(t *testing.T) {
 	snapshots := []HealthSnapshot{{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", UpdatedAt: now.Add(-5*time.Hour - 10*time.Minute).Unix()}}
 
 	common.AppConfig.Upload.Schedule = "0 4 * * *"
-	if message := formatDailyDigest(now, snapshots, nil); strings.Contains(message, "已停止运行") {
+	if message := formatDailyDigest(now, snapshots, nil, nil); strings.Contains(message, "已停止运行") {
 		t.Fatalf("a daily upload five hours after its run is not stale: %s", message)
 	}
 	common.AppConfig.Upload.Schedule = "0 * * * *"
-	if message := formatDailyDigest(now, snapshots, nil); !strings.Contains(message, "应每小时运行一次") {
+	if message := formatDailyDigest(now, snapshots, nil, nil); !strings.Contains(message, "应每小时运行一次") {
 		t.Fatalf("an hourly upload five hours late is stale: %s", message)
 	}
 	common.AppConfig.Upload.Schedule = "not a cron spec"
