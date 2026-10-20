@@ -212,8 +212,10 @@ roadmap adds it, and until then the rule is a review rule.
    SSE→event IR, event IR→SSE, whole-response render. Handlers dispatch on the
    plan, never on a protocol family: an OpenAI-shaped client on an Anthropic
    channel is served by the hub in `internal/relay/channel/claude/hub.go`
-   because the plan says so (`BridgesToMessages`), and the channel probe is
-   planned the same way (`planProbeAttempt`). Enforced by review; planned
+   because the plan says so (`BridgesToMessages`), a Claude client on an
+   OpenAI-shaped channel by `internal/relay/channel/openai/claude_client_hub.go`
+   (`ServesClaudeClient`), and the channel probe is planned the same way
+   (`planProbeAttempt`). Enforced by review; planned
    test: no protocol-family branch in `internal/relay/*_handler.go`.
 2. **Every conversion is exactly one semantic hop:** the client codec decodes,
    the upstream codec encodes. No path goes through a third protocol's DTO.
@@ -259,8 +261,11 @@ roadmap adds it, and until then the rule is a review rule.
    `TestEncodeMatchesLegacyGoldens`). Legacy pairwise converters are deleted
    in the PR that lands their codec or the release after it, and gain no new
    features meanwhile: `relay-claude.go`'s Chat↔Messages pair went with the
-   Messages hub (2026-10-21); `relay-gemini.go` and `service/convert.go`
-   remain. Enforced by review.
+   Messages hub (2026-10-21). The Claude-client converters in
+   `service/convert.go` stay one release behind
+   `global.legacy_claude_client_conversion`, held to the hub by the live
+   differential test `TestClaudeToChatMatchesTheLegacyConverter`, and go
+   the release after. `relay-gemini.go` remains. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
    Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
    (made by `go test -tags record` in `internal/relay/contracttest`, keys from

@@ -291,7 +291,20 @@ type Event struct {
 
 已接入 handler（2026-10-21，Messages hub）：规划器把 OpenAI 形状的客户端（Chat、Responses）在 Anthropic 方言渠道上规划为到 Messages 的 bridge（`FeatureEndpointMessages`，`bridgeOrder`，`messagesBridgeIssue`）；请求侧 `codec/anthropic_messages.Encode` 把 IR 编成 Messages 请求，渠道再按目录策略拟合 thinking（`claude.EncodeBridgedRequest`：`fitBridgedThinking` + `PrepareNativeThinking`）；响应侧 `claude.HubStreamHandler` / `HubHandler` 用 Anthropic decoder 解一次、按客户端协议的 emitter 发出，整段回复走 `Collector` + `openai_chat.Render`。Chat 请求的 OpenRouter 风格 `reasoning.max_tokens` 进 IR 为 `Reasoning.Budget`（feature `reasoning.budget`，Responses 上游不可承载则拒绝）。渠道探测（`channel-test.go`）用同一条 `textgenruntime.Parse` + `PrepareAttempt` 规划，走同一条 bridge。`relay-claude.go` 的 Chat↔Messages 逐对转换器（`RequestOpenAI2ClaudeMessage`、`StreamResponseClaude2OpenAI`、`ResponseClaude2OpenAI`）已删除，只留 `/v1/complete` 的 completion 模式；其 7 个 golden（`codec/anthropic_messages/testdata/golden/`）由 `TestEncodeMatchesLegacyGoldens` 守住。
 
-尚未接入：Claude 客户端经 hub（`/v1/messages` 的请求 decoder 取代 `ClaudeToOpenAIRequest` / `service/convert.go`）、`relay_responses.go` 的 Responses→Chat 直接转换改走 decoder + Chat emitter、Gemini codec、派发统一。
+已接入 handler（2026-10-21，Claude 客户端）：`/v1/messages` 先经 `middleware.ClaudeClientParse` 解析成 IR（`anthropic_messages.Decode`），和 Chat、Responses 一样逐次规划。Anthropic 渠道上是 native；OpenAI 形状的渠道上桥接到 Chat，没有 Chat 端点时桥接到 Responses（`bridgeOrder`）。请求由上游协议的 encoder 编码，`ClaudeHelper` 的桥接分支（`claudeClientBridgeBody`）交给渠道 adaptor；回复由 `openai.ClaudeClientStreamHandler` / `ClaudeClientHandler` 用 Chat 或 Responses decoder 解一次，再经 Anthropic emitter 发出。Gemini 渠道的请求同样经 IR 编码为 Chat，回复仍走 Gemini adaptor 自己的转换，直到 Gemini codec 落地。
+
+Claude 客户端的映射以真实录制的 Claude Code 请求为准（`testdata/client/claude_code/`）：
+
+- 会话中的 `system` 消息保持原位；带文字的 thinking 进 Chat 的 `reasoning_content`；只有签名、或 redacted 的 thinking 是 Anthropic 的密封推理，对其它厂商无用，桥接时不发，不算有损。
+- tool_result 里的图片保留为图片：Chat 放在这组 tool 消息之后的一条 user 消息里，Responses 放进 function_call_output 的内容数组。目录未声明能看图的模型，桥接时把这些图片换成一句说明并加 `X-Lazu-Warning: omitted:tool_result_image`：会话历史里只要有一张图，之后每个请求都会被不能看图的上游拒绝，旧转换把图片当文字塞进 tool 消息，模型同样看不了。用户自己发的图片不变。`is_error` 以 "Error: " 前缀说明。
+- `metadata` 原样保留（旧转换也原样转发）：Claude Code 的会话在 `metadata.user_id` 里，agent 会话和路由提示从解析后的请求读它。它不当作 OpenAI 的 `user`。
+- Claude 客户端不做降级：native 路径发的是客户端原始字节，Messages 也没有 json_object 可替代；被拒绝的 schema 在发出前拒绝。`thinking: disabled` 只在模型能关闭推理时发 effort none。
+- thinking 预算按档位映射为 effort（`textgen.EffortForBudget`，与 `model.EffortBudgetTokens` 反向同表），Chat 和 Responses 同一张表；Chat 客户端的 `reasoning.max_tokens` 到 Responses 也不再拒绝。目录未声明会推理的模型，桥接时不发 thinking（Claude Code 每个请求都带），与旧转换一致。
+- `context_management` 只有 `clear_thinking_*` 时是提示性的；其它编辑、`mcp_servers`、Anthropic 自己执行的工具和 `server_tool_use` 历史，桥接时按字段路径拒绝，native 不受影响。
+
+回退开关：`global.legacy_claude_client_conversion`（控制台「上游」设置）打开后，`/v1/messages` 不解析、不规划，完全走旧转换。开关只保留这一个版本；下一版本删除 `ClaudeToOpenAIRequest`、`StreamResponseOpenAI2Claude`、`ResponseOpenAI2Claude` 和开关本身，差分测试 `TestClaudeToChatMatchesTheLegacyConverter` 届时转为 golden 文件。
+
+尚未接入：`relay_responses.go` 的 Responses→Chat 直接转换改走 decoder + Chat emitter、Gemini codec、派发统一。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 
