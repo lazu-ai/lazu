@@ -182,7 +182,7 @@ func TestConsoleTaskDetailIncludesTheRequest(t *testing.T) {
 }
 
 func TestConsoleTaskSpecReadsTheProviderShape(t *testing.T) {
-	// The tasks preset body (APIMart) as stored on the job.
+	// A tasks-preset provider body as stored on the job.
 	tasks := consoleTaskSpec(map[string]any{
 		"duration": float64(4), "resolution": "480p", "size": "adaptive",
 		"video_urls": []any{"https://x/v.mp4"},

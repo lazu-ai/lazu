@@ -1582,7 +1582,7 @@ func TestReservedVideoJobSettlesAtItsHoldWhenTheReportIsFarAboveIt(t *testing.T)
 
 // seedOfficialPriceReferenceJob prices the job's lane like Seedance 2.5 at the
 // official rate on an aggregator (720p at $0.231/s for the hold, the
-// provider's cost × 1.07 for the charge), funds the user, and records an
+// provider's cost × 1.1 for the charge), funds the user, and records an
 // estimate of 5 s of 720p output with a 30 s reference-video hold.
 func seedOfficialPriceReferenceJob(t *testing.T, db *gorm.DB) MediaJob {
 	t.Helper()
@@ -1594,7 +1594,7 @@ func seedOfficialPriceReferenceJob(t *testing.T, db *gorm.DB) MediaJob {
 	price.SecondUSD = nil
 	price.VideoPricing = &billing.VideoPrices{
 		ResolutionSecondUSD:                map[string]float64{"720p": 0.231},
-		ProviderCostMultiplierByResolution: map[string]float64{"720p": 1.07},
+		ProviderCostMultiplierByResolution: map[string]float64{"720p": 1.1},
 	}
 	if err := db.Save(&price).Error; err != nil {
 		t.Fatalf("price the lane: %v", err)
@@ -1628,13 +1628,13 @@ func TestReferenceVideoJobHoldsTheLongestReferenceAndChargesTheReportedCost(t *t
 	if reserved.CustomerCharge != billing.USD(0.231*35) {
 		t.Fatalf("5 s of output plus a 30 s reference hold at $0.231/s, got %d", reserved.CustomerCharge)
 	}
-	// APIMart billed 10 s of reference plus 5 s of output at its input rate.
-	cost := 15 * 0.1296
+	// The provider billed 10 s of reference plus 5 s of output at its input rate.
+	cost := 15 * 0.12
 	settled := settleVideoJobWithReportedFacts(t, db, job, dto.VideoFacts{ProviderCostUSD: &cost, Reported: true}, time.Now().UTC().Add(time.Minute))
-	if settled.CustomerCharge != billing.USD(cost*1.07) || settled.ReferenceUnpriced {
+	if settled.CustomerCharge != billing.USD(cost*1.1) || settled.ReferenceUnpriced {
 		t.Fatalf("the reported cost at the 720p multiplier settles the job, got %+v", settled)
 	}
-	if quota := mediaJobBillingUserQuota(t, db, job.UserID); quota != billing.USD(100)-billing.USD(cost*1.07) {
+	if quota := mediaJobBillingUserQuota(t, db, job.UserID); quota != billing.USD(100)-billing.USD(cost*1.1) {
 		t.Fatalf("the rest of the hold is refunded: quota=%d", quota)
 	}
 }
@@ -1683,7 +1683,7 @@ func TestPublicPricingWithholdsTheProviderCostMultiplier(t *testing.T) {
 		VideoPricing: &billing.VideoPrices{
 			ResolutionSecondUSD:                map[string]float64{"720p": 0.231},
 			ProviderCostMultiplier:             &flat,
-			ProviderCostMultiplierByResolution: map[string]float64{"720p": 1.07},
+			ProviderCostMultiplierByResolution: map[string]float64{"720p": 1.1},
 		},
 	})
 	video := lane.VideoPricing

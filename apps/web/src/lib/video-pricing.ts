@@ -11,7 +11,7 @@ export type VideoPricing = {
   audio_surcharge_ratio?: number;
   provider_cost_multiplier?: number;
   provider_cost_authoritative?: boolean;
-  /** Per resolution tier ("720p": 1.07); overrides the flat multiplier. */
+  /** Per resolution tier ("720p": 1.1); overrides the flat multiplier. */
   provider_cost_multiplier_by_resolution?: Record<string, number>;
   /** Public pricing's only provider-cost signal: the multiplier is withheld. */
   provider_cost_billed?: boolean;
