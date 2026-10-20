@@ -268,7 +268,10 @@ var dialectEndpointGaps = map[string]map[textgen.FeatureID][]textgen.FeatureID{
 	// DeepSeek Chat Completions: response_format is text | json_object only
 	// (api-docs.deepseek.com/api/create-chat-completion, 2026-10-20);
 	// Responses takes text.format json_schema.
-	DialectDeepSeek: {textgen.FeatureEndpointChat: {textgen.FeatureJSONSchema, textgen.FeatureStrictSchema}},
+	// the response-format schema only: a strict json_schema raises it too,
+	// while the shared strict marker also comes from tools[i].strict, which
+	// DeepSeek Chat takes
+	DialectDeepSeek: {textgen.FeatureEndpointChat: {textgen.FeatureJSONSchema}},
 }
 
 // endpointGaps is the dialect's gaps restricted to the features the snapshot

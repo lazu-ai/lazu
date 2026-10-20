@@ -398,3 +398,25 @@ func TestChatFileFilenameSurvivesResponsesBridge(t *testing.T) {
 		t.Fatalf("Chat file metadata was lost in Responses bridge: %#v", content[0])
 	}
 }
+
+// A bridged output cap goes out as max_tokens, which every Chat-compatible
+// upstream reads; max_completion_tokens is OpenAI's own alias only.
+func TestEncodeWritesTheOutputCapAsMaxTokens(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"user","content":"hi"}],"max_completion_tokens":64}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := json.Marshal(wire)
+	var object map[string]json.RawMessage
+	_ = json.Unmarshal(encoded, &object)
+	if string(object["max_tokens"]) != "64" {
+		t.Fatalf("max_tokens: %s", encoded)
+	}
+	if _, ok := object["max_completion_tokens"]; ok {
+		t.Fatalf("max_completion_tokens must not be set: %s", encoded)
+	}
+}

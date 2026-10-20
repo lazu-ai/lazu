@@ -1,7 +1,10 @@
 package openai_chat
 
 import (
+	"encoding/json"
 	"testing"
+
+	"github.com/lazu-ai/lazu/internal/dto"
 
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 )
@@ -47,5 +50,16 @@ func TestChatEmitterNamesACallOnce(t *testing.T) {
 	}
 	if ids != "call_1" || names != "get_weather" || args != `{"city":"Paris"}` {
 		t.Fatalf("concatenated deltas: id %q name %q args %q", ids, names, args)
+	}
+}
+
+func TestStreamDecoderTurnsAnErrorChunkIntoAnError(t *testing.T) {
+	var chunk dto.ChatCompletionsStreamResponse
+	if err := json.Unmarshal([]byte(`{"error":{"message":"Overloaded","type":"server_error","code":"overloaded"}}`), &chunk); err != nil {
+		t.Fatal(err)
+	}
+	events := (&StreamDecoder{}).Decode(&chunk)
+	if len(events) != 1 || events[0].Kind != textgen.EventError || events[0].Error.Message != "Overloaded" || events[0].Error.Type != "server_error" || events[0].Error.Code != "overloaded" {
+		t.Fatalf("events: %+v", events)
 	}
 }

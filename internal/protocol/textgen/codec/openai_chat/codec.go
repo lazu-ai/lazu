@@ -602,7 +602,9 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 		wire.TopLogProbs = request.Sampling.TopLogProbs.Value
 	}
 	if request.Sampling.MaxOutput.Set {
-		wire.MaxCompletionTokens = request.Sampling.MaxOutput.Value
+		// max_tokens, the field every Chat-compatible API takes; the OpenAI
+		// adaptor moves it to max_completion_tokens for models that need it
+		wire.MaxTokens = request.Sampling.MaxOutput.Value
 	}
 	if request.ToolPolicy.ParallelToolCalls.Set {
 		wire.ParallelToolCalls = &request.ToolPolicy.ParallelToolCalls.Value

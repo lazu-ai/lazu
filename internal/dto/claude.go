@@ -161,6 +161,7 @@ type Tool struct {
 	Description  string                 `json:"description,omitempty"`
 	InputSchema  map[string]interface{} `json:"input_schema"`
 	CacheControl json.RawMessage        `json:"cache_control,omitempty"`
+	Strict       *bool                  `json:"strict,omitempty"`
 }
 
 type InputSchema struct {

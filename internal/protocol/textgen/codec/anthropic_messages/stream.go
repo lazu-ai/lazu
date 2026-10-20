@@ -222,7 +222,8 @@ func UsageOf(usage *dto.ClaudeUsage) *dto.Usage {
 // StopReasonOf is an Anthropic stop_reason in the IR's words.
 func StopReasonOf(reason string) textgen.StopReason {
 	switch strings.ToLower(strings.TrimSpace(reason)) {
-	case "max_tokens":
+	case "max_tokens", "model_context_window_exceeded":
+		// both cut the answer short: the output cap, or the context window
 		return textgen.StopLength
 	case "tool_use":
 		return textgen.StopTool
