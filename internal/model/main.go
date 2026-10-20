@@ -538,6 +538,13 @@ func migrateDB() error {
 	if err = runExtensionMigrations(coreDB); err != nil {
 		return err
 	}
+	// Claude rows registered before Mode/Off existed take the seed table's
+	// values once; the catalog row is the only source after that. Before the
+	// schema_versions table exists (a database older than the marker, or a
+	// fresh one with no rows) the fill runs unrecorded; it only writes blanks.
+	if err = backfillClaudeReasoningPolicyOnce(coreDB); err != nil {
+		return err
+	}
 	if err = EnsureMonthlyReportUniqConstraint(); err != nil {
 		return err
 	}

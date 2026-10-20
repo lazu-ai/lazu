@@ -49,48 +49,11 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		return lazuErr
 	}
 	originalModel := request.Model
-	adaptiveEffort := ""
-
-	if baseModel, effort, ok := claudechannel.TrimEffortSuffix(request.Model); ok && claudechannel.SupportsAdaptiveThinkingModel(baseModel) {
-		request.Model = baseModel
+	resolve := claudechannel.CatalogPolicy(info.OriginModelName)
+	claudechannel.PrepareNativeThinking(request, resolve)
+	if request.Model != originalModel {
 		info.UpstreamModelName = request.Model
-		adaptiveEffort = effort
 	}
-
-	// 检测 -thinking 或 #thinking 模型后缀
-	suffixTriggeredThinking := false
-	if model_setting.GetClaudeSettings().ThinkingAdapterEnabled {
-		if model, suffix := claudechannel.TrimThinkingSuffix(request.Model); suffix != "" {
-			suffixTriggeredThinking = true
-			request.Model = model
-			info.UpstreamModelName = request.Model
-		}
-	}
-	if request.MaxTokens == 0 {
-		request.MaxTokens = uint(claudechannel.GetDefaultMaxTokensForThinkingModel(originalModel, request.Model))
-	}
-	if adaptiveEffort != "" && request.Thinking == nil {
-		claudechannel.ApplyAdaptiveThinking(request, adaptiveEffort)
-	}
-	if suffixTriggeredThinking && request.Thinking == nil {
-		if strings.HasPrefix(request.Model, "claude-opus-4-7") {
-			claudechannel.ApplyAdaptiveThinking(request, "high")
-		} else {
-			budgetTokens := int(float64(request.MaxTokens) * model_setting.GetClaudeSettings().ThinkingAdapterBudgetTokensPercentage)
-			request.Thinking = &dto.Thinking{
-				Type:         "enabled",
-				BudgetTokens: &budgetTokens,
-			}
-		}
-	}
-	if strings.HasPrefix(request.Model, "claude-opus-4-7") && request.Thinking != nil && request.Thinking.Type == "enabled" {
-		effort := adaptiveEffort
-		if effort == "" {
-			effort = "high"
-		}
-		claudechannel.ApplyAdaptiveThinking(request, effort)
-	}
-	claudechannel.EnsureThinkingConstraints(request)
 
 	var requestBody io.Reader
 	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {

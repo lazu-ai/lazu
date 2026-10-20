@@ -452,7 +452,7 @@ func (r *modelInfoReconciler) run() {
 		payload: capabilities,
 	})
 
-	reasoning := reasoningFromModelsDev(up)
+	reasoning := mergeReasoningOptions(m.ModelName, m.ReasoningOptions, reasoningFromModelsDev(up))
 	r.reconcile(fieldSpec{
 		field: model.ModelInfoFieldReasoningOptions, class: fieldDescriptive,
 		local: reasoningDisplay(m.ReasoningOptions), upstream: reasoningDisplay(reasoning),
@@ -844,7 +844,7 @@ func BuildModelInfoPrefill(modelName, maker string, entry ModelsDevEntry) ModelI
 		Modalities: model.ModelModalities{
 			Input: normalizeModalities(up.Modalities.Input), Output: normalizeModalities(up.Modalities.Output),
 		},
-		ReasoningOptions:  reasoningFromModelsDev(up),
+		ReasoningOptions:  model.SeedReasoningPolicy(modelName, reasoningFromModelsDev(up)),
 		UnsupportedParams: []string{},
 		OpenWeights:       up.OpenWeights,
 		Capabilities:      mergeModelsDevCapabilities(model.ModelCapabilities{}, up),
@@ -1369,13 +1369,32 @@ func reasoningFromModelsDev(up ModelsDevModel) model.ModelReasoningOptions {
 	return out
 }
 
+// mergeReasoningOptions is what the sync writes for a model: models.dev's
+// toggle and efforts, lazu's own Mode and Off kept from the local row (or
+// seeded when the row has none), since models.dev knows nothing of them.
+func mergeReasoningOptions(modelName string, local, upstream model.ModelReasoningOptions) model.ModelReasoningOptions {
+	upstream.Mode, upstream.Off = local.Mode, local.Off
+	return model.SeedReasoningPolicy(modelName, upstream)
+}
+
+// reasoningDisplay is the options in one line: "toggle;low,high;mode=adaptive;off=never",
+// each part left out when unset. The console splits it on ";".
 func reasoningDisplay(value model.ModelReasoningOptions) string {
 	if value.IsZero() {
 		return ""
 	}
-	prefix := ""
+	parts := []string{}
 	if value.Toggle {
-		prefix = "toggle;"
+		parts = append(parts, "toggle")
 	}
-	return prefix + strings.Join(value.Efforts, ",")
+	if len(value.Efforts) > 0 {
+		parts = append(parts, strings.Join(value.Efforts, ","))
+	}
+	if value.Mode != "" {
+		parts = append(parts, "mode="+value.Mode)
+	}
+	if value.Off != "" {
+		parts = append(parts, "off="+value.Off)
+	}
+	return strings.Join(parts, ";")
 }

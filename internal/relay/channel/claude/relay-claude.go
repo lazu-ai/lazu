@@ -11,6 +11,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
+	"github.com/lazu-ai/lazu/internal/model"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/service"
@@ -81,7 +82,14 @@ func RequestOpenAI2ClaudeComplete(textRequest dto.GeneralOpenAIRequest) *dto.Cla
 	return &claudeRequest
 }
 
-func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRequest) (*dto.ClaudeRequest, error) {
+// RequestOpenAI2ClaudeMessage builds the Messages request for a Chat
+// Completions one. resolve answers what the catalog says about the model
+// (ModelPolicy): whether its thinking is adaptive or a budget, and its output
+// limit. Nothing here reads a model name for what the model can do.
+func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRequest, resolve PolicyResolver) (*dto.ClaudeRequest, error) {
+	if resolve == nil {
+		resolve = StaticPolicy(ModelPolicy{})
+	}
 	topP := 0.0
 	if textRequest.TopP != nil {
 		topP = *textRequest.TopP
@@ -185,23 +193,30 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 		}
 	}
 
-	adaptiveEffort := ""
-	if baseModel, effort, ok := TrimEffortSuffix(textRequest.Model); ok && SupportsAdaptiveThinkingModel(baseModel) {
-		claudeRequest.Model = baseModel
-		adaptiveEffort = effort
-	}
-
+	// An effort suffix (claude-opus-4-7-xhigh) names a catalog model plus an
+	// effort; a name the catalog does not know keeps its suffix, it may be a
+	// model of its own.
 	// 统一的 thinking 激活逻辑，优先级链：
-	// 模型后缀(-thinking/#thinking) < reasoning_effort < reasoning.effort < reasoning.max_tokens
+	// 模型后缀(-thinking/#thinking/-<effort>) < reasoning_effort < reasoning.effort < reasoning.max_tokens
 	var budgetPercentage float64
+
+	effort := ""
+	if baseModel, suffixEffort, ok := TrimEffortSuffix(textRequest.Model); ok && resolve(baseModel).Known {
+		claudeRequest.Model = baseModel
+		effort = suffixEffort
+		if pct := EffortToPercentage(effort); pct > 0 {
+			budgetPercentage = pct
+		}
+	}
 
 	// 1. 检测 -thinking 或 #thinking 模型后缀
 	if model_setting.GetClaudeSettings().ThinkingAdapterEnabled {
-		if model, suffix := TrimThinkingSuffix(textRequest.Model); suffix != "" {
+		if model, suffix := TrimThinkingSuffix(claudeRequest.Model); suffix != "" {
 			budgetPercentage = model_setting.GetClaudeSettings().ThinkingAdapterBudgetTokensPercentage
 			claudeRequest.Model = model
 		}
 	}
+	policy := resolve(claudeRequest.Model)
 
 	if claudeRequest.MaxTokens == 0 {
 		claudeRequest.MaxTokens = uint(GetDefaultMaxTokensForThinkingModel(textRequest.Model, claudeRequest.Model))
@@ -212,9 +227,7 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 		if pct := EffortToPercentage(textRequest.ReasoningEffort); pct > 0 {
 			budgetPercentage = pct
 		}
-		if SupportsAdaptiveThinkingModel(claudeRequest.Model) {
-			adaptiveEffort = textRequest.ReasoningEffort
-		}
+		effort = textRequest.ReasoningEffort
 	}
 
 	// 3. reasoning 对象解析
@@ -229,9 +242,7 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 			if pct := EffortToPercentage(reasoning.Effort); pct > 0 {
 				budgetPercentage = pct
 			}
-			if SupportsAdaptiveThinkingModel(claudeRequest.Model) {
-				adaptiveEffort = reasoning.Effort
-			}
+			effort = reasoning.Effort
 		}
 		// reasoning.max_tokens → 直接指定 budget_tokens，最高优先级
 		if reasoning.MaxTokens > 0 {
@@ -239,30 +250,45 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 		}
 	}
 
-	// 4. 应用 thinking 配置
-	if budgetPercentage > 0 || reasoningMaxTokens > 0 {
-		if strings.HasPrefix(claudeRequest.Model, "claude-opus-4-7") {
-			if adaptiveEffort == "" {
-				adaptiveEffort = "high"
-			}
-			ApplyAdaptiveThinking(&claudeRequest, adaptiveEffort)
-		} else {
-			var budgetTokens int
-			if reasoningMaxTokens > 0 {
-				budgetTokens = reasoningMaxTokens
-			} else {
-				budgetTokens = int(float64(claudeRequest.MaxTokens) * budgetPercentage)
-			}
-			claudeRequest.Thinking = &dto.Thinking{
-				Type:         "enabled",
-				BudgetTokens: &budgetTokens,
+	// 4. 应用 thinking 配置。An adaptive model takes the effort as it is; a
+	// budget model takes a budget derived from the effort or the percentage;
+	// a model the catalog does not describe takes the budget shape it always
+	// did. Effort "none" turns thinking off (NormalizeThinking fits that to
+	// the model).
+	thinkingAsked := budgetPercentage > 0 || reasoningMaxTokens > 0 || effort != ""
+	switch {
+	case thinkingAsked && model.EffortRank(effort) == -2:
+		// effort none: thinking off, in the shape the model takes it. A model
+		// whose off shape the catalog does not know gets no thinking field,
+		// as before.
+		if policy.Reasoning.Off != "" {
+			claudeRequest.Thinking = &dto.Thinking{Type: "disabled"}
+		}
+	case thinkingAsked && policy.Adaptive():
+		if effort == "" && reasoningMaxTokens > 0 {
+			effort = EffortOfBudget(reasoningMaxTokens)
+		}
+		if effort != "" {
+			if snapped := model.SnapEffort(claudeRequest.Model, effort); snapped != "none" {
+				effort = snapped
 			}
 		}
+		ApplyAdaptiveThinking(&claudeRequest, effort)
+	case budgetPercentage > 0 || reasoningMaxTokens > 0:
+		var budgetTokens int
+		if reasoningMaxTokens > 0 {
+			budgetTokens = reasoningMaxTokens
+		} else {
+			budgetTokens = int(float64(claudeRequest.MaxTokens) * budgetPercentage)
+		}
+		claudeRequest.Thinking = &dto.Thinking{
+			Type:         "enabled",
+			BudgetTokens: &budgetTokens,
+		}
 	}
-	if claudeRequest.Thinking == nil && adaptiveEffort != "" {
-		ApplyAdaptiveThinking(&claudeRequest, adaptiveEffort)
-	}
+	NormalizeThinking(&claudeRequest, policy)
 	EnsureThinkingConstraints(&claudeRequest)
+	FitThinkingBudget(&claudeRequest, policy)
 
 	if textRequest.Stop != nil {
 		// stop maybe string/array string, convert to array string

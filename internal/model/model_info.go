@@ -45,13 +45,25 @@ const (
 )
 
 // ModelReasoningOptions is how a model's thinking can be controlled: whether
-// it can be switched off, and the effort levels it accepts, lowest first.
+// it can be switched off, the effort levels it accepts, lowest first, and,
+// on Anthropic's Messages API, the shape its thinking controls take (Mode)
+// and how it takes thinking turned off (Off). Toggle and Efforts come from
+// models.dev; Mode and Off are lazu's own facts (reasoning_policy.go) and
+// survive a models.dev sync.
 type ModelReasoningOptions struct {
 	Toggle  bool     `json:"toggle,omitempty"`
 	Efforts []string `json:"efforts,omitempty"`
+	// Mode is ReasoningModeBudget or ReasoningModeAdaptive; "" is unknown,
+	// which every reader treats as the budget shape it sent before Mode
+	// existed.
+	Mode string `json:"mode,omitempty"`
+	// Off is one of the ReasoningOff* values; "" is unknown, sent as asked.
+	Off string `json:"off,omitempty"`
 }
 
-func (o ModelReasoningOptions) IsZero() bool { return !o.Toggle && len(o.Efforts) == 0 }
+func (o ModelReasoningOptions) IsZero() bool {
+	return !o.Toggle && len(o.Efforts) == 0 && o.Mode == "" && o.Off == ""
+}
 
 func (o ModelReasoningOptions) Value() (driver.Value, error) { return jsonColumnValue(o) }
 func (o *ModelReasoningOptions) Scan(value interface{}) error {

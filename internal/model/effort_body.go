@@ -104,8 +104,17 @@ func ClampEffortBody(body []byte, modelName, cap, format string) ([]byte, string
 		}
 		// Claude effort also controls non-thinking output. Low is valid with disabled
 		// thinking, whereas a provider default of xhigh/max may reject that combination.
+		// The off shape itself is the model's (ClaudeThinkingOff): Sonnet 5.5 takes
+		// between_tools, Opus 5.5 takes no thinking field at all.
 		if format == "claude" && strings.HasPrefix(m, "claude") {
-			set("output_config.effort", "low")
+			policy, _ := catalogReasoningOptions(modelName)
+			thinkingType, effort := ClaudeThinkingOff(policy, "disabled", "low")
+			if thinkingType == "" {
+				del("thinking")
+			} else {
+				set("thinking.type", thinkingType)
+			}
+			set("output_config.effort", effort)
 		}
 		if applied != "" {
 			applied = "disabled"

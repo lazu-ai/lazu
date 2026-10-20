@@ -167,6 +167,11 @@ func EffortBudgetTokens(cap string) int {
 // Reasoning-only models must reject caps below their first supported rung.
 func CanDisableReasoning(name string) bool {
 	if options, ok := catalogReasoningOptions(name); ok {
+		// Off is lazu's own fact about the Messages API and outranks the
+		// toggle models.dev lists: Opus 5.5 lists one and refuses it.
+		if options.Off != "" {
+			return options.Off != ReasoningOffNever
+		}
 		return options.Toggle
 	}
 	m := effortModelBase(name)
@@ -221,7 +226,7 @@ func setCatalogReasoningOptions(declared map[string]ModelReasoningOptions) {
 				levels = append(levels, strings.ToLower(effort))
 			}
 		}
-		if len(levels) > 0 || options.Toggle {
+		if len(levels) > 0 || options.Toggle || options.Mode != "" || options.Off != "" {
 			options.Efforts = levels
 			next[effortModelBase(name)] = options
 		}

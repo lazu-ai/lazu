@@ -176,6 +176,8 @@ export default function ModelInfoPanel({ saveRef, t, view }: Props) {
   const reasoning = (record.reasoning_options as {
     efforts?: string[];
     toggle?: boolean;
+    mode?: string;
+    off?: string;
   }) || { efforts: [] };
   const capabilities = (record.capabilities as Record<string, boolean>) || {};
   const unsupported = (record.unsupported_params as string[]) || [];
@@ -423,7 +425,10 @@ export default function ModelInfoPanel({ saveRef, t, view }: Props) {
         )}
         {row(
           t(`${ns}.field.reasoning_options`, { defaultValue: '思考深度' }),
-          reasoning.toggle || reasoning.efforts?.length ? (
+          reasoning.toggle ||
+            reasoning.efforts?.length ||
+            reasoning.mode ||
+            reasoning.off ? (
             <span className='mo-info__pills'>
               {reasoning.toggle ? (
                 <span className='mo-info__pill'>
@@ -435,6 +440,20 @@ export default function ModelInfoPanel({ saveRef, t, view }: Props) {
                   {level}
                 </code>
               ))}
+              {reasoning.mode ? (
+                <span className='mo-info__pill'>
+                  {t(`${ns}.thinkingMode.${reasoning.mode}`, {
+                    defaultValue: reasoning.mode,
+                  })}
+                </span>
+              ) : null}
+              {reasoning.off ? (
+                <span className='mo-info__pill'>
+                  {t(`${ns}.thinkingOff.${reasoning.off}`, {
+                    defaultValue: reasoning.off,
+                  })}
+                </span>
+              ) : null}
             </span>
           ) : (
             <span className='mo-info__none'>—</span>

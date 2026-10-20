@@ -88,12 +88,24 @@ export const formatInfoValue = (
     case 'unsupported_params':
       return value === 'none' ? t(`${ns}.none`, { defaultValue: '无' }) : value;
     case 'reasoning_options':
+      // "toggle;low,high;mode=adaptive;off=never", each part optional
       return value
-        .replace(
-          'toggle;',
-          `${t(`${ns}.thinkingToggle`, { defaultValue: '可关闭' })} · `,
-        )
-        .replaceAll(',', ' · ');
+        .split(';')
+        .filter(Boolean)
+        .map((part) => {
+          if (part === 'toggle')
+            return t(`${ns}.thinkingToggle`, { defaultValue: '可关闭' });
+          if (part.startsWith('mode='))
+            return t(`${ns}.thinkingMode.${part.slice(5)}`, {
+              defaultValue: part.slice(5),
+            });
+          if (part.startsWith('off='))
+            return t(`${ns}.thinkingOff.${part.slice(4)}`, {
+              defaultValue: part.slice(4),
+            });
+          return part.replaceAll(',', ' · ');
+        })
+        .join(' · ');
     default:
       return value;
   }
