@@ -158,7 +158,9 @@ func buildDigestSections(now time.Time) []DigestSection {
 		section, err := runDigestSection(entry.build, local)
 		if err != nil {
 			common.SysError(fmt.Sprintf("alerting: digest section %q failed: %v", entry.title, err))
-			section = DigestSection{Title: entry.title, Lines: []string{"⚠️ 数据读取失败：" + truncateDigestText(err.Error(), 160)}}
+			// A section that could not be read is itself something to act on;
+			// listing it only in its block would leave an all-clear headline.
+			section = DigestSection{Title: entry.title, Attention: []string{entry.title + "数据读取失败：" + truncateDigestText(err.Error(), 160)}}
 		}
 		if section.Title == "" {
 			section.Title = entry.title

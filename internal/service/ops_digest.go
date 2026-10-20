@@ -213,20 +213,20 @@ func buildCapacityDigestSection(ctx context.Context, now time.Time) (alerting.Di
 
 	disk := common.GetDiskSpaceInfo()
 	sample := opsCapacitySample{DiskUsed: disk.Used, DiskTotal: disk.Total, DiskFree: disk.Free}
-	if common.UsingPostgreSQL {
-		var err error
-		if sample.CoreBytes, err = digestDatabaseSize(ctx, model.CoreDB()); err != nil {
-			section.Attention = append(section.Attention, "无法读取主库大小："+truncateOpsDigestError(err))
-		}
-		if telemetry := model.TelemetryDB(); telemetry != nil && telemetry != model.CoreDB() {
-			if sample.TelemetryBytes, err = digestDatabaseSize(ctx, telemetry); err != nil {
-				section.Attention = append(section.Attention, "无法读取遥测库大小："+truncateOpsDigestError(err))
-			}
+	// Each store is probed by its own dialect: a SQLite core can sit next to
+	// a PostgreSQL telemetry store, which is the one most likely to grow.
+	var err error
+	if sample.CoreBytes, err = digestDatabaseSize(ctx, model.CoreDB()); err != nil {
+		section.Attention = append(section.Attention, "无法读取主库大小："+truncateOpsDigestError(err))
+	}
+	if telemetry := model.TelemetryDB(); telemetry != nil && telemetry != model.CoreDB() {
+		if sample.TelemetryBytes, err = digestDatabaseSize(ctx, telemetry); err != nil {
+			section.Attention = append(section.Attention, "无法读取遥测库大小："+truncateOpsDigestError(err))
 		}
 	}
 	history, err := recordCapacitySample(ctx, now, sample)
 	if err != nil {
-		section.Attention = append(section.Attention, "无法读取容量历史，增长和写满时间没有检查："+truncateOpsDigestError(err))
+		section.Attention = append(section.Attention, "容量历史读写失败，增长和写满时间没有检查："+truncateOpsDigestError(err))
 	}
 	lines, attention := formatCapacityDigest(now, sample, history)
 	section.Lines = append(section.Lines, lines...)
@@ -321,10 +321,14 @@ func recordCapacitySample(ctx context.Context, now time.Time, sample opsCapacity
 		return history, nil
 	}
 	today := now.Format("2006-01-02")
-	if raw, err := json.Marshal(sample); err == nil {
-		if err := common.RDB.HSet(ctx, opsDigestCapacityKey, today, raw).Err(); err != nil {
-			common.SysError("ops digest: failed to store capacity sample: " + err.Error())
-		}
+	raw, err := json.Marshal(sample)
+	if err != nil {
+		return history, err
+	}
+	// A sample that cannot be stored lets the history age out silently, so
+	// it fails the read the same way a history that cannot be loaded does.
+	if err := common.RDB.HSet(ctx, opsDigestCapacityKey, today, raw).Err(); err != nil {
+		return history, fmt.Errorf("store today's sample: %w", err)
 	}
 	values, err := common.RDB.HGetAll(ctx, opsDigestCapacityKey).Result()
 	if err != nil {

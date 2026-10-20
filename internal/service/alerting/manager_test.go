@@ -201,7 +201,7 @@ func TestDailyDigestShowsSections(t *testing.T) {
 	}
 }
 
-func TestDigestSectionFailureShowsInItsBlock(t *testing.T) {
+func TestDigestSectionFailureRaisesAttention(t *testing.T) {
 	previous := digestSections
 	digestSections = nil
 	defer func() { digestSections = previous }()
@@ -214,12 +214,17 @@ func TestDigestSectionFailureShowsInItsBlock(t *testing.T) {
 		return DigestSection{}, nil
 	})
 	sections := buildDigestSections(time.Date(2026, 10, 20, 1, 10, 0, 0, time.UTC))
-	if len(sections) != 2 || sections[1].Title != "数据与容量" || !strings.Contains(sections[1].Lines[0], "panic") {
+	if len(sections) != 2 || sections[1].Title != "数据与容量" || len(sections[1].Attention) != 1 || !strings.Contains(sections[1].Attention[0], "panic") {
 		t.Fatalf("a panicking section must not take the digest down: %+v", sections)
 	}
-	if len(sections) != 2 || sections[0].Title != "昨日业务" || len(sections[0].Attention) != 0 ||
-		len(sections[0].Lines) != 1 || !strings.Contains(sections[0].Lines[0], "telemetry down") {
-		t.Fatalf("failed section should explain itself without raising attention: %+v", sections)
+	if len(sections) != 2 || sections[0].Title != "昨日业务" || len(sections[0].Attention) != 1 ||
+		!strings.Contains(sections[0].Attention[0], "昨日业务数据读取失败：telemetry down") {
+		t.Fatalf("a failed section should raise attention: %+v", sections)
+	}
+	onlyExpectDigestTasks(t)
+	message := formatDailyDigest(time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC), nil, nil, sections)
+	if !strings.Contains(message, "⚠️ 需要处理 2 项") || strings.Contains(message, "没有需要处理的事") {
+		t.Fatalf("unreadable sections must not produce an all-clear headline: %s", message)
 	}
 }
 
