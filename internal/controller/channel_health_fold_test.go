@@ -845,3 +845,36 @@ func TestSeedreamManualTestsAndHealthProbesUseValidSizes(t *testing.T) {
 		}
 	}
 }
+
+// A video lane with a handful of generations has no rate to publish: two in a
+// week is an anecdote, and "0%" for it reads as an outage. Five is enough.
+func TestFoldChannelHealthWithholdsVideoRateBelowFiveSamples(t *testing.T) {
+	for _, tc := range []struct {
+		samples int64
+		errors  int64
+		rate    bool
+	}{
+		{samples: 2, errors: 2, rate: false},
+		{samples: 4, errors: 0, rate: false},
+		{samples: 5, errors: 1, rate: true},
+	} {
+		rows := foldHealthForTest(channelHealthFoldInput{
+			grid: []model.ChannelHealthLaneCell{
+				healthGridCell("seedance-2.5", model.ChannelLaneDirect, 51, "ark", model.AbilityRolePrimary),
+			},
+			evidence: []model.ChannelHealthEvidenceRow{
+				healthEvidence("seedance-2.5", model.ChannelLaneDirect, 51, model.ChannelHealthKindTraffic, tc.samples, tc.errors),
+			},
+		})
+		row := findLane(t, rows, "seedance-2.5", "stable")
+		if row.Kind != channelHealthKindVideo {
+			t.Fatalf("kind = %s, want video", row.Kind)
+		}
+		if (row.SuccessRate != nil) != tc.rate {
+			t.Fatalf("%d samples: success rate = %v, want published=%t", tc.samples, row.SuccessRate, tc.rate)
+		}
+		if row.RequestCount != tc.samples {
+			t.Fatalf("%d samples: request count = %d; the counts stay visible", tc.samples, row.RequestCount)
+		}
+	}
+}
