@@ -29,8 +29,15 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 	return request, nil
 }
 
+// usesCompletionAPI says whether the model is served by the legacy
+// /v1/complete API rather than Messages. Those models are retired upstream;
+// the path stays for channels that still serve them.
+func usesCompletionAPI(upstreamModel string) bool {
+	return strings.HasPrefix(upstreamModel, "claude-2") || strings.HasPrefix(upstreamModel, "claude-instant")
+}
+
 func (a *Adaptor) Init(info *relaycommon.RelayInfo) {
-	if strings.HasPrefix(info.UpstreamModelName, "claude-2") || strings.HasPrefix(info.UpstreamModelName, "claude-instant") {
+	if usesCompletionAPI(info.UpstreamModelName) {
 		a.RequestMode = RequestModeCompletion
 	} else {
 		a.RequestMode = RequestModeMessage
@@ -80,9 +87,8 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	}
 	if a.RequestMode == RequestModeCompletion {
 		return RequestOpenAI2ClaudeComplete(*request), nil
-	} else {
-		return RequestOpenAI2ClaudeMessage(c, *request, CatalogPolicy(info.OriginModelName))
 	}
+	return RequestOpenAI2ClaudeMessage(c, *request, CatalogPolicy(info.OriginModelName))
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
@@ -90,11 +96,16 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.LazuError) {
+	if BridgesToMessages(info) {
+		if info.IsStream {
+			return HubStreamHandler(c, resp, info)
+		}
+		return HubHandler(c, resp, info)
+	}
 	if info.IsStream {
 		return ClaudeStreamHandler(c, resp, info, a.RequestMode)
-	} else {
-		return ClaudeHandler(c, resp, info, a.RequestMode)
 	}
+	return ClaudeHandler(c, resp, info, a.RequestMode)
 }
 
 func (a *Adaptor) GetChannelName() string {

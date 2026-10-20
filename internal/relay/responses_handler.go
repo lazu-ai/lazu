@@ -10,6 +10,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
+	claudechannel "github.com/lazu-ai/lazu/internal/relay/channel/claude"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
@@ -48,11 +49,12 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 	bridgeToChat := info.ProtocolPlan != nil && !info.ProtocolPlan.Native &&
 		info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses &&
 		info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat
+	bridgeToMessages := claudechannel.BridgesToMessages(info)
 	var outboundBody []byte
 	nativeConverter, nativeConvertible := adaptor.(interface {
 		ConvertNativeRequest([]byte, *relaycommon.RelayInfo, bool) ([]byte, error)
 	})
-	if nativeConvertible && !bridgeToChat {
+	if nativeConvertible && !bridgeToChat && !bridgeToMessages {
 		bodyTimer := common.StartHotPathStage(common.HotPathStageOutboundBody)
 		if info.NativeBodyCache != nil && info.NativeBodyChannelID == info.ChannelId {
 			outboundBody = info.NativeBodyCache
@@ -71,10 +73,16 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
-	} else if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !bridgeToChat {
+	} else if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !bridgeToChat && !bridgeToMessages {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)
+		}
+		outboundBody = body
+	} else if bridgeToMessages {
+		body, _, encodeErr := MessagesBridgeBody(c, info)
+		if encodeErr != nil {
+			return encodeErr
 		}
 		outboundBody = body
 	} else if bridgeToChat {

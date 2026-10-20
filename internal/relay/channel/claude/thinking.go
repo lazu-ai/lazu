@@ -159,6 +159,10 @@ func NormalizeThinking(request *dto.ClaudeRequest, policy ModelPolicy) {
 	switch request.Thinking.Type {
 	case "enabled":
 		if !policy.Adaptive() {
+			if policy.Reasoning.Mode == model.ReasoningModeBudget {
+				// a budget model takes no effort beside its budget
+				request.OutputConfig = withoutOutputConfigEffort(request.OutputConfig)
+			}
 			return
 		}
 		effort := outputConfigEffort(request.OutputConfig)
@@ -169,6 +173,21 @@ func NormalizeThinking(request *dto.ClaudeRequest, policy ModelPolicy) {
 			}
 		}
 		ApplyAdaptiveThinking(request, effort)
+	case "adaptive":
+		// a Claude client's adaptive request to a model the catalog says takes
+		// a budget: the effort becomes the budget the cap table gives it. A
+		// model the catalog does not describe is sent adaptive as asked (a
+		// bridge's generic shape is fitted before this: fitBridgedThinking).
+		if policy.Reasoning.Mode != model.ReasoningModeBudget {
+			return
+		}
+		effort := outputConfigEffort(request.OutputConfig)
+		budget := model.EffortBudgetTokens(effort)
+		if budget == 0 {
+			budget = int(float64(request.MaxTokens) * model_setting.GetClaudeSettings().ThinkingAdapterBudgetTokensPercentage)
+		}
+		request.Thinking = &dto.Thinking{Type: "enabled", BudgetTokens: common.GetPointer[int](budget)}
+		request.OutputConfig = withoutOutputConfigEffort(request.OutputConfig)
 	case "disabled", "between_tools":
 		thinkingType, effort := model.ClaudeThinkingOff(policy.Reasoning, request.Thinking.Type, outputConfigEffort(request.OutputConfig))
 		if thinkingType == "" {
@@ -266,6 +285,17 @@ func outputConfigEffort(raw []byte) string {
 		return ""
 	}
 	return gjson.GetBytes(raw, "effort").String()
+}
+
+func withoutOutputConfigEffort(raw []byte) []byte {
+	if len(raw) == 0 || !gjson.ValidBytes(raw) {
+		return nil
+	}
+	next, err := sjson.DeleteBytes(raw, "effort")
+	if err != nil || string(next) == "{}" {
+		return nil
+	}
+	return next
 }
 
 func setOutputConfigEffort(raw []byte, effort string) []byte {

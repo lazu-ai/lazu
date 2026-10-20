@@ -20,6 +20,8 @@ import (
 	"github.com/lazu-ai/lazu/internal/httperr"
 	"github.com/lazu-ai/lazu/internal/middleware"
 	"github.com/lazu-ai/lazu/internal/model"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	textgenruntime "github.com/lazu-ai/lazu/internal/protocol/textgen/runtime"
 	"github.com/lazu-ai/lazu/internal/relay"
 	relaychannel "github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
@@ -285,6 +287,13 @@ func testChannelForLaneWithRequest(
 	testModel = info.UpstreamModelName
 	// 更新请求中的模型名称
 	request.SetModelName(testModel)
+	if err := planProbeAttempt(info, channel, request); err != nil {
+		return testResult{
+			context:  c,
+			localErr: err,
+			lazuErr:  types.NewError(err, types.ErrorCodeConvertRequestFailed),
+		}
+	}
 
 	apiType, _ := common.ChannelType2APIType(channel.Type)
 	adaptor := relay.GetAdaptor(apiType)
@@ -319,114 +328,34 @@ func testChannelForLaneWithRequest(
 		}
 	}
 
-	var convertedRequest any
-	// 根据 RelayMode 选择正确的转换函数
-	switch info.RelayMode {
-	case relayconstant.RelayModeEmbeddings:
-		// Embedding 请求 - request 已经是正确的类型
-		if embeddingReq, ok := request.(*dto.EmbeddingRequest); ok {
-			embeddingConverter, castOK := adaptor.(relaychannel.EmbeddingRequestConverter)
-			if !castOK {
-				return testResult{
-					context:  c,
-					localErr: errors.New("adaptor does not support embedding conversion"),
-					lazuErr:  types.NewError(errors.New("adaptor does not support embedding conversion"), types.ErrorCodeConvertRequestFailed),
-				}
-			}
-			convertedRequest, err = embeddingConverter.ConvertEmbeddingRequest(c, info, *embeddingReq)
-		} else {
+	var jsonData []byte
+	if body, bridged, bridgeErr := relay.MessagesBridgeBody(c, info); bridged {
+		// An OpenAI-shaped probe planned onto the Messages API takes the
+		// same bridge as a request does.
+		if bridgeErr != nil {
+			return testResult{context: c, localErr: bridgeErr, lazuErr: bridgeErr}
+		}
+		jsonData = body
+	} else {
+		var convertedRequest any
+		convertedRequest, err = convertProbeRequest(c, info, adaptor, request)
+		if err != nil {
 			return testResult{
 				context:  c,
-				localErr: errors.New("invalid embedding request type"),
-				lazuErr:  types.NewError(errors.New("invalid embedding request type"), types.ErrorCodeConvertRequestFailed),
+				localErr: err,
+				lazuErr:  types.NewError(err, types.ErrorCodeConvertRequestFailed),
 			}
 		}
-	case relayconstant.RelayModeImagesGenerations:
-		// 图像生成请求 - request 已经是正确的类型
-		if imageReq, ok := request.(*dto.ImageRequest); ok {
-			imageConverter, castOK := adaptor.(relaychannel.ImageRequestConverter)
-			if !castOK {
-				return testResult{
-					context:  c,
-					localErr: errors.New("adaptor does not support image conversion"),
-					lazuErr:  types.NewError(errors.New("adaptor does not support image conversion"), types.ErrorCodeConvertRequestFailed),
-				}
-			}
-			convertedRequest, err = imageConverter.ConvertImageRequest(c, info, *imageReq)
-		} else {
+		jsonData, err = json.Marshal(convertedRequest)
+		if err != nil {
 			return testResult{
 				context:  c,
-				localErr: errors.New("invalid image request type"),
-				lazuErr:  types.NewError(errors.New("invalid image request type"), types.ErrorCodeConvertRequestFailed),
-			}
-		}
-	case relayconstant.RelayModeRerank:
-		// Rerank 请求 - request 已经是正确的类型
-		if rerankReq, ok := request.(*dto.RerankRequest); ok {
-			rerankConverter, castOK := adaptor.(relaychannel.RerankRequestConverter)
-			if !castOK {
-				return testResult{
-					context:  c,
-					localErr: errors.New("adaptor does not support rerank conversion"),
-					lazuErr:  types.NewError(errors.New("adaptor does not support rerank conversion"), types.ErrorCodeConvertRequestFailed),
-				}
-			}
-			convertedRequest, err = rerankConverter.ConvertRerankRequest(c, info.RelayMode, *rerankReq)
-		} else {
-			return testResult{
-				context:  c,
-				localErr: errors.New("invalid rerank request type"),
-				lazuErr:  types.NewError(errors.New("invalid rerank request type"), types.ErrorCodeConvertRequestFailed),
-			}
-		}
-	case relayconstant.RelayModeResponses:
-		// Response 请求 - request 已经是正确的类型
-		if responseReq, ok := request.(*dto.OpenAIResponsesRequest); ok {
-			responsesConverter, castOK := adaptor.(relaychannel.ResponsesRequestConverter)
-			if !castOK {
-				return testResult{
-					context:  c,
-					localErr: errors.New("adaptor does not support responses conversion"),
-					lazuErr:  types.NewError(errors.New("adaptor does not support responses conversion"), types.ErrorCodeConvertRequestFailed),
-				}
-			}
-			convertedRequest, err = responsesConverter.ConvertOpenAIResponsesRequest(c, info, *responseReq)
-		} else {
-			return testResult{
-				context:  c,
-				localErr: errors.New("invalid response request type"),
-				lazuErr:  types.NewError(errors.New("invalid response request type"), types.ErrorCodeConvertRequestFailed),
-			}
-		}
-	default:
-		// Chat/Completion 等其他请求类型
-		if generalReq, ok := request.(*dto.GeneralOpenAIRequest); ok {
-			openAIConverter, castOK := adaptor.(relaychannel.OpenAIRequestConverter)
-			if !castOK {
-				return testResult{
-					context:  c,
-					localErr: errors.New("adaptor does not support openai conversion"),
-					lazuErr:  types.NewError(errors.New("adaptor does not support openai conversion"), types.ErrorCodeConvertRequestFailed),
-				}
-			}
-			convertedRequest, err = openAIConverter.ConvertOpenAIRequest(c, info, generalReq)
-		} else {
-			return testResult{
-				context:  c,
-				localErr: errors.New("invalid general request type"),
-				lazuErr:  types.NewError(errors.New("invalid general request type"), types.ErrorCodeConvertRequestFailed),
+				localErr: err,
+				lazuErr:  types.NewError(err, types.ErrorCodeJsonMarshalFailed),
 			}
 		}
 	}
-
-	if err != nil {
-		return testResult{
-			context:  c,
-			localErr: err,
-			lazuErr:  types.NewError(err, types.ErrorCodeConvertRequestFailed),
-		}
-	}
-	jsonData, err := marshalChannelTestRequest(convertedRequest, info)
+	jsonData, err = probeExplicitStream(jsonData, info)
 	if err != nil {
 		return testResult{
 			context:  c,
@@ -447,6 +376,125 @@ func testChannelForLaneWithRequest(
 			providerAttempted: true,
 		}
 	}
+	return finishProbe(c, w, info, channel, adaptor, resp, requestStarted, tik, priceData, recordConsumption)
+}
+
+// convertProbeRequest is the adaptor's own conversion of the probe request, by
+// relay mode, for the paths the protocol hub does not serve.
+func convertProbeRequest(c *gin.Context, info *relaycommon.RelayInfo, adaptor relaychannel.BaseAdaptor, request dto.Request) (any, error) {
+	var convertedRequest any
+	var err error
+	// 根据 RelayMode 选择正确的转换函数
+	switch info.RelayMode {
+	case relayconstant.RelayModeEmbeddings:
+		// Embedding 请求 - request 已经是正确的类型
+		if embeddingReq, ok := request.(*dto.EmbeddingRequest); ok {
+			embeddingConverter, castOK := adaptor.(relaychannel.EmbeddingRequestConverter)
+			if !castOK {
+				return nil, errors.New("adaptor does not support embedding conversion")
+			}
+			convertedRequest, err = embeddingConverter.ConvertEmbeddingRequest(c, info, *embeddingReq)
+		} else {
+			return nil, errors.New("invalid embedding request type")
+		}
+	case relayconstant.RelayModeImagesGenerations:
+		// 图像生成请求 - request 已经是正确的类型
+		if imageReq, ok := request.(*dto.ImageRequest); ok {
+			imageConverter, castOK := adaptor.(relaychannel.ImageRequestConverter)
+			if !castOK {
+				return nil, errors.New("adaptor does not support image conversion")
+			}
+			convertedRequest, err = imageConverter.ConvertImageRequest(c, info, *imageReq)
+		} else {
+			return nil, errors.New("invalid image request type")
+		}
+	case relayconstant.RelayModeRerank:
+		// Rerank 请求 - request 已经是正确的类型
+		if rerankReq, ok := request.(*dto.RerankRequest); ok {
+			rerankConverter, castOK := adaptor.(relaychannel.RerankRequestConverter)
+			if !castOK {
+				return nil, errors.New("adaptor does not support rerank conversion")
+			}
+			convertedRequest, err = rerankConverter.ConvertRerankRequest(c, info.RelayMode, *rerankReq)
+		} else {
+			return nil, errors.New("invalid rerank request type")
+		}
+	case relayconstant.RelayModeResponses:
+		// Response 请求 - request 已经是正确的类型
+		if responseReq, ok := request.(*dto.OpenAIResponsesRequest); ok {
+			responsesConverter, castOK := adaptor.(relaychannel.ResponsesRequestConverter)
+			if !castOK {
+				return nil, errors.New("adaptor does not support responses conversion")
+			}
+			convertedRequest, err = responsesConverter.ConvertOpenAIResponsesRequest(c, info, *responseReq)
+		} else {
+			return nil, errors.New("invalid response request type")
+		}
+	default:
+		// Chat/Completion 等其他请求类型
+		if generalReq, ok := request.(*dto.GeneralOpenAIRequest); ok {
+			openAIConverter, castOK := adaptor.(relaychannel.OpenAIRequestConverter)
+			if !castOK {
+				return nil, errors.New("adaptor does not support openai conversion")
+			}
+			convertedRequest, err = openAIConverter.ConvertOpenAIRequest(c, info, generalReq)
+		} else {
+			return nil, errors.New("invalid general request type")
+		}
+	}
+
+	return convertedRequest, err
+}
+
+// probeExplicitStream writes the stream flag the channel insists on
+// (ExplicitStreamRequired) into the probe body, as the relay does.
+func probeExplicitStream(jsonData []byte, info *relaycommon.RelayInfo) ([]byte, error) {
+	if info == nil || info.ChannelMeta == nil || !info.ChannelOtherSettings.ExplicitStreamRequired {
+		return jsonData, nil
+	}
+	switch info.RelayMode {
+	case relayconstant.RelayModeChatCompletions, relayconstant.RelayModeCompletions, relayconstant.RelayModeResponses:
+	default:
+		if info.RelayFormat != types.RelayFormatClaude {
+			return jsonData, nil
+		}
+	}
+	return relaycommon.SetExplicitStream(jsonData, info.IsStream)
+}
+
+// planProbeAttempt plans an OpenAI-shaped probe onto the channel exactly as
+// the relay plans a request (textgenruntime.PrepareAttempt), so the probe
+// takes the same native path or bridge. Other request shapes have no plan.
+func planProbeAttempt(info *relaycommon.RelayInfo, channel *model.Channel, request dto.Request) error {
+	var family textgen.ProtocolFamily
+	switch request.(type) {
+	case *dto.GeneralOpenAIRequest:
+		family = textgen.ProtocolOpenAIChat
+	case *dto.OpenAIResponsesRequest:
+		family = textgen.ProtocolOpenAIResponses
+	default:
+		return nil
+	}
+	body, err := common.Marshal(request)
+	if err != nil {
+		return err
+	}
+	parsed, err := textgenruntime.Parse(family, body)
+	if err != nil {
+		return err
+	}
+	attempt, err := textgenruntime.PrepareAttempt(parsed, channel, info.OriginModelName)
+	if err != nil {
+		return err
+	}
+	info.ProtocolRequest = attempt.Request
+	info.ProtocolPlan = attempt.Plan
+	return nil
+}
+
+// finishProbe reads the upstream reply through the adaptor and turns it into
+// the probe's outcome.
+func finishProbe(c *gin.Context, w *httptest.ResponseRecorder, info *relaycommon.RelayInfo, channel *model.Channel, adaptor relaychannel.BaseAdaptor, resp any, requestStarted, tik time.Time, priceData types.PriceData, recordConsumption bool) testResult {
 	var httpResp *http.Response
 	if resp != nil {
 		httpResp = resp.(*http.Response)
