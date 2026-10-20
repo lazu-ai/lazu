@@ -534,6 +534,10 @@ func RunChannelProbeSweep(ctx context.Context, now time.Time) (ChannelProbeSweep
 			continue
 		}
 		estimated := estimateProbeCostUSD(candidate.ModelName, candidate.Lane, candidate.ChannelId)
+		if channelProbeIsVideo(candidate) {
+			// A liveness check reads a task's status; providers do not bill it.
+			estimated = 0
+		}
 		if candidate.Kind == channelHealthKindImage && estimated < channelProbeImageCostUSD {
 			// Token prices say nothing useful about one generated image.
 			estimated = channelProbeImageCostUSD
@@ -736,6 +740,9 @@ func probeChannelCell(ctx context.Context, candidate ChannelProbeCandidate, esti
 		outcome.Skipped = true
 		return outcome
 	}
+	if channelProbeIsVideo(candidate) {
+		return probeVideoLiveness(ctx, outcome, channel)
+	}
 	endpointType, ok := probeEndpointType(channel, candidate.ModelName)
 	if !ok {
 		outcome.ErrorMessage = "model has no probeable endpoint"
@@ -753,6 +760,49 @@ func probeChannelCell(ctx context.Context, candidate ChannelProbeCandidate, esti
 	outcome.LatencyMs = int(time.Since(started).Milliseconds())
 	outcome.CostUSD = estimatedUSD
 	return finalizeChannelProbeResult(ctx, outcome, testResult)
+}
+
+// channelProbeIsVideo reports whether a route is checked by reading a task's
+// status instead of sending a request. It uses the route's health kind, which
+// prefers the catalog's modality to the name rule: some image models carry a
+// name the video rule matches. An operator's manual probe carries no kind and
+// resolves it the same way.
+func channelProbeIsVideo(candidate ChannelProbeCandidate) bool {
+	kind := candidate.Kind
+	if kind == "" {
+		kind = channelHealthKindOf(channelHealthCatalogKinds(), candidate.ModelName)
+	}
+	return kind == channelHealthKindVideo
+}
+
+// probeVideoLiveness checks a video route without generating anything. It
+// asks about the route's most recent delivered task when there is one; on a
+// multi-key channel that task may belong to another key, whose account the
+// chosen key cannot read, so the sentinel is asked about instead.
+func probeVideoLiveness(ctx context.Context, outcome model.ChannelProbeResult, channel *model.Channel) model.ChannelProbeResult {
+	outcome.Modality = model.ChannelProbeModalityVideoLiveness
+	hint := ""
+	if !channel.ChannelInfo.IsMultiKey {
+		hint = model.LatestDeliveredVideoUpstreamID(channel.Id, outcome.ModelName)
+	}
+	started := time.Now()
+	liveness, attempted := service.CheckVideoLiveness(ctx, channel, outcome.ModelName, hint)
+	outcome.LatencyMs = int(time.Since(started).Milliseconds())
+	if err := ctx.Err(); err != nil {
+		outcome.ErrorMessage = err.Error()
+		outcome.Skipped = true
+		return outcome
+	}
+	if !attempted {
+		outcome.ErrorMessage = liveness.Message
+		outcome.Skipped = true
+		return outcome
+	}
+	outcome.Success = liveness.Reachable()
+	if !outcome.Success {
+		outcome.ErrorMessage = liveness.Message
+	}
+	return outcome
 }
 
 // channelProbeModality names what a probe's endpoint produces, which is what
@@ -780,7 +830,12 @@ func recordChannelProbeBreakerEvidence(modelName, lane string, channelID int, ou
 	if outcome.Skipped {
 		return
 	}
-	if err := model.RecordRouteHealthEvidence(
+	record := model.RecordRouteHealthEvidence
+	if outcome.Modality == model.ChannelProbeModalityVideoLiveness {
+		// Reaching a video provider does not prove it can make a video.
+		record = model.RecordRouteReachabilityEvidence
+	}
+	if err := record(
 		modelName, lane, channelID, outcome.Success, outcome.ErrorMessage, outcome.ProbedAt,
 	); err != nil {
 		common.SysLog("channel probe: failed to record route health: " + err.Error())
@@ -874,8 +929,8 @@ func finalizeChannelProbeResult(ctx context.Context, outcome model.ChannelProbeR
 // Media models list a chat endpoint alongside their real one, so preferring
 // chat would send a chat request to an image model and record the upstream's
 // entirely correct rejection as a health failure. Image models are therefore
-// probed on their image endpoint, on their own slower cadence; video models,
-// which have no probe request, are not probed at all.
+// probed on their image endpoint, on their own slower cadence. Video models
+// never reach here: probeChannelCell checks them with probeVideoLiveness.
 func probeEndpointType(channel *model.Channel, modelName string) (string, bool) {
 	if channel == nil {
 		return "", false
