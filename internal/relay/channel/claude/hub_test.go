@@ -244,3 +244,45 @@ func TestHubStreamTreatsAStreamWithoutAStopAsCutOff(t *testing.T) {
 		t.Fatalf("a cut-off reply must not close as complete:\n%s", body)
 	}
 }
+
+// A Chat or Responses client reads input as including the cache; settlement
+// keeps Anthropic's cache-exclusive count.
+func TestHubGivesClientsCacheInclusiveInput(t *testing.T) {
+	service.InitTokenEncoders()
+	c, recorder := hubContext(t)
+	body := `{"id":"msg_1","type":"message","role":"assistant","model":"claude-haiku-5-5","content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","usage":{"input_tokens":20,"output_tokens":5,"cache_read_input_tokens":80}}`
+	usage, err := HubHandler(c, upstreamStream(body), hubInfo(textgen.ProtocolOpenAIChat, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.PromptTokens != 20 || !usage.PromptExcludesCache {
+		t.Fatalf("settled usage must stay cache-exclusive: %+v", usage)
+	}
+	if got := gjson.Get(recorder.Body.String(), "usage.prompt_tokens").Int(); got != 100 {
+		t.Fatalf("client prompt_tokens = %d, want 100", got)
+	}
+}
+
+// A tool loop continued without the signed thinking a Chat client cannot
+// keep goes without thinking, as the Messages API allows.
+func TestContinuedToolLoopGoesWithoutThinking(t *testing.T) {
+	text := "q"
+	request := &dto.ClaudeRequest{
+		Model:    "claude-haiku-5-5",
+		Thinking: &dto.Thinking{Type: "adaptive"},
+		Messages: []dto.ClaudeMessage{
+			{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "text", Text: &text}}},
+			{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "a", Name: "f", Input: map[string]any{}}}},
+			{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "a", Content: "ok"}}},
+		},
+	}
+	continueToolLoopWithoutThinking(request, StaticPolicy(ModelPolicy{}))
+	if request.Thinking != nil && request.Thinking.Type != "disabled" {
+		t.Fatalf("thinking: %+v", request.Thinking)
+	}
+	fresh := &dto.ClaudeRequest{Model: "m", Thinking: &dto.Thinking{Type: "adaptive"}, Messages: request.Messages[:1]}
+	continueToolLoopWithoutThinking(fresh, StaticPolicy(ModelPolicy{}))
+	if fresh.Thinking == nil || fresh.Thinking.Type != "adaptive" {
+		t.Fatal("a first turn keeps its thinking")
+	}
+}

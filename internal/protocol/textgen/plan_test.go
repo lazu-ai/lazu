@@ -549,3 +549,17 @@ func TestPlanAttemptAnthropicOptionsOnlyBridgeToMessages(t *testing.T) {
 		t.Fatalf("a native relay passes its own wire: %v", err)
 	}
 }
+
+func TestPlanAttemptMessagesBridgeRefusesWebSearchAndImageDetail(t *testing.T) {
+	search := minimalRequest()
+	search.Tools = []ToolDefinition{{Type: "web_search_preview"}}
+	detail := minimalRequest()
+	detail.Conversation[0].Content = append(detail.Conversation[0].Content, ContentPart{Kind: ContentImage, URL: "data:image/png;base64,AA", Detail: "low"})
+	for name, request := range map[string]*Request{"web search": search, "image detail": detail} {
+		_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		var unsupported *UnsupportedFeatureError
+		if !errors.As(err, &unsupported) || unsupported.Path == "" {
+			t.Fatalf("%s: a Messages bridge must refuse by path: %v", name, err)
+		}
+	}
+}
