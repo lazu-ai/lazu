@@ -301,6 +301,12 @@ jobs:
       - name: Build docs
         run: npm run build
 
+      # vocs 1 still pulls a toml parser with high advisories; it only reads
+      # our own MDX at build time and needs vocs 2 to go. Raise this to high
+      # once that upgrade lands.
+      - name: Audit docs dependencies
+        run: npm audit --audit-level=critical
+
   security:
     needs: changes
     if: needs.changes.outputs.security == 'true'
@@ -318,9 +324,17 @@ jobs:
         with:
           bun-version: 1.3.14
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
       - name: Re-check reachable Go vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
       - name: Re-check web dependency advisories
         working-directory: apps/web
         run: bun audit --audit-level=high
+
+      - name: Re-check docs dependency advisories
+        working-directory: apps/docs
+        run: npm audit --audit-level=critical

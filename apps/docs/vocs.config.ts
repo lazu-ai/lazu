@@ -180,12 +180,6 @@ export default defineConfig({
       outlineFix(),
       searchPerformance(),
     ],
-    ssr: {
-      // Newer Scalar builds import CSS from nested @scalar/* packages during
-      // prerender. Keep the whole Scalar tree inside Vite's SSR transform so
-      // Node's native ESM loader never sees those CSS imports directly.
-      noExternal: [/^@scalar\//],
-    },
   },
   description:
     "Lazu API documentation for authentication, model discovery, OpenAI-compatible calls, native provider APIs and production troubleshooting.",
