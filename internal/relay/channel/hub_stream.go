@@ -34,6 +34,8 @@ import (
 //   - A stream that ends before the upstream said how the reply ended is cut
 //     off, by the same two rules.
 //   - Reading stops at the terminal event; the provider's EOF may come later.
+//     A Chat upstream's stop is not its last event (the usage chunk follows
+//     it), so its stream is read to [DONE].
 //   - Usage is settled from the collected reply (SettleHubUsage) and the
 //     exchange is logged.
 
@@ -55,6 +57,13 @@ type HubClient interface {
 type HubStream struct {
 	Decode  func(data string) ([]textgen.Event, error)
 	Observe func(c *gin.Context, info *relaycommon.RelayInfo, data string, events []textgen.Event)
+	// ReadPastStop keeps reading after the stop event, for an upstream
+	// whose usage arrives after it (Chat's include_usage chunk).
+	ReadPastStop bool
+	// ClientUsage is the usage as the client reads it, where that is not
+	// the settled one (Messages' cache-exclusive input, for a Chat or
+	// Responses client).
+	ClientUsage func(*dto.Usage) *dto.Usage
 }
 
 // RunHubStream serves a streamed upstream reply to the client through the
@@ -97,7 +106,7 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 				}
 				terminal = true
 			case textgen.EventStop:
-				terminal = true
+				terminal = terminal || !hub.ReadPastStop
 			}
 		}
 		timer.Finish(nil)
@@ -119,6 +128,10 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 	}, func() bool { return terminal })
 
 	usage := SettleHubUsage(c, info, col.Result())
+	shown := usage
+	if hub.ClientUsage != nil {
+		shown = hub.ClientUsage(usage)
+	}
 	if canceled := clientCanceled(c); canceled != nil {
 		if service.ValidUsage(usage) {
 			common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
@@ -130,7 +143,7 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 	failAfterOutput := func(code types.ErrorCode, upstream *types.OpenAIError, status int, err error) (*dto.Usage, *types.LazuError) {
 		frame, message := StreamFailureFrame(code, upstream)
 		frame.RequestID = c.GetString(common.RequestIdKey)
-		client.Fail(c, frame, usage)
+		client.Fail(c, frame, shown)
 		recordHubExchange(c, log, lastData, usage, status)
 		common.SetContextKey(c, constant.ContextKeyProtocolStreamTerminal, true)
 		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
@@ -141,27 +154,34 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 	}
 	switch {
 	case writeErr != nil:
+		// the client went away: what the upstream produced up to then is
+		// still owed
+		if service.ValidUsage(usage) {
+			common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
+		}
 		return usage, types.NewError(writeErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	case failure != nil && !forwarded:
 		// nothing reached the client: a pre-stream failure, retryable when
-		// what the upstream said is transient
-		info.StreamFailedWithoutUsage = !service.ValidUsage(col.Result().Usage)
+		// what the upstream said is transient. The gateway absorbs the
+		// attempt, so it is refunded even when the failure carried usage,
+		// and its exchange is not logged: a retry's is the request's.
+		info.StreamFailedWithoutUsage = true
 		common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
-		recordHubExchange(c, log, lastData, usage, http.StatusBadGateway)
 		return usage, FirstEventFailure(c, openAIErrorOf(failure))
 	case failure != nil:
 		return failAfterOutput(types.ErrorCodeUpstreamStreamFailed, openAIErrorOf(failure), http.StatusBadGateway, nil)
 	case decodeErr != nil:
 		if !forwarded {
-			return usage, types.NewError(fmt.Errorf("decode upstream stream event: %w", decodeErr), types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+			// the upstream's stream is corrupt, not the request
+			return usage, types.NewError(fmt.Errorf("decode upstream stream event: %w", decodeErr), types.ErrorCodeBadResponseBody)
 		}
 		frame, _ := StreamFailureFrame(types.ErrorCodeBadResponse, nil)
 		frame.RequestID = c.GetString(common.RequestIdKey)
-		client.Fail(c, frame, usage)
+		client.Fail(c, frame, shown)
 		recordHubExchange(c, log, lastData, usage, http.StatusBadGateway)
 		common.SetContextKey(c, constant.ContextKeyProtocolStreamTerminal, true)
 		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
-		return usage, types.NewError(fmt.Errorf("decode upstream stream event: %w", decodeErr), types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+		return usage, types.NewError(fmt.Errorf("decode upstream stream event: %w", decodeErr), types.ErrorCodeBadResponseBody, types.ErrOptionWithSkipRetry())
 	}
 	if relayErr := scan.RelayError(forwarded); relayErr != nil {
 		if !forwarded {
@@ -172,6 +192,10 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 	if !col.Result().StopSeen {
 		// cut off before the upstream said how the reply ended
 		if !forwarded {
+			// metadata may have arrived, but no output: a retryable
+			// pre-stream failure, refunded
+			info.StreamFailedWithoutUsage = true
+			common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
 			return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse)
 		}
 		return failAfterOutput(types.ErrorCodeUpstreamStreamFailed, nil, http.StatusBadGateway, fmt.Errorf("upstream stream ended before the reply finished"))
@@ -182,7 +206,10 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 			return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 	}
-	if err := client.Finish(c, usage); err != nil {
+	if err := client.Finish(c, shown); err != nil {
+		// the upstream finished and its usage is known: settled even
+		// though the client went away before the last frame
+		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
 		return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
 	recordHubExchange(c, log, lastData, usage, http.StatusOK)

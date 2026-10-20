@@ -337,6 +337,16 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 	if upstream == ProtocolAnthropic {
 		return messagesBridgeIssue(request, uses)
 	}
+	if upstream == ProtocolOpenAIChat && request != nil {
+		for index, item := range request.Conversation {
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentFile && part.URL != "" && part.Data == "" && part.FileID == "" {
+					// Chat's file part takes data or a file id, not a URL
+					return &Issue{Feature: FeatureInputFile, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].file_url", Message: "Chat Completions has no lossless file URL representation"}
+				}
+			}
+		}
+	}
 	// Anthropic's cache markers are advisory and fall out of other encoders;
 	// its speed tier is not, and has no equivalent elsewhere.
 	if path, ok := request.SpeedPath(); ok {
@@ -411,6 +421,10 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
 		case FeatureLogProbs, FeatureSeed, FeatureInputAudio, FeatureInputFile:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "Messages has no lossless equivalent"}
+		case FeatureHostedWebSearch:
+			// Anthropic's search results and citations have no place in a
+			// Chat or Responses reply yet; the answer would arrive unsourced
+			return &Issue{Feature: use.Feature, Path: use.Path, Message: "web search results and citations from the Messages API cannot be carried to this client"}
 		case FeatureJSONOutput:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "Messages takes a JSON schema, not a bare JSON object format"}
 		case FeatureN:
@@ -421,6 +435,17 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 	}
 	if request != nil && request.Lifecycle.Store.Set && request.Lifecycle.Store.Value {
 		return &Issue{Feature: FeatureStore, Path: "store", Message: "explicit store=true cannot be preserved by a stateless Messages upstream"}
+	}
+	if request != nil {
+		for index, item := range request.Conversation {
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentImage && part.Detail != "" && part.Detail != "auto" {
+					// Messages has no image detail: low or high would change
+					// fidelity and cost without saying so
+					return &Issue{Feature: FeatureInputImage, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].detail", Message: "Messages has no image detail setting"}
+				}
+			}
+		}
 	}
 	return nil
 }

@@ -93,7 +93,11 @@ func semanticErrorOf(upstream *types.OpenAIError) *textgen.SemanticError {
 // ClaudeClientStreamHandler serves a streamed Chat Completions or Responses
 // reply to a Claude client (channel.RunHubStream).
 func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
-	return channel.RunHubStream(c, resp, info, channel.HubStream{Decode: decoderFor(info)}, channel.HubClientFor(c, info))
+	return channel.RunHubStream(c, resp, info, channel.HubStream{
+		Decode: decoderFor(info),
+		// a Chat upstream's usage chunk comes after its finish
+		ReadPastStop: info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat,
+	}, channel.HubClientFor(c, info))
 }
 
 // ClaudeClientHandler serves a whole Chat Completions or Responses reply to

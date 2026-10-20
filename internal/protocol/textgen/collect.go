@@ -212,6 +212,15 @@ func MergeUsage(base, update *dto.Usage) *dto.Usage {
 	}
 	if base == nil {
 		copied := *update
+		// the detail pointers are the collector's own, merged into later
+		if update.InputTokensDetails != nil {
+			details := *update.InputTokensDetails
+			copied.InputTokensDetails = &details
+		}
+		if update.OutputTokensDetails != nil {
+			details := *update.OutputTokensDetails
+			copied.OutputTokensDetails = &details
+		}
 		if copied.TotalTokens < copied.PromptTokens+copied.CompletionTokens {
 			copied.TotalTokens = copied.PromptTokens + copied.CompletionTokens
 		}
@@ -229,23 +238,70 @@ func MergeUsage(base, update *dto.Usage) *dto.Usage {
 	if update.TotalTokens > 0 {
 		base.TotalTokens = update.TotalTokens
 	}
-	if update.PromptTokensDetails.CachedTokens > 0 {
-		base.PromptTokensDetails.CachedTokens = update.PromptTokensDetails.CachedTokens
+	mergeInputDetails(&base.PromptTokensDetails, update.PromptTokensDetails)
+	mergeOutputDetails(&base.CompletionTokenDetails, update.CompletionTokenDetails)
+	if update.InputTokensDetails != nil {
+		if base.InputTokensDetails == nil {
+			base.InputTokensDetails = &dto.InputTokenDetails{}
+		}
+		mergeInputDetails(base.InputTokensDetails, *update.InputTokensDetails)
 	}
-	if update.PromptTokensDetails.CachedCreationTokens > 0 {
-		base.PromptTokensDetails.CachedCreationTokens = update.PromptTokensDetails.CachedCreationTokens
+	if update.OutputTokensDetails != nil {
+		if base.OutputTokensDetails == nil {
+			base.OutputTokensDetails = &dto.OutputTokenDetails{}
+		}
+		mergeOutputDetails(base.OutputTokensDetails, *update.OutputTokensDetails)
 	}
-	if update.PromptTokensDetails.CachedCreation5mTokens > 0 {
-		base.PromptTokensDetails.CachedCreation5mTokens = update.PromptTokensDetails.CachedCreation5mTokens
+	mergeCount(&base.InputTokens, update.InputTokens)
+	mergeCount(&base.OutputTokens, update.OutputTokens)
+	mergeCount(&base.PromptCacheHitTokens, update.PromptCacheHitTokens)
+	mergeCount(&base.PromptCacheMissTokens, update.PromptCacheMissTokens)
+	if update.GeneratedImages != nil {
+		base.GeneratedImages = update.GeneratedImages
 	}
-	if update.PromptTokensDetails.CachedCreation1hTokens > 0 {
-		base.PromptTokensDetails.CachedCreation1hTokens = update.PromptTokensDetails.CachedCreation1hTokens
+	if update.InputImages != nil {
+		base.InputImages = update.InputImages
 	}
-	if update.CompletionTokenDetails.ReasoningTokens > 0 {
-		base.CompletionTokenDetails.ReasoningTokens = update.CompletionTokenDetails.ReasoningTokens
+	if update.ImageUsage != nil {
+		base.ImageUsage = update.ImageUsage
+	}
+	if update.Cost != nil {
+		base.Cost = update.Cost
 	}
 	if base.TotalTokens < base.PromptTokens+base.CompletionTokens {
 		base.TotalTokens = base.PromptTokens + base.CompletionTokens
 	}
 	return base
+}
+
+// mergeCount takes a later count the provider reported; a zero is a
+// dimension it did not report again, not a reset.
+func mergeCount(base *int, update int) {
+	if update > 0 {
+		*base = update
+	}
+}
+
+func mergeInputDetails(base *dto.InputTokenDetails, update dto.InputTokenDetails) {
+	mergeCount(&base.CachedTokens, update.CachedTokens)
+	mergeCount(&base.CachedTokensDetails.TextTokens, update.CachedTokensDetails.TextTokens)
+	mergeCount(&base.CachedTokensDetails.AudioTokens, update.CachedTokensDetails.AudioTokens)
+	mergeCount(&base.CachedTokensDetails.ImageTokens, update.CachedTokensDetails.ImageTokens)
+	mergeCount(&base.CacheWriteTokens, update.CacheWriteTokens)
+	mergeCount(&base.CacheMissTokens, update.CacheMissTokens)
+	mergeCount(&base.CachedCreationTokens, update.CachedCreationTokens)
+	mergeCount(&base.CachedCreation5mTokens, update.CachedCreation5mTokens)
+	mergeCount(&base.CachedCreation1hTokens, update.CachedCreation1hTokens)
+	mergeCount(&base.TextTokens, update.TextTokens)
+	mergeCount(&base.AudioTokens, update.AudioTokens)
+	mergeCount(&base.ImageTokens, update.ImageTokens)
+}
+
+func mergeOutputDetails(base *dto.OutputTokenDetails, update dto.OutputTokenDetails) {
+	mergeCount(&base.TextTokens, update.TextTokens)
+	mergeCount(&base.AudioTokens, update.AudioTokens)
+	mergeCount(&base.ImageTokens, update.ImageTokens)
+	mergeCount(&base.ReasoningTokens, update.ReasoningTokens)
+	mergeCount(&base.AcceptedPredictionTokens, update.AcceptedPredictionTokens)
+	mergeCount(&base.RejectedPredictionTokens, update.RejectedPredictionTokens)
 }
