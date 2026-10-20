@@ -36,6 +36,16 @@ func DecodeResponse(response *dto.OpenAIResponsesResponse) []textgen.Event {
 			)
 			tool++
 			stop = textgen.StopTool
+		case "reasoning":
+			var text strings.Builder
+			for _, content := range output.Content {
+				if content.Type == "reasoning_text" || content.Type == "summary_text" {
+					text.WriteString(content.Text)
+				}
+			}
+			if text.Len() > 0 {
+				events = append(events, textgen.Event{Kind: textgen.EventReasoningStart, ItemID: output.ID}, textgen.Event{Kind: textgen.EventReasoning, Text: text.String(), ItemID: output.ID})
+			}
 		default:
 			for _, content := range output.Content {
 				switch content.Type {

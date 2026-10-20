@@ -161,11 +161,17 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		return nil, nil
 	case "message_delta":
 		var events []textgen.Event
-		if ev.Delta != nil && ev.Delta.StopReason != "" {
-			events = append(events, textgen.Event{Kind: textgen.EventStop, Stop: StopReasonOf(ev.Delta.StopReason)})
-		}
 		if usage := UsageOf(ev.Usage); usage != nil {
 			events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: usage})
+		}
+		if ev.Delta != nil && strings.EqualFold(strings.TrimSpace(ev.Delta.StopReason), "pause_turn") {
+			// the server-tool loop hit its limit and the turn must be sent
+			// back as it is to go on; the IR keeps no server-tool blocks,
+			// so a bridged client cannot, and the reply is not complete
+			return append(events, textgen.Event{Kind: textgen.EventError, Error: &textgen.SemanticError{Type: "api_error", Code: "pause_turn", Message: "the upstream paused a server-tool turn (pause_turn), which this client protocol cannot continue"}}), nil
+		}
+		if ev.Delta != nil && ev.Delta.StopReason != "" {
+			events = append([]textgen.Event{{Kind: textgen.EventStop, Stop: StopReasonOf(ev.Delta.StopReason)}}, events...)
 		}
 		return events, nil
 	case "error":
@@ -222,7 +228,8 @@ func UsageOf(usage *dto.ClaudeUsage) *dto.Usage {
 // StopReasonOf is an Anthropic stop_reason in the IR's words.
 func StopReasonOf(reason string) textgen.StopReason {
 	switch strings.ToLower(strings.TrimSpace(reason)) {
-	case "max_tokens":
+	case "max_tokens", "model_context_window_exceeded":
+		// both cut the answer short: the output cap, or the context window
 		return textgen.StopLength
 	case "tool_use":
 		return textgen.StopTool

@@ -88,6 +88,10 @@ type Event struct {
 	// Text is the fragment: answer, refusal, reasoning, signature or
 	// arguments, by Kind.
 	Text string
+	// Withheld marks an event the upstream produced that is not for the
+	// client: a call the reply never finished, stopped by a filter. It is
+	// billed (the collector keeps it) and written by no emitter.
+	Withheld bool
 	// Role is EventTurn's role.
 	Role string
 	// ResponseID, Model and CreatedAt are EventStart's.
@@ -103,8 +107,28 @@ type Event struct {
 	Stop       StopReason
 	Usage      *dto.Usage
 	Error      *SemanticError
+	// Summary is EventReasoning's: the text summarizes the reasoning
+	// (Responses' reasoning summary) rather than being it. Protocols with
+	// one kind of reasoning text read both alike.
+	Summary bool
 	// Sealed and SealedBy are EventReasoningSealed's, SealedBy also
 	// EventReasoningSignature's: the dialect the content belongs to.
 	Sealed   json.RawMessage
 	SealedBy string
+}
+
+// ForClient is the events an emitter writes: all but the withheld ones.
+func ForClient(events []Event) []Event {
+	for _, event := range events {
+		if event.Withheld {
+			out := make([]Event, 0, len(events))
+			for _, kept := range events {
+				if !kept.Withheld {
+					out = append(out, kept)
+				}
+			}
+			return out
+		}
+	}
+	return events
 }

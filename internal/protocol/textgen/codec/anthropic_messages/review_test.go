@@ -119,3 +119,51 @@ func TestDecoderEmitsTheTurnForAnEmptyReply(t *testing.T) {
 	}
 	t.Fatalf("no assistant turn in %+v", events)
 }
+
+// A Chat upstream may name a call on a later fragment; the tool_use block
+// is opened only once the name is known, with the arguments held so far.
+func TestEmitterWaitsForALateToolName(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m")
+	frames := emitter.Emit(
+		textgen.Event{Kind: textgen.EventStart},
+		textgen.Event{Kind: textgen.EventToolStart, ToolIndex: 0},
+		textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: 0, Text: `{"x":`},
+		textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: 0, ToolCallID: "call_a", ToolName: "a", Text: `1}`},
+		textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopTool},
+	)
+	frames = append(frames, mustFinish(emitter.Finish(nil))...)
+	var id, name, args string
+	for _, frame := range frames {
+		switch frame.Event {
+		case "content_block_start":
+			block := frame.Data["content_block"].(map[string]any)
+			id, _ = block["id"].(string)
+			name, _ = block["name"].(string)
+		case "content_block_delta":
+			if delta := frame.Data["delta"].(map[string]any); delta["type"] == "input_json_delta" {
+				args += delta["partial_json"].(string)
+			}
+		}
+	}
+	if id != "call_a" || name != "a" || args != `{"x":1}` {
+		t.Fatalf("id %q name %q args %q", id, name, args)
+	}
+}
+
+func TestStopReasonOfContextWindowIsTruncation(t *testing.T) {
+	if StopReasonOf("model_context_window_exceeded") != textgen.StopLength {
+		t.Fatal("a context-window stop cuts the answer short")
+	}
+}
+
+// pause_turn is not a finished reply: a bridged client cannot continue the
+// server-tool loop, so it is an error, after the usage settlement reads.
+func TestPauseTurnIsNotACompletion(t *testing.T) {
+	events, err := (&StreamDecoder{}).Decode(`{"type":"message_delta","delta":{"stop_reason":"pause_turn"},"usage":{"output_tokens":7}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[0].Kind != textgen.EventUsage || events[1].Kind != textgen.EventError || events[1].Error.Code != "pause_turn" {
+		t.Fatalf("events: %+v", events)
+	}
+}

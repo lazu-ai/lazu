@@ -46,7 +46,7 @@ type StreamEmitter struct {
 	// (start order) with its argument fragments until the open one closes.
 	openTool int
 	pending  []*pendingTool
-	col      textgen.Collector
+	col      textgen.Ending
 }
 
 // pendingTool is a call held back while another tool block is open.
@@ -81,6 +81,21 @@ func (e *StreamEmitter) openToolBlock(index int, id, name, args string) []Frame 
 	if args != "" {
 		e.args = true
 		out = append(out, e.delta(map[string]any{"type": "input_json_delta", "partial_json": args}))
+	}
+	return out
+}
+
+// openNamed opens the first held call once it is named, when no tool block
+// is open: the call that was waiting only for its name streams on.
+func (e *StreamEmitter) openNamed() []Frame {
+	if e.open == blockTool || len(e.pending) == 0 || e.pending[0].name == "" {
+		return nil
+	}
+	next := e.pending[0]
+	e.pending = e.pending[1:]
+	out := e.openToolBlock(next.index, next.id, next.name, next.args.String())
+	if next.done {
+		out = append(out, e.closeTool()...)
 	}
 	return out
 }
@@ -188,6 +203,7 @@ func (e *StreamEmitter) delta(delta map[string]any) Frame {
 
 // Emit is the frames for the content events given, in order.
 func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
+	events = textgen.ForClient(events)
 	if e == nil || e.terminal {
 		return nil
 	}
@@ -259,25 +275,35 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 			)
 			e.index++
 		case textgen.EventToolStart:
-			if e.open == blockTool && e.openTool != event.ToolIndex {
-				if e.pendingAt(event.ToolIndex) == nil {
-					e.pending = append(e.pending, &pendingTool{index: event.ToolIndex, id: event.ToolCallID, name: event.ToolName})
-				}
+			if e.open == blockTool && e.openTool == event.ToolIndex {
+				break // the open call restated
+			}
+			if e.pendingAt(event.ToolIndex) != nil {
 				break
 			}
-			if e.open == blockTool {
-				break // the open call restated
+			if e.open == blockTool || event.ToolName == "" {
+				// another call is open, or this one is not named yet (a Chat
+				// upstream may name it on a later fragment): held, since a
+				// tool_use block's id and name are written once, at its start
+				e.pending = append(e.pending, &pendingTool{index: event.ToolIndex, id: event.ToolCallID, name: event.ToolName})
+				break
 			}
 			out = append(out, e.openToolBlock(event.ToolIndex, event.ToolCallID, event.ToolName, "")...)
 		case textgen.EventToolArguments:
-			if event.Text == "" {
-				break
-			}
 			if e.open == blockTool && e.openTool == event.ToolIndex {
-				e.args = true
-				out = append(out, e.delta(map[string]any{"type": "input_json_delta", "partial_json": event.Text}))
+				if event.Text != "" {
+					e.args = true
+					out = append(out, e.delta(map[string]any{"type": "input_json_delta", "partial_json": event.Text}))
+				}
 			} else if held := e.pendingAt(event.ToolIndex); held != nil {
 				held.args.WriteString(event.Text)
+				if held.id == "" {
+					held.id = event.ToolCallID
+				}
+				if held.name == "" {
+					held.name = event.ToolName
+				}
+				out = append(out, e.openNamed()...)
 			}
 		case textgen.EventToolDone:
 			if e.open == blockTool && e.openTool == event.ToolIndex {
@@ -291,6 +317,10 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 					held.args.WriteString(event.Text)
 				}
 				held.done = true
+				if e.open != blockTool {
+					// nothing streams before it: the held calls go out now
+					out = append(out, e.closeTool()...)
+				}
 			}
 		case textgen.EventStop:
 		case textgen.EventError:
@@ -363,7 +393,8 @@ func (e *StreamEmitter) fail(semantic *textgen.SemanticError) []Frame {
 	return append(out, e.frame("error", map[string]any{"error": map[string]any{"type": errType, "message": semantic.Message}}))
 }
 
-// Result is the reply collected so far.
+// Result is how the reply ended so far, without its content: the
+// emitter keeps none (textgen.Ending).
 func (e *StreamEmitter) Result() textgen.Result { return e.col.Result() }
 
 // usageTo is the shared usage fact as Messages' usage object.

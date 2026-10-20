@@ -549,3 +549,52 @@ func TestPlanAttemptAnthropicOptionsOnlyBridgeToMessages(t *testing.T) {
 		t.Fatalf("a native relay passes its own wire: %v", err)
 	}
 }
+
+func TestPlanAttemptMessagesBridgeRefusesWebSearchAndImageDetail(t *testing.T) {
+	search := minimalRequest()
+	search.Tools = []ToolDefinition{{Type: "web_search_preview"}}
+	detail := minimalRequest()
+	detail.Conversation[0].Content = append(detail.Conversation[0].Content, ContentPart{Kind: ContentImage, URL: "data:image/png;base64,AA", Detail: "low"})
+	for name, request := range map[string]*Request{"web search": search, "image detail": detail} {
+		_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		var unsupported *UnsupportedFeatureError
+		if !errors.As(err, &unsupported) || unsupported.Path == "" {
+			t.Fatalf("%s: a Messages bridge must refuse by path: %v", name, err)
+		}
+	}
+}
+
+// What the Messages API would refuse is refused by its path at planning,
+// so routing picks another channel instead of meeting an upstream 400.
+func TestMessagesBridgeRefusesWhatMessagesRejects(t *testing.T) {
+	chat := Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}
+	user := InputItem{Kind: InputMessage, Role: "user", Content: []ContentPart{{Kind: ContentText, Text: "q"}}}
+	for name, tc := range map[string]struct {
+		mutate func(*Request)
+		path   string
+	}{
+		"service tier": {func(r *Request) { r.Metadata.ServiceTier = "priority" }, "service_tier"},
+		"system turn before a user turn": {func(r *Request) {
+			r.Conversation = []InputItem{user, {Kind: InputMessage, Role: "developer", Content: []ContentPart{{Kind: ContentText, Text: "be terse"}}}, user}
+		}, "input[1].role"},
+		"arguments not an object": {func(r *Request) {
+			r.Conversation = []InputItem{user, {Kind: InputFunctionCall, CallID: "c", FunctionName: "f", Arguments: `[1,2]`}, {Kind: InputFunctionResult, CallID: "c", Output: "ok"}}
+		}, "input[1].arguments"},
+	} {
+		request := minimalRequest()
+		tc.mutate(request)
+		_, err := PlanAttempt(chat, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		var unsupported *UnsupportedFeatureError
+		if !errors.As(err, &unsupported) || unsupported.Path != tc.path {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	// a system turn before the assistant's, or at the end, is fine; so is
+	// the auto tier
+	request := minimalRequest()
+	request.Metadata.ServiceTier = "auto"
+	request.Conversation = append(request.Conversation, InputItem{Kind: InputMessage, Role: "developer", Content: []ContentPart{{Kind: ContentText, Text: "be terse"}}})
+	if _, err := PlanAttempt(chat, anthropicSnapshot(), request, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("a trailing system turn and the auto tier plan: %v", err)
+	}
+}

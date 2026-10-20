@@ -27,7 +27,7 @@ type StreamEmitter struct {
 	// them once, and clients that concatenate deltas would double a name
 	// written twice
 	named map[int][2]bool
-	col   textgen.Collector
+	col   textgen.Ending
 }
 
 // NewStreamEmitter makes the emitter for one reply; id is used until an
@@ -65,6 +65,7 @@ func (e *StreamEmitter) role() []*dto.ChatCompletionsStreamResponse {
 
 // Emit is the chunks for the content events given, in order.
 func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStreamResponse {
+	events = textgen.ForClient(events)
 	if e == nil || e.terminal {
 		return nil
 	}
@@ -165,14 +166,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStre
 	return out
 }
 
-func (e *StreamEmitter) argsSeen(toolIndex int) bool {
-	for _, part := range e.col.Result().Parts {
-		if part.Kind == textgen.PartTool && part.ToolIndex == toolIndex {
-			return part.Text != ""
-		}
-	}
-	return false
-}
+func (e *StreamEmitter) argsSeen(toolIndex int) bool { return e.col.ArgsSeen(toolIndex) }
 
 // Finish closes the reply with the finish reason and usage (the usage given
 // wins over the one streamed). A reply that said nothing still gets its
@@ -193,13 +187,27 @@ func (e *StreamEmitter) Finish(usage *dto.Usage) ([]*dto.ChatCompletionsStreamRe
 	e.terminal = true
 	out := e.role()
 	finish := FinishReasonOf(result.Stop)
-	return append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, &finish, result.Usage)), nil
+	out = append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, &finish, nil))
+	if result.Usage != nil {
+		// include_usage's own chunk: no choices, the usage in Chat's shape
+		usageChunk := e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, nil, dto.ProjectChatUsage(result.Usage))
+		usageChunk.Choices = []dto.ChatCompletionsStreamResponseChoice{}
+		out = append(out, usageChunk)
+	}
+	return out, nil
+}
+
+// IsUsageChunk says whether the chunk is the usage-only one Finish writes
+// last, which a client that did not ask for usage does not get.
+func IsUsageChunk(chunk *dto.ChatCompletionsStreamResponse) bool {
+	return chunk != nil && chunk.Usage != nil && len(chunk.Choices) == 0 && chunk.Error == nil
 }
 
 // errStreamWithoutStop is a stream that ended without its stop reason.
 var errStreamWithoutStop = errors.New("stream ended without a stop reason")
 
-// Result is the reply collected so far.
+// Result is how the reply ended so far, without its content: the
+// emitter keeps none (textgen.Ending).
 func (e *StreamEmitter) Result() textgen.Result { return e.col.Result() }
 
 func errorType(err *textgen.SemanticError) string {

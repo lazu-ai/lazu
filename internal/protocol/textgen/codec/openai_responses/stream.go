@@ -41,15 +41,22 @@ type outputItem struct {
 	textAdded, refusalAdded   bool
 	textContent, refusalIndex int
 	nextContent               int
-	// reasoning
+	// reasoning: the raw text (content) and the summary, each a part once
+	// it has text
 	reasoning      strings.Builder
 	reasoningAdded bool
+	summary        strings.Builder
+	summaryAdded   bool
 	upstreamID     string // the upstream's id for the item, when it gave one
 	// tool
 	toolIndex int
 	callID    string
 	name      string
 	args      strings.Builder
+	// announced: output_item.added has gone out. A call is announced once
+	// its call id and name are known (a Chat upstream may name it on a
+	// later fragment) or when it closes; argument deltas wait for it.
+	announced bool
 	// raw: a sealed item passed through as the upstream wrote it
 	raw json.RawMessage
 }
@@ -125,6 +132,7 @@ func RetainedOutputLimit(request *textgen.Request) int {
 // error (retained output over its limit) leaves the emitter in a state Fail
 // closes; nothing after the failing event is applied.
 func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) {
+	events = textgen.ForClient(events)
 	if e == nil || e.terminal {
 		return nil, nil
 	}
@@ -146,10 +154,17 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 		case textgen.EventStart:
 		case textgen.EventUsage:
 			if event.Usage != nil {
-				e.usage = event.Usage
+				// partial reports add up: Anthropic gives the input on
+				// message_start and the output on message_delta
+				e.usage = textgen.MergeUsage(e.usage, event.Usage)
 			}
 		case textgen.EventTurn:
 			e.turnSeen = true
+			if event.ItemID != "" {
+				// an upstream message item, possibly empty: opened in its
+				// place among the output items
+				out = append(out, e.openMessage()...)
+			}
 		case textgen.EventText, textgen.EventRefusal:
 			if event.Text == "" {
 				continue
@@ -178,6 +193,19 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 				return out, err
 			}
 			out = append(out, e.ensureReasoning()...)
+			if event.Summary {
+				if !e.reasoning.summaryAdded {
+					e.reasoning.summaryAdded = true
+					out = append(out, e.send("response.reasoning_summary_part.added", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "summary_index": 0, "part": map[string]any{"type": "summary_text", "text": ""}}))
+				}
+				e.reasoning.summary.WriteString(event.Text)
+				out = append(out, e.send("response.reasoning_summary_text.delta", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "summary_index": 0, "delta": event.Text}))
+				continue
+			}
+			if !e.reasoning.reasoningAdded {
+				e.reasoning.reasoningAdded = true
+				out = append(out, e.send("response.content_part.added", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "content_index": 0, "part": map[string]any{"type": "reasoning_text", "text": ""}}))
+			}
 			e.reasoning.reasoning.WriteString(event.Text)
 			out = append(out, e.send("response.reasoning_text.delta", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "content_index": 0, "delta": event.Text}))
 		case textgen.EventReasoningSignature:
@@ -213,7 +241,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 			}
 			item.toolIndex, item.callID, item.name = event.ToolIndex, event.ToolCallID, event.ToolName
 			e.tools[event.ToolIndex] = item
-			out = append(out, e.send("response.output_item.added", map[string]any{"output_index": item.index, "item": map[string]any{"type": "function_call", "id": item.id, "call_id": item.callID, "name": item.name, "arguments": "", "status": "in_progress"}}))
+			out = append(out, e.announce(item, false)...)
 		case textgen.EventToolArguments, textgen.EventToolDone:
 			item := e.tools[event.ToolIndex]
 			if item == nil {
@@ -232,16 +260,20 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 					}
 					item.args.WriteString(event.Text)
 				}
+				out = append(out, e.announce(item, true)...)
 				continue
 			}
-			if event.Text == "" {
-				continue
+			if event.Text != "" {
+				if err := e.retainOutput(event.Text); err != nil {
+					return out, err
+				}
+				item.args.WriteString(event.Text)
+				if item.announced {
+					out = append(out, e.send("response.function_call_arguments.delta", map[string]any{"item_id": item.id, "output_index": item.index, "delta": event.Text}))
+					continue
+				}
 			}
-			if err := e.retainOutput(event.Text); err != nil {
-				return out, err
-			}
-			item.args.WriteString(event.Text)
-			out = append(out, e.send("response.function_call_arguments.delta", map[string]any{"item_id": item.id, "output_index": item.index, "delta": event.Text}))
+			out = append(out, e.announce(item, false)...)
 		case textgen.EventStop:
 			e.stopSeen, e.stop = true, event.Stop
 		case textgen.EventError:
@@ -389,6 +421,24 @@ func (e *StreamEmitter) startEvents() []map[string]any {
 	}
 }
 
+// announce sends a call's output_item.added once its identity is known, or
+// when force says the call is closing, with the arguments held so far as
+// one delta.
+func (e *StreamEmitter) announce(item *outputItem, force bool) []map[string]any {
+	if item.announced || (!force && (item.callID == "" || item.name == "")) {
+		return nil
+	}
+	item.announced = true
+	if item.callID == "" {
+		item.callID = "call_" + item.id
+	}
+	out := []map[string]any{e.send("response.output_item.added", map[string]any{"output_index": item.index, "item": map[string]any{"type": "function_call", "id": item.id, "call_id": item.callID, "name": item.name, "arguments": "", "status": "in_progress"}})}
+	if item.args.Len() > 0 {
+		out = append(out, e.send("response.function_call_arguments.delta", map[string]any{"item_id": item.id, "output_index": item.index, "delta": item.args.String()}))
+	}
+	return out
+}
+
 func (e *StreamEmitter) newItem(kind itemKind, id string) *outputItem {
 	item := &outputItem{kind: kind, id: id, index: len(e.items)}
 	e.items = append(e.items, item)
@@ -398,11 +448,7 @@ func (e *StreamEmitter) newItem(kind itemKind, id string) *outputItem {
 // ensureMessage opens the reply's message item and the text or refusal
 // content part, as needed, and gives the part's content index.
 func (e *StreamEmitter) ensureMessage(refusal bool) ([]map[string]any, int) {
-	var out []map[string]any
-	if e.message == nil {
-		e.message = e.newItem(itemMessage, "msg_"+e.suffix)
-		out = append(out, e.send("response.output_item.added", map[string]any{"output_index": e.message.index, "item": map[string]any{"type": "message", "id": e.message.id, "role": "assistant", "content": []any{}, "status": "in_progress"}}))
-	}
+	out := e.openMessage()
 	m := e.message
 	added, contentIndex := m.textAdded, m.textContent
 	if refusal {
@@ -423,6 +469,15 @@ func (e *StreamEmitter) ensureMessage(refusal bool) ([]map[string]any, int) {
 	return out, contentIndex
 }
 
+// openMessage opens the message item, without a content part.
+func (e *StreamEmitter) openMessage() []map[string]any {
+	if e.message != nil {
+		return nil
+	}
+	e.message = e.newItem(itemMessage, "msg_"+e.suffix)
+	return []map[string]any{e.send("response.output_item.added", map[string]any{"output_index": e.message.index, "item": map[string]any{"type": "message", "id": e.message.id, "role": "assistant", "content": []any{}, "status": "in_progress"}})}
+}
+
 // ensureReasoning opens a reasoning item and its one content part.
 func (e *StreamEmitter) ensureReasoning() []map[string]any {
 	if e.reasoning != nil {
@@ -439,10 +494,8 @@ func (e *StreamEmitter) ensureReasoning() []map[string]any {
 	e.reasonCount++
 	e.reasoning = e.newItem(itemReasoning, id)
 	e.reasoning.upstreamID, e.nextReasoningID = e.nextReasoningID, ""
-	e.reasoning.reasoningAdded = true
 	return []map[string]any{
 		e.send("response.output_item.added", map[string]any{"output_index": e.reasoning.index, "item": dto.NewResponsesReasoningItem(e.reasoning.id, "in_progress", nil)}),
-		e.send("response.content_part.added", map[string]any{"item_id": e.reasoning.id, "output_index": e.reasoning.index, "content_index": 0, "part": map[string]any{"type": "reasoning_text", "text": ""}}),
 	}
 }
 
@@ -460,9 +513,15 @@ func (e *StreamEmitter) closeItem(item *outputItem, status string) []map[string]
 	item.status = status
 	switch item.kind {
 	case itemReasoning:
-		text := item.reasoning.String()
 		var out []map[string]any
-		if text != "" {
+		if item.summaryAdded {
+			summary := item.summary.String()
+			out = append(out,
+				e.send("response.reasoning_summary_text.done", map[string]any{"item_id": item.id, "output_index": item.index, "summary_index": 0, "text": summary}),
+				e.send("response.reasoning_summary_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "summary_index": 0, "part": map[string]any{"type": "summary_text", "text": summary}}),
+			)
+		}
+		if text := item.reasoning.String(); item.reasoningAdded && text != "" {
 			out = append(out,
 				e.send("response.reasoning_text.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "text": text}),
 				e.send("response.content_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "part": map[string]any{"type": "reasoning_text", "text": text}}),
@@ -487,10 +546,10 @@ func (e *StreamEmitter) closeItem(item *outputItem, status string) []map[string]
 		}
 		return append(out, e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": e.renderItem(item)}))
 	case itemTool:
-		return []map[string]any{
+		return append(e.announce(item, true),
 			e.send("response.function_call_arguments.done", map[string]any{"item_id": item.id, "output_index": item.index, "arguments": item.args.String()}),
 			e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": e.renderItem(item)}),
-		}
+		)
 	}
 	return nil
 }
@@ -519,7 +578,15 @@ func (e *StreamEmitter) renderItem(item *outputItem) any {
 			// sealed by the upstream after it streamed: as it wrote it
 			return item.raw
 		}
-		return dto.NewResponsesReasoningItem(item.id, status, []dto.ResponsesOutputContent{{Type: "reasoning_text", Text: item.reasoning.String()}})
+		var content []dto.ResponsesOutputContent
+		if item.reasoningAdded {
+			content = []dto.ResponsesOutputContent{{Type: "reasoning_text", Text: item.reasoning.String()}}
+		}
+		rendered := dto.NewResponsesReasoningItem(item.id, status, content)
+		if item.summaryAdded {
+			rendered.Summary = []dto.ResponsesReasoningSummary{{Type: "summary_text", Text: item.summary.String()}}
+		}
+		return rendered
 	case itemTool:
 		return map[string]any{"type": "function_call", "id": item.id, "call_id": item.callID, "name": item.name, "arguments": item.args.String(), "status": status}
 	case itemRaw:
@@ -552,7 +619,7 @@ func (e *StreamEmitter) envelope(status string) map[string]any {
 		output = []any{}
 	}
 	response := map[string]any{
-		"id": e.responseID, "object": "response", "created_at": e.createdAt, "status": status, "model": e.model, "output": output, "usage": dto.ProjectResponsesUsage(e.usage),
+		"id": e.responseID, "object": "response", "created_at": e.createdAt, "status": status, "model": e.model, "output": output, "usage": dto.ProjectResponsesUsage(textgen.CacheInclusiveUsage(e.usage)),
 		"max_output_tokens": nil, "parallel_tool_calls": true, "store": false, "temperature": float64(1), "tool_choice": defaultResponseToolChoice(e.request),
 		"tools": []any{}, "top_p": float64(1), "truncation": "disabled",
 	}

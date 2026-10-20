@@ -1,6 +1,7 @@
 package textgen
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -337,6 +338,16 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 	if upstream == ProtocolAnthropic {
 		return messagesBridgeIssue(request, uses)
 	}
+	if upstream == ProtocolOpenAIChat && request != nil {
+		for index, item := range request.Conversation {
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentFile && part.URL != "" && part.Data == "" && part.FileID == "" {
+					// Chat's file part takes data or a file id, not a URL
+					return &Issue{Feature: FeatureInputFile, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].file_url", Message: "Chat Completions has no lossless file URL representation"}
+				}
+			}
+		}
+	}
 	// Anthropic's cache markers are advisory and fall out of other encoders;
 	// its speed tier is not, and has no equivalent elsewhere.
 	if path, ok := request.SpeedPath(); ok {
@@ -404,6 +415,22 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 // the system prompt; stop sequences, top_k and a JSON schema have their own
 // fields; web search is Anthropic's own tool. Everything stateful, opaque
 // or sampled in a way Messages does not take is refused.
+// assistantSide says whether the item is spoken by the assistant.
+func assistantSide(item InputItem) bool {
+	switch item.Kind {
+	case InputFunctionCall, InputReasoning:
+		return true
+	case InputMessage:
+		return item.Role == "assistant"
+	}
+	return false
+}
+
+func jsonObject(text string) bool {
+	var object map[string]json.RawMessage
+	return json.Unmarshal([]byte(text), &object) == nil && object != nil
+}
+
 func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 	for _, use := range uses {
 		switch use.Feature {
@@ -411,6 +438,10 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
 		case FeatureLogProbs, FeatureSeed, FeatureInputAudio, FeatureInputFile:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "Messages has no lossless equivalent"}
+		case FeatureHostedWebSearch:
+			// Anthropic's search results and citations have no place in a
+			// Chat or Responses reply yet; the answer would arrive unsourced
+			return &Issue{Feature: use.Feature, Path: use.Path, Message: "web search results and citations from the Messages API cannot be carried to this client"}
 		case FeatureJSONOutput:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "Messages takes a JSON schema, not a bare JSON object format"}
 		case FeatureN:
@@ -421,6 +452,30 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 	}
 	if request != nil && request.Lifecycle.Store.Set && request.Lifecycle.Store.Value {
 		return &Issue{Feature: FeatureStore, Path: "store", Message: "explicit store=true cannot be preserved by a stateless Messages upstream"}
+	}
+	if request != nil && request.Metadata.ServiceTier != "" && request.Metadata.ServiceTier != "auto" {
+		// Messages takes auto and standard_only; OpenAI's default, flex,
+		// priority and scale have no verified equivalent
+		return &Issue{Feature: FeatureUnknownField, Path: "service_tier", Message: "the Messages API has no equivalent of service_tier " + request.Metadata.ServiceTier}
+	}
+	if request != nil {
+		for index, item := range request.Conversation {
+			if item.Kind == InputMessage && (item.Role == "system" || item.Role == "developer") && index+1 < len(request.Conversation) && !assistantSide(request.Conversation[index+1]) {
+				// Messages takes a system turn inside the conversation only
+				// before an assistant turn or at its end
+				return &Issue{Feature: FeatureDeveloperRole, Path: "input[" + itoa(index) + "].role", Message: "a system turn inside the conversation must be followed by an assistant turn on the Messages API"}
+			}
+			if item.Kind == InputFunctionCall && strings.TrimSpace(item.Arguments) != "" && !jsonObject(item.Arguments) {
+				return &Issue{Feature: FeatureFunctionTools, Path: "input[" + itoa(index) + "].arguments", Message: "the Messages API takes a tool call's arguments as a JSON object only"}
+			}
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentImage && part.Detail != "" && part.Detail != "auto" {
+					// Messages has no image detail: low or high would change
+					// fidelity and cost without saying so
+					return &Issue{Feature: FeatureInputImage, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].detail", Message: "Messages has no image detail setting"}
+				}
+			}
+		}
 	}
 	return nil
 }

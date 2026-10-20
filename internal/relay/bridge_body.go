@@ -19,8 +19,13 @@ import (
 
 // planBridges says whether the attempt is planned as a bridge: the client's
 // protocol is not the upstream's, and the request goes as the IR encoded.
+// A Claude model on the legacy Text Completions API is not: its adaptor
+// sends a prompt to /v1/complete, which no Messages encoding fits.
 func planBridges(info *relaycommon.RelayInfo) bool {
-	return info != nil && info.ProtocolPlan != nil && !info.ProtocolPlan.Native && info.ProtocolRequest != nil
+	if info == nil || info.ProtocolPlan == nil || info.ProtocolPlan.Native || info.ProtocolRequest == nil {
+		return false
+	}
+	return info.ProtocolPlan.UpstreamProtocol.Family != textgen.ProtocolAnthropic || !claudechannel.UsesCompletionAPI(info.UpstreamModelName)
 }
 
 // BridgeBody is the outbound body of an attempt planned as a bridge, for any

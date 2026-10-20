@@ -70,9 +70,19 @@ func messagesBridgeContext(t *testing.T, family textgen.ProtocolFamily, path str
 	c.Set(common.KeyRequestBody, raw)
 	common.SetContextKey(c, constant.ContextKeyChannelType, constant.ChannelTypeAnthropic)
 	common.SetContextKey(c, constant.ContextKeyOriginalModel, "claude-haiku-5-5")
+	// the channel's override, applied to the IR when the attempt was planned
+	// (PrepareAttempt) and so never patched onto the Messages body again:
+	// a raw "stop" there would be a field Anthropic rejects
 	common.SetContextKey(c, constant.ContextKeyChannelParamOverride, map[string]interface{}{
-		"operations": []interface{}{map[string]interface{}{"path": "temperature", "mode": "set", "value": 0.2}},
+		"operations": []interface{}{
+			map[string]interface{}{"path": "temperature", "mode": "set", "value": 0.2},
+			map[string]interface{}{"path": "stop", "mode": "set", "value": []interface{}{"END"}},
+		},
 	})
+	planned := parsed.Semantic.Clone()
+	planned.Sampling.Temperature = textgen.Some(0.2)
+	planned.Sampling.Stop = textgen.Some(json.RawMessage(`["END"]`))
+	parsed.Semantic = planned
 	adapter := &captureAnthropicAdaptor{}
 	old := adaptorFactories[constant.APITypeAnthropic]
 	adaptorFactories[constant.APITypeAnthropic] = func() channel.BaseAdaptor { return adapter }
@@ -128,7 +138,10 @@ func TestTextHelperBridgesAChatClientToMessages(t *testing.T) {
 			t.Errorf("%s = %q, want %q (body %s)", path, got, want, body)
 		}
 	}
-	for _, absent := range []string{"reasoning_effort", "messages.0.content.0.type.lazu", "metadata.lazu", "user"} {
+	if got := gjson.GetBytes(body, "stop_sequences.0").String(); got != "END" {
+		t.Errorf("the planned stop override must reach the body as stop_sequences: %s", body)
+	}
+	for _, absent := range []string{"reasoning_effort", "messages.0.content.0.type.lazu", "metadata.lazu", "user", "stop"} {
 		if gjson.GetBytes(body, absent).Exists() {
 			t.Errorf("%s must not reach the Messages API: %s", absent, body)
 		}

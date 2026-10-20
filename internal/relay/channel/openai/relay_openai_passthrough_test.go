@@ -1292,8 +1292,9 @@ func TestOaiResponsesStreamHandler_ChatCompatSettlesObservedUsageBeforeConversio
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4.1-mini"},
 	}
 	usage, err := OaiResponsesStreamHandler(c, info, resp)
-	if err == nil || err.GetErrorCode() != types.ErrorCodeConvertRequestFailed {
-		t.Fatalf("expected conversion failure, got %v", err)
+	// a corrupt upstream event is the upstream's bad body, not the request's
+	if err == nil || err.GetErrorCode() != types.ErrorCodeBadResponseBody || !types.IsSkipRetryError(err) {
+		t.Fatalf("expected a non-retryable bad upstream body after output, got %v", err)
 	}
 	if usage == nil || usage.PromptTokens != 3 || usage.CompletionTokens <= 0 {
 		t.Fatalf("conversion failure must retain observed usage: %+v", usage)

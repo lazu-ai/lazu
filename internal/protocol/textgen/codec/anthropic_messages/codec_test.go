@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
@@ -201,32 +200,28 @@ func TestEncodeReplaysOnlyAnthropicSealedReasoning(t *testing.T) {
 	}
 }
 
-func TestPairToolBlocksMendsTheExchange(t *testing.T) {
+// A tool exchange the Messages API would refuse is refused here, by its
+// path, rather than mended with results the client never gave.
+func TestCheckToolExchangeRefusesAnIncompleteHistory(t *testing.T) {
 	text := func(s string) dto.ClaudeMediaMessage { return dto.ClaudeMediaMessage{Type: "text", Text: &s} }
-	messages := []dto.ClaudeMessage{
-		{Role: "user", Content: []dto.ClaudeMediaMessage{text("q")}},
-		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "a", Name: "f", Input: map[string]any{}}, {Type: "tool_use", Id: "b", Name: "f", Input: map[string]any{}}}},
-		{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "a", Content: "ok"}, {Type: "tool_result", ToolUseId: "a", Content: "again"}, {Type: "tool_result", ToolUseId: "zzz", Content: "orphan"}, text("next")}},
-		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "c", Name: "f", Input: map[string]any{}}}},
+	call := func(id string) dto.ClaudeMediaMessage {
+		return dto.ClaudeMediaMessage{Type: "tool_use", Id: id, Name: "f", Input: map[string]any{}}
 	}
-	mended := pairToolBlocks(messages)
-	user := mended[2].Content.([]dto.ClaudeMediaMessage)
-	ids := []string{}
-	for _, block := range user {
-		if block.Type == "tool_result" {
-			ids = append(ids, block.ToolUseId)
+	result := func(id string) dto.ClaudeMediaMessage {
+		return dto.ClaudeMediaMessage{Type: "tool_result", ToolUseId: id, Content: "ok"}
+	}
+	for name, tc := range map[string]struct {
+		messages []dto.ClaudeMessage
+		ok       bool
+	}{
+		"answered":       {[]dto.ClaudeMessage{{Role: "user", Content: []dto.ClaudeMediaMessage{text("q")}}, {Role: "assistant", Content: []dto.ClaudeMediaMessage{call("a"), call("b")}}, {Role: "user", Content: []dto.ClaudeMediaMessage{result("a"), result("b")}}}, true},
+		"one unanswered": {[]dto.ClaudeMessage{{Role: "user", Content: []dto.ClaudeMediaMessage{text("q")}}, {Role: "assistant", Content: []dto.ClaudeMediaMessage{call("a"), call("b")}}, {Role: "user", Content: []dto.ClaudeMediaMessage{result("a")}}}, false},
+		"orphan":         {[]dto.ClaudeMessage{{Role: "user", Content: []dto.ClaudeMediaMessage{result("zzz")}}}, false},
+		"twice":          {[]dto.ClaudeMessage{{Role: "user", Content: []dto.ClaudeMediaMessage{text("q")}}, {Role: "assistant", Content: []dto.ClaudeMediaMessage{call("a")}}, {Role: "user", Content: []dto.ClaudeMediaMessage{result("a"), result("a")}}}, false},
+	} {
+		if err := checkToolExchange(tc.messages); (err == nil) != tc.ok {
+			t.Fatalf("%s: err=%v", name, err)
 		}
-	}
-	sort.Strings(ids)
-	if len(ids) != 2 || ids[0] != "a" || ids[1] != "b" {
-		t.Fatalf("expected results for a and a synthetic one for b, got %v (%+v)", ids, user)
-	}
-	if user[len(user)-1].Type != "text" || *user[len(user)-1].Text != "next" {
-		t.Fatalf("other blocks keep their place: %+v", user)
-	}
-	last := mended[len(mended)-1].Content.([]dto.ClaudeMediaMessage)
-	if mended[len(mended)-1].Role != "user" || len(last) != 1 || last[0].ToolUseId != "c" {
-		t.Fatalf("a trailing unanswered call gets a user message of its own: %+v", mended[len(mended)-1])
 	}
 }
 
@@ -265,5 +260,44 @@ func TestEncodeWritesAnthropicOptions(t *testing.T) {
 	}
 	if gjson.GetBytes(raw, "speed").Str != "fast" {
 		t.Fatalf("speed missing: %s", raw)
+	}
+}
+
+func TestEncodeKeepsRolesStrictToolsCacheMarkersAndSummaries(t *testing.T) {
+	marker := json.RawMessage(`{"type":"ephemeral"}`)
+	request := &textgen.Request{
+		Model: textgen.ModelRef{Canonical: "m"},
+		Conversation: []textgen.InputItem{
+			{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "q"}, {Kind: textgen.ContentText, Text: "", CacheControl: marker}}},
+			{Kind: textgen.InputMessage, Role: "developer", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "be careful"}}},
+		},
+		Tools:     []textgen.ToolDefinition{{Type: "function", Name: "f", Strict: textgen.Some(true)}},
+		Reasoning: textgen.ReasoningOptions{Summary: "auto"},
+	}
+	encoded, err := Encode(request, EncodeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(encoded)
+	if gjson.GetBytes(raw, "messages.0.content.1.cache_control.type").String() != "ephemeral" || gjson.GetBytes(raw, "messages.0.content.1.text").String() == "" {
+		t.Fatalf("an empty cache breakpoint keeps its marker: %s", gjson.GetBytes(raw, "messages.0").Raw)
+	}
+	if gjson.GetBytes(raw, "messages.1.role").String() != "system" {
+		t.Fatalf("a developer turn keeps its authority: %s", gjson.GetBytes(raw, "messages").Raw)
+	}
+	if !gjson.GetBytes(raw, "tools.0.strict").Bool() || gjson.GetBytes(raw, "thinking.type").String() != "adaptive" {
+		t.Fatalf("strict or summary lost: %s", raw)
+	}
+}
+
+// safety_identifier is OpenAI's successor to user and wins over it.
+func TestEncodeCarriesTheSafetyIdentifier(t *testing.T) {
+	request := &textgen.Request{Metadata: textgen.MetadataOptions{User: "old", SafetyIdentifier: "sid-1"}, Conversation: []textgen.InputItem{{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "q"}}}}}
+	out, err := Encode(request, EncodeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out.Metadata) != `{"user_id":"sid-1"}` {
+		t.Fatalf("metadata: %s", out.Metadata)
 	}
 }

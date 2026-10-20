@@ -13,9 +13,58 @@ import (
 // which output indexes are function calls (their argument deltas) and
 // reasoning items (whose done event may carry a seal).
 type StreamDecoder struct {
-	calls     map[int]bool
+	// calls are held, by output index in arrival order, until the terminal
+	// event says how the reply ended: a call the provider did not mark
+	// completed goes to the client only when the reply was cut at its
+	// output cap (a partial call the caller may resume), and is withheld,
+	// still billed, when a filter or another reason stopped it
+	calls     map[int]*heldCall
+	order     []int
 	reasoning map[int]string
 	called    bool
+	turn      bool
+}
+
+type heldCall struct {
+	events []textgen.Event
+	status string
+}
+
+// callID is the item's call id, or its own id when the provider left the
+// call id out, as the whole-response decoder does.
+func callID(item *dto.ResponsesOutput) string {
+	if item.CallID != "" {
+		return item.CallID
+	}
+	return item.ID
+}
+
+// hold opens the call at index if it is new.
+func (d *StreamDecoder) hold(index int, item *dto.ResponsesOutput) *heldCall {
+	if call, ok := d.calls[index]; ok {
+		return call
+	}
+	call := &heldCall{events: []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: callID(item), ToolName: item.Name, ItemID: item.ID}}}
+	d.calls[index] = call
+	d.order = append(d.order, index)
+	d.called = true
+	return call
+}
+
+// release is the held calls' events, in order: each call kept, or withheld
+// when keepUnfinished is false and the provider did not mark it completed.
+func (d *StreamDecoder) release(keepUnfinished bool) []textgen.Event {
+	var out []textgen.Event
+	for _, index := range d.order {
+		call := d.calls[index]
+		withhold := !keepUnfinished && !strings.EqualFold(call.status, "completed")
+		for _, event := range call.events {
+			event.Withheld = withhold
+			out = append(out, event)
+		}
+	}
+	d.calls, d.order = map[int]*heldCall{}, nil
+	return out
 }
 
 // Decode is the events of one SSE event's data. Shapes it does not know
@@ -32,7 +81,7 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		return nil, err
 	}
 	if d.calls == nil {
-		d.calls, d.reasoning = map[int]bool{}, map[int]string{}
+		d.calls, d.reasoning = map[int]*heldCall{}, map[int]string{}
 	}
 	index := 0
 	if ev.OutputIndex != nil {
@@ -50,11 +99,20 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		switch ev.Item.Type {
 		case "function_call":
-			d.calls[index], d.called = true, true
-			return []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, ItemID: ev.Item.ID}}, nil
+			d.hold(index, ev.Item)
+			return nil, nil
 		case "reasoning":
 			d.reasoning[index] = ev.Item.ID
 			return []textgen.Event{{Kind: textgen.EventReasoningStart, ItemID: ev.Item.ID}}, nil
+		case "message":
+			// the assistant's turn begins, so an empty message is still a
+			// (empty) message
+			if !d.turn {
+				d.turn = true
+				// the item's id marks the message as the upstream's own,
+				// kept even beside tool calls
+				return []textgen.Event{{Kind: textgen.EventTurn, Role: "assistant", ItemID: ev.Item.ID}}, nil
+			}
 		}
 		return nil, nil
 	case "response.output_text.delta":
@@ -67,11 +125,11 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 	case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
 		if ev.Delta != "" {
-			return []textgen.Event{{Kind: textgen.EventReasoning, Text: ev.Delta, ItemID: d.reasoning[index]}}, nil
+			return []textgen.Event{{Kind: textgen.EventReasoning, Text: ev.Delta, ItemID: d.reasoning[index], Summary: ev.Type == "response.reasoning_summary_text.delta"}}, nil
 		}
 	case "response.function_call_arguments.delta":
-		if ev.Delta != "" {
-			return []textgen.Event{{Kind: textgen.EventToolArguments, ToolIndex: index, Text: ev.Delta}}, nil
+		if call, ok := d.calls[index]; ok && ev.Delta != "" {
+			call.events = append(call.events, textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: index, Text: ev.Delta})
 		}
 	case "response.output_item.done":
 		if ev.Item == nil {
@@ -79,14 +137,10 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		switch ev.Item.Type {
 		case "function_call":
-			done := textgen.Event{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, Text: ev.Item.Arguments}
-			if !d.calls[index] {
-				// a call reported only by its done item (no added event, no
-				// argument deltas) still opens first
-				d.calls[index], d.called = true, true
-				return []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, ItemID: ev.Item.ID}, done}, nil
-			}
-			return []textgen.Event{done}, nil
+			call := d.hold(index, ev.Item)
+			call.events = append(call.events, textgen.Event{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: callID(ev.Item), ToolName: ev.Item.Name, Text: ev.Item.Arguments})
+			call.status = ev.Item.Status
+			return nil, nil
 		case "reasoning":
 			// sealed: the item as the upstream wrote it, for a Responses
 			// client and for its next request
@@ -103,18 +157,29 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 			if ev.Response != nil && ev.Response.Usage != nil {
 				events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: UsageOf(ev.Response.Usage)})
 			}
+			events = append(d.release(false), events...)
 			return append(events, textgen.Event{Kind: textgen.EventError, Error: failedError(ev)}), nil
 		}
 		var events []textgen.Event
 		stop := textgen.StopEnd
+		keepUnfinished := true
 		if ev.Type == "response.incomplete" || (ev.Response != nil && ev.Response.Status == "incomplete") {
 			stop = textgen.StopLength
-			if ev.Response != nil && ev.Response.IncompleteDetails != nil && ev.Response.IncompleteDetails.Reason == "content_filter" {
+			reason := ""
+			if ev.Response != nil && ev.Response.IncompleteDetails != nil {
+				reason = ev.Response.IncompleteDetails.Reason
+			}
+			if reason == "content_filter" {
 				stop = textgen.StopFilter
 			}
-		} else if d.called {
+			// a filtered or otherwise stopped reply does not hand out the
+			// calls it never finished
+			keepUnfinished = reason == "max_output_tokens"
+		}
+		events = append(events, d.release(keepUnfinished)...)
+		if stop == textgen.StopEnd && d.called {
 			stop = textgen.StopTool
-		} else if ev.Response != nil {
+		} else if stop == textgen.StopEnd && ev.Response != nil {
 			for _, item := range ev.Response.Output {
 				if item.Type == "function_call" {
 					stop = textgen.StopTool
@@ -127,7 +192,7 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		return events, nil
 	case "error":
-		return []textgen.Event{{Kind: textgen.EventError, Error: failedError(ev)}}, nil
+		return append(d.release(false), textgen.Event{Kind: textgen.EventError, Error: failedError(ev)}), nil
 	}
 	return nil, nil
 }
@@ -148,6 +213,9 @@ func failedError(ev dto.ResponsesStreamResponse) *textgen.SemanticError {
 	}
 	if ev.Response != nil {
 		if upstream := dto.GetOpenAIError(ev.Response.Error); upstream != nil {
+			if upstream.Type != "" && upstream.Type != "upstream_error" {
+				semantic.Type = upstream.Type
+			}
 			if upstream.Message != "" {
 				semantic.Message = upstream.Message
 			}
@@ -171,35 +239,42 @@ func codeString(code any) string {
 }
 
 // UsageOf is Responses' usage as the shared usage fact: input_tokens is the
-// whole prompt, the cached part among it.
+// whole prompt, the cached part among it. Every dimension the provider
+// reported is kept (modality and cache-write splits, image counts, cost),
+// since prices differ by dimension.
 func UsageOf(usage *dto.Usage) *dto.Usage {
 	if usage == nil {
 		return nil
 	}
-	out := &dto.Usage{}
-	prompt := usage.InputTokens
-	if prompt == 0 {
-		prompt = usage.PromptTokens
+	out := *usage
+	out.InputTokenSource, out.OutputTokenSource = "", ""
+	if usage.InputTokens != 0 || usage.PromptTokens == 0 {
+		out.PromptTokens = usage.InputTokens
 	}
-	output := usage.OutputTokens
-	if output == 0 {
-		output = usage.CompletionTokens
-	}
-	if prompt > 0 {
-		out.PromptTokens = prompt
-		out.InputTokenSource = dto.UsageSourceProvider
-	}
-	if output > 0 {
-		out.CompletionTokens = output
-		out.OutputTokenSource = dto.UsageSourceProvider
+	if usage.OutputTokens != 0 || usage.CompletionTokens == 0 {
+		out.CompletionTokens = usage.OutputTokens
 	}
 	if usage.InputTokensDetails != nil {
-		out.PromptTokensDetails.CachedTokens = usage.InputTokensDetails.CachedTokens
-		out.PromptTokensDetails.CachedCreationTokens = usage.InputTokensDetails.CacheWriteTokens
+		details := *usage.InputTokensDetails
+		if details.CachedCreationTokens == 0 {
+			details.CachedCreationTokens = details.CacheWriteTokens
+		}
+		out.InputTokensDetails = &details
+		out.PromptTokensDetails = details
 	}
 	if usage.OutputTokensDetails != nil {
-		out.CompletionTokenDetails.ReasoningTokens = usage.OutputTokensDetails.ReasoningTokens
+		details := *usage.OutputTokensDetails
+		out.OutputTokensDetails = &details
+		out.CompletionTokenDetails = details
 	}
-	out.TotalTokens = out.PromptTokens + out.CompletionTokens
-	return out
+	if out.PromptTokens > 0 {
+		out.InputTokenSource = dto.UsageSourceProvider
+	}
+	if out.CompletionTokens > 0 {
+		out.OutputTokenSource = dto.UsageSourceProvider
+	}
+	if out.TotalTokens < out.PromptTokens+out.CompletionTokens {
+		out.TotalTokens = out.PromptTokens + out.CompletionTokens
+	}
+	return &out
 }
