@@ -13,8 +13,19 @@ import (
 // jobs, usage summary, video jobs) in the OpenAI envelope. Requests made with
 // a project Key also leave a rejection row, which the project console reads.
 func writeControlPlaneAPIError(c *gin.Context, err error) {
+	writeControlPlaneAPIErrorWithLog(c, err, true)
+}
+
+// writeControlPlaneReadError answers a read that asked too early or with a
+// bad parameter (a video not finished yet, a wait out of range). Clients
+// polling a job hit these routinely, so they are not usage-log errors.
+func writeControlPlaneReadError(c *gin.Context, code types.ErrorCode, details ...types.D) {
+	writeControlPlaneAPIErrorWithLog(c, types.Err(code, details...), false)
+}
+
+func writeControlPlaneAPIErrorWithLog(c *gin.Context, err error, logged bool) {
 	status, body := httperr.Resolve(c, err)
-	if common.GetContextKeyInt(c, constant.ContextKeyProjectID) > 0 && model.TelemetryDB() != nil {
+	if logged && common.GetContextKeyInt(c, constant.ContextKeyProjectID) > 0 && model.TelemetryDB() != nil {
 		common.SetContextKey(c, constant.ContextKeyRequestErrorCode, body.Code)
 		model.RecordErrorLog(c, c.GetInt("id"), 0, c.GetString("model"), c.GetString("token_name"), body.Message, c.GetInt("token_id"), 0, false, c.GetString("group"), map[string]interface{}{"error_code": body.Code, "status_code": status})
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"mime"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -58,12 +59,27 @@ func videoJobViews(ctx context.Context, jobs []model.MediaJob, includeRequest bo
 		if file.ExpiresAt != nil {
 			artifact.ExpiresAt = *file.ExpiresAt
 		}
+		file.Filename = videoDownloadFilename(jobs[i], file)
 		if link, ok := service.SignFileLink(ctx, &file, service.FileLinkTTL, now); ok {
 			artifact.URL = link.URL
 			artifact.URLExpiresAt = link.ExpiresAt
 		}
 	}
 	return views
+}
+
+// videoDownloadFilename names a downloaded video after its job. The stored
+// file keeps the provider's own name, which means nothing to the customer.
+func videoDownloadFilename(job model.MediaJob, file model.File) string {
+	ext := path.Ext(file.Filename)
+	if ext == "" {
+		if exts, _ := mime.ExtensionsByType(file.MimeType); len(exts) > 0 {
+			ext = exts[0]
+		} else {
+			ext = ".mp4"
+		}
+	}
+	return job.PublicID + ext
 }
 
 func videoJobView(ctx context.Context, job model.MediaJob, includeRequest bool, now time.Time) dto.MediaJobObject {
@@ -83,7 +99,7 @@ func parseVideoWait(c *gin.Context) (int, bool) {
 	}
 	seconds, err := strconv.Atoi(raw)
 	if err != nil || seconds < 0 || seconds > videoWaitMax {
-		writeControlPlaneCatalogError(c, types.ErrorCodeInvalidWait, types.D{"field": "wait", "max": strconv.Itoa(videoWaitMax)})
+		writeControlPlaneReadError(c, types.ErrorCodeInvalidWait, types.D{"field": "wait", "max": strconv.Itoa(videoWaitMax)})
 		return 0, false
 	}
 	return seconds, true
@@ -125,7 +141,7 @@ func GetVideoContent(c *gin.Context) {
 		return
 	}
 	if job.Status != model.MediaJobStatusSucceeded || job.ArtifactFileID == "" {
-		writeControlPlaneCatalogError(c, types.ErrorCodeVideoNotReady, types.D{"field": "id", "job_id": job.PublicID, "status": job.Status})
+		writeControlPlaneReadError(c, types.ErrorCodeVideoNotReady, types.D{"field": "id", "job_id": job.PublicID, "status": job.Status})
 		return
 	}
 	file, err := model.GetFileByIDAndOwner(job.ArtifactFileID, job.UserID, job.ResourcePrincipal())
@@ -149,7 +165,7 @@ func GetVideoContent(c *gin.Context) {
 	}
 	defer body.Close()
 	headers := map[string]string{
-		"Content-Disposition": mime.FormatMediaType("attachment", map[string]string{"filename": file.Filename}),
+		"Content-Disposition": mime.FormatMediaType("attachment", map[string]string{"filename": videoDownloadFilename(*job, *file)}),
 	}
 	c.DataFromReader(http.StatusOK, file.Bytes, file.MimeType, body, headers)
 }

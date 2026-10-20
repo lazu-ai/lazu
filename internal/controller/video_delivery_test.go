@@ -19,8 +19,9 @@ import (
 )
 
 type signingVideoStorage struct {
-	objects  map[string][]byte
-	signedAt time.Duration
+	objects    map[string][]byte
+	signedAt   time.Duration
+	signedName string
 }
 
 func (s *signingVideoStorage) Put(context.Context, string, io.Reader, string) error { return nil }
@@ -35,8 +36,9 @@ func (s *signingVideoStorage) Delete(context.Context, string) error { return nil
 func (s *signingVideoStorage) ListByPrefix(context.Context, string) ([]storage.ObjectInfo, error) {
 	return nil, nil
 }
-func (s *signingVideoStorage) PresignGet(_ context.Context, key string, ttl time.Duration, _ string, _ string) (string, error) {
+func (s *signingVideoStorage) PresignGet(_ context.Context, key string, ttl time.Duration, filename string, _ string) (string, error) {
 	s.signedAt = ttl
+	s.signedName = filename
 	return "https://bucket.example/" + key + "?signed=1", nil
 }
 
@@ -57,7 +59,7 @@ func seedVideoDeliveryJob(t *testing.T, db *gorm.DB, token *model.Token, publicI
 	t.Helper()
 	file := &model.File{
 		ID: "file-lazu-" + publicID, UserID: token.UserId, TokenID: &token.Id,
-		Filename: "clip.mp4", Purpose: "media_artifact", MimeType: "video/mp4", Bytes: 9,
+		Filename: "9998-provider-video_task_01ABC.mp4", Purpose: "media_artifact", MimeType: "video/mp4", Bytes: 9,
 		StorageKey: "videos/clip.mp4", Status: model.FileStatusProcessed, ExpiresAt: &fileExpiresAt,
 		CreatedAt: time.Now().Unix(),
 	}
@@ -112,6 +114,9 @@ func TestGetVideoJobHandsOutASignedLinkToTheStoredFile(t *testing.T) {
 		t.Fatalf("artifact = %+v", a)
 	}
 	// The file goes before the hour is up, so the link ends with it.
+	if store.signedName != "mjob_done.mp4" {
+		t.Fatalf("link names the file %q, want the job id", store.signedName)
+	}
 	if a.URLExpiresAt != fileExpiresAt || store.signedAt > 30*time.Minute {
 		t.Fatalf("link outlives the file: url_expires_at=%d file=%d ttl=%s", a.URLExpiresAt, fileExpiresAt, store.signedAt)
 	}
@@ -126,6 +131,9 @@ func TestGetVideoContentStreamsOnlyFinishedVideos(t *testing.T) {
 	w := getVideoDelivery(engine, token, "/v1/videos/mjob_ready/content")
 	if w.Code != http.StatusOK || w.Body.String() != "mp4-bytes" || w.Header().Get("Content-Type") != "video/mp4" {
 		t.Fatalf("content: status %d type %q body %q", w.Code, w.Header().Get("Content-Type"), w.Body.String())
+	}
+	if got := w.Header().Get("Content-Disposition"); got != `attachment; filename=mjob_ready.mp4` {
+		t.Fatalf("content disposition = %q", got)
 	}
 
 	w = getVideoDelivery(engine, token, "/v1/videos/mjob_busy/content")
