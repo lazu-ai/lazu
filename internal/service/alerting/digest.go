@@ -2,6 +2,7 @@ package alerting
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -96,8 +97,11 @@ var digestStatuses = map[string]digestStatus{
 	"failed":   {rank: 0, icon: "❌", label: "失败"},
 	"alerting": {rank: 1, icon: "🔔", label: "告警未恢复"},
 	"stale":    {rank: 1, icon: "⏸️", label: "已停止运行"},
-	"warning":  {rank: 2, icon: "⚠️", label: "有警告"},
-	"unknown":  {rank: 3, icon: "➖", label: "未检测", quiet: true},
+	// never is a missing task past its grace period: it was expected for
+	// more than two cadences and still has not reported once.
+	"never":   {rank: 1, icon: "⏸️", label: "一直没有上报"},
+	"warning": {rank: 2, icon: "⚠️", label: "有警告"},
+	"unknown": {rank: 3, icon: "➖", label: "未检测", quiet: true},
 	// missing is quiet: right after a deploy a daily task has simply not
 	// reached its first run yet, which is not worth a warning.
 	"missing": {rank: 3, icon: "➖", label: "从未上报", quiet: true},
@@ -111,6 +115,8 @@ type digestLine struct {
 	status   string
 	age      time.Duration
 	incident *incidentState
+	// missingFor is how long an expected task has gone without a report.
+	missingFor time.Duration
 	// alertOnly marks a line with no health snapshot behind it: an open alert
 	// from a task that records none, or an expected task that never reported.
 	alertOnly bool
@@ -199,7 +205,13 @@ func digestLocation() *time.Location {
 // open alerts, section attention items), then the sections, then one line
 // for the tasks that are fine.
 func formatDailyDigest(now time.Time, snapshots []HealthSnapshot, incidents map[string]incidentState, sections []DigestSection) string {
-	lines := digestTaskLines(now, snapshots, incidents)
+	return formatDailyDigestSince(now, snapshots, incidents, sections, nil)
+}
+
+// formatDailyDigestSince also knows since when each expected task has been
+// missing, so one that never reports stops reading as a fresh deploy.
+func formatDailyDigestSince(now time.Time, snapshots []HealthSnapshot, incidents map[string]incidentState, sections []DigestSection, missingSince map[string]time.Time) string {
+	lines := digestTaskLines(now, snapshots, incidents, missingSince)
 	var problems, quiet []digestLine
 	for _, line := range lines {
 		if lookupDigestStatus(line.status).quiet {
@@ -249,7 +261,7 @@ func formatDailyDigest(now time.Time, snapshots []HealthSnapshot, incidents map[
 	return b.String()
 }
 
-func digestTaskLines(now time.Time, snapshots []HealthSnapshot, incidents map[string]incidentState) []digestLine {
+func digestTaskLines(now time.Time, snapshots []HealthSnapshot, incidents map[string]incidentState, missingSince map[string]time.Time) []digestLine {
 	lines := make([]digestLine, 0, len(snapshots)+len(incidents))
 	withHealth := map[string]bool{}
 	for _, snapshot := range snapshots {
@@ -291,6 +303,12 @@ func digestTaskLines(now time.Time, snapshots []HealthSnapshot, incidents map[st
 		}
 		withHealth[key] = true
 		line := digestLine{snapshot: HealthSnapshot{Key: key}, name: task.name, status: "missing", alertOnly: true}
+		if since, ok := missingSince[key]; ok {
+			line.missingFor = now.Sub(since)
+			if line.missingFor > 2*digestTaskCadence(key, task, now) {
+				line.status = "never"
+			}
+		}
 		if state, ok := incidents[key]; ok {
 			line.incident, line.status = &state, "alerting"
 		}
@@ -322,6 +340,10 @@ func writeDigestProblem(b *strings.Builder, now time.Time, line digestLine) {
 	fmt.Fprintf(b, "\n\n%s %s：%s", status.icon, line.name, status.label)
 	if line.incident != nil {
 		writeDigestIncident(b, now, *line.incident, line.alertOnly)
+	}
+	if line.status == "never" {
+		fmt.Fprintf(b, "\n   已 %s没有任何运行记录（应%s运行一次）",
+			formatDigestAge(line.missingFor), formatDigestCadence(digestTaskCadence(line.snapshot.Key, digestTasks[line.snapshot.Key], now)))
 	}
 	if line.alertOnly {
 		return
@@ -380,6 +402,56 @@ func writeDigestIncident(b *strings.Builder, now time.Time, state incidentState,
 		formatDigestAge(now.Sub(time.Unix(firstSeen, 0))),
 		state.Occurrences,
 		formatDigestAgo(now.Sub(time.Unix(state.LastSeen, 0))))
+}
+
+const digestMissingKey = "lazu:alerts:missing:v1"
+
+var localMissingSince = map[string]time.Time{}
+
+// trackMissingTasks records when each expected task was first seen without a
+// health snapshot and forgets tasks that have reported since. Redis keeps it
+// across deploys; without Redis it lives as long as this process.
+func trackMissingTasks(now time.Time, snapshots []HealthSnapshot) map[string]time.Time {
+	reported := map[string]bool{}
+	for _, snapshot := range snapshots {
+		reported[snapshot.Key] = true
+	}
+	since := map[string]time.Time{}
+	if common.RedisEnabled && common.RDB != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		var redisErr error
+		for key := range digestTasks {
+			if reported[key] || !digestTaskExpected(key) {
+				redisErr = errors.Join(redisErr, common.RDB.HDel(ctx, digestMissingKey, key).Err())
+				continue
+			}
+			redisErr = errors.Join(redisErr, common.RDB.HSetNX(ctx, digestMissingKey, key, now.Unix()).Err())
+			first, err := common.RDB.HGet(ctx, digestMissingKey, key).Int64()
+			if err != nil {
+				redisErr = errors.Join(redisErr, err)
+				continue
+			}
+			since[key] = time.Unix(first, 0)
+		}
+		if redisErr == nil {
+			return since
+		}
+		common.SysError("alerting: failed to track missing tasks in Redis: " + redisErr.Error())
+	}
+	localMu.Lock()
+	defer localMu.Unlock()
+	for key := range digestTasks {
+		if reported[key] || !digestTaskExpected(key) {
+			delete(localMissingSince, key)
+			continue
+		}
+		if _, ok := localMissingSince[key]; !ok {
+			localMissingSince[key] = now
+		}
+		since[key] = localMissingSince[key]
+	}
+	return since
 }
 
 // lookupDigestStatus shows a status this file does not know verbatim and

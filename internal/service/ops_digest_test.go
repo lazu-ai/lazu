@@ -323,3 +323,31 @@ func TestBuildBusinessDigestSectionKeepsMetricsWhenZeroTokenQueryFails(t *testin
 		t.Fatalf("the failed query should raise attention: %v", section.Attention)
 	}
 }
+
+func TestBuildBusinessDigestSectionShowsYesterdayWhenTheWeekFails(t *testing.T) {
+	previous := buildDigestOverview
+	calls := 0
+	buildDigestOverview = func(_ context.Context, req model.OverviewRequest) (model.Overview, error) {
+		calls++
+		if calls == 2 {
+			return model.Overview{}, errors.New("agent_sessions timed out")
+		}
+		return model.Overview{Totals: model.OverviewTotals{RequestCount: 1200, OutcomeCount: 1200, SuccessRate: floatPtr(1)}}, nil
+	}
+	previousQuery := queryDigestZeroTokenRate
+	queryDigestZeroTokenRate = func(context.Context, *gorm.DB, int64, int64) (relaymetrics.ZeroTokenQuotaZeroSnapshot, error) {
+		return relaymetrics.ZeroTokenQuotaZeroSnapshot{}, nil
+	}
+	t.Cleanup(func() { buildDigestOverview, queryDigestZeroTokenRate = previous, previousQuery })
+
+	section, err := buildBusinessDigestSection(context.Background(), time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("a failed weekly read must not fail the section: %v", err)
+	}
+	if section.Lines[0] != "请求 1,200 · 成功率 100.0%" {
+		t.Fatalf("yesterday should show, uncompared: %q", section.Lines[0])
+	}
+	if len(section.Attention) != 1 || !strings.Contains(section.Attention[0], "无法读取前 7 天数据") {
+		t.Fatalf("the failed weekly read should raise attention: %v", section.Attention)
+	}
+}

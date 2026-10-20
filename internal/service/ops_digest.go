@@ -36,9 +36,11 @@ const (
 	opsDigestCapacityDays       = 15
 )
 
-// queryDigestZeroTokenRate is swapped in tests to fail independently of
-// the rollup queries.
-var queryDigestZeroTokenRate = relaymetrics.QueryZeroTokenQuotaZeroRate
+// These are swapped in tests to fail one read independently of the others.
+var (
+	queryDigestZeroTokenRate = relaymetrics.QueryZeroTokenQuotaZeroRate
+	buildDigestOverview      = model.BuildOverviewContext
+)
 
 // RegisterOpsDigestSections adds yesterday's business numbers and the data
 // and capacity checks to the daily operations digest.
@@ -50,7 +52,7 @@ func RegisterOpsDigestSections() {
 func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.DigestSection, error) {
 	todayStart, dayStart := digestDayWindow(now)
 	_, offset := now.Zone()
-	day, err := model.BuildOverviewContext(ctx, model.OverviewRequest{
+	day, err := buildDigestOverview(ctx, model.OverviewRequest{
 		Platform: true,
 		Start:    dayStart.Unix(),
 		End:      todayStart.Unix(),
@@ -61,15 +63,17 @@ func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.Di
 	if err != nil {
 		return alerting.DigestSection{}, fmt.Errorf("yesterday overview: %w", err)
 	}
-	week, err := model.BuildOverviewContext(ctx, model.OverviewRequest{
+	// The week only supplies the comparison; if it cannot be read, yesterday
+	// still shows, uncompared.
+	week, weekErr := buildDigestOverview(ctx, model.OverviewRequest{
 		Start:    digestLocalMidnight(now, -8).Unix(),
 		End:      dayStart.Unix(),
 		Bucket:   model.OverviewBucketDay,
 		TZOffset: int64(offset),
 		Now:      now.Unix(),
 	})
-	if err != nil {
-		return alerting.DigestSection{}, fmt.Errorf("previous week overview: %w", err)
+	if weekErr != nil {
+		week = model.Overview{}
 	}
 	db := model.TelemetryDB()
 	if db == nil {
@@ -79,6 +83,9 @@ func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.Di
 	// its failure costs only that line, not the rest of the section.
 	zero, zeroErr := queryDigestZeroTokenRate(ctx, db, dayStart.Unix(), todayStart.Unix())
 	section := formatBusinessDigest(time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, now.Location()), day, week.Totals, 7, zero)
+	if weekErr != nil {
+		section.Attention = append(section.Attention, "无法读取前 7 天数据，昨日没有和平时对比："+truncateOpsDigestError(weekErr))
+	}
 	if zeroErr != nil {
 		section.Attention = append(section.Attention, "无法读取昨日 0 token 计费比例："+truncateOpsDigestError(zeroErr))
 	}

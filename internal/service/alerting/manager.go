@@ -303,7 +303,8 @@ func sendDailyDigest() {
 		common.SysError("alerting: failed to load open incidents for digest: " + err.Error())
 	}
 	sections := buildDigestSections(now)
-	if err := postText(formatDailyDigest(now, snapshots, incidents, sections)); err != nil {
+	missingSince := trackMissingTasks(now, snapshots)
+	if err := postText(formatDailyDigestSince(now, snapshots, incidents, sections, missingSince)); err != nil {
 		common.SysError("alerting: Feishu digest delivery failed: " + err.Error())
 		releaseDigestClaim(now)
 		return

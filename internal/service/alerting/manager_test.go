@@ -303,6 +303,43 @@ func TestZeroTokenMonitorIsExpectedOnlyWithASeparateWorker(t *testing.T) {
 	}
 }
 
+func TestDailyDigestRaisesTasksMissingPastTheirGracePeriod(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump", "relay-zero-token")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	message := formatDailyDigestSince(now, nil, nil, nil, map[string]time.Time{
+		"pg-dump":          now.Add(-3 * 24 * time.Hour), // past two days
+		"relay-zero-token": now.Add(-10 * time.Minute),   // within 30 minutes
+	})
+	for _, expected := range []string{
+		"⚠️ 需要处理 1 项",
+		"⏸️ 数据库备份：一直没有上报\n   已 3 天没有任何运行记录（应每天运行一次）",
+		"➖ 从未上报 1 项：零 token 计费监控",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+}
+
+func TestTrackMissingTasksRemembersFirstSeenAndForgetsReported(t *testing.T) {
+	alertingTestRedis(t)
+	onlyExpectDigestTasks(t, "pg-dump")
+	start := time.Date(2026, 10, 17, 9, 10, 0, 0, time.UTC)
+	if got := trackMissingTasks(start, nil)["pg-dump"]; !got.Equal(start) {
+		t.Fatalf("first sighting = %s, want %s", got, start)
+	}
+	if got := trackMissingTasks(start.Add(72*time.Hour), nil)["pg-dump"]; !got.Equal(start) {
+		t.Fatalf("a later digest must keep the first sighting, got %s", got)
+	}
+	reported := []HealthSnapshot{{Key: "pg-dump", Status: "ok"}}
+	if since := trackMissingTasks(start.Add(73*time.Hour), reported); len(since) != 0 {
+		t.Fatalf("a task that reported is no longer missing: %v", since)
+	}
+	if got := trackMissingTasks(start.Add(96*time.Hour), nil)["pg-dump"]; !got.Equal(start.Add(96 * time.Hour)) {
+		t.Fatalf("a task that goes missing again starts a new grace period, got %s", got)
+	}
+}
+
 func TestUploadCadenceFollowsConfiguredSchedule(t *testing.T) {
 	previous := common.AppConfig.Upload.Schedule
 	defer func() { common.AppConfig.Upload.Schedule = previous }()
