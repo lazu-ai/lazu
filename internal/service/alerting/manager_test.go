@@ -107,7 +107,7 @@ func TestDailyDigestFormatsOneCompactSummary(t *testing.T) {
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 14 个文件", UpdatedAt: now.Add(-time.Hour).Unix()},
 		{Key: "pg-dump", Label: "Database backup", Status: "failed", Summary: "错误：connection refused", UpdatedAt: now.Add(-30 * time.Minute).Unix()},
-	})
+	}, nil)
 	for _, expected := range []string{
 		"Lazu 每日运维报告 · 2026-08-19",
 		"⚠️ 失败 1 项，正常 1 项",
@@ -129,7 +129,7 @@ func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", Summary: "size=671.7 MiB", UpdatedAt: now.Add(-(291*time.Hour + 38*time.Minute)).Unix()},
 		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 3 个文件", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
 		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", Summary: "流量低", UpdatedAt: now.Unix()},
-	})
+	}, nil)
 	for _, expected := range []string{
 		"⚠️ 已停止运行 1 项，未检测 1 项，正常 1 项",
 		"⏸️ 数据库备份：已停止运行\n   最后一次正常在 12 天 3 小时前（应每天运行一次）\n   上次结果：size=671.7 MiB",
@@ -147,21 +147,59 @@ func TestDailyDigestHeadline(t *testing.T) {
 	allOK := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
 		{Label: "Unregistered task", Status: "ok", UpdatedAt: now.Add(-30 * 24 * time.Hour).Unix()},
-	})
+	}, nil)
 	if !strings.Contains(allOK, "\n✅ 全部 2 项正常\n") || !strings.Contains(allOK, "✅ Unregistered task：正常") {
 		t.Fatalf("expected all-ok headline; tasks without a cadence keep their label and never go stale: %s", allOK)
 	}
 	quiet := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "relay-zero-token", Label: "Zero-token billing monitor", Status: "unknown", UpdatedAt: now.Unix()},
-	})
+	}, nil)
 	if !strings.Contains(quiet, "\n➖ 未检测 1 项\n") {
 		t.Fatalf("unknown alone should not raise a warning: %s", quiet)
 	}
 	odd := formatDailyDigest(now, []HealthSnapshot{
 		{Label: "Custom task", Status: "degraded", UpdatedAt: now.Unix()},
-	})
+	}, nil)
 	if !strings.Contains(odd, "⚠️ degraded 1 项") || !strings.Contains(odd, "⚠️ Custom task：degraded") {
 		t.Fatalf("unrecognized status should show verbatim as a warning: %s", odd)
+	}
+}
+
+func TestDailyDigestShowsOpenAlerts(t *testing.T) {
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	incidents := map[string]incidentState{
+		// Health still reads ok, but the alert was never resolved.
+		"hourly-upload": {Fingerprint: "storage-401", FirstSeen: now.Add(-50 * time.Hour).Unix(), LastSeen: now.Add(-20 * time.Minute).Unix(), Occurrences: 48, Title: "⚠️ Lazu hourly upload needs attention"},
+		// No health record names this one, so the title must.
+		"settlement-outbox": {Fingerprint: "stuck", FirstSeen: now.Add(-3 * time.Hour).Unix(), LastSeen: now.Unix(), Occurrences: 3, Title: "❌ settlement outbox stuck"},
+	}
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 2 个文件", UpdatedAt: now.Add(-10 * time.Minute).Unix()},
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+	}, incidents)
+	for _, expected := range []string{
+		"⚠️ 告警未恢复 2 项，正常 1 项",
+		"🔔 请求日志上传 R2：告警未恢复\n   告警已持续 2 天 2 小时，共触发 48 次，最近一次：20 分钟前\n   10 分钟前更新 · 上传 2 个文件",
+		"🔔 settlement-outbox：告警未恢复\n   ❌ settlement outbox stuck\n   告警已持续 3 小时，共触发 3 次，最近一次：刚刚",
+		"✅ 数据库备份：正常",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+}
+
+func TestNextIncidentStateKeepsLatestTitle(t *testing.T) {
+	start := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
+	event := Incident{Fingerprint: "storage-401", Priority: PriorityMaintenance, Message: "⚠️ first line\ndetail"}
+	state, _, _ := nextIncidentState(incidentState{}, false, event, start, "one")
+	if state.Title != "⚠️ first line" {
+		t.Fatalf("title = %q", state.Title)
+	}
+	event.Message = "⚠️ newer line\ndetail"
+	state, _, _ = nextIncidentState(state, true, event, start.Add(time.Minute), "two")
+	if state.Title != "⚠️ newer line" {
+		t.Fatalf("continuing incident should keep the latest title, got %q", state.Title)
 	}
 }
 

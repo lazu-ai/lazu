@@ -50,6 +50,9 @@ type incidentState struct {
 	DeliveryReservedAt int64  `json:"delivery_reserved_at,omitempty"`
 	RecoveryToken      string `json:"recovery_token,omitempty"`
 	RecoveryReservedAt int64  `json:"recovery_reserved_at,omitempty"`
+	// Title is the first line of the latest message, so the daily digest can
+	// name an incident that is still open after its reminders ran out.
+	Title string `json:"title,omitempty"`
 }
 
 type HealthSnapshot struct {
@@ -272,8 +275,10 @@ func StartDailyDigestScheduler() {
 	}
 	digestCron = cron.New(cron.WithLocation(loc))
 	// 09:10 runs after the 09:00 hourly upload so the digest includes its
-	// result and does not contend with the R2 connection burst.
-	if _, err = digestCron.AddFunc("10 9 * * *", sendDailyDigest); err != nil {
+	// result and does not contend with the R2 connection burst. The later
+	// ticks only retry: the daily claim lets one delivery through, and a
+	// failed delivery or a process that was down at 09:10 tries again.
+	if _, err = digestCron.AddFunc("10,25,40,55 9 * * *", sendDailyDigest); err != nil {
 		common.SysError("alerting: failed to schedule daily digest: " + err.Error())
 		return
 	}
@@ -291,7 +296,13 @@ func sendDailyDigest() {
 		releaseDigestClaim(now)
 		return
 	}
-	if err := postText(formatDailyDigest(now, snapshots)); err != nil {
+	incidents, err := loadOpenIncidents()
+	if err != nil {
+		// Health is the core of the digest; send it with the incidents this
+		// process knows about rather than skip the day.
+		common.SysError("alerting: failed to load open incidents for digest: " + err.Error())
+	}
+	if err := postText(formatDailyDigest(now, snapshots, incidents)); err != nil {
 		common.SysError("alerting: Feishu digest delivery failed: " + err.Error())
 		releaseDigestClaim(now)
 	}
@@ -520,10 +531,12 @@ func nextIncidentState(current incidentState, exists bool, event Incident, now t
 			CauseChanged:       exists,
 			DeliveryToken:      deliveryToken,
 			DeliveryReservedAt: nowUnix,
+			Title:              incidentTitle(event.Message),
 		}, true, exists
 	}
 
 	current.LastSeen = nowUnix
+	current.Title = incidentTitle(event.Message)
 	current.Occurrences++
 	if deliveryReservationActive(current, now) {
 		return current, false, false
@@ -798,6 +811,9 @@ func mergeIncidentState(primary incidentState, primaryExists bool, shadow incide
 	}
 	if shadow.LastSeen > primary.LastSeen {
 		primary.LastSeen = shadow.LastSeen
+		if shadow.Title != "" {
+			primary.Title = shadow.Title
+		}
 	}
 	if shadow.LastNotified > primary.LastNotified {
 		primary.LastNotified = shadow.LastNotified
@@ -854,6 +870,57 @@ func loadHealthSnapshots() ([]HealthSnapshot, error) {
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Label < result[j].Label })
 	return result, nil
+}
+
+// loadOpenIncidents returns every incident that has not been resolved, keyed
+// by incident key. Resolve deletes an incident, so whatever remains is open.
+func loadOpenIncidents() (map[string]incidentState, error) {
+	open := map[string]incidentState{}
+	var loadErr error
+	if common.RedisEnabled && common.RDB != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		var cursor uint64
+		for {
+			keys, next, err := common.RDB.Scan(ctx, cursor, incidentKeyPrefix+"*", 200).Result()
+			if err != nil {
+				loadErr = err
+				break
+			}
+			for _, redisKey := range keys {
+				state, exists, err := loadIncidentState(ctx, common.RDB, redisKey)
+				if err != nil {
+					loadErr = err
+					continue
+				}
+				if exists {
+					open[strings.TrimPrefix(redisKey, incidentKeyPrefix)] = state
+				}
+			}
+			cursor = next
+			if cursor == 0 {
+				break
+			}
+		}
+	}
+	localMu.Lock()
+	for key, state := range localIncidents {
+		if existing, ok := open[key]; ok {
+			state, _ = mergeIncidentState(existing, true, state, true)
+		}
+		open[key] = state
+	}
+	localMu.Unlock()
+	return open, loadErr
+}
+
+func incidentTitle(message string) string {
+	title, _, _ := strings.Cut(strings.TrimSpace(message), "\n")
+	runes := []rune(strings.TrimSpace(title))
+	if len(runes) > 120 {
+		return string(runes[:120]) + "…"
+	}
+	return string(runes)
 }
 
 func claimDigest(now time.Time) bool {
@@ -918,12 +985,13 @@ type digestStatus struct {
 // Problems rank first so the top of the message answers whether anything
 // needs attention.
 var digestStatuses = map[string]digestStatus{
-	"failed":  {rank: 0, icon: "❌", label: "失败"},
-	"stale":   {rank: 1, icon: "⏸️", label: "已停止运行"},
-	"warning": {rank: 2, icon: "⚠️", label: "有警告"},
-	"unknown": {rank: 3, icon: "➖", label: "未检测", quiet: true},
-	"skipped": {rank: 4, icon: "➖", label: "已跳过", quiet: true},
-	"ok":      {rank: 5, icon: "✅", label: "正常", quiet: true},
+	"failed":   {rank: 0, icon: "❌", label: "失败"},
+	"alerting": {rank: 1, icon: "🔔", label: "告警未恢复"},
+	"stale":    {rank: 1, icon: "⏸️", label: "已停止运行"},
+	"warning":  {rank: 2, icon: "⚠️", label: "有警告"},
+	"unknown":  {rank: 3, icon: "➖", label: "未检测", quiet: true},
+	"skipped":  {rank: 4, icon: "➖", label: "已跳过", quiet: true},
+	"ok":       {rank: 5, icon: "✅", label: "正常", quiet: true},
 }
 
 type digestLine struct {
@@ -931,16 +999,20 @@ type digestLine struct {
 	name     string
 	status   string
 	age      time.Duration
+	incident *incidentState
+	// alertOnly marks an open alert whose task records no health snapshot.
+	alertOnly bool
 }
 
-func formatDailyDigest(now time.Time, snapshots []HealthSnapshot) string {
+func formatDailyDigest(now time.Time, snapshots []HealthSnapshot, incidents map[string]incidentState) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "📊 Lazu 每日运维报告 · %s", now.Format("2006-01-02"))
-	if len(snapshots) == 0 {
+	if len(snapshots) == 0 && len(incidents) == 0 {
 		b.WriteString("\n⚠️ 没有任何任务上报过结果")
 		return b.String()
 	}
-	lines := make([]digestLine, 0, len(snapshots))
+	lines := make([]digestLine, 0, len(snapshots)+len(incidents))
+	withHealth := map[string]bool{}
 	for _, snapshot := range snapshots {
 		line := digestLine{
 			snapshot: snapshot,
@@ -957,10 +1029,34 @@ func formatDailyDigest(now time.Time, snapshots []HealthSnapshot) string {
 				line.status = "stale"
 			}
 		}
+		if state, ok := incidents[snapshot.Key]; ok {
+			line.incident = &state
+			if lookupDigestStatus(line.status).quiet {
+				// A task that reads ok while its alert is still open has not
+				// really recovered; the open alert wins.
+				line.status = "alerting"
+			}
+		}
+		withHealth[snapshot.Key] = true
 		lines = append(lines, line)
 	}
+	for key, state := range incidents {
+		if withHealth[key] {
+			continue
+		}
+		state := state
+		name := key
+		if task, ok := digestTasks[key]; ok {
+			name = task.name
+		}
+		lines = append(lines, digestLine{name: name, status: "alerting", incident: &state, alertOnly: true})
+	}
 	sort.SliceStable(lines, func(i, j int) bool {
-		return lookupDigestStatus(lines[i].status).rank < lookupDigestStatus(lines[j].status).rank
+		ri, rj := lookupDigestStatus(lines[i].status).rank, lookupDigestStatus(lines[j].status).rank
+		if ri != rj {
+			return ri < rj
+		}
+		return lines[i].name < lines[j].name
 	})
 
 	b.WriteString("\n")
@@ -968,6 +1064,12 @@ func formatDailyDigest(now time.Time, snapshots []HealthSnapshot) string {
 	for _, line := range lines {
 		status := lookupDigestStatus(line.status)
 		fmt.Fprintf(&b, "\n\n%s %s：%s", status.icon, line.name, status.label)
+		if line.incident != nil {
+			writeDigestIncident(&b, now, *line.incident, line.alertOnly)
+		}
+		if line.alertOnly {
+			continue
+		}
 		if line.status == "stale" {
 			fmt.Fprintf(&b, "\n   最后一次%s在 %s前（应%s运行一次）",
 				lookupDigestStatus(line.snapshot.Status).label,
@@ -984,6 +1086,26 @@ func formatDailyDigest(now time.Time, snapshots []HealthSnapshot) string {
 		}
 	}
 	return b.String()
+}
+
+// writeDigestIncident adds how long an open alert has lasted. Alerts with no
+// health record also show their title, since nothing else names the problem.
+func writeDigestIncident(b *strings.Builder, now time.Time, state incidentState, withTitle bool) {
+	if withTitle {
+		title := state.Title
+		if title == "" {
+			title = state.Fingerprint
+		}
+		fmt.Fprintf(b, "\n   %s", title)
+	}
+	firstSeen := state.FirstSeen
+	if firstSeen == 0 {
+		firstSeen = state.LastSeen
+	}
+	fmt.Fprintf(b, "\n   告警已持续 %s，共触发 %d 次，最近一次：%s",
+		formatDigestAge(now.Sub(time.Unix(firstSeen, 0))),
+		state.Occurrences,
+		formatDigestAgo(now.Sub(time.Unix(state.LastSeen, 0))))
 }
 
 // lookupDigestStatus shows a status this file does not know verbatim and
@@ -1027,10 +1149,14 @@ func digestHeadline(lines []digestLine) string {
 }
 
 func formatDigestWhen(age time.Duration) string {
+	return formatDigestAgo(age) + "更新"
+}
+
+func formatDigestAgo(age time.Duration) string {
 	if age < time.Minute {
-		return "刚刚更新"
+		return "刚刚"
 	}
-	return formatDigestAge(age) + "前更新"
+	return formatDigestAge(age) + "前"
 }
 
 func formatDigestCadence(cadence time.Duration) string {
@@ -1048,6 +1174,9 @@ func formatDigestCadence(cadence time.Duration) string {
 // minutes under an hour, hours and minutes under a day, then days and hours.
 func formatDigestAge(d time.Duration) string {
 	d = d.Truncate(time.Minute)
+	if d < 0 {
+		d = 0
+	}
 	switch {
 	case d < time.Hour:
 		return fmt.Sprintf("%d 分钟", int(d/time.Minute))
