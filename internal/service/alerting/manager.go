@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -969,16 +970,33 @@ const (
 
 func digestClaimKey(day string) string { return "lazu:alerts:digest:v1:" + day }
 
+// digestDeliveredRetryDelays spread the delivery record over about two
+// minutes, well inside the ten-minute sending hold, so a brief Redis outage
+// right after Feishu accepted the digest does not let another replica send
+// it again.
+var digestDeliveredRetryDelays = []time.Duration{5 * time.Second, 15 * time.Second, 30 * time.Second, 60 * time.Second}
+
+var digestRetrySleep = time.Sleep
+
 func markDigestDelivered(now time.Time) {
 	if !common.RedisEnabled || common.RDB == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := common.RDB.Set(ctx, digestClaimKey(now.Format("2006-01-02")), "sent", digestDeliveredTTL).Err(); err != nil {
-		// This process remembers the day locally; another replica may send
-		// again once the short hold expires.
-		common.SysError("alerting: failed to record digest delivery: " + err.Error())
+	key := digestClaimKey(now.Format("2006-01-02"))
+	var err error
+	for attempt := 0; ; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		err = common.RDB.Set(ctx, key, "sent", digestDeliveredTTL).Err()
+		cancel()
+		if err == nil || attempt >= len(digestDeliveredRetryDelays) {
+			break
+		}
+		digestRetrySleep(digestDeliveredRetryDelays[attempt])
+	}
+	if err != nil {
+		// This process still remembers the day locally; another replica may
+		// send again once the short hold expires.
+		common.SysError("alerting: failed to record digest delivery after retries: " + err.Error())
 	}
 }
 
@@ -1049,6 +1067,10 @@ var digestTaskExpected = func(key string) bool {
 		return common.UsingPostgreSQL && common.AppConfig.ArtifactStorage.S3.IsConfigured()
 	case "archive-compactor":
 		return common.AppConfig.ArtifactStorage.S3.IsConfigured()
+	case "relay-zero-token":
+		// Only the separate worker runs this monitor; an all-in-one API
+		// does not schedule it.
+		return common.ResolveProcessRole(os.Getenv("PROCESS_ROLE")) != common.ProcessRoleAllInOne
 	default:
 		return true
 	}

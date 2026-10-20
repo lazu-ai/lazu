@@ -246,6 +246,17 @@ func TestDailyDigestSkipsSnapshotsOfDisabledTasks(t *testing.T) {
 	}
 }
 
+func TestZeroTokenMonitorIsExpectedOnlyWithASeparateWorker(t *testing.T) {
+	t.Setenv("PROCESS_ROLE", "all-in-one")
+	if digestTaskExpected("relay-zero-token") {
+		t.Fatal("an all-in-one API never schedules the zero-token monitor")
+	}
+	t.Setenv("PROCESS_ROLE", "api")
+	if !digestTaskExpected("relay-zero-token") {
+		t.Fatal("a split deployment runs the monitor in its worker")
+	}
+}
+
 func TestUploadCadenceFollowsConfiguredSchedule(t *testing.T) {
 	previous := common.AppConfig.Upload.Schedule
 	defer func() { common.AppConfig.Upload.Schedule = previous }()
@@ -656,6 +667,42 @@ func TestDigestClaimIsShortUntilDelivered(t *testing.T) {
 	markDigestDelivered(now)
 	if ttl := client.TTL(context.Background(), key).Val(); ttl < 24*time.Hour {
 		t.Fatalf("a delivered digest should hold the day, ttl=%s", ttl)
+	}
+}
+
+// failFirstCommands makes the first n Redis commands fail, as a brief outage.
+type failFirstCommands struct{ remaining int }
+
+func (h *failFirstCommands) BeforeProcess(ctx context.Context, _ redis.Cmder) (context.Context, error) {
+	if h.remaining > 0 {
+		h.remaining--
+		return ctx, errors.New("redis briefly unavailable")
+	}
+	return ctx, nil
+}
+func (h *failFirstCommands) AfterProcess(context.Context, redis.Cmder) error { return nil }
+func (h *failFirstCommands) BeforeProcessPipeline(ctx context.Context, _ []redis.Cmder) (context.Context, error) {
+	return ctx, nil
+}
+func (h *failFirstCommands) AfterProcessPipeline(context.Context, []redis.Cmder) error { return nil }
+
+func TestDigestDeliveryRecordRetriesThroughABriefOutage(t *testing.T) {
+	client := alertingTestRedis(t)
+	previousSleep := digestRetrySleep
+	var slept []time.Duration
+	digestRetrySleep = func(d time.Duration) { slept = append(slept, d) }
+	t.Cleanup(func() { digestRetrySleep = previousSleep })
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	if !claimDigest(now) {
+		t.Fatal("first claim of the day should succeed")
+	}
+	client.AddHook(&failFirstCommands{remaining: 2})
+	markDigestDelivered(now)
+	if got := client.Get(context.Background(), digestClaimKey("2026-10-20")).Val(); got != "sent" {
+		t.Fatalf("delivery should be recorded once Redis is back, got %q after sleeping %v", got, slept)
+	}
+	if len(slept) != 2 {
+		t.Fatalf("expected two retries, slept %v", slept)
 	}
 }
 
