@@ -13,11 +13,14 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/types"
 )
 
 type Pricing struct {
 	ImagePricing              *billing.ImagePrices           `json:"image_pricing,omitempty"`
+	VideoPricing              *billing.VideoPrices           `json:"video_pricing,omitempty"`
+	VideoCapabilities         *dto.VideoCapabilities         `json:"video_capabilities,omitempty"`
 	ModelName                 string                         `json:"model_name"`
 	Description               string                         `json:"description,omitempty"`
 	DescriptionEn             string                         `json:"description_en,omitempty"`
@@ -106,6 +109,7 @@ func (price ModelSellPrice) ContextTier() *ContextTierPrice {
 
 type PricingLane struct {
 	ImagePricing        *billing.ImagePrices `json:"image_pricing,omitempty"`
+	VideoPricing        *billing.VideoPrices `json:"video_pricing,omitempty"`
 	ModelName           string               `json:"model_name"`
 	ChannelGroup        string               `json:"channel_group"`
 	InputPerMtok        *float64             `json:"input_per_mtok,omitempty"`
@@ -392,6 +396,8 @@ func updatePricingFromCore() error {
 	// 污染同协议下其他模型的 catalog 展示。
 	supportedEndpointMap = buildSupportedEndpointMap(modelSupportEndpointTypes)
 
+	setModelVideoCapabilities(collectModelVideoCapabilities(metaMap, modelSupportEndpointTypes))
+
 	today := time.Now().Format("2006-01-02")
 	pricingMap = make([]Pricing, 0)
 	for model, groups := range modelGroupsMap {
@@ -429,6 +435,7 @@ func updatePricingFromCore() error {
 		pricing.OfficialContextTier = meta.OfficialContextTier.Price()
 		pricing.DeprecationDate = meta.DeprecationDate
 		pricing.InternalVendorID = meta.VendorID
+		pricing.VideoCapabilities = publicVideoCapabilities(model, modelSupportEndpointTypes[model])
 		if vendor, ok := vendorMap[meta.VendorID]; ok {
 			pricing.VendorID = vendor.PublicID
 			pricing.OwnerBy = vendor.Name
@@ -539,6 +546,7 @@ func (pricing *Pricing) applyModelSellPrice(sellPrice ModelSellPrice) {
 	pricing.ImageInputPerMtok = sellPrice.ImageInputPerMtok
 	pricing.ImageOutputPerMtok = sellPrice.ImageOutputPerMtok
 	pricing.ImagePricing = sellPrice.ImagePricing
+	pricing.VideoPricing = sellPrice.VideoPricing
 	pricing.RequestUSD = sellPrice.RequestUSD
 	pricing.SecondUSD = sellPrice.SecondUSD
 	pricing.PeakHoursUTC = sellPrice.PeakHoursUTC
@@ -546,7 +554,7 @@ func (pricing *Pricing) applyModelSellPrice(sellPrice ModelSellPrice) {
 	pricing.PricingVersion = sellPrice.PricingVersion
 	pricing.ContextTier = sellPrice.ContextTier()
 	pricing.PricingSource = sellPrice.Source
-	if (sellPrice.RequestUSD != nil || sellPrice.SecondUSD != nil) && sellPrice.InputPerMtok == nil {
+	if (sellPrice.RequestUSD != nil || sellPrice.SecondUSD != nil || !sellPrice.VideoPricing.IsEmpty()) && sellPrice.InputPerMtok == nil {
 		pricing.QuotaType = 1
 	}
 	if sellPrice.InputPerMtok != nil {
@@ -578,7 +586,8 @@ func pricingHasConfiguredPrice(pricing Pricing) bool {
 		pricing.ImageInputPerMtok != nil ||
 		pricing.ImageOutputPerMtok != nil ||
 		pricing.RequestUSD != nil ||
-		pricing.SecondUSD != nil {
+		pricing.SecondUSD != nil ||
+		!pricing.VideoPricing.IsEmpty() {
 		return true
 	}
 	for _, lane := range pricing.Lanes {
@@ -649,6 +658,7 @@ func modelSellPriceToPricingLane(row ModelSellPrice) PricingLane {
 		ImageInputPerMtok:   row.ImageInputPerMtok,
 		ImageOutputPerMtok:  row.ImageOutputPerMtok,
 		ImagePricing:        row.ImagePricing,
+		VideoPricing:        row.VideoPricing,
 		RequestUSD:          row.RequestUSD,
 		SecondUSD:           row.SecondUSD,
 		PeakHoursUTC:        row.PeakHoursUTC,

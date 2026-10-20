@@ -31,6 +31,13 @@ const (
 
 	MediaJobProviderSubmissionIndeterminateSnapshotKey = "_provider_submission_indeterminate"
 	MediaJobProviderArtifactRecoverySnapshotKey        = "_provider_artifact_recovery"
+	// MediaJobProviderFactsSnapshotKey holds what the provider reported at
+	// the terminal state; the estimate key holds what the submission priced.
+	MediaJobProviderFactsSnapshotKey         = "_provider_facts"
+	MediaJobProviderFactsEstimateSnapshotKey = "_provider_facts_estimate"
+	// MediaJobVideoFamilySnapshotKey pins the upstream family the submission
+	// used, so the worker polls the same way even when the model was mapped.
+	MediaJobVideoFamilySnapshotKey = "_video_family"
 )
 
 var ErrMediaJobAlreadyCompleted = errors.New("media job already completed")
@@ -625,6 +632,11 @@ func (job MediaJob) ToDTO(includeRequest bool) dto.MediaJobObject {
 	}
 	if len(job.CostSnapshot) > 0 {
 		out.CostSnapshot = publicMediaJobCost(job.CostSnapshot)
+	}
+	if job.Kind == MediaJobKindVideo {
+		if facts, ok := mediaJobSnapshotFacts(job, MediaJobProviderFactsSnapshotKey); ok {
+			out.Usage = facts.Public()
+		}
 	}
 	return out
 }

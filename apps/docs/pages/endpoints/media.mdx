@@ -30,12 +30,12 @@ Use `POST /v1/images/generations` for both generation and editing. Send referenc
 
 Published standard prices at launch (USD; the authenticated catalog is authoritative for your current price):
 
-| Model | USD / successful output |
-| --- | --- |
-| `seedream-5.0-flash` | $0.018 |
-| `seedream-5.0-lite` | $0.035 |
-| `seedream-4.5` | $0.040 |
-| `seedream-5.0-pro` | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
+| Model                | USD / successful output                                  |
+| -------------------- | -------------------------------------------------------- |
+| `seedream-5.0-flash` | $0.018                                                   |
+| `seedream-5.0-lite`  | $0.035                                                   |
+| `seedream-4.5`       | $0.040                                                   |
+| `seedream-5.0-pro`   | $0.045 (≤ 2,610,000 pixels), $0.090 (> 2,610,000 pixels) |
 
 For Pro decomposition, every returned image **including the base image** costs $0.0225 at ≤ 2,610,000 pixels or $0.045 above that threshold. Pro's first reference is free; each additional reference costs $0.003 per successful request. References are free on Flash, Lite and 4.5. Flash decomposition uses its normal $0.018 per returned image. Successful images alone are charged, even if a batch is incomplete; failed or moderated outputs are not charged. `data[].size` determines each image's pixel tier. Output tokens reported by the provider are not an additional token charge.
 
@@ -49,7 +49,7 @@ Lite/4.5 support `sequential_image_generation: "auto"` with `max_images`. Refere
   "prompt": "Create two matching blue ceramic cup designs",
   "size": "2K",
   "sequential_image_generation": "auto",
-  "sequential_image_generation_options": {"max_images": 2}
+  "sequential_image_generation_options": { "max_images": 2 }
 }
 ```
 
@@ -58,7 +58,6 @@ For Pro/Flash layers, send `layer_decomposition: true`, exactly one `image`, and
 Prices are exposed in `pricing.image_pricing` (also per lane): `output_usd`, `pixel_threshold`, `high_resolution_output_usd`, `layer_usd`, `high_resolution_layer_usd`, `reference_usd`, `free_references`. Reconcile the returned `usage.cost` and `usage.generated_images` using the request's usage record. The gateway reserves the maximum possible charge first, then settles successful outputs at their actual sizes; keep enough key/project balance for that reservation.
 
 Official references: [image API](https://docs.byteplus.com/en/docs/modelark/image-generation-api), [pricing](https://docs.byteplus.com/en/docs/modelark/model-pricing).
-
 
 ## Submit and poll a video
 
@@ -101,6 +100,26 @@ else:
     print("Still waiting; resume GET for job:", job_id)
 # A local timeout does not cancel the remote job. Keep job_id for later GETs.
 ```
+
+### Clip length, resolution, frames and references
+
+Every video model publishes what it takes in the [model catalog](/models/catalog): the clip lengths, resolution tiers, aspect ratios and inputs it accepts. Send `seconds`, `resolution` (`480p`, `720p`, `1080p`, `4k`) and `aspect_ratio` (`16:9`, `9:16`, …); `size` as `WIDTHxHEIGHT` is accepted as a shorthand for both. A value the model does not take is refused with HTTP 400 before any charge, and the error names the values it accepts.
+
+Image-to-video takes `frame_images`, each with a `url` and a `frame_type` of `first_frame` or `last_frame`. Models that take reference material take `input_references`, each with a `url` and a `type` of `image`, `video` or `audio`. `generate_audio` asks for synchronized audio on models that make it, and `seed` fixes the random seed. Fields the catalog lists as provider options pass through unchanged.
+
+```python
+response = requests.post(origin + "/v1/videos", headers=headers, json={
+    "model": os.environ["LAZU_VIDEO_MODEL"],
+    "prompt": "The fox turns toward the camera as the wind moves her fur",
+    "seconds": 5,
+    "resolution": "720p",
+    "aspect_ratio": "16:9",
+    "generate_audio": True,
+    "frame_images": [{"url": "https://example.com/first.png", "frame_type": "first_frame"}],
+}, timeout=180)
+```
+
+A succeeded job carries `usage` with what the provider reported: `seconds`, `resolution`, `fps` and, for token-billed models such as Seedance, `output_tokens`. The charge on `cost_snapshot` follows that report, so a clip that comes back shorter or longer than asked is billed as delivered, at the prices in effect when the job was submitted. A report that leaves out a dimension keeps the submission's estimate for it, and a report that would charge more than twice the amount held at submission is billed at the held amount.
 
 ## Generate speech or transcribe audio
 

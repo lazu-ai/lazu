@@ -18,11 +18,15 @@ type Usage struct {
 	ImageOutputTokens  int64
 	RequestCount       int64
 	Seconds            int64
-	ExtraLineItems     []LineItem
+	// Video prices a video generation; when set it replaces the flat Seconds
+	// line (see videoLines).
+	Video          *VideoUsage
+	ExtraLineItems []LineItem
 }
 
 type PriceSheet struct {
 	Images                      *ImagePrices
+	Video                       *VideoPrices
 	ModelName                   string
 	InputPerMtokMicrousd        *MicroUSD
 	OutputPerMtokMicrousd       *MicroUSD
@@ -224,7 +228,13 @@ func Quote(usage Usage, price PriceSheet, adjustments []Adjustment) QuoteResult 
 	addTokenLine("image_input", usage.ImageInputTokens, price.ImageInputPerMtokMicrousd)
 	addTokenLine("image_output", usage.ImageOutputTokens, price.ImageOutputPerMtokMicrousd)
 	addUnitLine("request", usage.RequestCount, price.RequestMicrousd)
-	addUnitLine("second", usage.Seconds, price.SecondMicrousd)
+	if usage.Video != nil {
+		videoItems, videoMissing := videoLines(usage.Video, price)
+		lineItems = append(lineItems, videoItems...)
+		missingPriceDimensions = append(missingPriceDimensions, videoMissing...)
+	} else {
+		addUnitLine("second", usage.Seconds, price.SecondMicrousd)
+	}
 	imageItems, imageMissing := imageLines(usage.Images, price.Images)
 	lineItems = append(lineItems, imageItems...)
 	missingPriceDimensions = append(missingPriceDimensions, imageMissing...)

@@ -25,6 +25,7 @@ const (
 	DimensionImageGeneration = "image_generation_call"
 	DimensionImageCount      = "image_count"
 	DimensionVideoSeconds    = "video_seconds"
+	DimensionVideoTokens     = "video_output_tokens"
 	UnitToken                = "token"
 	UnitRequest              = "request"
 	UnitSecond               = "second"

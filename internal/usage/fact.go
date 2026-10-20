@@ -67,6 +67,13 @@ type MediaUnits struct {
 	VideoSeconds   int64  `json:"video_seconds,omitempty"`
 	ResolutionTier string `json:"resolution_tier,omitempty"`
 	ProviderUnit   string `json:"provider_unit,omitempty"`
+	// Video facts the provider reported: its own token count (Ark), the
+	// price it charged (aggregators), frame rate and whether audio was made.
+	OutputTokens    int64    `json:"output_tokens,omitempty"`
+	ReportedCostUSD *float64 `json:"reported_cost_usd,omitempty"`
+	FPS             int      `json:"fps,omitempty"`
+	Audio           bool     `json:"audio,omitempty"`
+	Reported        bool     `json:"reported,omitempty"`
 }
 
 func FactFromDTO(usage *dto.Usage) Fact {
@@ -322,7 +329,11 @@ func (f Fact) Normalize() Fact {
 			f.ensureDimensionAtLeast(DimensionVideoSeconds, f.MediaUnits.VideoSeconds, UnitSecond)
 			f.ensureDimensionAtLeast(DimensionSecond, f.MediaUnits.VideoSeconds, UnitSecond)
 		}
-		if f.MediaUnits.ImageCount <= 0 && f.MediaUnits.VideoSeconds <= 0 && f.MediaUnits.ResolutionTier == "" && f.MediaUnits.ProviderUnit == "" {
+		if f.MediaUnits.OutputTokens > 0 {
+			f.ensureDimensionAtLeast(DimensionVideoTokens, f.MediaUnits.OutputTokens, UnitToken)
+		}
+		if f.MediaUnits.ImageCount <= 0 && f.MediaUnits.VideoSeconds <= 0 && f.MediaUnits.ResolutionTier == "" &&
+			f.MediaUnits.ProviderUnit == "" && f.MediaUnits.OutputTokens <= 0 && f.MediaUnits.ReportedCostUSD == nil {
 			f.MediaUnits = nil
 		}
 	}

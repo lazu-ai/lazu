@@ -131,7 +131,12 @@ func settleRedisMediaJob(job MediaJob, now time.Time) (MediaJobBillingResult, er
 		return MediaJobBillingResult{}, err
 	}
 	amount := billing.MicroUSD(input.Amount)
-	result := mediaJobBillingResultFromReservation(job, amount)
+	admittedAt := input.OccurredAt
+	if admittedAt.IsZero() {
+		admittedAt = mediaJobBudgetOccurredAt(job, now)
+	}
+	// The ledger finishes above or below the hold when the result differs.
+	result := settlementMediaJobBilling(job, mediaJobBillingResultFromReservation(job, amount), amount, input.PricingVersion, admittedAt)
 	result.CostSnapshot = buildMediaJobCostSnapshot(result)
 	if job.BillingSettledAt > 0 {
 		result.AlreadySettled = true

@@ -273,6 +273,8 @@ Lazu 側の問題（一時的に壊れたモデルルートなど）を表すエ
 | <a id="lz-7112"></a>`LZ-7112` | `dispute_still_open` | 409 | `conflict_error` | Stripe はまだこの結果で異議申し立てを終了していません。Stripe で終了してから結果を記録してください。 |
 | <a id="lz-7113"></a>`LZ-7113` | `dispute_resolution_failed` | 409 | `conflict_error` | このチャージの異議申し立ての結果を記録できませんでした。チャージ ID と異議申し立て ID を確認してください。 |
 | <a id="lz-7114"></a>`LZ-7114` | `payment_document_reconcile_failed` | 503 | `api_error` | このチャージの請求書と領収書を Stripe と照合できませんでした。しばらくしてからもう一度お試しください。 |
+| <a id="lz-7115"></a>`LZ-7115` | `auto_reload_settings_invalid` | 400 | `invalid_request_error` | 自動チャージの金額は整数ドルで指定します。残高ラインは $1 以上、1 回の金額はチャージ範囲内、月間上限は 1 回分以上にしてください。 |
+| <a id="lz-7116"></a>`LZ-7116` | `auto_reload_card_required` | 409 | `conflict_error` | 自動チャージを有効にする前にカードを保存してください。保存時に請求は発生しません。 |
 | <a id="lz-7121"></a>`LZ-7121` | `referral_unavailable` | 500 | `invalid_request_error` | 紹介記録を取得できません。後でもう一度お試しください。 |
 | <a id="lz-7122"></a>`LZ-7122` | `referral_code_invalid` | 400 | `invalid_request_error` | 3〜20 文字の英小文字・数字・ハイフンを使ってください。先頭と末尾にハイフンは使えません。 |
 | <a id="lz-7123"></a>`LZ-7123` | `referral_code_reserved` | 400 | `invalid_request_error` | この名前は使えません。別の名前をお試しください。 |

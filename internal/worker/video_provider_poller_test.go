@@ -10,57 +10,12 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
-	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/setting/system_setting"
 	"github.com/lazu-ai/lazu/pkg/billing"
 	"gorm.io/gorm"
 )
-
-func TestParseOpenAIVideoStatus(t *testing.T) {
-	pending := parseOpenAIVideoStatus(map[string]any{"status": "in_progress"})
-	if pending.State != model.MediaJobStatusRunning {
-		t.Fatalf("expected running state, got %+v", pending)
-	}
-
-	completed := parseOpenAIVideoStatus(map[string]any{
-		"status": "completed",
-		"video":  map[string]any{"url": "https://cdn.example.com/video.mp4"},
-	})
-	if completed.State != model.MediaJobStatusSucceeded || completed.ArtifactURL == "" {
-		t.Fatalf("expected completed artifact, got %+v", completed)
-	}
-
-	failed := parseOpenAIVideoStatus(map[string]any{
-		"status": "failed",
-		"error":  map[string]any{"code": "moderation_blocked", "message": "blocked"},
-	})
-	if failed.State != model.MediaJobStatusFailed || failed.ErrorCode != "moderation_blocked" {
-		t.Fatalf("expected failed state, got %+v", failed)
-	}
-}
-
-func TestParseGeminiVideoStatus(t *testing.T) {
-	pending := parseGeminiVideoStatus(map[string]any{"done": false})
-	if pending.State != model.MediaJobStatusRunning {
-		t.Fatalf("expected running state, got %+v", pending)
-	}
-
-	completed := parseGeminiVideoStatus(map[string]any{
-		"done": true,
-		"response": map[string]any{
-			"generateVideoResponse": map[string]any{
-				"generatedSamples": []any{
-					map[string]any{"video": map[string]any{"uri": "https://example.com/video.mp4"}},
-				},
-			},
-		},
-	})
-	if completed.State != model.MediaJobStatusSucceeded || completed.ArtifactURL != "https://example.com/video.mp4" {
-		t.Fatalf("expected Gemini artifact, got %+v", completed)
-	}
-}
 
 func TestPermanentVideoProviderPollStatuses(t *testing.T) {
 	for _, statusCode := range []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden} {
@@ -205,28 +160,6 @@ func TestIndeterminateVideoSubmissionEventuallyTimesOut(t *testing.T) {
 	}
 }
 
-func TestVideoProviderStatusURLUsesCustomTemplate(t *testing.T) {
-	settings, err := common.Marshal(dto.ChannelOtherSettings{
-		VideoStatusURLTemplate: "/jobs/{id}",
-	})
-	if err != nil {
-		t.Fatalf("marshal settings: %v", err)
-	}
-	baseURL := "https://video.example.com/generate"
-	channel := &model.Channel{
-		Type:          constant.ChannelTypeCustom,
-		BaseURL:       &baseURL,
-		OtherSettings: string(settings),
-	}
-	got, err := videoProviderStatusURL(model.MediaJob{UpstreamJobID: "job/42"}, channel)
-	if err != nil {
-		t.Fatalf("videoProviderStatusURL error: %v", err)
-	}
-	if got != "https://video.example.com/jobs/job%2F42" {
-		t.Fatalf("unexpected custom status url: %s", got)
-	}
-}
-
 func TestAcceptedCustomVideoWaitsForPollingTemplate(t *testing.T) {
 	db := setupMediaJobWorkerTestDB(t)
 	seedWorkerMediaJobUserAndFile(t, db)
@@ -269,67 +202,6 @@ func TestAcceptedCustomVideoWaitsForPollingTemplate(t *testing.T) {
 		stored.CompletedAt != 0 ||
 		stored.NextPollAt <= now.Unix() {
 		t.Fatalf("accepted custom video was terminalized before configuration: %+v", stored)
-	}
-}
-
-func TestVideoProviderURLsPreserveCloudflareGatewayPath(t *testing.T) {
-	baseURL := "https://gateway.ai.cloudflare.com/account/gateway/openai"
-	channel := &model.Channel{
-		Type:    constant.ChannelTypeOpenAI,
-		BaseURL: &baseURL,
-	}
-	job := model.MediaJob{UpstreamJobID: "video/42"}
-	statusURL, err := videoProviderStatusURL(job, channel)
-	if err != nil {
-		t.Fatalf("videoProviderStatusURL error: %v", err)
-	}
-	if statusURL != "https://gateway.ai.cloudflare.com/account/gateway/openai/videos/video%2F42" {
-		t.Fatalf("Cloudflare status URL lost gateway convention: %s", statusURL)
-	}
-	contentURL, authenticated, err := videoProviderArtifactDownloadURL(job, channel, "")
-	if err != nil {
-		t.Fatalf("videoProviderArtifactDownloadURL error: %v", err)
-	}
-	if !authenticated ||
-		contentURL != "https://gateway.ai.cloudflare.com/account/gateway/openai/videos/video%2F42/content" {
-		t.Fatalf("Cloudflare content URL lost gateway convention: url=%s authenticated=%v", contentURL, authenticated)
-	}
-}
-
-func TestResolveVideoProviderURLKeepsConfiguredBasePath(t *testing.T) {
-	got, err := resolveVideoProviderURL(
-		"https://video.example.com/api/v1",
-		"jobs/123",
-	)
-	if err != nil {
-		t.Fatalf("resolveVideoProviderURL error: %v", err)
-	}
-	if got != "https://video.example.com/api/v1/jobs/123" {
-		t.Fatalf("relative provider URL escaped the configured base path: %s", got)
-	}
-	rootRelative, err := resolveVideoProviderURL(
-		"https://video.example.com/api/v1",
-		"/jobs/123",
-	)
-	if err != nil {
-		t.Fatalf("resolve root-relative provider URL: %v", err)
-	}
-	if rootRelative != "https://video.example.com/jobs/123" {
-		t.Fatalf("root-relative provider URL should remain origin-relative: %s", rootRelative)
-	}
-}
-
-func TestVideoProviderStatusURLRejectsExternalGeminiOperation(t *testing.T) {
-	baseURL := "https://generativelanguage.googleapis.com"
-	channel := &model.Channel{
-		Type:    constant.ChannelTypeGemini,
-		BaseURL: &baseURL,
-	}
-	_, err := videoProviderStatusURL(model.MediaJob{
-		UpstreamJobID: "https://attacker.example/operations/42",
-	}, channel)
-	if err == nil {
-		t.Fatal("expected external Gemini operation url to be rejected")
 	}
 }
 
@@ -431,41 +303,6 @@ func TestMediaJobProviderKeyRejectsMissingMultiKeyIndex(t *testing.T) {
 	}
 	if _, err := mediaJobProviderKey(model.MediaJob{RequestSnapshot: model.JSONValue(`{}`)}, channel); err == nil {
 		t.Fatal("expected polling to fail instead of switching provider credentials")
-	}
-}
-
-func TestVideoProviderArtifactDownloadURLDoesNotAuthenticateExternalOrigin(t *testing.T) {
-	baseURL := "https://api.example.com"
-	channel := &model.Channel{BaseURL: &baseURL}
-	job := model.MediaJob{UpstreamJobID: "job-1"}
-
-	external, authenticated, err := videoProviderArtifactDownloadURL(job, channel, "https://cdn.example.net/video.mp4")
-	if err != nil {
-		t.Fatalf("external artifact url error: %v", err)
-	}
-	if external != "https://cdn.example.net/video.mp4" || authenticated {
-		t.Fatalf("external artifact should not receive provider auth: url=%s authenticated=%v", external, authenticated)
-	}
-
-	internal, authenticated, err := videoProviderArtifactDownloadURL(job, channel, "/artifacts/video.mp4")
-	if err != nil {
-		t.Fatalf("same-origin artifact url error: %v", err)
-	}
-	if internal != "https://api.example.com/artifacts/video.mp4" || !authenticated {
-		t.Fatalf("same-origin artifact should keep provider auth: url=%s authenticated=%v", internal, authenticated)
-	}
-}
-
-func TestSetVideoProviderHeadersExpandsAPIKeyPlaceholder(t *testing.T) {
-	override := `{"X-Provider-Key":"Key {api_key}"}`
-	channel := &model.Channel{
-		Type:           constant.ChannelTypeCustom,
-		HeaderOverride: &override,
-	}
-	header := http.Header{}
-	setVideoProviderHeaders(header, "provider-secret", channel)
-	if got := header.Get("X-Provider-Key"); got != "Key provider-secret" {
-		t.Fatalf("header override did not expand api key placeholder: %q", got)
 	}
 }
 
@@ -925,5 +762,34 @@ func TestCompletedVideoBillingSettlementFailureIsRetried(t *testing.T) {
 	}
 	if reservationCount != 0 {
 		t.Fatalf("successful retry retained spend reservation: %d", reservationCount)
+	}
+}
+
+func TestVideoDriverForPrefersPinnedFamily(t *testing.T) {
+	baseURL := "https://gateway.example/ark/api/v3"
+	channel := &model.Channel{Type: constant.ChannelTypeOpenAI, Key: "k", BaseURL: &baseURL}
+	// The customer-facing name says nothing about Seedance; the submission
+	// went through the Ark family after model mapping and pinned it.
+	job := model.MediaJob{ModelName: "video-pro", RequestSnapshot: model.JSONValue(`{"_video_family":"ark"}`)}
+	driver, _, err := videoDriverFor(job, channel)
+	if err != nil || driver.Family() != "ark" {
+		t.Fatalf("pinned family: %v %v", driver, err)
+	}
+	unpinned := model.MediaJob{ModelName: "video-pro", RequestSnapshot: model.JSONValue(`{}`)}
+	driver, _, err = videoDriverFor(unpinned, channel)
+	if err != nil || driver.Family() != "gateway" {
+		t.Fatalf("unpinned falls back to the name rule: %v %v", driver, err)
+	}
+}
+
+func TestVideoDriverForKeepsLegacyFamilyForUnpinnedSeedanceJobs(t *testing.T) {
+	baseURL := "https://gateway.example/v1"
+	channel := &model.Channel{Type: constant.ChannelTypeOpenAI, Key: "k", BaseURL: &baseURL}
+	// Submitted before families were pinned: it went out OpenAI-shaped, so
+	// the poll must not switch to the Ark path because of the model name.
+	job := model.MediaJob{ModelName: "doubao-seedance-1-5-pro-251215", RequestSnapshot: model.JSONValue(`{}`)}
+	driver, _, err := videoDriverFor(job, channel)
+	if err != nil || driver.Family() != "gateway" {
+		t.Fatalf("legacy job family: %v %v", driver, err)
 	}
 }

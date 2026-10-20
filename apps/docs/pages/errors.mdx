@@ -287,6 +287,8 @@ message; the cause is recorded against the request ID.
 | <a id="lz-7112"></a>`LZ-7112` | `dispute_still_open` | 409 | `conflict_error` | Stripe hasn't closed this dispute with that outcome yet. Record the outcome after Stripe closes it. |
 | <a id="lz-7113"></a>`LZ-7113` | `dispute_resolution_failed` | 409 | `conflict_error` | The dispute outcome could not be recorded for this top-up. Check the top-up and dispute ID. |
 | <a id="lz-7114"></a>`LZ-7114` | `payment_document_reconcile_failed` | 503 | `api_error` | The invoice and receipt could not be reconciled with Stripe. Try again later. |
+| <a id="lz-7115"></a>`LZ-7115` | `auto_reload_settings_invalid` | 400 | `invalid_request_error` | Auto-reload amounts must be whole dollars: the threshold at least $1, each reload within the top-up range, and the monthly cap at least one reload. |
+| <a id="lz-7116"></a>`LZ-7116` | `auto_reload_card_required` | 409 | `conflict_error` | Save a card before turning auto-reload on. Nothing is charged while saving it. |
 | <a id="lz-7121"></a>`LZ-7121` | `referral_unavailable` | 500 | `invalid_request_error` | Referral details are temporarily unavailable. Retry later. |
 | <a id="lz-7122"></a>`LZ-7122` | `referral_code_invalid` | 400 | `invalid_request_error` | Use 3–20 lowercase letters, digits or hyphens, not starting or ending with a hyphen. |
 | <a id="lz-7123"></a>`LZ-7123` | `referral_code_reserved` | 400 | `invalid_request_error` | That name isn't available. Try another. |

@@ -3932,6 +3932,10 @@ components:
         aspect_ratio:
           type: string
           example: "16:9"
+        resolution:
+          type: string
+          description: Resolution tier (480p, 720p, 1080p, 4k). Also read from `quality` or a WIDTHxHEIGHT `size`.
+          example: 720p
         quality:
           type: string
           example: hd
@@ -3940,6 +3944,46 @@ components:
           enum:
             - url
             - b64_json
+        frame_images:
+          type: array
+          description: Image-to-video frames; the model's capabilities say which frame types it takes.
+          items:
+            type: object
+            required:
+              - url
+              - frame_type
+            properties:
+              url:
+                type: string
+                format: uri
+              frame_type:
+                type: string
+                enum:
+                  - first_frame
+                  - last_frame
+        input_references:
+          type: array
+          description: Reference material (images, videos, audio) for models that take it.
+          items:
+            type: object
+            required:
+              - url
+            properties:
+              url:
+                type: string
+                format: uri
+              type:
+                type: string
+                enum:
+                  - image
+                  - video
+                  - audio
+        generate_audio:
+          type: boolean
+          description: Generate synchronized audio when the model can.
+        seed:
+          type: integer
+          format: int64
         provider:
           type: string
           description: Optional provider hint.
@@ -4028,6 +4072,25 @@ components:
               type: array
               items:
                 type: object
+        usage:
+          type: object
+          description: What the provider reported about a finished video. Present on succeeded video jobs when the provider reports it.
+          properties:
+            seconds:
+              type: integer
+            resolution:
+              type: string
+              example: 720p
+            ratio:
+              type: string
+              example: "16:9"
+            fps:
+              type: integer
+            output_tokens:
+              type: integer
+              description: Provider video tokens for token-billed models (Seedance).
+            audio:
+              type: boolean
     MediaJobListResponse:
       type: object
       properties:

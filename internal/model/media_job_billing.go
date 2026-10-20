@@ -26,7 +26,16 @@ type MediaJobBillingResult struct {
 	CustomerCharge          billing.MicroUSD
 	ProviderCost            billing.MicroUSD
 	AlreadySettled          bool
+	// RequoteCapped is set when the provider's report priced the job above
+	// mediaJobRequoteMaxFactor times its hold; the hold was settled instead.
+	RequoteCapped         bool
+	RequoteQuotedMicrousd billing.MicroUSD
 }
+
+// mediaJobRequoteMaxFactor bounds how far a provider's report may move a
+// settlement above its hold. A report beyond it (a cost in the wrong unit, a
+// runaway token count) settles at the hold and the operator is told.
+const mediaJobRequoteMaxFactor = 2
 
 var ErrMediaJobPriceNotConfigured = errors.New("media job price not configured")
 var ErrMediaJobDurationRequired = errors.New("media job duration required")
@@ -52,17 +61,21 @@ func SettleMediaJobBilling(job MediaJob, now time.Time) (MediaJobBillingResult, 
 	}
 	source := mediaJobSource(job)
 	reservedQuota := MediaJobBillingReservationAmount(job)
-	result, quoteErr := quoteMediaJobBilling(job)
+	var result MediaJobBillingResult
+	var quoteErr error
 	if reservedQuota > 0 {
 		verified, verificationErr := mediaJobBillingReservationActive(job, reservedQuota)
 		if verificationErr != nil {
-			return result, verificationErr
+			return mediaJobBillingResultFromReservation(job, reservedQuota), verificationErr
 		}
 		if !verified {
-			return result, ErrMediaJobBillingReservationUnverified
+			return mediaJobBillingResultFromReservation(job, reservedQuota), ErrMediaJobBillingReservationUnverified
 		}
-		result = mediaJobBillingResultFromReservation(job, reservedQuota)
-		quoteErr = nil
+		// The delta between this result and the hold settles below.
+		reserved := mediaJobBillingResultFromReservation(job, reservedQuota)
+		result = settlementMediaJobBilling(job, reserved, reservedQuota, reserved.CustomerQuote.PricingVersion, mediaJobBudgetOccurredAt(job, now))
+	} else {
+		result, quoteErr = quoteMediaJobBilling(job)
 	}
 	result.CostSnapshot = buildMediaJobCostSnapshot(result)
 	if quoteErr != nil {
@@ -225,18 +238,60 @@ func SettleMediaJobBilling(job MediaJob, now time.Time) (MediaJobBillingResult, 
 	return result, nil
 }
 
+// settlementMediaJobBilling decides what a held job settles at, on both
+// ledgers. The hold is final unless the provider reported a billing
+// dimension of its own (Ark tokens, an aggregator's cost, the delivered
+// length). Then the job is re-quoted on the sheet as it stood at admission,
+// and the fresh quote replaces the hold only when it prices every dimension,
+// comes from the same price version as the hold, is not zero against a real
+// hold, and stays within mediaJobRequoteMaxFactor of it.
+func settlementMediaJobBilling(job MediaJob, reserved MediaJobBillingResult, hold billing.MicroUSD, holdVersion int64, admittedAt time.Time) MediaJobBillingResult {
+	if !MediaJobHasReportedFacts(job) {
+		return reserved
+	}
+	quoted, err := quoteMediaJobBillingAt(job, admittedAt)
+	switch {
+	case err != nil || !quoted.CustomerPriceConfigured:
+		return reserved
+	case len(quoted.CustomerQuote.MissingPriceDimensions) > 0:
+		return reserved
+	case holdVersion == 0 || quoted.CustomerQuote.PricingVersion != holdVersion:
+		// The lane was repriced while the job ran; it pays what it was quoted.
+		return reserved
+	case hold > 0 && quoted.CustomerCharge <= 0:
+		return reserved
+	case hold > 0 && quoted.CustomerCharge > hold*mediaJobRequoteMaxFactor:
+		common.SysError(fmt.Sprintf("media job settled at its hold: job=%s model=%s hold_microusd=%d reported_microusd=%d", job.PublicID, job.ModelName, hold, quoted.CustomerCharge))
+		reserved.RequoteCapped = true
+		reserved.RequoteQuotedMicrousd = quoted.CustomerCharge
+		return reserved
+	}
+	if quoted.ChannelGroup == "" {
+		quoted.ChannelGroup = reserved.ChannelGroup
+	}
+	return quoted
+}
+
 func ReserveMediaJobBillingBeforeSubmit(job *MediaJob, now time.Time) (MediaJobBillingResult, error) {
 	if job == nil {
 		return MediaJobBillingResult{}, errors.New("media job is required")
 	}
 	now = normalizeMediaJobTime(now)
-	result, quoteErr := quoteMediaJobBilling(*job)
+	// Settlement re-quotes on the sheet as it stood at this admission.
+	result, quoteErr := quoteMediaJobBillingAt(*job, now)
 	result.CostSnapshot = buildMediaJobCostSnapshot(result)
 	if quoteErr != nil {
 		return result, quoteErr
 	}
 	if !result.CustomerPriceConfigured {
 		return result, fmt.Errorf("%w: model=%s group=%s", ErrMediaJobPriceNotConfigured, job.ModelName, result.ChannelGroup)
+	}
+	if job.Kind == MediaJobKindVideo && result.CustomerCharge <= 0 && len(result.CustomerQuote.MissingPriceDimensions) > 0 {
+		// The lane prices nothing of this estimate (a provider-cost lane
+		// without a per-second price, say), so the hold would be zero and the
+		// clip free whenever the provider leaves its cost out. A lane that is
+		// free on purpose has no missing dimension and still passes.
+		return result, fmt.Errorf("%w: model=%s group=%s missing=%s", ErrMediaJobPriceNotConfigured, job.ModelName, result.ChannelGroup, strings.Join(result.CustomerQuote.MissingPriceDimensions, ","))
 	}
 	if modernMediaBilling() {
 		return reserveRedisMediaJob(job, result, now)
@@ -770,6 +825,12 @@ func markMediaJobBillingSettledTx(tx *gorm.DB, jobID uint, result MediaJobBillin
 }
 
 func quoteMediaJobBilling(job MediaJob) (MediaJobBillingResult, error) {
+	return quoteMediaJobBillingAt(job, time.Now())
+}
+
+// quoteMediaJobBillingAt prices the job on the sell price sheet as it stood
+// at `at` (peak-hour adjustments are time-of-day dependent).
+func quoteMediaJobBillingAt(job MediaJob, at time.Time) (MediaJobBillingResult, error) {
 	channelID, channelGroup := mediaJobChannelContext(job)
 	usageFact := mediaJobUsageFact(job, channelID)
 	result := MediaJobBillingResult{
@@ -780,18 +841,18 @@ func quoteMediaJobBilling(job MediaJob) (MediaJobBillingResult, error) {
 	customerPriceConfigured := false
 	if sellPrice, ok := GetActiveModelSellPrice(job.ModelName, channelGroup); ok && mediaJobSellPriceSupportsJob(job, sellPrice) {
 		customerPriceConfigured = true
-		customerFact, err := mediaJobFactForPrice(job, usageFact, sellPrice.SecondUSD, true)
+		customerFact, err := mediaJobFactForPrice(job, usageFact, videoPriceModesOfSellPrice(sellPrice), true)
 		if err != nil {
 			result.CustomerPriceConfigured = true
 			return result, err
 		}
 		usageFact = customerFact
-		customerQuote = billing.Quote(billingUsageFromMediaFact(customerFact), sellPrice.ToBillingPriceSheet(), nil)
+		customerQuote = billing.Quote(billingUsageFromMediaFact(customerFact), sellPrice.ToBillingPriceSheetAt(at), nil)
 	}
 	providerQuote := billing.QuoteResult{}
 	if channelID > 0 {
 		if providerPrice, ok := GetActiveProviderCostPrice(job.ModelName, channelID); ok && mediaJobProviderCostSupportsJob(job, providerPrice) {
-			providerFact, err := mediaJobFactForPrice(job, result.UsageFact, providerPrice.SecondUSD, false)
+			providerFact, err := mediaJobFactForPrice(job, result.UsageFact, videoPriceModesOfProviderPrice(providerPrice), false)
 			if err != nil {
 				return result, err
 			}
@@ -822,10 +883,40 @@ func quoteMediaJobBilling(job MediaJob) (MediaJobBillingResult, error) {
 	return result, nil
 }
 
+// videoPriceModes says which video dimensions a price row can turn into money.
+type videoPriceModes struct {
+	seconds bool
+	tokens  bool
+	cost    bool
+	request bool
+}
+
+func (m videoPriceModes) any() bool { return m.seconds || m.tokens || m.cost || m.request }
+
+func videoPriceModesOfSellPrice(price ModelSellPrice) videoPriceModes {
+	video := price.VideoPricing
+	return videoPriceModes{
+		seconds: price.SecondUSD != nil || (video != nil && (video.SecondUSD != nil || len(video.ResolutionSecondUSD) > 0)),
+		tokens:  price.OutputPerMtok != nil,
+		cost:    video != nil && (video.ProviderCostAuthoritative || video.ProviderCostMultiplier != nil),
+		request: price.RequestUSD != nil,
+	}
+}
+
+func videoPriceModesOfProviderPrice(price ProviderCostPrice) videoPriceModes {
+	video := price.VideoPricing
+	return videoPriceModes{
+		seconds: price.SecondUSD != nil || (video != nil && (video.SecondUSD != nil || len(video.ResolutionSecondUSD) > 0)),
+		tokens:  price.OutputPerMtok != nil,
+		cost:    video != nil && (video.ProviderCostAuthoritative || video.ProviderCostMultiplier != nil),
+		request: price.RequestUSD != nil,
+	}
+}
+
 func mediaJobSellPriceSupportsJob(job MediaJob, price ModelSellPrice) bool {
 	switch job.Kind {
 	case MediaJobKindVideo:
-		return price.SecondUSD != nil || price.RequestUSD != nil
+		return videoPriceModesOfSellPrice(price).any()
 	case MediaJobKindImage:
 		return price.RequestUSD != nil
 	default:
@@ -836,7 +927,7 @@ func mediaJobSellPriceSupportsJob(job MediaJob, price ModelSellPrice) bool {
 func mediaJobProviderCostSupportsJob(job MediaJob, price ProviderCostPrice) bool {
 	switch job.Kind {
 	case MediaJobKindVideo:
-		return price.SecondUSD != nil || price.RequestUSD != nil
+		return videoPriceModesOfProviderPrice(price).any()
 	case MediaJobKindImage:
 		return price.RequestUSD != nil
 	default:
@@ -844,19 +935,42 @@ func mediaJobProviderCostSupportsJob(job MediaJob, price ProviderCostPrice) bool
 	}
 }
 
-func mediaJobFactForPrice(job MediaJob, fact usagepkg.Fact, secondUSD *float64, requireDuration bool) (usagepkg.Fact, error) {
+// mediaJobFactForPrice checks that the fact carries a dimension the price
+// row can bill: a reported cost, a token count or a duration, in that order
+// of preference (the same order videoLines prices them). A row that only
+// prices requests gets a request dimension.
+func mediaJobFactForPrice(job MediaJob, fact usagepkg.Fact, modes videoPriceModes, requireDuration bool) (usagepkg.Fact, error) {
 	fact = fact.Normalize()
 	if job.Kind != MediaJobKindVideo {
 		return fact, nil
 	}
-	if secondUSD != nil {
-		if fact.MediaUnits == nil || fact.MediaUnits.VideoSeconds <= 0 {
+	units := fact.MediaUnits
+	if units == nil {
+		units = &usagepkg.MediaUnits{}
+	}
+	switch {
+	case modes.cost && units.ReportedCostUSD != nil && *units.ReportedCostUSD > 0:
+		return fact, nil
+	case modes.tokens && units.OutputTokens > 0:
+		return fact, nil
+	case modes.seconds:
+		if units.VideoSeconds <= 0 {
 			if !requireDuration {
 				return fact, nil
 			}
 			return fact, fmt.Errorf("%w: model=%s", ErrMediaJobDurationRequired, job.ModelName)
 		}
 		return fact, nil
+	case modes.tokens || modes.cost:
+		// Priced on a provider figure that has not arrived yet (the estimate
+		// carries tokens for Ark; an aggregator's cost comes with the result).
+		if !requireDuration {
+			return fact, nil
+		}
+		if units.OutputTokens > 0 || units.VideoSeconds > 0 {
+			return fact, nil
+		}
+		return fact, fmt.Errorf("%w: model=%s", ErrMediaJobDurationRequired, job.ModelName)
 	}
 	fact.Dimensions = ensureMediaJobDimensionAtLeast(fact.Dimensions, usagepkg.DimensionRequest, 1, usagepkg.UnitRequest)
 	return fact.Normalize(), nil
@@ -919,6 +1033,19 @@ func mediaJobMediaUnits(job MediaJob) usagepkg.MediaUnits {
 		}
 	case MediaJobKindVideo:
 		units.VideoSeconds = firstPositiveInt64Field(fields, "video_seconds", "videoSeconds", "seconds", "duration_seconds", "durationSeconds", "duration")
+		if facts, ok := MediaJobProviderFacts(job); ok {
+			if facts.Seconds > 0 {
+				units.VideoSeconds = facts.Seconds
+			}
+			if facts.Resolution != "" {
+				units.ResolutionTier = facts.Resolution
+			}
+			units.OutputTokens = facts.OutputTokens
+			units.ReportedCostUSD = facts.ProviderCostUSD
+			units.FPS = facts.FPS
+			units.Audio = facts.Audio
+			units.Reported = facts.Reported
+		}
 	}
 	return units
 }
@@ -1228,6 +1355,19 @@ func billingUsageFromMediaFact(fact usagepkg.Fact) billing.Usage {
 		case usagepkg.DimensionSecond:
 			out.Seconds += dimension.Quantity
 		}
+	}
+	if units := fact.MediaUnits; units != nil && units.ProviderUnit == MediaJobKindVideo {
+		// A video job prices through its own usage so resolution tiers, token
+		// counts and provider-reported costs apply; the flat second line is
+		// what videoLines falls back to.
+		out.Video = &billing.VideoUsage{
+			Seconds:         units.VideoSeconds,
+			Resolution:      units.ResolutionTier,
+			OutputTokens:    units.OutputTokens,
+			ProviderCostUSD: units.ReportedCostUSD,
+			Audio:           units.Audio,
+		}
+		out.Seconds = 0
 	}
 	return out
 }

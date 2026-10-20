@@ -8,6 +8,7 @@ import {
   type SellPriceRow,
 } from './sellPrices';
 import { readImagePricing, type ImagePricing } from '../../lib/image-pricing';
+import type { VideoPricing } from '../../lib/video-pricing';
 /** Pricing a lane as a percent of the official price.
  *
  *  The server owns the arithmetic: a row saved with `follow_official` has its
@@ -82,6 +83,8 @@ const officialField: Record<PinKey, keyof OfficialPrice> = {
 
 export type LaneDraft = {
   imagePricing?: ImagePricing;
+  /** Video price JSON as typed; '' = none. Parsed on save. */
+  videoPricing: string;
   billingMode: BillingMode;
   cacheRead: string;
   cacheWrite1h: string;
@@ -129,6 +132,9 @@ export const draftFromRow = (
   }
   return {
     imagePricing: row?.image_pricing ? { ...row.image_pricing } : undefined,
+    videoPricing: row?.video_pricing
+      ? JSON.stringify(row.video_pricing, null, 2)
+      : '',
     billingMode: row ? billingModeOf(row) : 'per_token',
     cacheRead: text(row?.cache_read_per_mtok),
     cacheWrite1h: text(row?.cache_write_1h_per_mtok),
@@ -219,8 +225,26 @@ export const impliedRatio = (
 
 export type DraftProblem = 'pin' | 'price' | 'ratio' | 'weight' | null;
 
+/** The video price JSON parsed, or undefined when empty; null when invalid. */
+export const readVideoPricingText = (
+  raw: string,
+): VideoPricing | null | undefined => {
+  const text = raw.trim();
+  if (!text) return undefined;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as VideoPricing;
+  } catch {
+    return null;
+  }
+};
+
 export const validateDraft = (draft: LaneDraft): DraftProblem => {
   if (!draft.exists) return null;
+  if (readVideoPricingText(draft.videoPricing) === null) return 'price';
   if (
     draft.imagePricing &&
     (!readImagePricing(draft.imagePricing) ||
@@ -335,6 +359,7 @@ export const lanePayload = (
           request_usd: draft.imagePricing.output_usd,
         }
       : {}),
+    video_pricing: readVideoPricingText(draft.videoPricing) ?? null,
     active: true,
     channel_group: lane,
     follow_official: false,

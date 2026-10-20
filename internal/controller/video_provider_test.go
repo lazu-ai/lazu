@@ -3,51 +3,17 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
+	"github.com/lazu-ai/lazu/internal/relay/channel/video"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
-	"github.com/lazu-ai/lazu/internal/types"
 )
-
-type transportErrorVideoAdaptor struct{}
-
-func (*transportErrorVideoAdaptor) Init(*relaycommon.RelayInfo) {}
-
-func (*transportErrorVideoAdaptor) GetRequestURL(*relaycommon.RelayInfo) (string, error) {
-	return "https://provider.example/v1/videos", nil
-}
-
-func (*transportErrorVideoAdaptor) SetupRequestHeader(*gin.Context, *http.Header, *relaycommon.RelayInfo) error {
-	return nil
-}
-
-func (*transportErrorVideoAdaptor) DoRequest(*gin.Context, *relaycommon.RelayInfo, io.Reader) (any, error) {
-	return nil, &url.Error{
-		Op:  "Post",
-		URL: "https://provider.example/v1/videos",
-		Err: io.ErrUnexpectedEOF,
-	}
-}
-
-func (*transportErrorVideoAdaptor) DoResponse(*gin.Context, *http.Response, *relaycommon.RelayInfo) (any, *types.LazuError) {
-	return nil, nil
-}
-
-func (*transportErrorVideoAdaptor) GetModelList() []string {
-	return nil
-}
-
-func (*transportErrorVideoAdaptor) GetChannelName() string {
-	return "OpenAI"
-}
 
 func TestVideoProviderSubmissionRetrySafety(t *testing.T) {
 	if !videoProviderSubmissionRetrySafe(&videoProviderSubmitError{
@@ -75,8 +41,20 @@ func TestSubmitVideoProviderTreatsTransportFailureAsIndeterminate(t *testing.T) 
 	gin.SetMode(gin.TestMode)
 	context, _ := gin.CreateTestContext(httptest.NewRecorder())
 	context.Request = httptest.NewRequest(http.MethodPost, "/v1/videos", nil)
-	_, err := submitVideoProvider(context, &preparedVideoProviderRequest{
-		Adaptor: &transportErrorVideoAdaptor{},
+	// A server that is already closed answers with a transport error: the
+	// request may or may not have reached the provider.
+	closed := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	target := closed.URL + "/v1/videos"
+	closed.Close()
+	ch := video.Channel{Type: constant.ChannelTypeOpenAI, BaseURL: closed.URL, Key: "k"}
+	driver, err := video.Select(ch, "sora-2")
+	if err != nil {
+		t.Fatalf("select driver: %v", err)
+	}
+	_, err = submitVideoProvider(context, &preparedVideoProviderRequest{
+		Driver:  driver,
+		Channel: ch,
+		Submit:  &video.SubmitRequest{Method: http.MethodPost, URL: target, Headers: http.Header{}},
 		Body:    []byte(`{"model":"sora-2","prompt":"ambiguous transport"}`),
 		Info:    &relaycommon.RelayInfo{},
 	})
@@ -114,16 +92,18 @@ func TestAlignVideoBillingProbeUsesDurableExtensionRequestID(t *testing.T) {
 }
 
 func TestCustomVideoSubmissionRequiresPollingTemplate(t *testing.T) {
-	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{
-		ChannelType: constant.ChannelTypeCustom,
-	}}
-	if err := validateVideoProviderPollingConfiguration(info); err == nil {
+	ch := video.Channel{Type: constant.ChannelTypeCustom, BaseURL: "https://video.example.com/generate", Key: "k"}
+	driver, err := video.Select(ch, "custom-video")
+	if err != nil {
+		t.Fatalf("select driver: %v", err)
+	}
+	if err := validateVideoProviderPollingConfiguration(driver, ch); err == nil {
 		t.Fatal("custom video submission without a status template should be rejected before dispatch")
 	}
-	info.ChannelOtherSettings = dto.ChannelOtherSettings{
+	ch.Settings = dto.ChannelOtherSettings{
 		VideoStatusURLTemplate: "/jobs/{id}",
 	}
-	if err := validateVideoProviderPollingConfiguration(info); err != nil {
+	if err := validateVideoProviderPollingConfiguration(driver, ch); err != nil {
 		t.Fatalf("configured custom video submission should be allowed: %v", err)
 	}
 }

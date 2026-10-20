@@ -15,7 +15,7 @@ import {
   type OfficialPrice,
   type PinKey,
 } from './ratioPricing';
-import { Badge, Button, Input, Select } from '../../components/ui';
+import { Badge, Button, Input, Select, Textarea } from '../../components/ui';
 import type { BillingMode, SellPriceRow } from './sellPrices';
 import type { ModelOpsPoolEntry } from '../../hooks/models/useModelOpsQuery';
 import type { TFunction } from 'i18next';
@@ -514,6 +514,30 @@ export default function LanePricing({
                           ),
                         )
                       : null}
+                    {draft.billingMode === 'per_second' ? (
+                      <label className='mo-field mo-field--wide'>
+                        <span className='mo-field__label'>
+                          {t(`${ns}.tier.videoPricing`, {
+                            defaultValue: '视频价格 JSON',
+                          })}
+                        </span>
+                        <Textarea
+                          disabled={!canEditPrice}
+                          placeholder='{"resolution_second_usd":{"720p":0.05,"1080p":0.1}}'
+                          rows={3}
+                          value={draft.videoPricing}
+                          onChange={(event) =>
+                            onPatch(lane, { videoPricing: event.target.value })
+                          }
+                        />
+                        <span className='mo-field__hint'>
+                          {t(`${ns}.tier.videoPricingHelp`, {
+                            defaultValue:
+                              'resolution_second_usd 按档秒价；provider_cost_multiplier 以上游 cost 为准，仍需填秒价用于预扣；按 token 计费填输出单价即可。',
+                          })}
+                        </span>
+                      </label>
+                    ) : null}
                     <label className='mo-field'>
                       <span className='mo-field__label'>
                         {t(`${ns}.tier.peakHours`, {

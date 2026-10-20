@@ -171,6 +171,13 @@ const buildModelFormSchema = (t: TFunction) =>
           message: t(`${ns}.error.endpoints.json`),
         })
         .optional(),
+      video_capabilities: z
+        .string()
+        .trim()
+        .refine(isJsonOrEmpty, {
+          message: t(`${ns}.error.video_capabilities.json`),
+        })
+        .optional(),
       family: z.string().trim().optional(),
       icon: z.string().trim().optional(),
       lifecycle_status: z.string().trim().optional(),
@@ -944,6 +951,32 @@ function ModelMetaForm({
                   <FieldMessage>{t(`${ns}.help.endpoints`)}</FieldMessage>
                   <FieldMessage error>
                     {errorMessage(form.formState.errors.endpoints?.message)}
+                  </FieldMessage>
+                </Field>
+                <Field>
+                  <label className='lazu-label'>
+                    {t(`${ns}.field.video_capabilities`)}
+                  </label>
+                  <Controller
+                    control={form.control}
+                    name='video_capabilities'
+                    render={({ field }) => (
+                      <Textarea
+                        disabled={loading}
+                        placeholder={t(`${ns}.placeholder.video_capabilities`)}
+                        rows={3}
+                        value={String(field.value || '')}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                  <FieldMessage>
+                    {t(`${ns}.help.video_capabilities`)}
+                  </FieldMessage>
+                  <FieldMessage error>
+                    {errorMessage(
+                      form.formState.errors.video_capabilities?.message,
+                    )}
                   </FieldMessage>
                 </Field>
               </div>

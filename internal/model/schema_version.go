@@ -13,6 +13,10 @@ import (
 )
 
 const (
+	// Version 36 adds models.video_capabilities and video_pricing on
+	// model_sell_prices and provider_cost_prices (text JSON, added by
+	// AutoMigrate), for the video gateway's per-model capability rows and
+	// resolution / token / provider-cost video prices.
 	// Version 35 adds project_auto_reloads (one auto-reload setting per
 	// project: threshold, amount, monthly cap, saved card, pause) and
 	// top_ups.auto_reload, the typed mark of an off-session reload.
@@ -58,7 +62,7 @@ const (
 	// Version 12 records the disputed and original charge amounts for proportional reversals.
 	// Version 11 adds payment reversal and dispute hold fields. Version 10
 	// retired startup seeders, so rollback across that floor remains unsafe.
-	SchemaVersionCurrent = 35
+	SchemaVersionCurrent = 36
 
 	schemaVersionPrimary = "primary"
 	schemaVersionLog     = "log"

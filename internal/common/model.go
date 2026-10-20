@@ -20,6 +20,7 @@ var (
 	VideoGenerationModels = []string{
 		"prefix:veo",
 		"prefix:wan",
+		"seedance",
 		"sora",
 		"kling",
 		"-video",

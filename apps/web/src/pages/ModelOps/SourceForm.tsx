@@ -70,6 +70,8 @@ export type ChannelFormValues = {
   tag?: string;
   type: number;
   video_content_url_template?: string;
+  video_envelope?: string;
+  video_family?: string;
   video_status_url_template?: string;
   weight: number;
 };
@@ -200,6 +202,27 @@ const buildChannelFormSchema = (t: TFunction, isEdit: boolean) =>
     tag: z.string().trim().optional(),
     type: z.coerce.number().min(1, t(`${ns}.error.type.required`)),
     video_content_url_template: z.string().trim().optional(),
+    video_envelope: z
+      .string()
+      .trim()
+      .optional()
+      .refine(
+        (value) => {
+          if (!value?.trim()) return true;
+          try {
+            const parsed = JSON.parse(value) as unknown;
+            return Boolean(
+              parsed && typeof parsed === 'object' && !Array.isArray(parsed),
+            );
+          } catch {
+            return false;
+          }
+        },
+        t(`${ns}.error.video_envelope.json`, {
+          defaultValue: '视频信封配置必须是 JSON 对象',
+        }),
+      ),
+    video_family: z.string().trim().optional(),
     video_status_url_template: z.string().trim().optional(),
     weight: z.coerce.number().min(0, t(`${ns}.error.weight.min`)),
   });
@@ -578,6 +601,92 @@ export default function SourceForm({
                     })}
                   />
                 </Field>
+                <Field>
+                  <label className='lazu-label'>
+                    {t(`${ns}.field.video_family`, {
+                      defaultValue: '视频上游族',
+                    })}{' '}
+                    <code className='mo-code'>video_family</code>
+                  </label>
+                  <Controller
+                    control={form.control}
+                    name='video_family'
+                    render={({ field }) => (
+                      <Select
+                        disabled={loading}
+                        value={field.value || 'auto'}
+                        onValueChange={(value) =>
+                          field.onChange(value === 'auto' ? '' : value)
+                        }
+                      >
+                        <SelectItem value='auto'>
+                          {t(`${ns}.option.videoFamily.auto`, {
+                            defaultValue: '自动（按类型与模型名）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='gateway'>
+                          {t(`${ns}.option.videoFamily.gateway`, {
+                            defaultValue: 'OpenAI 兼容网关（/v1/videos）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='ark'>
+                          {t(`${ns}.option.videoFamily.ark`, {
+                            defaultValue: '火山方舟原生（Seedance）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='gemini'>
+                          {t(`${ns}.option.videoFamily.gemini`, {
+                            defaultValue: 'Gemini（Veo）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='envelope'>
+                          {t(`${ns}.option.videoFamily.envelope`, {
+                            defaultValue: '统一信封聚合站',
+                          })}
+                        </SelectItem>
+                      </Select>
+                    )}
+                  />
+                  <FieldMessage>
+                    {t(`${ns}.help.video_family`, {
+                      defaultValue:
+                        '只影响 /v1/videos。自动：Gemini 类型走 Veo，模型名含 seedance 走方舟，Custom 走信封，其余走 OpenAI 兼容网关。',
+                    })}
+                  </FieldMessage>
+                </Field>
+                {values.video_family === 'envelope' ||
+                Number(values.type) === 8 ? (
+                  <Field className='mo-form__wide'>
+                    <label
+                      className='lazu-label'
+                      htmlFor='channel-video-envelope'
+                    >
+                      {t(`${ns}.field.video_envelope`, {
+                        defaultValue: '视频信封配置',
+                      })}{' '}
+                      <code className='mo-code'>video_envelope</code>
+                    </label>
+                    <Textarea
+                      disabled={loading}
+                      id='channel-video-envelope'
+                      placeholder={t(`${ns}.placeholder.video_envelope`, {
+                        defaultValue:
+                          '{"preset":"tasks"} 或 {"submit_url":"/v1/videos/generations","status_url":"/v1/tasks/{id}","job_id_paths":["data.0.task_id"],"status_path":"data.status","artifact_paths":["data.result.videos.0.url.0"],"cost_path":"data.cost"}',
+                      })}
+                      rows={4}
+                      {...form.register('video_envelope')}
+                    />
+                    <FieldMessage>
+                      {t(`${ns}.help.video_envelope`, {
+                        defaultValue:
+                          'preset 为 tasks 或 openai；显式字段覆盖预设。URL 可相对基础地址，{id} 为上游任务 id。',
+                      })}
+                    </FieldMessage>
+                    <FieldMessage error>
+                      {form.formState.errors.video_envelope?.message}
+                    </FieldMessage>
+                  </Field>
+                ) : null}
                 {Number(values.type) === 8 ? (
                   <>
                     <Field className='mo-form__wide'>
