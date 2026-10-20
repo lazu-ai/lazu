@@ -191,8 +191,16 @@ func TestDigestSectionFailureShowsInItsBlock(t *testing.T) {
 	RegisterDigestSection("昨日业务", func(context.Context, time.Time) (DigestSection, error) {
 		return DigestSection{}, errors.New("telemetry down")
 	})
+	RegisterDigestSection("数据与容量", func(context.Context, time.Time) (DigestSection, error) {
+		var missing map[string]int
+		missing["boom"]++
+		return DigestSection{}, nil
+	})
 	sections := buildDigestSections(time.Date(2026, 10, 20, 1, 10, 0, 0, time.UTC))
-	if len(sections) != 1 || sections[0].Title != "昨日业务" || len(sections[0].Attention) != 0 ||
+	if len(sections) != 2 || sections[1].Title != "数据与容量" || !strings.Contains(sections[1].Lines[0], "panic") {
+		t.Fatalf("a panicking section must not take the digest down: %+v", sections)
+	}
+	if len(sections) != 2 || sections[0].Title != "昨日业务" || len(sections[0].Attention) != 0 ||
 		len(sections[0].Lines) != 1 || !strings.Contains(sections[0].Lines[0], "telemetry down") {
 		t.Fatalf("failed section should explain itself without raising attention: %+v", sections)
 	}

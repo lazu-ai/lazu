@@ -102,9 +102,7 @@ func buildDigestSections(now time.Time) []DigestSection {
 	local := now.In(digestLocation())
 	sections := make([]DigestSection, 0, len(registered))
 	for _, entry := range registered {
-		ctx, cancel := context.WithTimeout(context.Background(), digestSectionTimeout)
-		section, err := entry.build(ctx, local)
-		cancel()
+		section, err := runDigestSection(entry.build, local)
 		if err != nil {
 			common.SysError(fmt.Sprintf("alerting: digest section %q failed: %v", entry.title, err))
 			section = DigestSection{Title: entry.title, Lines: []string{"⚠️ 数据读取失败：" + truncateDigestText(err.Error(), 160)}}
@@ -115,6 +113,19 @@ func buildDigestSections(now time.Time) []DigestSection {
 		sections = append(sections, section)
 	}
 	return sections
+}
+
+// runDigestSection turns a panic into an error: sections query several
+// stores from inside the API process, and the digest cron does not recover.
+func runDigestSection(build DigestSectionFunc, now time.Time) (section DigestSection, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), digestSectionTimeout)
+	defer cancel()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			section, err = DigestSection{}, fmt.Errorf("panic: %v", recovered)
+		}
+	}()
+	return build(ctx, now)
 }
 
 func digestLocation() *time.Location {
