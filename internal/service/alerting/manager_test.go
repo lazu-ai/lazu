@@ -102,7 +102,21 @@ func TestIncidentDeliveryReservationSuppressesConcurrentReporter(t *testing.T) {
 	}
 }
 
+// onlyExpectDigestTasks limits the never-reported check to the given keys,
+// so a test sees missing tasks only when it asks for them.
+func onlyExpectDigestTasks(t *testing.T, keys ...string) {
+	t.Helper()
+	previous := digestTaskExpected
+	expected := map[string]bool{}
+	for _, key := range keys {
+		expected[key] = true
+	}
+	digestTaskExpected = func(key string) bool { return expected[key] }
+	t.Cleanup(func() { digestTaskExpected = previous })
+}
+
 func TestDailyDigestFormatsOneCompactSummary(t *testing.T) {
+	onlyExpectDigestTasks(t)
 	now := time.Date(2026, 8, 19, 9, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", Summary: "上传 14 个文件", UpdatedAt: now.Add(-time.Hour).Unix()},
@@ -124,6 +138,7 @@ func TestDailyDigestFormatsOneCompactSummary(t *testing.T) {
 }
 
 func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
+	onlyExpectDigestTasks(t)
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.FixedZone("CST", 8*60*60))
 	message := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", Summary: "size=671.7 MiB", UpdatedAt: now.Add(-(291*time.Hour + 38*time.Minute)).Unix()},
@@ -143,6 +158,7 @@ func TestDailyDigestMarksTasksThatStoppedReportingAsStale(t *testing.T) {
 }
 
 func TestDailyDigestHeadline(t *testing.T) {
+	onlyExpectDigestTasks(t)
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	allOK := formatDailyDigest(now, []HealthSnapshot{
 		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
@@ -166,6 +182,7 @@ func TestDailyDigestHeadline(t *testing.T) {
 }
 
 func TestDailyDigestShowsOpenAlerts(t *testing.T) {
+	onlyExpectDigestTasks(t)
 	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
 	incidents := map[string]incidentState{
 		// Health still reads ok, but the alert was never resolved.
@@ -186,6 +203,68 @@ func TestDailyDigestShowsOpenAlerts(t *testing.T) {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("digest missing %q: %s", expected, message)
 		}
+	}
+}
+
+func TestDailyDigestListsExpectedTasksThatNeverReported(t *testing.T) {
+	onlyExpectDigestTasks(t, "pg-dump", "relay-zero-token")
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	message := formatDailyDigest(now, []HealthSnapshot{
+		{Key: "pg-dump", Label: "Database backup", Status: "ok", UpdatedAt: now.Add(-4 * time.Hour).Unix()},
+	}, map[string]incidentState{})
+	for _, expected := range []string{
+		"➖ 从未上报 1 项，正常 1 项",
+		"➖ 零 token 计费监控：从未上报\n   还没有任何运行记录",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("digest missing %q: %s", expected, message)
+		}
+	}
+	if strings.Contains(message, "R2 旧归档压缩") {
+		t.Fatalf("a task this deployment does not run must not be listed: %s", message)
+	}
+}
+
+func TestUploadCadenceFollowsConfiguredSchedule(t *testing.T) {
+	previous := common.AppConfig.Upload.Schedule
+	defer func() { common.AppConfig.Upload.Schedule = previous }()
+	onlyExpectDigestTasks(t)
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	snapshots := []HealthSnapshot{{Key: "hourly-upload", Label: "R2 JSONL upload", Status: "ok", UpdatedAt: now.Add(-5*time.Hour - 10*time.Minute).Unix()}}
+
+	common.AppConfig.Upload.Schedule = "0 4 * * *"
+	if message := formatDailyDigest(now, snapshots, nil); strings.Contains(message, "已停止运行") {
+		t.Fatalf("a daily upload five hours after its run is not stale: %s", message)
+	}
+	common.AppConfig.Upload.Schedule = "0 * * * *"
+	if message := formatDailyDigest(now, snapshots, nil); !strings.Contains(message, "应每小时运行一次") {
+		t.Fatalf("an hourly upload five hours late is stale: %s", message)
+	}
+	common.AppConfig.Upload.Schedule = "not a cron spec"
+	if cadence := digestTaskCadence("hourly-upload", digestTasks["hourly-upload"], now); cadence != time.Hour {
+		t.Fatalf("an unparsable schedule falls back to hourly, got %s", cadence)
+	}
+	if cadence, ok := cronCadence("0 9,21 * * *", now); !ok || cadence != 12*time.Hour {
+		t.Fatalf("cronCadence(0 9,21) = %s %v", cadence, ok)
+	}
+}
+
+func TestLoadOpenIncidentsUsesLocalCacheOnlyWithoutRedis(t *testing.T) {
+	previousEnabled, previousRDB := common.RedisEnabled, common.RDB
+	common.RedisEnabled, common.RDB = false, nil
+	localMu.Lock()
+	previousLocal := localIncidents
+	localIncidents = map[string]incidentState{"pg-dump": {Fingerprint: "x", Occurrences: 2}}
+	localMu.Unlock()
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RDB = previousEnabled, previousRDB
+		localMu.Lock()
+		localIncidents = previousLocal
+		localMu.Unlock()
+	})
+	open, err := loadOpenIncidents()
+	if err != nil || open["pg-dump"].Occurrences != 2 {
+		t.Fatalf("without Redis the local cache is the source: open=%+v err=%v", open, err)
 	}
 }
 
