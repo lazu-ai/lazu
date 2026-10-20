@@ -32,6 +32,10 @@ const (
 // operator instead of failing the job.
 var ErrConfiguration = errors.New("video provider configuration is incomplete")
 
+// ErrUnsupportedInput marks a request the family cannot carry as asked (a
+// frame URL scheme the provider does not take). It is the caller's to fix.
+var ErrUnsupportedInput = errors.New("video input is not supported by this provider")
+
 // Channel is what a driver needs to know about the upstream.
 type Channel struct {
 	Type           int
@@ -152,6 +156,20 @@ const (
 	channelTypeCustom = 8
 	channelTypeGemini = 24
 )
+
+// LegacyFamily is the family a job was submitted through before submissions
+// recorded one: the old adaptors chose by channel type only (Gemini type →
+// Veo, Custom → the URL templates, anything else → the OpenAI shape).
+func LegacyFamily(channelType int) string {
+	switch channelType {
+	case channelTypeGemini:
+		return dto.VideoFamilyGemini
+	case channelTypeCustom:
+		return dto.VideoFamilyEnvelope
+	default:
+		return dto.VideoFamilyGateway
+	}
+}
 
 // IsArkVideoModel reports whether a model name is a Seedance generation
 // served by the Volcengine Ark task API (doubao-seedance-*, dreamina-seedance-*).

@@ -635,6 +635,9 @@ func ReplaceProviderCostPricesForChannel(channelID int, rows []ProviderCostPrice
 			if err := row.ImagePricing.Validate(); err != nil {
 				return err
 			}
+			if err := row.VideoPricing.Validate(); err != nil {
+				return fmt.Errorf("provider cost price %s: %w", row.ModelName, err)
+			}
 			row.ID = 0
 			row.ChannelID = channelID
 			row.ModelName = strings.TrimSpace(row.ModelName)
@@ -703,6 +706,9 @@ func validateModelSellPrice(row ModelSellPrice) error {
 	if err := row.ImagePricing.Validate(); err != nil {
 		return err
 	}
+	if err := row.VideoPricing.Validate(); err != nil {
+		return types.WrapErr(err, types.ErrorCodeInvalidRequest, types.D{"field": "video_pricing"})
+	}
 	if row.ImagePricing != nil {
 		if row.RequestUSD == nil || *row.RequestUSD != row.ImagePricing.OutputUSD || row.FollowOfficial || row.SecondUSD != nil || row.InputPerMtok != nil || row.OutputPerMtok != nil {
 			return fmt.Errorf("image_pricing requires a matching request_usd headline and fixed image-only pricing")
@@ -721,7 +727,9 @@ func validateModelSellPrice(row ModelSellPrice) error {
 		"request_usd":             row.RequestUSD,
 		"second_usd":              row.SecondUSD,
 	}
-	hasPrice := row.ImagePricing != nil
+	// A video price sheet prices on its own: per-resolution second prices or
+	// the provider's reported cost need no headline scalar.
+	hasPrice := row.ImagePricing != nil || !row.VideoPricing.IsEmpty()
 	for field, value := range prices {
 		if value == nil {
 			continue

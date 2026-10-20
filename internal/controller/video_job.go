@@ -13,6 +13,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/middleware"
 	"github.com/lazu-ai/lazu/internal/model"
+	"github.com/lazu-ai/lazu/internal/relay/channel/video"
 	"github.com/lazu-ai/lazu/internal/types"
 	"gorm.io/gorm"
 )
@@ -44,7 +45,11 @@ func SubmitVideoJob(c *gin.Context) {
 		writeControlPlaneCatalogError(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "prompt"})
 		return
 	}
-	if capErr := model.ModelVideoCapabilities(payload.Model).Validate(&payload); capErr != nil {
+	capErr := payload.ValidateInputs()
+	if capErr == nil {
+		capErr = model.ModelVideoCapabilities(payload.Model).Validate(&payload)
+	}
+	if capErr != nil {
 		writeControlPlaneCatalogError(c, types.ErrorCodeInvalidRequest, types.D{
 			"field":   capErr.Field,
 			"reason":  capErr.Error(),
@@ -534,6 +539,9 @@ func mediaJobSnapshotWithProviderCredential(snapshot model.JSONValue, c *gin.Con
 }
 
 func videoProviderSubmissionLazuError(err error) *types.LazuError {
+	if errors.Is(err, video.ErrUnsupportedInput) {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
 	status := http.StatusBadRequest
 	code := types.ErrorCodeUpstreamError
 	var providerErr *videoProviderSubmitError

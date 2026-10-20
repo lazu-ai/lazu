@@ -315,3 +315,58 @@ func TestLookupWalksArrays(t *testing.T) {
 		t.Fatalf("out of range: %q", got)
 	}
 }
+
+func TestReviewFixes(t *testing.T) {
+	// Terminal length and tier are the provider's own report.
+	done, _ := gatewayDriver{}.ParseStatus(Channel{}, []byte(`{"status":"completed","url":"https://cdn.example.com/v.mp4","seconds":6,"resolution":"720p"}`))
+	if done.Facts == nil || done.Facts.Seconds != 6 || !done.Facts.Reported {
+		t.Fatalf("gateway duration should count as reported: %+v", done.Facts)
+	}
+	ch := Channel{Type: channelTypeCustom, BaseURL: "https://video.example.com/x", Settings: dto.ChannelOtherSettings{VideoStatusURLTemplate: "/jobs/{id}"}}
+	env, _ := envelopeDriver{}.ParseStatus(ch, []byte(`{"status":"completed","url":"https://cdn.example.com/v.mp4","seconds":4}`))
+	if env.Facts == nil || env.Facts.Seconds != 4 || !env.Facts.Reported {
+		t.Fatalf("envelope duration should count as reported: %+v", env.Facts)
+	}
+	// Veo refuses a frame it cannot take instead of dropping it.
+	gemini := Channel{Type: channelTypeGemini, BaseURL: "https://generativelanguage.googleapis.com", Key: "g"}
+	_, err := geminiDriver{}.BuildSubmit(gemini, dto.VideoRequest{Prompt: "p", FrameImages: []dto.VideoFrameImage{{URL: "https://x/a.png", FrameType: "first_frame"}}}, "veo-3.1")
+	if !errors.Is(err, ErrUnsupportedInput) {
+		t.Fatalf("an https frame must be refused for Veo: %v", err)
+	}
+	if _, err := (geminiDriver{}).BuildSubmit(gemini, dto.VideoRequest{Prompt: "p", FrameImages: []dto.VideoFrameImage{{URL: "gs://bucket/a.png", FrameType: "first_frame"}}}, "veo-3.1"); err != nil {
+		t.Fatalf("a gs:// frame is accepted: %v", err)
+	}
+	// {model} in a Custom base URL is the upstream model.
+	custom := Channel{Type: channelTypeCustom, BaseURL: "https://video.example.com/generate/{model}", Settings: dto.ChannelOtherSettings{VideoStatusURLTemplate: "/jobs/{id}"}}
+	submit, err := envelopeDriver{}.BuildSubmit(custom, dto.VideoRequest{Prompt: "p"}, "wan-3")
+	if err != nil || submit.URL != "https://video.example.com/generate/wan-3" {
+		t.Fatalf("model placeholder: %+v %v", submit, err)
+	}
+	// Jobs from before pinning keep their channel-type family.
+	if LegacyFamily(channelTypeOpenAI) != dto.VideoFamilyGateway || LegacyFamily(channelTypeGemini) != dto.VideoFamilyGemini || LegacyFamily(channelTypeCustom) != dto.VideoFamilyEnvelope {
+		t.Fatal("legacy families")
+	}
+	// Default-only rows are rows.
+	if (&dto.VideoCapabilities{DefaultSeconds: 6}).IsEmpty() {
+		t.Fatal("a row with only defaults must be kept")
+	}
+	// Unknown resolutions and frame types are refused.
+	caps := DefaultCapabilities("veo-3.1")
+	if err := caps.Validate(&dto.VideoRequest{Seconds: 8, Resolution: "900p"}); err == nil || err.Field != "resolution" {
+		t.Fatalf("an unreadable resolution must be refused: %v", err)
+	}
+	for _, frameType := range []string{"", "first", "lastframe"} {
+		req := dto.VideoRequest{FrameImages: []dto.VideoFrameImage{{URL: "gs://b/a.png", FrameType: frameType}}}
+		if err := req.ValidateInputs(); err == nil || err.Field != "frame_images.frame_type" {
+			t.Fatalf("frame_type %q must be refused: %v", frameType, err)
+		}
+	}
+	bad := dto.VideoRequest{InputRefs: []dto.VideoInputReference{{URL: "https://x/a.mp4", Type: "clip"}}}
+	if err := bad.ValidateInputs(); err == nil || err.Field != "input_references.type" {
+		t.Fatalf("an unknown reference type must be refused: %v", err)
+	}
+	good := dto.VideoRequest{FrameImages: []dto.VideoFrameImage{{URL: "gs://b/a.png", FrameType: "last_frame"}}, InputRefs: []dto.VideoInputReference{{URL: "https://x/a.png"}}}
+	if err := good.ValidateInputs(); err != nil {
+		t.Fatalf("valid inputs refused: %v", err)
+	}
+}

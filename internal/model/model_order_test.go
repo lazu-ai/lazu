@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/lazu-ai/lazu/pkg/billing"
 	"github.com/tidwall/gjson"
 )
 
@@ -199,5 +200,20 @@ func TestPricingRefreshLoadsReasoningToggle(t *testing.T) {
 	RefreshPricing()
 	if CanDisableReasoning(m.ModelName) {
 		t.Fatal("deleted catalog toggle still cached")
+	}
+}
+
+func TestValidateModelSellPriceVideoSheet(t *testing.T) {
+	tierOnly := ModelSellPrice{VideoPricing: &billing.VideoPrices{ResolutionSecondUSD: map[string]float64{"720p": 0.05, "1080p": 0.1}}}
+	if err := validateModelSellPrice(tierOnly); err != nil {
+		t.Fatalf("a tier-only video price sheet is a price: %v", err)
+	}
+	second := 0.02
+	negative := ModelSellPrice{SecondUSD: &second, VideoPricing: &billing.VideoPrices{ResolutionSecondUSD: map[string]float64{"1080p": -0.1}}}
+	if err := validateModelSellPrice(negative); err == nil {
+		t.Fatal("a negative tier price must be refused even beside a valid headline price")
+	}
+	if err := validateModelSellPrice(ModelSellPrice{VideoPricing: &billing.VideoPrices{}}); err == nil {
+		t.Fatal("an empty video price sheet prices nothing")
 	}
 }

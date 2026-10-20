@@ -781,3 +781,15 @@ func TestVideoDriverForPrefersPinnedFamily(t *testing.T) {
 		t.Fatalf("unpinned falls back to the name rule: %v %v", driver, err)
 	}
 }
+
+func TestVideoDriverForKeepsLegacyFamilyForUnpinnedSeedanceJobs(t *testing.T) {
+	baseURL := "https://gateway.example/v1"
+	channel := &model.Channel{Type: constant.ChannelTypeOpenAI, Key: "k", BaseURL: &baseURL}
+	// Submitted before families were pinned: it went out OpenAI-shaped, so
+	// the poll must not switch to the Ark path because of the model name.
+	job := model.MediaJob{ModelName: "doubao-seedance-1-5-pro-251215", RequestSnapshot: model.JSONValue(`{}`)}
+	driver, _, err := videoDriverFor(job, channel)
+	if err != nil || driver.Family() != "gateway" {
+		t.Fatalf("legacy job family: %v %v", driver, err)
+	}
+}

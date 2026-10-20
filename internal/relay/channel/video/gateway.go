@@ -124,7 +124,6 @@ func gatewayFacts(payload map[string]any) *dto.VideoFacts {
 	}
 	if cost, ok := firstNumber(payload, "usage.cost", "cost", "data.cost"); ok && cost > 0 {
 		facts.ProviderCostUSD = &cost
-		facts.Reported = true
 	}
 	if audio, ok := firstBool(payload, "generate_audio", "audio"); ok {
 		facts.Audio = audio
@@ -132,6 +131,9 @@ func gatewayFacts(payload map[string]any) *dto.VideoFacts {
 	if facts.IsZero() {
 		return nil
 	}
+	// Whatever the finished job says about itself (its length, its tier,
+	// its cost) is the provider's account of what it delivered.
+	facts.Reported = true
 	return &facts
 }
 

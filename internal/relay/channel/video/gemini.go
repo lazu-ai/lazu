@@ -37,7 +37,9 @@ func (geminiDriver) BuildSubmit(ch Channel, req dto.VideoRequest, upstreamModel 
 	for _, frame := range req.FrameImages {
 		image := geminiImage(frame.URL)
 		if image == nil {
-			continue
+			// Dropping the frame would turn a paid image-to-video request
+			// into text-to-video.
+			return nil, fmt.Errorf("%w: Veo frame images must be gs:// or data: URLs", ErrUnsupportedInput)
 		}
 		if strings.EqualFold(strings.TrimSpace(frame.FrameType), dto.VideoFrameLast) {
 			instance.LastFrame = image
@@ -73,8 +75,8 @@ func (geminiDriver) BuildSubmit(ch Channel, req dto.VideoRequest, upstreamModel 
 }
 
 // geminiImage accepts the reference forms Veo takes: a Cloud Storage URI or
-// inline base64 (data URL). A plain https URL is not accepted by Veo and is
-// left out rather than sent to fail.
+// inline base64 (data URL). A plain https URL is not accepted by Veo; the
+// caller refuses the request instead of sending it without the frame.
 func geminiImage(raw string) *dto.GeminiVideoImage {
 	value := strings.TrimSpace(raw)
 	switch {

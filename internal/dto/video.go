@@ -136,7 +136,7 @@ func (r VideoRequest) InputKinds() []string {
 		switch strings.ToLower(strings.TrimSpace(frame.FrameType)) {
 		case VideoFrameLast:
 			kinds = append(kinds, VideoInputLastFrame)
-		default:
+		case VideoFrameFirst:
 			kinds = append(kinds, VideoInputFirstFrame)
 		}
 	}
@@ -340,11 +340,45 @@ type VideoCapabilities struct {
 	FPS               int      `json:"fps,omitempty"`
 }
 
-// IsEmpty reports whether the row constrains nothing.
+// IsEmpty reports whether the row says nothing: no restriction and no
+// default. A row with only defaults is kept, since the catalog and the
+// estimate read them.
 func (c *VideoCapabilities) IsEmpty() bool {
 	return c == nil || (len(c.Durations) == 0 && c.MinSeconds == 0 && c.MaxSeconds == 0 &&
 		len(c.Resolutions) == 0 && len(c.Ratios) == 0 && len(c.Inputs) == 0 &&
-		c.MaxReferences == 0 && c.Audio == nil && len(c.Passthrough) == 0)
+		c.MaxReferences == 0 && c.Audio == nil && len(c.Passthrough) == 0 &&
+		c.DefaultSeconds == 0 && c.DefaultResolution == "" && c.DefaultRatio == "" && c.FPS == 0)
+}
+
+// ValidateInputs checks the request's own vocabulary, whatever the model:
+// every frame names first_frame or last_frame, and every reference names
+// image, video or audio (or nothing, meaning image). A value outside these
+// would otherwise be read as something the caller did not ask for.
+func (r *VideoRequest) ValidateInputs() *VideoCapabilityError {
+	if r == nil {
+		return nil
+	}
+	for _, frame := range r.FrameImages {
+		switch strings.ToLower(strings.TrimSpace(frame.FrameType)) {
+		case VideoFrameFirst, VideoFrameLast:
+		default:
+			return &VideoCapabilityError{Field: "frame_images.frame_type", Value: frame.FrameType, Allowed: []string{VideoFrameFirst, VideoFrameLast}}
+		}
+		if strings.TrimSpace(frame.URL) == "" {
+			return &VideoCapabilityError{Field: "frame_images.url", Value: "", Allowed: []string{"an image URL"}}
+		}
+	}
+	for _, reference := range r.InputRefs {
+		switch strings.ToLower(strings.TrimSpace(reference.Type)) {
+		case "", VideoReferenceImage, VideoReferenceVideo, VideoReferenceAudio:
+		default:
+			return &VideoCapabilityError{Field: "input_references.type", Value: reference.Type, Allowed: []string{VideoReferenceImage, VideoReferenceVideo, VideoReferenceAudio}}
+		}
+		if strings.TrimSpace(reference.URL) == "" {
+			return &VideoCapabilityError{Field: "input_references.url", Value: "", Allowed: []string{"a media URL"}}
+		}
+	}
+	return nil
 }
 
 // VideoCapabilityError names the field that fell outside the model's
@@ -377,8 +411,16 @@ func (c *VideoCapabilities) Validate(req *VideoRequest) *VideoCapabilityError {
 			return &VideoCapabilityError{Field: "seconds", Value: strconv.Itoa(req.Seconds), Allowed: []string{fmt.Sprintf("%d-%d", c.MinSeconds, c.MaxSeconds)}}
 		}
 	}
-	if resolution := req.EffectiveResolution(); resolution != "" && len(c.Resolutions) > 0 && !containsFold(c.Resolutions, resolution) {
-		return &VideoCapabilityError{Field: "resolution", Value: resolution, Allowed: c.Resolutions}
+	if len(c.Resolutions) > 0 {
+		// An explicit resolution the gateway cannot read is refused rather
+		// than dropped: the provider would pick its default while the quote
+		// assumed another.
+		if raw := strings.TrimSpace(req.Resolution); raw != "" && NormalizeVideoResolution(raw) == "" {
+			return &VideoCapabilityError{Field: "resolution", Value: raw, Allowed: c.Resolutions}
+		}
+		if resolution := req.EffectiveResolution(); resolution != "" && !containsFold(c.Resolutions, resolution) {
+			return &VideoCapabilityError{Field: "resolution", Value: resolution, Allowed: c.Resolutions}
+		}
 	}
 	if ratio := req.EffectiveRatio(); ratio != "" && len(c.Ratios) > 0 && !containsFold(c.Ratios, ratio) {
 		return &VideoCapabilityError{Field: "aspect_ratio", Value: ratio, Allowed: c.Ratios}

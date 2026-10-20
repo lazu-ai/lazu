@@ -203,9 +203,12 @@ func videoDriverFor(job model.MediaJob, channel *model.Channel) (video.Driver, v
 		HeaderOverride: channel.GetHeaderOverride(),
 	}
 	// The submission pinned its family; a mapped model name must not send the
-	// poll down another family's path.
+	// poll down another family's path. A job submitted before families were
+	// pinned was sent by channel type alone, so it is polled the same way.
 	if pinned := model.MediaJobVideoFamily(job); pinned != "" {
 		ch.Settings.VideoFamily = pinned
+	} else {
+		ch.Settings.VideoFamily = video.LegacyFamily(channel.Type)
 	}
 	driver, err := video.Select(ch, job.ModelName)
 	if err != nil {

@@ -172,9 +172,10 @@ func (envelopeDriver) BuildSubmit(ch Channel, req dto.VideoRequest, upstreamMode
 		return nil, fmt.Errorf("%w: video channel base url is empty", ErrConfiguration)
 	}
 	env := effectiveEnvelope(ch)
-	target := base
+	// A Custom channel's base URL may carry {model}, as chat relays allow.
+	target := strings.ReplaceAll(base, "{model}", upstreamModel)
 	if strings.TrimSpace(env.SubmitURL) != "" {
-		resolved, err := resolveURL(base, env.SubmitURL)
+		resolved, err := resolveURL(base, strings.ReplaceAll(env.SubmitURL, "{model}", upstreamModel))
 		if err != nil {
 			return nil, err
 		}
@@ -320,12 +321,12 @@ func envelopeFacts(payload map[string]any, env dto.VideoEnvelopeConfig) *dto.Vid
 	if env.CostPath != "" {
 		if cost, ok := firstNumber(payload, env.CostPath); ok && cost > 0 {
 			facts.ProviderCostUSD = &cost
-			facts.Reported = true
 		}
 	}
 	if facts.IsZero() {
 		return nil
 	}
+	facts.Reported = true
 	return &facts
 }
 
