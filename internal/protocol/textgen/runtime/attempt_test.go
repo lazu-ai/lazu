@@ -3,6 +3,7 @@ package runtime
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	gormsqlite "github.com/glebarez/sqlite"
@@ -418,5 +419,78 @@ func TestPrepareAttemptDegradesDeniedJSONSchema(t *testing.T) {
 	attempt, err = PrepareAttempt(parsed, open, "fixture")
 	if err != nil || attempt.Request != parsed.Semantic || len(attempt.Plan.Warnings) != 0 {
 		t.Fatalf("unknown support must not degrade: %+v %v", attempt, err)
+	}
+}
+
+// A Claude client's thinking reaches another vendor's model as
+// reasoning_effort only when the catalog says the model reasons; a model it
+// does not describe gets no effort, as the legacy conversion sent none.
+func TestPrepareAttemptLeavesClaudeThinkingOutForAModelNotKnownToReason(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_claude_thinking?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"fixture","max_tokens":100,"thinking":{"type":"adaptive"},"output_config":{"effort":"high"},"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chat := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`}
+	attempt, err := PrepareAttempt(parsed, chat, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempt.Plan.Native || attempt.Plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIChat {
+		t.Fatalf("expected a Chat bridge, got %+v", attempt.Plan)
+	}
+	if attempt.Request.Reasoning != (textgen.ReasoningOptions{}) || parsed.Semantic.Reasoning.Effort != "high" {
+		t.Fatalf("thinking must be left out on a clone: attempt %+v, parsed %+v", attempt.Request.Reasoning, parsed.Semantic.Reasoning)
+	}
+	anthropic := &model.Channel{Type: constant.ChannelTypeAnthropic}
+	native, err := PrepareAttempt(parsed, anthropic, "fixture")
+	if err != nil || !native.Plan.Native || native.Request.Reasoning.Effort != "high" {
+		t.Fatalf("a native attempt keeps the client's thinking: %+v %v", native, err)
+	}
+
+	// a tool result's image, for a model not known to see images, becomes a
+	// note and a warning; the client's own request is untouched
+	withImage, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"fixture","max_tokens":100,"messages":[{"role":"user","content":"look"},{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file_path":"a.png"}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"image","source":{"type":"base64","media_type":"image/png","data":"iVBORw0KGgo="}}]}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	blind, err := PrepareAttempt(withImage, chat, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := blind.Request.Conversation[2]
+	if len(result.Content) != 0 || !strings.Contains(result.Output, "omitted") || len(withImage.Semantic.Conversation[2].Content) != 1 {
+		t.Fatalf("image not omitted on a clone: %+v", result)
+	}
+	warned := false
+	for _, warning := range blind.Plan.Warnings {
+		warned = warned || warning.Message == "omitted:tool_result_image"
+	}
+	if !warned || blind.Plan.Degraded() {
+		t.Fatalf("warnings: %+v", blind.Plan.Warnings)
+	}
+
+	// a Claude client is never degraded: a denied schema is refused
+	schema, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"fixture","max_tokens":100,"output_config":{"format":{"type":"json_schema","schema":{"type":"object"}}},"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	denying := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_json_schema":false}}`}
+	if _, err := PrepareAttempt(schema, denying, "fixture"); err == nil {
+		t.Fatal("a Claude client's denied schema must be refused, not degraded")
 	}
 }

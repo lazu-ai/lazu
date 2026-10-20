@@ -98,6 +98,11 @@ type InputItem struct {
 	// WireType is the original item "type" for opaque items, kept so planner
 	// diagnostics can name what the client actually sent.
 	WireType string
+	// IsError marks a function result the tool reported as failed
+	// (Anthropic's tool_result.is_error). Content on a function result holds
+	// what the result returned beside its text, images in practice; Output
+	// is the text.
+	IsError bool
 }
 
 type ToolDefinition struct {

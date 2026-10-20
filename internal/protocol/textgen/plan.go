@@ -207,6 +207,8 @@ func bridgeOrder(client ProtocolFamily) []ProtocolFamily {
 		return []ProtocolFamily{ProtocolOpenAIResponses, ProtocolAnthropic}
 	case ProtocolOpenAIResponses:
 		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolAnthropic}
+	case ProtocolAnthropic:
+		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses}
 	}
 	return nil
 }
@@ -341,6 +343,12 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 		return &Issue{Feature: FeatureAnthropicOptions, Path: path, Message: "Anthropic's speed tier has no equivalent outside the Messages API"}
 	}
 	for _, use := range uses {
+		if client == ProtocolAnthropic && use.Feature == FeatureOpaqueReasoningItem && use.Detail == "anthropic" {
+			// thinking Anthropic sealed means something to Anthropic alone;
+			// another vendor's model cannot use it, so leaving it out loses
+			// nothing (the OpenAI encoders skip it)
+			continue
+		}
 		switch use.Feature {
 		case FeatureUnknownField, FeaturePreviousResponse, FeatureConversation, FeaturePromptTemplate, FeatureIncludeEncryptedReasoning, FeatureIncludeUnsupported, FeatureHostedWebSearch, FeatureHostedToolNativeOnly, FeatureOpaqueReasoningItem, FeatureInputReference:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
@@ -360,7 +368,7 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 			if !request.Sampling.N.Set || request.Sampling.N.Value != 1 {
 				return &Issue{Feature: use.Feature, Path: use.Path, Message: "a Responses bridge supports exactly one output"}
 			}
-		case FeatureStop, FeatureSeed, FeatureTopK, FeatureInputAudio, FeatureReasoningBudget:
+		case FeatureStop, FeatureSeed, FeatureTopK, FeatureInputAudio:
 			if upstream == ProtocolOpenAIResponses {
 				return &Issue{Feature: use.Feature, Path: use.Path, Message: "Responses has no lossless equivalent"}
 			}

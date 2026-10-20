@@ -136,7 +136,13 @@ func ExtractFeatures(request *Request) (FeatureSet, []FeatureUse) {
 			add(FeatureToolResult, "input["+itoa(index)+"]")
 		case InputReasoning:
 			if !item.PlainReasoning.Set {
-				add(FeatureOpaqueReasoningItem, "input["+itoa(index)+"]")
+				// the dialect that sealed it, so a bridge can tell reasoning
+				// its target could use from reasoning bound to another vendor
+				dialect := ""
+				if len(item.Opaque) > 0 {
+					dialect = item.Opaque[0].Dialect
+				}
+				addDetail(FeatureOpaqueReasoningItem, "input["+itoa(index)+"]", dialect)
 			}
 		case InputReference:
 			add(FeatureInputReference, "input["+itoa(index)+"]")

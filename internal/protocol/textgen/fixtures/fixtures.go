@@ -90,3 +90,19 @@ func Data(t testing.TB, name string) []string {
 	}
 	return out
 }
+
+// ClientRequest is a recorded client request body under testdata/client
+// (for example "claude_code/tool_image_turn.json"), its "# " header lines
+// dropped.
+func ClientRequest(t testing.TB, name string) []byte {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join(dir(), "..", "client", name))
+	if err != nil {
+		t.Fatalf("client fixture %s: %v", name, err)
+	}
+	lines := strings.Split(string(body), "\n")
+	for len(lines) > 0 && strings.HasPrefix(lines[0], "# ") {
+		lines = lines[1:]
+	}
+	return []byte(strings.Join(lines, "\n"))
+}

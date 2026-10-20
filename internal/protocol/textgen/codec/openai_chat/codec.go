@@ -564,10 +564,9 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 	if request == nil {
 		return nil, fmt.Errorf("request is nil")
 	}
-	wire := &dto.GeneralOpenAIRequest{Model: request.Model.Upstream, Stream: request.Lifecycle.Stream, ReasoningEffort: request.Reasoning.Effort, User: request.Metadata.User, SafetyIdentifier: request.Metadata.SafetyIdentifier, ServiceTier: request.Metadata.ServiceTier}
-	if request.Reasoning.Budget.Set {
-		wire.Reasoning, _ = json.Marshal(map[string]int{"max_tokens": request.Reasoning.Budget.Value})
-	}
+	// Chat takes an effort and no budget: a budget is sent as the effort it
+	// reaches (textgen.EffortForBudget)
+	wire := &dto.GeneralOpenAIRequest{Model: request.Model.Upstream, Stream: request.Lifecycle.Stream, ReasoningEffort: textgen.ReasoningEffortFor(request.Reasoning), User: request.Metadata.User, SafetyIdentifier: request.Metadata.SafetyIdentifier, ServiceTier: request.Metadata.ServiceTier}
 	if wire.Model == "" {
 		wire.Model = request.Model.Canonical
 	}
@@ -634,10 +633,29 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 		wire.Messages = append(wire.Messages, message)
 	}
 	pendingReasoning := -1
+	// images a tool returned: Chat's tool message is text only, so they go
+	// in a user message after the run of tool messages they came from
+	var resultImages []dto.MediaContent
+	flushResultImages := func() {
+		if len(resultImages) == 0 {
+			return
+		}
+		message := dto.Message{Role: "user"}
+		message.SetMediaContent(append([]dto.MediaContent{{Type: dto.ContentTypeText, Text: "Images returned by the tool calls above:"}}, resultImages...))
+		wire.Messages = append(wire.Messages, message)
+		resultImages = nil
+	}
 	for _, item := range request.Conversation {
+		if item.Kind != textgen.InputFunctionResult {
+			flushResultImages()
+		}
 		switch item.Kind {
 		case textgen.InputReasoning:
 			if !item.PlainReasoning.Set {
+				if len(item.Opaque) > 0 && item.Opaque[0].Dialect == "anthropic" {
+					// sealed by Anthropic, meaningless to another vendor
+					continue
+				}
 				return fmt.Errorf("opaque reasoning cannot be encoded as chat")
 			}
 			last := len(wire.Messages) - 1
@@ -678,12 +696,19 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 		case textgen.InputFunctionResult:
 			pendingReasoning = -1
 			message := dto.Message{Role: "tool", ToolCallId: item.CallID}
-			message.SetStringContent(item.Output)
+			message.SetStringContent(textgen.ResultText(item))
 			wire.Messages = append(wire.Messages, message)
+			for _, part := range item.Content {
+				if part.Kind == textgen.ContentImage {
+					media := dto.MediaContent{Type: dto.ContentTypeImageURL, ImageUrl: &dto.MessageImageUrl{Url: part.URL, Detail: part.Detail}}
+					resultImages = append(resultImages, media)
+				}
+			}
 		default:
 			return fmt.Errorf("input kind %q cannot be encoded as chat", item.Kind)
 		}
 	}
+	flushResultImages()
 	if len(wire.Messages) == 0 {
 		return fmt.Errorf("messages is required")
 	}

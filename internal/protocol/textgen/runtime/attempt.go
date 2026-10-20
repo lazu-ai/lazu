@@ -73,24 +73,96 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 	// and the refusal stands instead. Counting happens where the attempt is
 	// chosen (controller), not here, since routing plans every candidate.
 	var degradations []textgen.Issue
-	if !hasNestedUnknownField(effective) {
+	// A Claude client is never degraded: its native path sends the client's
+	// own bytes, and Messages has no json_object to stand in with; a denial
+	// stands as a pre-flight refusal.
+	if !hasNestedUnknownField(effective) && client.Family != textgen.ProtocolAnthropic {
 		var degraded *textgen.Request
 		degraded, degradations = textgen.Degrade(snapshot, effective)
 		if len(degradations) > 0 {
 			effective = degraded
 		}
 	}
-	client.Dialect = "openai"
+	if client.Family == textgen.ProtocolAnthropic {
+		client.Dialect = "anthropic"
+	} else {
+		client.Dialect = "openai"
+	}
 	plan, err := textgen.PlanAttempt(client, snapshot, effective, channel.Id, modelName, parsed.InputTokens)
 	if err != nil {
 		return nil, err
 	}
 	plan.UpstreamProtocol.Dialect = dialect
+	if !plan.Native && client.Family == textgen.ProtocolAnthropic && !snapshot.Features.Has(textgen.FeatureReasoningEffort) && effective.Reasoning != (textgen.ReasoningOptions{}) {
+		// A Claude client asks for thinking on every request (Claude Code
+		// does). Another vendor's model takes it as reasoning_effort, which
+		// a model that does not reason refuses; the ask goes only to a model
+		// the catalog says reasons, as the legacy conversion never sent it
+		// at all.
+		if effective == parsed.Semantic {
+			effective = effective.Clone()
+		}
+		effective.Reasoning = textgen.ReasoningOptions{}
+	}
+	if !plan.Native && client.Family == textgen.ProtocolAnthropic && effective.Reasoning.Effort == "none" && !model.CanDisableReasoning(modelName) {
+		// thinking off, asked of a model that cannot stop reasoning: the
+		// ask is left out, as an upstream would refuse effort none
+		if effective == parsed.Semantic {
+			effective = effective.Clone()
+		}
+		effective.Reasoning.Effort = ""
+	}
+	if !plan.Native && client.Family == textgen.ProtocolAnthropic && !snapshot.Features.Has(textgen.FeatureInputImage) {
+		var omitted []textgen.Issue
+		effective, omitted = omitToolResultImages(effective, parsed.Semantic)
+		plan.Warnings = append(plan.Warnings, omitted...)
+	}
 	plan.Warnings = append(plan.Warnings, degradations...)
 	if err := validateBridgeOverride(plan.Native, unsupportedPatch); err != nil {
 		return nil, err
 	}
 	return &Attempt{Request: effective, Plan: plan}, nil
+}
+
+// omitToolResultImages replaces the images tool results returned with a
+// note, for a model the catalog does not say sees images. Claude Code reads
+// screenshots with tools; one image in a session's history would make every
+// later request to a model that cannot take images fail, where the legacy
+// conversion sent the image as text the model could not read either. The
+// plan warns once per result (X-Lazu-Warning). Images the user sent are left
+// alone, as they always were. The request is cloned before it changes.
+func omitToolResultImages(effective, original *textgen.Request) (*textgen.Request, []textgen.Issue) {
+	var issues []textgen.Issue
+	for index, item := range effective.Conversation {
+		if item.Kind != textgen.InputFunctionResult || len(item.Content) == 0 {
+			continue
+		}
+		if effective == original {
+			effective = effective.Clone()
+		}
+		count := 0
+		kept := item.Content[:0:0]
+		for _, part := range item.Content {
+			if part.Kind == textgen.ContentImage {
+				count++
+				continue
+			}
+			kept = append(kept, part)
+		}
+		if count == 0 {
+			continue
+		}
+		result := &effective.Conversation[index]
+		result.Content = kept
+		note := fmt.Sprintf("[%d image(s) returned by this tool were omitted: the model cannot view images]", count)
+		if result.Output == "" {
+			result.Output = note
+		} else {
+			result.Output += "\n" + note
+		}
+		issues = append(issues, textgen.Issue{Feature: textgen.FeatureInputImage, Path: fmt.Sprintf("input[%d].content", index), Message: "omitted:tool_result_image"})
+	}
+	return effective, issues
 }
 
 // hasNestedUnknownField says whether the request carries a field below the

@@ -6,6 +6,7 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 )
@@ -27,6 +28,8 @@ func Parse(family textgen.ProtocolFamily, body []byte) (*textgen.ParsedRequest, 
 		semantic, wire, err = openai_chat.Decode(body)
 	case textgen.ProtocolOpenAIResponses:
 		semantic, wire, err = openai_responses.Decode(body)
+	case textgen.ProtocolAnthropic:
+		semantic, wire, err = anthropic_messages.Decode(body)
 	default:
 		return nil, fmt.Errorf("%w %q", ErrNoDecoder, family)
 	}
@@ -34,5 +37,9 @@ func Parse(family textgen.ProtocolFamily, body []byte) (*textgen.ParsedRequest, 
 		return nil, err
 	}
 	features, uses := textgen.ExtractFeatures(semantic)
-	return &textgen.ParsedRequest{Client: textgen.Protocol{Family: family, Dialect: "openai"}, Semantic: semantic, Wire: wire, Features: features, Uses: uses}, nil
+	dialect := "openai"
+	if family == textgen.ProtocolAnthropic {
+		dialect = "anthropic"
+	}
+	return &textgen.ParsedRequest{Client: textgen.Protocol{Family: family, Dialect: dialect}, Semantic: semantic, Wire: wire, Features: features, Uses: uses}, nil
 }
