@@ -1,0 +1,32 @@
+# recorded 2026-10-20T16:35:48Z from https://api.lazu.ai/v1/messages, HTTP 200, content-type text/event-stream
+# request: {"model":"claude-haiku-5-5","max_tokens":300,"stream":true,"tools":[{"name":"get_weather","description":"Get the weather for a city","input_schema":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}],"tool_choice":{"type":"any"},"messages":[{"role":"user","content":"Weather in Paris?"}]}
+event: message_start
+data: {"type":"message_start","message":{"type":"message","model":"claude-haiku-5-5","usage":{"input_tokens":492,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{},"output_tokens":8},"role":"assistant","id":"msg_011CgDpBm9ENfGXGttjZ68Mu","content":[]}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_017GnMaBMkNMfthqGCHQghJe","name":"get_weather","input":{}}}
+
+event: ping
+data: {"type":"ping"}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"city\""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":": \"Pari"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"s\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta","usage":{"input_tokens":492,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":40,"output_tokens_details":{"thinking_tokens":0}},"delta":{"stop_reason":"tool_use"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

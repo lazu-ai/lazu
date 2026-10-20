@@ -14,6 +14,8 @@ package contracttest
 // never written; the files hold no credentials (vendor request ids are not
 // secrets). A vendor whose key is absent is skipped, not failed.
 //
+// RECORD_ONLY=<vendor> or <vendor>/<case> re-records a subset.
+//
 // With LAZU_API_KEY set (and optionally LAZU_BASE_URL, default
 // https://api.lazu.ai) every case is sent through the lazu gateway instead,
 // on the same wire API the vendor speaks (/v1/messages, /v1/chat/completions,
@@ -47,6 +49,8 @@ var upstreamCases = []upstreamCase{
 		body: `{"model":"claude-haiku-5-5","max_tokens":200,"stream":true,"messages":[{"role":"user","content":"Say hello in five words."}]}`},
 	{vendor: "anthropic", name: "thinking_adaptive", url: "https://api.anthropic.com/v1/messages", auth: "x-api-key",
 		body: `{"model":"claude-haiku-5-5","max_tokens":1200,"stream":true,"thinking":{"type":"adaptive","display":"summarized"},"output_config":{"effort":"low"},"messages":[{"role":"user","content":"What is 17*23? Think briefly."}]}`},
+	{vendor: "anthropic", name: "thinking_block", url: "https://api.anthropic.com/v1/messages", auth: "x-api-key",
+		body: `{"model":"claude-haiku-5-5","max_tokens":4000,"stream":true,"thinking":{"type":"adaptive","display":"summarized"},"output_config":{"effort":"high"},"messages":[{"role":"user","content":"A train leaves at 9:40 and arrives at 13:05 after a 25 minute stop. How long was it moving? Reason it through before answering."}]}`},
 	{vendor: "anthropic", name: "tool_call", url: "https://api.anthropic.com/v1/messages", auth: "x-api-key",
 		body: `{"model":"claude-haiku-5-5","max_tokens":300,"stream":true,"tools":[{"name":"get_weather","description":"Get the weather for a city","input_schema":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}],"tool_choice":{"type":"any"},"messages":[{"role":"user","content":"Weather in Paris?"}]}`},
 	{vendor: "anthropic", name: "json_schema", url: "https://api.anthropic.com/v1/messages", auth: "x-api-key",
@@ -63,13 +67,17 @@ var upstreamCases = []upstreamCase{
 	{vendor: "deepseek", name: "responses_json_schema", url: "https://api.deepseek.com/v1/responses", auth: "bearer",
 		body: `{"model":"deepseek-flash","stream":true,"store":false,"reasoning":{"effort":"none"},"text":{"format":{"type":"json_schema","name":"session_title","schema":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}}},"input":"Title this chat about protocol gateways."}`},
 	{vendor: "deepseek", name: "responses_tool_call", url: "https://api.deepseek.com/v1/responses", auth: "bearer",
-		body: `{"model":"deepseek-flash","stream":true,"store":false,"tools":[{"type":"function","name":"get_weather","description":"Get the weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}],"tool_choice":"required","input":"Weather in Paris?"}`},
+		// thinking on refuses a forced tool_choice ("Thinking mode does not support
+		// this tool_choice", recorded 2026-10-21), so reasoning is off here
+		body: `{"model":"deepseek-flash","stream":true,"store":false,"reasoning":{"effort":"none"},"tools":[{"type":"function","name":"get_weather","description":"Get the weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}],"tool_choice":"required","input":"Weather in Paris?"}`},
+	{vendor: "deepseek", name: "responses_tool_choice_refused_with_thinking", url: "https://api.deepseek.com/v1/responses", auth: "bearer",
+		body: `{"model":"deepseek-flash","stream":false,"store":false,"tools":[{"type":"function","name":"get_weather","description":"Get the weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}],"tool_choice":"required","input":"Weather in Paris?"}`},
 	// Gemini generateContent (streaming, SSE)
-	{vendor: "gemini", name: "text", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
+	{vendor: "gemini", name: "text", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
 		body: `{"contents":[{"role":"user","parts":[{"text":"Say hello in five words."}]}]}`},
-	{vendor: "gemini", name: "tool_call", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
+	{vendor: "gemini", name: "tool_call", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
 		body: `{"contents":[{"role":"user","parts":[{"text":"Weather in Paris?"}]}],"tools":[{"functionDeclarations":[{"name":"get_weather","description":"Get the weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}]}],"toolConfig":{"functionCallingConfig":{"mode":"ANY"}}}`},
-	{vendor: "gemini", name: "json_schema", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
+	{vendor: "gemini", name: "json_schema", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
 		body: `{"contents":[{"role":"user","parts":[{"text":"Title this chat about protocol gateways."}]}],"generationConfig":{"responseMimeType":"application/json","responseSchema":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}}}`},
 }
 
@@ -102,7 +110,11 @@ func TestRecordUpstreamFixtures(t *testing.T) {
 		lazuBase = "https://api.lazu.ai"
 	}
 	client := &http.Client{Timeout: 90 * time.Second}
+	only := os.Getenv("RECORD_ONLY") // "vendor" or "vendor/case", to re-record a few
 	for _, tc := range upstreamCases {
+		if only != "" && only != tc.vendor && only != tc.vendor+"/"+tc.name {
+			continue
+		}
 		key, url := os.Getenv(vendorKeys[tc.vendor]), tc.url
 		if lazuKey != "" {
 			key, url = lazuKey, throughLazu(lazuBase, tc.url)
