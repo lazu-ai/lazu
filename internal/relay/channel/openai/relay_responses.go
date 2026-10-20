@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -96,6 +95,11 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		return nil, types.NewError(fmt.Errorf("invalid response"), types.ErrorCodeBadResponse)
 	}
 
+	if bridgesResponsesToChat(info) {
+		// a Chat client on a Responses upstream: the hub
+		return chatClientResponsesStream(c, info, resp)
+	}
+
 	defer service.CloseResponseBodyGracefully(resp)
 
 	var usage = &dto.Usage{}
@@ -110,14 +114,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		// retain the last received event for the controller's terminal hook.
 		service.CaptureIncompleteModelResponse(c, []byte(lastData), resp.StatusCode)
 	}()
-	chatCompat := bridgesResponsesToChat(info)
-	chatCompatState := &responsesChatCompatStreamState{}
-	var conversionErr error
-	var terminalFailure error
-	terminalSeen := false
 	terminalType := ""
-	var terminalResponse *dto.OpenAIResponsesResponse
-	var terminalStreamError *types.OpenAIError
 	// Native passthrough only: whether any event has been forwarded yet, and the
 	// failure carried by a stream that failed before forwarding any.
 	nativeStreamStarted := false
@@ -132,46 +129,33 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		var streamResponse dto.ResponsesStreamResponse
 		if err := common.UnmarshalJsonStr(data, &streamResponse); err == nil {
 			stopAfterEvent := false
-			if !chatCompat {
-				// A Responses stream reports failure in-band: the transport is a
-				// healthy 200 and the provider sends `error` or `response.failed`
-				// instead of output. Forwarding that first event would make the
-				// attempt look successful to the controller — no error row, no
-				// health signal — and would start the response, which bars any
-				// retry. Hold it instead and fail the attempt for real.
-				//
-				// nativeStreamStarted tracks forwarded CONTENT, deliberately not
-				// c.Writer.Written(): a keep-alive ping commits the SSE response
-				// without carrying any content, and a stall long enough to emit
-				// one is exactly when this hold matters most.
-				if !nativeStreamStarted && isResponsesFailureEvent(&streamResponse) {
-					nativeFirstEventFailed = true
-					nativeFirstEventError = responsesStreamFailureError(&streamResponse)
-					conversionTimer.Finish(nil)
-					return false
-				}
-				nativeStreamStarted = true
-				sendResponsesStreamData(c, streamResponse, data)
+			// A Responses stream reports failure in-band: the transport is a
+			// healthy 200 and the provider sends `error` or `response.failed`
+			// instead of output. Forwarding that first event would make the
+			// attempt look successful to the controller — no error row, no
+			// health signal — and would start the response, which bars any
+			// retry. Hold it instead and fail the attempt for real.
+			//
+			// nativeStreamStarted tracks forwarded CONTENT, deliberately not
+			// c.Writer.Written(): a keep-alive ping commits the SSE response
+			// without carrying any content, and a stall long enough to emit
+			// one is exactly when this hold matters most.
+			if !nativeStreamStarted && isResponsesFailureEvent(&streamResponse) {
+				nativeFirstEventFailed = true
+				nativeFirstEventError = responsesStreamFailureError(&streamResponse)
+				conversionTimer.Finish(nil)
+				return false
 			}
-			chatCompatState.syncFromResponsesMeta(c, info, streamResponse.Response)
-
+			nativeStreamStarted = true
+			sendResponsesStreamData(c, streamResponse, data)
 			switch streamResponse.Type {
 			case "error":
-				// Content-bearing native failures stay passthrough, while the
-				// bridge retains its existing classified terminal error. Both are
-				// protocol ends; neither needs to wait for the HTTP transfer EOF.
+				// a content-bearing native failure stays passthrough; it is a
+				// protocol end and need not wait for the HTTP transfer EOF
 				logicalTerminal = true
 				stopAfterEvent = true
-				if chatCompat {
-					terminalSeen = true
-					terminalType = streamResponse.Type
-					terminalStreamError = streamResponse.GetOpenAIError()
-					stopAfterEvent = true
-				}
 			case "response.completed", "response.incomplete", "response.failed":
-				terminalSeen = true
 				terminalType = streamResponse.Type
-				terminalResponse = streamResponse.Response
 				if streamResponse.Response != nil {
 					recordResponsesFinishReason(info, streamResponse.Response)
 					if streamResponse.Response.Usage != nil {
@@ -193,14 +177,8 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			case "response.output_text.delta":
 				// 处理输出文本
 				responseTextBuilder.WriteString(streamResponse.Delta)
-				if chatCompat {
-					sendResponsesCompatChatTextDelta(c, info, chatCompatState, streamResponse.Delta)
-				}
 			case "response.refusal.delta":
 				responseTextBuilder.WriteString(streamResponse.Delta)
-				if chatCompat {
-					sendResponsesCompatChatRefusalDelta(c, info, chatCompatState, streamResponse.Delta)
-				}
 			case "response.function_call_arguments.delta":
 				responseTextBuilder.WriteString(streamResponse.Delta)
 				if key := responsesFunctionArgumentKey(&streamResponse, nil); key != "" {
@@ -229,9 +207,6 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 						if len(streamResponse.Item.Arguments) > observedBytes {
 							responseTextBuilder.WriteString(streamResponse.Item.Arguments[observedBytes:])
 						}
-						if chatCompat {
-							chatCompatState.queueToolCall(streamResponse.Item)
-						}
 					}
 				}
 			}
@@ -242,10 +217,6 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		} else {
 			conversionTimer.Finish(err)
 			logger.LogError(c, "failed to unmarshal stream response: "+err.Error())
-			if chatCompat {
-				conversionErr = fmt.Errorf("decode responses stream event: %w", err)
-				return false
-			}
 		}
 		streamLog.Add(data)
 		lastData = data
@@ -269,23 +240,6 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
 		return usage, responsesFirstEventLazuError(c, nativeFirstEventError)
 	}
-	if conversionErr != nil {
-		if !service.ValidUsage(usage) {
-			service.PromptTokensForUsage(c, info)
-		}
-		observedResponsesStreamUsage(info, usage, responseTextBuilder.String(), functionCallCount)
-		failResponsesCompatChatStream(c, types.ErrorCodeBadResponse, "")
-		return usage, types.NewError(conversionErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-	}
-	if chatCompat && !terminalSeen {
-		if !service.ValidUsage(usage) {
-			service.PromptTokensForUsage(c, info)
-		}
-		observedResponsesStreamUsage(info, usage, responseTextBuilder.String(), functionCallCount)
-		terminalErr := fmt.Errorf("responses stream ended without a terminal event")
-		failResponsesCompatChatStream(c, types.ErrorCodeUpstreamStreamFailed, "")
-		return usage, types.NewError(terminalErr, types.ErrorCodeBadResponse, types.ErrOptionWithSkipRetry())
-	}
 
 	if usage.CompletionTokens == 0 {
 		// 计算输出文本的 token 数量
@@ -306,19 +260,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	if usage.TotalTokens < usage.PromptTokens+usage.CompletionTokens {
 		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 	}
-	if chatCompat {
-		if terminalType == "error" {
-			terminalFailure = sendResponsesCompatChatStreamError(c, terminalStreamError)
-		} else if terminalType == "response.failed" {
-			terminalFailure = sendResponsesCompatChatFailure(c, terminalResponse)
-		} else {
-			sendResponsesCompatChatCompletion(c, info, chatCompatState, terminalResponse, usage)
-		}
-	}
 	statusCode := http.StatusOK
-	if terminalFailure != nil {
-		statusCode = http.StatusBadGateway
-	}
 	streamPayload := &service.ModelLogPayload{
 		ResponseChunks: streamLog.Values(),
 		Metadata:       streamLog.Metadata(),
@@ -330,20 +272,6 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		streamPayload.ResponseBody = append([]byte(nil), []byte(lastData)...)
 	}
 	service.RecordModelExchange(c, streamPayload)
-	if terminalFailure != nil {
-		helper.Done(c)
-		common.SetContextKey(c, constant.ContextKeyProtocolStreamTerminal, true)
-		// The error is emitted after the response has started, so the controller
-		// cannot safely run its normal pre-consumption refund path. Ask the relay
-		// layer to settle the captured usage (including an all-zero full refund)
-		// before it returns the terminal error.
-		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
-		return usage, types.NewErrorWithStatusCode(terminalFailure, types.ErrorCodeUpstreamError, http.StatusBadGateway)
-	}
-	if chatCompat {
-		helper.Done(c)
-	}
-
 	return usage, nil
 }
 
@@ -506,19 +434,6 @@ func failResponsesCompatChatStream(c *gin.Context, code types.ErrorCode, message
 	common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
 }
 
-func sendResponsesCompatChatFailure(c *gin.Context, response *dto.OpenAIResponsesResponse) error {
-	var upstream *types.OpenAIError
-	if response != nil {
-		upstream = response.GetOpenAIError()
-	}
-	frame, message := streamFailureFrame(types.ErrorCodeUpstreamStreamFailed, upstream)
-	frame.RequestID = c.GetString(common.RequestIdKey)
-	if err := helper.ObjectData(c, gin.H{"error": frame}); err != nil {
-		return err
-	}
-	return fmt.Errorf("%s", message)
-}
-
 // recordResponsesFinishReason translates how a Responses reply ended into the
 // chat vocabulary the outcome row stores. The Responses API has no
 // finish_reason: a reply cut off at max_output_tokens arrives as status
@@ -580,207 +495,6 @@ func bridgesResponsesToChat(info *relaycommon.RelayInfo) bool {
 	return info != nil && info.ProtocolPlan != nil && !info.ProtocolPlan.Native &&
 		info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIChat &&
 		info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIResponses
-}
-
-type responsesChatCompatStreamState struct {
-	responseID    string
-	createdAt     int64
-	model         string
-	sentRole      bool
-	sentToolCall  bool
-	toolCallIndex int
-	pendingTools  []dto.ResponsesOutput
-}
-
-func (s *responsesChatCompatStreamState) syncFromResponsesMeta(c *gin.Context, info *relaycommon.RelayInfo, response *dto.OpenAIResponsesResponse) {
-	if s == nil {
-		return
-	}
-	if response != nil {
-		if s.responseID == "" && response.ID != "" {
-			s.responseID = openai_responses.NormalizeChatCompletionID(response.ID)
-		}
-		if s.createdAt == 0 && response.CreatedAt > 0 {
-			s.createdAt = int64(response.CreatedAt)
-		}
-		if s.model == "" && response.Model != "" {
-			s.model = response.Model
-		}
-	}
-	if s.responseID == "" {
-		s.responseID = openai_responses.NormalizeChatCompletionID(helper.GetResponseID(c))
-	}
-	if s.createdAt == 0 {
-		s.createdAt = time.Now().Unix()
-	}
-	if s.model == "" {
-		if info != nil && info.UpstreamModelName != "" {
-			s.model = info.UpstreamModelName
-		} else if info != nil {
-			s.model = info.OriginModelName
-		}
-	}
-}
-
-func sendResponsesCompatChatTextDelta(c *gin.Context, info *relaycommon.RelayInfo, state *responsesChatCompatStreamState, delta string) {
-	if state == nil || delta == "" {
-		return
-	}
-	state.syncFromResponsesMeta(c, info, nil)
-	if !state.sentRole {
-		start := helper.GenerateStartEmptyResponse(state.responseID, state.createdAt, state.model, nil)
-		_ = helper.ObjectData(c, start)
-		state.sentRole = true
-	}
-
-	chunk := dto.ChatCompletionsStreamResponse{
-		Id:      state.responseID,
-		Object:  "chat.completion.chunk",
-		Created: state.createdAt,
-		Model:   state.model,
-		Choices: []dto.ChatCompletionsStreamResponseChoice{
-			{
-				Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
-					Content: common.GetPointer(delta),
-				},
-				Index: 0,
-			},
-		},
-	}
-	_ = helper.ObjectData(c, chunk)
-}
-
-func sendResponsesCompatChatRefusalDelta(c *gin.Context, info *relaycommon.RelayInfo, state *responsesChatCompatStreamState, delta string) {
-	if state == nil || delta == "" {
-		return
-	}
-	state.syncFromResponsesMeta(c, info, nil)
-	if !state.sentRole {
-		start := helper.GenerateStartEmptyResponse(state.responseID, state.createdAt, state.model, nil)
-		_ = helper.ObjectData(c, start)
-		state.sentRole = true
-	}
-	chunk := dto.ChatCompletionsStreamResponse{
-		Id: state.responseID, Object: "chat.completion.chunk", Created: state.createdAt, Model: state.model,
-		Choices: []dto.ChatCompletionsStreamResponseChoice{{
-			Delta: dto.ChatCompletionsStreamResponseChoiceDelta{Refusal: common.GetPointer(delta)}, Index: 0,
-		}},
-	}
-	_ = helper.ObjectData(c, chunk)
-}
-
-func (s *responsesChatCompatStreamState) queueToolCall(item *dto.ResponsesOutput) {
-	if s == nil || item == nil {
-		return
-	}
-	s.pendingTools = append(s.pendingTools, *item)
-}
-
-func flushResponsesCompatChatToolCalls(c *gin.Context, info *relaycommon.RelayInfo, state *responsesChatCompatStreamState, completedOnly bool) {
-	if state == nil || len(state.pendingTools) == 0 {
-		return
-	}
-	for i := range state.pendingTools {
-		if completedOnly && !strings.EqualFold(state.pendingTools[i].Status, "completed") {
-			continue
-		}
-		sendResponsesCompatChatToolCall(c, info, state, &state.pendingTools[i])
-	}
-	state.pendingTools = nil
-}
-
-func sendResponsesCompatChatToolCall(c *gin.Context, info *relaycommon.RelayInfo, state *responsesChatCompatStreamState, item *dto.ResponsesOutput) {
-	if state == nil || item == nil {
-		return
-	}
-	state.syncFromResponsesMeta(c, info, nil)
-	if !state.sentRole {
-		start := helper.GenerateStartEmptyResponse(state.responseID, state.createdAt, state.model, nil)
-		_ = helper.ObjectData(c, start)
-		state.sentRole = true
-	}
-
-	callID := item.CallID
-	if callID == "" {
-		callID = item.ID
-	}
-	toolCall := dto.ToolCallResponse{
-		ID:   callID,
-		Type: "function",
-		Function: dto.FunctionResponse{
-			Name:      item.Name,
-			Arguments: item.Arguments,
-		},
-	}
-	toolCall.SetIndex(state.toolCallIndex)
-	state.toolCallIndex++
-	state.sentToolCall = true
-
-	chunk := dto.ChatCompletionsStreamResponse{
-		Id:      state.responseID,
-		Object:  "chat.completion.chunk",
-		Created: state.createdAt,
-		Model:   state.model,
-		Choices: []dto.ChatCompletionsStreamResponseChoice{
-			{
-				Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
-					ToolCalls: []dto.ToolCallResponse{toolCall},
-				},
-				Index: 0,
-			},
-		},
-	}
-	_ = helper.ObjectData(c, chunk)
-}
-
-func sendResponsesCompatChatCompletion(c *gin.Context, info *relaycommon.RelayInfo, state *responsesChatCompatStreamState, response *dto.OpenAIResponsesResponse, usage *dto.Usage) {
-	if state == nil {
-		return
-	}
-	state.syncFromResponsesMeta(c, info, response)
-	if !state.sentRole {
-		start := helper.GenerateStartEmptyResponse(state.responseID, state.createdAt, state.model, nil)
-		_ = helper.ObjectData(c, start)
-		state.sentRole = true
-	}
-
-	incomplete := response != nil && strings.EqualFold(response.Status, "incomplete")
-	completedOnly := incomplete
-	if incomplete && response.IncompleteDetails != nil && strings.EqualFold(response.IncompleteDetails.Reason, "max_output_tokens") {
-		// Chat tool-call deltas may legally contain an unfinished argument string.
-		// Preserve the billable partial call for length truncation so the caller
-		// can inspect or resume it; other incomplete reasons remain fail-closed.
-		completedOnly = false
-	}
-	flushResponsesCompatChatToolCalls(c, info, state, completedOnly)
-
-	finishReason := "stop"
-	if incomplete {
-		finishReason = "length"
-		if response.IncompleteDetails != nil && strings.EqualFold(response.IncompleteDetails.Reason, "content_filter") {
-			finishReason = "content_filter"
-		}
-	} else if state.sentToolCall {
-		finishReason = "tool_calls"
-	}
-	stopResp := helper.GenerateStopResponse(state.responseID, state.createdAt, state.model, finishReason)
-	_ = helper.ObjectData(c, stopResp)
-
-	if info != nil && info.ShouldIncludeUsage {
-		safeUsage := usage
-		if safeUsage == nil {
-			promptTokens := service.PromptTokensForUsage(c, info)
-			safeUsage = &dto.Usage{
-				PromptTokens:     promptTokens,
-				CompletionTokens: 0,
-				TotalTokens:      promptTokens,
-			}
-			service.ApplyLocalPromptUsage(c, info, safeUsage)
-		}
-		chatUsage := dto.ProjectChatUsage(safeUsage)
-		finalUsage := helper.GenerateFinalUsageResponse(state.responseID, state.createdAt, state.model, *chatUsage)
-		_ = helper.ObjectData(c, finalUsage)
-	}
 }
 
 func incrementResponsesBuiltInToolCall(info *relaycommon.RelayInfo, toolTypes ...string) {

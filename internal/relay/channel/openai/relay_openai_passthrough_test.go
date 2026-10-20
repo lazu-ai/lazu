@@ -1121,13 +1121,50 @@ func TestOaiResponsesStreamHandler_ChatCompatPreservesRefusalDelta(t *testing.T)
 	}
 }
 
-func TestOaiResponsesStreamHandler_ChatCompatPropagatesFailedTerminal(t *testing.T) {
+// A response.failed before any output reached the client is a pre-stream
+// failure: retryable, nothing written, classified by what the upstream said
+// (as on the native Responses path and the other protocol hubs).
+func TestOaiResponsesStreamHandler_ChatCompatFailureBeforeOutputIsRetryable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 	streamBody := strings.Join([]string{
 		`data: {"type":"response.failed","response":{"id":"resp_failed","status":"failed","model":"gpt-4.1-mini","error":{"type":"server_error","code":"overloaded","message":"upstream overloaded"},"usage":{"input_tokens":2,"output_tokens":0,"total_tokens":2}}}`,
+		``,
+		`data: [DONE]`,
+		``,
+	}, "\n")
+	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"text/event-stream"}}, Body: io.NopCloser(strings.NewReader(streamBody))}
+	info := &relaycommon.RelayInfo{
+		RelayFormat:  types.RelayFormatOpenAI,
+		ProtocolPlan: &textgen.RelayPlan{ClientProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIChat}, UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIResponses}},
+		PromptTokens: 9000, UsagePromptTokens: 2, UsagePromptTokensSet: true, UsagePromptTokensAvailable: true,
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4.1-mini"},
+	}
+	_, lazuErr := OaiResponsesStreamHandler(c, info, resp)
+	if lazuErr == nil || types.IsSkipRetryError(lazuErr) {
+		t.Fatalf("a failure before output must be a retryable error: %+v", lazuErr)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Fatalf("nothing may reach the client before a retry: %s", recorder.Body.String())
+	}
+	if !common.GetContextKeyBool(c, constant.ContextKeyStreamFirstEventFailed) {
+		t.Fatal("the attempt must be marked as failed on its first event")
+	}
+}
+
+// A response.failed after output is written as one catalogued error and one
+// DONE, settled from the captured usage, and not replayed.
+func TestOaiResponsesStreamHandler_ChatCompatPropagatesFailedTerminal(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	streamBody := strings.Join([]string{
+		`data: {"type":"response.output_text.delta","delta":"partial"}`,
+		``,
+		`data: {"type":"response.failed","response":{"id":"resp_failed","status":"failed","model":"gpt-4.1-mini","error":{"type":"server_error","code":"overloaded","message":"upstream overloaded"},"usage":{"input_tokens":2,"output_tokens":1,"total_tokens":3}}}`,
 		``,
 		`data: [DONE]`,
 		``,
