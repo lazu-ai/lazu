@@ -16,6 +16,7 @@ type StreamDecoder struct {
 	calls     map[int]bool
 	reasoning map[int]string
 	called    bool
+	turn      bool
 }
 
 // Decode is the events of one SSE event's data. Shapes it does not know
@@ -55,6 +56,13 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		case "reasoning":
 			d.reasoning[index] = ev.Item.ID
 			return []textgen.Event{{Kind: textgen.EventReasoningStart, ItemID: ev.Item.ID}}, nil
+		case "message":
+			// the assistant's turn begins, so an empty message is still a
+			// (empty) message
+			if !d.turn {
+				d.turn = true
+				return []textgen.Event{{Kind: textgen.EventTurn, Role: "assistant"}}, nil
+			}
 		}
 		return nil, nil
 	case "response.output_text.delta":
@@ -67,7 +75,7 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 	case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
 		if ev.Delta != "" {
-			return []textgen.Event{{Kind: textgen.EventReasoning, Text: ev.Delta, ItemID: d.reasoning[index]}}, nil
+			return []textgen.Event{{Kind: textgen.EventReasoning, Text: ev.Delta, ItemID: d.reasoning[index], Summary: ev.Type == "response.reasoning_summary_text.delta"}}, nil
 		}
 	case "response.function_call_arguments.delta":
 		if ev.Delta != "" {
@@ -141,6 +149,9 @@ func failedError(ev dto.ResponsesStreamResponse) *textgen.SemanticError {
 	}
 	if ev.Response != nil {
 		if upstream := dto.GetOpenAIError(ev.Response.Error); upstream != nil {
+			if upstream.Type != "" && upstream.Type != "upstream_error" {
+				semantic.Type = upstream.Type
+			}
 			if upstream.Message != "" {
 				semantic.Message = upstream.Message
 			}

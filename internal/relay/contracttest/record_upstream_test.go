@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,7 +167,7 @@ func TestRecordUpstreamFixtures(t *testing.T) {
 			}
 			path := filepath.Join(dir, tc.name+ext)
 			var out bytes.Buffer
-			fmt.Fprintf(&out, "# recorded %s from %s, HTTP %d, content-type %s\n# request: %s\n", time.Now().UTC().Format(time.RFC3339), url, res.StatusCode, res.Header.Get("Content-Type"), tc.body)
+			fmt.Fprintf(&out, "# recorded %s from %s, HTTP %d, content-type %s\n# request: %s\n", time.Now().UTC().Format(time.RFC3339), publicOrigin(url), res.StatusCode, res.Header.Get("Content-Type"), tc.body)
 			sc := bufio.NewScanner(bytes.NewReader(body))
 			sc.Buffer(make([]byte, 0, 64<<10), 4<<20)
 			for sc.Scan() {
@@ -179,4 +180,21 @@ func TestRecordUpstreamFixtures(t *testing.T) {
 			t.Logf("%s: HTTP %d, %d bytes", path, res.StatusCode, len(body))
 		})
 	}
+}
+
+// publicOrigin is the recorded URL as it may go into source control: scheme,
+// host and path, never userinfo or a query, and a host that is not a public
+// vendor API reduced to a label, so a staging or private gateway named in
+// LAZU_BASE_URL never lands in a fixture.
+func publicOrigin(raw string) string {
+	parsed, err := neturl.Parse(raw)
+	if err != nil {
+		return "(unparseable url)"
+	}
+	switch parsed.Hostname() {
+	case "api.anthropic.com", "api.deepseek.com", "generativelanguage.googleapis.com", "api.openai.com", "api.lazu.ai":
+	default:
+		return "(private gateway)" + parsed.EscapedPath()
+	}
+	return parsed.Scheme + "://" + parsed.Host + parsed.EscapedPath()
 }
