@@ -586,6 +586,82 @@ func TestResolveReconcilesLocalFallbackAfterRedisRecovers(t *testing.T) {
 	}
 }
 
+// alertingTestRedis returns a flushed client for ALERTING_TEST_REDIS_URL and
+// installs it as the package Redis with clean local state for the test.
+func alertingTestRedis(t *testing.T) *redis.Client {
+	t.Helper()
+	redisURL := os.Getenv("ALERTING_TEST_REDIS_URL")
+	if redisURL == "" {
+		t.Skip("ALERTING_TEST_REDIS_URL is not set")
+	}
+	if !strings.Contains(redisURL, "127.0.0.1") && !strings.Contains(redisURL, "localhost") {
+		t.Fatal("ALERTING_TEST_REDIS_URL must target a loopback Redis instance")
+	}
+	options, err := redis.ParseURL(redisURL)
+	if err != nil {
+		t.Fatalf("parse Redis URL: %v", err)
+	}
+	client := redis.NewClient(options)
+	if err := client.FlushDB(context.Background()).Err(); err != nil {
+		t.Fatalf("flush test Redis: %v", err)
+	}
+	previousEnabled, previousRDB := common.RedisEnabled, common.RDB
+	common.RedisEnabled, common.RDB = true, client
+	localMu.Lock()
+	previousLocal, previousDay := localIncidents, localDigestDay
+	localIncidents, localDigestDay = map[string]incidentState{}, ""
+	localMu.Unlock()
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RDB = previousEnabled, previousRDB
+		localMu.Lock()
+		localIncidents, localDigestDay = previousLocal, previousDay
+		localMu.Unlock()
+		_ = client.Close()
+	})
+	return client
+}
+
+func TestLoadOpenIncidentsTrustsRedisOverLocalCache(t *testing.T) {
+	client := alertingTestRedis(t)
+	localMu.Lock()
+	localIncidents = map[string]incidentState{
+		// Resolved by another process: gone from Redis.
+		"pg-dump": {Fingerprint: "x", FirstSeen: 100, LastSeen: 200, Occurrences: 5},
+		// Resolved elsewhere, then recurred with the same fingerprint.
+		"hourly-upload": {Fingerprint: "y", FirstSeen: 100, LastSeen: 200, Occurrences: 9},
+	}
+	localMu.Unlock()
+	recurrence := `{"fingerprint":"y","first_seen":500,"last_seen":600,"occurrences":2}`
+	if err := client.Set(context.Background(), incidentKeyPrefix+"hourly-upload", recurrence, 0).Err(); err != nil {
+		t.Fatalf("seed incident: %v", err)
+	}
+	open, err := loadOpenIncidents()
+	if err != nil {
+		t.Fatalf("loadOpenIncidents: %v", err)
+	}
+	if _, ok := open["pg-dump"]; ok {
+		t.Fatalf("an incident resolved in Redis came back from the local cache: %+v", open)
+	}
+	if got := open["hourly-upload"]; got.FirstSeen != 500 || got.Occurrences != 2 {
+		t.Fatalf("a recurrence must not inherit the resolved lifecycle: %+v", got)
+	}
+}
+
+func TestDigestClaimSurvivesRedisOutageAfterDelivery(t *testing.T) {
+	alertingTestRedis(t)
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	if !claimDigest(now) {
+		t.Fatal("first claim of the day should succeed")
+	}
+	// Redis goes away before the 09:25 retry tick.
+	down := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1", DialTimeout: 50 * time.Millisecond, MaxRetries: -1})
+	defer down.Close()
+	common.RDB = down
+	if claimDigest(now.Add(15 * time.Minute)) {
+		t.Fatal("a retry tick must not send again after a successful Redis-backed claim")
+	}
+}
+
 func TestRedisReservationAllowsOnlyOneConcurrentDelivery(t *testing.T) {
 	redisURL := os.Getenv("ALERTING_TEST_REDIS_URL")
 	if redisURL == "" {
