@@ -1,5 +1,7 @@
 # Lazu
 
+**Where agents get their models.** One key for the text, image and video models your agents call: Claude, GPT, Gemini and DeepSeek for code, GPT Image for images, Seedance for video.
+
 > **👤 Looking to use Lazu?** → **[lazu.ai/docs](https://lazu.ai/docs)** for the user-facing API documentation (Quickstart, Pricing, Endpoints, Examples).
 >
 > **🛠 Working on Lazu itself?** → keep reading, you're in the right place.
