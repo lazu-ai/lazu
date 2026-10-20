@@ -9,7 +9,7 @@ package contracttest
 //	  go test -tags record -run TestRecordUpstreamFixtures ./internal/relay/contracttest/
 //
 // Each vendor whose key is set gets its cases written under
-// testdata/upstream/<vendor>/<case>.sse, the body exactly as the vendor sent
+// internal/protocol/textgen/testdata/upstream/<vendor>/<case>.sse, the body exactly as the vendor sent
 // it, one SSE event per block. Keys are read from the environment only and
 // never written; the files hold no credentials (vendor request ids are not
 // secrets). A vendor whose key is absent is skipped, not failed.
@@ -156,7 +156,7 @@ func TestRecordUpstreamFixtures(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			dir := filepath.Join("testdata", "upstream", tc.vendor)
+			dir := filepath.Join("..", "..", "protocol", "textgen", "testdata", "upstream", tc.vendor)
 			if err := os.MkdirAll(dir, 0o755); err != nil {
 				t.Fatal(err)
 			}
