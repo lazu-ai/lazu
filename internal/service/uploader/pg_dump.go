@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -107,10 +108,21 @@ func RunPgDumpOnce(ctx context.Context, dsn string) PgDumpResult {
 		return res
 	}
 
-	// pg_dump writes to stdout. Stream stdout into gzip → buffer to avoid
-	// writing a 1 GB+ intermediate file on the container's overlayfs.
-	var dumpBuf bytes.Buffer
-	gw := gzip.NewWriter(&dumpBuf)
+	// pg_dump writes to stdout. Stream stdout through gzip into a temp file
+	// rather than memory: the compressed dump is hundreds of MiB, and holding
+	// it in a growing buffer can exceed a 1 GiB jobs container. The temp dir
+	// stays outside the data dir, which the JSONL upload walks.
+	dumpFile, err := os.CreateTemp("", "lazu-pg-dump-*.sql.gz")
+	if err != nil {
+		res.Err = fmt.Errorf("create dump temp file: %w", err)
+		res.Duration = time.Since(res.StartedAt)
+		return res
+	}
+	defer func() {
+		_ = dumpFile.Close()
+		_ = os.Remove(dumpFile.Name())
+	}()
+	gw := gzip.NewWriter(dumpFile)
 	var dumpErr bytes.Buffer
 
 	// --no-owner + --no-acl keep the dump portable across role names
@@ -160,8 +172,17 @@ func RunPgDumpOnce(ctx context.Context, dsn string) PgDumpResult {
 		return res
 	}
 
-	res.SizeBytes = int64(dumpBuf.Len())
-	if err := client.Put(ctx, key, &dumpBuf, "application/gzip"); err != nil {
+	size, err := dumpFile.Seek(0, io.SeekEnd)
+	if err == nil {
+		_, err = dumpFile.Seek(0, io.SeekStart)
+	}
+	if err != nil {
+		res.Err = fmt.Errorf("rewind dump temp file: %w", err)
+		res.Duration = time.Since(res.StartedAt)
+		return res
+	}
+	res.SizeBytes = size
+	if err := client.Put(ctx, key, dumpFile, "application/gzip"); err != nil {
 		res.Err = fmt.Errorf("upload %s: %w", key, err)
 		res.Duration = time.Since(res.StartedAt)
 		return res

@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	defaultReleaseNotesPrimaryModel  = "gemini-3.7-flash"
-	defaultReleaseNotesFallbackModel = "deepseek-v4-flash"
+	defaultReleaseNotesPrimaryModel  = "claude-haiku-5-5"
+	defaultReleaseNotesFallbackModel = "deepseek-flash"
 	defaultReleaseNotesBaseURL       = "http://lazu-backend:3000/v1"
 	releaseNotesMaxTokens            = 2400
-	releaseNoteOutputContract        = `Return one JSON object with exactly this shape and all four locales present: {"kind":"release_note","default_locale":"zh","title_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."},"summary_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."},"body_i18n":{"zh":["..."],"en":["..."],"zh-TW":["..."],"ja":["..."]},"api_changes":[]}. Each body_i18n locale must contain 1 to 3 short items. Fill api_changes only for real new, changed, or deprecated public API operations or fields, using {"method":"GET","path":"/public/path/{id}","note_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."}}. Use an empty array otherwise. Do not put API paths in the localized prose. Do not omit locales, add keys, or wrap the JSON in Markdown.`
+	releaseNoteOutputContract        = `Return one JSON object with exactly this shape and all four locales present: {"user_visible":true,"kind":"release_note","default_locale":"zh","title_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."},"summary_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."},"body_i18n":{"zh":["..."],"en":["..."],"zh-TW":["..."],"ja":["..."]},"api_changes":[]}. Each body_i18n locale must contain 1 to 3 short items. Fill api_changes only for real new, changed, or deprecated public API operations or fields, using {"method":"GET","path":"/public/path/{id}","note_i18n":{"zh":"...","en":"...","zh-TW":"...","ja":"..."}}. Use an empty array otherwise. Do not put API paths in the localized prose. Do not omit locales, add keys, or wrap the JSON in Markdown. If nothing in the range changes what users see or can do, return only {"user_visible":false}.`
+	releaseNoteAudienceGuide         = `Write only about what users of the Lazu console and API notice: new models or features, price changes, changed behaviour, and fixes they would have run into. Leave out refactors, tests, CI, dependency updates, internal tooling and self-hosting internals. Name models plainly, never as vendor/model paths.`
 )
 
 type ReleaseNoteGenerationRequest struct {
@@ -33,7 +34,14 @@ type ReleaseNoteGenerationRequest struct {
 	CommitSummary     string
 	Delivery          string
 	Draft             bool
+	// MinInterval skips generation while the last published release note is
+	// younger than this. The range still starts at that note, so the skipped
+	// commits go into the next one.
+	MinInterval time.Duration
 }
+
+// errNothingUserVisible marks a range the model judged invisible to users.
+var errNothingUserVisible = errors.New("no user-visible changes")
 
 // ReleaseDeploymentRecordRequest records a successful production deployment
 // even when it intentionally has no user-facing announcement.
@@ -44,6 +52,7 @@ type ReleaseDeploymentRecordRequest struct {
 }
 
 type releaseNoteModelOutput struct {
+	UserVisible   *bool             `json:"user_visible"`
 	Kind          string            `json:"kind"`
 	DefaultLocale string            `json:"default_locale"`
 	TitleI18N     map[string]string `json:"title_i18n"`
@@ -156,16 +165,31 @@ func GenerateAndRecordReleaseNote(ctx context.Context, req ReleaseNoteGeneration
 	if existingDeployment, existingAnnouncement, err := model.GeneratedReleaseDeploymentForRange(deployment.PreviousCommitSHA, deployment.CommitSHA); err != nil {
 		return nil, nil, err
 	} else if existingDeployment != nil && existingAnnouncement != nil {
+		// A retry with the same delivery only refreshes the version, so a rerun
+		// deploy of an auto-published changelog does not trip the published guard.
 		updatedDeployment, updatedAnnouncement, err := model.RecordReleaseDeploymentWithAnnouncement(deployment, &model.AnnouncementUpsert{
 			Delivery:    req.Delivery,
-			DeliverySet: true,
+			DeliverySet: existingAnnouncement.Delivery != req.Delivery,
 		})
 		if err != nil {
 			return nil, nil, err
 		}
+		// A changelog draft left by an older worker publishes on its retry.
+		if !req.Draft && updatedAnnouncement != nil && updatedAnnouncement.PublishedAt == nil && updatedAnnouncement.UnpublishedAt == nil {
+			if updatedAnnouncement, err = model.PublishAnnouncementDraft(updatedAnnouncement.ID); err != nil {
+				return nil, nil, err
+			}
+		}
 		return updatedDeployment, updatedAnnouncement, nil
 	}
 	req.CommitSummary = strings.TrimSpace(req.CommitSummary)
+
+	if recent, err := releaseNotePublishedWithin(req.MinInterval); err != nil {
+		return nil, nil, err
+	} else if recent {
+		deployment.ReleaseNoteError = fmt.Sprintf("a release note was published in the last %s", req.MinInterval)
+		return model.RecordReleaseDeploymentWithAnnouncement(deployment, nil)
+	}
 
 	if req.CommitSummary == "" {
 		deployment.ReleaseNoteError = "empty commit summary"
@@ -178,6 +202,10 @@ func GenerateAndRecordReleaseNote(ctx context.Context, req ReleaseNoteGeneration
 	}
 
 	output, sourceModel, err := generateValidatedReleaseNote(ctx, req.CommitSummary, apiKey)
+	if errors.Is(err, errNothingUserVisible) {
+		deployment.ReleaseNoteError = err.Error()
+		return model.RecordReleaseDeploymentWithAnnouncement(deployment, nil)
+	}
 	if err != nil {
 		deployment.ReleaseNoteStatus = model.ReleaseNoteStatusFailed
 		deployment.ReleaseNoteError = err.Error()
@@ -212,6 +240,28 @@ func LatestReleaseDeploymentCommitSHA() (string, error) {
 	return latest.CommitSHA, nil
 }
 
+func releaseNotePublishedWithin(interval time.Duration) (bool, error) {
+	if interval <= 0 {
+		return false, nil
+	}
+	publishedAt, err := model.LatestPublishedDeployReleaseNoteAt()
+	if err != nil || publishedAt == nil {
+		return false, err
+	}
+	return time.Since(*publishedAt) < interval, nil
+}
+
+// LatestPublishedReleaseNoteCommitSHA is the commit the last published release
+// note ran up to. Silent releases do not move it, so the deploy script can start
+// the next note there instead of losing the commits those releases shipped.
+func LatestPublishedReleaseNoteCommitSHA() (string, error) {
+	latest, err := model.LatestGeneratedReleaseDeployment()
+	if err != nil || latest == nil {
+		return "", err
+	}
+	return latest.CommitSHA, nil
+}
+
 func generateValidatedReleaseNote(ctx context.Context, summary string, apiKey string) (*releaseNoteModelOutput, string, error) {
 	errorsByModel := make([]string, 0, 2)
 	for _, modelName := range releaseNotesModelCandidates() {
@@ -221,6 +271,9 @@ func generateValidatedReleaseNote(ctx context.Context, summary string, apiKey st
 		}
 		if err == nil {
 			return output, modelName, nil
+		}
+		if errors.Is(err, errNothingUserVisible) {
+			return nil, modelName, err
 		}
 		if ctx.Err() != nil {
 			return nil, "", ctx.Err()
@@ -240,17 +293,21 @@ func callReleaseNoteModel(ctx context.Context, summary string, apiKey string, mo
 		"messages": []map[string]string{
 			{
 				"role":    "system",
-				"content": "You write concise user-facing Lazu release notes. " + releaseNoteOutputContract + " Do not mention internal file paths, hashes, database, Redis, queues, provider accounts, channel IDs, costs, or margins.",
+				"content": "You write concise user-facing Lazu release notes. " + releaseNoteAudienceGuide + " " + releaseNoteOutputContract + " Do not mention internal file paths, hashes, database, Redis, queues, provider accounts, channel IDs, costs, or margins.",
 			},
 			{
 				"role":    "user",
-				"content": "Summarize this deployed commit range for normal users. Include non-empty title_i18n, summary_i18n, and body_i18n values for every required locale: zh, en, zh-TW, and ja. Keep each locale short and return only the JSON object.\n\n" + summary,
+				"content": "Summarize this deployed commit range for normal users. Include non-empty title_i18n, summary_i18n, and body_i18n values for every required locale: zh, en, zh-TW, and ja. Keep each locale short and return only the JSON object, or {\"user_visible\":false} if users would notice none of it.\n\n" + summary,
 			},
 		},
-		"temperature":      0.2,
-		"max_tokens":       releaseNotesMaxTokens,
-		"reasoning_effort": "low",
-		"response_format":  releaseNoteResponseFormat(modelName),
+		"temperature":     0.2,
+		"max_tokens":      releaseNotesMaxTokens,
+		"response_format": releaseNoteResponseFormat(modelName),
+	}
+	// The gateway turns reasoning_effort into Claude thinking, which a short
+	// summary does not need.
+	if !strings.HasPrefix(strings.ToLower(modelName), "claude-") {
+		payload["reasoning_effort"] = "low"
 	}
 	if isGeminiReleaseNoteModel(modelName) {
 		payload["extra_body"] = map[string]any{
@@ -289,7 +346,7 @@ func callReleaseNoteModel(ctx context.Context, summary string, apiKey string, mo
 		return nil, errors.New("release note model returned empty content")
 	}
 	var output releaseNoteModelOutput
-	content := strings.TrimSpace(completion.Choices[0].Message.Content)
+	content := stripJSONFence(completion.Choices[0].Message.Content)
 	if err := json.Unmarshal([]byte(content), &output); err != nil {
 		finishReason := strings.TrimSpace(completion.Choices[0].FinishReason)
 		if finishReason == "" {
@@ -298,6 +355,19 @@ func callReleaseNoteModel(ctx context.Context, summary string, apiKey string, mo
 		return nil, fmt.Errorf("decode release note model output (finish_reason=%s, completion_tokens=%d): %w", finishReason, completion.Usage.CompletionTokens, err)
 	}
 	return &output, nil
+}
+
+// stripJSONFence unwraps a ```json block, which Claude models sometimes add
+// around a JSON-only answer.
+func stripJSONFence(content string) string {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "```") {
+		return content
+	}
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimPrefix(content, "json")
+	content = strings.TrimSuffix(strings.TrimSpace(content), "```")
+	return strings.TrimSpace(content)
 }
 
 func releaseNoteResponseFormat(modelName string) map[string]any {
@@ -340,6 +410,7 @@ func releaseNoteResponseFormat(modelName string) map[string]any {
 				"type":                 "object",
 				"additionalProperties": false,
 				"properties": map[string]any{
+					"user_visible":   map[string]any{"type": "boolean"},
 					"kind":           map[string]any{"type": "string", "enum": []string{"release_note"}},
 					"default_locale": map[string]any{"type": "string", "enum": requiredReleaseNoteLocales},
 					"title_i18n":     localizedString,
@@ -347,7 +418,7 @@ func releaseNoteResponseFormat(modelName string) map[string]any {
 					"body_i18n":      localizedBody,
 					"api_changes":    map[string]any{"type": "array", "items": apiChange},
 				},
-				"required": []string{"kind", "default_locale", "title_i18n", "summary_i18n", "body_i18n", "api_changes"},
+				"required": []string{"user_visible", "kind", "default_locale", "title_i18n", "summary_i18n", "body_i18n", "api_changes"},
 			},
 		},
 	}
@@ -369,6 +440,9 @@ func releaseNoteBodySchema() map[string]any {
 func validateReleaseNoteOutput(output *releaseNoteModelOutput) error {
 	if output == nil {
 		return errors.New("empty release note output")
+	}
+	if output.UserVisible != nil && !*output.UserVisible {
+		return errNothingUserVisible
 	}
 	output.Kind = model.AnnouncementKindReleaseNote
 	output.DefaultLocale = model.NormalizeAnnouncementLocale(output.DefaultLocale)

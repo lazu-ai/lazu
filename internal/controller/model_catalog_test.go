@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"reflect"
 	"strings"
@@ -949,5 +950,36 @@ func TestDeepSeekCatalogHidesAliasesWithoutUnpublishingRequests(t *testing.T) {
 	legacy := buildModelCatalogItemsWithOptions([]string{"deepseek-v4-flash"}, catalogBuildOptions{pricingMode: catalogPricingModeList})
 	if len(legacy) != 1 || legacy[0].ID != "deepseek-v4-flash" {
 		t.Fatal("legacy-only key must retain its permitted catalog entry")
+	}
+	for _, allowed := range [][]string{
+		{"deepseek-v4-flash"},
+		{"deepseek-v4-flash-vision-exp"},
+		{"deepseek-flash", "deepseek-v4-flash"},
+	} {
+		t.Run(strings.Join(allowed, ","), func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest("GET", "/v1/models", nil)
+			c.Set("token_id", 1)
+			common.SetContextKey(c, constant.ContextKeyUsingGroup, model.ChannelLaneDirect)
+			common.SetContextKey(c, constant.ContextKeyTokenGroup, model.ChannelLaneDirect)
+			common.SetContextKey(c, constant.ContextKeyTokenModelLimitEnabled, true)
+			common.SetContextKey(c, constant.ContextKeyTokenModelLimit, stringSet(allowed))
+			ListModels(c, constant.ChannelTypeOpenAI)
+			var response dto.ModelCatalogResponse
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &response) != nil {
+				t.Fatalf("model discovery failed: %d %s", w.Code, w.Body.String())
+			}
+			var accessible []string
+			for _, item := range response.Data {
+				if item.Accessible != nil && *item.Accessible {
+					accessible = append(accessible, item.ID)
+				}
+			}
+			want := model.ListedModelNames(allowed)
+			if !reflect.DeepEqual(accessible, want) {
+				t.Fatalf("GET /v1/models accessible=%v want=%v", accessible, want)
+			}
+		})
 	}
 }

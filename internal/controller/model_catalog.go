@@ -586,7 +586,7 @@ func buildModelCatalogItems(modelNames []string, pricingContext catalogPricingCo
 }
 
 func buildModelCatalogItemsWithOptions(modelNames []string, options catalogBuildOptions) []dto.ModelCatalogItem {
-	modelNames = model.ListedModelNames(modelNames)
+	modelNames = listedCatalogModelNames(modelNames, options.accessibleByModel)
 	pricingList := model.GetPricing()
 	pricingByModel := make(map[string]model.Pricing, len(pricingList))
 	for _, pricing := range pricingList {
@@ -743,6 +743,21 @@ func buildModelCatalogItemsWithOptions(modelNames []string, options catalogBuild
 	return items
 }
 
+func listedCatalogModelNames(names []string, accessible map[string]bool) []string {
+	listed := model.ListedModelNames(names)
+	present := stringSet(listed)
+	for _, name := range names {
+		target := model.CompatibilityModelTarget(name)
+		// Discovery includes inaccessible public models too. A visible
+		// canonical model must not hide the only name this key can call.
+		if target != "" && accessible[name] && !accessible[target] && !present[name] {
+			listed = append(listed, name)
+			present[name] = true
+		}
+	}
+	return listed
+}
+
 // summarizeCatalogLaneHealth preserves the optional top-level catalog field
 // without reintroducing a second health system. It is deliberately
 // conservative: the weakest/unknown lane determines the model status and an
@@ -802,6 +817,9 @@ func summarizeCatalogLaneHealth(
 }
 
 func buildModelDiscoveryResponse(c *gin.Context) (dto.ModelCatalogResponse, error) {
+	if c.GetInt("token_id") > 0 {
+		return buildModelDiscoveryResponseForNames(c, getPublishedModelDiscoveryNames())
+	}
 	return buildModelDiscoveryResponseForNames(c, getPublicModelDiscoveryNames())
 }
 
@@ -861,7 +879,11 @@ func buildPublicModelDiscoveryResponse() dto.ModelCatalogResponse {
 }
 
 func getPublicModelDiscoveryNames() []string {
-	pricingList := model.ListedPricing(model.GetPricing())
+	return model.ListedModelNames(getPublishedModelDiscoveryNames())
+}
+
+func getPublishedModelDiscoveryNames() []string {
+	pricingList := model.GetPricing()
 	names := make([]string, 0, len(pricingList))
 	seen := make(map[string]struct{}, len(pricingList))
 	for _, pricing := range pricingList {

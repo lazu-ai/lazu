@@ -175,9 +175,58 @@ func TestDeploymentAnnouncementModes(t *testing.T) {
 	}
 }
 
+func TestDeploymentReleaseNotePublishesOnlyChangelog(t *testing.T) {
+	if deploymentReleaseNoteIsDraft("changelog") {
+		t.Fatal("a changelog release note should publish on deploy")
+	}
+	for _, mode := range []string{"notice", "critical"} {
+		if !deploymentReleaseNoteIsDraft(mode) {
+			t.Fatalf("a %s release note should wait for review", mode)
+		}
+	}
+}
+
+func TestDeploymentReleaseNoteMinInterval(t *testing.T) {
+	t.Setenv("RELEASE_NOTES_MIN_INTERVAL", "")
+	if got := deploymentReleaseNoteMinInterval("changelog"); got != 0 {
+		t.Fatalf("unset, every release should get its note, got %s", got)
+	}
+	t.Setenv("RELEASE_NOTES_MIN_INTERVAL", "6h")
+	if got := deploymentReleaseNoteMinInterval("changelog"); got != 6*time.Hour {
+		t.Fatalf("configured hold ignored, got %s", got)
+	}
+	if got := deploymentReleaseNoteMinInterval("notice"); got != 0 {
+		t.Fatalf("a reviewed notice should not be held, got %s", got)
+	}
+}
+
+func TestReleaseNoteState(t *testing.T) {
+	now := time.Now()
+	if got := releaseNoteState(&model.Announcement{}); got != "drafted" {
+		t.Fatalf("unpublished announcement reported %q", got)
+	}
+	if got := releaseNoteState(&model.Announcement{PublishedAt: &now}); got != "published" {
+		t.Fatalf("published announcement reported %q", got)
+	}
+	if got := releaseNoteState(&model.Announcement{PublishedAt: &now, UnpublishedAt: &now}); got != "drafted" {
+		t.Fatalf("withdrawn announcement reported %q", got)
+	}
+}
+
 func TestProductionWorkerHonorsUnrecognizedProductionMarkers(t *testing.T) {
 	t.Setenv("RETIRED_WORKER_ENV", "production")
 	if !isProductionWorkerRuntime() {
 		t.Fatal("an unfamiliar production marker must keep worker protections enabled")
+	}
+}
+
+func TestScheduledMaintenanceIsOffUnlessRequested(t *testing.T) {
+	t.Setenv("LAZU_JOBS_SCHEDULED_MAINTENANCE", "")
+	if scheduledMaintenanceEnabled() {
+		t.Fatal("scheduled maintenance must stay off by default so an all-in-one API does not run it twice")
+	}
+	t.Setenv("LAZU_JOBS_SCHEDULED_MAINTENANCE", "true")
+	if !scheduledMaintenanceEnabled() {
+		t.Fatal("expected LAZU_JOBS_SCHEDULED_MAINTENANCE=true to enable scheduled maintenance")
 	}
 }

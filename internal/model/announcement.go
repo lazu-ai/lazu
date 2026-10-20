@@ -1041,6 +1041,47 @@ func ReleaseDeploymentForCommit(commitSHA string) (*ReleaseDeployment, error) {
 	return &row, nil
 }
 
+// LatestPublishedDeployReleaseNoteAt is when the most recently published
+// deploy-generated release note that is still live went out, whichever
+// deployment it belongs to.
+func LatestPublishedDeployReleaseNoteAt() (*time.Time, error) {
+	if CoreDB() == nil {
+		return nil, nil
+	}
+	var row Announcement
+	err := CoreDB().
+		Where("kind = ? AND source = ?", AnnouncementKindReleaseNote, AnnouncementSourceDeploy).
+		Where("published_at IS NOT NULL AND unpublished_at IS NULL").
+		Order("published_at DESC").
+		First(&row).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return row.PublishedAt, nil
+}
+
+// PublishAnnouncementDraft publishes an announcement that was never published.
+// One an admin withdrew stays withdrawn.
+func PublishAnnouncementDraft(id uint) (*Announcement, error) {
+	if CoreDB() == nil || id == 0 {
+		return nil, errors.New("announcement is required")
+	}
+	now := time.Now().UTC()
+	if err := CoreDB().Model(&Announcement{}).
+		Where("id = ? AND published_at IS NULL AND unpublished_at IS NULL", id).
+		Updates(map[string]any{"published_at": now, "updated_at": now}).Error; err != nil {
+		return nil, err
+	}
+	var announcement Announcement
+	if err := CoreDB().First(&announcement, id).Error; err != nil {
+		return nil, err
+	}
+	return &announcement, nil
+}
+
 func LatestGeneratedReleaseDeployment() (*ReleaseDeployment, error) {
 	if CoreDB() == nil {
 		return nil, nil
