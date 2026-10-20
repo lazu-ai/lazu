@@ -50,10 +50,10 @@ const (
 	FeatureEndpointMessages
 	// FeatureReasoningBudget is a thinking budget in tokens.
 	FeatureReasoningBudget
-	// FeatureAnthropicOptions names Anthropic's prompt-caching markers and
-	// speed tier (Request.VendorOptions) in a refusal. It is never extracted
-	// or required: a native relay passes its own wire, the Messages encoder
-	// writes them, and only a bridge elsewhere refuses them.
+	// FeatureAnthropicOptions names Anthropic's speed tier
+	// (Request.VendorOptions) in a refusal. It is never extracted or
+	// required: a native relay passes its own wire, the Messages encoder
+	// writes it, and only a bridge elsewhere refuses it.
 	FeatureAnthropicOptions
 )
 

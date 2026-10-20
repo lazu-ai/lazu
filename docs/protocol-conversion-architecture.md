@@ -357,7 +357,7 @@ Responses API 的 `store` 默认为 true；bridge 路径按取值区分，而不
 
 - 同协议：经 `Raw` 保留 round-trip（延续现有 `mergeUnknownResponsesFields` 行为，受 allowlist 与大小限制约束）；
 - 跨协议：无法安全推断含义，400。代价是上游发布新字段后 bridge 路径需 Lazu 声明才可用（native 路径不受影响）——接受此代价，换取不静默改语义。
-- 已声明的厂商字段不是未知字段（2026-10-21）：Anthropic 的 prompt-caching 标记（请求级、system 段、内容段、工具上的 `cache_control`）与 `speed` 档位经 Chat 送来时进 IR（`textgen.VendorOptions`、各项的 `CacheControl`），Messages encoder 原样写出，到其它协议的 bridge 按字段路径拒绝（`FeatureAnthropicOptions`，只用于命名拒绝，不参与能力声明），native 路径仍是透传。旧的 Chat→Claude 转换器本就转发这些字段；删除它不能让它们变成 400。
+- 已声明的厂商字段不是未知字段（2026-10-21）：Anthropic 的 prompt-caching 标记（请求级、system 段、内容段、工具上的 `cache_control`）与 `speed` 档位经 Chat 送来时进 IR（`textgen.VendorOptions`、各项的 `CacheControl`），Messages encoder 原样写出，native 路径仍是透传。到其它协议的 bridge 上两者不同：`cache_control` 是提示性的，只影响成本、不影响模型输出，lazu 服务的 OpenAI 兼容接口都自行缓存，所以直接丢弃，不算有损；`speed` 改变请求的服务方式，按字段路径拒绝（`FeatureAnthropicOptions`，只用于命名拒绝，不参与能力声明）。旧的 Chat→Claude 转换器本就转发这些字段；删除它不能让它们变成 400。
 
 ## Usage 与计费
 

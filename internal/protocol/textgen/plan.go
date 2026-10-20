@@ -335,8 +335,10 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 	if upstream == ProtocolAnthropic {
 		return messagesBridgeIssue(request, uses)
 	}
-	if path, ok := request.AnthropicOptionPath(); ok {
-		return &Issue{Feature: FeatureAnthropicOptions, Path: path, Message: "Anthropic prompt caching and speed have no equivalent outside the Messages API"}
+	// Anthropic's cache markers are advisory and fall out of other encoders;
+	// its speed tier is not, and has no equivalent elsewhere.
+	if path, ok := request.SpeedPath(); ok {
+		return &Issue{Feature: FeatureAnthropicOptions, Path: path, Message: "Anthropic's speed tier has no equivalent outside the Messages API"}
 	}
 	for _, use := range uses {
 		switch use.Feature {

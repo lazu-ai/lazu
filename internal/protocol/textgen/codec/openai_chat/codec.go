@@ -568,8 +568,6 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 	if request.Reasoning.Budget.Set {
 		wire.Reasoning, _ = json.Marshal(map[string]int{"max_tokens": request.Reasoning.Budget.Value})
 	}
-	wire.CacheControl = append(json.RawMessage(nil), request.Vendor.CacheControl...)
-	wire.Speed = append(json.RawMessage(nil), request.Vendor.Speed...)
 	if wire.Model == "" {
 		wire.Model = request.Model.Canonical
 	}

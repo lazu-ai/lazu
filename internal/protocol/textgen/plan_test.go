@@ -521,21 +521,31 @@ func TestPlanAttemptMessagesBridgeRefusesWhatMessagesCannotCarry(t *testing.T) {
 	}
 }
 
-// Anthropic's cache markers and speed tier go to Messages and nowhere else.
+// Anthropic's cache markers are advisory: they go to Messages and fall out
+// of any other bridge. Its speed tier goes to Messages and is refused
+// elsewhere by name.
 func TestPlanAttemptAnthropicOptionsOnlyBridgeToMessages(t *testing.T) {
-	request := minimalRequest()
-	request.Conversation[0].Content[0].CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
-	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5"); err != nil {
-		t.Fatalf("Messages carries cache_control: %v", err)
-	}
+	cached := minimalRequest()
+	cached.Conversation[0].Content[0].CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
+	cached.Vendor.CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
 	responsesOnly := snapshot("openai", FeatureEndpointResponses)
-	_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, responsesOnly, request, 1, "gpt-5")
+	for name, snap := range map[string]CapabilitySnapshot{"messages": anthropicSnapshot(), "responses": responsesOnly} {
+		if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, snap, cached, 1, "m"); err != nil {
+			t.Fatalf("%s: a cache marker never blocks a bridge: %v", name, err)
+		}
+	}
+	fast := minimalRequest()
+	fast.Vendor.Speed = json.RawMessage(`"fast"`)
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), fast, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("Messages carries speed: %v", err)
+	}
+	_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, responsesOnly, fast, 1, "gpt-5")
 	var unsupported *UnsupportedFeatureError
-	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureAnthropicOptions || unsupported.Path != "input[0].content[0].cache_control" {
-		t.Fatalf("a Responses bridge refuses cache_control by name: %v", err)
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureAnthropicOptions || unsupported.Path != "speed" {
+		t.Fatalf("a Responses bridge refuses speed by name: %v", err)
 	}
 	native := snapshot("openai", FeatureEndpointChat)
-	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, native, request, 1, "gpt-5"); err != nil {
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, native, fast, 1, "gpt-5"); err != nil {
 		t.Fatalf("a native relay passes its own wire: %v", err)
 	}
 }

@@ -116,9 +116,12 @@ type ToolDefinition struct {
 // through another protocol's wire, as OpenRouter-compatible Chat clients do:
 // a request-level cache_control marker and the speed tier (the per-part,
 // per-instruction and per-tool markers sit on those items). They are not
-// unknown fields: the Messages encoder writes them, a bridge to any other
-// protocol refuses them (AnthropicOptionPath), and a native relay passes its
-// own wire untouched.
+// unknown fields. The Messages encoder writes them. Elsewhere the two differ:
+// a cache marker is advisory (it changes what a request costs, never what
+// the model says, and the OpenAI-compatible APIs lazu serves cache on their
+// own), so a bridge to another protocol drops it; the speed tier changes how
+// the request is served, so such a bridge refuses it (SpeedPath). A native
+// relay passes its own wire untouched.
 type VendorOptions struct {
 	CacheControl json.RawMessage
 	Speed        json.RawMessage
@@ -200,37 +203,13 @@ type Request struct {
 	Raw          RawRetention
 }
 
-// AnthropicOptionPath is the field path of the first Anthropic-only option
-// the request carries (VendorOptions and the cache_control markers), for a
-// bridge that cannot carry it to name.
-func (r *Request) AnthropicOptionPath() (string, bool) {
-	if r == nil {
+// SpeedPath is the field path of Anthropic's speed tier when the request
+// carries one, for a bridge that cannot carry it to name.
+func (r *Request) SpeedPath() (string, bool) {
+	if r == nil || len(r.Vendor.Speed) == 0 {
 		return "", false
 	}
-	if len(r.Vendor.CacheControl) > 0 {
-		return "cache_control", true
-	}
-	if len(r.Vendor.Speed) > 0 {
-		return "speed", true
-	}
-	for index, instruction := range r.Instructions {
-		if len(instruction.CacheControl) > 0 {
-			return "instructions[" + itoa(index) + "].cache_control", true
-		}
-	}
-	for index, item := range r.Conversation {
-		for partIndex, part := range item.Content {
-			if len(part.CacheControl) > 0 {
-				return "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].cache_control", true
-			}
-		}
-	}
-	for index, tool := range r.Tools {
-		if len(tool.CacheControl) > 0 {
-			return "tools[" + itoa(index) + "].cache_control", true
-		}
-	}
-	return "", false
+	return "speed", true
 }
 
 func (r *Request) Clone() *Request {
