@@ -158,10 +158,10 @@ func TestGenerateAndRecordReleaseNoteRetryUpdatesExistingDraftDelivery(t *testin
 	}
 }
 
-func TestReleaseNotesModelNameDefaultsToGemini37Flash(t *testing.T) {
+func TestReleaseNotesModelNameDefaultsToHaiku55(t *testing.T) {
 	t.Setenv("RELEASE_NOTES_PRIMARY_MODEL", "")
 	t.Setenv("RELEASE_NOTES_MODEL", "")
-	if got := ReleaseNotesModelName(); got != "gemini-3.7-flash" {
+	if got := ReleaseNotesModelName(); got != "claude-haiku-5-5" {
 		t.Fatalf("unexpected default release notes model: %q", got)
 	}
 }
@@ -301,6 +301,94 @@ func TestGenerateAndRecordReleaseNoteDoesNotCallFallbackAfterPrimarySuccess(t *t
 	}
 }
 
+const releaseNoteFixtureJSON = `{"user_visible":true,"kind":"release_note","default_locale":"zh","title_i18n":{"zh":"更新","en":"Update","zh-TW":"更新","ja":"更新"},"summary_i18n":{"zh":"新增模型","en":"New model","zh-TW":"新增模型","ja":"新モデル"},"body_i18n":{"zh":["新增视频模型"],"en":["A new video model"],"zh-TW":["新增影片模型"],"ja":["新しい動画モデル"]},"api_changes":[]}`
+
+// releaseNoteModelServer answers every chat completion with content and
+// records the request bodies it saw.
+func releaseNoteModelServer(t *testing.T, content string) *[]map[string]any {
+	t.Helper()
+	requests := &[]map[string]any{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		*requests = append(*requests, body)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"content": content}, "finish_reason": "stop"}},
+		})
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("RELEASE_NOTES_API_KEY", "test-key")
+	t.Setenv("RELEASE_NOTES_BASE_URL", server.URL+"/v1")
+	t.Setenv("RELEASE_NOTES_PRIMARY_MODEL", "claude-haiku-5-5")
+	t.Setenv("RELEASE_NOTES_FALLBACK_MODEL", "deepseek-v4-flash")
+	return requests
+}
+
+func TestGenerateAndRecordReleaseNoteReadsFencedClaudeJSONWithoutThinking(t *testing.T) {
+	setupReleaseNotesTestDB(t)
+	requests := releaseNoteModelServer(t, "```json\n"+releaseNoteFixtureJSON+"\n```")
+
+	_, announcement, err := GenerateAndRecordReleaseNote(context.Background(), ReleaseNoteGenerationRequest{
+		CommitSHA: "abcdef2", PreviousCommitSHA: "abcdef1", Version: "v2",
+		CommitSummary: "- feat(video): add a model", Delivery: model.AnnouncementDeliveryChangelog,
+	})
+	if err != nil || announcement == nil || announcement.PublishedAt == nil {
+		t.Fatalf("a changelog note should publish: announcement=%#v err=%v", announcement, err)
+	}
+	if len(*requests) != 1 || announcement.SourceModel != "claude-haiku-5-5" {
+		t.Fatalf("fenced JSON should be read from the primary: requests=%d announcement=%#v", len(*requests), announcement)
+	}
+	if _, sent := (*requests)[0]["reasoning_effort"]; sent {
+		t.Fatalf("a Claude request should not ask for thinking: %#v", (*requests)[0])
+	}
+}
+
+func TestGenerateAndRecordReleaseNoteSkipsRangesWithoutUserVisibleChanges(t *testing.T) {
+	setupReleaseNotesTestDB(t)
+	requests := releaseNoteModelServer(t, `{"user_visible":false}`)
+
+	deployment, announcement, err := GenerateAndRecordReleaseNote(context.Background(), ReleaseNoteGenerationRequest{
+		CommitSHA: "abcdef2", PreviousCommitSHA: "abcdef1", Version: "v2",
+		CommitSummary: "- refactor(relay): split the adaptor", Delivery: model.AnnouncementDeliveryChangelog,
+	})
+	if err != nil || announcement != nil {
+		t.Fatalf("nothing user-visible should record without a note: announcement=%#v err=%v", announcement, err)
+	}
+	if len(*requests) != 1 {
+		t.Fatalf("an answer of nothing user-visible is not a failure to retry: requests=%d", len(*requests))
+	}
+	if deployment.ReleaseNoteStatus != model.ReleaseNoteStatusSkipped || deployment.ReleaseNoteError != "no user-visible changes" {
+		t.Fatalf("unexpected deployment record: %#v", deployment)
+	}
+}
+
+func TestGenerateAndRecordReleaseNoteHoldsWhileTheLastNoteIsRecent(t *testing.T) {
+	setupReleaseNotesTestDB(t)
+	requests := releaseNoteModelServer(t, releaseNoteFixtureJSON)
+	request := func(commit string) ReleaseNoteGenerationRequest {
+		return ReleaseNoteGenerationRequest{
+			CommitSHA: commit, Version: commit, CommitSummary: "- feat(video): add a model",
+			Delivery: model.AnnouncementDeliveryChangelog, MinInterval: 24 * time.Hour,
+		}
+	}
+
+	if _, first, err := GenerateAndRecordReleaseNote(context.Background(), request("sha-1")); err != nil || first == nil {
+		t.Fatalf("the first note should publish: announcement=%#v err=%v", first, err)
+	}
+	deployment, held, err := GenerateAndRecordReleaseNote(context.Background(), request("sha-2"))
+	if err != nil || held != nil || len(*requests) != 1 {
+		t.Fatalf("a second note within a day should wait without a model call: announcement=%#v requests=%d err=%v", held, len(*requests), err)
+	}
+	if !strings.Contains(deployment.ReleaseNoteError, "published in the last 24h") {
+		t.Fatalf("the hold should say why: %#v", deployment)
+	}
+	start, err := LatestPublishedReleaseNoteCommitSHA()
+	if err != nil || start != "sha-1" {
+		t.Fatalf("the held release must not move the next note's start, got %q err=%v", start, err)
+	}
+}
+
 func TestGenerateAndRecordReleaseNoteRecordsBothModelFailures(t *testing.T) {
 	setupReleaseNotesTestDB(t)
 	attempts := 0
@@ -374,6 +462,95 @@ func TestLatestReleaseDeploymentCommitSHAReturnsLastLiveDeployment(t *testing.T)
 	}
 	if sha != "sha-rollback" {
 		t.Fatalf("expected last live deployment sha, got %q", sha)
+	}
+}
+
+func TestLatestPublishedReleaseNoteCommitSHASkipsSilentReleases(t *testing.T) {
+	setupReleaseNotesTestDB(t)
+	if sha, err := LatestPublishedReleaseNoteCommitSHA(); err != nil || sha != "" {
+		t.Fatalf("no published note should give an empty sha, got %q err=%v", sha, err)
+	}
+	deployment, announcement, err := model.RecordReleaseDeploymentWithAnnouncement(&model.ReleaseDeployment{
+		Version:           "v0.7.10",
+		CommitSHA:         "sha-announced",
+		PreviousCommitSHA: "sha-before",
+		DeployedAt:        time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+	}, &model.AnnouncementUpsert{
+		Kind:          model.AnnouncementKindReleaseNote,
+		TitleI18N:     map[string]string{"zh": "发布说明"},
+		SummaryI18N:   map[string]string{"zh": "摘要"},
+		BodyI18N:      map[string]any{"zh": []string{"内容"}},
+		DefaultLocale: "zh",
+		Source:        model.AnnouncementSourceDeploy,
+		Delivery:      model.AnnouncementDeliveryChangelog,
+		DeliverySet:   true,
+		Published:     true,
+	})
+	if err != nil || deployment == nil || announcement == nil {
+		t.Fatalf("record published note: deployment=%#v announcement=%#v err=%v", deployment, announcement, err)
+	}
+	for _, sha := range []string{"sha-silent-1", "sha-silent-2"} {
+		if _, err := RecordReleaseDeployment(ReleaseDeploymentRecordRequest{CommitSHA: sha, Version: sha}); err != nil {
+			t.Fatalf("record silent release %s: %v", sha, err)
+		}
+	}
+
+	published, err := LatestPublishedReleaseNoteCommitSHA()
+	if err != nil || published != "sha-announced" {
+		t.Fatalf("silent releases must not move the published note, got %q err=%v", published, err)
+	}
+	live, err := LatestReleaseDeploymentCommitSHA()
+	if err != nil || live != "sha-silent-2" {
+		t.Fatalf("expected the last live release, got %q err=%v", live, err)
+	}
+}
+
+func TestGenerateAndRecordReleaseNoteRetryKeepsPublishedChangelog(t *testing.T) {
+	setupReleaseNotesTestDB(t)
+	_, published, err := model.RecordReleaseDeploymentWithAnnouncement(&model.ReleaseDeployment{
+		Version:           "v0.7.4",
+		CommitSHA:         "abcdef1",
+		PreviousCommitSHA: "1234567",
+	}, &model.AnnouncementUpsert{
+		Kind:             model.AnnouncementKindReleaseNote,
+		TitleI18N:        map[string]string{"zh": "发布说明"},
+		SummaryI18N:      map[string]string{"zh": "摘要"},
+		BodyI18N:         map[string]any{"zh": []string{"内容"}},
+		DefaultLocale:    "zh",
+		Source:           model.AnnouncementSourceDeploy,
+		Delivery:         model.AnnouncementDeliveryChangelog,
+		DeliverySet:      true,
+		SourceCommitFrom: "1234567",
+		SourceCommitTo:   "abcdef1",
+		Published:        true,
+	})
+	if err != nil || published == nil || published.PublishedAt == nil {
+		t.Fatalf("create published changelog: announcement=%#v err=%v", published, err)
+	}
+
+	// A rerun deploy of the same release asks for the same delivery: it only
+	// refreshes the version and must not fail on the published guard.
+	t.Setenv("RELEASE_NOTES_API_KEY", "")
+	deployment, retried, err := GenerateAndRecordReleaseNote(context.Background(), ReleaseNoteGenerationRequest{
+		CommitSHA:         "abcdef1",
+		PreviousCommitSHA: "1234567",
+		Version:           "v0.7.5",
+		Delivery:          model.AnnouncementDeliveryChangelog,
+	})
+	if err != nil || retried == nil || retried.ID != published.ID || retried.PublishedAt == nil || deployment.Version != "v0.7.5" {
+		t.Fatalf("rerun should keep the published changelog, deployment=%#v announcement=%#v err=%v", deployment, retried, err)
+	}
+
+	// Raising a published entry to a notice still needs a new reviewed announcement.
+	_, _, err = GenerateAndRecordReleaseNote(context.Background(), ReleaseNoteGenerationRequest{
+		CommitSHA:         "abcdef1",
+		PreviousCommitSHA: "1234567",
+		Version:           "v0.7.5",
+		Delivery:          model.AnnouncementDeliveryNotice,
+		Draft:             true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "already published") {
+		t.Fatalf("delivery change on a published note should be refused, got %v", err)
 	}
 }
 

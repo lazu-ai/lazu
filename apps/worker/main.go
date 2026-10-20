@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/lazu-ai/lazu/internal/common"
@@ -182,7 +183,22 @@ func selectWorkerTasks(tasks []worker.Task, rawNames string) ([]worker.Task, err
 	return selected, nil
 }
 
-func runReleaseNotePreviousSHACommand() int {
+// runReleaseNotePreviousSHACommand prints the last live release's commit, or
+// with --published the commit the last published release note ran up to.
+// Workers before --published ignore it and print the live commit, which is the
+// deploy script's fallback anyway.
+func runReleaseNotePreviousSHACommand(args []string) int {
+	flags := flag.NewFlagSet("release-note-previous-sha", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	published := flags.Bool("published", false, "print the commit of the last published release note")
+	if err := flags.Parse(args); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	lookup := service.LatestReleaseDeploymentCommitSHA
+	if *published {
+		lookup = service.LatestPublishedReleaseNoteCommitSHA
+	}
 	if err := initWorkerDBOnly(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -190,13 +206,42 @@ func runReleaseNotePreviousSHACommand() int {
 	defer func() {
 		_ = model.CloseDB()
 	}()
-	sha, err := service.LatestReleaseDeploymentCommitSHA()
+	sha, err := lookup()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
 	}
 	fmt.Println(sha)
 	return 0
+}
+
+// deploymentReleaseNoteIsDraft keeps notice and critical announcements for
+// review in the workbench; a changelog entry only lists the release, so it
+// publishes on deploy.
+func deploymentReleaseNoteIsDraft(mode string) bool {
+	return mode != model.AnnouncementDeliveryChangelog
+}
+
+// deploymentReleaseNoteMinInterval is how long a published changelog note
+// holds off the next one (RELEASE_NOTES_MIN_INTERVAL, a Go duration). Unset,
+// every release with user-visible changes gets its own note; releases held
+// off go into the next one.
+func deploymentReleaseNoteMinInterval(mode string) time.Duration {
+	if mode != model.AnnouncementDeliveryChangelog {
+		return 0
+	}
+	interval, err := time.ParseDuration(strings.TrimSpace(os.Getenv("RELEASE_NOTES_MIN_INTERVAL")))
+	if err != nil || interval < 0 {
+		return 0
+	}
+	return interval
+}
+
+func releaseNoteState(announcement *model.Announcement) string {
+	if announcement.PublishedAt != nil && announcement.UnpublishedAt == nil {
+		return "published"
+	}
+	return "drafted"
 }
 
 func releaseNoteCommandExitCode(deployment *model.ReleaseDeployment, announcement *model.Announcement) int {
@@ -263,18 +308,21 @@ func runRecordReleaseDeploymentCommand(args []string) int {
 		Version:           *version,
 		CommitSummary:     string(summaryBytes),
 		Delivery:          mode,
-		Draft:             true,
+		Draft:             deploymentReleaseNoteIsDraft(mode),
+		MinInterval:       deploymentReleaseNoteMinInterval(mode),
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
 	}
+	// The deployment is recorded either way, so this exits zero; the line says
+	// what became of the note and deploy.sh passes it on.
 	if announcement != nil {
-		fmt.Printf("release note drafted delivery=%s deployment_id=%d announcement_id=%d\n", mode, deployment.ID, announcement.ID)
-		return releaseNoteCommandExitCode(deployment, announcement)
+		fmt.Printf("release note %s delivery=%s deployment_id=%d announcement_id=%d\n", releaseNoteState(announcement), mode, deployment.ID, announcement.ID)
+		return 0
 	}
 	fmt.Printf("release note %s deployment_id=%d reason=%s\n", deployment.ReleaseNoteStatus, deployment.ID, deployment.ReleaseNoteError)
-	return releaseNoteCommandExitCode(deployment, announcement)
+	return 0
 }
 
 func runGenerateReleaseNoteCommand(args []string) int {
@@ -327,7 +375,7 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "release-note-previous-sha":
-			os.Exit(runReleaseNotePreviousSHACommand())
+			os.Exit(runReleaseNotePreviousSHACommand(os.Args[2:]))
 		case "generate-release-note":
 			os.Exit(runGenerateReleaseNoteCommand(os.Args[2:]))
 		case "record-release-deployment":
