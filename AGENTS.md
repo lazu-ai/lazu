@@ -230,13 +230,15 @@ roadmap adds it, and until then the rule is a review rule.
 5. **Refuse with a feature ID and a field path; degrade only from the
    registry.** A request that cannot be preserved returns 400 before the
    upstream call, naming `feature` and `path`. The only permitted lossy steps
-   are rows of the degradation registry: each has an ID, a trigger that
-   matches a field-unsupported refusal (never an invalid-value one), a test
-   name, a source link, and sets `X-Lazu-Warning`. Nothing is learned at
-   runtime from a vendor's 400; this is a multi-tenant gateway, and a memo
-   keyed on provider+model that any tenant's request can poison is not a
-   compatibility mechanism. Enforced by review; planned test: every registry
-   ID has a test.
+   are rows of the degradation registry (`textgen.Degradations`,
+   `internal/protocol/textgen/degrade.go`, [docs/protocol-degradation.md](./docs/protocol-degradation.md)):
+   each stands in for one feature the channel is *known* not to carry
+   (denied by the operator, or gapped on every endpoint), has an ID, a
+   reason, a source link, and sets `X-Lazu-Warning` with `degraded:<id>`.
+   Unknown is not unsupported. Nothing is learned at runtime from a vendor's
+   400; this is a multi-tenant gateway, and a memo keyed on provider+model
+   that any tenant's request can poison is not a compatibility mechanism.
+   `TestDegradationRegistryIsComplete` fails on a rule without a test case.
 6. **Vendor quirks live only in the wire dialect patch layer,** applied after
    the outbound body is compiled: one named function per quirk, one regression
    test, one source link (issue, vendor doc, request ID). Codecs do not contain

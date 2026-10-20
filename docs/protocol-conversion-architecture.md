@@ -215,7 +215,7 @@ dialect baseline
 
 合并规则固定为：数值上限取最小值，枚举能力取交集，显式禁用优先；未声明按不支持。channel overlay 和运维配置默认只能收窄能力，不能凭空扩大；扩大能力必须修改 dialect/model profile 并通过 contract tests。合成后的整张快照产生新的 `Revision`。
 
-- **endpoint 可用性建模为 feature**（`feature.EndpointChatCompletions`、`feature.EndpointResponses` 表示原生存在），key 保持两级，不为 endpoint 增加第三维；bridge 可用性由 planner 派生（原生 endpoint 缺失 + 存在无损边 + 请求 feature 全覆盖），不进快照。这直接修正 Cloudflare 误判：`cloudflare_ai_v1` dialect 不声明 `EndpointResponses`，planner 自然选 bridge 路径。
+- **endpoint 可用性建模为 feature**（`feature.EndpointChatCompletions`、`feature.EndpointResponses` 表示原生存在），key 保持两级，不为 endpoint 增加第三维；同一方言两个 endpoint 的 feature 差异记为 `EndpointGaps`（按方言声明，如 DeepSeek Chat 不收 json_schema），planner 据此把请求路由到另一端点，见 [protocol-degradation.md](./protocol-degradation.md)；bridge 可用性由 planner 派生（原生 endpoint 缺失 + 存在无损边 + 请求 feature 全覆盖），不进快照。这直接修正 Cloudflare 误判：`cloudflare_ai_v1` dialect 不声明 `EndpointResponses`，planner 自然选 bridge 路径。
 - dialect 决定 wire 层能力（endpoint、stream framing、usage 方言）；model family 决定语义能力与数值约束；单模型只在真实差异时 override 并写明依据；
 - 运维临时禁用是 (key, feature) 黑名单，与快照一起原子热换，换后 `Revision` 变化；
 - 没声明就是不支持（无 `Unknown` 态）。表的准确性靠"条目少而粗 + codec contract tests"维持；`Evidence`/过期复核机制暂缓（见明确不做），但 `Revision` 必须保留——否则热更、回滚、日志审计和 planner 缓存失效都无从谈起。
@@ -431,7 +431,7 @@ Responses API 的 `store` 默认为 true；bridge 路径按取值区分，而不
 | 项 | 状态 | 恢复条件 |
 | --- | --- | --- |
 | Claude/Gemini codec 迁移 | 推迟 | IR v1 先用其真实 fixture 验证后冻结；bridge 稳定后单独迁移 codec，届时收敛 adaptor 的 Convert* 接口 |
-| lossy 显式放行（token/workspace policy） | 不做 | 出现真实客户需求，且能定义"哪些丢弃绝不允许"后，单独 ADR |
+| lossy 显式放行（token/workspace policy） | 2026-10-20 部分放开 | 不做通用放行；只做有界降级注册表（固定规则、具名、带来源与测试、仅对渠道**已知**不支持的 feature 生效）加按端点的能力缺口路由，见 [protocol-degradation.md](./protocol-degradation.md) |
 | 状态模拟（ResponseStateStore） | 不做 | 明确客户需求 + 独立的存储/加密/保留期/租户隔离设计，单独 ADR |
 | hosted tool 网关运行时 | 不做 | 产品层面决定做 tool 执行环境时 |
 | planner 数值成本函数 | 不做 | 出现 >2 条候选路径需要权衡时（预计不会） |
