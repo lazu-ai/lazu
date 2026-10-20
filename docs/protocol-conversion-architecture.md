@@ -308,7 +308,9 @@ Claude 客户端的映射以真实录制的 Claude Code 请求为准（`testdata
 
 派发统一（2026-10-21）：三个 hub 共用一个流运行器 `channel.RunHubStream`，各自只提供上游 decoder 和计费读的副作用，客户端协议的写出器由 `channel.HubClientFor` 按 plan 选（Chat、Responses、Messages）。运行器统一的规则：首个内容之前什么都不写（start、turn、usage 先扣住）；内容之前的失败按上游的话分类（`channel.FirstEventFailure`，只有暂时性失败重试）；之后的失败用错误目录的帧（`channel.StreamFailureFrame`）告诉客户端、结算、不重放；没有 stop 就结束的流按截断处理；读到终止事件就停，不等 provider 的 EOF；每个 hub 都记交换日志。请求侧只剩一个 `relay.BridgeBody`：上游协议的 codec 编码 IR，渠道 adaptor 转换，删禁用字段，打方言补丁；桥接上不再应用原始 `param_override`（类型化的覆盖由规划器作用在 IR 上，其它覆盖在规划时拒绝），桥接到 Chat 流时总是请求 usage，渠道探测走同一个函数。
 
-尚未接入：Gemini codec。
+Gemini codec（2026-10-21，只有 codec，未接入）：`codec/gemini` 有请求 encoder（IR→generateContent，含 systemInstruction、function call/response、tools、toolConfig、responseSchema）、请求 decoder（Gemini 客户端→IR）、流 decoder、流 emitter 和整段 render。Gemini 的 schema 子集（`CleanFunctionParameters`、`CleanResponseSchema`）、usage 映射（`UsageOf`）和参数反转义（`UnescapeArguments`）从渠道移进 codec，渠道调用它们。thought signature 是绑定 `gemini` 方言的密封值：function call 上的签名随 `EventToolStart` 的 `Text`/`SealedBy` 走，文本上的签名是 `EventReasoningSignature`，只回到 Gemini。渠道策略（safety settings、按模型的 thinking、图片张数上限、response modalities）留在渠道。三个旧转换器各有活的差分测试守住：`TestGeminiCodecMatchesTheLegacyConverter`（Chat→Gemini 请求）、`TestGeminiDecodeMatchesTheLegacyConverter`（Gemini 客户端→Chat）、`TestGeminiRenderMatchesTheLegacyConverter`（Chat 回复→Gemini）。旧的流式回复转换器把 function call 的参数片段当成多个 functionCall 发出、丢掉推理，codec 的 emitter 不以它为准：一个调用结束时整体发出一次。
+
+尚未接入：Gemini 的规划与 handler（gemini 方言的基线从 `EndpointChat` 换成 Gemini 端点会重新规划所有 Gemini 渠道上的 Chat 客户端，`relay-gemini.go` 里九处按模型名判断的债要先变成目录事实；Gemini 客户端的接入需要像 Claude Code 那样先录一个真实的 Gemini 客户端请求）。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 

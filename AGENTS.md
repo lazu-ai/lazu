@@ -265,7 +265,10 @@ roadmap adds it, and until then the rule is a review rule.
    `service/convert.go` stay one release behind
    `global.legacy_claude_client_conversion`, held to the hub by the live
    differential test `TestClaudeToChatMatchesTheLegacyConverter`, and go
-   the release after. `relay-gemini.go` remains. Enforced by review.
+   the release after. The Gemini codec landed without wiring (2026-10-21);
+   `relay-gemini.go` and the Gemini converters in `service/convert.go`
+   stay, held to it by three live differential tests, until the wiring
+   slice. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
    Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
    (made by `go test -tags record` in `internal/relay/contracttest`, keys from
