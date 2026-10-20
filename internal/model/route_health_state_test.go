@@ -348,3 +348,39 @@ func TestRouteReachabilityEvidenceClearsOnlyReachabilityStreaks(t *testing.T) {
 		t.Fatalf("an unreachable check must count: failures = %d", got)
 	}
 }
+
+// While a generation-tripped route retreats it is probed every minute. A
+// transport blip during that time must not turn its streak into a
+// reachability streak that the next reachable check would clear.
+func TestGenerationStreakSurvivesALaterReachabilityFailure(t *testing.T) {
+	setupRouteHealthTestDB(t)
+	at := time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC)
+	for i := 0; i < RouteHealthFailureThreshold; i++ {
+		if err := RecordRouteHealthEvidence("seedance-2.5", ChannelLaneDirect, 21, false,
+			RouteHealthGenerationReason("InternalServiceError"), at.Add(time.Duration(i)*time.Second)); err != nil {
+			t.Fatalf("trip: %v", err)
+		}
+	}
+	if err := RecordRouteReachabilityEvidence("seedance-2.5", ChannelLaneDirect, 21, false, "video status read failed: timeout", at.Add(time.Minute)); err != nil {
+		t.Fatalf("liveness failure: %v", err)
+	}
+	if err := RecordRouteReachabilityEvidence("seedance-2.5", ChannelLaneDirect, 21, true, "", at.Add(2*time.Minute)); err != nil {
+		t.Fatalf("liveness success: %v", err)
+	}
+	var row RouteHealthState
+	if err := coreDB.First(&row, "channel_id = ?", 21).Error; err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if row.ConsecutiveFailures != RouteHealthFailureThreshold+1 || !row.TrippedByGeneration() {
+		t.Fatalf("route after a reachable check = %+v, want the generation streak standing", row)
+	}
+	if err := RecordRouteHealthEvidence("seedance-2.5", ChannelLaneDirect, 21, true, "", at.Add(3*time.Minute)); err != nil {
+		t.Fatalf("generation success: %v", err)
+	}
+	if err := coreDB.First(&row, "channel_id = ?", 21).Error; err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if row.ConsecutiveFailures != 0 || row.Reason != "" {
+		t.Fatalf("a delivered video must end the streak: %+v", row)
+	}
+}

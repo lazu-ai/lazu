@@ -327,7 +327,13 @@ func RecordRouteHealthEvidence(
 				until := at.Add(RouteHealthRetreatFor)
 				row.RetreatUntil = &until
 			}
-			row.Reason = truncateRouteHealthReason(reason)
+			// A streak that includes a failed generation stays one until a
+			// success ends it. Letting a later reachability failure replace
+			// the mark would let a reachability success clear a route that
+			// still cannot make a video.
+			if !isRouteHealthGenerationReason(row.Reason) || isRouteHealthGenerationReason(reason) {
+				row.Reason = truncateRouteHealthReason(reason)
+			}
 		}
 		row.LastEvidenceAt = at
 		row.UpdatedAt = time.Now().UTC()
@@ -375,6 +381,12 @@ func RouteHealthGenerationReason(code string) string {
 
 func isRouteHealthGenerationReason(reason string) bool {
 	return strings.HasPrefix(reason, routeHealthGenerationReasonPrefix)
+}
+
+// TrippedByGeneration reports whether the route's current failure streak is
+// failed generations, which only a delivered video can end.
+func (s RouteHealthState) TrippedByGeneration() bool {
+	return s.ConsecutiveFailures > 0 && isRouteHealthGenerationReason(s.Reason)
 }
 
 // RecordRouteReachabilityEvidence folds one liveness verdict into a route's
