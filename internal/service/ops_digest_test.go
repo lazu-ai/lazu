@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -283,5 +284,42 @@ func TestBuildBusinessDigestSectionReadsRollupsTopUpsAndLogs(t *testing.T) {
 		if !strings.Contains(joined, expected) {
 			t.Fatalf("section missing %q:\n%s", expected, joined)
 		}
+	}
+}
+
+func TestBuildBusinessDigestSectionKeepsMetricsWhenZeroTokenQueryFails(t *testing.T) {
+	db, err := gorm.Open(gormsqlite.Open("file:ops_digest_zero_fails?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	previous, previousQuery := model.CoreDB(), queryDigestZeroTokenRate
+	model.SetCoreDB(db)
+	queryDigestZeroTokenRate = func(context.Context, *gorm.DB, int64, int64) (relaymetrics.ZeroTokenQuotaZeroSnapshot, error) {
+		return relaymetrics.ZeroTokenQuotaZeroSnapshot{}, errors.New("logs scan timed out")
+	}
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previous)
+		queryDigestZeroTokenRate = previousQuery
+	})
+	if err := db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.Log{}, &model.DashboardUsageHourlyTotal{},
+		&model.DashboardUsageHourlyDimension{}, &model.AgentSession{}, &model.SignupAttribution{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	loc := time.FixedZone("CST", 8*3600)
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, loc)
+	if err := db.Create(&model.DashboardUsageHourlyTotal{BucketHour: time.Date(2026, 10, 19, 10, 0, 0, 0, loc).Unix(), RequestCount: 1200, OutcomeCount: 1200}).Error; err != nil {
+		t.Fatalf("seed rollup: %v", err)
+	}
+	section, err := buildBusinessDigestSection(context.Background(), now)
+	if err != nil {
+		t.Fatalf("a failed zero-token query must not fail the section: %v", err)
+	}
+	if !strings.Contains(strings.Join(section.Lines, "\n"), "请求 1,200") {
+		t.Fatalf("rollup metrics should still show: %v", section.Lines)
+	}
+	if len(section.Attention) != 1 || !strings.Contains(section.Attention[0], "无法读取昨日 0 token 计费比例：logs scan timed out") {
+		t.Fatalf("the failed query should raise attention: %v", section.Attention)
 	}
 }

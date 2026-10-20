@@ -36,6 +36,10 @@ const (
 	opsDigestCapacityDays       = 15
 )
 
+// queryDigestZeroTokenRate is swapped in tests to fail independently of
+// the rollup queries.
+var queryDigestZeroTokenRate = relaymetrics.QueryZeroTokenQuotaZeroRate
+
 // RegisterOpsDigestSections adds yesterday's business numbers and the data
 // and capacity checks to the daily operations digest.
 func RegisterOpsDigestSections() {
@@ -71,11 +75,14 @@ func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.Di
 	if db == nil {
 		db = model.CoreDB()
 	}
-	zero, err := relaymetrics.QueryZeroTokenQuotaZeroRate(ctx, db, dayStart.Unix(), todayStart.Unix())
-	if err != nil {
-		return alerting.DigestSection{}, fmt.Errorf("zero-token rate: %w", err)
+	// The zero-token share reads raw logs, separately from the rollups, so
+	// its failure costs only that line, not the rest of the section.
+	zero, zeroErr := queryDigestZeroTokenRate(ctx, db, dayStart.Unix(), todayStart.Unix())
+	section := formatBusinessDigest(time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, now.Location()), day, week.Totals, 7, zero)
+	if zeroErr != nil {
+		section.Attention = append(section.Attention, "无法读取昨日 0 token 计费比例："+truncateOpsDigestError(zeroErr))
 	}
-	return formatBusinessDigest(time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, now.Location()), day, week.Totals, 7, zero), nil
+	return section, nil
 }
 
 // digestDayWindow returns yesterday as [dayStart, todayStart). The rollups
@@ -213,6 +220,11 @@ func buildCapacityDigestSection(ctx context.Context, now time.Time) (alerting.Di
 
 	disk := common.GetDiskSpaceInfo()
 	sample := opsCapacitySample{DiskUsed: disk.Used, DiskTotal: disk.Total, DiskFree: disk.Free}
+	if disk.Total == 0 {
+		// The probe reports failure only as a zero total; without this the
+		// disk line and its alerts would just disappear.
+		section.Attention = append(section.Attention, "无法读取磁盘容量（"+disk.Path+"），磁盘是否将满没有检查")
+	}
 	// Each store is probed by its own dialect: a SQLite core can sit next to
 	// a PostgreSQL telemetry store, which is the one most likely to grow.
 	var err error
