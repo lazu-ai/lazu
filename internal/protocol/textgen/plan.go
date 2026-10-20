@@ -1,6 +1,9 @@
 package textgen
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Constraint struct {
 	Max    int64
@@ -21,6 +24,49 @@ type CapabilitySnapshot struct {
 	// provider's call, exactly as it was before the protocol planner existed.
 	Denied      FeatureSet
 	Constraints map[FeatureID]Constraint
+	// EndpointGaps lists, per native endpoint (FeatureEndpointChat,
+	// FeatureEndpointResponses), the features of Features that endpoint does
+	// NOT carry although another endpoint of the same dialect does: DeepSeek's
+	// Chat API takes no json_schema while its Responses API does. A gap is a
+	// known fact about the dialect, so the planner routes around it (the
+	// other endpoint, through a lossless bridge) or, when no endpoint carries
+	// the feature, treats it as unsupported; see FeaturesOn and
+	// UnsupportedEverywhere.
+	EndpointGaps map[FeatureID]FeatureSet
+}
+
+// FeaturesOn is what the channel carries through endpoint: Features minus
+// that endpoint's gaps.
+func (s CapabilitySnapshot) FeaturesOn(endpoint FeatureID) FeatureSet {
+	return s.Features &^ s.EndpointGaps[endpoint]
+}
+
+// endpoints lists the native endpoints the snapshot has.
+func (s CapabilitySnapshot) endpoints() []FeatureID {
+	var out []FeatureID
+	for _, endpoint := range []FeatureID{FeatureEndpointChat, FeatureEndpointResponses} {
+		if s.Features.Has(endpoint) {
+			out = append(out, endpoint)
+		}
+	}
+	return out
+}
+
+// UnsupportedEverywhere is the part of required that no attempt on this
+// channel can preserve: what the operator explicitly denied, and what every
+// native endpoint of the dialect lacks. It is what a degradation rule
+// (degrade.go) may stand in for; anything else is left to the planner.
+func (s CapabilitySnapshot) UnsupportedEverywhere(required FeatureSet) FeatureSet {
+	unsupported := required & s.Denied
+	endpoints := s.endpoints()
+	if len(endpoints) == 0 || len(s.EndpointGaps) == 0 {
+		return unsupported
+	}
+	gappedEverywhere := required
+	for _, endpoint := range endpoints {
+		gappedEverywhere &= s.EndpointGaps[endpoint]
+	}
+	return unsupported | gappedEverywhere
 }
 
 type Issue struct {
@@ -69,9 +115,33 @@ func PlanAttempt(client Protocol, snapshot CapabilitySnapshot, request *Request,
 		if err := requireFeatures(snapshot, features, uses); err != nil {
 			return nil, err
 		}
-		upstreamProtocol := client
-		upstreamProtocol.Dialect = snapshot.Dialect
-		return &RelayPlan{ClientProtocol: client, UpstreamProtocol: upstreamProtocol, RequestCodec: string(client.Family), ResponseEmitter: string(client.Family), Native: true, CapabilityRev: snapshot.Revision, Features: features, ChannelID: channelID, UpstreamModel: upstreamModel}, nil
+		// Native, unless the native endpoint is known to lack a feature this
+		// request uses that the dialect's other endpoint carries: then the
+		// lossless bridge to that endpoint is the faithful route.
+		gapped := features & snapshot.EndpointGaps[endpoint]
+		if gapped == 0 {
+			upstreamProtocol := client
+			upstreamProtocol.Dialect = snapshot.Dialect
+			return &RelayPlan{ClientProtocol: client, UpstreamProtocol: upstreamProtocol, RequestCodec: string(client.Family), ResponseEmitter: string(client.Family), Native: true, CapabilityRev: snapshot.Revision, Features: features, ChannelID: channelID, UpstreamModel: upstreamModel}, nil
+		}
+		other := otherEndpoint(endpoint)
+		if snapshot.Features.Has(other) && features&snapshot.EndpointGaps[other] == 0 {
+			if plan, err := planBridge(client, snapshot, request, features, uses, channelID, upstreamModel); err == nil {
+				plan.Warnings = append(plan.Warnings, Issue{Feature: firstFeature(gapped), Path: firstPath(uses, gapped), Message: "endpoint_bridge:" + strings.Join(gapped.Names(), ",")})
+				return plan, nil
+			}
+		}
+		return nil, &UnsupportedFeatureError{Feature: firstFeature(gapped), Path: firstPath(uses, gapped), Reason: fmt.Sprintf("the channel's %s endpoint does not carry this feature and no lossless route to another endpoint exists", endpoint.String())}
+	}
+	return planBridge(client, snapshot, request, features, uses, channelID, upstreamModel)
+}
+
+// planBridge plans the one-hop bridge from the client protocol to the other
+// OpenAI endpoint, or fails closed.
+func planBridge(client Protocol, snapshot CapabilitySnapshot, request *Request, features FeatureSet, uses []FeatureUse, channelID int, upstreamModel string) (*RelayPlan, error) {
+	endpoint := FeatureEndpointChat
+	if client.Family == ProtocolOpenAIResponses {
+		endpoint = FeatureEndpointResponses
 	}
 	var upstream ProtocolFamily
 	switch client.Family {
@@ -126,6 +196,34 @@ func PlanAttempt(client Protocol, snapshot CapabilitySnapshot, request *Request,
 		warnings = append(warnings, Issue{Path: "store", Message: "stateless_bridge"})
 	}
 	return &RelayPlan{ClientProtocol: client, UpstreamProtocol: Protocol{Family: upstream, Dialect: snapshot.Dialect}, RequestCodec: string(upstream), ResponseEmitter: string(client.Family), Native: false, CapabilityRev: snapshot.Revision, Features: features, Warnings: warnings, ChannelID: channelID, UpstreamModel: upstreamModel}, nil
+}
+
+func otherEndpoint(endpoint FeatureID) FeatureID {
+	if endpoint == FeatureEndpointChat {
+		return FeatureEndpointResponses
+	}
+	return FeatureEndpointChat
+}
+
+// firstFeature is the lowest feature of set, for naming an error or warning.
+func firstFeature(set FeatureSet) FeatureID {
+	for id := FeatureID(0); id < 64; id++ {
+		if set.Has(id) {
+			return id
+		}
+	}
+	return FeatureUnknownField
+}
+
+// firstPath is the field path the request used a feature of set at, "" when
+// the uses carry none.
+func firstPath(uses []FeatureUse, set FeatureSet) string {
+	for _, use := range uses {
+		if set.Has(use.Feature) {
+			return use.Path
+		}
+	}
+	return ""
 }
 
 func requireConstraints(snapshot CapabilitySnapshot, request *Request, inputTokens int) error {

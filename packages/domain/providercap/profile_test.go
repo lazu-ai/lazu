@@ -174,3 +174,46 @@ func TestIsSupported_GeminiGuard(t *testing.T) {
 		t.Fatalf("anthropic should be blocked for gemini profile")
 	}
 }
+
+func TestBuildSnapshotDeepSeekCarriesJSONSchemaOnResponsesOnly(t *testing.T) {
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectDeepSeek, Model: model.ModelCapabilities{SupportsResponseSchema: true, SupportsFunctionCalling: true}})
+	if !snapshot.Features.Has(textgen.FeatureEndpointChat) || !snapshot.Features.Has(textgen.FeatureEndpointResponses) {
+		t.Fatalf("deepseek has both endpoints: %v", snapshot.Features.Names())
+	}
+	if !snapshot.Features.Has(textgen.FeatureJSONSchema) {
+		t.Fatal("the model's schema support is kept on the snapshot")
+	}
+	if snapshot.FeaturesOn(textgen.FeatureEndpointChat).Has(textgen.FeatureJSONSchema) {
+		t.Fatal("DeepSeek Chat does not carry json_schema")
+	}
+	if !snapshot.FeaturesOn(textgen.FeatureEndpointResponses).Has(textgen.FeatureJSONSchema) {
+		t.Fatal("DeepSeek Responses carries json_schema")
+	}
+	if snapshot.UnsupportedEverywhere(textgen.FeatureSet(1)<<textgen.FeatureJSONSchema) != 0 {
+		t.Fatal("a feature one endpoint carries is not unsupported")
+	}
+	// a model row without schema support has no gap to record
+	plain := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectDeepSeek})
+	if plain.EndpointGaps != nil {
+		t.Fatalf("no gap without the feature: %v", plain.EndpointGaps)
+	}
+	if plain.Revision == snapshot.Revision {
+		t.Fatal("gaps are part of the revision")
+	}
+}
+
+func TestBuildSnapshotChannelCanDenyJSONSchema(t *testing.T) {
+	no := false
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectOpenAIChatCompatible, Model: model.ModelCapabilities{SupportsResponseSchema: true}, Channel: &dto.ChannelCapabilities{SupportsJSONSchema: &no}})
+	if snapshot.Features.Has(textgen.FeatureJSONSchema) || !snapshot.Denied.Has(textgen.FeatureJSONSchema) || !snapshot.Denied.Has(textgen.FeatureStrictSchema) {
+		t.Fatalf("explicit false must remove and deny json_schema: features=%v denied=%v", snapshot.Features.Names(), snapshot.Denied.Names())
+	}
+	if !snapshot.Features.Has(textgen.FeatureJSONOutput) {
+		t.Fatal("json_object stays available")
+	}
+	yes := true
+	kept := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectOpenAIChatCompatible, Model: model.ModelCapabilities{SupportsResponseSchema: true}, Channel: &dto.ChannelCapabilities{SupportsJSONSchema: &yes}})
+	if !kept.Features.Has(textgen.FeatureJSONSchema) || kept.Denied != 0 {
+		t.Fatal("true and nil change nothing")
+	}
+}

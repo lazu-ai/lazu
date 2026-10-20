@@ -154,6 +154,12 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	if dialect == DialectOpenAI || dialect == DialectAzureOpenAI || dialect == DialectOpenRouter {
 		add(textgen.FeatureEndpointResponses, textgen.FeatureDeveloperRole)
 	}
+	if dialect == DialectDeepSeek {
+		// DeepSeek serves /v1/responses (stateless, json_schema, function and
+		// web_search tools; api-docs.deepseek.com/api/create-response,
+		// 2026-10-20) beside Chat Completions.
+		add(textgen.FeatureEndpointResponses)
+	}
 	// These are semantic model capabilities. An all-zero legacy record is
 	// unknown, so it keeps only the safe scalar baseline above.
 	if input.Model.SupportsFunctionCalling {
@@ -185,6 +191,11 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	// before the provider sees it, so it is recorded in Denied.
 	var denied textgen.FeatureSet
 	if input.Channel != nil {
+		if !input.Channel.HasJSONSchema() {
+			schema := textgen.FeatureSet(1)<<textgen.FeatureJSONSchema | textgen.FeatureSet(1)<<textgen.FeatureStrictSchema
+			features &^= schema
+			denied |= schema
+		}
 		if !input.Channel.HasChatCompletionsEndpoint() {
 			features &^= textgen.FeatureSet(1) << textgen.FeatureEndpointChat
 		}
@@ -220,8 +231,14 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	if maxOutput > 0 {
 		constraints[textgen.FeatureMaxOutput] = textgen.Constraint{Max: maxOutput}
 	}
+	gaps := endpointGaps(dialect, features)
 	revisionParts := append([]string{dialect, strings.TrimSpace(input.ModelFamily)}, features.Names()...)
 	revisionParts = append(revisionParts, "denied:"+strings.Join(denied.Names(), ","))
+	for _, endpoint := range []textgen.FeatureID{textgen.FeatureEndpointChat, textgen.FeatureEndpointResponses} {
+		if gap := gaps[endpoint]; gap != 0 {
+			revisionParts = append(revisionParts, "gap:"+endpoint.String()+":"+strings.Join(gap.Names(), ","))
+		}
+	}
 	constraintKeys := make([]int, 0, len(constraints))
 	for key := range constraints {
 		constraintKeys = append(constraintKeys, int(key))
@@ -231,7 +248,43 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 		revisionParts = append(revisionParts, fmt.Sprintf("%d:%d", key, constraints[textgen.FeatureID(key)].Max))
 	}
 	revision := fmt.Sprintf("%x", sha256.Sum256([]byte(strings.Join(revisionParts, "|"))))[:16]
-	return textgen.CapabilitySnapshot{Dialect: dialect, Revision: revision, Features: features, Denied: denied, Constraints: constraints}
+	return textgen.CapabilitySnapshot{Dialect: dialect, Revision: revision, Features: features, Denied: denied, Constraints: constraints, EndpointGaps: gaps}
+}
+
+// dialectEndpointGaps is what a dialect's endpoint does NOT carry although
+// the dialect's other endpoint does: a known fact about the vendor's wire,
+// not about a model. The planner routes a request using such a feature
+// through the other endpoint (textgen.CapabilitySnapshot.EndpointGaps).
+var dialectEndpointGaps = map[string]map[textgen.FeatureID][]textgen.FeatureID{
+	// DeepSeek Chat Completions: response_format is text | json_object only
+	// (api-docs.deepseek.com/api/create-chat-completion, 2026-10-20);
+	// Responses takes text.format json_schema.
+	DialectDeepSeek: {textgen.FeatureEndpointChat: {textgen.FeatureJSONSchema, textgen.FeatureStrictSchema}},
+}
+
+// endpointGaps is the dialect's gaps restricted to the features the snapshot
+// carries, nil when the dialect has none.
+func endpointGaps(dialect string, features textgen.FeatureSet) map[textgen.FeatureID]textgen.FeatureSet {
+	declared, ok := dialectEndpointGaps[dialect]
+	if !ok {
+		return nil
+	}
+	out := map[textgen.FeatureID]textgen.FeatureSet{}
+	for endpoint, missing := range declared {
+		var gap textgen.FeatureSet
+		for _, feature := range missing {
+			if features.Has(feature) {
+				gap.Add(feature)
+			}
+		}
+		if gap != 0 {
+			out[endpoint] = gap
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // IsSupported returns whether the provider apiType supports the incoming relay format.

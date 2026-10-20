@@ -397,3 +397,68 @@ func TestPlanAttemptNamesOpaqueInputItemWhenBridgingToChat(t *testing.T) {
 		t.Fatalf("opaque input items must stay native-relayable on a Responses channel, plan=%+v err=%v", plan, err)
 	}
 }
+
+func deepseekSnapshot(withResponses bool) CapabilitySnapshot {
+	endpoints := []FeatureID{FeatureEndpointChat}
+	if withResponses {
+		endpoints = append(endpoints, FeatureEndpointResponses)
+	}
+	snapshot := snapshot("deepseek", endpoints...)
+	snapshot.Features.Add(FeatureJSONSchema)
+	snapshot.Features.Add(FeatureJSONOutput)
+	snapshot.Features.Add(FeatureFunctionTools)
+	snapshot.Features.Add(FeatureReasoningEffort)
+	snapshot.EndpointGaps = map[FeatureID]FeatureSet{FeatureEndpointChat: FeatureSet(1)<<FeatureJSONSchema | FeatureSet(1)<<FeatureStrictSchema}
+	return snapshot
+}
+
+func schemaChatRequest() *Request {
+	request := minimalRequest()
+	request.Output = OutputConstraint{Type: "json_schema", Name: "session_title", Schema: json.RawMessage(`{"type":"object"}`)}
+	return request
+}
+
+// Hermes' title request: Chat + json_schema to DeepSeek, no tools. The Chat
+// endpoint is native but cannot carry the schema; Responses can, losslessly.
+func TestPlanAttemptRoutesAGappedFeatureThroughTheOtherEndpoint(t *testing.T) {
+	plan, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), schemaChatRequest(), 1, "deepseek-flash")
+	if err != nil {
+		t.Fatalf("expected a Responses bridge, got %v", err)
+	}
+	if plan.Native || plan.UpstreamProtocol.Family != ProtocolOpenAIResponses {
+		t.Fatalf("expected Chat->Responses bridge, got %+v", plan)
+	}
+	if len(plan.Warnings) != 1 || plan.Warnings[0].Message != "endpoint_bridge:output.json_schema" || plan.Warnings[0].Path != "response_format" {
+		t.Fatalf("expected an endpoint_bridge warning, got %+v", plan.Warnings)
+	}
+	// without the feature the native endpoint is still the route
+	plain, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), minimalRequest(), 1, "deepseek-flash")
+	if err != nil || !plain.Native {
+		t.Fatalf("a request without the gapped feature stays native: %+v %v", plain, err)
+	}
+}
+
+// With tools and reasoning on, the Chat->Responses bridge is not lossless, so
+// the gapped feature cannot be routed: the planner refuses, naming it.
+func TestPlanAttemptRefusesAGappedFeatureWhenTheBridgeIsLossy(t *testing.T) {
+	request := schemaChatRequest()
+	request.Tools = []ToolDefinition{{Type: "function", Name: "lookup", Parameters: json.RawMessage(`{"type":"object"}`)}}
+	request.Reasoning.Effort = "high"
+	_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), request, 1, "deepseek-flash")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureJSONSchema || unsupported.Path != "response_format" {
+		t.Fatalf("expected a json_schema refusal, got %v", err)
+	}
+	// reasoning off makes the bridge lossless again (Hermes sends effort none)
+	request.Reasoning.Effort = "none"
+	plan, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(true), request, 1, "deepseek-flash")
+	if err != nil || plan.Native || plan.UpstreamProtocol.Family != ProtocolOpenAIResponses {
+		t.Fatalf("expected a bridge with reasoning off, got %+v %v", plan, err)
+	}
+	// no other endpoint at all: refused as well (a degradation rule would
+	// have run before planning)
+	_, err = PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, deepseekSnapshot(false), schemaChatRequest(), 1, "deepseek-flash")
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureJSONSchema {
+		t.Fatalf("expected a refusal without a second endpoint, got %v", err)
+	}
+}
