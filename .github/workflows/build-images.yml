@@ -4,8 +4,9 @@ name: Images
 #
 #   push to main  -> ghcr.io/lazu-ai/lazu/{api,frontend,docs}:<sha> and :main
 #                    for the services the push changed. Unchanged services get
-#                    a :<sha> alias of their last build, so every built commit
-#                    has a complete set.
+#                    a :<sha> alias of their last build (its release image
+#                    when that commit was only built as a release), so every
+#                    built commit has a complete set.
 #   push vX.Y.Z   -> all three rebuilt at that tag, the API stamped with the
 #                    version, tagged :vX.Y.Z, plus :latest when it is the
 #                    newest stable release. Pre-release tags (v1.2.0-rc.1) get
@@ -296,10 +297,25 @@ jobs:
             docker buildx imagetools inspect "$1" >/dev/null 2>&1
           }
 
-          # Walk first parents to the newest commit that has an image. A
-          # commit on the way that changed this service must have its own
-          # image; its run may still be building, so wait for it, and refuse
-          # to alias an older image if it never appears.
+          # A commit built only as a release (the first public commit was)
+          # has its images under the release tag, never under its SHA.
+          release_ref() {
+            local image="$1" commit="$2" tag
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              if tag_exists "${image}:${tag}"; then
+                printf '%s' "${image}:${tag}"
+                return 0
+              fi
+            done < <(git tag --points-at "$commit" --list 'v*')
+            return 1
+          }
+
+          # Walk first parents to the newest commit that has an image, under
+          # its SHA or a release tag on it. A commit on the way that changed
+          # this service must have its own image; its run may still be
+          # building, so wait for it, and refuse to alias an older image if it
+          # never appears.
           source_ref() {
             local service="$1" image="${IMAGE_PREFIX}/$1" candidate
             candidate="$(git rev-parse "${COMMIT_SHA}^" 2>/dev/null)" || return 1
@@ -308,6 +324,7 @@ jobs:
                 printf '%s' "${image}:${candidate}"
                 return 0
               fi
+              release_ref "$image" "$candidate" && return 0
               if affects_image "$service" "$candidate"; then
                 echo "Waiting for ${image}:${candidate}; that commit changed ${service}." >&2
                 for _ in $(seq 1 40); do
@@ -316,6 +333,7 @@ jobs:
                     printf '%s' "${image}:${candidate}"
                     return 0
                   fi
+                  release_ref "$image" "$candidate" && return 0
                 done
                 echo "::error::${image}:${candidate} never appeared; refusing to alias an older ${service} image." >&2
                 return 1
