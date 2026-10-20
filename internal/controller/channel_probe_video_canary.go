@@ -333,8 +333,10 @@ func pollVideoCanary(ctx context.Context, prepared *preparedVideoProviderRequest
 		return "", "", "", false
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		// The customer poller's rule: a refusal is final, anything else (a
+		// task not yet visible right after submission, a 5xx) is read again.
 		switch response.StatusCode {
-		case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+		case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
 			return video.StateFailed, "video_provider_poll_rejected",
 				fmt.Sprintf("status read returned %d", response.StatusCode), true
 		default:
