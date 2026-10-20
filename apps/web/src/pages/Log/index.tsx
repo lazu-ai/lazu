@@ -10,7 +10,6 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { InFlightJobs } from './InFlightJobs';
 import {
   BudgetGuardPanel,
   UsageUserRanking,
@@ -723,12 +722,6 @@ const Token = () => {
         ) : (
           <div className='usage-investigation'>
             <div className='usage-investigation__master'>
-              <InFlightJobs
-                enabled={!logs.isAdminUser}
-                onSettled={logs.refresh}
-                project={logs.project}
-                t={t}
-              />
               {selectedRequest && !selectionOnPage ? (
                 <div
                   aria-label='Selected request receipt'

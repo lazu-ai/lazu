@@ -37,10 +37,17 @@ curl https://api.lazu.ai/v1/videos \
   }'
 ```
 
-Wait for the job with its `id`. With `?wait=60` the call answers the moment the job finishes, or after 60 seconds while it is still `pending` or `running`; then send the same call again. A 4–5 second 480p clip usually takes about two and a half minutes, so expect three or four calls. Until it finishes, the job is listed under In progress at the top of the console's usage log.
+Wait for the job with its `id`. With `?wait=60` the call answers as soon as the job's status changes (queued to generating) or it finishes, and otherwise after 60 seconds. Every answer carries `progress` (0–100) and `eta_seconds`, estimated from how long the model's recent jobs took. Send the same call again until `status` is `succeeded` or `failed`; a 4–5 second 480p clip usually takes about two and a half minutes. From the moment you submit, the job shows in the console's usage log as In progress, and on its Tasks tab.
 
 ```bash
 curl "https://api.lazu.ai/v1/videos/mjob_...?wait=60" \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+To watch it live instead, open the job's event stream. It sends the job at once, then its progress every few seconds, and a `done` event with the finished job and its download link before it closes.
+
+```bash
+curl -N https://api.lazu.ai/v1/videos/mjob_.../events \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
@@ -332,6 +339,7 @@ A balance too low for the hold returns HTTP 429 with `insufficient_quota`; see [
   "status": "succeeded",
   "created_at": 1792466151,
   "completed_at": 1792466297,
+  "progress": 100,
   "artifact": {
     "file_id": "file-lazu-...",
     "url": "https://...?X-Amz-Signature=...",

@@ -760,6 +760,14 @@ export function useUsageLogsQuery() {
     queryKey: queryKeys.console.table('usageLogs', params),
     queryFn: () => fetchUsageLogs(params),
     placeholderData: project.project_id ? undefined : keepPreviousData,
+    // A video or image job's row is written when it is accepted and
+    // completed when it finishes; while one is in progress, keep looking.
+    refetchInterval: (query) =>
+      query.state.data?.items.some(
+        (item) => Number(item.type) === 2 && item.otherParsed?.pending === true,
+      )
+        ? 10_000
+        : false,
   });
 
   const statQuery = useQuery({

@@ -1725,3 +1725,81 @@ func TestFailedMediaJobLeavesAnErrorRowInTheUsageLog(t *testing.T) {
 		t.Fatalf("unexpected failure log: %+v", row)
 	}
 }
+
+func TestMediaJobLogIsOneRowFromSubmitToSettlement(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	newJob := func(requestID string) MediaJob {
+		job, err := CreateMediaJob(CreateMediaJobInput{
+			UserID: 1, ModelName: "seedance-2.5", Kind: MediaJobKindVideo,
+			RequestID: requestID, Now: now,
+		})
+		if err != nil {
+			t.Fatalf("create media job: %v", err)
+		}
+		return *job
+	}
+	rowsFor := func(requestID string) []Log {
+		var logs []Log
+		if err := db.Where("request_id = ?", requestID).Find(&logs).Error; err != nil {
+			t.Fatal(err)
+		}
+		return logs
+	}
+
+	done := newJob("req-one-row-done")
+	RecordMediaJobPendingLog(done, now)
+	pending := rowsFor("req-one-row-done")
+	if len(pending) != 1 || pending[0].Type != LogTypeConsume || pending[0].AmountMicrousd != 0 || !strings.Contains(pending[0].Other, `"pending":true`) {
+		t.Fatalf("pending row = %+v", pending)
+	}
+	recordMediaJobConsumeLog(done, MediaJobBillingResult{CustomerCharge: 491235, ChannelGroup: "direct"}, now.Add(3*time.Minute))
+	recordMediaJobConsumeLog(done, MediaJobBillingResult{CustomerCharge: 491235, ChannelGroup: "direct"}, now.Add(4*time.Minute))
+	settled := rowsFor("req-one-row-done")
+	if len(settled) != 1 || settled[0].Id != pending[0].Id || settled[0].AmountMicrousd != 491235 ||
+		strings.Contains(settled[0].Other, "pending") || settled[0].CreatedAt != now.Unix() {
+		t.Fatalf("settled row = %+v (pending id %d)", settled, pending[0].Id)
+	}
+
+	failed := newJob("req-one-row-failed")
+	RecordMediaJobPendingLog(failed, now)
+	if err := MarkMediaJobFailed(failed.ID, "video_provider_failed", "rejected", now); err != nil {
+		t.Fatal(err)
+	}
+	RecordMediaJobFailureLog(failed.ID, now)
+	rows := rowsFor("req-one-row-failed")
+	if len(rows) != 1 || rows[0].Type != LogTypeError || rows[0].AmountMicrousd != 0 || !strings.Contains(rows[0].Other, `"refunded":true`) {
+		t.Fatalf("failed row = %+v", rows)
+	}
+}
+
+func TestMediaJobProgressFollowsTheModelsRecentDurations(t *testing.T) {
+	db := setupMediaJobBillingTestDB(t)
+	resetMediaJobTypicalCache()
+	t.Cleanup(resetMediaJobTypicalCache)
+	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	running := MediaJob{ModelName: "seedance-2.5", Kind: MediaJobKindVideo, Status: MediaJobStatusRunning, CreatedAt: now.Add(-75 * time.Second)}
+	// No history: the default for video (150 s).
+	if progress, eta, ok := MediaJobProgress(running, now); !ok || progress != 50 || eta != 75 {
+		t.Fatalf("default progress = %d eta = %d ok = %v", progress, eta, ok)
+	}
+	resetMediaJobTypicalCache()
+	for i, seconds := range []int{90, 100, 110} {
+		created := now.Add(-time.Hour - time.Duration(i)*time.Minute)
+		if err := db.Create(&MediaJob{PublicID: fmt.Sprintf("mjob_hist_%d", i), UserID: 1, ModelName: "seedance-2.5", Kind: MediaJobKindVideo,
+			Status: MediaJobStatusSucceeded, CreatedAt: created, CompletedAt: created.Unix() + int64(seconds)}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if progress, eta, _ := MediaJobProgress(running, now); progress != 75 || eta != 25 {
+		t.Fatalf("history progress = %d eta = %d", progress, eta)
+	}
+	late := running
+	late.CreatedAt = now.Add(-10 * time.Minute)
+	if progress, eta, _ := MediaJobProgress(late, now); progress != 95 || eta != 0 {
+		t.Fatalf("overdue progress = %d eta = %d", progress, eta)
+	}
+	if _, _, ok := MediaJobProgress(MediaJob{Status: MediaJobStatusSucceeded}, now); ok {
+		t.Fatal("a finished job has no estimate")
+	}
+}

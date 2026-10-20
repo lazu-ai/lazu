@@ -61,7 +61,7 @@ Pro/Flash 分层传入 `layer_decomposition: true` 和恰好一张 `image`，`pr
 
 ## 提交并轮询视频
 
-将 `LAZU_VIDEO_MODEL` 设为支持 `/v1/videos` 的模型。提交成功返回 HTTP 202 和任务 ID。用同一密钥带 `?wait=60` 查询任务：任务一完成就立即返回，最多等 60 秒；返回时仍是 `pending` 或 `running` 就再查一次，两次之间不用 sleep。`succeeded` 带有 `artifact.url`（1 小时内有效的下载链接，过期后重新查询任务即可拿到新链接）和 `artifact.expires_at`（文件删除时间）。也可以用密钥请求 `GET /v1/videos/{id}/content` 下载同一个文件。`failed` 提供错误，预扣金额会退回。本地等待超时不会取消任务或令任务失败，应保存 ID 并继续查询，不要因等待结束重复创建付费任务。
+将 `LAZU_VIDEO_MODEL` 设为支持 `/v1/videos` 的模型。提交成功返回 HTTP 202 和任务 ID。用同一密钥带 `?wait=60` 查询任务：任务状态一变或一完成就立即返回，否则最多等 60 秒，每次都带 `progress`（0–100）和 `eta_seconds`；状态未结束就再查一次，两次之间不用 sleep。也可以用 `GET /v1/videos/{id}/events` 以 Server-Sent Events 实时接收，直到任务结束。`succeeded` 带有 `artifact.url`（1 小时内有效的下载链接，过期后重新查询任务即可拿到新链接）和 `artifact.expires_at`（文件删除时间）。也可以用密钥请求 `GET /v1/videos/{id}/content` 下载同一个文件。`failed` 提供错误，预扣金额会退回。本地等待超时不会取消任务或令任务失败，应保存 ID 并继续查询，不要因等待结束重复创建付费任务。
 
 ```python
 import os

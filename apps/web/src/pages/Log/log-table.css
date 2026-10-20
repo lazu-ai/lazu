@@ -735,6 +735,28 @@
   width: 6px;
 }
 
+.logv2-status--pending {
+  color: var(--lazu-evidence-strong);
+  font-weight: 500;
+}
+
+.logv2-status--pending .logv2-status__dot {
+  animation: logv2-pending 1.2s ease-in-out infinite;
+  background: var(--lazu-evidence);
+}
+
+@keyframes logv2-pending {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logv2-status--pending .logv2-status__dot {
+    animation: none;
+  }
+}
+
 .logv2-status--bad {
   color: var(--lazu-danger);
   font-weight: 500;
@@ -1381,80 +1403,4 @@
   .usage-head-tools {
     display: none;
   }
-}
-
-/* Media jobs that have not settled yet sit above the log (InFlightJobs). */
-.logv2-inflight {
-  margin-bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.logv2-inflight__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  font-weight: 500;
-}
-
-.logv2-inflight__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--lazu-evidence);
-}
-
-.logv2-inflight__hint {
-  color: var(--lazu-text-muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.logv2-inflight__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.logv2-inflight__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 14px;
-  padding: 8px 0;
-  border-top: 1px solid var(--lazu-border);
-  font-size: 13px;
-}
-
-.logv2-inflight__status {
-  color: var(--lazu-evidence-strong);
-  font-weight: 500;
-}
-
-.logv2-inflight__model {
-  font-weight: 500;
-}
-
-.logv2-inflight__meta {
-  color: var(--lazu-text-muted);
-}
-
-.logv2-inflight__link {
-  color: var(--lazu-evidence);
-  font-size: 13px;
-  font-weight: 400;
-  margin-left: auto;
-  text-decoration: none;
-}
-
-.logv2-inflight__id {
-  margin-left: auto;
-  color: var(--lazu-text-muted);
-  font-family: var(--lazu-font-mono);
-  font-size: 12px;
-  overflow-wrap: anywhere;
 }

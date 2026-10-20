@@ -37,10 +37,17 @@ curl https://api.lazu.ai/v1/videos \
   }'
 ```
 
-ジョブの `id` で結果を待ちます。`?wait=60` を付けると、ジョブが終わった瞬間に応答します。60 秒たってもまだ `pending` か `running` ならその状態で応答するので、同じ呼び出しをもう一度送ります。4–5 秒の 480p 動画は通常 2 分半ほどかかるため、呼び出しは 3〜4 回程度です。終わるまで、ジョブはコンソールの利用ログ上部の「実行中」に表示されます。
+ジョブの `id` で結果を待ちます。`?wait=60` を付けると、ジョブの状態が変わった時（待機中から生成中へ）や完了した時点ですぐに応答し、それ以外は最長 60 秒で応答します。毎回の応答には `progress`（0–100）と `eta_seconds` が含まれ、このモデルの最近のジョブの所要時間から推定します。`status` が `succeeded` か `failed` になるまで同じ呼び出しを繰り返してください。4–5 秒の 480p 動画は通常 2 分半ほどかかります。送信した時点から、ジョブはコンソールの利用ログと「タスク」タブに「実行中」として表示されます。
 
 ```bash
 curl "https://api.lazu.ai/v1/videos/mjob_...?wait=60" \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+進捗をリアルタイムで見たい場合は、ジョブのイベントストリームを開きます。接続直後に現在の状態を送り、その後は数秒ごとに進捗を、完了時には結果とダウンロードリンクを含む `done` イベントを送ってから切断します。
+
+```bash
+curl -N https://api.lazu.ai/v1/videos/mjob_.../events \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
@@ -332,6 +339,7 @@ Lazu は ByteDance の BytePlus 公式定価で課金します。単位は 1 秒
   "status": "succeeded",
   "created_at": 1792466151,
   "completed_at": 1792466297,
+  "progress": 100,
   "artifact": {
     "file_id": "file-lazu-...",
     "url": "https://...?X-Amz-Signature=...",

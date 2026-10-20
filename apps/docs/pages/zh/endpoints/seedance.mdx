@@ -37,10 +37,17 @@ curl https://api.lazu.ai/v1/videos \
   }'
 ```
 
-用任务的 `id` 等待结果。带上 `?wait=60` 后，任务一完成请求就立即返回；60 秒内没完成，会返回仍是 `pending` 或 `running` 的任务，这时再发同一个请求即可。4–5 秒的 480p 视频通常要两分半左右，大约要发三四次。完成之前，任务会显示在控制台使用日志顶部的“执行中”里。
+用任务的 `id` 等待结果。带上 `?wait=60` 后，任务状态一变（从排队变成生成中）或者一完成，请求就立即返回；否则最多等 60 秒。每次返回都带 `progress`（0–100）和 `eta_seconds`，按这个模型最近任务的耗时估算。`status` 变成 `succeeded` 或 `failed` 之前，重复发同一个请求即可；4–5 秒的 480p 视频通常要两分半左右。从提交那一刻起，任务就会以“执行中”出现在控制台的使用日志和“任务”页里。
 
 ```bash
 curl "https://api.lazu.ai/v1/videos/mjob_...?wait=60" \
+  -H "Authorization: Bearer $LAZU_API_KEY"
+```
+
+想实时看进度，也可以打开任务的事件流：连上后立即推送任务当前状态，之后每隔几秒推送一次进度，完成时推送 `done` 事件（带结果和下载链接），然后断开。
+
+```bash
+curl -N https://api.lazu.ai/v1/videos/mjob_.../events \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
@@ -332,6 +339,7 @@ Lazu 按字节跳动 BytePlus 官方刊例价收费，单位为美元/秒。
   "status": "succeeded",
   "created_at": 1792466151,
   "completed_at": 1792466297,
+  "progress": 100,
   "artifact": {
     "file_id": "file-lazu-...",
     "url": "https://...?X-Amz-Signature=...",

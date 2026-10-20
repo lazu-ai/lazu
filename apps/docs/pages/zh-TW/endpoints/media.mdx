@@ -59,7 +59,7 @@ Pro/Flash 分層使用 `layer_decomposition: true` 與恰好一張 `image`，`pr
 
 ## 提交並輪詢影片
 
-將 `LAZU_VIDEO_MODEL` 設為支援 `/v1/videos` 的模型。提交成功回傳 HTTP 202 與任務 ID。用同一金鑰帶 `?wait=60` 查詢任務：任務一完成就立即回傳，最多等 60 秒；回傳時仍是 `pending` 或 `running` 就再查一次，兩次之間不用 sleep。`succeeded` 帶有 `artifact.url`（1 小時內有效的下載連結，過期後重新查詢任務即可取得新連結）與 `artifact.expires_at`（檔案刪除時間）。也可以用金鑰請求 `GET /v1/videos/{id}/content` 下載同一個檔案。`failed` 提供錯誤，預扣金額會退回。本地等待逾時不會取消任務或令任務失敗，應保存 ID 並繼續查詢，不要因等待結束重複建立付費任務。
+將 `LAZU_VIDEO_MODEL` 設為支援 `/v1/videos` 的模型。提交成功回傳 HTTP 202 與任務 ID。用同一金鑰帶 `?wait=60` 查詢任務：任務狀態一變或一完成就立即回傳，否則最多等 60 秒，每次都帶 `progress`（0–100）和 `eta_seconds`；狀態未結束就再查一次，兩次之間不用 sleep。也可以用 `GET /v1/videos/{id}/events` 以 Server-Sent Events 即時接收，直到任務結束。`succeeded` 帶有 `artifact.url`（1 小時內有效的下載連結，過期後重新查詢任務即可取得新連結）與 `artifact.expires_at`（檔案刪除時間）。也可以用金鑰請求 `GET /v1/videos/{id}/content` 下載同一個檔案。`failed` 提供錯誤，預扣金額會退回。本地等待逾時不會取消任務或令任務失敗，應保存 ID 並繼續查詢，不要因等待結束重複建立付費任務。
 
 ```python
 import os

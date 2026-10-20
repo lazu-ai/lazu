@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
@@ -95,6 +96,7 @@ func CreateMediaJob(c *gin.Context) {
 		writeControlPlaneAPIError(c, mediaJobAdmissionError(c, err))
 		return
 	}
+	model.RecordMediaJobPendingLog(*job, time.Now().UTC())
 	c.JSON(http.StatusAccepted, job.ToDTO(false))
 }
 

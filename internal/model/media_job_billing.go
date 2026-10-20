@@ -1311,6 +1311,20 @@ func recordMediaJobConsumeLog(job MediaJob, result MediaJobBillingResult, now ti
 	if !common.LogConsumeEnabled || TelemetryDB() == nil {
 		return
 	}
+	// The row written when the job was accepted becomes the charge: one row
+	// per job, from "in progress" to its final amount.
+	if pending := findPendingMediaJobLog(job); pending != nil {
+		settled := buildMediaJobConsumeLog(job, result, now)
+		if err := TelemetryDB().Transaction(func(tx *gorm.DB) error {
+			if err := completePendingMediaJobLogTx(tx, pending, settled); err != nil {
+				return err
+			}
+			return recordUsageSlicesForLogTx(tx, pending)
+		}); err != nil {
+			common.SysLog("failed to settle media job log: " + err.Error())
+		}
+		return
+	}
 	if mediaJobConsumeLogExists(job) {
 		return
 	}
@@ -1325,6 +1339,82 @@ func recordMediaJobConsumeLog(job MediaJob, result MediaJobBillingResult, now ti
 	}); err != nil {
 		common.SysLog("failed to record media job consume log: " + err.Error())
 	}
+}
+
+// mediaJobPendingMarker is how a not-yet-settled job row is told apart in a
+// log's Other field.
+const mediaJobPendingMarker = `"pending":true`
+
+// RecordMediaJobPendingLog writes a job's usage-log row as soon as the job is
+// accepted, so the log shows it in progress with the amount held. It charges
+// nothing and adds no usage slice; settlement or failure later completes the
+// same row. A job already settled (a fast worker) is left alone.
+func RecordMediaJobPendingLog(job MediaJob, now time.Time) {
+	if !common.LogConsumeEnabled || TelemetryDB() == nil || strings.TrimSpace(job.RequestID) == "" {
+		return
+	}
+	if mediaJobLogExists(job, LogTypeConsume) || mediaJobLogExists(job, LogTypeError) {
+		return
+	}
+	log := buildMediaJobConsumeLog(job, MediaJobBillingResult{}, now)
+	log.Content = fmt.Sprintf("%s media job %s %s submitted", mediaJobSource(job), job.Kind, job.PublicID)
+	log.LineItems = ""
+	log.UsageFact = ""
+	log.Other = common.MapToJsonStr(map[string]any{
+		"source":        mediaJobSource(job),
+		"media_job_id":  job.PublicID,
+		"kind":          job.Kind,
+		"pending":       true,
+		"hold_microusd": int64(MediaJobHoldAmount(job)),
+	})
+	if err := TelemetryDB().Create(log).Error; err != nil {
+		common.SysLog("failed to record media job pending log: " + err.Error())
+	}
+}
+
+// findPendingMediaJobLog is the job's in-progress row, if it has one.
+func findPendingMediaJobLog(job MediaJob) *Log {
+	if TelemetryDB() == nil || strings.TrimSpace(job.RequestID) == "" {
+		return nil
+	}
+	var row Log
+	err := TelemetryDB().Where("type = ? AND request_id = ? AND other LIKE ?", LogTypeConsume, job.RequestID, "%"+mediaJobPendingMarker+"%").
+		Order("id").First(&row).Error
+	if err != nil {
+		return nil
+	}
+	return &row
+}
+
+// completePendingMediaJobLogTx turns the in-progress row into final, keeping
+// its id and the time the job was submitted; pending is updated in place.
+func completePendingMediaJobLogTx(tx *gorm.DB, pending *Log, final *Log) error {
+	updates := map[string]any{
+		"type":             final.Type,
+		"content":          final.Content,
+		"amount_microusd":  final.AmountMicrousd,
+		"pricing_version":  final.PricingVersion,
+		"line_items":       final.LineItems,
+		"channel_id":       final.ChannelId,
+		"group":            final.Group,
+		"other":            final.Other,
+		"usage_fact":       final.UsageFact,
+		"rejection_reason": final.RejectionReason,
+	}
+	if err := tx.Model(&Log{}).Where("id = ?", pending.Id).Updates(updates).Error; err != nil {
+		return err
+	}
+	pending.Type = final.Type
+	pending.Content = final.Content
+	pending.AmountMicrousd = final.AmountMicrousd
+	pending.PricingVersion = final.PricingVersion
+	pending.LineItems = final.LineItems
+	pending.ChannelId = final.ChannelId
+	pending.Group = final.Group
+	pending.Other = final.Other
+	pending.UsageFact = final.UsageFact
+	pending.RejectionReason = final.RejectionReason
+	return nil
 }
 
 func buildMediaJobConsumeLog(job MediaJob, result MediaJobBillingResult, now time.Time) *Log {
@@ -1375,9 +1465,10 @@ func RecordMediaJobFailureLog(jobID uint, now time.Time) {
 	if err := CoreDB().First(&job, jobID).Error; err != nil {
 		return
 	}
+	pending := findPendingMediaJobLog(job)
 	// A submission the provider refused outright already logged its error
 	// under the same request id.
-	if mediaJobLogExists(job, LogTypeError) || mediaJobLogExists(job, LogTypeConsume) {
+	if pending == nil && (mediaJobLogExists(job, LogTypeError) || mediaJobLogExists(job, LogTypeConsume)) {
 		return
 	}
 	tokenID := 0
@@ -1411,6 +1502,13 @@ func RecordMediaJobFailureLog(jobID uint, now time.Time) {
 		}),
 	}
 	if err := TelemetryDB().Transaction(func(tx *gorm.DB) error {
+		if pending != nil {
+			// The in-progress row becomes the failure: one row per job.
+			if err := completePendingMediaJobLogTx(tx, pending, log); err != nil {
+				return err
+			}
+			return recordUsageSlicesForLogTx(tx, pending)
+		}
 		if err := tx.Create(log).Error; err != nil {
 			return err
 		}
