@@ -58,7 +58,7 @@ func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.Di
 		return alerting.DigestSection{}, fmt.Errorf("yesterday overview: %w", err)
 	}
 	week, err := model.BuildOverviewContext(ctx, model.OverviewRequest{
-		Start:    dayStart.Add(-7 * 24 * time.Hour).Unix(),
+		Start:    digestLocalMidnight(now, -8).Unix(),
 		End:      dayStart.Unix(),
 		Bucket:   model.OverviewBucketDay,
 		TZOffset: int64(offset),
@@ -83,10 +83,18 @@ func buildBusinessDigestSection(ctx context.Context, now time.Time) (alerting.Di
 // as Asia/Kolkata) local midnight is floored to the hour; otherwise the
 // reader would drop the bucket before the start but keep the one before the
 // end, and the comparison window would not match.
+//
+// Each boundary is its own local midnight, so a day that changes daylight
+// saving time keeps all of its 23 or 25 hours.
 func digestDayWindow(now time.Time) (todayStart time.Time, dayStart time.Time) {
-	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	todayStart = time.Unix(midnight.Unix()-midnight.Unix()%3600, 0).In(now.Location())
-	return todayStart, todayStart.Add(-24 * time.Hour)
+	return digestLocalMidnight(now, 0), digestLocalMidnight(now, -1)
+}
+
+// digestLocalMidnight is local midnight daysBack days from now, floored to
+// a whole rollup hour.
+func digestLocalMidnight(now time.Time, daysBack int) time.Time {
+	midnight := time.Date(now.Year(), now.Month(), now.Day()+daysBack, 0, 0, 0, 0, now.Location())
+	return time.Unix(midnight.Unix()-midnight.Unix()%3600, 0).In(now.Location())
 }
 
 // formatBusinessDigest compares yesterday with the average day of the
@@ -216,7 +224,10 @@ func buildCapacityDigestSection(ctx context.Context, now time.Time) (alerting.Di
 			}
 		}
 	}
-	history := recordCapacitySample(ctx, now, sample)
+	history, err := recordCapacitySample(ctx, now, sample)
+	if err != nil {
+		section.Attention = append(section.Attention, "无法读取容量历史，增长和写满时间没有检查："+truncateOpsDigestError(err))
+	}
 	lines, attention := formatCapacityDigest(now, sample, history)
 	section.Lines = append(section.Lines, lines...)
 	section.Attention = append(section.Attention, attention...)
@@ -304,10 +315,10 @@ func truncateOpsDigestError(err error) string {
 
 // recordCapacitySample stores today's sample and returns the stored history
 // by date. Without Redis there is no history and only today's numbers show.
-func recordCapacitySample(ctx context.Context, now time.Time, sample opsCapacitySample) map[string]opsCapacitySample {
+func recordCapacitySample(ctx context.Context, now time.Time, sample opsCapacitySample) (map[string]opsCapacitySample, error) {
 	history := map[string]opsCapacitySample{}
 	if !common.RedisEnabled || common.RDB == nil {
-		return history
+		return history, nil
 	}
 	today := now.Format("2006-01-02")
 	if raw, err := json.Marshal(sample); err == nil {
@@ -317,8 +328,7 @@ func recordCapacitySample(ctx context.Context, now time.Time, sample opsCapacity
 	}
 	values, err := common.RDB.HGetAll(ctx, opsDigestCapacityKey).Result()
 	if err != nil {
-		common.SysError("ops digest: failed to load capacity history: " + err.Error())
-		return history
+		return history, err
 	}
 	cutoff := now.AddDate(0, 0, -opsDigestCapacityDays).Format("2006-01-02")
 	for date, raw := range values {
@@ -331,7 +341,7 @@ func recordCapacitySample(ctx context.Context, now time.Time, sample opsCapacity
 			history[date] = stored
 		}
 	}
-	return history
+	return history, nil
 }
 
 // formatCapacityDigest shows today's footprint with its growth over the last
@@ -347,7 +357,9 @@ func formatCapacityDigest(now time.Time, today opsCapacitySample, history map[st
 		}
 		line := fmt.Sprintf("磁盘已用 %.0f%%（剩余 %s）", percent, formatDigestBytes(int64(free)))
 		daysLeft := -1.0
-		if hasBase && today.DiskUsed > base.DiskUsed {
+		// The digest runs on whichever API replica wins the daily claim, so
+		// only compare against a sample from a filesystem of the same size.
+		if hasBase && base.DiskTotal == today.DiskTotal && today.DiskUsed > base.DiskUsed {
 			perDay := float64(today.DiskUsed-base.DiskUsed) / baseDays
 			daysLeft = float64(free) / perDay
 			line += fmt.Sprintf(" · 近 %.0f 天每天多用 %s，约 %.0f 天写满", baseDays, formatDigestBytes(int64(perDay)), daysLeft)

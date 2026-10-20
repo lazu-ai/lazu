@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-redis/redis/v8"
+	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/model"
 	relaymetrics "github.com/lazu-ai/lazu/internal/relay/metrics"
 	"github.com/lazu-ai/lazu/internal/storage"
@@ -93,6 +95,52 @@ func TestDigestDayWindowAlignsToRollupHours(t *testing.T) {
 	today, _ = digestDayWindow(time.Date(2026, 10, 20, 9, 10, 0, 0, shanghai))
 	if want := time.Date(2026, 10, 20, 0, 0, 0, 0, shanghai); !today.Equal(want) {
 		t.Fatalf("whole-hour zone keeps local midnight: got %s want %s", today, want)
+	}
+}
+
+func TestDigestDayWindowKeepsDaylightSavingDays(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skipf("tzdata unavailable: %v", err)
+	}
+	for _, tc := range []struct {
+		now   time.Time
+		hours time.Duration
+	}{
+		{time.Date(2026, 10, 26, 9, 10, 0, 0, berlin), 25}, // clocks went back on 10-25
+		{time.Date(2026, 3, 30, 9, 10, 0, 0, berlin), 23},  // clocks went forward on 03-29
+	} {
+		today, day := digestDayWindow(tc.now)
+		if got := today.Sub(day); got != tc.hours*time.Hour {
+			t.Fatalf("%s: window is %s, want %dh", tc.now.Format("01-02"), got, tc.hours)
+		}
+		if day.Hour() != 0 || today.Hour() != 0 {
+			t.Fatalf("%s: both ends must be local midnight: %s to %s", tc.now.Format("01-02"), day, today)
+		}
+	}
+}
+
+func TestCapacityHistoryReadFailureIsReturned(t *testing.T) {
+	previousEnabled, previousRDB := common.RedisEnabled, common.RDB
+	down := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1", DialTimeout: 50 * time.Millisecond, MaxRetries: -1})
+	common.RedisEnabled, common.RDB = true, down
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RDB = previousEnabled, previousRDB
+		_ = down.Close()
+	})
+	if _, err := recordCapacitySample(context.Background(), time.Now(), opsCapacitySample{}); err == nil {
+		t.Fatal("an unreachable Redis must surface as an error, not an empty history")
+	}
+}
+
+func TestDiskGrowthIgnoresADifferentFilesystem(t *testing.T) {
+	now := time.Date(2026, 10, 20, 9, 10, 0, 0, time.UTC)
+	const gib = 1 << 30
+	today := opsCapacitySample{DiskUsed: 41 * gib, DiskTotal: 100 * gib}
+	other := map[string]opsCapacitySample{"2026-10-19": {DiskUsed: 1 * gib, DiskTotal: 50 * gib}}
+	lines, attention := formatCapacityDigest(now, today, other)
+	if strings.Contains(lines[0], "写满") || len(attention) != 0 {
+		t.Fatalf("growth must not be measured against another replica's disk: %v %v", lines, attention)
 	}
 }
 
