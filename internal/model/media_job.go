@@ -441,6 +441,12 @@ func markMediaJobFailed(jobID uint, code string, message string, now time.Time, 
 // The job is already succeeded when this runs; a failure here loses a health
 // sample, never the job, so callers log it rather than retry the job.
 func RecordMediaJobProviderSuccess(job MediaJob, now time.Time) error {
+	if !MediaJobProviderExecuted(job) {
+		// A customer can import a finished video with its own task id and
+		// artifact URL. Nothing was asked of the route, so nothing it did
+		// can speak for it.
+		return nil
+	}
 	now = normalizeMediaJobTime(now)
 	verdict := mediaJobProviderVerdict{statusCode: http.StatusOK}
 	if !job.CreatedAt.IsZero() && now.After(job.CreatedAt) {
@@ -548,7 +554,9 @@ func recordMediaJobProviderVerdict(job MediaJob, verdict mediaJobProviderVerdict
 // Without it a video route could only ever accumulate submission failures,
 // and no success could end the streak.
 func recordMediaJobBreakerEvidence(job MediaJob, eligible bool, failed bool, reason string, now time.Time) {
-	if !eligible || job.ChannelID == nil || *job.ChannelID <= 0 {
+	if !eligible || job.ChannelID == nil || *job.ChannelID <= 0 || !MediaJobProviderExecuted(job) {
+		// An imported job's task id is the customer's to make up; polling it
+		// says nothing about the route, and must not trip or clear it.
 		return
 	}
 	modelName := strings.TrimSpace(job.ModelName)
@@ -559,6 +567,21 @@ func recordMediaJobBreakerEvidence(job MediaJob, eligible bool, failed bool, rea
 	if err := RecordRouteHealthEvidence(modelName, lane, *job.ChannelID, !failed, reason, now); err != nil {
 		common.SysLog("media job: failed to record route health evidence: " + err.Error())
 	}
+}
+
+// MediaJobProviderExecutionSnapshotKey marks a job the gateway itself
+// submitted to a provider, as opposed to one a customer imported.
+const MediaJobProviderExecutionSnapshotKey = "_provider_execution"
+
+// MediaJobProviderExecuted reports whether the gateway submitted the job to
+// its provider. Only such a job's outcome is evidence about the route.
+func MediaJobProviderExecuted(job MediaJob) bool {
+	var snapshot map[string]any
+	if common.Unmarshal(job.RequestSnapshot, &snapshot) != nil {
+		return false
+	}
+	enabled, _ := snapshot[MediaJobProviderExecutionSnapshotKey].(bool)
+	return enabled
 }
 
 func mediaJobRoutingFinalGroup(snapshot JSONValue) string {

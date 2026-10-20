@@ -403,10 +403,15 @@ func setupMediaJobVerdictTestDB(t *testing.T) *gorm.DB {
 
 func seedAcceptedVideoJob(t *testing.T, db *gorm.DB, requestID string, channelID int, createdAt time.Time) MediaJob {
 	t.Helper()
+	return seedVideoJob(t, db, requestID, channelID, createdAt, `{"final_group":"direct","_provider_execution":true}`)
+}
+
+func seedVideoJob(t *testing.T, db *gorm.DB, requestID string, channelID int, createdAt time.Time, snapshot string) MediaJob {
+	t.Helper()
 	job, err := CreateMediaJob(CreateMediaJobInput{
 		UserID: 1, ModelName: "seedance-test", Kind: MediaJobKindVideo,
 		ChannelID: &channelID, RequestID: requestID,
-		RequestSnapshot: JSONValue(`{"final_group":"direct"}`), Now: createdAt,
+		RequestSnapshot: JSONValue(snapshot), Now: createdAt,
 	})
 	if err != nil {
 		t.Fatalf("create media job: %v", err)
@@ -517,5 +522,36 @@ func TestMarkMediaJobProviderFailedFeedsBreakerByFailureClass(t *testing.T) {
 	}
 	if got := routeFailuresForTest(t, db, channelID); got != 2 {
 		t.Fatalf("quota failure not counted: failures = %d, want 2", got)
+	}
+}
+
+// A customer may import a finished video with a task id and artifact URL of
+// its own. The gateway never asked the route for it, so neither its delivery
+// nor a poll rejection of its made-up id may move the route's breaker.
+func TestImportedVideoJobNeverMovesTheBreaker(t *testing.T) {
+	db := setupMediaJobVerdictTestDB(t)
+	created := time.Date(2026, 10, 20, 8, 0, 0, 0, time.UTC)
+	channelID := 43
+	if err := RecordRouteHealthEvidence("seedance-test", ChannelLaneDirect, channelID, false, "upstream_error", created.Add(-time.Hour)); err != nil {
+		t.Fatalf("seed breaker failure: %v", err)
+	}
+	imported := `{"final_group":"direct"}`
+
+	delivered := seedVideoJob(t, db, "req-import-ok", channelID, created, imported)
+	if err := RecordMediaJobProviderSuccess(delivered, created.Add(time.Minute)); err != nil {
+		t.Fatalf("record imported delivery: %v", err)
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 1 {
+		t.Fatalf("an imported delivery cleared the route: failures = %d, want 1", got)
+	}
+
+	for i := 0; i < RouteHealthFailureThreshold; i++ {
+		bogus := seedVideoJob(t, db, fmt.Sprintf("req-import-bogus-%d", i), channelID, created, imported)
+		if err := MarkMediaJobProviderFailed(bogus.ID, "video_provider_poll_rejected", "unknown task", created.Add(time.Duration(2+i)*time.Minute)); err != nil {
+			t.Fatalf("mark imported poll rejection: %v", err)
+		}
+	}
+	if got := routeFailuresForTest(t, db, channelID); got != 1 {
+		t.Fatalf("imported poll rejections counted against the route: failures = %d, want 1", got)
 	}
 }

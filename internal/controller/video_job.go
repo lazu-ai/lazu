@@ -412,9 +412,9 @@ func mediaJobSnapshotWithProviderExecution(snapshot model.JSONValue, enabled boo
 	if err := common.Unmarshal(snapshot, &fields); err != nil {
 		return snapshot
 	}
-	delete(fields, "_provider_execution")
+	delete(fields, model.MediaJobProviderExecutionSnapshotKey)
 	if enabled {
-		fields["_provider_execution"] = true
+		fields[model.MediaJobProviderExecutionSnapshotKey] = true
 	}
 	body, err := common.Marshal(fields)
 	if err != nil {
