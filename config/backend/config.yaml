@@ -35,8 +35,11 @@ payment:
 # - Local disk artifacts (export/*.jsonl, logs/lazu-*.log): JSONL 7 day safety
 #   net after upload, app logs 7 days
 
-# Model request / response JSONL log
-model_log_enabled: true
+# Model request / response JSONL log. Off by default: when on, it writes each
+# call's full response body with the user id, client IP, country, user agent
+# and session id, and keeps the first user message of each agent session for
+# the Sessions view. See docs/DEPLOYMENT.md, "Request content logging".
+model_log_enabled: false
 model_log_filename: requests.jsonl
 
 upload:

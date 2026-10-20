@@ -63,7 +63,7 @@ services:
       - ACCESS_LOG=false
       - GORM_LOG_LEVEL=error
       - GORM_SLOW_THRESHOLD_MS=1000
-      - MODEL_LOG_ENABLED=true
+      - MODEL_LOG_ENABLED=${MODEL_LOG_ENABLED:-false}
       - TRENDING_CACHE_TTL_SECONDS=600
       - TZ=Asia/Shanghai
       - ERROR_LOG_ENABLED=true

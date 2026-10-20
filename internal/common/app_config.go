@@ -204,7 +204,7 @@ func defaultConfig() AppConfigStruct {
 	c.Data.LogsSubDir = "logs"
 	c.Data.ExportSubDir = "export"
 	// Model log
-	c.ModelLogEnabled = true
+	c.ModelLogEnabled = false
 	c.ModelLogFilename = "model-responses.jsonl"
 	// Upload defaults
 	c.Upload.Enable = false
