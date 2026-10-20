@@ -125,8 +125,9 @@ func consoleTaskViews(ctx context.Context, jobs []model.MediaJob, includeRequest
 			}
 			task.FileExpired = job.ArtifactFileID != "" && !stored[i]
 		}
-		if job.TokenID != nil {
+		if job.TokenID != nil && *job.TokenID > 0 {
 			task.TokenName = names[*job.TokenID]
+			task.KeyDeleted = task.TokenName == ""
 		}
 		out[i] = task
 	}
@@ -135,6 +136,15 @@ func consoleTaskViews(ctx context.Context, jobs []model.MediaJob, includeRequest
 
 func consoleTaskPrompt(fields map[string]any) string {
 	prompt, _ := fields["prompt"].(string)
+	if strings.TrimSpace(prompt) == "" {
+		// Ark keeps the prompt as a text item of its content list.
+		for _, item := range consoleTaskList(fields["content"]) {
+			if item["type"] == "text" {
+				prompt, _ = item["text"].(string)
+				break
+			}
+		}
+	}
 	prompt = strings.TrimSpace(prompt)
 	if runes := []rune(prompt); len(runes) > consoleTaskPromptMax {
 		prompt = string(runes[:consoleTaskPromptMax]) + "…"
@@ -142,32 +152,92 @@ func consoleTaskPrompt(fields map[string]any) string {
 	return prompt
 }
 
+// consoleTaskSpec reads the request's shape. The stored request is either the
+// API's own (seconds, aspect_ratio, input_references, frame_images) or the
+// body sent to the provider (duration, size, *_urls, image_with_roles, or
+// Ark's content list), so both spellings are read.
 func consoleTaskSpec(fields map[string]any) dto.ConsoleTaskSpec {
 	spec := dto.ConsoleTaskSpec{
 		Seconds:     consoleTaskInt(fields["seconds"]),
-		Resolution:  consoleTaskString(fields, "resolution", "size"),
+		Resolution:  consoleTaskString(fields, "resolution"),
 		AspectRatio: consoleTaskString(fields, "aspect_ratio", "ratio"),
+	}
+	if spec.Seconds == 0 {
+		spec.Seconds = consoleTaskInt(fields["duration"])
+	}
+	if size := consoleTaskString(fields, "size"); size != "" {
+		if isPixelSize(size) {
+			if spec.Resolution == "" {
+				spec.Resolution = size
+			}
+		} else if spec.AspectRatio == "" {
+			spec.AspectRatio = size
+		}
 	}
 	if audio, ok := fields["generate_audio"].(bool); ok {
 		spec.Audio = &audio
 	}
-	if refs, ok := fields["input_references"].([]any); ok {
-		for _, ref := range refs {
-			item, _ := ref.(map[string]any)
-			switch kind, _ := item["type"].(string); kind {
-			case "video":
-				spec.ReferenceVideos++
-			case "audio":
-				spec.ReferenceAudios++
-			default:
-				spec.ReferenceImages++
-			}
+	for _, item := range consoleTaskList(fields["input_references"]) {
+		switch kind, _ := item["type"].(string); kind {
+		case "video":
+			spec.ReferenceVideos++
+		case "audio":
+			spec.ReferenceAudios++
+		default:
+			spec.ReferenceImages++
 		}
 	}
-	if frames, ok := fields["frame_images"].([]any); ok {
-		spec.Frames = len(frames)
+	spec.Frames += len(consoleTaskList(fields["frame_images"]))
+	spec.ReferenceImages += consoleTaskCount(fields["image_urls"])
+	spec.ReferenceVideos += consoleTaskCount(fields["video_urls"])
+	spec.ReferenceAudios += consoleTaskCount(fields["audio_urls"])
+	for _, item := range consoleTaskList(fields["image_with_roles"]) {
+		if role, _ := item["role"].(string); role == "first_frame" || role == "last_frame" {
+			spec.Frames++
+		} else {
+			spec.ReferenceImages++
+		}
+	}
+	for _, item := range consoleTaskList(fields["content"]) {
+		role, _ := item["role"].(string)
+		switch kind, _ := item["type"].(string); {
+		case kind == "image_url" && (role == "first_frame" || role == "last_frame"):
+			spec.Frames++
+		case kind == "image_url":
+			spec.ReferenceImages++
+		case kind == "video_url":
+			spec.ReferenceVideos++
+		case kind == "audio_url":
+			spec.ReferenceAudios++
+		}
 	}
 	return spec
+}
+
+func isPixelSize(value string) bool {
+	parts := strings.Split(strings.ToLower(value), "x")
+	if len(parts) != 2 {
+		return false
+	}
+	_, errW := strconv.Atoi(parts[0])
+	_, errH := strconv.Atoi(parts[1])
+	return errW == nil && errH == nil
+}
+
+func consoleTaskList(value any) []map[string]any {
+	raw, _ := value.([]any)
+	out := make([]map[string]any, 0, len(raw))
+	for _, item := range raw {
+		if fields, ok := item.(map[string]any); ok {
+			out = append(out, fields)
+		}
+	}
+	return out
+}
+
+func consoleTaskCount(value any) int {
+	raw, _ := value.([]any)
+	return len(raw)
 }
 
 func consoleTaskString(fields map[string]any, keys ...string) string {

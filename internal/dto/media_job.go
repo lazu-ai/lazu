@@ -63,6 +63,8 @@ type ConsoleTaskObject struct {
 	RefundMicrousd int64 `json:"refund_microusd"`
 	// FileExpired marks a finished job whose stored file has been deleted.
 	FileExpired bool `json:"file_expired,omitempty"`
+	// KeyDeleted marks a job made with a Key that no longer exists.
+	KeyDeleted bool `json:"key_deleted,omitempty"`
 }
 
 // ConsoleTaskSpec is the request's shape in a few fields.

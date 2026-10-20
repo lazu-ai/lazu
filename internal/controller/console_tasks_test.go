@@ -180,3 +180,41 @@ func TestConsoleTaskDetailIncludesTheRequest(t *testing.T) {
 		t.Fatalf("missing job: status %d", other.Code)
 	}
 }
+
+func TestConsoleTaskSpecReadsTheProviderShape(t *testing.T) {
+	// The tasks preset body (APIMart) as stored on the job.
+	tasks := consoleTaskSpec(map[string]any{
+		"duration": float64(4), "resolution": "480p", "size": "adaptive",
+		"video_urls": []any{"https://x/v.mp4"},
+		"image_with_roles": []any{
+			map[string]any{"url": "https://x/a.png", "role": "first_frame"},
+			map[string]any{"url": "https://x/b.png", "role": "last_frame"},
+		},
+	})
+	if tasks.Seconds != 4 || tasks.Resolution != "480p" || tasks.AspectRatio != "adaptive" || tasks.ReferenceVideos != 1 || tasks.Frames != 2 {
+		t.Fatalf("tasks shape = %+v", tasks)
+	}
+	// Ark keeps everything in a content list, and the prompt with it.
+	ark := map[string]any{"content": []any{
+		map[string]any{"type": "text", "text": "a fox"},
+		map[string]any{"type": "image_url", "role": "reference_image"},
+		map[string]any{"type": "audio_url"},
+	}}
+	if spec := consoleTaskSpec(ark); spec.ReferenceImages != 1 || spec.ReferenceAudios != 1 {
+		t.Fatalf("ark shape = %+v", spec)
+	}
+	if prompt := consoleTaskPrompt(ark); prompt != "a fox" {
+		t.Fatalf("ark prompt = %q", prompt)
+	}
+	if spec := consoleTaskSpec(map[string]any{"size": "1280x720"}); spec.Resolution != "1280x720" || spec.AspectRatio != "" {
+		t.Fatalf("pixel size = %+v", spec)
+	}
+}
+
+func TestConsoleTaskRequestHidesRoutingLanes(t *testing.T) {
+	job := model.MediaJob{RequestSnapshot: model.JSONValue(`{"prompt":"x","channel_group":"direct","final_group":"direct","_billing_reserved_quota_microusd":1}`)}
+	request := string(job.ToDTO(true).Request)
+	if request != `{"prompt":"x"}` {
+		t.Fatalf("public request = %s", request)
+	}
+}

@@ -3523,6 +3523,7 @@
     "page.console.tasks.next": "下一页",
     "page.console.tasks.prev": "上一页",
     "page.console.tasks.noKey": "控制台",
+    "page.console.tasks.keyDeleted": "已删除的 Key",
     "page.console.tasks.retention": "API 生成的视频保存 3 天，Studio 生成的保存 30 天",
     "page.console.tasks.spec.frames": "首尾帧 {{n}}",
     "page.console.tasks.spec.refAudio": "参考音频 {{n}}",

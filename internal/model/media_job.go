@@ -652,7 +652,9 @@ func publicMediaJobRequest(snapshot JSONValue) json.RawMessage {
 		return nil
 	}
 	for key := range fields {
-		if strings.HasPrefix(key, "_") || key == "channel_multi_key_index" {
+		// Underscored keys, the channel's key index and the routing lanes are
+		// Lazu's own bookkeeping, not part of what the customer asked for.
+		if strings.HasPrefix(key, "_") || key == "channel_multi_key_index" || key == "channel_group" || key == "final_group" {
 			delete(fields, key)
 		}
 	}

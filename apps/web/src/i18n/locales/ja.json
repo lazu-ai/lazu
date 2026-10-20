@@ -3523,6 +3523,7 @@
     "page.console.tasks.next": "次へ",
     "page.console.tasks.prev": "前へ",
     "page.console.tasks.noKey": "コンソール",
+    "page.console.tasks.keyDeleted": "削除済みのキー",
     "page.console.tasks.retention": "API の動画は 3 日、Studio のファイルは 30 日保存されます",
     "page.console.tasks.spec.frames": "フレーム {{n}}",
     "page.console.tasks.spec.refAudio": "参照音声 {{n}}",

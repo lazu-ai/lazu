@@ -42,6 +42,7 @@ export type ConsoleTask = {
   charge_microusd: number;
   refund_microusd: number;
   file_expired?: boolean;
+  key_deleted?: boolean;
   artifact?: {
     file_id?: string;
     url?: string;
@@ -284,7 +285,7 @@ function TaskDetail({
         ) : null}
       </div>
 
-      <div className='tasks-detail__col'>
+      <div className='tasks-detail__col tasks-detail__col--wide'>
         <h3>{t('page.console.tasks.detail.timeline')}</h3>
         <ol className='tasks-timeline'>
           {timeline.map((event) => (
@@ -549,13 +550,13 @@ export default function TasksPage() {
                 <th scope='col'>{t('page.console.tasks.col.status')}</th>
                 <th scope='col'>{t('page.console.tasks.col.model')}</th>
                 <th scope='col'>{t('page.console.tasks.col.key')}</th>
-                <th scope='col'>{t('page.console.tasks.col.content')}</th>
-                <th scope='col'>{t('page.console.tasks.col.spec')}</th>
                 <th scope='col'>{t('page.console.tasks.col.took')}</th>
                 <th className='logv2-num' scope='col'>
                   {t('page.console.tasks.col.cost')}
                 </th>
                 <th scope='col'>{t('page.console.tasks.col.keep')}</th>
+                <th scope='col'>{t('page.console.tasks.col.spec')}</th>
+                <th scope='col'>{t('page.console.tasks.col.content')}</th>
               </tr>
             </thead>
             <tbody>
@@ -609,18 +610,14 @@ export default function TasksPage() {
                           task.token_name
                         ) : (
                           <span className='logv2-soft'>
-                            {task.source && task.source !== 'media_job'
-                              ? 'Studio'
-                              : t('page.console.tasks.noKey')}
+                            {task.key_deleted
+                              ? t('page.console.tasks.keyDeleted')
+                              : task.source && task.source !== 'media_job'
+                                ? 'Studio'
+                                : t('page.console.tasks.noKey')}
                           </span>
                         )}
                       </td>
-                      <td>
-                        <span className='tasks-prompt' title={task.prompt}>
-                          {task.prompt || '—'}
-                        </span>
-                      </td>
-                      <td className='tasks-nowrap'>{taskSpecText(task, t)}</td>
                       <td className='logv2-soft tasks-nowrap'>{took}</td>
                       <td className='logv2-num'>
                         {isActive(task) ? (
@@ -656,6 +653,12 @@ export default function TasksPage() {
                               : '—'}
                           </span>
                         )}
+                      </td>
+                      <td className='tasks-nowrap'>{taskSpecText(task, t)}</td>
+                      <td>
+                        <span className='tasks-prompt' title={task.prompt}>
+                          {task.prompt || '—'}
+                        </span>
                       </td>
                     </tr>
                     {open ? (

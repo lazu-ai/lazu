@@ -6,8 +6,20 @@
   gap: 16px;
 }
 
-.tasks-summary {
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+.logv2-summary.tasks-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .logv2-summary.tasks-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The expanded row is pinned to the visible width of the scroll box, so a
+   table wider than the screen never hides half of the receipt. */
+.tasks-page .logv2-scroll {
+  container-type: inline-size;
 }
 
 .tasks-filters {
@@ -62,7 +74,11 @@
 }
 
 .tasks-table {
-  min-width: 1040px;
+  min-width: 860px;
+}
+
+.tasks-table td {
+  white-space: nowrap;
 }
 
 .tasks-nowrap {
@@ -129,10 +145,15 @@
 }
 
 .tasks-detail {
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
+  left: 0;
   padding: 14px 10px 6px;
+  position: sticky;
+  white-space: normal;
+  width: 100cqw;
 }
 
 .tasks-detail h3 {
@@ -145,7 +166,7 @@
 
 .tasks-detail__preview {
   display: flex;
-  flex: 0 1 320px;
+  flex: 0 1 280px;
   flex-direction: column;
   gap: 10px;
   min-width: 240px;
@@ -178,9 +199,13 @@
 }
 
 .tasks-detail__col {
-  flex: 1 1 240px;
+  flex: 1 1 180px;
   font-size: 12.5px;
   min-width: 0;
+}
+
+.tasks-detail__col--wide {
+  flex: 2 1 300px;
 }
 
 .tasks-timeline {
