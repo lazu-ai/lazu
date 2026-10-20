@@ -240,7 +240,24 @@ func TestHubStreamTreatsAStreamWithoutAStopAsCutOff(t *testing.T) {
 	if _, err := HubStreamHandler(c, upstreamStream(start+text), hubInfo(textgen.ProtocolOpenAIChat, true)); err == nil || !types.IsSkipRetryError(err) {
 		t.Fatalf("a cut-off stream after output must fail without retry: %v", err)
 	}
-	if body := recorder.Body.String(); strings.Contains(body, `"finish_reason":"stop"`) || !strings.Contains(body, "upstream stream ended") {
+	if body := recorder.Body.String(); strings.Contains(body, `"finish_reason":"stop"`) || !strings.Contains(body, `"code":"upstream_stream_failed"`) {
 		t.Fatalf("a cut-off reply must not close as complete:\n%s", body)
+	}
+}
+
+// The start of a reply is held until its first content: a failure right
+// after message_start reached no client byte and stays retryable (the
+// Messages hub used to write the role chunk on the start).
+func TestHubStreamHoldsTheStartUntilContent(t *testing.T) {
+	service.InitTokenEncoders()
+	c, recorder := hubContext(t)
+	stream := "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-5-5\",\"content\":[],\"usage\":{\"input_tokens\":12,\"output_tokens\":1}}}\n\n" +
+		"event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"Overloaded\"}}\n\n"
+	_, err := HubStreamHandler(c, upstreamStream(stream), hubInfo(textgen.ProtocolOpenAIChat, true))
+	if err == nil || types.IsSkipRetryError(err) || err.GetErrorCode() != types.ErrorCodeUpstreamOverloaded {
+		t.Fatalf("an overload right after the start must be a retryable overload: %v", err)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Fatalf("nothing may reach the client before a retry: %s", recorder.Body.String())
 	}
 }

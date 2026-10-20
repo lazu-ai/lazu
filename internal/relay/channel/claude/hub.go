@@ -7,8 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lazu-ai/lazu/internal/common"
-	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
@@ -115,106 +113,6 @@ func fitBridgedThinking(request *dto.ClaudeRequest, resolve PolicyResolver) {
 	}
 }
 
-// clientEmitter writes content events in the client's protocol.
-type clientEmitter interface {
-	emit(c *gin.Context, events ...textgen.Event) error
-	finish(c *gin.Context, usage *dto.Usage, includeUsage bool) error
-	fail(c *gin.Context, err *textgen.SemanticError, usage *dto.Usage)
-}
-
-type chatClient struct{ emitter *openai_chat.StreamEmitter }
-
-func (e *chatClient) emit(c *gin.Context, events ...textgen.Event) error {
-	for _, chunk := range e.emitter.Emit(events...) {
-		if err := helper.ObjectData(c, chunk); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (e *chatClient) finish(c *gin.Context, usage *dto.Usage, includeUsage bool) error {
-	chunks, err := e.emitter.Finish(usage)
-	if err != nil {
-		return err
-	}
-	for _, chunk := range chunks {
-		if !includeUsage {
-			chunk.Usage = nil
-		}
-		if err := helper.ObjectData(c, chunk); err != nil {
-			return err
-		}
-	}
-	helper.Done(c)
-	return nil
-}
-
-func (e *chatClient) fail(c *gin.Context, semantic *textgen.SemanticError, usage *dto.Usage) {
-	for _, chunk := range e.emitter.Emit(textgen.Event{Kind: textgen.EventError, Error: semantic}) {
-		_ = helper.ObjectData(c, chunk)
-	}
-	helper.Done(c)
-}
-
-type responsesClient struct {
-	emitter *openai_responses.StreamEmitter
-}
-
-func (e *responsesClient) write(c *gin.Context, payloads []map[string]any) error {
-	for _, payload := range payloads {
-		eventType, _ := payload["type"].(string)
-		data, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-		helper.ResponseChunkData(c, dto.ResponsesStreamResponse{Type: eventType}, string(data))
-	}
-	return nil
-}
-
-func (e *responsesClient) emit(c *gin.Context, events ...textgen.Event) error {
-	payloads, err := e.emitter.Emit(events...)
-	if writeErr := e.write(c, payloads); writeErr != nil {
-		return writeErr
-	}
-	return err
-}
-
-func (e *responsesClient) finish(c *gin.Context, usage *dto.Usage, _ bool) error {
-	payloads, err := e.emitter.Finish(usage)
-	if err != nil {
-		return err
-	}
-	return e.write(c, payloads)
-}
-
-func (e *responsesClient) fail(c *gin.Context, semantic *textgen.SemanticError, usage *dto.Usage) {
-	_ = e.write(c, e.emitter.FailWithSemanticError(semantic, usage))
-}
-
-func emitterFor(c *gin.Context, info *relaycommon.RelayInfo) clientEmitter {
-	if info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses {
-		return &responsesClient{emitter: openai_responses.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName, info.ProtocolRequest, openai_responses.RetainedOutputLimit(info.ProtocolRequest))}
-	}
-	return &chatClient{emitter: openai_chat.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName)}
-}
-
-// observe performs the side effects of the events the outcome row and
-// billing read.
-func observe(c *gin.Context, info *relaycommon.RelayInfo, events []textgen.Event) {
-	for _, event := range events {
-		switch event.Kind {
-		case textgen.EventStart:
-			if event.Model != "" {
-				info.UpstreamModelName = event.Model
-			}
-		case textgen.EventStop:
-			info.FinishReason = openai_chat.FinishReasonOf(event.Stop)
-		}
-	}
-}
-
 func observeServerTools(c *gin.Context, data string) {
 	if requests := gjson.Get(data, "usage.server_tool_use.web_search_requests"); requests.Exists() && requests.Int() > 0 {
 		c.Set("claude_web_search_requests", int(requests.Int()))
@@ -222,85 +120,15 @@ func observeServerTools(c *gin.Context, data string) {
 }
 
 // HubStreamHandler serves a streamed Messages reply to a Chat or Responses
-// client.
+// client (channel.RunHubStream).
 func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
 	decoder := &anthropic_messages.StreamDecoder{}
-	client := emitterFor(c, info)
-	var col textgen.Collector
-	var relayErr *types.LazuError
-	var upstreamFailed *textgen.SemanticError
-	// forwarded is whether this handler has emitted content to the client.
-	// Judged from its own state: the scanner stamps info.HasSendResponse on
-	// the first upstream event and a keep-alive ping marks the writer
-	// written, and neither says the client saw output.
-	forwarded := false
-	scan := helper.StreamScannerHandler(c, resp, info, func(data string) bool {
-		events, err := decoder.Decode(data)
-		if err != nil {
-			relayErr = types.NewError(err, types.ErrorCodeBadResponseBody)
-			return false
-		}
-		observeServerTools(c, data)
-		observe(c, info, events)
-		col.Add(events...)
-		for _, event := range events {
-			if event.Kind == textgen.EventError {
-				upstreamFailed = event.Error
-			}
-		}
-		if upstreamFailed != nil && !forwarded {
-			// An in-band failure before any output: the attempt never
-			// became a response, so it is retryable like a pre-stream
-			// failure, and nothing is written to the client.
-			common.SetContextKey(c, constant.ContextKeyStreamFirstEventFailed, true)
-			return false
-		}
-		if err := client.emit(c, events...); err != nil {
-			relayErr = types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-			return false
-		}
-		if len(events) > 0 {
-			forwarded = true
-		}
-		return upstreamFailed == nil
-	})
-	if relayErr == nil {
-		relayErr = scan.RelayError(forwarded)
-	}
-	usage := channel.SettleHubUsage(c, info, col.Result())
-	if upstreamFailed != nil {
-		if !forwarded {
-			return usage, types.NewErrorWithStatusCode(fmt.Errorf("%s", upstreamFailed.Message), types.ErrorCodeUpstreamError, http.StatusBadGateway)
-		}
-		// Once the client has seen output, replaying would duplicate it; the
-		// emitter already wrote the failure in the client's protocol.
-		common.SetContextKey(c, constant.ContextKeyProtocolStreamTerminal, true)
-		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
-		return usage, types.NewErrorWithStatusCode(fmt.Errorf("%s", upstreamFailed.Message), types.ErrorCodeUpstreamError, http.StatusBadGateway, types.ErrOptionWithSkipRetry())
-	}
-	if relayErr != nil {
-		if service.ValidUsage(usage) {
-			common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
-		}
-		return usage, relayErr
-	}
-	if !col.Result().StopSeen {
-		// a clean end of the stream before the upstream said how the reply
-		// ended: cut off, not complete. Before any output it is retryable
-		// like a pre-stream failure; after, the client is told in its own
-		// protocol and the attempt is not replayed.
-		if !forwarded {
-			return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse)
-		}
-		client.fail(c, &textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: "upstream stream ended before the reply finished"}, usage)
-		common.SetContextKey(c, constant.ContextKeyProtocolStreamTerminal, true)
-		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
-		return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse, types.ErrOptionWithSkipRetry())
-	}
-	if err := client.finish(c, usage, info.ShouldIncludeUsage); err != nil {
-		return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-	}
-	return usage, nil
+	return channel.RunHubStream(c, resp, info, channel.HubStream{
+		Decode: decoder.Decode,
+		Observe: func(c *gin.Context, _ *relaycommon.RelayInfo, data string, _ []textgen.Event) {
+			observeServerTools(c, data)
+		},
+	}, channel.HubClientFor(c, info))
 }
 
 // HubHandler serves a whole Messages reply to a Chat or Responses client.
@@ -315,7 +143,7 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 		return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 	}
 	observeServerTools(c, string(body))
-	observe(c, info, events)
+	observeWhole(info, events)
 	var col textgen.Collector
 	col.Add(events...)
 	result := col.Result()
@@ -336,4 +164,18 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 	}
 	service.IOCopyBytesGracefully(c, resp, data)
 	return usage, nil
+}
+
+// observeWhole records the model that answered and how a whole reply ended.
+func observeWhole(info *relaycommon.RelayInfo, events []textgen.Event) {
+	for _, event := range events {
+		switch event.Kind {
+		case textgen.EventStart:
+			if event.Model != "" {
+				info.UpstreamModelName = event.Model
+			}
+		case textgen.EventStop:
+			info.FinishReason = openai_chat.FinishReasonOf(event.Stop)
+		}
+	}
 }

@@ -339,6 +339,12 @@ func (e *StreamEmitter) Fail(err error) []Frame {
 	return e.fail(&textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: message})
 }
 
+// FailWithSemanticError ends the reply with Messages' error event for the
+// failure given, exactly once.
+func (e *StreamEmitter) FailWithSemanticError(semantic *textgen.SemanticError) []Frame {
+	return e.fail(semantic)
+}
+
 func (e *StreamEmitter) fail(semantic *textgen.SemanticError) []Frame {
 	if e == nil || e.terminal {
 		return nil
