@@ -561,3 +561,38 @@ func TestPrepareAttemptLeavesCrossFamilyOverridesToTheWire(t *testing.T) {
 		t.Fatal("between Chat and Responses an unmodeled override still refuses the bridge")
 	}
 }
+
+// gpt-6 takes tools on Chat only with reasoning off: a Claude client's
+// tool call bridged there goes without thinking.
+func TestPrepareAttemptTurnsReasoningOffForAClaudeClientsChatTools(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_claude_gpt6_tools?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"gpt-6-luna","max_tokens":100,"thinking":{"type":"adaptive"},"tools":[{"name":"Read","input_schema":{"type":"object"}}],"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chat := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`}
+	attempt, err := PrepareAttempt(parsed, chat, "gpt-6-luna")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempt.Plan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat && attempt.Request.Reasoning.Effort != "none" {
+		t.Fatalf("reasoning: %+v", attempt.Request.Reasoning)
+	}
+	if parsed.Semantic.Reasoning.Effort == "none" {
+		t.Fatal("the client's request must stay as sent")
+	}
+}
