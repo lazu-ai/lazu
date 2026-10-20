@@ -159,6 +159,11 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 			}
 		case textgen.EventTurn:
 			e.turnSeen = true
+			if event.ItemID != "" {
+				// an upstream message item, possibly empty: opened in its
+				// place among the output items
+				out = append(out, e.openMessage()...)
+			}
 		case textgen.EventText, textgen.EventRefusal:
 			if event.Text == "" {
 				continue
@@ -442,11 +447,7 @@ func (e *StreamEmitter) newItem(kind itemKind, id string) *outputItem {
 // ensureMessage opens the reply's message item and the text or refusal
 // content part, as needed, and gives the part's content index.
 func (e *StreamEmitter) ensureMessage(refusal bool) ([]map[string]any, int) {
-	var out []map[string]any
-	if e.message == nil {
-		e.message = e.newItem(itemMessage, "msg_"+e.suffix)
-		out = append(out, e.send("response.output_item.added", map[string]any{"output_index": e.message.index, "item": map[string]any{"type": "message", "id": e.message.id, "role": "assistant", "content": []any{}, "status": "in_progress"}}))
-	}
+	out := e.openMessage()
 	m := e.message
 	added, contentIndex := m.textAdded, m.textContent
 	if refusal {
@@ -465,6 +466,15 @@ func (e *StreamEmitter) ensureMessage(refusal bool) ([]map[string]any, int) {
 		out = append(out, e.send("response.content_part.added", map[string]any{"item_id": m.id, "output_index": m.index, "content_index": contentIndex, "part": part}))
 	}
 	return out, contentIndex
+}
+
+// openMessage opens the message item, without a content part.
+func (e *StreamEmitter) openMessage() []map[string]any {
+	if e.message != nil {
+		return nil
+	}
+	e.message = e.newItem(itemMessage, "msg_"+e.suffix)
+	return []map[string]any{e.send("response.output_item.added", map[string]any{"output_index": e.message.index, "item": map[string]any{"type": "message", "id": e.message.id, "role": "assistant", "content": []any{}, "status": "in_progress"}})}
 }
 
 // ensureReasoning opens a reasoning item and its one content part.
@@ -608,7 +618,7 @@ func (e *StreamEmitter) envelope(status string) map[string]any {
 		output = []any{}
 	}
 	response := map[string]any{
-		"id": e.responseID, "object": "response", "created_at": e.createdAt, "status": status, "model": e.model, "output": output, "usage": dto.ProjectResponsesUsage(e.usage),
+		"id": e.responseID, "object": "response", "created_at": e.createdAt, "status": status, "model": e.model, "output": output, "usage": dto.ProjectResponsesUsage(textgen.CacheInclusiveUsage(e.usage)),
 		"max_output_tokens": nil, "parallel_tool_calls": true, "store": false, "temperature": float64(1), "tool_choice": defaultResponseToolChoice(e.request),
 		"tools": []any{}, "top_p": float64(1), "truncation": "disabled",
 	}

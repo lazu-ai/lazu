@@ -873,3 +873,50 @@ func messageText(message dto.Message) string {
 	return builder.String()
 }
 func stringValue(value any) string { text, _ := value.(string); return text }
+
+// ApplyDegraded writes what a degradation changed onto the client's own
+// Chat request: the output constraint and the instructions (the system and
+// developer messages, in order). Every other field stays as the client sent
+// it: Encode is a semantic encoder, not a lossless one, and a degraded
+// native request must differ from the client's only by the degradation.
+func ApplyDegraded(wire *dto.GeneralOpenAIRequest, degraded *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
+	out := *wire
+	out.ResponseFormat = nil
+	if err := encodeOutput(degraded.Output, &out); err != nil {
+		return nil, err
+	}
+	out.Messages = append([]dto.Message(nil), wire.Messages...)
+	var at []int
+	for index, message := range out.Messages {
+		if message.Role == "system" || message.Role == "developer" {
+			at = append(at, index)
+		}
+	}
+	switch {
+	case len(at) == 0 && len(degraded.Instructions) == 1:
+		message := dto.Message{Role: degraded.Instructions[0].Role}
+		message.SetStringContent(degraded.Instructions[0].Text)
+		out.Messages = append([]dto.Message{message}, out.Messages...)
+	case len(at) == len(degraded.Instructions):
+		// a degradation only extends an instruction; one with parts keeps
+		// them and gets the extension as a message after it
+		for k := len(at) - 1; k >= 0; k-- {
+			index, text := at[k], degraded.Instructions[k].Text
+			original := messageText(out.Messages[index])
+			if text == original {
+				continue
+			}
+			if out.Messages[index].Content == nil || out.Messages[index].IsStringContent() {
+				out.Messages[index].SetStringContent(text)
+				continue
+			}
+			extension := strings.TrimSpace(strings.TrimPrefix(text, strings.TrimRight(original, "\n")))
+			message := dto.Message{Role: out.Messages[index].Role}
+			message.SetStringContent(extension)
+			out.Messages = append(out.Messages[:index+1], append([]dto.Message{message}, out.Messages[index+1:]...)...)
+		}
+	default:
+		return nil, fmt.Errorf("the degraded instructions do not match the request's system messages")
+	}
+	return &out, nil
+}

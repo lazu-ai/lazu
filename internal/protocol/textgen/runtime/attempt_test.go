@@ -405,6 +405,19 @@ func TestPrepareAttemptDegradesDeniedJSONSchema(t *testing.T) {
 	if string(before) != string(after) {
 		t.Fatal("degradation changed caller input")
 	}
+	// the instruction the stand-in adds counts toward the context window: a
+	// request just under the limit before it is over the limit after
+	nearLimit := *parsed
+	nearLimit.InputTokens = 100
+	tight := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_json_schema":false,"context_window":110}}`}
+	if _, err := PrepareAttempt(&nearLimit, tight, "fixture"); err == nil {
+		t.Fatal("the degraded prompt is over the context window and must be refused")
+	}
+	nearLimit.Semantic = nearLimit.Semantic.Clone()
+	nearLimit.Semantic.Output = textgen.OutputConstraint{}
+	if _, err := PrepareAttempt(&nearLimit, tight, "fixture"); err != nil {
+		t.Fatalf("without the degradation the request fits: %v", err)
+	}
 	// a nested field the IR does not model would be lost by encoding the
 	// degraded request from the IR, so there is no degradation and the
 	// denial stands

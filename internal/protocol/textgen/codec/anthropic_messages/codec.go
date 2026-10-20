@@ -102,7 +102,10 @@ func Encode(request *textgen.Request, opts EncodeOptions) (*dto.ClaudeRequest, e
 		metadata, _ := json.Marshal(map[string]string{"user_id": userID})
 		out.Metadata = metadata
 	}
-	out.ServiceTier = request.Metadata.ServiceTier
+	if request.Metadata.ServiceTier == "auto" {
+		// the one tier both APIs name alike; the planner refuses the rest
+		out.ServiceTier = "auto"
+	}
 	out.CacheControl = request.Vendor.CacheControl
 	out.Speed = request.Vendor.Speed
 	return out, nil
@@ -188,14 +191,9 @@ func encodeMessages(items []textgen.InputItem, opts EncodeOptions) ([]dto.Claude
 			}
 			push(role, blocks...)
 		case textgen.InputFunctionCall:
-			var input any = map[string]any{}
-			if strings.TrimSpace(item.Arguments) != "" {
-				var parsed any
-				if err := json.Unmarshal([]byte(item.Arguments), &parsed); err == nil {
-					input = parsed
-				} else {
-					input = map[string]any{"input": item.Arguments}
-				}
+			input, err := toolInput(item.Arguments)
+			if err != nil {
+				return nil, fmt.Errorf("input[%d].arguments: %w", index, err)
 			}
 			push("assistant", dto.ClaudeMediaMessage{Type: "tool_use", Id: item.CallID, Name: item.FunctionName, Input: input})
 		case textgen.InputFunctionResult:
@@ -222,6 +220,20 @@ func encodeMessages(items []textgen.InputItem, opts EncodeOptions) ([]dto.Claude
 		return nil, err
 	}
 	return messages, nil
+}
+
+// toolInput is a call's arguments as tool_use input, which Messages takes
+// as a JSON object only: none is {}, anything else is refused rather than
+// rewritten.
+func toolInput(arguments string) (map[string]any, error) {
+	if strings.TrimSpace(arguments) == "" {
+		return map[string]any{}, nil
+	}
+	var input map[string]any
+	if err := json.Unmarshal([]byte(arguments), &input); err != nil || input == nil {
+		return nil, fmt.Errorf("a tool call's arguments must be a JSON object for the Messages API")
+	}
+	return input, nil
 }
 
 func encodeContent(parts []textgen.ContentPart, opts EncodeOptions) ([]dto.ClaudeMediaMessage, error) {
@@ -454,7 +466,8 @@ func DecodeMessage(body []byte) ([]textgen.Event, error) {
 // metadataUserID is the user Messages' metadata.user_id names: a user_id the
 // client's own metadata object carries (a Claude-shaped identity sent through
 // Chat, as the channel probe does), else the request's user. Other metadata
-// keys have no place in Messages' metadata and are left out.
+// keys have no place in Messages' metadata and are left out. A
+// safety_identifier wins over user.
 func metadataUserID(metadata textgen.MetadataOptions) string {
 	if len(metadata.Metadata) > 0 {
 		var object map[string]json.RawMessage
@@ -464,6 +477,10 @@ func metadataUserID(metadata textgen.MetadataOptions) string {
 				return userID
 			}
 		}
+	}
+	if metadata.SafetyIdentifier != "" {
+		// OpenAI's successor to user, and the one it asks for
+		return metadata.SafetyIdentifier
 	}
 	return metadata.User
 }
