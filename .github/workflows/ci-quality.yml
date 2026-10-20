@@ -301,11 +301,8 @@ jobs:
       - name: Build docs
         run: npm run build
 
-      # vocs 1 still pulls a toml parser with high advisories; it only reads
-      # our own MDX at build time and needs vocs 2 to go. Raise this to high
-      # once that upgrade lands.
       - name: Audit docs dependencies
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=high
 
   security:
     needs: changes
@@ -337,4 +334,4 @@ jobs:
 
       - name: Re-check docs dependency advisories
         working-directory: apps/docs
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=high
