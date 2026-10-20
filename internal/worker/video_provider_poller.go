@@ -327,6 +327,9 @@ func completeUpstreamVideoJob(ctx context.Context, job model.MediaJob, channel *
 		}
 		return err
 	}
+	if err := model.RecordMediaJobProviderSuccess(job, now); err != nil {
+		common.SysLog(fmt.Sprintf("video job %s: failed to record delivered outcome: %v", job.PublicID, err))
+	}
 	return nil
 }
 

@@ -263,6 +263,15 @@ func RefreshControlPlaneSnapshots(ctx context.Context) error {
 	if err := initChannelCacheFromCore(); err != nil {
 		return err
 	}
+	// The jobs process writes breaker verdicts too: probes and asynchronous
+	// media results. A success only reaches the breaker when the writer's own
+	// view already lists the route as troubled, and the API's sync loop does
+	// not run here, so without this refresh every success recorded by jobs
+	// was dropped and a route tripped by the API could never be cleared by a
+	// probe or a delivered video.
+	if err := refreshRouteHealthCacheFromCore(); err != nil {
+		return err
+	}
 	if err := RecalculateRetiredModelRatingRanks(); err != nil {
 		return err
 	}
