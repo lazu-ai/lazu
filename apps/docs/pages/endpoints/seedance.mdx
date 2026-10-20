@@ -26,7 +26,7 @@ Video generation is a job: you submit it, poll it until it finishes, then downlo
 Submit a job. Lazu answers with HTTP 202 and a job object whose `cost_snapshot` is the amount held from your balance.
 
 ```bash
-curl https://lazu.ai/v1/videos \
+curl https://api.lazu.ai/v1/videos \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -40,14 +40,14 @@ curl https://lazu.ai/v1/videos \
 Poll the job with its `id` every 10–15 seconds. `pending` and `running` are not final. A 4–5 second 480p clip usually takes about two and a half minutes.
 
 ```bash
-curl https://lazu.ai/v1/videos/mjob_... \
+curl https://api.lazu.ai/v1/videos/mjob_... \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
 When `status` is `succeeded`, download the video with `artifact.file_id`. The file is `video/mp4`.
 
 ```bash
-curl https://lazu.ai/v1/files/file-lazu-.../content \
+curl https://api.lazu.ai/v1/files/file-lazu-.../content \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -o seedance.mp4
 ```
@@ -61,7 +61,7 @@ import time
 
 import requests
 
-BASE = "https://lazu.ai"
+BASE = "https://api.lazu.ai"
 headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
 
 if len(sys.argv) > 1:
@@ -252,7 +252,7 @@ Provider limits on references:
 | Reference image | jpeg, png, webp, bmp, tiff, gif or heic. 300–6000 px per side, aspect ratio (width / height) 0.4–2.5, under 30 MB.        |
 | Reference audio | wav or mp3. Up to 10 clips, each 2–30 s, 30 s in total, up to 15 MB each.                                                 |
 
-**Use `adaptive` with a reference video or first and last frames.** When the provider treats a task as editing or extending a reference video, or as first and last frame generation, the output follows the input and `aspect_ratio` must be `adaptive`; any other ratio makes the job fail (it is refunded in full). When a request has a reference video and no `aspect_ratio`, Lazu sends `adaptive`.
+**Use `adaptive` with a reference video or first and last frames.** When the provider treats a task as editing or extending a reference video, or as first and last frame generation, the output follows the input and `aspect_ratio` must be `adaptive`; any other ratio makes the job fail (it is refunded in full). When a request has a reference video or first and last frames and no `aspect_ratio`, Lazu sends `adaptive`.
 
 **A value the model does not take** is refused with HTTP 400 before any charge. `param` and `details.field` name the field; `details.allowed` lists the accepted values. See [`LZ-1001`](/errors#lz-1001).
 

@@ -26,7 +26,7 @@ Seedance 2.5 は ByteDance の動画生成モデルで、2026-07-31 に公開さ
 ジョブを送信します。Lazu は HTTP 202 とジョブオブジェクトを返します。`cost_snapshot` は残高から予約された金額です。
 
 ```bash
-curl https://lazu.ai/v1/videos \
+curl https://api.lazu.ai/v1/videos \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -40,14 +40,14 @@ curl https://lazu.ai/v1/videos \
 ジョブの `id` で 10〜15 秒ごとに取得します。`pending` と `running` は未完了です。4〜5 秒の 480p 動画は通常 2 分半ほどかかります。
 
 ```bash
-curl https://lazu.ai/v1/videos/mjob_... \
+curl https://api.lazu.ai/v1/videos/mjob_... \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
 `status` が `succeeded` になったら、`artifact.file_id` で動画をダウンロードします。ファイルは `video/mp4` です。
 
 ```bash
-curl https://lazu.ai/v1/files/file-lazu-.../content \
+curl https://api.lazu.ai/v1/files/file-lazu-.../content \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -o seedance.mp4
 ```
@@ -61,7 +61,7 @@ import time
 
 import requests
 
-BASE = "https://lazu.ai"
+BASE = "https://api.lazu.ai"
 headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
 
 if len(sys.argv) > 1:
@@ -252,7 +252,7 @@ Lazu は ByteDance の BytePlus 公式定価で課金します。単位は 1 秒
 | 参照画像     | jpeg、png、webp、bmp、tiff、gif、heic。各辺 300〜6000 ピクセル、縦横比（幅 / 高さ）0.4〜2.5、30 MB 未満。                       |
 | 参照音声     | wav または mp3。最大 10 本、各 2〜30 秒、合計 30 秒まで、1 本 15 MB まで。                                                      |
 
-**参照動画や先頭・末尾フレームを使うときは `adaptive` を指定します。** プロバイダーがタスクを参照動画の編集・延長、または先頭・末尾フレームからの生成と判断した場合、出力は入力に合わせるため、`aspect_ratio` は `adaptive` でなければなりません。それ以外の比率ではジョブが失敗します（全額返金）。参照動画があり `aspect_ratio` がないリクエストでは、Lazu が `adaptive` を送ります。
+**参照動画や先頭・末尾フレームを使うときは `adaptive` を指定します。** プロバイダーがタスクを参照動画の編集・延長、または先頭・末尾フレームからの生成と判断した場合、出力は入力に合わせるため、`aspect_ratio` は `adaptive` でなければなりません。それ以外の比率ではジョブが失敗します（全額返金）。参照動画や先頭・末尾フレームがあり `aspect_ratio` がないリクエストでは、Lazu が `adaptive` を送ります。
 
 **モデルが受け付けない値**は、課金前に HTTP 400 で拒否されます。`param` と `details.field` が該当項目、`details.allowed` が使える値です。[`LZ-1001`](/ja/errors#lz-1001) を参照してください。
 

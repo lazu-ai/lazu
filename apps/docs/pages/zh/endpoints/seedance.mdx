@@ -26,7 +26,7 @@ Seedance 2.5 是字节跳动的视频生成模型，2026-07-31 发布。在 Lazu
 提交任务。Lazu 返回 HTTP 202 和任务对象，其中 `cost_snapshot` 是从余额中预留的金额。
 
 ```bash
-curl https://lazu.ai/v1/videos \
+curl https://api.lazu.ai/v1/videos \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -40,14 +40,14 @@ curl https://lazu.ai/v1/videos \
 用任务 `id` 每 10–15 秒查询一次。`pending` 和 `running` 都还没结束。一段 4–5 秒的 480p 视频通常需要两分半钟左右。
 
 ```bash
-curl https://lazu.ai/v1/videos/mjob_... \
+curl https://api.lazu.ai/v1/videos/mjob_... \
   -H "Authorization: Bearer $LAZU_API_KEY"
 ```
 
 `status` 变为 `succeeded` 后，用 `artifact.file_id` 下载视频，文件类型为 `video/mp4`。
 
 ```bash
-curl https://lazu.ai/v1/files/file-lazu-.../content \
+curl https://api.lazu.ai/v1/files/file-lazu-.../content \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -o seedance.mp4
 ```
@@ -61,7 +61,7 @@ import time
 
 import requests
 
-BASE = "https://lazu.ai"
+BASE = "https://api.lazu.ai"
 headers = {"Authorization": "Bearer " + os.environ["LAZU_API_KEY"]}
 
 if len(sys.argv) > 1:
@@ -252,7 +252,7 @@ Lazu 按字节跳动 BytePlus 官方刊例价收费，单位为美元/秒。
 | 参考图片 | jpeg、png、webp、bmp、tiff、gif 或 heic。每边 300–6000 像素，宽高比 0.4–2.5，小于 30 MB。                           |
 | 参考音频 | wav 或 mp3。最多 10 段，每段 2–30 秒，合计不超过 30 秒，单个不超过 15 MB。                                          |
 
-**用参考视频或首尾帧时，传 `adaptive`。** 如果模型服务商把任务判定为编辑或延长参考视频，或首尾帧生成，输出会跟随输入的画面比例，`aspect_ratio` 必须是 `adaptive`；传其他比例会导致任务失败（全额退还）。请求带参考视频而没有传 `aspect_ratio` 时，Lazu 会发送 `adaptive`。
+**用参考视频或首尾帧时，传 `adaptive`。** 如果模型服务商把任务判定为编辑或延长参考视频，或首尾帧生成，输出会跟随输入的画面比例，`aspect_ratio` 必须是 `adaptive`；传其他比例会导致任务失败（全额退还）。请求带参考视频或首尾帧、而没有传 `aspect_ratio` 时，Lazu 会发送 `adaptive`。
 
 **模型不支持的取值**会在扣费前返回 HTTP 400。`param` 和 `details.field` 是出错的字段，`details.allowed` 列出可用的值。参见 [`LZ-1001`](/zh/errors#lz-1001)。
 
