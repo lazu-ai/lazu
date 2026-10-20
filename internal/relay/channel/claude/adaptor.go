@@ -88,7 +88,12 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if a.RequestMode == RequestModeCompletion {
 		return RequestOpenAI2ClaudeComplete(*request), nil
 	}
-	return RequestOpenAI2ClaudeMessage(c, *request, CatalogPolicy(info.OriginModelName))
+	// A Chat client on the Messages API is planned as a bridge and encoded by
+	// the hub (BridgesToMessages, EncodeBridgedRequest); nothing converts the
+	// Chat DTO here any more. What still arrives is a request no plan was
+	// made for: the legacy /v1/completions route, which this model's API
+	// never served (it has no prompt), so the answer is the same 4xx.
+	return nil, errors.New("this model is served through /v1/chat/completions or /v1/messages; the legacy completions endpoint has no Messages equivalent")
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {

@@ -6,9 +6,27 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
+	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	textgenruntime "github.com/lazu-ai/lazu/internal/protocol/textgen/runtime"
 	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 )
+
+// bridgeChat is a Chat request through the hub: decoded, encoded for
+// Messages, thinking fitted to the policy (encodeBridged).
+func bridgeChat(req dto.GeneralOpenAIRequest, resolve PolicyResolver) (*dto.ClaudeRequest, error) {
+	if len(req.Messages) == 0 {
+		req.Messages = []dto.Message{{Role: "user", Content: "hi"}}
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	semantic, _, err := openai_chat.Decode(body)
+	if err != nil {
+		return nil, err
+	}
+	return encodeBridged(semantic, nil, resolve)
+}
 
 // adaptivePolicy is a catalog row for a Claude from 4.6 on: adaptive
 // thinking, disabled taken at any effort.
@@ -34,7 +52,7 @@ func withClaudeSettings(t *testing.T, fn func()) {
 	fn()
 }
 
-func TestRequestOpenAI2ClaudeMessage_ReasoningPriorityAndBounds(t *testing.T) {
+func TestBridgedThinking_ReasoningPriorityAndBounds(t *testing.T) {
 	withClaudeSettings(t, func() {
 		settings := model_setting.GetClaudeSettings()
 		settings.ThinkingAdapterEnabled = true
@@ -54,9 +72,9 @@ func TestRequestOpenAI2ClaudeMessage_ReasoningPriorityAndBounds(t *testing.T) {
 			Reasoning:       reasoningRaw,
 		}
 
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, req, nil)
+		claudeReq, err := bridgeChat(req, nil)
 		if err != nil {
-			t.Fatalf("RequestOpenAI2ClaudeMessage failed: %v", err)
+			t.Fatal(err)
 		}
 		if claudeReq.Model != "claude-sonnet-4-20250514" {
 			t.Fatalf("expected trimmed model, got %q", claudeReq.Model)
@@ -79,7 +97,7 @@ func TestRequestOpenAI2ClaudeMessage_ReasoningPriorityAndBounds(t *testing.T) {
 	})
 }
 
-func TestRequestOpenAI2ClaudeMessage_ReasoningMaxTokensCanRaiseMaxTokens(t *testing.T) {
+func TestBridgedThinking_ReasoningMaxTokensCanRaiseMaxTokens(t *testing.T) {
 	withClaudeSettings(t, func() {
 		settings := model_setting.GetClaudeSettings()
 		settings.ThinkingAdapterEnabled = true
@@ -97,9 +115,9 @@ func TestRequestOpenAI2ClaudeMessage_ReasoningMaxTokensCanRaiseMaxTokens(t *test
 			Reasoning: reasoningRaw,
 		}
 
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, req, nil)
+		claudeReq, err := bridgeChat(req, nil)
 		if err != nil {
-			t.Fatalf("RequestOpenAI2ClaudeMessage failed: %v", err)
+			t.Fatal(err)
 		}
 		if claudeReq.Model != "claude-sonnet-4-20250514" {
 			t.Fatalf("expected trimmed model, got %q", claudeReq.Model)
@@ -148,7 +166,7 @@ func TestEnsureThinkingConstraints_FillsMissingBudget(t *testing.T) {
 	})
 }
 
-func TestRequestOpenAI2ClaudeMessage_Opus47EffortSuffixUsesAdaptiveThinking(t *testing.T) {
+func TestBridgedThinking_Opus47EffortSuffixUsesAdaptiveThinking(t *testing.T) {
 	withClaudeSettings(t, func() {
 		settings := model_setting.GetClaudeSettings()
 		settings.ThinkingAdapterEnabled = true
@@ -161,9 +179,9 @@ func TestRequestOpenAI2ClaudeMessage_Opus47EffortSuffixUsesAdaptiveThinking(t *t
 			MaxTokens: 4096,
 		}
 
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, req, adaptivePolicy)
+		claudeReq, err := bridgeChat(req, adaptivePolicy)
 		if err != nil {
-			t.Fatalf("RequestOpenAI2ClaudeMessage failed: %v", err)
+			t.Fatal(err)
 		}
 		if claudeReq.Model != "claude-opus-4-7" {
 			t.Fatalf("expected trimmed model, got %q", claudeReq.Model)
@@ -186,7 +204,7 @@ func TestRequestOpenAI2ClaudeMessage_Opus47EffortSuffixUsesAdaptiveThinking(t *t
 	})
 }
 
-func TestRequestOpenAI2ClaudeMessage_Opus47ThinkingSuffixUsesAdaptiveHigh(t *testing.T) {
+func TestBridgedThinking_Opus47ThinkingSuffixUsesAdaptiveHigh(t *testing.T) {
 	withClaudeSettings(t, func() {
 		settings := model_setting.GetClaudeSettings()
 		settings.ThinkingAdapterEnabled = true
@@ -199,9 +217,9 @@ func TestRequestOpenAI2ClaudeMessage_Opus47ThinkingSuffixUsesAdaptiveHigh(t *tes
 			Model: "claude-opus-4-7-thinking",
 		}
 
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, req, adaptivePolicy)
+		claudeReq, err := bridgeChat(req, adaptivePolicy)
 		if err != nil {
-			t.Fatalf("RequestOpenAI2ClaudeMessage failed: %v", err)
+			t.Fatal(err)
 		}
 		if claudeReq.Model != "claude-opus-4-7" {
 			t.Fatalf("expected trimmed model, got %q", claudeReq.Model)
@@ -221,14 +239,14 @@ func TestRequestOpenAI2ClaudeMessage_Opus47ThinkingSuffixUsesAdaptiveHigh(t *tes
 // The Hermes case (2026-10-20): Haiku 5.5 with reasoning_effort was sent a
 // legacy budget and refused. With the catalog saying adaptive it gets the
 // effort, no budget and no sampling parameters.
-func TestRequestOpenAI2ClaudeMessage_AdaptivePolicyTakesEffortAsIs(t *testing.T) {
+func TestBridgedThinking_AdaptivePolicyTakesEffortAsIs(t *testing.T) {
 	withClaudeSettings(t, func() {
 		settings := model_setting.GetClaudeSettings()
 		settings.ThinkingAdapterEnabled = true
 		settings.DefaultMaxTokens = map[string]int{"default": 8192}
 		temperature := 0.3
 		req := dto.GeneralOpenAIRequest{Model: "claude-haiku-5-5", ReasoningEffort: "medium", Temperature: &temperature}
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, req, adaptivePolicy)
+		claudeReq, err := bridgeChat(req, adaptivePolicy)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -246,13 +264,13 @@ func TestRequestOpenAI2ClaudeMessage_AdaptivePolicyTakesEffortAsIs(t *testing.T)
 
 // A model the catalog does not describe is served exactly as before Mode
 // existed: the effort becomes a budget.
-func TestRequestOpenAI2ClaudeMessage_UnknownPolicyKeepsBudgetShape(t *testing.T) {
+func TestBridgedThinking_UnknownPolicyKeepsBudgetShape(t *testing.T) {
 	withClaudeSettings(t, func() {
 		settings := model_setting.GetClaudeSettings()
 		settings.ThinkingAdapterEnabled = true
 		settings.DefaultMaxTokens = map[string]int{"default": 8192}
 		req := dto.GeneralOpenAIRequest{Model: "claude-haiku-5-5", ReasoningEffort: "medium"}
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, req, nil)
+		claudeReq, err := bridgeChat(req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -266,11 +284,11 @@ func TestRequestOpenAI2ClaudeMessage_UnknownPolicyKeepsBudgetShape(t *testing.T)
 }
 
 // An effort suffix is taken off only when the catalog knows the base model.
-func TestRequestOpenAI2ClaudeMessage_EffortSuffixNeedsAKnownBase(t *testing.T) {
+func TestBridgedThinking_EffortSuffixNeedsAKnownBase(t *testing.T) {
 	withClaudeSettings(t, func() {
 		model_setting.GetClaudeSettings().DefaultMaxTokens = map[string]int{"default": 8192}
 		req := dto.GeneralOpenAIRequest{Model: "some-vendor-model-low"}
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, req, nil)
+		claudeReq, err := bridgeChat(req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -280,11 +298,11 @@ func TestRequestOpenAI2ClaudeMessage_EffortSuffixNeedsAKnownBase(t *testing.T) {
 	})
 }
 
-func TestRequestOpenAI2ClaudeMessage_EffortNoneTurnsThinkingOffAsTheModelTakesIt(t *testing.T) {
+func TestBridgedThinking_EffortNoneTurnsThinkingOffAsTheModelTakesIt(t *testing.T) {
 	withClaudeSettings(t, func() {
 		model_setting.GetClaudeSettings().DefaultMaxTokens = map[string]int{"default": 8192}
 		betweenTools := StaticPolicy(ModelPolicy{Reasoning: model.ModelReasoningOptions{Mode: model.ReasoningModeAdaptive, Off: model.ReasoningOffBetweenTools}, Known: true})
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, dto.GeneralOpenAIRequest{Model: "claude-sonnet-5-5", ReasoningEffort: "none"}, betweenTools)
+		claudeReq, err := bridgeChat(dto.GeneralOpenAIRequest{Model: "claude-sonnet-5-5", ReasoningEffort: "none"}, betweenTools)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -292,7 +310,7 @@ func TestRequestOpenAI2ClaudeMessage_EffortNoneTurnsThinkingOffAsTheModelTakesIt
 			t.Fatalf("Sonnet 5.5 takes between_tools, got %+v", claudeReq.Thinking)
 		}
 		never := StaticPolicy(ModelPolicy{Reasoning: model.ModelReasoningOptions{Mode: model.ReasoningModeAdaptive, Off: model.ReasoningOffNever}, Known: true})
-		claudeReq, err = RequestOpenAI2ClaudeMessage(nil, dto.GeneralOpenAIRequest{Model: "claude-opus-5-5", ReasoningEffort: "none"}, never)
+		claudeReq, err = bridgeChat(dto.GeneralOpenAIRequest{Model: "claude-opus-5-5", ReasoningEffort: "none"}, never)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -413,10 +431,10 @@ func TestPolicyResolverFallsBackToTheOriginName(t *testing.T) {
 
 // Behaviour change from main, on purpose: an effort suffix on a Claude name
 // the catalog does not list is no longer trimmed by prefix.
-func TestRequestOpenAI2ClaudeMessage_UnlistedClaudeKeepsItsSuffix(t *testing.T) {
+func TestBridgedThinking_UnlistedClaudeKeepsItsSuffix(t *testing.T) {
 	withClaudeSettings(t, func() {
 		model_setting.GetClaudeSettings().DefaultMaxTokens = map[string]int{"default": 8192}
-		claudeReq, err := RequestOpenAI2ClaudeMessage(nil, dto.GeneralOpenAIRequest{Model: "claude-opus-4-7-xhigh"}, nil)
+		claudeReq, err := bridgeChat(dto.GeneralOpenAIRequest{Model: "claude-opus-4-7-xhigh"}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
