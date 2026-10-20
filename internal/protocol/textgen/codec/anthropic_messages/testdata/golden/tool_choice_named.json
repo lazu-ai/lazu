@@ -1,0 +1,24 @@
+{
+  "model": "claude-haiku-5-5",
+  "messages": [
+    {
+      "role": "user",
+      "content": "look"
+    }
+  ],
+  "tools": [
+    {
+      "name": "lookup",
+      "input_schema": {
+        "properties": {},
+        "required": null,
+        "type": "object"
+      }
+    }
+  ],
+  "tool_choice": {
+    "type": "tool",
+    "name": "lookup",
+    "disable_parallel_tool_use": true
+  }
+}

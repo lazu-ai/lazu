@@ -1,0 +1,10 @@
+{
+  "model": "claude-haiku-5-5",
+  "messages": [
+    {
+      "role": "user",
+      "content": "first second"
+    }
+  ],
+  "tools": []
+}
