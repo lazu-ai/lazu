@@ -2,6 +2,7 @@ package openai_responses
 
 import (
 	"encoding/json"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"strings"
 	"testing"
 
@@ -94,6 +95,11 @@ func TestRecordedResponsesToChatClient(t *testing.T) {
 	emitter := openai_chat.NewStreamEmitter("", "m")
 	chunks := emitter.Emit(events...)
 	chunks = append(chunks, mustFinish(emitter.Finish(nil))...)
+	var usageChunk *dto.ChatCompletionsStreamResponse
+	if n := len(chunks); n > 0 && openai_chat.IsUsageChunk(chunks[n-1]) {
+		usageChunk, chunks = chunks[n-1], chunks[:n-1]
+	}
+	_ = usageChunk
 	var id, name, args string
 	for _, chunk := range chunks {
 		for _, call := range chunk.Choices[0].Delta.ToolCalls {

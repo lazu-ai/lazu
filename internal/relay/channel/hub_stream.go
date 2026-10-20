@@ -312,6 +312,9 @@ func (w *chatHubClient) Finish(c *gin.Context, usage *dto.Usage) error {
 	}
 	for _, chunk := range chunks {
 		if !w.includeUsage {
+			if openai_chat.IsUsageChunk(chunk) {
+				continue
+			}
 			chunk.Usage = nil
 		}
 		if err := helper.ObjectData(c, chunk); err != nil {

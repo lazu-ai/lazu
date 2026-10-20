@@ -146,13 +146,17 @@ func TestDecoderHoldsUnfinishedCallsForTheTerminal(t *testing.T) {
 			t.Fatalf("%s: an unfinished call must be held: %+v %v", tc.reason, events, err)
 		}
 		events, _ = d.Decode(`{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"` + tc.reason + `"}}}`)
-		calls := 0
+		// a dropped call is withheld from the client, still billed
+		calls, withheld := 0, 0
 		for _, event := range events {
 			if event.Kind == textgen.EventToolStart {
 				calls++
+				if event.Withheld {
+					withheld++
+				}
 			}
 		}
-		if (calls == 1) != tc.keep {
+		if calls != 1 || (withheld == 0) != tc.keep {
 			t.Fatalf("%s: events %+v", tc.reason, events)
 		}
 	}
@@ -177,5 +181,83 @@ func TestUsageOfKeepsEveryDimension(t *testing.T) {
 	merged := textgen.MergeUsage(&dto.Usage{PromptTokens: 100}, usage)
 	if merged.PromptTokensDetails.ImageTokens != 30 || merged.CompletionTokenDetails.ImageTokens != 20 || merged.GeneratedImages == nil {
 		t.Fatalf("merge lost a dimension: %+v", merged)
+	}
+}
+
+// An upstream's empty message beside a tool call is kept, in its place.
+func TestEmptyMessageBesideAToolCallIsKept(t *testing.T) {
+	decoder := &StreamDecoder{}
+	emitter := NewStreamEmitter("id", "m", nil)
+	for _, data := range []string{
+		`{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"msg_up","role":"assistant","content":[]}}`,
+		`{"type":"response.output_item.added","output_index":1,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"f"}}`,
+		`{"type":"response.function_call_arguments.delta","output_index":1,"delta":"{}"}`,
+		`{"type":"response.output_item.done","output_index":1,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"f","arguments":"{}","status":"completed"}}`,
+		`{"type":"response.completed","response":{"status":"completed"}}`,
+	} {
+		events, err := decoder.Decode(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := emitter.Emit(events...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	final, err := emitter.Finish(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := final[len(final)-1]["response"].(map[string]any)
+	output := response["output"].([]any)
+	if len(output) != 2 || output[0].(map[string]any)["type"] != "message" || output[1].(map[string]any)["type"] != "function_call" {
+		t.Fatalf("output: %+v", output)
+	}
+}
+
+// Anthropic usage leaves the cache out of input_tokens; a Responses client
+// reads input as including it.
+func TestResponsesUsageCountsTheCacheAsInput(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil)
+	usage := &dto.Usage{PromptTokens: 20, CompletionTokens: 5, TotalTokens: 25, PromptExcludesCache: true}
+	usage.PromptTokensDetails.CachedTokens = 80
+	if _, err := emitter.Emit(textgen.Event{Kind: textgen.EventText, Text: "hi"}, textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopEnd}, textgen.Event{Kind: textgen.EventUsage, Usage: usage}); err != nil {
+		t.Fatal(err)
+	}
+	final, err := emitter.Finish(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projected := final[len(final)-1]["response"].(map[string]any)["usage"].(*dto.ResponsesUsage)
+	if projected.InputTokens != 100 || projected.TotalTokens != 105 {
+		t.Fatalf("usage: %+v", projected)
+	}
+}
+
+// A call that streamed from its added event is held too, until the
+// terminal event says whether the client gets it; a withheld call is still
+// billed, and a call without call_id takes its item id.
+func TestDecoderHoldsStreamedCallsAndBillsWithheldOnes(t *testing.T) {
+	d := &StreamDecoder{}
+	var all []textgen.Event
+	for _, data := range []string{
+		`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","name":"lookup"}}`,
+		`{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{\"q\":"}`,
+		`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_1","name":"lookup","arguments":"{\"q\":","status":"incomplete"}}`,
+	} {
+		events, err := d.Decode(data)
+		if err != nil || len(events) != 0 {
+			t.Fatalf("a call is held until the terminal: %+v %v", events, err)
+		}
+	}
+	events, _ := d.Decode(`{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"content_filter"}}}`)
+	all = append(all, events...)
+	if visible := textgen.ForClient(all); len(visible) != 1 || visible[0].Kind != textgen.EventStop {
+		t.Fatalf("only the stop reaches the client: %+v", visible)
+	}
+	var col textgen.Collector
+	col.Add(all...)
+	parts := col.Result().Parts
+	if len(parts) != 1 || parts[0].Kind != textgen.PartTool || parts[0].Name != "lookup" || parts[0].CallID != "fc_1" {
+		t.Fatalf("the withheld call must still be collected for billing, with its item id: %+v", parts)
 	}
 }

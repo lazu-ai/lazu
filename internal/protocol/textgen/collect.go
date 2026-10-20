@@ -305,3 +305,21 @@ func mergeOutputDetails(base *dto.OutputTokenDetails, update dto.OutputTokenDeta
 	mergeCount(&base.AcceptedPredictionTokens, update.AcceptedPredictionTokens)
 	mergeCount(&base.RejectedPredictionTokens, update.RejectedPredictionTokens)
 }
+
+// CacheInclusiveUsage is usage as an OpenAI-shaped client reads it: input
+// counting the cached tokens. Anthropic's input_tokens leaves the cache
+// reads and writes out (PromptExcludesCache); the settled usage keeps that
+// form, the client's gets them added back.
+func CacheInclusiveUsage(usage *dto.Usage) *dto.Usage {
+	if usage == nil || !usage.PromptExcludesCache {
+		return usage
+	}
+	out := *usage
+	out.PromptTokens += usage.PromptTokensDetails.CachedTokens + usage.PromptTokensDetails.CachedCreationTokens
+	if out.InputTokens != 0 {
+		out.InputTokens = out.PromptTokens
+	}
+	out.PromptExcludesCache = false
+	out.TotalTokens = out.PromptTokens + out.CompletionTokens
+	return &out
+}

@@ -240,7 +240,7 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	if maxOutput > 0 {
 		constraints[textgen.FeatureMaxOutput] = textgen.Constraint{Max: maxOutput}
 	}
-	gaps := endpointGaps(dialect, features)
+	gaps := endpointGaps(dialect)
 	revisionParts := append([]string{dialect, strings.TrimSpace(input.ModelFamily)}, features.Names()...)
 	revisionParts = append(revisionParts, "denied:"+strings.Join(denied.Names(), ","))
 	for _, endpoint := range []textgen.FeatureID{textgen.FeatureEndpointChat, textgen.FeatureEndpointResponses} {
@@ -274,9 +274,11 @@ var dialectEndpointGaps = map[string]map[textgen.FeatureID][]textgen.FeatureID{
 	DialectDeepSeek: {textgen.FeatureEndpointChat: {textgen.FeatureJSONSchema}},
 }
 
-// endpointGaps is the dialect's gaps restricted to the features the snapshot
-// carries, nil when the dialect has none.
-func endpointGaps(dialect string, features textgen.FeatureSet) map[textgen.FeatureID]textgen.FeatureSet {
+// endpointGaps is the dialect's gaps, nil when it has none. They are wire
+// facts about the endpoint, not model capabilities, so they hold whether or
+// not the catalog row records the feature: a sparse row leaves the feature
+// unknown, and the endpoint still rejects it.
+func endpointGaps(dialect string) map[textgen.FeatureID]textgen.FeatureSet {
 	declared, ok := dialectEndpointGaps[dialect]
 	if !ok {
 		return nil
@@ -285,16 +287,9 @@ func endpointGaps(dialect string, features textgen.FeatureSet) map[textgen.Featu
 	for endpoint, missing := range declared {
 		var gap textgen.FeatureSet
 		for _, feature := range missing {
-			if features.Has(feature) {
-				gap.Add(feature)
-			}
+			gap.Add(feature)
 		}
-		if gap != 0 {
-			out[endpoint] = gap
-		}
-	}
-	if len(out) == 0 {
-		return nil
+		out[endpoint] = gap
 	}
 	return out
 }

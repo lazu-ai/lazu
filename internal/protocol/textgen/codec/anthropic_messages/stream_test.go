@@ -2,6 +2,7 @@ package anthropic_messages
 
 import (
 	"encoding/json"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"strings"
 	"testing"
 
@@ -105,6 +106,11 @@ func TestRecordedAnthropicToChatClient(t *testing.T) {
 	emitter := openai_chat.NewStreamEmitter("", "m")
 	chunks := emitter.Emit(events...)
 	chunks = append(chunks, mustFinish(emitter.Finish(nil))...)
+	var usageChunk *dto.ChatCompletionsStreamResponse
+	if n := len(chunks); n > 0 && openai_chat.IsUsageChunk(chunks[n-1]) {
+		usageChunk, chunks = chunks[n-1], chunks[:n-1]
+	}
+	_ = usageChunk
 	if chunks[0].Choices[0].Delta.Role != "assistant" || !strings.HasPrefix(chunks[0].Id, "chatcmpl-") {
 		t.Fatalf("expected a role chunk first, got %+v", chunks[0])
 	}
@@ -117,13 +123,17 @@ func TestRecordedAnthropicToChatClient(t *testing.T) {
 		}
 	}
 	last := chunks[len(chunks)-1]
-	if reasoning == "" || text == "" || last.Choices[0].FinishReason == nil || *last.Choices[0].FinishReason != "stop" || last.Usage == nil || last.Usage.CompletionTokens == 0 {
+	if reasoning == "" || text == "" || last.Choices[0].FinishReason == nil || *last.Choices[0].FinishReason != "stop" || usageChunk == nil || usageChunk.Usage.CompletionTokens == 0 {
 		t.Fatalf("reasoning=%v text=%v last=%+v", reasoning != "", text != "", last)
 	}
 	tool := decodeRecording(t, "anthropic/tool_call.sse")
 	toolEmitter := openai_chat.NewStreamEmitter("", "m")
 	toolChunks := toolEmitter.Emit(tool...)
 	toolChunks = append(toolChunks, mustFinish(toolEmitter.Finish(nil))...)
+	if n := len(toolChunks); n > 0 && openai_chat.IsUsageChunk(toolChunks[n-1]) {
+		usageChunk, toolChunks = toolChunks[n-1], toolChunks[:n-1]
+	}
+	_ = usageChunk
 	var callID, name, args string
 	for _, chunk := range toolChunks {
 		for _, call := range chunk.Choices[0].Delta.ToolCalls {
