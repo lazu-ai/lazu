@@ -358,3 +358,56 @@ func TestPrepareAttemptTurnsReasoningOffForGPT6ChatTools(t *testing.T) {
 		t.Fatal("reasoning default polluted retry input or disabled ordinary request reuse")
 	}
 }
+
+// A channel that denies json_schema gets the registered stand-in: the plan
+// carries the degradation warning and the caller's request is untouched.
+func TestPrepareAttemptDegradesDeniedJSONSchema(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_degrade?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed := &textgen.ParsedRequest{
+		Client: textgen.Protocol{Family: textgen.ProtocolOpenAIChat},
+		Semantic: &textgen.Request{
+			Model:        textgen.ModelRef{Canonical: "fixture"},
+			Instructions: []textgen.Instruction{{Role: "system", Text: "Name the session."}},
+			Conversation: []textgen.InputItem{{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "hello"}}}},
+			Output:       textgen.OutputConstraint{Type: "json_schema", Name: "title", Schema: json.RawMessage(`{"type":"object"}`)},
+		},
+	}
+	channel := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_json_schema":false}}`}
+	before, _ := json.Marshal(parsed.Semantic)
+	attempt, err := PrepareAttempt(parsed, channel, "fixture")
+	if err != nil {
+		t.Fatalf("degraded route failed: %v", err)
+	}
+	if attempt.Request == parsed.Semantic || attempt.Request.Output.Type != "" || len(attempt.Request.Instructions) != 1 {
+		t.Fatalf("expected a degraded clone, got %+v", attempt.Request)
+	}
+	// the catalog knows nothing of "fixture", so json_object is not known to
+	// be carried either: the schema goes as an instruction alone
+	if len(attempt.Plan.Warnings) != 1 || attempt.Plan.Warnings[0].Message != "degraded:json_schema_to_instruction" {
+		t.Fatalf("expected the degradation warning on the plan, got %+v", attempt.Plan.Warnings)
+	}
+	after, _ := json.Marshal(parsed.Semantic)
+	if string(before) != string(after) {
+		t.Fatal("degradation changed caller input")
+	}
+	// without the overlay the same request is left for the provider to judge
+	open := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`}
+	attempt, err = PrepareAttempt(parsed, open, "fixture")
+	if err != nil || attempt.Request != parsed.Semantic || len(attempt.Plan.Warnings) != 0 {
+		t.Fatalf("unknown support must not degrade: %+v %v", attempt, err)
+	}
+}

@@ -36,6 +36,7 @@ const (
 	HotPathCounterProtocolUnsupported       = "protocol.unsupported"
 	HotPathCounterProtocolConversionFailed  = "protocol.conversion.failed"
 	HotPathCounterProtocolUnsupportedPrefix = "protocol.unsupported.feature."
+	HotPathCounterProtocolDegradedPrefix    = "protocol.degraded."
 )
 
 var (

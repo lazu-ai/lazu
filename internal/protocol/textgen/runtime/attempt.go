@@ -64,12 +64,23 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		}
 		effective.Reasoning.Effort = "none"
 	}
+	// Bounded degradation (textgen/degrade.go): a feature this channel cannot
+	// carry at all is stood in for by a registered rule, on a clone, before
+	// planning; the plan carries the warning. Degrade clones for itself.
+	degraded, degradations := textgen.Degrade(snapshot, effective)
+	if len(degradations) > 0 {
+		effective = degraded
+		for _, issue := range degradations {
+			common.IncrementHotPathCounter(common.HotPathCounterProtocolDegradedPrefix + strings.TrimPrefix(issue.Message, "degraded:"))
+		}
+	}
 	client.Dialect = "openai"
 	plan, err := textgen.PlanAttempt(client, snapshot, effective, channel.Id, modelName, parsed.InputTokens)
 	if err != nil {
 		return nil, err
 	}
 	plan.UpstreamProtocol.Dialect = dialect
+	plan.Warnings = append(plan.Warnings, degradations...)
 	if err := validateBridgeOverride(plan.Native, unsupportedPatch); err != nil {
 		return nil, err
 	}
