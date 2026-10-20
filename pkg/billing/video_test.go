@@ -80,3 +80,65 @@ func TestVideoPricesValidateAndScale(t *testing.T) {
 		t.Fatal("emptiness")
 	}
 }
+
+func TestVideoLinesProviderCostMultiplierByResolution(t *testing.T) {
+	flat := 1.2
+	cost := 1.0
+	sheet := PriceSheet{Video: &VideoPrices{
+		ProviderCostMultiplier:             &flat,
+		ProviderCostMultiplierByResolution: map[string]float64{"720P": 1.07, "1080p": 1.48},
+	}}
+	cases := map[string]MicroUSD{"720p": USD(1.07), "1080p": USD(1.48), "480p": USD(1.2)}
+	for resolution, want := range cases {
+		quote := Quote(Usage{Video: &VideoUsage{Seconds: 5, Resolution: resolution, ProviderCostUSD: &cost}}, sheet, nil)
+		if quote.TotalMicrousd != want || quote.LineItems[0].Dimension != VideoDimensionProviderCost {
+			t.Fatalf("%s: a tier's own multiplier, else the flat one: %+v", resolution, quote)
+		}
+	}
+	onlyTiers := PriceSheet{Video: &VideoPrices{ProviderCostMultiplierByResolution: map[string]float64{"720p": 1.07}}}
+	quote := Quote(Usage{Video: &VideoUsage{Seconds: 5, Resolution: "480p", ProviderCostUSD: &cost}}, onlyTiers, nil)
+	if quote.TotalMicrousd != USD(1) {
+		t.Fatalf("an unlisted tier with no flat multiplier bills the cost at 1x: %+v", quote)
+	}
+}
+
+func TestVideoLinesBillReferenceSecondsWithTheOutput(t *testing.T) {
+	sheet := PriceSheet{Video: &VideoPrices{ResolutionSecondUSD: map[string]float64{"720p": 0.231}}}
+	quote := Quote(Usage{Video: &VideoUsage{Seconds: 5, ReferenceSeconds: 30, Resolution: "720p"}}, sheet, nil)
+	if quote.TotalMicrousd != USD(0.231*35) || quote.LineItems[0].Quantity != 35 {
+		t.Fatalf("a hold covers 5 s of output and 30 s of reference: %+v", quote)
+	}
+}
+
+func TestVideoPricesValidateMultiplierTiersAndPublicCopy(t *testing.T) {
+	for _, bad := range []map[string]float64{{"720p": 0}, {"720p": -1}, {"720p": 101}, {" ": 1.1}} {
+		if err := (&VideoPrices{ProviderCostMultiplierByResolution: bad}).Validate(); err == nil {
+			t.Fatalf("multiplier tiers %v must be refused", bad)
+		}
+	}
+	flat := 1.07
+	audio := 1.5
+	prices := &VideoPrices{
+		ResolutionSecondUSD:                map[string]float64{"720p": 0.231},
+		AudioSurchargeRatio:                &audio,
+		ProviderCostMultiplier:             &flat,
+		ProviderCostAuthoritative:          true,
+		ProviderCostMultiplierByResolution: map[string]float64{"1080p": 1.48},
+	}
+	if err := prices.Validate(); err != nil {
+		t.Fatalf("valid prices refused: %v", err)
+	}
+	public := prices.Public()
+	if public.ProviderCostMultiplier != nil || public.ProviderCostAuthoritative || len(public.ProviderCostMultiplierByResolution) != 0 {
+		t.Fatalf("the public copy must not publish the markup: %+v", public)
+	}
+	if !public.ProviderCostBilled || public.ResolutionSecondUSD["720p"] != 0.231 || public.AudioSurchargeRatio == nil {
+		t.Fatalf("the public copy keeps per-second prices and says it follows cost: %+v", public)
+	}
+	if (&VideoPrices{ProviderCostBilled: true}).IsEmpty() {
+		t.Fatalf("a public cost-billed copy is a price")
+	}
+	if (&VideoPrices{ResolutionSecondUSD: map[string]float64{"720p": 0.231}}).Public().ProviderCostBilled {
+		t.Fatalf("a per-second lane is not cost-billed")
+	}
+}

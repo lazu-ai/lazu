@@ -315,6 +315,7 @@ func completeUpstreamVideoJob(ctx context.Context, job model.MediaJob, channel *
 	}
 	defer model.ReleaseMediaJobSpendBudgetReservation(job)
 	alertVideoRequoteCapped(ctx, job, billingResult)
+	alertVideoReferenceUnpriced(ctx, job, billingResult)
 	if err := model.MarkMediaJobSucceeded(job.ID, model.CompleteMediaJobInput{
 		ArtifactFileID: file.ID,
 		CostSnapshot:   billingResult.CostSnapshot,
@@ -362,6 +363,33 @@ func alertVideoRequoteCapped(ctx context.Context, job model.MediaJob, result mod
 	// every job, and the settlement log keeps each one.
 	if err := sendLeasedOpsMail(ctx, "video-requote-capped:"+job.ModelName, 6*time.Hour, "视频结算超出预扣上限", mail); err != nil {
 		common.SysLog("video requote cap alert for " + job.PublicID + ": " + err.Error())
+	}
+}
+
+// alertVideoReferenceUnpriced tells the operator when a job held for
+// reference video but the provider reported neither a cost nor tokens, so it
+// settled on the output alone and the reference input went unbilled.
+func alertVideoReferenceUnpriced(ctx context.Context, job model.MediaJob, result model.MediaJobBillingResult) {
+	if !result.ReferenceUnpriced || !common.RedisEnabled || common.RDB == nil {
+		return
+	}
+	charged := fmt.Sprintf("$%.6f", result.CustomerCharge.Dollars())
+	mail := common.Mail{
+		Severity:  "ALERT",
+		Source:    "video-billing",
+		Title:     "参考视频没有计费回报",
+		Preheader: fmt.Sprintf("%s 的任务带参考视频，上游没回报成本或 token，已按生成时长 %s 结算", job.ModelName, charged),
+		Lead:      "这条视频任务带了参考视频，预扣时按模型允许的最长参考时长冻结了余额。上游完成后既没回报 cost 也没回报 token，无法知道参考视频的实际计费，所以只按生成时长向用户收费，参考视频部分没有收。请把这个模型的售价配成跟随上游成本（provider_cost_multiplier），或确认渠道会回报 cost。",
+		Blocks: []common.MailBlock{
+			{Facts: []common.MailFact{
+				{Label: "任务", Value: job.PublicID, Mono: true},
+				{Label: "模型", Value: job.ModelName, Mono: true},
+				{Label: "已结算", Value: charged, Mono: true},
+			}},
+		},
+	}
+	if err := sendLeasedOpsMail(ctx, "video-reference-unpriced:"+job.ModelName, 6*time.Hour, "参考视频没有计费回报", mail); err != nil {
+		common.SysLog("video reference alert for " + job.PublicID + ": " + err.Error())
 	}
 }
 

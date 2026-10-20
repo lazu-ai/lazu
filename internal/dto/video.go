@@ -129,6 +129,16 @@ func (r VideoRequest) EffectiveRatio() string {
 	return ""
 }
 
+// HasReferenceVideo reports whether the request sends a reference video.
+func (r VideoRequest) HasReferenceVideo() bool {
+	for _, reference := range r.InputRefs {
+		if strings.EqualFold(strings.TrimSpace(reference.Type), VideoReferenceVideo) {
+			return true
+		}
+	}
+	return false
+}
+
 // InputKinds lists the capability inputs the request uses, for validation.
 func (r VideoRequest) InputKinds() []string {
 	kinds := []string{VideoInputText}
@@ -288,6 +298,9 @@ type VideoFacts struct {
 	ProviderCostUSD *float64 `json:"provider_cost_usd,omitempty"`
 	Audio           bool     `json:"audio,omitempty"`
 	Reported        bool     `json:"reported,omitempty"`
+	// ReferenceSeconds is the reference video a submission holds for (the
+	// longest the model accepts); it is never what settlement charges.
+	ReferenceSeconds int64 `json:"reference_seconds,omitempty"`
 }
 
 // IsZero reports whether no dimension is known.
@@ -338,6 +351,9 @@ type VideoCapabilities struct {
 	DefaultResolution string   `json:"default_resolution,omitempty"`
 	DefaultRatio      string   `json:"default_ratio,omitempty"`
 	FPS               int      `json:"fps,omitempty"`
+	// MaxReferenceVideoSeconds is the longest total reference video the model
+	// accepts; a submission with reference video holds for that much input.
+	MaxReferenceVideoSeconds int `json:"max_reference_video_seconds,omitempty"`
 }
 
 // IsEmpty reports whether the row says nothing: no restriction and no

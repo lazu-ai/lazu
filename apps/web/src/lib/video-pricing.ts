@@ -11,6 +11,10 @@ export type VideoPricing = {
   audio_surcharge_ratio?: number;
   provider_cost_multiplier?: number;
   provider_cost_authoritative?: boolean;
+  /** Per resolution tier ("720p": 1.07); overrides the flat multiplier. */
+  provider_cost_multiplier_by_resolution?: Record<string, number>;
+  /** Public pricing's only provider-cost signal: the multiplier is withheld. */
+  provider_cost_billed?: boolean;
 };
 
 export type VideoCapabilities = {
@@ -27,6 +31,7 @@ export type VideoCapabilities = {
   default_resolution?: string;
   default_ratio?: string;
   fps?: number;
+  max_reference_video_seconds?: number;
 };
 
 /** What a model row needs to carry for a per-second estimate. */
@@ -147,10 +152,17 @@ export const videoEstimateHasAudio = (
  *  only what the hold is taken on, not what the clip will cost. */
 export const videoPriceFollowsProviderCost = (
   source: VideoPriceSource | undefined,
-): boolean =>
-  source?.video_pricing?.provider_cost_authoritative === true ||
-  (typeof source?.video_pricing?.provider_cost_multiplier === 'number' &&
-    source.video_pricing.provider_cost_multiplier > 0);
+): boolean => {
+  const video = source?.video_pricing;
+  if (!video) return false;
+  return (
+    video.provider_cost_billed === true ||
+    video.provider_cost_authoritative === true ||
+    (typeof video.provider_cost_multiplier === 'number' &&
+      video.provider_cost_multiplier > 0) ||
+    Object.keys(video.provider_cost_multiplier_by_resolution || {}).length > 0
+  );
+};
 
 export type VideoOptions = {
   ratios: string[];
@@ -246,6 +258,7 @@ export const readVideoCapabilities = (
     durations: numbers(row.durations),
     fps: number(row.fps),
     inputs: strings(row.inputs),
+    max_reference_video_seconds: number(row.max_reference_video_seconds),
     max_references: number(row.max_references),
     max_seconds: number(row.max_seconds),
     min_seconds: number(row.min_seconds),
@@ -275,10 +288,30 @@ export const readVideoPricing = (value: unknown): VideoPricing | undefined => {
             ),
         )
       : undefined;
+  const multipliers =
+    row.provider_cost_multiplier_by_resolution &&
+    typeof row.provider_cost_multiplier_by_resolution === 'object' &&
+    !Array.isArray(row.provider_cost_multiplier_by_resolution)
+      ? Object.fromEntries(
+          Object.entries(
+            row.provider_cost_multiplier_by_resolution as Record<
+              string,
+              unknown
+            >,
+          )
+            .map(([key, value]) => [key, number(value)] as const)
+            .filter(
+              (entry): entry is readonly [string, number] =>
+                typeof entry[1] === 'number',
+            ),
+        )
+      : undefined;
   return {
     audio_surcharge_ratio: number(row.audio_surcharge_ratio),
     provider_cost_authoritative: row.provider_cost_authoritative === true,
+    provider_cost_billed: row.provider_cost_billed === true,
     provider_cost_multiplier: number(row.provider_cost_multiplier),
+    provider_cost_multiplier_by_resolution: multipliers,
     resolution_second_usd: tiers,
     second_usd: number(row.second_usd),
   };
