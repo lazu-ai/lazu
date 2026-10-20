@@ -199,7 +199,9 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	var denied textgen.FeatureSet
 	if input.Channel != nil {
 		if !input.Channel.HasJSONSchema() {
-			schema := textgen.FeatureSet(1)<<textgen.FeatureJSONSchema | textgen.FeatureSet(1)<<textgen.FeatureStrictSchema
+			// the response-format schema only; strict function tools raise
+			// the shared strict marker too and say nothing about it
+			schema := textgen.FeatureSet(1) << textgen.FeatureJSONSchema
 			features &^= schema
 			denied |= schema
 		}

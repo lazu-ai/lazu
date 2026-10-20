@@ -59,6 +59,7 @@ type StreamDecoder struct {
 	server map[int]bool
 	whole  map[int]bool
 	tools  map[int]bool
+	args   map[int]bool // the call at an index has had arguments
 }
 
 // Decode is the events of one SSE event (its data; the event name is
@@ -73,14 +74,16 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		return nil, err
 	}
 	if d.server == nil {
-		d.server, d.whole, d.tools = map[int]bool{}, map[int]bool{}, map[int]bool{}
+		d.server, d.whole, d.tools, d.args = map[int]bool{}, map[int]bool{}, map[int]bool{}, map[int]bool{}
 	}
 	switch ev.Type {
 	case "message_start":
 		if ev.Message == nil {
 			return nil, nil
 		}
-		events := []textgen.Event{{Kind: textgen.EventStart, ResponseID: ev.Message.ID, Model: ev.Message.Model}}
+		// the assistant's turn begins here, so an empty reply is still an
+		// (empty) assistant message
+		events := []textgen.Event{{Kind: textgen.EventStart, ResponseID: ev.Message.ID, Model: ev.Message.Model}, {Kind: textgen.EventTurn, Role: "assistant"}}
 		if usage := UsageOf(ev.Message.Usage); usage != nil {
 			events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: usage})
 		}
@@ -113,6 +116,7 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 				// a relay in front of another vendor's model may send the
 				// whole input on the start, with no deltas after
 				d.whole[ev.Index] = true
+				d.args[ev.Index] = true
 				events = append(events, textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: ev.Index, Text: string(block.Input)})
 			}
 			return events, nil
@@ -141,12 +145,18 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 			if d.whole[ev.Index] || ev.Delta.PartialJSON == "" {
 				return nil, nil
 			}
+			d.args[ev.Index] = true
 			return []textgen.Event{{Kind: textgen.EventToolArguments, ToolIndex: ev.Index, Text: ev.Delta.PartialJSON}}, nil
 		}
 		return nil, nil
 	case "content_block_stop":
 		if d.tools[ev.Index] && !d.server[ev.Index] {
-			return []textgen.Event{{Kind: textgen.EventToolDone, ToolIndex: ev.Index}}, nil
+			done := textgen.Event{Kind: textgen.EventToolDone, ToolIndex: ev.Index}
+			if !d.args[ev.Index] {
+				// a call with no parameters: input {} on the start, no deltas
+				done.Text = "{}"
+			}
+			return []textgen.Event{done}, nil
 		}
 		return nil, nil
 	case "message_delta":

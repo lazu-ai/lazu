@@ -110,6 +110,30 @@ type RelayPlan struct {
 	UpstreamModel    string
 }
 
+// DegradationPrefix starts the message of a plan warning that records a
+// registered degradation (textgen/degrade.go).
+const DegradationPrefix = "degraded:"
+
+// Degradations are the IDs of the registered degradations the plan applied,
+// in order; none for a lossless plan. Routing ranks a degraded plan below
+// every lossless one, and the handlers encode it from the IR, since the
+// client's wire still carries the feature that was stood in for.
+func (p *RelayPlan) Degradations() []string {
+	if p == nil {
+		return nil
+	}
+	var ids []string
+	for _, warning := range p.Warnings {
+		if strings.HasPrefix(warning.Message, DegradationPrefix) {
+			ids = append(ids, strings.TrimPrefix(warning.Message, DegradationPrefix))
+		}
+	}
+	return ids
+}
+
+// Degraded says whether the plan applied a registered degradation.
+func (p *RelayPlan) Degraded() bool { return len(p.Degradations()) > 0 }
+
 type UnsupportedFeatureError struct {
 	Feature FeatureID
 	Path    string

@@ -227,3 +227,20 @@ func TestHubServesAWholeReply(t *testing.T) {
 		})
 	}
 }
+
+// A stream that ends cleanly before the upstream said how the reply ended
+// was cut off: retryable before any output, failed in the client's protocol
+// after.
+func TestHubStreamTreatsAStreamWithoutAStopAsCutOff(t *testing.T) {
+	service.InitTokenEncoders()
+	start := "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-5-5\",\"content\":[],\"usage\":{\"input_tokens\":12,\"output_tokens\":1}}}\n\n"
+	text := "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n" +
+		"event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"partial\"}}\n\n"
+	c, recorder := hubContext(t)
+	if _, err := HubStreamHandler(c, upstreamStream(start+text), hubInfo(textgen.ProtocolOpenAIChat, true)); err == nil || !types.IsSkipRetryError(err) {
+		t.Fatalf("a cut-off stream after output must fail without retry: %v", err)
+	}
+	if body := recorder.Body.String(); strings.Contains(body, `"finish_reason":"stop"`) || !strings.Contains(body, "upstream stream ended") {
+		t.Fatalf("a cut-off reply must not close as complete:\n%s", body)
+	}
+}

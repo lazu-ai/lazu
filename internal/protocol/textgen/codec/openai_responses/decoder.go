@@ -90,7 +90,13 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		return nil, nil
 	case "response.completed", "response.incomplete", "response.failed":
 		if ev.Type == "response.failed" || (ev.Response != nil && ev.Response.Status == "failed") {
-			return []textgen.Event{{Kind: textgen.EventError, Error: failedError(ev)}}, nil
+			// the provider's counters first: the error ends the reply, and
+			// settlement reads the usage it saw
+			var events []textgen.Event
+			if ev.Response != nil && ev.Response.Usage != nil {
+				events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: UsageOf(ev.Response.Usage)})
+			}
+			return append(events, textgen.Event{Kind: textgen.EventError, Error: failedError(ev)}), nil
 		}
 		var events []textgen.Event
 		stop := textgen.StopEnd

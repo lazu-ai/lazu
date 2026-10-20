@@ -66,12 +66,18 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 	}
 	// Bounded degradation (textgen/degrade.go): a feature this channel cannot
 	// carry at all is stood in for by a registered rule, on a clone, before
-	// planning; the plan carries the warning. Degrade clones for itself.
-	degraded, degradations := textgen.Degrade(snapshot, effective)
-	if len(degradations) > 0 {
-		effective = degraded
-		for _, issue := range degradations {
-			common.IncrementHotPathCounter(common.HotPathCounterProtocolDegradedPrefix + strings.TrimPrefix(issue.Message, "degraded:"))
+	// planning; the plan carries the warning. Degrade clones for itself. A
+	// degraded request is sent encoded from the IR (the client's wire still
+	// carries the feature), so it is degraded only when that encoding loses
+	// nothing else: a nested field the IR does not model would be dropped,
+	// and the refusal stands instead. Counting happens where the attempt is
+	// chosen (controller), not here, since routing plans every candidate.
+	var degradations []textgen.Issue
+	if !hasNestedUnknownField(effective) {
+		var degraded *textgen.Request
+		degraded, degradations = textgen.Degrade(snapshot, effective)
+		if len(degradations) > 0 {
+			effective = degraded
 		}
 	}
 	client.Dialect = "openai"
@@ -85,6 +91,18 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		return nil, err
 	}
 	return &Attempt{Request: effective, Plan: plan}, nil
+}
+
+// hasNestedUnknownField says whether the request carries a field below the
+// top level that the IR does not model (top-level unknown fields go back on
+// the wire by name; see relay.TopLevelUnknownFields).
+func hasNestedUnknownField(request *textgen.Request) bool {
+	for path := range request.Raw.UnknownFields {
+		if strings.ContainsAny(path, ".[") {
+			return true
+		}
+	}
+	return false
 }
 
 // chatToolsNeedReasoningOff identifies a Chat request with

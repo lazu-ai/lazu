@@ -1,6 +1,7 @@
 package openai_chat
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -161,20 +162,28 @@ func (e *StreamEmitter) argsSeen(toolIndex int) bool {
 
 // Finish closes the reply with the finish reason and usage (the usage given
 // wins over the one streamed). A reply that said nothing still gets its
-// role chunk.
-func (e *StreamEmitter) Finish(usage *dto.Usage) []*dto.ChatCompletionsStreamResponse {
+// role chunk. A reply whose upstream never said how it ended was cut off:
+// Finish refuses it, writes nothing, and the caller ends the stream with
+// Fail, as the Responses emitter does.
+func (e *StreamEmitter) Finish(usage *dto.Usage) ([]*dto.ChatCompletionsStreamResponse, error) {
 	if e == nil || e.terminal {
-		return nil
+		return nil, nil
 	}
-	e.terminal = true
 	if usage != nil {
 		e.col.Add(textgen.Event{Kind: textgen.EventUsage, Usage: usage})
 	}
 	result := e.col.Result()
+	if !result.StopSeen {
+		return nil, errStreamWithoutStop
+	}
+	e.terminal = true
 	out := e.role()
 	finish := FinishReasonOf(result.Stop)
-	return append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, &finish, result.Usage))
+	return append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{}, &finish, result.Usage)), nil
 }
+
+// errStreamWithoutStop is a stream that ended without its stop reason.
+var errStreamWithoutStop = errors.New("stream ended without a stop reason")
 
 // Result is the reply collected so far.
 func (e *StreamEmitter) Result() textgen.Result { return e.col.Result() }
@@ -222,10 +231,13 @@ func Render(result textgen.Result, model string) *dto.OpenAITextResponse {
 		}
 	}
 	message := dto.Message{Role: "assistant", ReasoningContent: reasoning.String()}
+	if refusal.Len() > 0 {
+		// a refusal is typed, as Chat clients read it apart from an answer
+		value := refusal.String()
+		message.Refusal = &value
+	}
 	if text.Len() > 0 || refusal.Len() == 0 {
 		message.SetStringContent(text.String())
-	} else {
-		message.SetStringContent(refusal.String())
 	}
 	if len(calls) > 0 {
 		message.SetToolCalls(calls)

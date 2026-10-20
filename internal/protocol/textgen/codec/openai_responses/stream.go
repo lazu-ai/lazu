@@ -187,6 +187,11 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 			if event.SealedBy != SealedBy || len(event.Sealed) == 0 {
 				continue
 			}
+			// the item is kept whole for the terminal output, so it counts
+			// against the same bound as text and arguments
+			if err := e.retainOutput(string(event.Sealed)); err != nil {
+				return out, err
+			}
 			if open := e.reasoning; open != nil && (event.ItemID == "" || event.ItemID == open.upstreamID) {
 				// the item streamed so far, done as the upstream wrote it
 				open.raw = append(json.RawMessage(nil), event.Sealed...)

@@ -19,7 +19,7 @@ func TestEmitterRoleOnceToolIndexesAndFinish(t *testing.T) {
 		textgen.Event{Kind: textgen.EventToolDone, ToolIndex: 2, Text: `{"k":1}`},
 		textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopTool},
 	)
-	chunks = append(chunks, emitter.Finish(&dto.Usage{PromptTokens: 1, CompletionTokens: 2})...)
+	chunks = append(chunks, mustFinish(emitter.Finish(&dto.Usage{PromptTokens: 1, CompletionTokens: 2}))...)
 	if chunks[0].Choices[0].Delta.Role != "assistant" || chunks[0].Id != "chatcmpl-abc" || chunks[0].Model != "upstream-model" || chunks[0].Created != 5 {
 		t.Fatalf("role chunk: %+v", chunks[0])
 	}
@@ -46,7 +46,7 @@ func TestEmitterRoleOnceToolIndexesAndFinish(t *testing.T) {
 	if last.Choices[0].FinishReason == nil || *last.Choices[0].FinishReason != "tool_calls" || last.Usage == nil || last.Usage.TotalTokens != 3 {
 		t.Fatalf("finish chunk: %+v", last)
 	}
-	if again := emitter.Finish(nil); len(again) != 0 {
+	if again, _ := emitter.Finish(nil); len(again) != 0 {
 		t.Fatal("finish must be terminal once")
 	}
 }
@@ -85,4 +85,12 @@ func TestRenderWholeCompletion(t *testing.T) {
 	if response.Usage.TotalTokens != 7 {
 		t.Fatalf("usage: %+v", response.Usage)
 	}
+}
+
+// mustFinish is an emitter's Finish for a stream known to have ended well.
+func mustFinish[T any](out []T, err error) []T {
+	if err != nil {
+		panic(err)
+	}
+	return out
 }

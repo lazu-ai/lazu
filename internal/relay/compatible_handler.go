@@ -94,11 +94,21 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 		info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIChat &&
 		info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIResponses
 	bridgeToMessages := claudechannel.BridgesToMessages(info)
+	// A degraded native plan is sent encoded from the IR: the client's wire
+	// still carries the feature the degradation stood in for.
+	degradedNative := info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.Degraded() && info.ProtocolRequest != nil
+	if degradedNative {
+		encoded, encodeErr := degradedChatRequest(info, request)
+		if encodeErr != nil {
+			return encodeErr
+		}
+		request = encoded
+	}
 
 	nativeConverter, nativeConvertible := adaptor.(interface {
 		ConvertNativeRequest([]byte, *relaycommon.RelayInfo, bool) ([]byte, error)
 	})
-	if nativeConvertible && !bridgeToResponses && !bridgeToMessages && (info.ProtocolRequest == nil || !openai_chat.HasOSSURLHint(info.ProtocolRequest)) {
+	if nativeConvertible && !bridgeToResponses && !bridgeToMessages && !degradedNative && (info.ProtocolRequest == nil || !openai_chat.HasOSSURLHint(info.ProtocolRequest)) {
 		bodyTimer := common.StartHotPathStage(common.HotPathStageOutboundBody)
 		body := info.NativeBodyCache
 		if body == nil || info.NativeBodyChannelID != info.ChannelId {
@@ -116,7 +126,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 		requestBody = bytes.NewReader(body)
-	} else if passThroughBodyEnabled && !bridgeToResponses && !bridgeToMessages {
+	} else if passThroughBodyEnabled && !bridgeToResponses && !bridgeToMessages && !degradedNative {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)
@@ -182,7 +192,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			}
 
 			if _, sameProtocol := convertedRequest.(*dto.GeneralOpenAIRequest); sameProtocol {
-				jsonData, err = relaycommon.MergeUnknownTopLevelFieldsFromContext(c, jsonData)
+				jsonData, err = mergeClientUnknownFields(c, info, jsonData, degradedNative)
 				if err != nil {
 					return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 				}
@@ -672,4 +682,46 @@ func encodeMessagesBridge(c *gin.Context, info *relaycommon.RelayInfo, semantic 
 	// attempt, after ParamOverride (internal/relay/wirepatch).
 	jsonData = wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData)
 	return jsonData, nil
+}
+
+// degradedChatRequest is the Chat request a degraded native plan sends: the
+// attempt's IR (already degraded) encoded, with what the handler has
+// already settled on the wire copy kept: the mapped model and the stream
+// options.
+func degradedChatRequest(info *relaycommon.RelayInfo, wire *dto.GeneralOpenAIRequest) (*dto.GeneralOpenAIRequest, *types.LazuError) {
+	semantic := info.ProtocolRequest.Clone()
+	stripLazuMetadataFromSemantic(semantic)
+	semantic.Model.Upstream = info.UpstreamModelName
+	encoded, err := openai_chat.Encode(semantic)
+	if err != nil {
+		return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	encoded.Model = wire.Model
+	encoded.StreamOptions = wire.StreamOptions
+	return encoded, nil
+}
+
+// mergeClientUnknownFields puts the client's top-level fields the converted
+// body lacks back on it, as a same-protocol relay always has. For a body
+// encoded from a degraded IR only the fields the IR records as unknown go
+// back: a known field missing from that body (response_format after a
+// degradation) was removed on purpose.
+func mergeClientUnknownFields(c *gin.Context, info *relaycommon.RelayInfo, body []byte, fromIR bool) ([]byte, error) {
+	if !fromIR {
+		return relaycommon.MergeUnknownTopLevelFieldsFromContext(c, body)
+	}
+	unknown := map[string]json.RawMessage{}
+	for path, value := range info.ProtocolRequest.Raw.UnknownFields {
+		if !strings.ContainsAny(path, ".[") {
+			unknown[path] = value
+		}
+	}
+	if len(unknown) == 0 {
+		return body, nil
+	}
+	raw, err := common.Marshal(unknown)
+	if err != nil {
+		return nil, err
+	}
+	return relaycommon.MergeUnknownTopLevelFields(raw, body)
 }

@@ -134,7 +134,11 @@ func (e *chatClient) emit(c *gin.Context, events ...textgen.Event) error {
 }
 
 func (e *chatClient) finish(c *gin.Context, usage *dto.Usage, includeUsage bool) error {
-	for _, chunk := range e.emitter.Finish(usage) {
+	chunks, err := e.emitter.Finish(usage)
+	if err != nil {
+		return err
+	}
+	for _, chunk := range chunks {
 		if !includeUsage {
 			chunk.Usage = nil
 		}
@@ -308,6 +312,19 @@ func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 			common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
 		}
 		return usage, relayErr
+	}
+	if !col.Result().StopSeen {
+		// a clean end of the stream before the upstream said how the reply
+		// ended: cut off, not complete. Before any output it is retryable
+		// like a pre-stream failure; after, the client is told in its own
+		// protocol and the attempt is not replayed.
+		if !forwarded {
+			return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse)
+		}
+		client.fail(c, &textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: "upstream stream ended before the reply finished"}, usage)
+		common.SetContextKey(c, constant.ContextKeyProtocolStreamTerminal, true)
+		common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
+		return usage, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponse, types.ErrOptionWithSkipRetry())
 	}
 	if err := client.finish(c, usage, info.ShouldIncludeUsage); err != nil {
 		return usage, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())

@@ -2,6 +2,7 @@ package anthropic_messages
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -39,7 +40,78 @@ type StreamEmitter struct {
 	open     blockKind
 	args     bool // the open tool block has had arguments written
 	fresh    bool // a reasoning boundary: the next thinking is a block of its own
+	// openTool is the upstream ToolIndex of the open tool block. Messages
+	// blocks are sequential, while Chat and Responses interleave parallel
+	// calls; a call that starts while another is open is held in pending
+	// (start order) with its argument fragments until the open one closes.
+	openTool int
+	pending  []*pendingTool
 	col      textgen.Collector
+}
+
+// pendingTool is a call held back while another tool block is open.
+type pendingTool struct {
+	index    int
+	id, name string
+	args     strings.Builder
+	done     bool
+}
+
+func (e *StreamEmitter) pendingAt(index int) *pendingTool {
+	for _, tool := range e.pending {
+		if tool.index == index {
+			return tool
+		}
+	}
+	return nil
+}
+
+func toolUseID(id string, index int) string {
+	if id == "" {
+		return "toolu_lazu_" + itoa(index)
+	}
+	return id
+}
+
+// openTool opens a tool_use block for the call and writes the arguments
+// held for it so far.
+func (e *StreamEmitter) openToolBlock(index int, id, name, args string) []Frame {
+	out := e.openBlock(blockTool, map[string]any{"id": toolUseID(id, index), "name": name, "input": map[string]any{}})
+	e.openTool = index
+	if args != "" {
+		e.args = true
+		out = append(out, e.delta(map[string]any{"type": "input_json_delta", "partial_json": args}))
+	}
+	return out
+}
+
+// closeTool closes the open tool block and moves on through the held
+// calls: each one already done is written whole; the first one still
+// streaming is opened and streams on.
+func (e *StreamEmitter) closeTool() []Frame {
+	out := e.closeBlock()
+	for len(e.pending) > 0 {
+		next := e.pending[0]
+		e.pending = e.pending[1:]
+		out = append(out, e.openToolBlock(next.index, next.id, next.name, next.args.String())...)
+		if !next.done {
+			return out
+		}
+		out = append(out, e.closeBlock()...)
+	}
+	return out
+}
+
+// flushTools closes the open tool block and writes every held call whole,
+// before a block of another kind or the end of the reply.
+func (e *StreamEmitter) flushTools() []Frame {
+	if e.open != blockTool && len(e.pending) == 0 {
+		return nil
+	}
+	for i := range e.pending {
+		e.pending[i].done = true
+	}
+	return e.closeTool()
 }
 
 // NewStreamEmitter makes the emitter for one reply; id is used until an
@@ -99,7 +171,11 @@ func (e *StreamEmitter) openBlock(kind blockKind, block map[string]any) []Frame 
 	if e.open == kind && kind != blockTool {
 		return nil
 	}
-	out := e.closeBlock()
+	var out []Frame
+	if kind != blockTool {
+		out = e.flushTools()
+	}
+	out = append(out, e.closeBlock()...)
 	e.args, e.fresh = false, false
 	block["type"] = map[blockKind]string{blockText: "text", blockThinking: "thinking", blockTool: "tool_use"}[kind]
 	e.open = kind
@@ -150,6 +226,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 				continue
 			}
 			if e.fresh {
+				out = append(out, e.flushTools()...)
 				out = append(out, e.closeBlock()...)
 			}
 			out = append(out, e.openBlock(blockThinking, map[string]any{"thinking": ""})...)
@@ -159,6 +236,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 				continue
 			}
 			if e.fresh {
+				out = append(out, e.flushTools()...)
 				out = append(out, e.closeBlock()...)
 			}
 			// a block signed with no text in it is a block all the same
@@ -168,6 +246,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 			if event.SealedBy != SealedBy || len(event.Sealed) == 0 {
 				continue
 			}
+			out = append(out, e.flushTools()...)
 			out = append(out, e.closeBlock()...)
 			e.fresh = false
 			var block map[string]any
@@ -180,23 +259,38 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 			)
 			e.index++
 		case textgen.EventToolStart:
-			id := event.ToolCallID
-			if id == "" {
-				id = "toolu_lazu_" + itoa(event.ToolIndex)
+			if e.open == blockTool && e.openTool != event.ToolIndex {
+				if e.pendingAt(event.ToolIndex) == nil {
+					e.pending = append(e.pending, &pendingTool{index: event.ToolIndex, id: event.ToolCallID, name: event.ToolName})
+				}
+				break
 			}
-			out = append(out, e.openBlock(blockTool, map[string]any{"id": id, "name": event.ToolName, "input": map[string]any{}})...)
+			if e.open == blockTool {
+				break // the open call restated
+			}
+			out = append(out, e.openToolBlock(event.ToolIndex, event.ToolCallID, event.ToolName, "")...)
 		case textgen.EventToolArguments:
-			if e.open == blockTool && event.Text != "" {
+			if event.Text == "" {
+				break
+			}
+			if e.open == blockTool && e.openTool == event.ToolIndex {
 				e.args = true
 				out = append(out, e.delta(map[string]any{"type": "input_json_delta", "partial_json": event.Text}))
+			} else if held := e.pendingAt(event.ToolIndex); held != nil {
+				held.args.WriteString(event.Text)
 			}
 		case textgen.EventToolDone:
-			if e.open == blockTool {
+			if e.open == blockTool && e.openTool == event.ToolIndex {
 				if event.Text != "" && !e.args {
 					e.args = true
 					out = append(out, e.delta(map[string]any{"type": "input_json_delta", "partial_json": event.Text}))
 				}
-				out = append(out, e.closeBlock()...)
+				out = append(out, e.closeTool()...)
+			} else if held := e.pendingAt(event.ToolIndex); held != nil {
+				if event.Text != "" && held.args.Len() == 0 {
+					held.args.WriteString(event.Text)
+				}
+				held.done = true
 			}
 		case textgen.EventStop:
 		case textgen.EventError:
@@ -212,22 +306,28 @@ func itoa(n int) string { return strconv.Itoa(n) }
 
 // Finish closes the reply: the open block, message_delta with the stop
 // reason and output usage, message_stop. The usage given wins over the one
-// streamed.
-func (e *StreamEmitter) Finish(usage *dto.Usage) []Frame {
+// streamed. A reply whose upstream never said how it ended was cut off:
+// Finish refuses it, writes nothing, and the caller ends the stream with
+// Fail.
+func (e *StreamEmitter) Finish(usage *dto.Usage) ([]Frame, error) {
 	if e == nil || e.terminal {
-		return nil
+		return nil, nil
 	}
-	out := e.start()
-	out = append(out, e.closeBlock()...)
 	if usage != nil {
 		e.col.Add(textgen.Event{Kind: textgen.EventUsage, Usage: usage})
 	}
 	result := e.col.Result()
+	if !result.StopSeen {
+		return nil, errors.New("stream ended without a stop reason")
+	}
+	out := e.start()
+	out = append(out, e.flushTools()...)
+	out = append(out, e.closeBlock()...)
 	e.terminal = true
 	return append(out,
 		e.frame("message_delta", map[string]any{"delta": map[string]any{"stop_reason": StopReasonTo(result.Stop), "stop_sequence": nil}, "usage": usageTo(result.Usage)}),
 		e.frame("message_stop", map[string]any{}),
-	)
+	), nil
 }
 
 // Fail ends the reply with Messages' error event, exactly once.
@@ -244,6 +344,7 @@ func (e *StreamEmitter) fail(semantic *textgen.SemanticError) []Frame {
 		return nil
 	}
 	out := e.start()
+	out = append(out, e.flushTools()...)
 	out = append(out, e.closeBlock()...)
 	e.terminal = true
 	if semantic == nil {
@@ -265,7 +366,16 @@ func usageTo(usage *dto.Usage) map[string]any {
 	if usage == nil {
 		return out
 	}
-	out["input_tokens"] = usage.PromptTokens
+	// Messages' input_tokens is the fresh input beside its cache buckets; an
+	// OpenAI-style count includes them
+	input := usage.PromptTokens
+	if !usage.PromptExcludesCache {
+		input -= usage.PromptTokensDetails.CachedTokens + usage.PromptTokensDetails.CachedCreationTokens
+		if input < 0 {
+			input = 0
+		}
+	}
+	out["input_tokens"] = input
 	out["output_tokens"] = usage.CompletionTokens
 	out["cache_read_input_tokens"] = usage.PromptTokensDetails.CachedTokens
 	out["cache_creation_input_tokens"] = usage.PromptTokensDetails.CachedCreationTokens
@@ -317,11 +427,7 @@ func Render(result textgen.Result, model string) map[string]any {
 					input = parsed
 				}
 			}
-			id := part.CallID
-			if id == "" {
-				id = "toolu_lazu_" + itoa(part.ToolIndex)
-			}
-			content = append(content, map[string]any{"type": "tool_use", "id": id, "name": part.Name, "input": input})
+			content = append(content, map[string]any{"type": "tool_use", "id": toolUseID(part.CallID, part.ToolIndex), "name": part.Name, "input": input})
 		}
 	}
 	return map[string]any{
