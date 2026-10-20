@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,7 +40,7 @@ func (s *signingVideoStorage) ListByPrefix(context.Context, string) ([]storage.O
 func (s *signingVideoStorage) PresignGet(_ context.Context, key string, ttl time.Duration, filename string, _ string) (string, error) {
 	s.signedAt = ttl
 	s.signedName = filename
-	return "https://bucket.example/" + key + "?signed=1", nil
+	return "https://bucket.example/" + key + "?X-Amz-Date=1&signed=1", nil
 }
 
 func setupVideoDeliveryTest(t *testing.T) (*gin.Engine, *model.Token, *gorm.DB, *signingVideoStorage) {
@@ -96,6 +97,10 @@ func TestGetVideoJobHandsOutASignedLinkToTheStoredFile(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status %d body=%s", w.Code, w.Body.String())
 	}
+	// The link is copied out of terminals: its "&" must not arrive as \u0026.
+	if !bytes.Contains(w.Body.Bytes(), []byte("X-Amz-Date=1&signed=1")) {
+		t.Fatalf("signed link is escaped: %s", w.Body.String())
+	}
 	var body struct {
 		Artifact struct {
 			FileID       string `json:"file_id"`
@@ -110,7 +115,7 @@ func TestGetVideoJobHandsOutASignedLinkToTheStoredFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := body.Artifact
-	if a.URL != "https://bucket.example/videos/clip.mp4?signed=1" || a.MimeType != "video/mp4" || a.Bytes != 9 || a.ExpiresAt != fileExpiresAt {
+	if a.URL != "https://bucket.example/videos/clip.mp4?X-Amz-Date=1&signed=1" || a.MimeType != "video/mp4" || a.Bytes != 9 || a.ExpiresAt != fileExpiresAt {
 		t.Fatalf("artifact = %+v", a)
 	}
 	// The file goes before the hour is up, so the link ends with it.
@@ -176,5 +181,54 @@ func TestSignFileLinkRefusesAnExpiredFile(t *testing.T) {
 	past := time.Now().Add(-time.Minute).Unix()
 	if _, ok := service.SignFileLink(context.Background(), &model.File{StorageKey: "k", ExpiresAt: &past}, time.Hour, time.Now()); ok {
 		t.Fatal("signed a link to an expired file")
+	}
+}
+
+func TestGetVideoJobWaitReturnsWhenTheStatusChanges(t *testing.T) {
+	engine, token, db, _ := setupVideoDeliveryTest(t)
+	previousInterval := videoWaitInterval
+	videoWaitInterval = 10 * time.Millisecond
+	t.Cleanup(func() { videoWaitInterval = previousInterval })
+	seedVideoDeliveryJob(t, db, token, "mjob_queued", model.MediaJobStatusPending, time.Now().Add(time.Hour).Unix())
+	go func() {
+		time.Sleep(80 * time.Millisecond)
+		db.Model(&model.MediaJob{}).Where("public_id = ?", "mjob_queued").Update("status", model.MediaJobStatusRunning)
+	}()
+	started := time.Now()
+	w := getVideoDelivery(engine, token, "/v1/videos/mjob_queued?wait=30")
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"status":"running"`)) || !bytes.Contains(w.Body.Bytes(), []byte(`"progress":`)) || !bytes.Contains(w.Body.Bytes(), []byte(`"eta_seconds":`)) {
+		t.Fatalf("body=%s", w.Body.String())
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("wait did not return on the status change: %s", elapsed)
+	}
+}
+
+func TestVideoJobEventsStreamUntilDone(t *testing.T) {
+	engine, token, db, _ := setupVideoDeliveryTest(t)
+	engine.GET("/v1/videos/:id/events", middleware.TokenAuth(), StreamVideoJobEvents)
+	previousEvery := videoEventsEvery
+	videoEventsEvery = 20 * time.Millisecond
+	t.Cleanup(func() { videoEventsEvery = previousEvery })
+	seedVideoDeliveryJob(t, db, token, "mjob_stream", model.MediaJobStatusRunning, time.Now().Add(time.Hour).Unix())
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		db.Model(&model.MediaJob{}).Where("public_id = ?", "mjob_stream").Updates(map[string]any{
+			"status": model.MediaJobStatusSucceeded, "artifact_file_id": "file-lazu-mjob_stream",
+		})
+	}()
+	w := getVideoDelivery(engine, token, "/v1/videos/mjob_stream/events")
+	body := w.Body.String()
+	if w.Header().Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("content type %q", w.Header().Get("Content-Type"))
+	}
+	first := strings.Index(body, "event: status\ndata: ")
+	progress := strings.Index(body, "event: progress\ndata: ")
+	done := strings.Index(body, "event: done\ndata: ")
+	if first != 0 || progress < 0 || done < progress || !strings.HasSuffix(body, "\n\n") {
+		t.Fatalf("events out of order:\n%s", body)
+	}
+	if !strings.Contains(body[done:], `"url":"https://bucket.example/videos/clip.mp4?X-Amz-Date=1&signed=1"`) {
+		t.Fatalf("done event lacks the download link:\n%s", body[done:])
 	}
 }

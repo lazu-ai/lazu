@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"mime"
 	"net/http"
 	"path"
@@ -45,6 +48,12 @@ func mediaJobViews(ctx context.Context, jobs []model.MediaJob, includeRequest bo
 	fileIDs := make([]string, 0, len(jobs))
 	for i, job := range jobs {
 		views[i] = job.ToDTO(includeRequest)
+		if progress, eta, ok := model.MediaJobProgress(job, now); ok {
+			views[i].Progress, views[i].EtaSeconds = &progress, &eta
+		} else if job.Status == model.MediaJobStatusSucceeded {
+			done := 100
+			views[i].Progress = &done
+		}
 		if views[i].Artifact != nil && views[i].Artifact.FileID != "" {
 			fileIDs = append(fileIDs, views[i].Artifact.FileID)
 		}
@@ -120,12 +129,14 @@ func parseVideoWait(c *gin.Context) (int, bool) {
 	return seconds, true
 }
 
-// waitForVideoJob re-reads an unfinished job until it finishes, the wait runs
-// out or the client goes away, and returns the latest copy.
+// waitForVideoJob re-reads an unfinished job until its status changes (queued
+// to generating, or finished), the wait runs out or the client goes away, and
+// returns the latest copy.
 func waitForVideoJob(ctx context.Context, job *model.MediaJob, wait time.Duration, reload func() (*model.MediaJob, error)) *model.MediaJob {
 	if wait <= 0 || videoJobFinished(job) {
 		return job
 	}
+	initial := job.Status
 	timer := time.NewTimer(wait)
 	defer timer.Stop()
 	ticker := time.NewTicker(videoWaitInterval)
@@ -142,7 +153,7 @@ func waitForVideoJob(ctx context.Context, job *model.MediaJob, wait time.Duratio
 				continue
 			}
 			job = latest
-			if videoJobFinished(job) {
+			if videoJobFinished(job) || job.Status != initial {
 				return job
 			}
 		}
@@ -201,4 +212,82 @@ func loadVideoJob(c *gin.Context) (*model.MediaJob, bool) {
 		return nil, false
 	}
 	return job, true
+}
+
+// videoEventsEvery is how often the event stream reports an unfinished job;
+// well inside the edge proxy's idle timeout.
+var videoEventsEvery = 5 * time.Second
+
+// videoEventsMax ends a stream that has been open this long; the client opens
+// a new one if the job is still running.
+var videoEventsMax = 15 * time.Minute
+
+// StreamVideoJobEvents answers GET /v1/videos/{id}/events with Server-Sent
+// Events: the job at once, then every few seconds while it runs ("progress",
+// or "status" when its status changes), and "done" with the finished job,
+// its download link included, before the stream closes.
+func StreamVideoJobEvents(c *gin.Context) {
+	job, ok := loadVideoJob(c)
+	if !ok {
+		return
+	}
+	ctx := c.Request.Context()
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+	c.Status(http.StatusOK)
+
+	send := func(event string, job *model.MediaJob) bool {
+		var body bytes.Buffer
+		encoder := json.NewEncoder(&body)
+		// Keep a signed link's "&"s readable to anyone reading the stream.
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(videoJobView(ctx, *job, false, time.Now())); err != nil {
+			return false
+		}
+		if _, err := fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event, bytes.TrimSpace(body.Bytes())); err != nil {
+			return false
+		}
+		c.Writer.Flush()
+		return ctx.Err() == nil
+	}
+
+	if videoJobFinished(job) {
+		send("done", job)
+		return
+	}
+	if !send("status", job) {
+		return
+	}
+	deadline := time.NewTimer(videoEventsMax)
+	defer deadline.Stop()
+	ticker := time.NewTicker(videoEventsEvery)
+	defer ticker.Stop()
+	status := job.Status
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-deadline.C:
+			return
+		case <-ticker.C:
+			latest, err := model.GetMediaJobByPublicIDAndUser(job.PublicID, c.GetInt("id"), model.RequestResourcePrincipal(c))
+			if err != nil || latest == nil {
+				continue
+			}
+			job = latest
+			if videoJobFinished(job) {
+				send("done", job)
+				return
+			}
+			event := "progress"
+			if job.Status != status {
+				event, status = "status", job.Status
+			}
+			if !send(event, job) {
+				return
+			}
+		}
+	}
 }

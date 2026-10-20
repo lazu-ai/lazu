@@ -3,24 +3,28 @@ package dto
 import "encoding/json"
 
 type MediaJobObject struct {
-	ID           string            `json:"id"`
-	Object       string            `json:"object"`
-	Kind         string            `json:"kind"`
-	Source       string            `json:"source,omitempty"`
-	Model        string            `json:"model"`
-	Provider     string            `json:"provider,omitempty"`
-	Status       string            `json:"status"`
-	CreatedAt    int64             `json:"created_at"`
-	UpdatedAt    int64             `json:"updated_at,omitempty"`
-	StartedAt    int64             `json:"started_at,omitempty"`
-	CompletedAt  int64             `json:"completed_at,omitempty"`
-	SessionID    string            `json:"session_id,omitempty"`
-	AgentID      string            `json:"agent_id,omitempty"`
-	RequestID    string            `json:"request_id,omitempty"`
-	Artifact     *MediaJobArtifact `json:"artifact,omitempty"`
-	Error        *MediaJobError    `json:"error,omitempty"`
-	Request      json.RawMessage   `json:"request,omitempty"`
-	CostSnapshot json.RawMessage   `json:"cost_snapshot,omitempty"`
+	ID          string            `json:"id"`
+	Object      string            `json:"object"`
+	Kind        string            `json:"kind"`
+	Source      string            `json:"source,omitempty"`
+	Model       string            `json:"model"`
+	Provider    string            `json:"provider,omitempty"`
+	Status      string            `json:"status"`
+	CreatedAt   int64             `json:"created_at"`
+	UpdatedAt   int64             `json:"updated_at,omitempty"`
+	StartedAt   int64             `json:"started_at,omitempty"`
+	CompletedAt int64             `json:"completed_at,omitempty"`
+	SessionID   string            `json:"session_id,omitempty"`
+	AgentID     string            `json:"agent_id,omitempty"`
+	RequestID   string            `json:"request_id,omitempty"`
+	Artifact    *MediaJobArtifact `json:"artifact,omitempty"`
+	// Progress (0-100) and EtaSeconds estimate where an unfinished job is,
+	// from how long the model's recent jobs took; a finished job reads 100.
+	Progress     *int            `json:"progress,omitempty"`
+	EtaSeconds   *int            `json:"eta_seconds,omitempty"`
+	Error        *MediaJobError  `json:"error,omitempty"`
+	Request      json.RawMessage `json:"request,omitempty"`
+	CostSnapshot json.RawMessage `json:"cost_snapshot,omitempty"`
 	// Usage is what the provider reported about a finished video: seconds,
 	// resolution, frame rate and token count. Procurement cost is never here.
 	Usage *MediaJobUsage `json:"usage,omitempty"`

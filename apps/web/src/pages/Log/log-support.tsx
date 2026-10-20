@@ -411,8 +411,21 @@ export function LaneChip({ lane, t }: { lane: LogLane; t: TFunction }) {
 
 /** Consumes and errors read as an outcome (a dot and a word); the other
  *  record kinds keep their type name. */
+/** A video or image job not settled yet: its row is written at submission
+ *  and completed in place when the job finishes. */
+export const isPendingMediaLog = (record: LogRecord | null) =>
+  Number(record?.type) === 2 && record?.otherParsed?.pending === true;
+
 export function LogStatus({ record, t }: { record: LogRecord; t: TFunction }) {
   const type = Number(record.type);
+  if (isPendingMediaLog(record)) {
+    return (
+      <span className='logv2-status logv2-status--pending'>
+        <span aria-hidden='true' className='logv2-status__dot' />
+        {t('page.console.log.status.pending')}
+      </span>
+    );
+  }
   if (type === 2 || type === 5) {
     const failed = type === 5;
     return (
@@ -535,6 +548,7 @@ export function renderLogCell(
     );
   }
   if (columnId === LOG_COLUMN_KEYS.PROMPT) {
+    if (isPendingMediaLog(record)) return EMPTY_CELL;
     return isTokenLog && !errorUsageUnknown(record)
       ? `${shortTokens(record.prompt_tokens)} → ${shortTokens(record.completion_tokens)}`
       : EMPTY_CELL;
@@ -545,6 +559,15 @@ export function renderLogCell(
       : EMPTY_CELL;
   }
   if (columnId === LOG_COLUMN_KEYS.COST) {
+    if (isPendingMediaLog(record)) {
+      return (
+        <span className='logv2-soft'>
+          {t('page.console.log.cost.held', {
+            amount: formatCost(Number(record.otherParsed?.hold_microusd) || 0),
+          })}
+        </span>
+      );
+    }
     if (record.isRefund) {
       return (
         <span className='logv2-chip logv2-chip--bad'>
@@ -583,6 +606,19 @@ export function renderLogCell(
     );
   }
   if (columnId === LOG_COLUMN_KEYS.USE_TIME) {
+    if (isPendingMediaLog(record)) {
+      const waited = Math.max(
+        0,
+        Math.floor(Date.now() / 1000) - Number(record.created_at || 0),
+      );
+      return (
+        <span className='logv2-soft'>
+          {t('page.console.log.pendingFor', {
+            time: `${Math.floor(waited / 60)}:${String(waited % 60).padStart(2, '0')}`,
+          })}
+        </span>
+      );
+    }
     return isConsume && !errorUsageUnknown(record) ? (
       <span className='logv2-soft'>{latencyLabel(record)}</span>
     ) : (

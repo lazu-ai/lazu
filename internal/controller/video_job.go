@@ -169,6 +169,9 @@ func SubmitVideoJob(c *gin.Context) {
 			return
 		}
 	}
+	// The job shows in the usage log from now on, as in progress; settlement
+	// completes the same row.
+	model.RecordMediaJobPendingLog(*job, time.Now().UTC())
 	response := job.ToDTO(false)
 	response.Object = "video"
 	c.JSON(http.StatusAccepted, response)
@@ -572,7 +575,7 @@ func ListVideoJobs(c *gin.Context) {
 	}
 	rows = filterVideoJobsForEphemeralCredential(c, rows)
 	data := videoJobViews(c.Request.Context(), rows, false, time.Now())
-	c.JSON(http.StatusOK, dto.MediaJobListResponse{Object: "list", Data: data})
+	c.PureJSON(http.StatusOK, dto.MediaJobListResponse{Object: "list", Data: data})
 }
 
 // GetVideoJob answers GET /v1/videos/{id}. With ?wait=N (up to 60) it holds
@@ -590,7 +593,9 @@ func GetVideoJob(c *gin.Context) {
 	job = waitForVideoJob(c.Request.Context(), job, time.Duration(wait)*time.Second, func() (*model.MediaJob, error) {
 		return model.GetMediaJobByPublicIDAndUser(job.PublicID, c.GetInt("id"), model.RequestResourcePrincipal(c))
 	})
-	c.JSON(http.StatusOK, videoJobView(c.Request.Context(), *job, true, time.Now()))
+	// PureJSON: a signed link keeps its "&"s, so it still works when someone
+	// copies it out of a terminal.
+	c.PureJSON(http.StatusOK, videoJobView(c.Request.Context(), *job, true, time.Now()))
 }
 
 func filterVideoJobsForEphemeralCredential(c *gin.Context, rows []model.MediaJob) []model.MediaJob {
