@@ -3523,6 +3523,7 @@
     "page.console.tasks.next": "Next",
     "page.console.tasks.prev": "Previous",
     "page.console.tasks.noKey": "Console",
+    "page.console.tasks.keyDeleted": "Deleted Key",
     "page.console.tasks.retention": "API videos are kept 3 days; Studio files 30 days",
     "page.console.tasks.spec.frames": "{{n}} frames",
     "page.console.tasks.spec.refAudio": "ref audio {{n}}",
