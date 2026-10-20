@@ -287,7 +287,11 @@ type Event struct {
 
 每个协议有一个 **decoder**（上游 wire → 事件）和一个 **emitter**（事件 → 客户端 wire）；4 个协议 8 件，16 个组合全部由此得到。emitter 是显式状态机，持有 O(活跃 item/tool 数) 状态，自己分配 id、index 和 sequence。Responses emitter 的 terminal event 必须带完整 `output`，所以它保留一份受请求 max-output 约束的装配缓冲；禁止重复缓冲、无界队列或为日志再复制一份完整输出。推理块边界（`reasoning_start`）和密封推理（`reasoning_sealed`）在 IR 里表达，这样 Anthropic 的多段 thinking 和 Responses 的 reasoning item 不需要 emitter 之间互相认识对方的形状。
 
-已落地（流层）：Chat decoder 与 emitter（`codec/openai_chat/stream.go`、`emitter.go`）、Responses decoder 与 emitter（`codec/openai_responses/decoder.go`、`stream.go`）、Anthropic decoder 与 emitter（`codec/anthropic_messages/stream.go`、`emitter.go`），以及把事件装配成整段回复的 `textgen.Collector`（非流式渲染和 emitter 的终态都从它读）。三个协议的 decoder 都有录制 fixture 驱动的测试，跨协议组合（Anthropic→Chat、Anthropic→Responses、Chat→Anthropic、Responses→Chat、Responses→Responses）各有一条端到端测试。尚未接入 handler：请求侧 codec（IR↔Claude 请求）、规划器的 Anthropic 边和派发统一是下一步；接入后 `relay_responses.go` 的直接转换、`relay-claude.go` 和 `service/convert.go` 的逐对转换器删除。
+已落地（流层）：Chat decoder 与 emitter（`codec/openai_chat/stream.go`、`emitter.go`）、Responses decoder 与 emitter（`codec/openai_responses/decoder.go`、`stream.go`）、Anthropic decoder 与 emitter（`codec/anthropic_messages/stream.go`、`emitter.go`），以及把事件装配成整段回复的 `textgen.Collector`（非流式渲染和 emitter 的终态都从它读）。三个协议的 decoder 都有录制 fixture 驱动的测试，跨协议组合（Anthropic→Chat、Anthropic→Responses、Chat→Anthropic、Responses→Chat、Responses→Responses）各有一条端到端测试。
+
+已接入 handler（2026-10-21，Messages hub）：规划器把 OpenAI 形状的客户端（Chat、Responses）在 Anthropic 方言渠道上规划为到 Messages 的 bridge（`FeatureEndpointMessages`，`bridgeOrder`，`messagesBridgeIssue`）；请求侧 `codec/anthropic_messages.Encode` 把 IR 编成 Messages 请求，渠道再按目录策略拟合 thinking（`claude.EncodeBridgedRequest`：`fitBridgedThinking` + `PrepareNativeThinking`）；响应侧 `claude.HubStreamHandler` / `HubHandler` 用 Anthropic decoder 解一次、按客户端协议的 emitter 发出，整段回复走 `Collector` + `openai_chat.Render`。Chat 请求的 OpenRouter 风格 `reasoning.max_tokens` 进 IR 为 `Reasoning.Budget`（feature `reasoning.budget`，Responses 上游不可承载则拒绝）。渠道探测（`channel-test.go`）用同一条 `textgenruntime.Parse` + `PrepareAttempt` 规划，走同一条 bridge。`relay-claude.go` 的 Chat↔Messages 逐对转换器（`RequestOpenAI2ClaudeMessage`、`StreamResponseClaude2OpenAI`、`ResponseClaude2OpenAI`）已删除，只留 `/v1/complete` 的 completion 模式；其 7 个 golden（`codec/anthropic_messages/testdata/golden/`）由 `TestEncodeMatchesLegacyGoldens` 守住。
+
+尚未接入：Claude 客户端经 hub（`/v1/messages` 的请求 decoder 取代 `ClaudeToOpenAIRequest` / `service/convert.go`）、`relay_responses.go` 的 Responses→Chat 直接转换改走 decoder + Chat emitter、Gemini codec、派发统一。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 
@@ -353,6 +357,7 @@ Responses API 的 `store` 默认为 true；bridge 路径按取值区分，而不
 
 - 同协议：经 `Raw` 保留 round-trip（延续现有 `mergeUnknownResponsesFields` 行为，受 allowlist 与大小限制约束）；
 - 跨协议：无法安全推断含义，400。代价是上游发布新字段后 bridge 路径需 Lazu 声明才可用（native 路径不受影响）——接受此代价，换取不静默改语义。
+- 已声明的厂商字段不是未知字段（2026-10-21）：Anthropic 的 prompt-caching 标记（请求级、system 段、内容段、工具上的 `cache_control`）与 `speed` 档位经 Chat 送来时进 IR（`textgen.VendorOptions`、各项的 `CacheControl`），Messages encoder 原样写出，到其它协议的 bridge 按字段路径拒绝（`FeatureAnthropicOptions`，只用于命名拒绝，不参与能力声明），native 路径仍是透传。旧的 Chat→Claude 转换器本就转发这些字段；删除它不能让它们变成 400。
 
 ## Usage 与计费
 

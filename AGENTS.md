@@ -210,8 +210,11 @@ roadmap adds it, and until then the rule is a review rule.
 1. **A new protocol is one codec directory under `internal/protocol/textgen/codec/`
    and changes no handler.** A codec is five things: wire→IR, IR→wire,
    SSE→event IR, event IR→SSE, whole-response render. Handlers dispatch on the
-   plan, never on a protocol family. Enforced by review; planned test: no
-   protocol-family branch in `internal/relay/*_handler.go`.
+   plan, never on a protocol family: an OpenAI-shaped client on an Anthropic
+   channel is served by the hub in `internal/relay/channel/claude/hub.go`
+   because the plan says so (`BridgesToMessages`), and the channel probe is
+   planned the same way (`planProbeAttempt`). Enforced by review; planned
+   test: no protocol-family branch in `internal/relay/*_handler.go`.
 2. **Every conversion is exactly one semantic hop:** the client codec decodes,
    the upstream codec encodes. No path goes through a third protocol's DTO.
    Planned test: `PlanAttempt` over all client×upstream pairs yields no
@@ -251,10 +254,13 @@ roadmap adds it, and until then the rule is a review rule.
    ID.
 7. **Golden fixtures before deletion; two generations for at most one
    release.** Before an old converter is removed, its behaviour is recorded as
-   fixtures the new codec must pass. Legacy pairwise converters
-   (`relay-claude.go`, `relay-gemini.go`, `service/convert.go`) are deleted in
-   the PR that lands their codec or the release after it, and gain no new
-   features meanwhile. Enforced by review.
+   fixtures the new codec must pass (the Chat→Messages converter's are
+   `codec/anthropic_messages/testdata/golden/`, held by
+   `TestEncodeMatchesLegacyGoldens`). Legacy pairwise converters are deleted
+   in the PR that lands their codec or the release after it, and gain no new
+   features meanwhile: `relay-claude.go`'s Chat↔Messages pair went with the
+   Messages hub (2026-10-21); `relay-gemini.go` and `service/convert.go`
+   remain. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
    Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
    (made by `go test -tags record` in `internal/relay/contracttest`, keys from
