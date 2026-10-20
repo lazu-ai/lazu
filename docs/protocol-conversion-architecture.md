@@ -306,7 +306,9 @@ Claude 客户端的映射以真实录制的 Claude Code 请求为准（`testdata
 
 已接入 handler（2026-10-21，Responses 上游的 Chat 客户端）：`relay_responses.go` 里逐事件拼 Chat chunk 的兼容分支删除，改为 `openai.chatClientResponsesStream`：Responses decoder 解一次，Chat emitter 发出，规则与另两个 hub 相同（首个内容之前什么都不写，之前的失败可重试，之后告知客户端且不重放），计费所需的副作用（内置工具计数、图片生成、finish reason、交换日志）保留，失败帧仍用错误目录的 `streamFailureFrame`。行为变化：内容之前的 `response.failed` 由「写给客户端、不重试」改为可重试（与 native Responses 路径一致）。顺带修正：Responses decoder 对只有 done 事件的 function_call 先发 start；Chat emitter 每个调用的 id 和 name 只写一次，逐段拼接的客户端不会把名字拼成两遍。整段回复仍走 `ResponsesResponseToChat`（它保留 annotations）。
 
-尚未接入：Gemini codec、派发统一。
+派发统一（2026-10-21）：三个 hub 共用一个流运行器 `channel.RunHubStream`，各自只提供上游 decoder 和计费读的副作用，客户端协议的写出器由 `channel.HubClientFor` 按 plan 选（Chat、Responses、Messages）。运行器统一的规则：首个内容之前什么都不写（start、turn、usage 先扣住）；内容之前的失败按上游的话分类（`channel.FirstEventFailure`，只有暂时性失败重试）；之后的失败用错误目录的帧（`channel.StreamFailureFrame`）告诉客户端、结算、不重放；没有 stop 就结束的流按截断处理；读到终止事件就停，不等 provider 的 EOF；每个 hub 都记交换日志。请求侧只剩一个 `relay.BridgeBody`：上游协议的 codec 编码 IR，渠道 adaptor 转换，删禁用字段，打方言补丁；桥接上不再应用原始 `param_override`（类型化的覆盖由规划器作用在 IR 上，其它覆盖在规划时拒绝），桥接到 Chat 流时总是请求 usage，渠道探测走同一个函数。
+
+尚未接入：Gemini codec。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 

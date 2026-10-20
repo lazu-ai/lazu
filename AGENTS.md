@@ -210,12 +210,12 @@ roadmap adds it, and until then the rule is a review rule.
 1. **A new protocol is one codec directory under `internal/protocol/textgen/codec/`
    and changes no handler.** A codec is five things: wire→IR, IR→wire,
    SSE→event IR, event IR→SSE, whole-response render. Handlers dispatch on the
-   plan, never on a protocol family: an OpenAI-shaped client on an Anthropic
-   channel is served by the hub in `internal/relay/channel/claude/hub.go`
-   because the plan says so (`BridgesToMessages`), a Claude client on an
-   OpenAI-shaped channel by `internal/relay/channel/openai/claude_client_hub.go`
-   (`ServesClaudeClient`), and the channel probe is planned the same way
-   (`planProbeAttempt`). Enforced by review; planned
+   plan, never on a protocol family. A bridged attempt's body is
+   `relay.BridgeBody`, keyed on the plan's upstream protocol; its reply is
+   `channel.RunHubStream` with the upstream's decoder and the client's
+   writer (`channel.HubClientFor`). A hub adds only a decoder and the side
+   effects its upstream's events carry. The channel probe is planned and
+   bridged the same way (`planProbeAttempt`, `BridgeBody`). Enforced by review; planned
    test: no protocol-family branch in `internal/relay/*_handler.go`.
 2. **Every conversion is exactly one semantic hop:** the client codec decodes,
    the upstream codec encodes. No path goes through a third protocol's DTO.
