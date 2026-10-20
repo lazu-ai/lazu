@@ -264,6 +264,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			relayInfo.ProtocolPlan = attempt.Plan
 			common.SetContextKey(c, constant.ContextKeyProtocolPlan, attempt.Plan)
 			setProtocolAttemptWarning(c, attempt.Plan)
+			for _, id := range attempt.Plan.Degradations() {
+				common.IncrementHotPathCounter(common.HotPathCounterProtocolDegradedPrefix + id)
+			}
 			if attempt.Plan.Native {
 				common.IncrementHotPathCounter(common.HotPathCounterProtocolPlanNative)
 			} else {

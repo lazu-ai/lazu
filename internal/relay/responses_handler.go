@@ -10,6 +10,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
+	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
@@ -48,11 +49,24 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 	bridgeToChat := info.ProtocolPlan != nil && !info.ProtocolPlan.Native &&
 		info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses &&
 		info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat
+	// A degraded native plan is sent encoded from the IR (see TextHelper).
+	degradedNative := info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.Degraded() && info.ProtocolRequest != nil
+	if degradedNative {
+		semantic := info.ProtocolRequest.Clone()
+		stripLazuMetadataFromSemantic(semantic)
+		semantic.Model.Upstream = info.UpstreamModelName
+		encoded, encodeErr := openai_responses.Encode(semantic)
+		if encodeErr != nil {
+			return types.NewErrorWithStatusCode(encodeErr, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+		}
+		encoded.Model = request.Model
+		request = encoded
+	}
 	var outboundBody []byte
 	nativeConverter, nativeConvertible := adaptor.(interface {
 		ConvertNativeRequest([]byte, *relaycommon.RelayInfo, bool) ([]byte, error)
 	})
-	if nativeConvertible && !bridgeToChat {
+	if nativeConvertible && !bridgeToChat && !degradedNative {
 		bodyTimer := common.StartHotPathStage(common.HotPathStageOutboundBody)
 		if info.NativeBodyCache != nil && info.NativeBodyChannelID == info.ChannelId {
 			outboundBody = info.NativeBodyCache
@@ -71,7 +85,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
-	} else if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !bridgeToChat {
+	} else if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !bridgeToChat && !degradedNative {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)
@@ -124,7 +138,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 
 		switch convertedRequest.(type) {
 		case dto.OpenAIResponsesRequest, *dto.OpenAIResponsesRequest:
-			jsonData, err = relaycommon.MergeUnknownTopLevelFieldsFromContext(c, jsonData)
+			jsonData, err = mergeClientUnknownFields(c, info, jsonData, degradedNative)
 			if err != nil {
 				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 			}

@@ -275,3 +275,44 @@ func TestProtocolRoutingRetryPreservesMultiImagePreference(t *testing.T) {
 		t.Fatalf("retry channel=%v, want remaining multi-image preferred channel %d", channel, channels[1].Id)
 	}
 }
+
+// A candidate that can serve the request only through a registered
+// degradation is lossy: a lower-priority candidate that carries it
+// losslessly wins, and the degraded one is still taken when it is all there is.
+func TestProtocolRoutingRanksDegradedPlansBelowLosslessOnes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cleanup := setupRouterTestDB(t)
+	defer cleanup()
+
+	degraded := &model.Channel{Id: 9311, Type: constant.ChannelTypeOpenAI, Key: "degraded", Status: common.ChannelStatusEnabled, Name: "no-schema", Models: "test-model", Group: "direct", Priority: common.GetPointer[int64](100), OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_json_schema":false}}`}
+	lossless := &model.Channel{Id: 9312, Type: constant.ChannelTypeOpenAI, Key: "lossless", Status: common.ChannelStatusEnabled, Name: "schema", Models: "test-model", Group: "direct", Priority: common.GetPointer[int64](1), OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`}
+	for _, channel := range []*model.Channel{degraded, lossless} {
+		if err := model.CoreDB().Create(channel).Error; err != nil {
+			t.Fatalf("create channel: %v", err)
+		}
+		if err := model.CoreDB().Create(&model.Ability{Group: channel.Group, Model: "test-model", ChannelId: channel.Id, Enabled: true}).Error; err != nil {
+			t.Fatalf("create ability: %v", err)
+		}
+	}
+	c, _ := gin.CreateTestContext(nil)
+	request := &textgen.Request{
+		Model:        textgen.ModelRef{Canonical: "test-model"},
+		Conversation: []textgen.InputItem{{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "hello"}}}},
+		Output:       textgen.OutputConstraint{Type: "json_schema", Name: "t", Schema: []byte(`{"type":"object"}`)},
+	}
+	common.SetContextKey(c, constant.ContextKeyTextgenParsed, &textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolOpenAIChat, Dialect: "openai"}, Semantic: request})
+	channel, _, err := SelectProtocolCompatibleChannel(c, "direct", "test-model", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if channel == nil || channel.Id != lossless.Id {
+		t.Fatalf("selected channel=%v, want lossless channel %d", channel, lossless.Id)
+	}
+	channel, _, err = SelectProtocolCompatibleChannel(c, "direct", "test-model", map[int]struct{}{lossless.Id: {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if channel == nil || channel.Id != degraded.Id {
+		t.Fatalf("selected channel=%v, want the degraded channel %d when it is the only one", channel, degraded.Id)
+	}
+}

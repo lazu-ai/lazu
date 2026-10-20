@@ -62,7 +62,25 @@ of the immutable request; the caller's request never changes. Because they
 run pre-flight, no retry-after-bytes question arises. Each applied rule adds
 `degraded:<id>` to the plan's warnings, which reach the client in
 `X-Lazu-Warning` (every warning, comma separated), the request detail
-(`protocol_warnings`) and the hot-path counter `protocol.degraded.<id>`.
+(`protocol_warnings`) and the hot-path counter `protocol.degraded.<id>`,
+counted once for the attempt the controller chooses (routing plans every
+candidate, so the counter is not in `PrepareAttempt`).
+
+Three consequences of a plan being degraded:
+
+- **It is sent from the IR.** The client's wire still carries the feature the
+  rule stood in for, so a degraded plan never takes the native body path or
+  pass-through: the handler encodes the degraded IR (`degradedChatRequest`,
+  and `openai_responses.Encode` for Responses) and merges back only the
+  client's top-level fields the IR records as unknown. A request with a
+  nested field the IR does not model would lose it in that encoding, so it is
+  not degraded at all and the denial stands.
+- **It ranks below every lossless route.** Routing takes lossless native
+  candidates first, then lossless bridges, and a degraded candidate only
+  when neither exists (`RelayPlan.Degraded`).
+- **It is scoped to its feature.** `supports_json_schema: false` denies the
+  response-format schema only; a strict function tool raises the shared
+  strict marker and is not affected.
 
 ## What this is not
 

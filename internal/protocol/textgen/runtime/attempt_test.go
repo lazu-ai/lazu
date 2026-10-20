@@ -404,6 +404,15 @@ func TestPrepareAttemptDegradesDeniedJSONSchema(t *testing.T) {
 	if string(before) != string(after) {
 		t.Fatal("degradation changed caller input")
 	}
+	// a nested field the IR does not model would be lost by encoding the
+	// degraded request from the IR, so there is no degradation and the
+	// denial stands
+	nested := *parsed
+	nested.Semantic = parsed.Semantic.Clone()
+	nested.Semantic.Raw.UnknownFields = map[string]json.RawMessage{"messages[0].content[0].vendor": json.RawMessage(`1`)}
+	if _, err := PrepareAttempt(&nested, channel, "fixture"); err == nil {
+		t.Fatal("a request the IR cannot encode losslessly must not be degraded")
+	}
 	// without the overlay the same request is left for the provider to judge
 	open := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`}
 	attempt, err = PrepareAttempt(parsed, open, "fixture")
