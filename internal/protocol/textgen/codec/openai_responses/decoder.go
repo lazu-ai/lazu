@@ -1,0 +1,192 @@
+package openai_responses
+
+import (
+	"encoding/json"
+	"strings"
+
+	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	"github.com/tidwall/gjson"
+)
+
+// StreamDecoder turns a Responses stream into content events. It keeps
+// which output indexes are function calls (their argument deltas) and
+// reasoning items (whose done event may carry a seal).
+type StreamDecoder struct {
+	calls     map[int]bool
+	reasoning map[int]string
+	called    bool
+}
+
+// Decode is the events of one SSE event's data. Shapes it does not know
+// decode to nothing; an error event or a failed response ends the reply.
+func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
+	if d == nil {
+		return nil, nil
+	}
+	if strings.TrimSpace(data) == "" || strings.TrimSpace(data) == "[DONE]" {
+		return nil, nil
+	}
+	var ev dto.ResponsesStreamResponse
+	if err := json.Unmarshal([]byte(data), &ev); err != nil {
+		return nil, err
+	}
+	if d.calls == nil {
+		d.calls, d.reasoning = map[int]bool{}, map[int]string{}
+	}
+	index := 0
+	if ev.OutputIndex != nil {
+		index = *ev.OutputIndex
+	}
+	switch ev.Type {
+	case "response.created":
+		if ev.Response == nil {
+			return nil, nil
+		}
+		return []textgen.Event{{Kind: textgen.EventStart, ResponseID: ev.Response.ID, Model: ev.Response.Model, CreatedAt: int64(ev.Response.CreatedAt)}}, nil
+	case "response.output_item.added":
+		if ev.Item == nil {
+			return nil, nil
+		}
+		switch ev.Item.Type {
+		case "function_call":
+			d.calls[index], d.called = true, true
+			return []textgen.Event{{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, ItemID: ev.Item.ID}}, nil
+		case "reasoning":
+			d.reasoning[index] = ev.Item.ID
+			return []textgen.Event{{Kind: textgen.EventReasoningStart, ItemID: ev.Item.ID}}, nil
+		}
+		return nil, nil
+	case "response.output_text.delta":
+		if ev.Delta != "" {
+			return []textgen.Event{{Kind: textgen.EventText, Text: ev.Delta}}, nil
+		}
+	case "response.refusal.delta":
+		if ev.Delta != "" {
+			return []textgen.Event{{Kind: textgen.EventRefusal, Text: ev.Delta}}, nil
+		}
+	case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
+		if ev.Delta != "" {
+			return []textgen.Event{{Kind: textgen.EventReasoning, Text: ev.Delta, ItemID: d.reasoning[index]}}, nil
+		}
+	case "response.function_call_arguments.delta":
+		if ev.Delta != "" {
+			return []textgen.Event{{Kind: textgen.EventToolArguments, ToolIndex: index, Text: ev.Delta}}, nil
+		}
+	case "response.output_item.done":
+		if ev.Item == nil {
+			return nil, nil
+		}
+		switch ev.Item.Type {
+		case "function_call":
+			return []textgen.Event{{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: ev.Item.CallID, ToolName: ev.Item.Name, Text: ev.Item.Arguments}}, nil
+		case "reasoning":
+			// sealed: the item as the upstream wrote it, for a Responses
+			// client and for its next request
+			if raw := gjson.Get(data, "item"); raw.Exists() && raw.Get("encrypted_content").String() != "" {
+				return []textgen.Event{{Kind: textgen.EventReasoningSealed, Sealed: json.RawMessage(raw.Raw), SealedBy: SealedBy, ItemID: ev.Item.ID}}, nil
+			}
+		}
+		return nil, nil
+	case "response.completed", "response.incomplete", "response.failed":
+		if ev.Type == "response.failed" || (ev.Response != nil && ev.Response.Status == "failed") {
+			return []textgen.Event{{Kind: textgen.EventError, Error: failedError(ev)}}, nil
+		}
+		var events []textgen.Event
+		stop := textgen.StopEnd
+		if ev.Type == "response.incomplete" || (ev.Response != nil && ev.Response.Status == "incomplete") {
+			stop = textgen.StopLength
+			if ev.Response != nil && ev.Response.IncompleteDetails != nil && ev.Response.IncompleteDetails.Reason == "content_filter" {
+				stop = textgen.StopFilter
+			}
+		} else if d.called {
+			stop = textgen.StopTool
+		} else if ev.Response != nil {
+			for _, item := range ev.Response.Output {
+				if item.Type == "function_call" {
+					stop = textgen.StopTool
+				}
+			}
+		}
+		events = append(events, textgen.Event{Kind: textgen.EventStop, Stop: stop})
+		if ev.Response != nil && ev.Response.Usage != nil {
+			events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: UsageOf(ev.Response.Usage)})
+		}
+		return events, nil
+	case "error":
+		return []textgen.Event{{Kind: textgen.EventError, Error: failedError(ev)}}, nil
+	}
+	return nil, nil
+}
+
+func failedError(ev dto.ResponsesStreamResponse) *textgen.SemanticError {
+	semantic := &textgen.SemanticError{Type: "api_error", Code: "upstream_stream_failed", Message: "upstream stream failed"}
+	if upstream := ev.GetOpenAIError(); upstream != nil {
+		if upstream.Type != "" && upstream.Type != "upstream_error" {
+			semantic.Type = upstream.Type
+		}
+		if upstream.Message != "" {
+			semantic.Message = upstream.Message
+		}
+		if code := strings.TrimSpace(codeString(upstream.Code)); code != "" {
+			semantic.Code = code
+		}
+		return semantic
+	}
+	if ev.Response != nil {
+		if upstream := dto.GetOpenAIError(ev.Response.Error); upstream != nil {
+			if upstream.Message != "" {
+				semantic.Message = upstream.Message
+			}
+			if code := strings.TrimSpace(codeString(upstream.Code)); code != "" {
+				semantic.Code = code
+			}
+		}
+	}
+	return semantic
+}
+
+func codeString(code any) string {
+	switch v := code.(type) {
+	case string:
+		return v
+	case nil:
+		return ""
+	}
+	raw, _ := json.Marshal(code)
+	return strings.Trim(string(raw), `"`)
+}
+
+// UsageOf is Responses' usage as the shared usage fact: input_tokens is the
+// whole prompt, the cached part among it.
+func UsageOf(usage *dto.Usage) *dto.Usage {
+	if usage == nil {
+		return nil
+	}
+	out := &dto.Usage{}
+	prompt := usage.InputTokens
+	if prompt == 0 {
+		prompt = usage.PromptTokens
+	}
+	output := usage.OutputTokens
+	if output == 0 {
+		output = usage.CompletionTokens
+	}
+	if prompt > 0 {
+		out.PromptTokens = prompt
+		out.InputTokenSource = dto.UsageSourceProvider
+	}
+	if output > 0 {
+		out.CompletionTokens = output
+		out.OutputTokenSource = dto.UsageSourceProvider
+	}
+	if usage.InputTokensDetails != nil {
+		out.PromptTokensDetails.CachedTokens = usage.InputTokensDetails.CachedTokens
+		out.PromptTokensDetails.CachedCreationTokens = usage.InputTokensDetails.CacheWriteTokens
+	}
+	if usage.OutputTokensDetails != nil {
+		out.CompletionTokenDetails.ReasoningTokens = usage.OutputTokensDetails.ReasoningTokens
+	}
+	out.TotalTokens = out.PromptTokens + out.CompletionTokens
+	return out
+}

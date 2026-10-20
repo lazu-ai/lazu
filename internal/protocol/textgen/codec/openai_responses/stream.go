@@ -44,6 +44,7 @@ type outputItem struct {
 	// reasoning
 	reasoning      strings.Builder
 	reasoningAdded bool
+	upstreamID     string // the upstream's id for the item, when it gave one
 	// tool
 	toolIndex int
 	callID    string
@@ -72,11 +73,12 @@ type StreamEmitter struct {
 	stopSeen bool
 	stop     textgen.StopReason
 
-	items       []*outputItem
-	message     *outputItem
-	reasoning   *outputItem
-	reasonCount int
-	tools       map[int]*outputItem
+	items           []*outputItem
+	message         *outputItem
+	reasoning       *outputItem
+	reasonCount     int
+	nextReasoningID string // the upstream's id the next reasoning item takes
+	tools           map[int]*outputItem
 
 	usage               *dto.Usage
 	retainedOutputBytes int
@@ -167,6 +169,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 			}
 		case textgen.EventReasoningStart:
 			out = append(out, e.closeReasoning("completed")...)
+			e.nextReasoningID = event.ItemID
 		case textgen.EventReasoning:
 			if event.Text == "" {
 				continue
@@ -182,6 +185,12 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 			// has no field for another's
 		case textgen.EventReasoningSealed:
 			if event.SealedBy != SealedBy || len(event.Sealed) == 0 {
+				continue
+			}
+			if open := e.reasoning; open != nil && (event.ItemID == "" || event.ItemID == open.upstreamID) {
+				// the item streamed so far, done as the upstream wrote it
+				open.raw = append(json.RawMessage(nil), event.Sealed...)
+				out = append(out, e.closeReasoning("completed")...)
 				continue
 			}
 			out = append(out, e.closeReasoning("completed")...)
@@ -418,8 +427,13 @@ func (e *StreamEmitter) ensureReasoning() []map[string]any {
 	if e.reasonCount > 0 {
 		id = fmt.Sprintf("rs_lazu_%s_%d", e.suffix, e.reasonCount)
 	}
+	if e.nextReasoningID != "" {
+		// the upstream's own id, which a Responses client hands back
+		id = e.nextReasoningID
+	}
 	e.reasonCount++
 	e.reasoning = e.newItem(itemReasoning, id)
+	e.reasoning.upstreamID, e.nextReasoningID = e.nextReasoningID, ""
 	e.reasoning.reasoningAdded = true
 	return []map[string]any{
 		e.send("response.output_item.added", map[string]any{"output_index": e.reasoning.index, "item": dto.NewResponsesReasoningItem(e.reasoning.id, "in_progress", nil)}),
@@ -442,11 +456,14 @@ func (e *StreamEmitter) closeItem(item *outputItem, status string) []map[string]
 	switch item.kind {
 	case itemReasoning:
 		text := item.reasoning.String()
-		return []map[string]any{
-			e.send("response.reasoning_text.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "text": text}),
-			e.send("response.content_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "part": map[string]any{"type": "reasoning_text", "text": text}}),
-			e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": e.renderItem(item)}),
+		var out []map[string]any
+		if text != "" {
+			out = append(out,
+				e.send("response.reasoning_text.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "text": text}),
+				e.send("response.content_part.done", map[string]any{"item_id": item.id, "output_index": item.index, "content_index": 0, "part": map[string]any{"type": "reasoning_text", "text": text}}),
+			)
 		}
+		return append(out, e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": e.renderItem(item)}))
 	case itemMessage:
 		var out []map[string]any
 		if item.textAdded {
@@ -493,6 +510,10 @@ func (e *StreamEmitter) renderItem(item *outputItem) any {
 	}
 	switch item.kind {
 	case itemReasoning:
+		if len(item.raw) > 0 {
+			// sealed by the upstream after it streamed: as it wrote it
+			return item.raw
+		}
 		return dto.NewResponsesReasoningItem(item.id, status, []dto.ResponsesOutputContent{{Type: "reasoning_text", Text: item.reasoning.String()}})
 	case itemTool:
 		return map[string]any{"type": "function_call", "id": item.id, "call_id": item.callID, "name": item.name, "arguments": item.args.String(), "status": status}

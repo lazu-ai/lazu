@@ -287,7 +287,7 @@ type Event struct {
 
 每个协议有一个 **decoder**（上游 wire → 事件）和一个 **emitter**（事件 → 客户端 wire）；4 个协议 8 件，16 个组合全部由此得到。emitter 是显式状态机，持有 O(活跃 item/tool 数) 状态，自己分配 id、index 和 sequence。Responses emitter 的 terminal event 必须带完整 `output`，所以它保留一份受请求 max-output 约束的装配缓冲；禁止重复缓冲、无界队列或为日志再复制一份完整输出。推理块边界（`reasoning_start`）和密封推理（`reasoning_sealed`）在 IR 里表达，这样 Anthropic 的多段 thinking 和 Responses 的 reasoning item 不需要 emitter 之间互相认识对方的形状。
 
-已落地：Chat decoder（`codec/openai_chat/stream.go`）、Responses emitter（`codec/openai_responses/stream.go`）。原先 Responses 形状的事件 IR 和 `ChatStreamBridge` 已被替换；Responses→Chat 方向（`relay_responses.go`）尚未迁到 decoder/emitter，随 Anthropic codec 一起迁。
+已落地（流层）：Chat decoder 与 emitter（`codec/openai_chat/stream.go`、`emitter.go`）、Responses decoder 与 emitter（`codec/openai_responses/decoder.go`、`stream.go`）、Anthropic decoder 与 emitter（`codec/anthropic_messages/stream.go`、`emitter.go`），以及把事件装配成整段回复的 `textgen.Collector`（非流式渲染和 emitter 的终态都从它读）。三个协议的 decoder 都有录制 fixture 驱动的测试，跨协议组合（Anthropic→Chat、Anthropic→Responses、Chat→Anthropic、Responses→Chat、Responses→Responses）各有一条端到端测试。尚未接入 handler：请求侧 codec（IR↔Claude 请求）、规划器的 Anthropic 边和派发统一是下一步；接入后 `relay_responses.go` 的直接转换、`relay-claude.go` 和 `service/convert.go` 的逐对转换器删除。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 
