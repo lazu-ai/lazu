@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   clampVideoChoice,
   normalizeResolution,
+  videoEstimateHasAudio,
   videoOptionsFor,
   videoSecondPrice,
   videoSizeFor,
@@ -66,7 +67,46 @@ describe('video prices', () => {
     expect(videoSizeFor('720p', '1:1')).toBe('720x720');
   });
 
-  it('prices a second by tier, flat rate, then tokens', () => {
+  it('prices tokens first, as the server quotes them', () => {
+    expect(
+      videoSecondPrice(
+        { output_per_mtok: 2, video_pricing: { second_usd: 0.05 } },
+        '720p',
+        '16:9',
+      ),
+    ).toBeCloseTo(0.0432);
+  });
+
+  it('adds the audio surcharge to a per-second price only', () => {
+    const lane = {
+      video_pricing: { audio_surcharge_ratio: 1.5, second_usd: 0.1 },
+    };
+    expect(videoSecondPrice(lane, '720p', '16:9', { audio: true })).toBeCloseTo(
+      0.15,
+    );
+    expect(videoSecondPrice(lane, '720p', '16:9')).toBe(0.1);
+    expect(
+      videoSecondPrice(
+        { output_per_mtok: 2, video_pricing: { audio_surcharge_ratio: 1.5 } },
+        '720p',
+        '16:9',
+        { audio: true },
+      ),
+    ).toBeCloseTo(0.0432);
+  });
+
+  it('knows when the server prices sound the request did not ask for', () => {
+    expect(
+      videoEstimateHasAudio('doubao-seedance-1-5-pro', { audio: true }),
+    ).toBe(true);
+    expect(videoEstimateHasAudio('doubao-seedance-1-5-pro')).toBe(true);
+    expect(
+      videoEstimateHasAudio('doubao-seedance-1-0-pro', { audio: false }),
+    ).toBe(false);
+    expect(videoEstimateHasAudio('veo-3.1', { audio: true })).toBe(false);
+  });
+
+  it('prices a second by tier, then the flat rate', () => {
     expect(
       videoSecondPrice(
         {
