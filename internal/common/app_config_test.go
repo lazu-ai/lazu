@@ -432,3 +432,40 @@ func TestLoadAppConfig_SourceChecks(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadAppConfig_ReadsAPIVideoTTL(t *testing.T) {
+	originalConfig := AppConfig
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	t.Cleanup(func() {
+		AppConfig = originalConfig
+		_ = os.Chdir(originalWd)
+	})
+	root := t.TempDir()
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("failed to chdir to temp root: %v", err)
+	}
+	configPath := filepath.Join(root, "config", "backend", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
+	t.Setenv("APP_CONFIG_FILE", "")
+	for _, tc := range []struct {
+		yaml string
+		want int
+	}{
+		{"artifact_storage:\n  enable: true\n  api_video_ttl_hours: 72\n", 72},
+		{"artifact_storage:\n  enable: true\n", 0},
+	} {
+		if err := os.WriteFile(configPath, []byte(tc.yaml), 0o644); err != nil {
+			t.Fatalf("failed to write config: %v", err)
+		}
+		AppConfig = defaultConfig()
+		LoadAppConfig()
+		if got := AppConfig.ArtifactStorage.APIVideoTTLHours; got != tc.want {
+			t.Fatalf("api_video_ttl_hours=%d want %d for %q", got, tc.want, tc.yaml)
+		}
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/model"
 )
 
@@ -84,8 +85,16 @@ func DeleteMediaJobArtifact(ctx context.Context, file *model.File) error {
 	return model.DeleteFileWithAccounting(file)
 }
 
-func mediaJobArtifactExpiresAt(_ model.MediaJob, nowUnix int64) *int64 {
+// mediaJobArtifactExpiresAt is when a generated artifact is deleted: the
+// file default, or artifact_storage.api_video_ttl_hours for a video made
+// through the API. An extension's videos (Studio works a user may still
+// publish) keep the default.
+func mediaJobArtifactExpiresAt(job model.MediaJob, nowUnix int64) *int64 {
 	expiresAt := DefaultFileExpiresAt(nowUnix)
+	hours := common.AppConfig.ArtifactStorage.APIVideoTTLHours
+	if job.Kind == model.MediaJobKindVideo && hours > 0 && !model.IsExtensionMediaJobSource(job.Source) {
+		expiresAt = nowUnix + int64(hours)*3600
+	}
 	return &expiresAt
 }
 
