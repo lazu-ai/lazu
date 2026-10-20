@@ -462,3 +462,80 @@ func TestPlanAttemptRefusesAGappedFeatureWhenTheBridgeIsLossy(t *testing.T) {
 		t.Fatalf("expected a refusal without a second endpoint, got %v", err)
 	}
 }
+
+func anthropicSnapshot() CapabilitySnapshot {
+	snapshot := snapshot("anthropic", FeatureEndpointMessages)
+	snapshot.Features.Add(FeatureFunctionTools)
+	snapshot.Features.Add(FeatureReasoningEffort)
+	snapshot.Features.Add(FeatureJSONSchema)
+	snapshot.Features.Add(FeatureJSONOutput)
+	return snapshot
+}
+
+// A Chat or Responses client on an Anthropic channel is bridged to the
+// Messages API; a Claude client is native there.
+func TestPlanAttemptBridgesOpenAIClientsToMessages(t *testing.T) {
+	for _, family := range []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses} {
+		request := minimalRequest()
+		request.Tools = []ToolDefinition{{Type: "function", Name: "lookup"}}
+		request.Reasoning.Effort = "high"
+		plan, err := PlanAttempt(Protocol{Family: family, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		if err != nil {
+			t.Fatalf("%s: %v", family, err)
+		}
+		if plan.Native || plan.UpstreamProtocol.Family != ProtocolAnthropic || plan.UpstreamProtocol.Dialect != "anthropic" || plan.RequestCodec != string(ProtocolAnthropic) || plan.ResponseEmitter != string(family) {
+			t.Fatalf("%s: expected a Messages bridge, got %+v", family, plan)
+		}
+	}
+	native, err := PlanAttempt(Protocol{Family: ProtocolAnthropic, Dialect: "anthropic"}, anthropicSnapshot(), minimalRequest(), 1, "claude-haiku-5-5")
+	if err != nil || !native.Native {
+		t.Fatalf("a Claude client is native on an Anthropic channel: %+v %v", native, err)
+	}
+}
+
+func TestPlanAttemptMessagesBridgeRefusesWhatMessagesCannotCarry(t *testing.T) {
+	cases := map[string]func(*Request){
+		"json_object": func(r *Request) { r.Output = OutputConstraint{Type: "json_object"} },
+		"logprobs":    func(r *Request) { r.Sampling.LogProbs = Some(true) },
+		"seed":        func(r *Request) { r.Sampling.Seed = Some[int64](7) },
+		"n=2":         func(r *Request) { r.Sampling.N = Some(2) },
+		"store=true":  func(r *Request) { r.Lifecycle.Store = Some(true) },
+	}
+	for name, mutate := range cases {
+		request := minimalRequest()
+		mutate(request)
+		_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+		var unsupported *UnsupportedFeatureError
+		if !errors.As(err, &unsupported) {
+			t.Fatalf("%s: expected a refusal, got %v", name, err)
+		}
+	}
+	// what Messages carries: json_schema, stop sequences, top_k, a developer instruction
+	request := minimalRequest()
+	request.Output = OutputConstraint{Type: "json_schema", Name: "t", Schema: json.RawMessage(`{"type":"object"}`)}
+	request.Sampling.Stop = Some(json.RawMessage(`["END"]`))
+	request.Sampling.TopK = Some(5)
+	request.Instructions = []Instruction{{Role: "developer", Text: "be brief"}}
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("Messages carries these losslessly: %v", err)
+	}
+}
+
+// Anthropic's cache markers and speed tier go to Messages and nowhere else.
+func TestPlanAttemptAnthropicOptionsOnlyBridgeToMessages(t *testing.T) {
+	request := minimalRequest()
+	request.Conversation[0].Content[0].CacheControl = json.RawMessage(`{"type":"ephemeral"}`)
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("Messages carries cache_control: %v", err)
+	}
+	responsesOnly := snapshot("openai", FeatureEndpointResponses)
+	_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, responsesOnly, request, 1, "gpt-5")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureAnthropicOptions || unsupported.Path != "input[0].content[0].cache_control" {
+		t.Fatalf("a Responses bridge refuses cache_control by name: %v", err)
+	}
+	native := snapshot("openai", FeatureEndpointChat)
+	if _, err := PlanAttempt(Protocol{Family: ProtocolOpenAIChat, Dialect: "openai"}, native, request, 1, "gpt-5"); err != nil {
+		t.Fatalf("a native relay passes its own wire: %v", err)
+	}
+}

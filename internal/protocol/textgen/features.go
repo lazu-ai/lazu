@@ -45,6 +45,16 @@ const (
 	FeatureHostedToolNativeOnly
 	FeatureOpaqueInputItem
 	FeatureUnknownField
+	// FeatureEndpointMessages is Anthropic's Messages API as a native
+	// endpoint of the channel.
+	FeatureEndpointMessages
+	// FeatureReasoningBudget is a thinking budget in tokens.
+	FeatureReasoningBudget
+	// FeatureAnthropicOptions names Anthropic's prompt-caching markers and
+	// speed tier (Request.VendorOptions) in a refusal. It is never extracted
+	// or required: a native relay passes its own wire, the Messages encoder
+	// writes them, and only a bridge elsewhere refuses them.
+	FeatureAnthropicOptions
 )
 
 var featureNames = map[FeatureID]string{
@@ -60,6 +70,7 @@ var featureNames = map[FeatureID]string{
 	FeaturePromptTemplate: "state.prompt_template", FeatureIncludeEncryptedReasoning: "include.reasoning.encrypted_content",
 	FeatureIncludeUnsupported: "include.unsupported", FeatureOpaqueReasoningItem: "input.reasoning_opaque", FeatureInputReference: "input.reference",
 	FeatureStore: "lifecycle.store", FeatureHostedToolNativeOnly: "tools.hosted_native_only", FeatureOpaqueInputItem: "input.opaque_item",
+	FeatureEndpointMessages: "endpoint.messages", FeatureReasoningBudget: "reasoning.budget", FeatureAnthropicOptions: "vendor.anthropic",
 	FeatureUnknownField: "wire.unknown_field",
 }
 
@@ -177,6 +188,9 @@ func ExtractFeatures(request *Request) (FeatureSet, []FeatureUse) {
 	}
 	if request.Reasoning.Summary != "" {
 		add(FeatureReasoningSummary, "reasoning.summary")
+	}
+	if request.Reasoning.Budget.Set {
+		add(FeatureReasoningBudget, "reasoning.max_tokens")
 	}
 	if request.Sampling.Temperature.Set {
 		add(FeatureTemperature, "temperature")

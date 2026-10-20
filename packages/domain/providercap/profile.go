@@ -147,10 +147,17 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 			features.Add(value)
 		}
 	}
-	add(textgen.FeatureEndpointChat, textgen.FeatureInputText, textgen.FeatureTemperature,
+	add(textgen.FeatureInputText, textgen.FeatureTemperature,
 		textgen.FeatureTopP, textgen.FeatureTopK, textgen.FeatureSeed, textgen.FeatureStop,
 		textgen.FeatureN, textgen.FeatureLogProbs, textgen.FeatureMaxOutput,
 		textgen.FeatureStream, textgen.FeatureStreamUsage)
+	if dialect == DialectAnthropic {
+		// Anthropic serves the Messages API; a Chat or Responses client
+		// reaches it through the planner's bridge (textgen.messagesBridgeIssue).
+		add(textgen.FeatureEndpointMessages)
+	} else {
+		add(textgen.FeatureEndpointChat)
+	}
 	if dialect == DialectOpenAI || dialect == DialectAzureOpenAI || dialect == DialectOpenRouter {
 		add(textgen.FeatureEndpointResponses, textgen.FeatureDeveloperRole)
 	}
@@ -181,7 +188,7 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 		add(textgen.FeatureJSONOutput, textgen.FeatureJSONSchema, textgen.FeatureStrictSchema)
 	}
 	if input.Model.SupportsReasoning {
-		add(textgen.FeatureReasoningEffort, textgen.FeatureReasoningSummary)
+		add(textgen.FeatureReasoningEffort, textgen.FeatureReasoningSummary, textgen.FeatureReasoningBudget)
 	}
 	if input.Model.SupportsWebSearch {
 		add(textgen.FeatureHostedWebSearch)

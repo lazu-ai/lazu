@@ -11,10 +11,13 @@ import (
 
 var knownTopLevel = map[string]struct{}{
 	"model": {}, "messages": {}, "stream": {}, "stream_options": {}, "max_tokens": {}, "max_completion_tokens": {},
-	"reasoning_effort": {}, "temperature": {}, "top_p": {}, "top_k": {}, "stop": {}, "n": {},
+	"reasoning_effort": {}, "reasoning": {}, "temperature": {}, "top_p": {}, "top_k": {}, "stop": {}, "n": {},
 	"response_format": {}, "seed": {}, "parallel_tool_calls": {}, "tools": {}, "tool_choice": {}, "user": {},
 	"logprobs": {}, "top_logprobs": {}, "safety_identifier": {}, "store": {}, "prompt_cache_key": {},
 	"metadata": {}, "web_search_options": {}, "service_tier": {},
+	// Anthropic's Messages API fields OpenRouter-compatible clients send
+	// through Chat (textgen.VendorOptions)
+	"cache_control": {}, "speed": {},
 	// OpenRouter-compatible gateway routing metadata is consumed before
 	// protocol planning and must not make an otherwise lossless bridge fail.
 	"models":  {},
@@ -55,6 +58,8 @@ func Decode(body []byte) (*textgen.Request, *dto.GeneralOpenAIRequest, error) {
 		return nil, nil, err
 	}
 	request.Reasoning.Effort = wire.ReasoningEffort
+	decodeReasoningObject(raw, request)
+	request.Vendor = textgen.VendorOptions{CacheControl: nonNullRaw(wire.CacheControl), Speed: nonNullRaw(wire.Speed)}
 	request.Metadata.Metadata = append(json.RawMessage(nil), wire.Metadata...)
 	request.Metadata.User = wire.User
 	request.Metadata.SafetyIdentifier = wire.SafetyIdentifier
@@ -237,10 +242,19 @@ func decodeMessages(messages []dto.Message, request *textgen.Request) error {
 				markUnknown(request, fmt.Sprintf("messages[%d].role", index), role)
 			}
 			if message.Content != nil && !message.IsStringContent() {
-				// Responses instructions are a single string. Preserve the native
-				// Chat wire, but fail a bridge closed before array part boundaries or
-				// controls such as cache_control can be flattened by messageText.
 				markUnknownMessageContent(message, index, request)
+				if parts, textOnly := textParts(message); textOnly {
+					// one instruction per text part, each with its own
+					// cache_control; Messages keeps the boundaries, and a
+					// Responses bridge refuses more than one instruction
+					for _, part := range parts {
+						request.Instructions = append(request.Instructions, textgen.Instruction{Role: role, Text: part.Text, CacheControl: nonNullRaw(part.CacheControl)})
+					}
+					continue
+				}
+				// Non-text parts in an instruction have no semantic place.
+				// Preserve the native Chat wire, but fail a bridge closed
+				// before messageText flattens them.
 				markUnknown(request, fmt.Sprintf("messages[%d].content", index), message.Content)
 			}
 			request.Instructions = append(request.Instructions, textgen.Instruction{Role: role, Text: messageText(message)})
@@ -315,9 +329,6 @@ func markUnknownMessageContent(message dto.Message, index int, request *textgen.
 			continue
 		}
 		kind, _ := part["type"].(string)
-		if cacheControl, exists := part["cache_control"]; exists && cacheControl != nil {
-			markUnknown(request, fmt.Sprintf("messages[%d].content[%d].cache_control", index, partIndex), cacheControl)
-		}
 		switch kind {
 		case dto.ContentTypeText:
 			markUnknownContentPartFields(request, index, partIndex, part, "type", "text", "cache_control")
@@ -365,6 +376,28 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
+// textParts is the message's parts when every one is a text part.
+func textParts(message dto.Message) ([]dto.MediaContent, bool) {
+	parts := message.ParseContent()
+	if len(parts) == 0 {
+		return nil, false
+	}
+	for _, part := range parts {
+		if part.Type != dto.ContentTypeText {
+			return nil, false
+		}
+	}
+	return parts, true
+}
+
+// nonNullRaw is the raw value, or nil when it is absent or JSON null.
+func nonNullRaw(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 || isJSONNull(raw) {
+		return nil
+	}
+	return append(json.RawMessage(nil), raw...)
+}
+
 func messageParts(message dto.Message, index int, request *textgen.Request) ([]textgen.ContentPart, error) {
 	if message.Content == nil {
 		return nil, nil
@@ -376,21 +409,21 @@ func messageParts(message dto.Message, index int, request *textgen.Request) ([]t
 	for partIndex, part := range message.ParseContent() {
 		switch part.Type {
 		case dto.ContentTypeText:
-			parts = append(parts, textgen.ContentPart{Kind: textgen.ContentText, Text: part.Text})
+			parts = append(parts, textgen.ContentPart{Kind: textgen.ContentText, Text: part.Text, CacheControl: nonNullRaw(part.CacheControl)})
 		case dto.ContentTypeImageURL:
 			image := part.GetImageMedia()
 			if image != nil {
-				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentImage, URL: image.Url, Detail: explicitImageDetail(message.Content, partIndex)})
+				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentImage, URL: image.Url, Detail: explicitImageDetail(message.Content, partIndex), CacheControl: nonNullRaw(part.CacheControl)})
 			}
 		case dto.ContentTypeInputAudio:
 			audio := part.GetInputAudio()
 			if audio != nil {
-				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentAudio, Data: audio.Data, Format: audio.Format})
+				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentAudio, Data: audio.Data, Format: audio.Format, CacheControl: nonNullRaw(part.CacheControl)})
 			}
 		case dto.ContentTypeFile:
 			file := part.GetFile()
 			if file != nil {
-				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentFile, FileID: file.FileId, Data: file.FileData, Filename: file.FileName})
+				parts = append(parts, textgen.ContentPart{Kind: textgen.ContentFile, FileID: file.FileId, Data: file.FileData, Filename: file.FileName, CacheControl: nonNullRaw(part.CacheControl)})
 			}
 		default:
 			markUnknown(request, fmt.Sprintf("messages[%d].content[%d].type", index, partIndex), part)
@@ -418,6 +451,10 @@ func explicitImageDetail(content any, partIndex int) string {
 
 func decodeTools(raw map[string]json.RawMessage, wire *dto.GeneralOpenAIRequest, request *textgen.Request) error {
 	markUnknownToolFields(raw["tools"], request)
+	var rawTools []map[string]json.RawMessage
+	if value, ok := raw["tools"]; ok && !isJSONNull(value) {
+		_ = json.Unmarshal(value, &rawTools)
+	}
 	for index, tool := range wire.Tools {
 		if !strings.EqualFold(tool.Type, "function") {
 			markUnknown(request, fmt.Sprintf("tools[%d].type", index), tool)
@@ -428,6 +465,9 @@ func decodeTools(raw map[string]json.RawMessage, wire *dto.GeneralOpenAIRequest,
 			return err
 		}
 		definition := textgen.ToolDefinition{Type: "function", Name: tool.Function.Name, Description: tool.Function.Description, Parameters: parameters}
+		if index < len(rawTools) {
+			definition.CacheControl = nonNullRaw(rawTools[index]["cache_control"])
+		}
 		if len(tool.Function.Strict) > 0 {
 			var strict bool
 			if err := json.Unmarshal(tool.Function.Strict, &strict); err != nil {
@@ -465,7 +505,7 @@ func markUnknownToolFields(raw json.RawMessage, request *textgen.Request) {
 		return
 	}
 	for index, tool := range tools {
-		markUnknownRawObjectFields(request, fmt.Sprintf("tools[%d]", index), tool, "type", "function")
+		markUnknownRawObjectFields(request, fmt.Sprintf("tools[%d]", index), tool, "type", "function", "cache_control")
 		var function map[string]json.RawMessage
 		if value, ok := tool["function"]; ok && !isJSONNull(value) && json.Unmarshal(value, &function) == nil {
 			markUnknownRawObjectFields(request, fmt.Sprintf("tools[%d].function", index), function, "name", "description", "parameters", "strict")
@@ -525,6 +565,11 @@ func Encode(request *textgen.Request) (*dto.GeneralOpenAIRequest, error) {
 		return nil, fmt.Errorf("request is nil")
 	}
 	wire := &dto.GeneralOpenAIRequest{Model: request.Model.Upstream, Stream: request.Lifecycle.Stream, ReasoningEffort: request.Reasoning.Effort, User: request.Metadata.User, SafetyIdentifier: request.Metadata.SafetyIdentifier, ServiceTier: request.Metadata.ServiceTier}
+	if request.Reasoning.Budget.Set {
+		wire.Reasoning, _ = json.Marshal(map[string]int{"max_tokens": request.Reasoning.Budget.Value})
+	}
+	wire.CacheControl = append(json.RawMessage(nil), request.Vendor.CacheControl...)
+	wire.Speed = append(json.RawMessage(nil), request.Vendor.Speed...)
 	if wire.Model == "" {
 		wire.Model = request.Model.Canonical
 	}
@@ -740,6 +785,42 @@ func encodeOutput(output textgen.OutputConstraint, wire *dto.GeneralOpenAIReques
 	}
 	wire.ResponseFormat = format
 	return nil
+}
+
+// decodeReasoningObject takes the OpenRouter-style reasoning object a Chat
+// request may carry beside reasoning_effort: its effort wins over
+// reasoning_effort and its max_tokens is the thinking budget. Any other key
+// is unknown.
+func decodeReasoningObject(raw map[string]json.RawMessage, request *textgen.Request) {
+	value, ok := raw["reasoning"]
+	if !ok || isJSONNull(value) {
+		return
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(value, &object); err != nil {
+		markUnknown(request, "reasoning", value)
+		return
+	}
+	for key, field := range object {
+		if isJSONNull(field) {
+			continue
+		}
+		switch key {
+		case "effort":
+			var effort string
+			if json.Unmarshal(field, &effort) == nil && strings.TrimSpace(effort) != "" {
+				request.Reasoning.Effort = effort
+				continue
+			}
+		case "max_tokens":
+			var budget int
+			if json.Unmarshal(field, &budget) == nil && budget > 0 {
+				request.Reasoning.Budget = textgen.Some(budget)
+				continue
+			}
+		}
+		markUnknown(request, "reasoning."+key, field)
+	}
 }
 
 func unknownFields(raw map[string]json.RawMessage) map[string]json.RawMessage {

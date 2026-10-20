@@ -35,6 +35,9 @@ type ModelRef struct {
 type Instruction struct {
 	Role string
 	Text string
+	// CacheControl is Anthropic's prompt-caching marker on this instruction
+	// (a Chat system part's cache_control). See VendorOptions.
+	CacheControl json.RawMessage
 }
 
 type InputKind string
@@ -69,6 +72,9 @@ type ContentPart struct {
 	FileID   string
 	Filename string
 	Detail   string
+	// CacheControl is Anthropic's prompt-caching marker on this part. See
+	// VendorOptions.
+	CacheControl json.RawMessage
 }
 
 type OpaqueValue struct {
@@ -101,6 +107,21 @@ type ToolDefinition struct {
 	Parameters  json.RawMessage
 	Strict      Option[bool]
 	Hosted      json.RawMessage
+	// CacheControl is Anthropic's prompt-caching marker on this tool. See
+	// VendorOptions.
+	CacheControl json.RawMessage
+}
+
+// VendorOptions are fields of Anthropic's Messages API that a client sends
+// through another protocol's wire, as OpenRouter-compatible Chat clients do:
+// a request-level cache_control marker and the speed tier (the per-part,
+// per-instruction and per-tool markers sit on those items). They are not
+// unknown fields: the Messages encoder writes them, a bridge to any other
+// protocol refuses them (AnthropicOptionPath), and a native relay passes its
+// own wire untouched.
+type VendorOptions struct {
+	CacheControl json.RawMessage
+	Speed        json.RawMessage
 }
 
 type ToolPolicy struct {
@@ -132,6 +153,10 @@ type SamplingOptions struct {
 type ReasoningOptions struct {
 	Effort  string
 	Summary string
+	// Budget is a thinking budget in tokens (the OpenRouter-style
+	// reasoning.max_tokens of a Chat request); Messages carries it as
+	// thinking.budget_tokens.
+	Budget Option[int]
 }
 
 type LifecycleOptions struct {
@@ -171,7 +196,41 @@ type Request struct {
 	Reasoning    ReasoningOptions
 	Lifecycle    LifecycleOptions
 	Metadata     MetadataOptions
+	Vendor       VendorOptions
 	Raw          RawRetention
+}
+
+// AnthropicOptionPath is the field path of the first Anthropic-only option
+// the request carries (VendorOptions and the cache_control markers), for a
+// bridge that cannot carry it to name.
+func (r *Request) AnthropicOptionPath() (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	if len(r.Vendor.CacheControl) > 0 {
+		return "cache_control", true
+	}
+	if len(r.Vendor.Speed) > 0 {
+		return "speed", true
+	}
+	for index, instruction := range r.Instructions {
+		if len(instruction.CacheControl) > 0 {
+			return "instructions[" + itoa(index) + "].cache_control", true
+		}
+	}
+	for index, item := range r.Conversation {
+		for partIndex, part := range item.Content {
+			if len(part.CacheControl) > 0 {
+				return "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].cache_control", true
+			}
+		}
+	}
+	for index, tool := range r.Tools {
+		if len(tool.CacheControl) > 0 {
+			return "tools[" + itoa(index) + "].cache_control", true
+		}
+	}
+	return "", false
 }
 
 func (r *Request) Clone() *Request {

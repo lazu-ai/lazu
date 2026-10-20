@@ -88,10 +88,12 @@ func TestDecodeMarksNestedChatControlsNativeOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"stream_options.include_obfuscation", "messages[0].content[0].cache_control"} {
-		if _, ok := request.Raw.UnknownFields[path]; !ok {
-			t.Fatalf("nested control %q must remain native-only: %+v", path, request.Raw.UnknownFields)
-		}
+	if _, ok := request.Raw.UnknownFields["stream_options.include_obfuscation"]; !ok {
+		t.Fatalf("nested control must remain native-only: %+v", request.Raw.UnknownFields)
+	}
+	// Anthropic's cache marker is carried on the part (textgen.VendorOptions)
+	if _, unknown := request.Raw.UnknownFields["messages[0].content[0].cache_control"]; unknown || string(request.Conversation[0].Content[0].CacheControl) != `{"type":"ephemeral"}` {
+		t.Fatalf("part cache_control must be carried: %+v %s", request.Raw.UnknownFields, request.Conversation[0].Content[0].CacheControl)
 	}
 }
 
@@ -100,28 +102,51 @@ func TestDecodeMarksFunctionToolExtensionsNativeOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"tools[0].cache_control", "tools[0].function.provider_options"} {
-		if _, ok := request.Raw.UnknownFields[path]; !ok {
-			t.Fatalf("function tool extension %q must remain native-only: %+v", path, request.Raw.UnknownFields)
-		}
+	if _, ok := request.Raw.UnknownFields["tools[0].function.provider_options"]; !ok {
+		t.Fatalf("function tool extension must remain native-only: %+v", request.Raw.UnknownFields)
 	}
 	if len(request.Tools) != 1 || request.Tools[0].Name != "lookup" || !request.Tools[0].Strict.Set || !request.Tools[0].Strict.Value {
 		t.Fatalf("supported function tool fields were not retained: %+v", request.Tools)
 	}
+	if _, unknown := request.Raw.UnknownFields["tools[0].cache_control"]; unknown || string(request.Tools[0].CacheControl) != `{"type":"ephemeral"}` {
+		t.Fatalf("tool cache_control must be carried: %+v %s", request.Raw.UnknownFields, request.Tools[0].CacheControl)
+	}
 }
 
-func TestDecodeMarksArrayInstructionContentNativeOnly(t *testing.T) {
-	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"system","content":[{"type":"text","text":"policy","cache_control":{"type":"ephemeral"}}]},{"role":"user","content":"hello"}]}`))
+// A system message of text parts is one instruction per part, each with its
+// cache marker; a non-text part in an instruction stays native-only.
+func TestDecodeArrayInstructionContent(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"system","content":[{"type":"text","text":"policy","cache_control":{"type":"ephemeral"}},{"type":"text","text":"more"}]},{"role":"user","content":"hello"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"messages[0].content", "messages[0].content[0].cache_control"} {
-		if _, ok := request.Raw.UnknownFields[path]; !ok {
-			t.Fatalf("array instruction control %q must remain native-only: %+v", path, request.Raw.UnknownFields)
-		}
+	if len(request.Raw.UnknownFields) != 0 {
+		t.Fatalf("text instruction parts are carried: %+v", request.Raw.UnknownFields)
+	}
+	if len(request.Instructions) != 2 || request.Instructions[0].Text != "policy" || string(request.Instructions[0].CacheControl) != `{"type":"ephemeral"}` || request.Instructions[1].Text != "more" || request.Instructions[1].CacheControl != nil {
+		t.Fatalf("instructions: %+v", request.Instructions)
+	}
+	request, _, err = Decode([]byte(`{"model":"m","messages":[{"role":"system","content":[{"type":"text","text":"policy"},{"type":"image_url","image_url":{"url":"https://x/y.png"}}]},{"role":"user","content":"hello"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := request.Raw.UnknownFields["messages[0].content"]; !ok {
+		t.Fatalf("a non-text instruction part must remain native-only: %+v", request.Raw.UnknownFields)
 	}
 	if len(request.Instructions) != 1 || request.Instructions[0].Text != "policy" {
 		t.Fatalf("native semantic instruction decoding changed: %+v", request.Instructions)
+	}
+}
+
+// The request-level cache marker and speed tier ride along as vendor
+// options rather than unknown fields.
+func TestDecodeCarriesAnthropicVendorOptions(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"user","content":"hello"}],"cache_control":{"type":"ephemeral"},"speed":"fast"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(request.Raw.UnknownFields) != 0 || string(request.Vendor.CacheControl) != `{"type":"ephemeral"}` || string(request.Vendor.Speed) != `"fast"` {
+		t.Fatalf("vendor options: %+v %+v", request.Raw.UnknownFields, request.Vendor)
 	}
 }
 
