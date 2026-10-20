@@ -48,13 +48,6 @@ func TestRelayDiagnosticsDrainPreservesFactsAcrossFixtureStores(t *testing.T) {
 			if err := model.CoreDB().AutoMigrate(&model.Log{}); err != nil {
 				t.Fatal(err)
 			}
-			// SQLite's fixture uses one writer connection for the two concurrent
-			// diagnostic workers' read-modify-write transactions.
-			sqlDB, err := model.CoreDB().DB()
-			if err != nil {
-				t.Fatal(err)
-			}
-			sqlDB.SetMaxOpenConns(1)
 			requestID := common.GenerateRequestID()
 			row := model.Log{RequestID: requestID, Type: model.LogTypeConsume, AmountMicrousd: 123, PromptTokens: 800, Other: "{}"}
 			if err := model.CoreDB().Create(&row).Error; err != nil {
