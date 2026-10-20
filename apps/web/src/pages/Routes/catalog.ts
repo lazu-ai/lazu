@@ -1,5 +1,6 @@
 import type { ImagePricing } from '../../lib/image-pricing';
 export type LaneKey = 'eco' | 'stable';
+export type PeakCalendar = { years: number[]; holidays: string[] };
 
 export type LaneHealthBucket = {
   index: number;
@@ -29,6 +30,7 @@ export type Lane = {
   input_per_million?: number;
   key: LaneKey;
   output_per_million?: number;
+  peak_calendar?: PeakCalendar | null;
   peak_hours_utc?: string | null;
   peak_multiplier?: number | null;
   per_call?: number;
@@ -290,8 +292,20 @@ export const healthTone = (health?: Lane['health']) => {
 export const peakActiveNow = (
   hours?: string | null,
   now: Date = new Date(),
+  calendar?: PeakCalendar | null,
 ): boolean => {
   if (!hours) return false;
+  if (calendar) {
+    const local = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const weekday = local.getUTCDay();
+    if (
+      !calendar.years.includes(local.getUTCFullYear()) ||
+      weekday === 0 ||
+      weekday === 6 ||
+      calendar.holidays.includes(local.toISOString().slice(0, 10))
+    )
+      return false;
+  }
   const hour = now.getUTCHours();
   return hours.split(',').some((part) => {
     const range = part.trim();
@@ -318,7 +332,8 @@ export const peakActiveNow = (
 };
 
 export const lanePeakFactor = (lane: Lane, now: Date = new Date()) =>
-  peakActiveNow(lane.peak_hours_utc, now) && (lane.peak_multiplier ?? 0) > 0
+  peakActiveNow(lane.peak_hours_utc, now, lane.peak_calendar) &&
+  (lane.peak_multiplier ?? 0) > 0
     ? (lane.peak_multiplier as number)
     : 1;
 

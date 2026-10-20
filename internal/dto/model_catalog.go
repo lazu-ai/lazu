@@ -2,6 +2,7 @@ package dto
 
 import (
 	"github.com/lazu-ai/lazu/pkg/billing"
+	"github.com/lazu-ai/lazu/pkg/pricecalendar"
 	"time"
 
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -122,6 +123,7 @@ type ModelCatalogPricing struct {
 	CacheWrite1hPerMillion *float64                  `json:"cache_write_1h_per_million,omitempty"`
 	RequestPrice           *float64                  `json:"request_price,omitempty"`
 	SecondPrice            *float64                  `json:"second_price,omitempty"`
+	PeakCalendar           *pricecalendar.Calendar   `json:"peak_calendar,omitempty"`
 	PeakHoursUTC           string                    `json:"peak_hours_utc,omitempty"`
 	PeakMultiplier         *float64                  `json:"peak_multiplier,omitempty"`
 	PricingVersion         int64                     `json:"pricing_version,omitempty"`
@@ -133,16 +135,17 @@ type ModelCatalogPricing struct {
 // safe to return publicly; YourPrice is populated only for authenticated,
 // account-scoped catalog views.
 type ModelCatalogLane struct {
-	Key              string               `json:"key"`
-	Available        bool                 `json:"available"`
-	Pricing          ModelCatalogPricing  `json:"pricing"`
-	InputPerMillion  *float64             `json:"input_per_million,omitempty"`
-	OutputPerMillion *float64             `json:"output_per_million,omitempty"`
-	PerCall          *float64             `json:"per_call,omitempty"`
-	PerSecond        *float64             `json:"per_second,omitempty"`
-	PeakHoursUTC     string               `json:"peak_hours_utc,omitempty"`
-	PeakMultiplier   *float64             `json:"peak_multiplier,omitempty"`
-	YourPrice        *ModelCatalogPricing `json:"your_price,omitempty"`
+	Key              string                  `json:"key"`
+	Available        bool                    `json:"available"`
+	Pricing          ModelCatalogPricing     `json:"pricing"`
+	InputPerMillion  *float64                `json:"input_per_million,omitempty"`
+	OutputPerMillion *float64                `json:"output_per_million,omitempty"`
+	PerCall          *float64                `json:"per_call,omitempty"`
+	PerSecond        *float64                `json:"per_second,omitempty"`
+	PeakCalendar     *pricecalendar.Calendar `json:"peak_calendar,omitempty"`
+	PeakHoursUTC     string                  `json:"peak_hours_utc,omitempty"`
+	PeakMultiplier   *float64                `json:"peak_multiplier,omitempty"`
+	YourPrice        *ModelCatalogPricing    `json:"your_price,omitempty"`
 	// PlanDiscountPct is the viewer's 专属折扣 on this lane, percent off the
 	// official price (40 = 6折), when their plan prices it.
 	PlanDiscountPct float64 `json:"plan_discount_pct,omitempty"`

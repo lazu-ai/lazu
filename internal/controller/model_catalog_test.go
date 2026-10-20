@@ -912,3 +912,42 @@ func TestVideoCatalogExampleShowsTheWholeAsyncFlow(t *testing.T) {
 		}
 	}
 }
+
+func TestDeepSeekCatalogHidesAliasesWithoutUnpublishingRequests(t *testing.T) {
+	cleanup := setupUserModelsClassifiedTestDB(t)
+	defer cleanup()
+	names := []string{"deepseek-flash", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
+	for _, name := range names {
+		in, mult := 0.1875, 2.0
+		for _, row := range []interface{}{
+			&model.Model{ModelName: name, Status: 1, NameRule: model.NameRuleExact},
+			&model.Ability{Group: model.ChannelLaneDirect, Model: name, ChannelId: 954, Enabled: true},
+			&model.ModelSellPrice{ModelName: name, ChannelGroup: model.ChannelLaneDirect, Active: true, InputPerMtok: &in, PeakHoursUTC: "1-4,6-10", PeakMultiplier: &mult, PricingVersion: 1},
+		} {
+			if err := model.CoreDB().Create(row).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := model.CoreDB().Create(&model.Channel{Id: 954, Type: constant.ChannelTypeOpenAI, Key: "test", Status: common.ChannelStatusEnabled, Models: strings.Join(names, ","), Group: model.ChannelLaneDirect}).Error; err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	if got := getPublicModelDiscoveryNames(); len(got) != 1 || got[0] != "deepseek-flash" {
+		t.Fatalf("unexpected discovery: %v", got)
+	}
+	if got := filterPublishedCatalogModelNames(names); len(got) != 3 {
+		t.Fatalf("aliases became unpublished: %v", got)
+	}
+	items := buildModelCatalogItemsWithOptions(names, catalogBuildOptions{pricingMode: catalogPricingModeList})
+	if len(items) != 1 || items[0].ID != "deepseek-flash" {
+		t.Fatalf("unexpected catalog: %+v", items)
+	}
+	if items[0].Pricing.PeakCalendar == nil {
+		t.Fatal("catalog omitted settlement calendar")
+	}
+	legacy := buildModelCatalogItemsWithOptions([]string{"deepseek-v4-flash"}, catalogBuildOptions{pricingMode: catalogPricingModeList})
+	if len(legacy) != 1 || legacy[0].ID != "deepseek-v4-flash" {
+		t.Fatal("legacy-only key must retain its permitted catalog entry")
+	}
+}

@@ -22,6 +22,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/types"
 	usagepkg "github.com/lazu-ai/lazu/internal/usage"
 	"github.com/lazu-ai/lazu/pkg/billing"
+	"github.com/lazu-ai/lazu/pkg/pricecalendar"
 	"github.com/shopspring/decimal"
 )
 
@@ -105,7 +106,10 @@ func filterPublishedCatalogModelNames(groupModelNames []string) []string {
 		return []string{}
 	}
 
-	publicModels := stringSet(getPublicModelDiscoveryNames())
+	publicModels := make(map[string]bool)
+	for _, row := range model.GetPricing() {
+		publicModels[row.ModelName] = true
+	}
 	modelNames := make([]string, 0, len(groupModelNames))
 	for _, modelName := range groupModelNames {
 		if publicModels[modelName] {
@@ -270,6 +274,7 @@ func catalogScopeAllowsModel(limits map[string]bool, vendors map[int]struct{}, m
 }
 
 func buildOpenAIModels(modelNames []string) []dto.OpenAIModels {
+	modelNames = model.ListedModelNames(modelNames)
 	models := make([]dto.OpenAIModels, 0, len(modelNames))
 	owners := model.CatalogModelOwners(modelNames)
 	for _, modelName := range modelNames {
@@ -581,6 +586,7 @@ func buildModelCatalogItems(modelNames []string, pricingContext catalogPricingCo
 }
 
 func buildModelCatalogItemsWithOptions(modelNames []string, options catalogBuildOptions) []dto.ModelCatalogItem {
+	modelNames = model.ListedModelNames(modelNames)
 	pricingList := model.GetPricing()
 	pricingByModel := make(map[string]model.Pricing, len(pricingList))
 	for _, pricing := range pricingList {
@@ -855,7 +861,7 @@ func buildPublicModelDiscoveryResponse() dto.ModelCatalogResponse {
 }
 
 func getPublicModelDiscoveryNames() []string {
-	pricingList := model.GetPricing()
+	pricingList := model.ListedPricing(model.GetPricing())
 	names := make([]string, 0, len(pricingList))
 	seen := make(map[string]struct{}, len(pricingList))
 	for _, pricing := range pricingList {
@@ -1064,6 +1070,7 @@ func buildCatalogPricingWithAdjustment(
 	// price during peak windows instead of reading the base as the only rate.
 	result.PeakHoursUTC = pricing.PeakHoursUTC
 	result.PeakMultiplier = pricing.PeakMultiplier
+	result.PeakCalendar = pricecalendar.ForModel(pricing.ModelName)
 
 	scale := func(value *float64) *float64 {
 		if value == nil {
@@ -1217,6 +1224,7 @@ func buildCatalogLanes(
 			PerCall:          listPrice.Request,
 			PerSecond:        listPrice.Second,
 			PeakHoursUTC:     listPrice.PeakHoursUTC,
+			PeakCalendar:     listPrice.PeakCalendar,
 			PeakMultiplier:   listPrice.PeakMultiplier,
 		}
 		if options.includePersonalized {

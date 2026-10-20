@@ -3,6 +3,7 @@ package service
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	gormsqlite "github.com/glebarez/sqlite"
@@ -431,5 +432,35 @@ func TestQuoteModelUsageRecordsPeakMultiplier(t *testing.T) {
 	}
 	if quote.TotalMicrousd != 2_000 {
 		t.Fatalf("expected 1,000 tokens at the doubled $2/M = 2,000 microusd, got %d", quote.TotalMicrousd)
+	}
+}
+
+func TestDeepSeekQuoteUsesArrivalCalendarAcrossCompletionBoundary(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:deepseek_arrival_calendar?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() { sqlDB, _ := db.DB(); _ = sqlDB.Close(); model.SetCoreDB(previousDB) })
+	if err := db.AutoMigrate(&model.ModelSellPrice{}); err != nil {
+		t.Fatal(err)
+	}
+	input, mult := 0.1875, 2.0
+	if err := db.Create(&model.ModelSellPrice{ModelName: "deepseek-flash", ChannelGroup: model.ChannelLaneDirect, InputPerMtok: &input, PeakHoursUTC: "1-4,6-10", PeakMultiplier: &mult, Active: true, PricingVersion: 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		at   string
+		want billing.MicroUSD
+	}{
+		{"2026-10-20T03:59:59Z", 375}, {"2026-10-20T04:00:00Z", 188},
+		{"2026-10-17T02:00:00Z", 188}, {"2026-10-01T02:00:00Z", 188},
+	} {
+		at, _ := time.Parse(time.RFC3339, tt.at)
+		quote := QuoteModelUsage(&relaycommon.RelayInfo{StartTime: at, UsingGroup: model.ChannelLaneDirect}, "deepseek-flash", billing.Usage{InputTokens: 1000}, nil)
+		if quote.TotalMicrousd != tt.want {
+			t.Fatalf("arrival %s: got %d want %d", tt.at, quote.TotalMicrousd, tt.want)
+		}
 	}
 }

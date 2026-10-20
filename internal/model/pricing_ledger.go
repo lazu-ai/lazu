@@ -16,6 +16,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/lazu-ai/lazu/internal/types"
 	"github.com/lazu-ai/lazu/pkg/billing"
+	"github.com/lazu-ai/lazu/pkg/pricecalendar"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -99,6 +100,15 @@ func (price ProviderCostPrice) ToBillingPriceSheet() billing.PriceSheet {
 		SecondMicrousd:              usdToMicrousdPtr(price.SecondUSD),
 		PricingVersion:              price.PricingVersion,
 	}
+}
+
+// ToBillingPriceSheetAt applies the official provider's calendar to its cost.
+// Third-party suppliers keep their negotiated cost regardless of model name.
+func (price ProviderCostPrice) ToBillingPriceSheetAt(at time.Time) billing.PriceSheet {
+	if price.Provider == "deepseek" && pricecalendar.IsDeepSeek(price.ModelName) {
+		return price.Scaled(pricecalendar.DeepSeekFactor(at)).ToBillingPriceSheet()
+	}
+	return price.ToBillingPriceSheet()
 }
 
 // HasContextTier reports whether long inputs cost separately on this source.
@@ -243,6 +253,9 @@ func hourInUTCRanges(hour int, ranges string) bool {
 // unconfigured returns 1.
 func (price ModelSellPrice) PeakFactorAt(now time.Time) float64 {
 	if price.PeakMultiplier == nil || *price.PeakMultiplier <= 0 || strings.TrimSpace(price.PeakHoursUTC) == "" {
+		return 1
+	}
+	if pricecalendar.IsDeepSeek(price.ModelName) && !pricecalendar.DeepSeekPeakDay(now) {
 		return 1
 	}
 	if hourInUTCRanges(now.UTC().Hour(), price.PeakHoursUTC) {

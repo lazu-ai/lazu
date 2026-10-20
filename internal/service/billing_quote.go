@@ -7,6 +7,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/model"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/pkg/billing"
+	"github.com/lazu-ai/lazu/pkg/pricecalendar"
 	"github.com/shopspring/decimal"
 )
 
@@ -27,6 +28,9 @@ func quoteModelUsageWithInputTotal(relayInfo *relaycommon.RelayInfo, modelName s
 			tier = &billing.ContextTierApplied{Threshold: sellPrice.ContextTierThreshold, InputTokens: inputTokens}
 		}
 		now := time.Now()
+		if pricecalendar.IsDeepSeek(modelName) && !relayInfo.StartTime.IsZero() {
+			now = relayInfo.StartTime
+		}
 		sheet = price.ToBillingPriceSheetAt(now)
 		if factor := price.PeakFactorAt(now); factor != 1 {
 			peak = &billing.PeakApplied{Multiplier: factor}

@@ -12,7 +12,7 @@ import {
   listPriceOf,
   officialHeroPrice,
   planZheOf,
-  peakActiveNow,
+  lanePeakFactor,
   type CatalogModel,
   type CatalogPricing,
   type ContextTier,
@@ -208,8 +208,7 @@ export function LaneBlock({
 
   const hero = heroPriceOf(lane, model);
   const mark = discountMarkOf(laneOfficialRatio(lane, model));
-  const peakNow =
-    peakActiveNow(lane.peak_hours_utc) && (lane.peak_multiplier ?? 0) > 0;
+  const peakNow = lanePeakFactor(lane) > 1;
   const status = laneStatusOf(lane.health);
   const tiers = laneContextTiers(lane);
   const baseImages =

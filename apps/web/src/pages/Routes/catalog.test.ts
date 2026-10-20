@@ -209,3 +209,30 @@ it('does not multiply the contract discount by the peak factor', () => {
     heroPriceOf(lane, { id: 'priced' }, new Date('2026-10-01T12:00:00Z')),
   ).toMatchObject({ list: 18, mine: 6 });
 });
+
+describe('DeepSeek peak calendar from the server', () => {
+  const calendar = { years: [2026], holidays: ['2026-10-01', '2026-10-07'] };
+  it.each([
+    ['2026-10-20T01:00:00Z', 2],
+    ['2026-10-20T04:00:00Z', 1],
+    ['2026-10-20T06:00:00Z', 2],
+    ['2026-10-20T10:00:00Z', 1],
+    ['2026-10-17T02:00:00Z', 1],
+    ['2026-10-10T02:00:00Z', 1],
+    ['2026-10-01T02:00:00Z', 1],
+    ['2026-10-07T02:00:00Z', 1],
+    ['2027-02-01T02:00:00Z', 1],
+  ])('shows the settlement multiplier at %s', (at, factor) => {
+    expect(
+      lanePeakFactor(
+        {
+          key: 'stable',
+          peak_hours_utc: '1-4,6-10',
+          peak_multiplier: 2,
+          peak_calendar: calendar,
+        },
+        new Date(at),
+      ),
+    ).toBe(factor);
+  });
+});
