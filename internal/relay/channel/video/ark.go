@@ -210,6 +210,9 @@ func (arkDriver) EstimateFacts(body []byte, caps *dto.VideoCapabilities) dto.Vid
 	}
 	if audio, ok := firstBool(payload, "generate_audio"); ok {
 		facts.Audio = audio
+	} else if caps != nil && caps.Audio != nil {
+		// A model that cannot make sound (Seedance 1.0) is not priced for it.
+		facts.Audio = *caps.Audio
 	} else {
 		// Ark generates audio unless told not to.
 		facts.Audio = true

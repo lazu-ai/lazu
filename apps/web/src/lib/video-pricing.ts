@@ -84,27 +84,18 @@ export function videoTokensPerSecond(
 }
 
 /** Price of one second at this resolution and ratio, or null when the model
- *  has no published per-second or per-token price. */
+ *  has no published per-second or per-token price. The order is the
+ *  server's: a token price first (Ark's estimate always carries tokens),
+ *  then the resolution tier, then the flat per-second price. A clip with
+ *  sound pays the audio surcharge on a per-second price. */
 export function videoSecondPrice(
   source: VideoPriceSource | undefined,
   resolution: string,
   ratio = '16:9',
+  options: { audio?: boolean } = {},
 ): number | null {
   if (!source) return null;
   const tier = normalizeResolution(resolution);
-  const video = source.video_pricing;
-  if (video?.resolution_second_usd) {
-    const found = Object.entries(video.resolution_second_usd).find(
-      ([key]) => normalizeResolution(key) === tier,
-    );
-    if (found && found[1] > 0) return found[1];
-  }
-  if (typeof video?.second_usd === 'number' && video.second_usd > 0) {
-    return video.second_usd;
-  }
-  if (typeof source.second_usd === 'number' && source.second_usd > 0) {
-    return source.second_usd;
-  }
   if (
     typeof source.output_per_mtok === 'number' &&
     source.output_per_mtok > 0
@@ -114,8 +105,52 @@ export function videoSecondPrice(
       1_000_000
     );
   }
-  return null;
+  const video = source.video_pricing;
+  let perSecond: number | null = null;
+  if (video?.resolution_second_usd) {
+    const found = Object.entries(video.resolution_second_usd).find(
+      ([key]) => normalizeResolution(key) === tier,
+    );
+    if (found && found[1] > 0) perSecond = found[1];
+  }
+  if (
+    perSecond === null &&
+    typeof video?.second_usd === 'number' &&
+    video.second_usd > 0
+  ) {
+    perSecond = video.second_usd;
+  }
+  if (
+    perSecond === null &&
+    typeof source.second_usd === 'number' &&
+    source.second_usd > 0
+  ) {
+    perSecond = source.second_usd;
+  }
+  if (perSecond === null) return null;
+  const surcharge = video?.audio_surcharge_ratio;
+  if (options.audio && typeof surcharge === 'number' && surcharge > 0) {
+    return perSecond * surcharge;
+  }
+  return perSecond;
 }
+
+/** Whether the server prices a clip as having sound when the request does
+ *  not say: Ark (Seedance) makes audio unless the model's row says it
+ *  cannot; the other providers only when asked. */
+export const videoEstimateHasAudio = (
+  model: string,
+  caps?: VideoCapabilities | null,
+): boolean => /seedance/i.test(model) && caps?.audio !== false;
+
+/** Prices that follow the provider's reported cost: a per-second figure is
+ *  only what the hold is taken on, not what the clip will cost. */
+export const videoPriceFollowsProviderCost = (
+  source: VideoPriceSource | undefined,
+): boolean =>
+  source?.video_pricing?.provider_cost_authoritative === true ||
+  (typeof source?.video_pricing?.provider_cost_multiplier === 'number' &&
+    source.video_pricing.provider_cost_multiplier > 0);
 
 export type VideoOptions = {
   ratios: string[];

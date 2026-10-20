@@ -405,3 +405,21 @@ func TestArkResultWithoutBillingFactsHasNoFacts(t *testing.T) {
 		t.Fatalf("a result without usage, duration or resolution reports nothing: %+v", done.Facts)
 	}
 }
+
+func TestArkEstimateDoesNotPriceSoundAModelCannotMake(t *testing.T) {
+	driver := arkDriver{}
+	body := []byte(`{"model":"doubao-seedance-1-0-pro","duration":5,"resolution":"720p","ratio":"16:9"}`)
+	if facts := driver.EstimateFacts(body, DefaultCapabilities("doubao-seedance-1-0-pro")); facts.Audio {
+		t.Fatalf("Seedance 1.0 makes no sound; its estimate must not carry audio: %+v", facts)
+	}
+	if facts := driver.EstimateFacts(body, DefaultCapabilities("doubao-seedance-1-5-pro-251215")); !facts.Audio {
+		t.Fatalf("Seedance 1.5 makes sound unless told not to: %+v", facts)
+	}
+	if facts := driver.EstimateFacts(body, nil); !facts.Audio {
+		t.Fatalf("without a capability row Ark's own default (sound) holds: %+v", facts)
+	}
+	silent := []byte(`{"model":"doubao-seedance-1-5-pro","duration":5,"generate_audio":false}`)
+	if facts := driver.EstimateFacts(silent, DefaultCapabilities("doubao-seedance-1-5-pro-251215")); facts.Audio {
+		t.Fatalf("an explicit generate_audio=false wins: %+v", facts)
+	}
+}
