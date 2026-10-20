@@ -36,18 +36,18 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 			return nil, err
 		}
 	}
-	effective := parsed.Semantic
-	override := channel.GetParamOverride()
-	if len(override) > 0 {
-		effective = effective.Clone()
-	}
-	unsupportedPatch, err := applySemanticOverrides(effective, override)
-	if err != nil {
-		return nil, err
-	}
 	snapshot, dialect, err := SnapshotForChannel(channel, modelName)
 	if err != nil {
 		return nil, err
+	}
+	effective := parsed.Semantic
+	override := channel.GetParamOverride()
+	unsupportedPatch := ""
+	if len(override) > 0 && !OverrideIsUpstreamWire(parsed.Client, snapshot) {
+		effective = effective.Clone()
+		if unsupportedPatch, err = applySemanticOverrides(effective, override); err != nil {
+			return nil, err
+		}
 	}
 	if singleUserText {
 		if !snapshot.Features.Has(textgen.FeatureEndpointResponses) || snapshot.Features.Has(textgen.FeatureEndpointChat) {
@@ -222,6 +222,18 @@ func chatToolsNeedReasoningOff(request *textgen.Request, modelName string) bool 
 		return false
 	}
 	return true
+}
+
+// OverrideIsUpstreamWire says whether the channel's param_override is
+// written for the upstream's own wire and goes on the encoded body as it
+// is, as the legacy conversions applied it: a Chat or Responses client on
+// an Anthropic channel (the Messages body), a Claude client on any other
+// (the OpenAI-shaped body). Such a channel only ever received that wire,
+// so its operator's override names its fields, and it is neither mapped
+// onto the IR nor a reason to refuse the bridge. Between Chat and
+// Responses, where one channel serves both, the override stays semantic.
+func OverrideIsUpstreamWire(client textgen.Protocol, snapshot textgen.CapabilitySnapshot) bool {
+	return (client.Family == textgen.ProtocolAnthropic) != snapshot.Features.Has(textgen.FeatureEndpointMessages)
 }
 
 func validateBridgeOverride(native bool, unsupportedPatch string) error {

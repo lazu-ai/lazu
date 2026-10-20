@@ -70,19 +70,15 @@ func messagesBridgeContext(t *testing.T, family textgen.ProtocolFamily, path str
 	c.Set(common.KeyRequestBody, raw)
 	common.SetContextKey(c, constant.ContextKeyChannelType, constant.ChannelTypeAnthropic)
 	common.SetContextKey(c, constant.ContextKeyOriginalModel, "claude-haiku-5-5")
-	// the channel's override, applied to the IR when the attempt was planned
-	// (PrepareAttempt) and so never patched onto the Messages body again:
-	// a raw "stop" there would be a field Anthropic rejects
+	// the channel's override is written for the Messages body it has always
+	// received, and goes on the encoded body as written, as the legacy
+	// conversion applied it (textgenruntime.OverrideIsUpstreamWire)
 	common.SetContextKey(c, constant.ContextKeyChannelParamOverride, map[string]interface{}{
 		"operations": []interface{}{
 			map[string]interface{}{"path": "temperature", "mode": "set", "value": 0.2},
-			map[string]interface{}{"path": "stop", "mode": "set", "value": []interface{}{"END"}},
+			map[string]interface{}{"path": "metadata.user_id", "mode": "set", "value": "operator"},
 		},
 	})
-	planned := parsed.Semantic.Clone()
-	planned.Sampling.Temperature = textgen.Some(0.2)
-	planned.Sampling.Stop = textgen.Some(json.RawMessage(`["END"]`))
-	parsed.Semantic = planned
 	adapter := &captureAnthropicAdaptor{}
 	old := adaptorFactories[constant.APITypeAnthropic]
 	adaptorFactories[constant.APITypeAnthropic] = func() channel.BaseAdaptor { return adapter }
@@ -128,20 +124,17 @@ func TestTextHelperBridgesAChatClientToMessages(t *testing.T) {
 		"tools.0.name":                    "get_weather",
 		"tools.0.input_schema.required.0": "city",
 		"tool_choice.type":                "auto",
-		"metadata.user_id":                "u-1",
+		"metadata.user_id":                "operator",
 		"max_tokens":                      "1280", // raised to the thinking minimum beside the budget
 		"stream":                          "true",
-		"temperature":                     "1", // thinking is on: Anthropic takes temperature 1 beside it, and the override is fitted with the rest
+		"temperature":                     "0.2", // the operator's override, as written
 		"thinking.type":                   "enabled",
 	} {
 		if got := gjson.GetBytes(body, path).String(); got != want {
 			t.Errorf("%s = %q, want %q (body %s)", path, got, want, body)
 		}
 	}
-	if got := gjson.GetBytes(body, "stop_sequences.0").String(); got != "END" {
-		t.Errorf("the planned stop override must reach the body as stop_sequences: %s", body)
-	}
-	for _, absent := range []string{"reasoning_effort", "messages.0.content.0.type.lazu", "metadata.lazu", "user", "stop"} {
+	for _, absent := range []string{"reasoning_effort", "messages.0.content.0.type.lazu", "metadata.lazu", "user"} {
 		if gjson.GetBytes(body, absent).Exists() {
 			t.Errorf("%s must not reach the Messages API: %s", absent, body)
 		}

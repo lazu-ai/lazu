@@ -507,3 +507,57 @@ func TestPrepareAttemptLeavesClaudeThinkingOutForAModelNotKnownToReason(t *testi
 		t.Fatal("a Claude client's denied schema must be refused, not degraded")
 	}
 }
+
+// Across families the channel's override is its upstream wire's own: a
+// field the IR does not model plans the bridge (the relay applies it to the
+// encoded body, as the legacy conversions did) instead of refusing it, and
+// the IR is left as the client sent it. Between Chat and Responses an
+// unmodeled override still refuses the bridge.
+func TestPrepareAttemptLeavesCrossFamilyOverridesToTheWire(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_cross_family_override?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	override := `{"operations":[{"path":"metadata.user_id","mode":"set","value":"operator"},{"path":"temperature","mode":"set","value":0.2}]}`
+
+	chat, err := Parse(textgen.ProtocolOpenAIChat, []byte(`{"model":"claude-haiku-5-5","messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	anthropic := &model.Channel{Type: constant.ChannelTypeAnthropic, ParamOverride: &override}
+	attempt, err := PrepareAttempt(chat, anthropic, "claude-haiku-5-5")
+	if err != nil {
+		t.Fatalf("a Chat client on an Anthropic channel with an override must plan: %v", err)
+	}
+	if attempt.Plan.UpstreamProtocol.Family != textgen.ProtocolAnthropic || attempt.Request != chat.Semantic {
+		t.Fatalf("expected a Messages bridge on the client's own IR: %+v", attempt.Plan)
+	}
+
+	claude, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"fixture","max_tokens":10,"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	openai := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible"}`, ParamOverride: &override}
+	if _, err := PrepareAttempt(claude, openai, "fixture"); err != nil {
+		t.Fatalf("a Claude client on an OpenAI channel with an override must plan: %v", err)
+	}
+
+	responses, err := Parse(textgen.ProtocolOpenAIResponses, []byte(`{"model":"fixture","input":"hi"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := PrepareAttempt(responses, openai, "fixture"); err == nil {
+		t.Fatal("between Chat and Responses an unmodeled override still refuses the bridge")
+	}
+}
