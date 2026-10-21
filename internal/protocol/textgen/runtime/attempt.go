@@ -83,8 +83,13 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		if len(degradations) > 0 {
 			// the stand-in puts text in the prompt: the context-window
 			// check counts it
+			// the estimate already counted the schema (TokenCountMeta), so
+			// only the words around it are new
 			if added := instructionText(degraded)[len(instructionPrefix(effective, degraded)):]; added != "" && inputTokens > 0 {
-				inputTokens += EstimateTextTokens(added, modelName)
+				extra := EstimateTextTokens(added, modelName) - EstimateTextTokens(string(effective.Output.Schema), modelName)
+				if extra > 0 {
+					inputTokens += extra
+				}
 			}
 			effective = degraded
 		}
@@ -99,6 +104,16 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		return nil, err
 	}
 	plan.UpstreamProtocol.Dialect = dialect
+	if chatToolsLoseExplicitReasoning(client, plan, effective, modelName) && snapshot.Features.Has(textgen.FeatureEndpointResponses) {
+		// the model takes tools on Chat only with reasoning off, and the
+		// Claude client asked for reasoning by name: Responses takes both
+		responsesOnly := snapshot
+		responsesOnly.Features &^= textgen.FeatureSet(1) << textgen.FeatureEndpointChat
+		if replanned, replanErr := textgen.PlanAttempt(client, responsesOnly, effective, channel.Id, modelName, inputTokens); replanErr == nil {
+			replanned.UpstreamProtocol.Dialect = dialect
+			plan = replanned
+		}
+	}
 	if !plan.Native && client.Family == textgen.ProtocolAnthropic && !snapshot.Features.Has(textgen.FeatureReasoningEffort) && effective.Reasoning != (textgen.ReasoningOptions{}) {
 		// A Claude client asks for thinking on every request (Claude Code
 		// does). Another vendor's model takes it as reasoning_effort, which
@@ -204,6 +219,21 @@ func instructionPrefix(before, after *textgen.Request) string {
 		n++
 	}
 	return now[:n]
+}
+
+// chatToolsLoseExplicitReasoning says whether a Claude client's request,
+// planned onto Chat, would lose reasoning it asked for by name (an effort
+// or a budget, not thinking left adaptive) to a model that takes tools on
+// Chat only with reasoning off.
+func chatToolsLoseExplicitReasoning(client textgen.Protocol, plan *textgen.RelayPlan, request *textgen.Request, modelName string) bool {
+	if plan.Native || client.Family != textgen.ProtocolAnthropic || plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIChat {
+		return false
+	}
+	if len(request.Tools) == 0 || request.ToolPolicy.Mode == "none" || !common.ChatToolsNeedReasoningOff(modelName) {
+		return false
+	}
+	effort := strings.ToLower(strings.TrimSpace(request.Reasoning.Effort))
+	return request.Reasoning.Budget.Set || (effort != "" && effort != "none")
 }
 
 // hasNestedUnknownField says whether the request carries a field below the

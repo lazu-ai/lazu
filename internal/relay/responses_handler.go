@@ -46,17 +46,14 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 	}
 	adaptor.Init(info)
 	bridged := planBridges(info)
-	// A degraded native plan is sent encoded from the IR (see TextHelper).
+	// A degraded native plan sends the client's own request with only the
+	// degradation applied (openai_responses.ApplyDegraded, as TextHelper).
 	degradedNative := info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.Degraded() && info.ProtocolRequest != nil
 	if degradedNative {
-		semantic := info.ProtocolRequest.Clone()
-		stripLazuMetadataFromSemantic(semantic)
-		semantic.Model.Upstream = info.UpstreamModelName
-		encoded, encodeErr := openai_responses.Encode(semantic)
+		encoded, encodeErr := openai_responses.ApplyDegraded(request, info.ProtocolRequest)
 		if encodeErr != nil {
 			return types.NewErrorWithStatusCode(encodeErr, types.ErrorCodeConvertRequestFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 		}
-		encoded.Model = request.Model
 		request = encoded
 	}
 	var outboundBody []byte

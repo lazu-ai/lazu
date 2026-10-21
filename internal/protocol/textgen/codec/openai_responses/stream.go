@@ -229,7 +229,8 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) ([]map[string]any, error) 
 			out = append(out, e.closeReasoning("completed")...)
 			item := e.newItem(itemRaw, "")
 			item.raw = append(json.RawMessage(nil), event.Sealed...)
-			out = append(out, e.send("response.output_item.added", map[string]any{"output_index": item.index, "item": item.raw}))
+			// added announces the item in progress; done carries it whole
+			out = append(out, e.send("response.output_item.added", map[string]any{"output_index": item.index, "item": inProgress(item.raw)}))
 			out = append(out, e.send("response.output_item.done", map[string]any{"output_index": item.index, "item": item.raw}))
 		case textgen.EventToolStart:
 			if _, open := e.tools[event.ToolIndex]; open {
@@ -687,4 +688,21 @@ func NormalizeChatCompletionID(value string) string {
 		value = "lazu"
 	}
 	return "chatcmpl-" + value
+}
+
+// inProgress is a finished item as its added event shows it: status
+// in_progress, its content not yet there.
+func inProgress(raw json.RawMessage) map[string]any {
+	var item map[string]any
+	if json.Unmarshal(raw, &item) != nil || item == nil {
+		return map[string]any{"status": "in_progress"}
+	}
+	item["status"] = "in_progress"
+	if _, has := item["summary"]; has {
+		item["summary"] = []any{}
+	}
+	if _, has := item["content"]; has {
+		item["content"] = []any{}
+	}
+	return item
 }

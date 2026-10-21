@@ -247,7 +247,10 @@ func TestRecordedDeepSeekChatToClaudeClient(t *testing.T) {
 
 func TestRenderWholeMessage(t *testing.T) {
 	result := collect(decodeRecording(t, "anthropic/tool_call.sse"))
-	message := Render(result, "m")
+	message, err := Render(result, "m")
+	if err != nil {
+		t.Fatal(err)
+	}
 	content := message["content"].([]any)
 	if message["stop_reason"] != "tool_use" || len(content) != 1 || content[0].(map[string]any)["type"] != "tool_use" {
 		t.Fatalf("rendered message wrong: %+v", message)

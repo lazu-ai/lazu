@@ -177,8 +177,12 @@ func observeServerTools(c *gin.Context, data string) {
 // client (channel.RunHubStream).
 func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
 	decoder := &anthropic_messages.StreamDecoder{}
+	summarized := asksSummary(info)
 	return channel.RunHubStream(c, resp, info, channel.HubStream{
-		Decode: decoder.Decode,
+		Decode: func(data string) ([]textgen.Event, error) {
+			events, err := decoder.Decode(data)
+			return markSummary(events, summarized), err
+		},
 		Observe: func(c *gin.Context, _ *relaycommon.RelayInfo, data string, _ []textgen.Event) {
 			observeServerTools(c, data)
 		},
@@ -197,6 +201,7 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 	}
+	events = markSummary(events, asksSummary(info))
 	observeServerTools(c, string(body))
 	observeWhole(info, events)
 	var col textgen.Collector
@@ -207,11 +212,18 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 	}
 	usage := channel.SettleHubUsage(c, info, result)
 	result.Usage = clientUsage(usage)
-	chat := openai_chat.Render(result, info.UpstreamModelName)
-	chat.Id = openai_chat.CompletionID(helper.GetResponseID(c))
-	var payload any = chat
+	var payload any
 	if info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses {
-		payload = openai_responses.ChatResponseToResponses(chat, info.UpstreamModelName, info.ProtocolRequest)
+		// rendered from the events themselves, one hop, items in order
+		rendered, renderErr := renderResponses(c, info, events, result.Usage)
+		if renderErr != nil {
+			return nil, types.NewError(renderErr, types.ErrorCodeBadResponseBody)
+		}
+		payload = rendered
+	} else {
+		chat := openai_chat.Render(result, info.UpstreamModelName)
+		chat.Id = openai_chat.CompletionID(helper.GetResponseID(c))
+		payload = chat
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -219,6 +231,47 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 	}
 	service.IOCopyBytesGracefully(c, resp, data)
 	return usage, nil
+}
+
+// asksSummary says whether a Responses client asked for a reasoning
+// summary: the thinking it gets is then that summary (Messages shows it
+// summarized on an adaptive model, whole on a budget one).
+func asksSummary(info *relaycommon.RelayInfo) bool {
+	return info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses && info.ProtocolRequest != nil && info.ProtocolRequest.Reasoning.Summary != ""
+}
+
+// markSummary marks the thinking as the summary the client asked for.
+func markSummary(events []textgen.Event, summarized bool) []textgen.Event {
+	if !summarized {
+		return events
+	}
+	for i := range events {
+		if events[i].Kind == textgen.EventReasoning {
+			events[i].Summary = true
+		}
+	}
+	return events
+}
+
+// renderResponses is a whole reply as a Responses object, written by the
+// Responses emitter from the events: its terminal event carries it.
+func renderResponses(c *gin.Context, info *relaycommon.RelayInfo, events []textgen.Event, usage *dto.Usage) (any, error) {
+	emitter := openai_responses.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName, info.ProtocolRequest)
+	if _, err := emitter.Emit(events...); err != nil {
+		return nil, err
+	}
+	payloads, err := emitter.Finish(usage)
+	if err != nil {
+		return nil, err
+	}
+	if len(payloads) == 0 {
+		return nil, fmt.Errorf("the reply rendered no response")
+	}
+	response, ok := payloads[len(payloads)-1]["response"]
+	if !ok {
+		return nil, fmt.Errorf("the reply rendered no response")
+	}
+	return response, nil
 }
 
 // observeWhole records the model that answered and how a whole reply ended.

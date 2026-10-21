@@ -303,3 +303,27 @@ func TestContinuedToolLoopGoesWithoutThinking(t *testing.T) {
 		t.Fatal("a first turn keeps its thinking")
 	}
 }
+
+// A whole reply to a Responses client is rendered from the events: the
+// thinking a summary was asked for is the summary, items keep their order,
+// and input counts the cache.
+func TestHubRendersAWholeResponsesReply(t *testing.T) {
+	service.InitTokenEncoders()
+	c, recorder := hubContext(t)
+	info := hubInfo(textgen.ProtocolOpenAIResponses, false)
+	info.ProtocolRequest.Reasoning.Summary = "auto"
+	body := `{"id":"msg_1","type":"message","role":"assistant","model":"claude-haiku-5-5","content":[{"type":"thinking","thinking":"weighing it","signature":"sig"},{"type":"text","text":"hi"}],"stop_reason":"end_turn","usage":{"input_tokens":20,"output_tokens":5,"cache_read_input_tokens":80}}`
+	if _, err := HubHandler(c, upstreamStream(body), info); err != nil {
+		t.Fatal(err)
+	}
+	out := recorder.Body.String()
+	if gjson.Get(out, "object").String() != "response" || gjson.Get(out, "status").String() != "completed" {
+		t.Fatalf("not a completed response: %s", out)
+	}
+	if gjson.Get(out, "output.0.type").String() != "reasoning" || gjson.Get(out, "output.0.summary.0.text").String() != "weighing it" || gjson.Get(out, "output.1.type").String() != "message" {
+		t.Fatalf("output: %s", gjson.Get(out, "output").Raw)
+	}
+	if got := gjson.Get(out, "usage.input_tokens").Int(); got != 100 {
+		t.Fatalf("input_tokens = %d, want 100", got)
+	}
+}

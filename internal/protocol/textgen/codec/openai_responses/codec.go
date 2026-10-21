@@ -1133,3 +1133,74 @@ func decodeSimpleTextInput(raw json.RawMessage) ([]textgen.InputItem, bool) {
 	}
 	return items, true
 }
+
+// ApplyDegraded writes what a degradation changed onto the client's own
+// Responses request: text.format and the instructions. Every other field,
+// hosted tools among them, stays as the client sent it: Encode is a
+// semantic encoder, not a lossless one (openai_chat.ApplyDegraded).
+func ApplyDegraded(wire *dto.OpenAIResponsesRequest, degraded *textgen.Request) (*dto.OpenAIResponsesRequest, error) {
+	out := *wire
+	text := map[string]json.RawMessage{}
+	if len(wire.Text) > 0 {
+		if err := json.Unmarshal(wire.Text, &text); err != nil {
+			return nil, fmt.Errorf("text: %w", err)
+		}
+	}
+	delete(text, "format")
+	if degraded.Output.Type != "" {
+		var encoded dto.OpenAIResponsesRequest
+		if err := encodeOutput(degraded.Output, &encoded); err != nil {
+			return nil, err
+		}
+		var wrapper map[string]json.RawMessage
+		_ = json.Unmarshal(encoded.Text, &wrapper)
+		text["format"] = wrapper["format"]
+	}
+	out.Text = nil
+	if len(text) > 0 {
+		out.Text, _ = json.Marshal(text)
+	}
+	var blocks []map[string]any
+	if len(wire.Instructions) > 0 && json.Unmarshal(wire.Instructions, &blocks) == nil {
+		// content blocks keep their own; the extension is a block after
+		// them, read off the last instruction as the degradation wrote it
+		// (its text, trimmed of trailing newlines, then the addition)
+		var original textgen.Request
+		_ = decodeInstructions(wire.Instructions, &original)
+		extension, err := instructionExtension(original.Instructions, degraded.Instructions)
+		if err != nil {
+			return nil, err
+		}
+		if extension != "" {
+			blocks = append(blocks, map[string]any{"type": "input_text", "text": extension})
+		}
+		out.Instructions, _ = json.Marshal(blocks)
+		return &out, nil
+	}
+	var encoded dto.OpenAIResponsesRequest
+	if err := encodeInstructions(degraded, &encoded); err != nil {
+		return nil, err
+	}
+	out.Instructions = encoded.Instructions
+	return &out, nil
+}
+
+// instructionExtension is what a degradation appended to the last
+// instruction (textgen's appendInstruction), or "" when it changed none.
+func instructionExtension(before, after []textgen.Instruction) (string, error) {
+	if len(before) != len(after) {
+		return "", fmt.Errorf("the degraded instructions do not match the request's")
+	}
+	if len(after) == 0 {
+		return "", nil
+	}
+	last, now := before[len(before)-1].Text, after[len(after)-1].Text
+	if now == last {
+		return "", nil
+	}
+	base := strings.TrimRight(last, "\n")
+	if !strings.HasPrefix(now, base) {
+		return "", fmt.Errorf("the degraded instruction does not extend the request's")
+	}
+	return strings.TrimSpace(now[len(base):]), nil
+}

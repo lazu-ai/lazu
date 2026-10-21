@@ -348,6 +348,10 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 			}
 		}
 	}
+	if client == ProtocolAnthropic && request != nil && request.Metadata.ServiceTier != "" && request.Metadata.ServiceTier != "auto" {
+		// Anthropic's standard_only has no counterpart in OpenAI's tiers
+		return &Issue{Feature: FeatureUnknownField, Path: "service_tier", Message: "OpenAI's APIs have no equivalent of service_tier " + request.Metadata.ServiceTier}
+	}
 	// Anthropic's cache markers are advisory and fall out of other encoders;
 	// its speed tier is not, and has no equivalent elsewhere.
 	if path, ok := request.SpeedPath(); ok {
@@ -469,6 +473,10 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 				return &Issue{Feature: FeatureFunctionTools, Path: "input[" + itoa(index) + "].arguments", Message: "the Messages API takes a tool call's arguments as a JSON object only"}
 			}
 			for partIndex, part := range item.Content {
+				if part.Kind == ContentImage && part.FileID != "" && part.URL == "" && part.Data == "" {
+					// a Responses file reference: Messages takes no OpenAI file
+					return &Issue{Feature: FeatureInputImage, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].file_id", Message: "the Messages API cannot read an OpenAI file reference"}
+				}
 				if part.Kind == ContentImage && part.Detail != "" && part.Detail != "auto" {
 					// Messages has no image detail: low or high would change
 					// fidelity and cost without saying so

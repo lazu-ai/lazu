@@ -598,3 +598,21 @@ func TestMessagesBridgeRefusesWhatMessagesRejects(t *testing.T) {
 		t.Fatalf("a trailing system turn and the auto tier plan: %v", err)
 	}
 }
+
+// An image by OpenAI file reference cannot reach Messages, and Anthropic's
+// standard_only tier cannot reach OpenAI: both refused at planning.
+func TestBridgesRefuseFileImagesAndForeignTiers(t *testing.T) {
+	request := minimalRequest()
+	request.Conversation = append(request.Conversation, InputItem{Kind: InputMessage, Role: "user", Content: []ContentPart{{Kind: ContentImage, FileID: "file_1"}}})
+	_, err := PlanAttempt(Protocol{Family: ProtocolOpenAIResponses, Dialect: "openai"}, anthropicSnapshot(), request, 1, "claude-haiku-5-5")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || !strings.HasSuffix(unsupported.Path, ".file_id") {
+		t.Fatalf("file image: %v", err)
+	}
+	tier := minimalRequest()
+	tier.Metadata.ServiceTier = "standard_only"
+	chat := CapabilitySnapshot{Dialect: "openai_chat_compatible", Features: FeatureSet(1)<<FeatureEndpointChat | FeatureSet(1)<<FeatureInputText}
+	if _, err := PlanAttempt(Protocol{Family: ProtocolAnthropic, Dialect: "anthropic"}, chat, tier, 1, "m"); !errors.As(err, &unsupported) || unsupported.Path != "service_tier" {
+		t.Fatalf("tier: %v", err)
+	}
+}

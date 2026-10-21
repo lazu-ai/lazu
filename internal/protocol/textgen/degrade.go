@@ -1,6 +1,7 @@
 package textgen
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -45,7 +46,9 @@ var Degradations = []DegradationRule{
 		Reason:  "the channel takes json_object but no schema: the answer is asked as any JSON object and the schema is stated in the instructions",
 		Source:  "DeepSeek Chat Completions takes response_format text|json_object only (api-docs.deepseek.com/api/create-chat-completion, 2026-10-20); magpie's asObject does the same stand-in",
 		Applies: func(snapshot CapabilitySnapshot, unsupported FeatureSet, request *Request) bool {
-			return request.Output.Type == "json_schema" && !unsupported.Has(FeatureJSONOutput) && snapshot.Features.Has(FeatureJSONOutput)
+			// json_object asks for an object: only a schema whose root is
+			// one fits it; any other root goes as an instruction alone
+			return request.Output.Type == "json_schema" && objectRooted(request.Output.Schema) && !unsupported.Has(FeatureJSONOutput) && snapshot.Features.Has(FeatureJSONOutput)
 		},
 		Apply: func(request *Request) string {
 			appendInstruction(request, schemaInstruction(request.Output))
@@ -102,6 +105,42 @@ func Degrade(snapshot CapabilitySnapshot, request *Request) (*Request, []Issue) 
 		return request, nil
 	}
 	return out, issues
+}
+
+// objectRooted says whether a JSON schema asks for an object at its root:
+// type object, properties without a type, or no schema at all.
+func objectRooted(schema json.RawMessage) bool {
+	if len(schema) == 0 {
+		return true
+	}
+	var root map[string]json.RawMessage
+	if json.Unmarshal(schema, &root) != nil {
+		return false
+	}
+	raw, typed := root["type"]
+	if !typed {
+		_, hasProperties := root["properties"]
+		return hasProperties
+	}
+	var name string
+	if json.Unmarshal(raw, &name) == nil {
+		return name == "object"
+	}
+	var names []string
+	if json.Unmarshal(raw, &names) == nil {
+		object := false
+		for _, name := range names {
+			switch name {
+			case "object":
+				object = true
+			case "null":
+			default:
+				return false
+			}
+		}
+		return object
+	}
+	return false
 }
 
 // schemaInstruction is the structured-output ask said in words.

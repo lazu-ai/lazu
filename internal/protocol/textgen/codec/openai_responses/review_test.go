@@ -1,6 +1,7 @@
 package openai_responses
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -289,5 +290,68 @@ func TestDecoderKeepsCallsInPlace(t *testing.T) {
 		if kinds[i] != want[i] {
 			t.Fatalf("kinds: %v", kinds)
 		}
+	}
+}
+
+// A degraded native Responses request is the client's own with only the
+// degradation applied: hosted tools and the rest of text stay.
+func TestApplyDegradedKeepsTheClientsResponsesFields(t *testing.T) {
+	semantic, wire, err := Decode([]byte(`{"model":"m","instructions":"be brief","input":"hi","tools":[{"type":"web_search"}],"text":{"verbosity":"low","format":{"type":"json_schema","name":"t","schema":{"type":"object"}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	degraded, issues := textgen.Degrade(textgen.CapabilitySnapshot{Dialect: "openai", Features: textgen.FeatureSet(1)<<textgen.FeatureEndpointResponses | textgen.FeatureSet(1)<<textgen.FeatureJSONOutput, Denied: textgen.FeatureSet(1) << textgen.FeatureJSONSchema}, semantic)
+	if len(issues) != 1 {
+		t.Fatalf("issues: %+v", issues)
+	}
+	out, err := ApplyDegraded(wire, degraded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(out)
+	got := string(body)
+	if !strings.Contains(got, `"web_search"`) || !strings.Contains(got, `"verbosity":"low"`) || !strings.Contains(got, `"format":{"type":"json_object"}`) || !strings.Contains(got, `be brief\n\nRespond with a single JSON value`) {
+		t.Fatalf("body: %s", got)
+	}
+}
+
+// A sealed reasoning item with no deltas is announced in progress, then
+// done as the upstream wrote it.
+func TestSealedOnlyReasoningIsAnnouncedInProgress(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m", nil)
+	sealed := json.RawMessage(`{"type":"reasoning","id":"rs_1","status":"completed","summary":[],"encrypted_content":"abc"}`)
+	payloads, err := emitter.Emit(textgen.Event{Kind: textgen.EventReasoningSealed, SealedBy: SealedBy, Sealed: sealed, ItemID: "rs_1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var added, done map[string]any
+	for _, payload := range payloads {
+		switch payload["type"] {
+		case "response.output_item.added":
+			added = payload["item"].(map[string]any)
+		case "response.output_item.done":
+			done = payload
+		}
+	}
+	if added == nil || added["status"] != "in_progress" || done == nil {
+		t.Fatalf("payloads: %+v", payloads)
+	}
+}
+
+// Content-block instructions ending in newlines get only the degradation's
+// text as a new block, not the whole instruction again.
+func TestApplyDegradedAppendsOnlyTheExtension(t *testing.T) {
+	semantic, wire, err := Decode([]byte(`{"model":"m","instructions":[{"type":"input_text","text":"be brief\n\n\n"}],"input":"hi","text":{"format":{"type":"json_schema","name":"t","schema":{"type":"object"}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	degraded, _ := textgen.Degrade(textgen.CapabilitySnapshot{Dialect: "openai", Features: textgen.FeatureSet(1)<<textgen.FeatureEndpointResponses | textgen.FeatureSet(1)<<textgen.FeatureJSONOutput, Denied: textgen.FeatureSet(1) << textgen.FeatureJSONSchema}, semantic)
+	out, err := ApplyDegraded(wire, degraded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var blocks []map[string]any
+	if err := json.Unmarshal(out.Instructions, &blocks); err != nil || len(blocks) != 2 || strings.Contains(blocks[1]["text"].(string), "be brief") {
+		t.Fatalf("instructions: %s", out.Instructions)
 	}
 }

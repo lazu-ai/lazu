@@ -63,3 +63,27 @@ func TestStreamDecoderTurnsAnErrorChunkIntoAnError(t *testing.T) {
 		t.Fatalf("events: %+v", events)
 	}
 }
+
+// An id and name first given on the done event are written even when the
+// arguments it restates are not.
+func TestChatEmitterWritesMetadataFromTheDoneEvent(t *testing.T) {
+	emitter := NewStreamEmitter("id", "m")
+	chunks := emitter.Emit(
+		textgen.Event{Kind: textgen.EventToolStart, ToolIndex: 0},
+		textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: 0, Text: `{"q":1}`},
+		textgen.Event{Kind: textgen.EventToolDone, ToolIndex: 0, ToolCallID: "call_1", ToolName: "lookup", Text: `{"q":1}`},
+	)
+	var ids, names, args string
+	for _, chunk := range chunks {
+		for _, choice := range chunk.Choices {
+			for _, call := range choice.Delta.ToolCalls {
+				ids += call.ID
+				names += call.Function.Name
+				args += call.Function.Arguments
+			}
+		}
+	}
+	if ids != "call_1" || names != "lookup" || args != `{"q":1}` {
+		t.Fatalf("id %q name %q args %q", ids, names, args)
+	}
+}

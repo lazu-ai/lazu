@@ -102,3 +102,27 @@ func TestDegradeLeavesUnknownAndRoutableFeaturesAlone(t *testing.T) {
 		t.Fatal("a request without the feature is untouched")
 	}
 }
+
+// json_object asks for an object, so a schema with another root goes as an
+// instruction alone.
+func TestDegradeKeepsJSONObjectForObjectRootsOnly(t *testing.T) {
+	snapshot := CapabilitySnapshot{Dialect: "openai_chat_compatible", Features: FeatureSet(1)<<FeatureEndpointChat | FeatureSet(1)<<FeatureJSONOutput, Denied: FeatureSet(1) << FeatureJSONSchema}
+	for schema, want := range map[string]string{
+		`{"type":"object","properties":{}}`: "degraded:json_schema_to_json_object",
+		`{"type":"array","items":{}}`:       "degraded:json_schema_to_instruction",
+		`{"type":"string"}`:                 "degraded:json_schema_to_instruction",
+	} {
+		request := &Request{Output: OutputConstraint{Type: "json_schema", Schema: []byte(schema)}}
+		_, issues := Degrade(snapshot, request)
+		if len(issues) != 1 || issues[0].Message != want {
+			t.Fatalf("%s: %+v", schema, issues)
+		}
+	}
+}
+
+// A type list without object is not an object root.
+func TestObjectRootedNeedsAnObjectMember(t *testing.T) {
+	if objectRooted([]byte(`{"type":["null"]}`)) || !objectRooted([]byte(`{"type":["object","null"]}`)) {
+		t.Fatal("a type list is an object root only with object in it")
+	}
+}
