@@ -95,6 +95,7 @@ func messagesBridgeContext(t *testing.T, family textgen.ProtocolFamily, path str
 		t.Fatalf("expected a Messages bridge, got %+v", attempt.Plan)
 	}
 	info := &relaycommon.RelayInfo{
+		IsStream:        gjson.GetBytes(raw, "stream").Bool(),
 		Request:         parsed.Wire,
 		OriginModelName: "claude-haiku-5-5",
 		ProtocolRequest: attempt.Request,
@@ -127,7 +128,7 @@ func TestTextHelperBridgesAChatClientToMessages(t *testing.T) {
 		"metadata.user_id":                "operator",
 		"max_tokens":                      "1280", // raised to the thinking minimum beside the budget
 		"stream":                          "true",
-		"temperature":                     "0.2", // the operator's override, as written
+		"temperature":                     "1", // the override applies, then thinking's constraint holds
 		"thinking.type":                   "enabled",
 	} {
 		if got := gjson.GetBytes(body, path).String(); got != want {

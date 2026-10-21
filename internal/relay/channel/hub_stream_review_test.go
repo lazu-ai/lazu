@@ -50,6 +50,8 @@ func scripted(data string) ([]textgen.Event, error) {
 	switch data {
 	case "start":
 		return []textgen.Event{{Kind: textgen.EventStart}}, nil
+	case "reasoning-start":
+		return []textgen.Event{{Kind: textgen.EventReasoningStart, ItemID: "rs_1"}}, nil
 	case "text":
 		return []textgen.Event{{Kind: textgen.EventText, Text: "hello"}}, nil
 	case "stop":
@@ -166,5 +168,14 @@ func TestRunHubStreamGivesTheClientItsUsage(t *testing.T) {
 	}
 	if usage.PromptTokens != 12 || client.finished == nil || client.finished.PromptTokens != 112 {
 		t.Fatalf("settled %+v, shown %+v", usage, client.finished)
+	}
+}
+
+// A reasoning item's boundary is not output: a failure right after it is
+// still a retryable failure before any output.
+func TestRunHubStreamHoldsAReasoningBoundary(t *testing.T) {
+	_, _, _, err := runScripted(t, HubStream{}, &fakeClient{}, "start", "reasoning-start", "failed")
+	if err == nil || types.IsSkipRetryError(err) {
+		t.Fatalf("a failure after a reasoning boundary must stay retryable: %v", err)
 	}
 }

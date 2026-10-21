@@ -2,6 +2,7 @@ package anthropic_messages
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
@@ -189,5 +190,76 @@ func TestTextAfterAToolCallStaysInTheChatTurn(t *testing.T) {
 	}
 	if roles != "user,assistant,tool," || wire.Messages[1].StringContent() != "checking" || len(wire.Messages[1].ParseToolCalls()) != 1 {
 		t.Fatalf("roles %s, assistant %+v", roles, wire.Messages[1])
+	}
+}
+
+// The format's description becomes the schema's own; an empty cached
+// instruction keeps its marker on a placeholder.
+func TestEncodeKeepsSchemaDescriptionAndEmptyCachedInstruction(t *testing.T) {
+	request := &textgen.Request{
+		Instructions: []textgen.Instruction{{Role: "system", Text: "", CacheControl: json.RawMessage(`{"type":"ephemeral"}`)}},
+		Conversation: []textgen.InputItem{{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "q"}}}},
+		Output:       textgen.OutputConstraint{Type: "json_schema", Description: "a post title", Schema: json.RawMessage(`{"type":"object"}`)},
+	}
+	out, err := Encode(request, EncodeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out.OutputConfig), `"description":"a post title"`) {
+		t.Fatalf("output_config: %s", out.OutputConfig)
+	}
+	system, _ := json.Marshal(out.System)
+	if !strings.Contains(string(system), `"cache_control"`) {
+		t.Fatalf("system: %s", system)
+	}
+}
+
+// A refused whole reply's text is the refusal.
+func TestDecodeMessageTypesARefusal(t *testing.T) {
+	events, err := DecodeMessage([]byte(`{"id":"msg_1","model":"m","content":[{"type":"text","text":"I can't help with that."}],"stop_reason":"refusal"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range events {
+		if event.Kind == textgen.EventText {
+			t.Fatalf("refusal text decoded as text: %+v", events)
+		}
+	}
+}
+
+// A call named before its id arrives waits for the id: a tool_use block's
+// identity is written once.
+func TestEmitterWaitsForALateToolID(t *testing.T) {
+	emitter := NewStreamEmitter("msg_1", "m")
+	var frames []Frame
+	frames = append(frames, emitter.Emit(
+		textgen.Event{Kind: textgen.EventStart},
+		textgen.Event{Kind: textgen.EventToolStart, ToolIndex: 0, ToolName: "Read"},
+		textgen.Event{Kind: textgen.EventToolArguments, ToolIndex: 0, ToolCallID: "call_late", Text: `{"path":"a"}`},
+		textgen.Event{Kind: textgen.EventToolDone, ToolIndex: 0},
+	)...)
+	for _, frame := range frames {
+		if frame.Event == "content_block_start" {
+			body, _ := json.Marshal(frame.Data)
+			if !strings.Contains(string(body), `"id":"call_late"`) {
+				t.Fatalf("tool_use opened without the upstream's id: %s", body)
+			}
+			return
+		}
+	}
+	t.Fatal("no tool_use block")
+}
+
+// Arguments that are not a JSON object are not rewritten into an empty
+// input.
+func TestRenderRefusesNonObjectToolArguments(t *testing.T) {
+	var col textgen.Collector
+	col.Add(
+		textgen.Event{Kind: textgen.EventToolStart, ToolIndex: 0, ToolCallID: "c", ToolName: "f"},
+		textgen.Event{Kind: textgen.EventToolDone, ToolIndex: 0, Text: `{"cut":`},
+		textgen.Event{Kind: textgen.EventStop, Stop: textgen.StopLength},
+	)
+	if _, err := Render(col.Result(), "m"); err == nil {
+		t.Fatal("malformed arguments must not render as a tool call")
 	}
 }

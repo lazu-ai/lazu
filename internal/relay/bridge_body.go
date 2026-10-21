@@ -2,6 +2,8 @@ package relay
 
 import (
 	"fmt"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -107,6 +109,9 @@ func BridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Bas
 		if err != nil {
 			return nil, true, types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
 		}
+		if jsonData, lazuErr = afterRawOverride(info, jsonData); lazuErr != nil {
+			return nil, true, lazuErr
+		}
 	}
 	// wire dialect patch: vendor quirks on the compiled body, once per
 	// attempt, after the override (internal/relay/wirepatch)
@@ -118,4 +123,33 @@ func BridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Bas
 // wire's (textgenruntime.OverrideIsUpstreamWire).
 func crossFamily(info *relaycommon.RelayInfo) bool {
 	return (info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolAnthropic) != (info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolAnthropic)
+}
+
+// afterRawOverride holds what the plan decided against a channel's raw
+// override: the transport stays the client's (the response handler was
+// chosen by it), a Messages body keeps the thinking constraints, and a
+// Responses body stays stateless, with the hosted tools it now carries
+// known to billing.
+func afterRawOverride(info *relaycommon.RelayInfo, body []byte) ([]byte, *types.LazuError) {
+	if stream := gjson.GetBytes(body, "stream"); stream.Exists() && stream.Bool() != info.IsStream {
+		body, _ = sjson.SetBytes(body, "stream", info.IsStream)
+	}
+	switch info.ProtocolPlan.UpstreamProtocol.Family {
+	case textgen.ProtocolAnthropic:
+		body = claudechannel.ReassertThinkingConstraints(body)
+	case textgen.ProtocolOpenAIResponses:
+		for _, field := range []string{"previous_response_id", "conversation"} {
+			if gjson.GetBytes(body, field).Exists() {
+				return nil, types.NewError(fmt.Errorf("param_override sets %s, which a stateless protocol bridge cannot send", field), types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
+			}
+		}
+		if gjson.GetBytes(body, "store").Bool() {
+			return nil, types.NewError(fmt.Errorf("param_override sets store=true, which a stateless protocol bridge cannot send"), types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
+		}
+		var final dto.OpenAIResponsesRequest
+		if common.Unmarshal(body, &final) == nil {
+			relaycommon.PopulateResponsesUsageInfo(info, &final)
+		}
+	}
+	return body, nil
 }

@@ -74,7 +74,7 @@ func Encode(request *textgen.Request, opts EncodeOptions) (*dto.ClaudeRequest, e
 		}
 	}
 	if request.Output.Type == "json_schema" && len(request.Output.Schema) > 0 {
-		format, _ := json.Marshal(map[string]any{"format": map[string]any{"type": "json_schema", "schema": json.RawMessage(request.Output.Schema)}})
+		format, _ := json.Marshal(map[string]any{"format": map[string]any{"type": "json_schema", "schema": schemaWithDescription(request.Output)}})
 		out.OutputConfig = format
 	}
 	effort := strings.ToLower(strings.TrimSpace(request.Reasoning.Effort))
@@ -136,16 +136,44 @@ func stopSequences(raw json.RawMessage) []string {
 	return nil
 }
 
+// schemaWithDescription is the output schema with the format's
+// description, which Messages' format has no field for, as the schema's
+// own root description (the same model-facing guidance) unless the
+// schema already has one.
+func schemaWithDescription(output textgen.OutputConstraint) json.RawMessage {
+	if strings.TrimSpace(output.Description) == "" {
+		return output.Schema
+	}
+	var root map[string]json.RawMessage
+	if json.Unmarshal(output.Schema, &root) != nil || root == nil {
+		return output.Schema
+	}
+	if _, has := root["description"]; has {
+		return output.Schema
+	}
+	root["description"], _ = json.Marshal(output.Description)
+	merged, err := json.Marshal(root)
+	if err != nil {
+		return output.Schema
+	}
+	return merged
+}
+
 // encodeSystem is the instructions as the system prompt: one text block
 // each, in order, empty ones left out. Chat's developer role is a system
 // role to Messages, which has one.
 func encodeSystem(instructions []textgen.Instruction) []dto.ClaudeMediaMessage {
 	var out []dto.ClaudeMediaMessage
 	for _, instruction := range instructions {
-		if strings.TrimSpace(instruction.Text) == "" {
-			continue
-		}
 		text := instruction.Text
+		if strings.TrimSpace(text) == "" {
+			if len(instruction.CacheControl) == 0 {
+				continue
+			}
+			// an empty instruction that marks a cache breakpoint: the
+			// marker rides on a placeholder, as in the conversation
+			text = placeholderText
+		}
 		out = append(out, dto.ClaudeMediaMessage{Type: "text", Text: &text, CacheControl: instruction.CacheControl})
 	}
 	return out
@@ -425,6 +453,11 @@ func DecodeMessage(body []byte) ([]textgen.Event, error) {
 		return []textgen.Event{{Kind: textgen.EventError, Error: &textgen.SemanticError{Type: message.Error.Type, Code: "upstream_error", Message: message.Error.Message}}}, nil
 	}
 	events := []textgen.Event{{Kind: textgen.EventStart, ResponseID: message.ID, Model: message.Model}}
+	// a refused reply's text is the refusal, typed as one
+	textKind := textgen.EventText
+	if strings.EqualFold(strings.TrimSpace(message.StopReason), "refusal") {
+		textKind = textgen.EventRefusal
+	}
 	for index, raw := range message.Content {
 		var block contentBlock
 		if err := json.Unmarshal(raw, &block); err != nil {
@@ -433,7 +466,7 @@ func DecodeMessage(body []byte) ([]textgen.Event, error) {
 		switch block.Type {
 		case "text":
 			if block.Text != "" {
-				events = append(events, textgen.Event{Kind: textgen.EventText, Text: block.Text})
+				events = append(events, textgen.Event{Kind: textKind, Text: block.Text})
 			}
 		case "thinking":
 			events = append(events, textgen.Event{Kind: textgen.EventReasoningStart})
@@ -454,11 +487,15 @@ func DecodeMessage(body []byte) ([]textgen.Event, error) {
 			}
 		}
 	}
-	if message.StopReason != "" {
-		events = append(events, textgen.Event{Kind: textgen.EventStop, Stop: StopReasonOf(message.StopReason)})
-	}
 	if usage := UsageOf(message.Usage); usage != nil {
 		events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: usage})
+	}
+	if strings.EqualFold(strings.TrimSpace(message.StopReason), "pause_turn") {
+		// as on the stream: a paused server-tool turn is not a reply
+		return append(events, textgen.Event{Kind: textgen.EventError, Error: &textgen.SemanticError{Type: "api_error", Code: "pause_turn", Message: "the upstream paused a server-tool turn (pause_turn), which this client protocol cannot continue"}}), nil
+	}
+	if message.StopReason != "" {
+		events = append(events, textgen.Event{Kind: textgen.EventStop, Stop: StopReasonOf(message.StopReason)})
 	}
 	return events, nil
 }

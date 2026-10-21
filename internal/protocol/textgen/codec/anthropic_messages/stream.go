@@ -83,11 +83,13 @@ func (d *StreamDecoder) Decode(data string) ([]textgen.Event, error) {
 		}
 		// the assistant's turn begins here, so an empty reply is still an
 		// (empty) assistant message
-		events := []textgen.Event{{Kind: textgen.EventStart, ResponseID: ev.Message.ID, Model: ev.Message.Model}, {Kind: textgen.EventTurn, Role: "assistant"}}
+		// the usage first: an emitter writes its own start on EventStart,
+		// with the input and cache counts it has by then
+		var events []textgen.Event
 		if usage := UsageOf(ev.Message.Usage); usage != nil {
 			events = append(events, textgen.Event{Kind: textgen.EventUsage, Usage: usage})
 		}
-		return events, nil
+		return append(events, textgen.Event{Kind: textgen.EventStart, ResponseID: ev.Message.ID, Model: ev.Message.Model}, textgen.Event{Kind: textgen.EventTurn, Role: "assistant"}), nil
 	case "content_block_start":
 		var block contentBlock
 		if err := json.Unmarshal(ev.ContentBlock, &block); err != nil {

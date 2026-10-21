@@ -126,13 +126,11 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStre
 				continue
 			}
 			text := event.Text
-			if event.Kind == textgen.EventToolDone {
+			if event.Kind == textgen.EventToolDone && e.argsSeen(event.ToolIndex) {
 				// the upstream restated the whole arguments: only a call that
-				// streamed none needs them
-				if text == "" || e.argsSeen(event.ToolIndex) {
-					e.col.Add(event)
-					continue
-				}
+				// streamed none needs them, but an id or name first given
+				// here is still written
+				text = ""
 			}
 			id, name := event.ToolCallID, event.ToolName
 			named := e.named[event.ToolIndex]

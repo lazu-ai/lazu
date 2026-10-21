@@ -596,3 +596,38 @@ func TestPrepareAttemptTurnsReasoningOffForAClaudeClientsChatTools(t *testing.T)
 		t.Fatal("the client's request must stay as sent")
 	}
 }
+
+// Reasoning a Claude client asked for by name is not dropped where the
+// channel has Responses, which takes tools and reasoning together.
+func TestPrepareAttemptKeepsExplicitClaudeReasoningOnResponses(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_claude_gpt6_responses?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"gpt-6-luna","max_tokens":100,"thinking":{"type":"adaptive"},"output_config":{"effort":"high"},"tools":[{"name":"Read","input_schema":{"type":"object"}}],"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	openai := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai"}`}
+	attempt, err := PrepareAttempt(parsed, openai, "gpt-6-luna")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempt.Plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIResponses {
+		t.Fatalf("expected Responses, got %+v", attempt.Plan.UpstreamProtocol)
+	}
+	if attempt.Request.Reasoning.Effort == "none" {
+		t.Fatalf("the asked reasoning was dropped: %+v", attempt.Request.Reasoning)
+	}
+}

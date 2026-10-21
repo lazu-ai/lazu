@@ -34,8 +34,12 @@ func collect(events []textgen.Event) textgen.Result {
 
 func TestDecodeRecordedText(t *testing.T) {
 	events := decodeRecording(t, "anthropic/text.sse")
-	if events[0].Kind != textgen.EventStart || events[0].Model != "claude-haiku-5-5" || !strings.HasPrefix(events[0].ResponseID, "msg_") {
-		t.Fatalf("expected a start event naming message and model, got %+v", events[0])
+	// message_start's usage comes first, so an emitter's start has it
+	if events[0].Kind != textgen.EventUsage || events[0].Usage.PromptTokens == 0 {
+		t.Fatalf("expected the input usage before the start, got %+v", events[0])
+	}
+	if events[1].Kind != textgen.EventStart || events[1].Model != "claude-haiku-5-5" || !strings.HasPrefix(events[1].ResponseID, "msg_") {
+		t.Fatalf("expected a start event naming message and model, got %+v", events[1])
 	}
 	result := collect(events)
 	if len(result.Parts) != 1 || result.Parts[0].Kind != textgen.PartText || result.Parts[0].Text == "" {
@@ -247,7 +251,10 @@ func TestRecordedDeepSeekChatToClaudeClient(t *testing.T) {
 
 func TestRenderWholeMessage(t *testing.T) {
 	result := collect(decodeRecording(t, "anthropic/tool_call.sse"))
-	message := Render(result, "m")
+	message, err := Render(result, "m")
+	if err != nil {
+		t.Fatal(err)
+	}
 	content := message["content"].([]any)
 	if message["stop_reason"] != "tool_use" || len(content) != 1 || content[0].(map[string]any)["type"] != "tool_use" {
 		t.Fatalf("rendered message wrong: %+v", message)

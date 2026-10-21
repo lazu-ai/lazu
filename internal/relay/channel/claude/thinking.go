@@ -356,3 +356,28 @@ func PrepareNativeThinking(request *dto.ClaudeRequest, resolve PolicyResolver) {
 	EnsureThinkingConstraints(request)
 	FitThinkingBudget(request, policy)
 }
+
+// ReassertThinkingConstraints is EnsureThinkingConstraints on an encoded
+// Messages body, for a body patched after it was built (a channel's raw
+// param_override): with budget thinking on, temperature is 1, top_p is
+// left out, and max_tokens covers the budget.
+func ReassertThinkingConstraints(body []byte) []byte {
+	if gjson.GetBytes(body, "thinking.type").String() != "enabled" {
+		return body
+	}
+	if temperature := gjson.GetBytes(body, "temperature"); temperature.Exists() && temperature.Float() != 1 {
+		body, _ = sjson.SetBytes(body, "temperature", 1.0)
+	}
+	if gjson.GetBytes(body, "top_p").Exists() {
+		body, _ = sjson.DeleteBytes(body, "top_p")
+	}
+	maxTokens := gjson.GetBytes(body, "max_tokens").Int()
+	floor := int64(ThinkingMinMaxTokens)
+	if budget := gjson.GetBytes(body, "thinking.budget_tokens").Int(); budget > floor {
+		floor = budget
+	}
+	if maxTokens < floor {
+		body, _ = sjson.SetBytes(body, "max_tokens", floor)
+	}
+	return body
+}

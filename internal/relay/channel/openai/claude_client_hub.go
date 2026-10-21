@@ -96,9 +96,17 @@ func semanticErrorOf(upstream *types.OpenAIError) *textgen.SemanticError {
 // reply to a Claude client (channel.RunHubStream).
 func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
 	decode, unreleased := decoderFor(info)
+	var observe func(*gin.Context, *relaycommon.RelayInfo, string, []textgen.Event)
+	if info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIResponses {
+		// hosted tool calls and image generation, which billing reads
+		observe = func(c *gin.Context, info *relaycommon.RelayInfo, data string, _ []textgen.Event) {
+			observeResponsesStreamEvent(c, info, data)
+		}
+	}
 	return channel.RunHubStream(c, resp, info, channel.HubStream{
 		Decode:     decode,
 		Unreleased: unreleased,
+		Observe:    observe,
 		// a Chat upstream's usage chunk comes after its finish
 		ReadPastStop: info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat,
 	}, channel.HubClientFor(c, info))
@@ -143,7 +151,13 @@ func ClaudeClientHandler(c *gin.Context, resp *http.Response, info *relaycommon.
 	}
 	usage := channel.SettleHubUsage(c, info, result)
 	result.Usage = usage
-	data, err := json.Marshal(anthropic_messages.Render(result, info.UpstreamModelName))
+	rendered, err := anthropic_messages.Render(result, info.UpstreamModelName)
+	if err != nil {
+		// arguments a Messages client cannot take as tool input: the
+		// upstream's reply is unusable, and nothing reached the client
+		return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+	}
+	data, err := json.Marshal(rendered)
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 	}

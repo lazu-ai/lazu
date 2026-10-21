@@ -3,6 +3,7 @@ package anthropic_messages
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -88,7 +89,7 @@ func (e *StreamEmitter) openToolBlock(index int, id, name, args string) []Frame 
 // openNamed opens the first held call once it is named, when no tool block
 // is open: the call that was waiting only for its name streams on.
 func (e *StreamEmitter) openNamed() []Frame {
-	if e.open == blockTool || len(e.pending) == 0 || e.pending[0].name == "" {
+	if e.open == blockTool || len(e.pending) == 0 || e.pending[0].name == "" || e.pending[0].id == "" {
 		return nil
 	}
 	next := e.pending[0]
@@ -281,10 +282,11 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 			if e.pendingAt(event.ToolIndex) != nil {
 				break
 			}
-			if e.open == blockTool || event.ToolName == "" {
-				// another call is open, or this one is not named yet (a Chat
-				// upstream may name it on a later fragment): held, since a
-				// tool_use block's id and name are written once, at its start
+			if e.open == blockTool || event.ToolName == "" || event.ToolCallID == "" {
+				// another call is open, or this one has no name or id yet (a
+				// Chat upstream may send them on a later fragment): held,
+				// since a tool_use block's id and name are written once, at
+				// its start
 				e.pending = append(e.pending, &pendingTool{index: event.ToolIndex, id: event.ToolCallID, name: event.ToolName})
 				break
 			}
@@ -427,7 +429,7 @@ func usageTo(usage *dto.Usage) map[string]any {
 
 // Render is the whole reply as a Messages response object, for a
 // non-streaming Claude client.
-func Render(result textgen.Result, model string) map[string]any {
+func Render(result textgen.Result, model string) (map[string]any, error) {
 	if result.Model != "" {
 		model = result.Model
 	}
@@ -457,11 +459,12 @@ func Render(result textgen.Result, model string) map[string]any {
 				content = append(content, block)
 			}
 		case textgen.PartTool:
-			var input any = map[string]any{}
+			// tool_use input is a JSON object; arguments that are not one
+			// (cut off, or a scalar) are not rewritten into one
+			input := map[string]any{}
 			if strings.TrimSpace(part.Text) != "" {
-				var parsed any
-				if json.Unmarshal([]byte(part.Text), &parsed) == nil {
-					input = parsed
+				if err := json.Unmarshal([]byte(part.Text), &input); err != nil || input == nil {
+					return nil, fmt.Errorf("tool call %q: the upstream's arguments are not a JSON object", part.Name)
 				}
 			}
 			content = append(content, map[string]any{"type": "tool_use", "id": toolUseID(part.CallID, part.ToolIndex), "name": part.Name, "input": input})
@@ -470,5 +473,5 @@ func Render(result textgen.Result, model string) map[string]any {
 	return map[string]any{
 		"id": MessageID(result.ResponseID), "type": "message", "role": "assistant", "model": model, "content": content,
 		"stop_reason": StopReasonTo(result.Stop), "stop_sequence": nil, "usage": usageTo(result.Usage),
-	}
+	}, nil
 }
