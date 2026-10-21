@@ -26,6 +26,7 @@ import (
 	"github.com/lazu-ai/lazu/packages/domain/providercap"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 type Adaptor struct {
@@ -279,7 +280,27 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 		request.ReasoningEffort = "none"
 	}
 
+	if request.Temperature != nil || request.TopP != nil {
+		effort := request.ReasoningEffort
+		if effort == "" && len(request.Reasoning) > 0 {
+			effort = gjson.GetBytes(request.Reasoning, "effort").Str
+		}
+		dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP)
+	}
+
 	return request, nil
+}
+
+// dropSampling clears the refused fields of a typed request.
+func dropSampling(refused []string, temperature, topP **float64) {
+	for _, field := range refused {
+		switch field {
+		case "temperature":
+			*temperature = nil
+		case "top_p":
+			*topP = nil
+		}
+	}
 }
 
 // chatToolsNeedReasoningOff mirrors the semantic attempt's rule on the native
@@ -516,6 +537,13 @@ func detectImageMimeType(filename string) string {
 func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.OpenAIResponsesRequest) (any, error) {
 	if request.Reasoning != nil {
 		info.ReasoningEffort = request.Reasoning.Effort
+	}
+	if request.Temperature != nil || request.TopP != nil {
+		effort := ""
+		if request.Reasoning != nil {
+			effort = request.Reasoning.Effort
+		}
+		dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP)
 	}
 	return request, nil
 }

@@ -78,6 +78,15 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 			}
 		}
 	}
+	if gjson.GetBytes(body, "temperature").Exists() || gjson.GetBytes(body, "top_p").Exists() {
+		effort := gjson.GetBytes(body, "reasoning_effort").Str
+		if effort == "" {
+			effort = gjson.GetBytes(body, "reasoning.effort").Str
+		}
+		for _, field := range samplingRefusedWhileReasoning(info, effort) {
+			del(field)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
