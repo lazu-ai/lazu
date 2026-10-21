@@ -1,7 +1,7 @@
 # Paper States — 系统状态面
 
 > **Locked:** 2026-09-01 · **整页修订:** 2026-09-29
-> **Approved exploration:** 整页 = `lazu-ops:brand/explorations/error-pages-2026-09-a/index.html`（方向 A，衬线大数字）；卡片 = `lazu-ops:brand/explorations/error-pages-2026-09/index.html`
+> **Approved exploration:** 整页 = `archive:brand/explorations/error-pages-2026-09-a/index.html`（方向 A，衬线大数字）；卡片 = `archive:brand/explorations/error-pages-2026-09/index.html`
 > **Decision:** 整页 = **状态标记 + 一句话**（2026-09-29 取代折角 / 封条 / 撕边）；可操作空态 = **虚线位**（Empty 1）；无操作空态 = **纯文字**；行内错误 = **断线**（Error 1）；加载 = **发丝线小圈**
 > **Inherits:** `yunmu-console.md`（纸面、地面、墨/纸反转）、`color-system.md`（语义色只表达状态、只用小面积）
 > **Supersedes:** `feedback-system.md` 中关于「错误空态图标框」的条款，见 §5

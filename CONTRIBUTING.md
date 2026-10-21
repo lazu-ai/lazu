@@ -62,7 +62,7 @@ lazu 的默认配置面要保持克制。默认 Compose 文件和公开部署文
 ### Brand 单一来源
 
 - `brand/` 是唯一设计与产品 UI 参考。正式约束只来自 `brand/BRAND.md`、`brand/foundations/*.md` 与 `brand/tokens/*`。
-- 设计探索（`lazu-ops:brand/explorations/`，存放在私有运维仓，不在本仓库）仅保存选择历史；除非正式 foundation 明确引用已选方案，否则不得直接照搬到生产代码。
+- 设计探索（`archive:brand/explorations/`，不在本仓库）仅保存选择历史；除非正式 foundation 明确引用已选方案，否则不得直接照搬到生产代码。
 - `apps/web/src/components/ui/` 是 Brand 组件语言的 React 实现。页面组合 `Lazu UI`，不能自行定义第二套颜色、字体、圆角、阴影、动效或控件系统。
 - 迁移期允许从 Brand token 生成兼容 alias，但 canonical value 必须单向来自 `brand/tokens/*`，不得由 `apps/web` 反向覆盖。
 - Base UI 只提供无样式的可访问性、交互和状态机制，不是视觉规范。`@base-ui/react` 只能由 `apps/web/src/components/ui/` 导入，页面不得直接依赖 primitive。
@@ -78,7 +78,7 @@ lazu 的默认配置面要保持克制。默认 Compose 文件和公开部署文
 | 官网、营销页、文档呈现       | `brand/foundations/public-web-system.md`                                                     | 保持公共阅读节奏和单一主行动                           |
 | Console、网关运营与数据界面  | `brand/foundations/gateway-product-system.md`                                                | 优先事实、影响和下一步行动                             |
 
-`lazu-ops:brand/explorations/` 只能用于理解选择历史，不能作为生产实现依据。示例库（包括 Base UI、Animate UI 或 shadcn）只可借鉴交互结构；颜色、字体、圆角、阴影、密度和动效仍由 Lazu Brand 决定。
+`archive:brand/explorations/` 只能用于理解选择历史，不能作为生产实现依据。示例库（包括 Base UI、Animate UI 或 shadcn）只可借鉴交互结构；颜色、字体、圆角、阴影、密度和动效仍由 Lazu Brand 决定。
 
 - 不 import `@douyinfe/semi-*` 或 `antd`。需要 UI 基础件时从 `apps/web/src/components/ui` 取。
 - 不写 `any`，不加 `@ts-ignore`。类型不清楚时先补类型边界或收窄输入。

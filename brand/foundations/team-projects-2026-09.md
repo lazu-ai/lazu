@@ -4,11 +4,11 @@ Status: **LOCKED by user approval on 2026-09-10**, including the contract-review
 amendments and the 2026-09-10 revision below. This document selects the
 "团队管理" milestone deferred by
 PR #217 and supersedes the role model and backend backlog in
-`lazu-ops:brand/explorations/team-console-2026-09/index.html`. Within this milestone it
+`archive:brand/explorations/team-console-2026-09/index.html`. Within this milestone it
 also refines older foundations' customer-Key access and member-detail rules.
-The selected artboards live in `lazu-ops:brand/explorations/team-workspace-2026-09/`
+The selected artboards live in `archive:brand/explorations/team-workspace-2026-09/`
 (build with `python3 build.py`) and on
-`lazu-ops:brand/canvases.md`.
+`archive:brand/canvases.md`.
 If an artboard conflicts with this amended foundation, this foundation wins;
 update its affected states during frontend implementation.
 
@@ -266,8 +266,8 @@ contracts.
 ## Reasoning-effort cap and team refinement (2026-09-28)
 
 Approved by the owner on the canvas
-`lazu-ops:brand/canvases.md` (sources:
-`lazu-ops:brand/explorations/thinking-depth-2026-09/`, `python3 build.py`). Direction
+`archive:brand/canvases.md` (sources:
+`archive:brand/explorations/thinking-depth-2026-09/`, `python3 build.py`). Direction
 **A · 刻度**, drawn as **A2 「填线」**; the other directions (B 深度条, C 三档,
 D 按供应商, A1 分段, A3 下拉) are decision history only.
 
@@ -341,7 +341,7 @@ in project settings' 新成员默认 card.
 ## Invitation funnel and budget notices (2026-10-14)
 
 Approved by the owner on the canvas
-`lazu-ops:brand/canvases.md` after a production check
+`archive:brand/canvases.md` after a production check
 found two shared projects out of 198 and an invitation that expired unanswered.
 
 **Invitations.**

@@ -2,9 +2,9 @@
 
 Status: LOCKED by user approval on 2026-09-09.
 
-Source: `lazu-ops:brand/explorations/ui-audit-2026-09/` found twelve pages "小修即可".
-`lazu-ops:brand/explorations/ui-audit-fixes-2026-09/` grouped them into six root causes and
-put four options against each; `lazu-ops:brand/explorations/team-console-2026-09/` drew the
+Source: `archive:brand/explorations/ui-audit-2026-09/` found twelve pages "小修即可".
+`archive:brand/explorations/ui-audit-fixes-2026-09/` grouped them into six root causes and
+put four options against each; `archive:brand/explorations/team-console-2026-09/` drew the
 selected pages at full size with their interaction states. The user selected one
 option per group. This document is the production authority for those six; the
 explorations remain decision history.

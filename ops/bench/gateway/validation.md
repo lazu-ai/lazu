@@ -2,7 +2,7 @@
 
 ## PR #380 独立审查修复（基于 `8fabcef45`）
 
-本轮修复用户确认的 17 项意见及 Redis/PostgreSQL CI 覆盖。逐条契约与测试名称见方案 B17.11（`lazu-ops:docs/plans/2026-10-03-gateway-performance-and-data-layer.md`）。本轮只使用隔离本地 PostgreSQL 16、Redis 7、合成历史数据与离线部署 mock（原有自启 Unix socket Redis helper 使用 Mac 宿主机的 redis-server），没有合并或部署；下面的 Linux 性能数字属于各自历史冻结源码，本轮没有重新发压，不能宣称修复后的源码仍获得同源 11/11。
+本轮修复用户确认的 17 项意见及 Redis/PostgreSQL CI 覆盖。逐条契约与测试名称见方案 B17.11（`archive:docs/plans/2026-10-03-gateway-performance-and-data-layer.md`）。本轮只使用隔离本地 PostgreSQL 16、Redis 7、合成历史数据与离线部署 mock（原有自启 Unix socket Redis helper 使用 Mac 宿主机的 redis-server），没有合并或部署；下面的 Linux 性能数字属于各自历史冻结源码，本轮没有重新发压，不能宣称修复后的源码仍获得同源 11/11。
 
 仓库中的生产 Compose 配置现为 Redis `--maxmemory 1gb --maxmemory-policy noeviction --appendonly yes --appendfsync everysec`。独立 observer 对内存超过 70%、AOF 未启用、写入失败和重写失败发 Ops 告警；AOF 导致 Redis 无法写入去重键时，仍可通过进程内去重发送告警。1GB 为生产 4 核 / 7.9GB 主机留出 AOF 重写与 PostgreSQL 缓存空间；本轮没有执行该主机的内存压力或物理断电实验。
 
@@ -19,7 +19,7 @@ go test -p 1 -count=1 -json ./... > .local-results/pr380-review/root/go-full-fin
 python3 ops/scripts/check-native-test-coverage.py .local-results/pr380-review/root/go-full-final.jsonl
 go vet ./...
 (cd apps/web && bun run typecheck)
-python3 ops/scripts/deploy_schema_test.py   # private ops repository after the deploy switch
+python3 ops/scripts/deploy_schema_test.py   # kept outside this repository after the deploy switch
 python3 ops/scripts/check_native_test_coverage_test.py
 bash ops/scripts/check-brand-residue.sh
 ```
@@ -96,7 +96,7 @@ quality run `37213654283` / head `d042fab18` 的实际失败仅为 `TestColdConc
 
 补修源码冻结后的新鲜三库全量 `go test -p 1 -count=1 -json ./...` 已exit0：**283.302s / 52包 / 2,522顶层PASS**，native覆盖检查器确认七个相关包资金/身份/迁移 **SKIP=0**；`go vet ./...`也PASS。两个本机非资金opt-in跳过仍为供应商和CJK字体。实际原始/统计/覆盖证据为 `.local-results/pr380-review/root/go-full-deadline-final.jsonl`、`go-full-deadline-final-summary.json`、`native-coverage-deadline-final.log`及`go-vet-deadline-final.log`。本段记录本地结果，最终CI需补修提交推送后重新验收；`d042fab18` 的282.094s/2,519属于前一冻结源码。生产副本的迁移/恢复/R2/旧镜像回退仍由Claude执行。
 
-实现依据为 完整方案（`lazu-ops:docs/plans/2026-10-03-gateway-performance-and-data-layer.md`），代码基于 `0182ad9c15195c5d55fd0b79da3c7cfb9beb55a5`。A/B 全部实施范围包括请求路径、Redis 准入与可恢复结算、Core/Telemetry 双库、迁移/备份/回退工具及 Ops 观测；生产数据没有迁移，本报告不构成合并或部署批准。
+实现依据为 完整方案（`archive:docs/plans/2026-10-03-gateway-performance-and-data-layer.md`），代码基于 `0182ad9c15195c5d55fd0b79da3c7cfb9beb55a5`。A/B 全部实施范围包括请求路径、Redis 准入与可恢复结算、Core/Telemetry 双库、迁移/备份/回退工具及 Ops 观测；生产数据没有迁移，本报告不构成合并或部署批准。
 
 后台只读健康/对账已独立于财务 Drain，空 credit sequence 区间不查 SUM；局部 lifecycle/native Redis race 12.742s、真实 Core PG/native Redis race 15.889s 均通过。历史 Mac `final-awake` 对照见下文；睡眠中断的旧轮仅保留历史状态。
 

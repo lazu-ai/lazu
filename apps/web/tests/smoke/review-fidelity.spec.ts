@@ -5,9 +5,9 @@ import { expect, test } from '@playwright/test';
 import { expectRouteReady, setupMockedApp } from './helpers/mock-app';
 import { reviewPayload } from './helpers/review-fixtures';
 
-// The locked reference HTML is a design exploration kept in the private ops
-// repository (lazu-ops:brand/explorations/). Point LAZU_BRAND_REFERENCE_DIR at
-// a checkout of lazu-ops/brand to run this comparison; it skips otherwise.
+// The locked reference HTML is a design exploration kept outside this
+// repository (archive:brand/explorations/). Point LAZU_BRAND_REFERENCE_DIR at
+// a copy of that brand archive to run this comparison; it skips otherwise.
 const brand = resolve(
   process.env.LAZU_BRAND_REFERENCE_DIR ?? resolve(process.cwd(), '../../brand'),
 );
@@ -19,7 +19,7 @@ test('model operations geometry is compared against the locked HTML, not an old 
 }) => {
   test.skip(
     !existsSync(resolve(brand, referencePage)),
-    'Reference HTML lives in lazu-ops; set LAZU_BRAND_REFERENCE_DIR to run.',
+    'Reference HTML is not in this repository; set LAZU_BRAND_REFERENCE_DIR to run.',
   );
   await page.setViewportSize({ width: 1440, height: 960 });
   await setupMockedApp(page, {

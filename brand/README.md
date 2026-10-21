@@ -16,7 +16,7 @@
 - `assets/`：Logo、厂商标志及其可复现生成脚本。
 - `foundations/`：仍被当前产品引用的正式规则。
 - `tokens/`：生产代码同步使用的 canonical tokens。
-- `lazu-ops:brand/explorations/`：决策历史；只有被 `BRAND.md` 或 locked foundation 明确选中的方向可以实现。
+- `archive:brand/explorations/`：决策历史；只有被 `BRAND.md` 或 locked foundation 明确选中的方向可以实现。
 - `styles.css`：Brand specimen 的样式入口。
 - `SKILL.md`：供设计任务读取本目录的最小入口。
 

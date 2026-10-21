@@ -1,8 +1,8 @@
 # SEO surfaces and 运营 — locked 2026-09-29
 
 **Status: LOCKED**
-**Approved canvas:** `lazu-ops:brand/canvases.md` (source `lazu-ops:brand/explorations/seo-surfaces-2026-09/`)
-**Research:** `lazu-ops:docs/audits/2026-09-29-seo-geo-audit.md`
+**Approved canvas:** `archive:brand/canvases.md` (source `archive:brand/explorations/seo-surfaces-2026-09/`)
+**Research:** `archive:docs/audits/2026-09-29-seo-geo-audit.md`
 
 ## Public surfaces
 
@@ -14,7 +14,7 @@
 | /models | Maker-grouped cards, rendered by the API so prices are in the HTML; each card links to its model page | `internal/publicsite/templates/models.gohtml` |
 | Model page | **A · single column**: lede sentence with prices, facts, price table with official row and 7-day bars, capabilities, sample, questions, same family, CTA. B (workbench split) is archived | `templates/model.gohtml` |
 | Blog | Ledger list with small covers; 720 article with cover, conclusion first, `::model` / `::prices` blocks read live from the catalog | `templates/blog.gohtml`, `post.gohtml` |
-| Covers | Five layouts, picked per post in the editor and exported as the 1200×630 share PNG: 改一行 (base_url diff, default for tool guides), 价目单 (stable-lane prices read from the catalog, default for launches), 模型 ID (ids sized to fit whole, default for comparisons), 刊头 and 大印章 (any post). A layout missing its data (no models / no prices) falls back to 刊头. Prices are never rounded. Until a PNG exists the public page draws the paper / ink card | `pages/Console/Ops/BlogCover.tsx`, `templates/cover.gohtml` (fallback); canvas `lazu-ops:brand/canvases.md` |
+| Covers | Five layouts, picked per post in the editor and exported as the 1200×630 share PNG: 改一行 (base_url diff, default for tool guides), 价目单 (stable-lane prices read from the catalog, default for launches), 模型 ID (ids sized to fit whole, default for comparisons), 刊头 and 大印章 (any post). A layout missing its data (no models / no prices) falls back to 刊头. Prices are never rounded. Until a PNG exists the public page draws the paper / ink card | `pages/Console/Ops/BlogCover.tsx`, `templates/cover.gohtml` (fallback); canvas `archive:brand/canvases.md` |
 | Docs | Served at `lazu.ai/docs`; top bar gains Models; `docs.lazu.ai/*` answers 301 | `apps/docs` |
 
 The operator's legal name appears only in the footer line, /about, the legal

@@ -2,9 +2,9 @@
 
 > **Locked:** 2026-09-23 by owner approval；**2026-09-27 修订为一封邮件**（owner 选定方案 A）
 > **Selected direction:** 方案二 · 墨头 (ink masthead)
-> **Visual reference:** `lazu-ops:brand/explorations/payment-emails-2026-09/index.html`（`python3 build.py` 重建）；
-> 设计画布 `lazu-ops:brand/canvases.md`（两封版，历史）；
-> 一封版画布 `lazu-ops:brand/canvases.md`（A · 一个按钮 + 一个链接）
+> **Visual reference:** `archive:brand/explorations/payment-emails-2026-09/index.html`（`python3 build.py` 重建）；
+> 设计画布 `archive:brand/canvases.md`（两封版，历史）；
+> 一封版画布 `archive:brand/canvases.md`（A · 一个按钮 + 一个链接）
 > **Inherits:** `yunmu-console.md`（墨/纸反转、纸面）、`logo-system.md`（Seal 与字标）、
 > `team-projects-2026-09.md` § Invoices（Invoice 模式、DUBRIO LLC、账单状态互相独立）
 > **Part of:** `emails.md`（2026-09-30 邮件体系，墨头层）

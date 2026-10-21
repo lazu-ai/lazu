@@ -2,8 +2,8 @@
 
 > **Locked:** 2026-09-30 by owner approval（「全部按你建议的实现」）
 > **Selected direction:** C · 分层（墨头 · 纸面 · 运维）
-> **Visual reference:** `lazu-ops:brand/explorations/emails-2026-09/`（`python3 build.py`）；
-> 画布 `lazu-ops:brand/canvases.md`
+> **Visual reference:** `archive:brand/explorations/emails-2026-09/`（`python3 build.py`）；
+> 画布 `archive:brand/canvases.md`
 > **Inherits:** `payment-emails.md`（墨头、事实四格、深色规则；付款邮件本身不改）、`logo-system.md`、
 > `paper-states.md`（眉行是英文机器语域）
 > **Implementation:** `internal/common/mail.go` + `internal/common/email_templates/mail.html`
