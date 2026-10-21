@@ -314,8 +314,8 @@ func TestBridgedThinking_EffortNoneTurnsThinkingOffAsTheModelTakesIt(t *testing.
 		if err != nil {
 			t.Fatal(err)
 		}
-		if claudeReq.Thinking != nil || string(claudeReq.OutputConfig) != `{"effort":"low"}` {
-			t.Fatalf("Opus 5.5 takes no thinking field at effort low, got %+v %s", claudeReq.Thinking, claudeReq.OutputConfig)
+		if claudeReq.Thinking == nil || claudeReq.Thinking.Type != "adaptive" || string(claudeReq.OutputConfig) != `{"effort":"low"}` {
+			t.Fatalf("Opus 5.5 takes adaptive thinking at effort low, got %+v %s", claudeReq.Thinking, claudeReq.OutputConfig)
 		}
 	})
 }
@@ -345,8 +345,8 @@ func TestPrepareNativeThinking_OffShapeFollowsPolicy(t *testing.T) {
 		never := StaticPolicy(ModelPolicy{Reasoning: model.ModelReasoningOptions{Mode: model.ReasoningModeAdaptive, Off: model.ReasoningOffNever}, Known: true})
 		req := &dto.ClaudeRequest{Model: "claude-opus-5-5", MaxTokens: 1000, Thinking: &dto.Thinking{Type: "disabled"}}
 		PrepareNativeThinking(req, never)
-		if req.Thinking != nil || string(req.OutputConfig) != `{"effort":"low"}` {
-			t.Fatalf("Opus 5.5: thinking left out at effort low, got %+v %s", req.Thinking, req.OutputConfig)
+		if req.Thinking == nil || req.Thinking.Type != "adaptive" || string(req.OutputConfig) != `{"effort":"low"}` {
+			t.Fatalf("Opus 5.5: adaptive thinking at effort low, got %+v %s", req.Thinking, req.OutputConfig)
 		}
 		upToHigh := StaticPolicy(ModelPolicy{Reasoning: model.ModelReasoningOptions{Mode: model.ReasoningModeAdaptive, Off: model.ReasoningOffUpToHigh}, Known: true})
 		req = &dto.ClaudeRequest{Model: "claude-haiku-5-5", MaxTokens: 1000, Thinking: &dto.Thinking{Type: "disabled"}, OutputConfig: []byte(`{"effort":"max"}`)}
