@@ -57,14 +57,12 @@ const (
 	// sessions and their models.
 	// Version 15 drops the retired routing-research and inherited fork columns,
 	// adds user lifecycle timestamps, sessions and signup attribution.
-	// Version 37 runs the deepseek_dialect_v1 backfill, added to migrateDB
-	// without a version bump, so it never ran on databases already at 36.
 	// Version 14 adds blog posts, blog media and launch kits.
 	// Version 13 adds announcement publication audiences, API changes, and release versions.
 	// Version 12 records the disputed and original charge amounts for proportional reversals.
 	// Version 11 adds payment reversal and dispute hold fields. Version 10
 	// retired startup seeders, so rollback across that floor remains unsafe.
-	SchemaVersionCurrent = 37
+	SchemaVersionCurrent = 36
 
 	schemaVersionPrimary = "primary"
 	schemaVersionLog     = "log"
