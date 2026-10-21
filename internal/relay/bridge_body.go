@@ -131,7 +131,9 @@ func crossFamily(info *relaycommon.RelayInfo) bool {
 // Responses body stays stateless, with the hosted tools it now carries
 // known to billing.
 func afterRawOverride(info *relaycommon.RelayInfo, body []byte) ([]byte, *types.LazuError) {
-	if stream := gjson.GetBytes(body, "stream"); stream.Exists() && stream.Bool() != info.IsStream {
+	if stream := gjson.GetBytes(body, "stream"); stream.Bool() != info.IsStream {
+		// changed or deleted: the encoder wrote it for a streaming client,
+		// and a non-streaming one stays without it
 		body, _ = sjson.SetBytes(body, "stream", info.IsStream)
 	}
 	switch info.ProtocolPlan.UpstreamProtocol.Family {

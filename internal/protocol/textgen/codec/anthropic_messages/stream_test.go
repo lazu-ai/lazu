@@ -34,12 +34,8 @@ func collect(events []textgen.Event) textgen.Result {
 
 func TestDecodeRecordedText(t *testing.T) {
 	events := decodeRecording(t, "anthropic/text.sse")
-	// message_start's usage comes first, so an emitter's start has it
-	if events[0].Kind != textgen.EventUsage || events[0].Usage.PromptTokens == 0 {
-		t.Fatalf("expected the input usage before the start, got %+v", events[0])
-	}
-	if events[1].Kind != textgen.EventStart || events[1].Model != "claude-haiku-5-5" || !strings.HasPrefix(events[1].ResponseID, "msg_") {
-		t.Fatalf("expected a start event naming message and model, got %+v", events[1])
+	if events[0].Kind != textgen.EventStart || events[0].Model != "claude-haiku-5-5" || !strings.HasPrefix(events[0].ResponseID, "msg_") {
+		t.Fatalf("expected a start event naming message and model, got %+v", events[0])
 	}
 	result := collect(events)
 	if len(result.Parts) != 1 || result.Parts[0].Kind != textgen.PartText || result.Parts[0].Text == "" {

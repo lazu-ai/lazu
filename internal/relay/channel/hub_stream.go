@@ -249,14 +249,15 @@ func observeHubEvents(info *relaycommon.RelayInfo, events []textgen.Event) {
 
 // contentEvents says whether the events put anything in front of the
 // client: a start, a turn or a usage report alone does not, nor does the
-// boundary of a reasoning item before its first delta, nor a call not yet
-// named (an emitter holds it until it is).
+// boundary of a reasoning item before its first delta, nor a call without
+// its name and id yet (the Messages and Responses writers hold it until
+// both are known).
 func contentEvents(events []textgen.Event) bool {
 	for _, event := range events {
 		switch event.Kind {
 		case textgen.EventStart, textgen.EventUsage, textgen.EventTurn, textgen.EventReasoningStart:
 		case textgen.EventToolStart:
-			if event.ToolName != "" {
+			if event.ToolName != "" && event.ToolCallID != "" {
 				return true
 			}
 		default:

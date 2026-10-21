@@ -51,3 +51,16 @@ func TestAfterRawOverrideKeepsThePlan(t *testing.T) {
 		t.Fatal("store=true from an override must refuse a stateless bridge")
 	}
 }
+
+// An override that deletes stream does not turn a streaming client's
+// request into a whole one.
+func TestAfterRawOverrideRestoresADeletedStream(t *testing.T) {
+	info := &relaycommon.RelayInfo{IsStream: true, ProtocolPlan: &textgen.RelayPlan{
+		ClientProtocol:   textgen.Protocol{Family: textgen.ProtocolAnthropic},
+		UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIChat},
+	}}
+	body, err := afterRawOverride(info, []byte(`{"model":"m"}`))
+	if err != nil || !gjson.GetBytes(body, "stream").Bool() {
+		t.Fatalf("body %s err %v", body, err)
+	}
+}

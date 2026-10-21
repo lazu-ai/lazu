@@ -218,12 +218,11 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 				e.model = event.Model
 			}
 		}
-		if event.Kind == textgen.EventUsage || event.Kind == textgen.EventStart {
-			// usage before the start goes into message_start's input count
+		if event.Kind == textgen.EventUsage || event.Kind == textgen.EventStart || event.Kind == textgen.EventTurn {
+			// message_start is written with the first output (or the
+			// finish), so the input and cache counts reported beside the
+			// upstream's start are in it
 			e.col.Add(event)
-			if event.Kind == textgen.EventStart {
-				out = append(out, e.start()...)
-			}
 			continue
 		}
 		out = append(out, e.start()...)

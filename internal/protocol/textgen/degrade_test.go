@@ -119,3 +119,10 @@ func TestDegradeKeepsJSONObjectForObjectRootsOnly(t *testing.T) {
 		}
 	}
 }
+
+// A type list without object is not an object root.
+func TestObjectRootedNeedsAnObjectMember(t *testing.T) {
+	if objectRooted([]byte(`{"type":["null"]}`)) || !objectRooted([]byte(`{"type":["object","null"]}`)) {
+		t.Fatal("a type list is an object root only with object in it")
+	}
+}

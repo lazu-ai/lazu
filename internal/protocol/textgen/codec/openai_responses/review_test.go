@@ -337,3 +337,21 @@ func TestSealedOnlyReasoningIsAnnouncedInProgress(t *testing.T) {
 		t.Fatalf("payloads: %+v", payloads)
 	}
 }
+
+// Content-block instructions ending in newlines get only the degradation's
+// text as a new block, not the whole instruction again.
+func TestApplyDegradedAppendsOnlyTheExtension(t *testing.T) {
+	semantic, wire, err := Decode([]byte(`{"model":"m","instructions":[{"type":"input_text","text":"be brief\n\n\n"}],"input":"hi","text":{"format":{"type":"json_schema","name":"t","schema":{"type":"object"}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	degraded, _ := textgen.Degrade(textgen.CapabilitySnapshot{Dialect: "openai", Features: textgen.FeatureSet(1)<<textgen.FeatureEndpointResponses | textgen.FeatureSet(1)<<textgen.FeatureJSONOutput, Denied: textgen.FeatureSet(1) << textgen.FeatureJSONSchema}, semantic)
+	out, err := ApplyDegraded(wire, degraded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var blocks []map[string]any
+	if err := json.Unmarshal(out.Instructions, &blocks); err != nil || len(blocks) != 2 || strings.Contains(blocks[1]["text"].(string), "be brief") {
+		t.Fatalf("instructions: %s", out.Instructions)
+	}
+}

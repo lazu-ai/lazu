@@ -263,3 +263,22 @@ func TestRenderRefusesNonObjectToolArguments(t *testing.T) {
 		t.Fatal("malformed arguments must not render as a tool call")
 	}
 }
+
+// message_start goes out with the first output, carrying the input usage
+// reported beside the upstream's start.
+func TestEmitterStartCarriesTheInputUsage(t *testing.T) {
+	emitter := NewStreamEmitter("msg_1", "m")
+	frames := emitter.Emit(
+		textgen.Event{Kind: textgen.EventStart, ResponseID: "msg_up", Model: "m"},
+		textgen.Event{Kind: textgen.EventTurn, Role: "assistant"},
+		textgen.Event{Kind: textgen.EventUsage, Usage: &dto.Usage{PromptTokens: 42}},
+		textgen.Event{Kind: textgen.EventText, Text: "hi"},
+	)
+	if len(frames) == 0 || frames[0].Event != "message_start" {
+		t.Fatalf("frames: %+v", frames)
+	}
+	body, _ := json.Marshal(frames[0].Data)
+	if !strings.Contains(string(body), `"input_tokens":42`) {
+		t.Fatalf("message_start: %s", body)
+	}
+}

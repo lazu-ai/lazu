@@ -1162,11 +1162,16 @@ func ApplyDegraded(wire *dto.OpenAIResponsesRequest, degraded *textgen.Request) 
 	}
 	var blocks []map[string]any
 	if len(wire.Instructions) > 0 && json.Unmarshal(wire.Instructions, &blocks) == nil {
-		// content blocks keep their own; the extension is a block after them
+		// content blocks keep their own; the extension is a block after
+		// them, read off the last instruction as the degradation wrote it
+		// (its text, trimmed of trailing newlines, then the addition)
 		var original textgen.Request
 		_ = decodeInstructions(wire.Instructions, &original)
-		before, after := joinedInstructions(&original), joinedInstructions(degraded)
-		if extension := strings.TrimSpace(strings.TrimPrefix(after, before)); extension != "" {
+		extension, err := instructionExtension(original.Instructions, degraded.Instructions)
+		if err != nil {
+			return nil, err
+		}
+		if extension != "" {
 			blocks = append(blocks, map[string]any{"type": "input_text", "text": extension})
 		}
 		out.Instructions, _ = json.Marshal(blocks)
@@ -1180,10 +1185,22 @@ func ApplyDegraded(wire *dto.OpenAIResponsesRequest, degraded *textgen.Request) 
 	return &out, nil
 }
 
-func joinedInstructions(request *textgen.Request) string {
-	var encoded dto.OpenAIResponsesRequest
-	_ = encodeInstructions(request, &encoded)
-	var text string
-	_ = json.Unmarshal(encoded.Instructions, &text)
-	return text
+// instructionExtension is what a degradation appended to the last
+// instruction (textgen's appendInstruction), or "" when it changed none.
+func instructionExtension(before, after []textgen.Instruction) (string, error) {
+	if len(before) != len(after) {
+		return "", fmt.Errorf("the degraded instructions do not match the request's")
+	}
+	if len(after) == 0 {
+		return "", nil
+	}
+	last, now := before[len(before)-1].Text, after[len(after)-1].Text
+	if now == last {
+		return "", nil
+	}
+	base := strings.TrimRight(last, "\n")
+	if !strings.HasPrefix(now, base) {
+		return "", fmt.Errorf("the degraded instruction does not extend the request's")
+	}
+	return strings.TrimSpace(now[len(base):]), nil
 }

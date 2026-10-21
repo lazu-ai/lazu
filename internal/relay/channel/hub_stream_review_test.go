@@ -179,3 +179,13 @@ func TestRunHubStreamHoldsAReasoningBoundary(t *testing.T) {
 		t.Fatalf("a failure after a reasoning boundary must stay retryable: %v", err)
 	}
 }
+
+// A call named before its id is not yet output.
+func TestContentEventsWaitsForTheToolID(t *testing.T) {
+	if contentEvents([]textgen.Event{{Kind: textgen.EventToolStart, ToolName: "Read"}}) {
+		t.Fatal("a call without its id is held by the writers, not output")
+	}
+	if !contentEvents([]textgen.Event{{Kind: textgen.EventToolStart, ToolName: "Read", ToolCallID: "c"}}) {
+		t.Fatal("a named call with its id is output")
+	}
+}

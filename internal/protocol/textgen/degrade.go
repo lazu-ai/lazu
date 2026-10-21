@@ -128,12 +128,17 @@ func objectRooted(schema json.RawMessage) bool {
 	}
 	var names []string
 	if json.Unmarshal(raw, &names) == nil {
+		object := false
 		for _, name := range names {
-			if name != "object" && name != "null" {
+			switch name {
+			case "object":
+				object = true
+			case "null":
+			default:
 				return false
 			}
 		}
-		return len(names) > 0
+		return object
 	}
 	return false
 }
