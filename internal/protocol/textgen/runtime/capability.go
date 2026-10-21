@@ -17,6 +17,9 @@ type ModelDescriptor struct {
 	Capabilities    model.ModelCapabilities
 	ContextWindow   int64
 	MaxOutputTokens int64
+	// UnsupportedParams is the row's unsupported_params: request fields the
+	// model refuses (catalog editor, "unsupported_params").
+	UnsupportedParams []string
 	// Found is whether a catalog row matched the name at all; a sparse row
 	// (no family, no limits yet) is still a listed model.
 	Found bool
@@ -47,7 +50,7 @@ func descriptorFromPricingRow(pricings []model.Pricing, pricing *model.Pricing) 
 	if pricing == nil {
 		return ModelDescriptor{}
 	}
-	descriptor := ModelDescriptor{Family: pricing.Family, Capabilities: pricing.Capabilities, ContextWindow: pricing.ContextLength, MaxOutputTokens: pricing.MaxOutputTokens, Found: true}
+	descriptor := ModelDescriptor{Family: pricing.Family, Capabilities: pricing.Capabilities, ContextWindow: pricing.ContextLength, MaxOutputTokens: pricing.MaxOutputTokens, UnsupportedParams: pricing.UnsupportedParams, Found: true}
 	family := strings.TrimSpace(pricing.Family)
 	if family == "" || strings.EqualFold(pricing.ModelName, family) {
 		return descriptor
