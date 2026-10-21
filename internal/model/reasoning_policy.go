@@ -39,8 +39,10 @@ const (
 	// ReasoningOffBetweenTools: disabled is refused and the model asks for
 	// thinking.type=between_tools, at effort high or below (Sonnet 5.5).
 	ReasoningOffBetweenTools = "between_tools"
-	// ReasoningOffNever: thinking cannot be turned off; the field is left
-	// out and the model thinks adaptively (Opus 5.5, Fable 5, Mythos 5).
+	// ReasoningOffNever: thinking cannot be turned off; the request goes as
+	// adaptive thinking at its lowest effort (Opus 5.5, Fable 5, Mythos 5).
+	// Leaving the field out does not stand in: the API refuses that too
+	// (production, 2026-10-21).
 	ReasoningOffNever = "never"
 )
 
@@ -77,7 +79,7 @@ func ClaudeThinkingOff(policy ModelReasoningOptions, requested, effort string) (
 		if effort == "" {
 			effort = "low"
 		}
-		return "", effort
+		return "adaptive", effort
 	case ReasoningOffBetweenTools:
 		return "between_tools", capHigh(effort)
 	case ReasoningOffUpToHigh:

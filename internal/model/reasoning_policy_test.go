@@ -64,8 +64,8 @@ func TestClaudeThinkingOffFollowsPolicy(t *testing.T) {
 		{ReasoningOffUpToHigh, "disabled", "max", "disabled", "high"},
 		{ReasoningOffUpToHigh, "disabled", "low", "disabled", "low"},
 		{ReasoningOffBetweenTools, "disabled", "xhigh", "between_tools", "high"},
-		{ReasoningOffNever, "disabled", "", "", "low"},
-		{ReasoningOffNever, "between_tools", "high", "", "high"},
+		{ReasoningOffNever, "disabled", "", "adaptive", "low"},
+		{ReasoningOffNever, "between_tools", "high", "adaptive", "high"},
 	}
 	for _, tc := range cases {
 		typ, effort := ClaudeThinkingOff(ModelReasoningOptions{Off: tc.off}, tc.requested, tc.effort)
@@ -124,7 +124,7 @@ func TestClampEffortBodyOffShapeFollowsPolicy(t *testing.T) {
 	}
 	body = []byte(`{"model":"claude-opus-5-5","thinking":{"type":"enabled","budget_tokens":8000}}`)
 	out, _, _ = ClampEffortBody(body, "claude-opus-5-5", "minimal", "claude")
-	if gjson.GetBytes(out, "thinking").Exists() || gjson.GetBytes(out, "output_config.effort").String() != "low" {
+	if gjson.GetBytes(out, "thinking.type").String() != "adaptive" || gjson.GetBytes(out, "output_config.effort").String() != "low" {
 		t.Fatalf("Opus 5.5 off shape: %s", out)
 	}
 	body = []byte(`{"model":"claude-opus-4-5","thinking":{"type":"enabled","budget_tokens":8000}}`)
