@@ -1,0 +1,6 @@
+{
+  "support_report_invalid": "レポートは送信されませんでした：{{reason}}。",
+  "support_unavailable": "このサイトにはレポートの送信先となるサポートアドレスがありません。メールでご連絡ください。",
+  "support_report_rate_limited": "この 1 時間に複数のレポートを送信しています。しばらくしてから再度お送りください。",
+  "support_report_failed": "レポートを送信できませんでした。もう一度試すか、サポートに直接メールしてください。"
+}

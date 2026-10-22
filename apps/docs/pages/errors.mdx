@@ -338,6 +338,10 @@ message; the cause is recorded against the request ID.
 | <a id="lz-7413"></a>`LZ-7413` | `password_invalid` | 400 | `invalid_request_error` | The password must be 8 to 64 characters and no more than 72 bytes. Choose another password. |
 | <a id="lz-7414"></a>`LZ-7414` | `password_reset_link_invalid` | 400 | `invalid_request_error` | This reset link is invalid or has expired. Request a new one. |
 | <a id="lz-7415"></a>`LZ-7415` | `password_reset_client_upgrade_required` | 400 | `invalid_request_error` | This page is out of date and your link has not been used. Reload the page and set the password again. |
+| <a id="lz-7416"></a>`LZ-7416` | `support_report_invalid` | 400 | `invalid_request_error` | The report was not sent: \{\{reason\}\}. |
+| <a id="lz-7417"></a>`LZ-7417` | `support_unavailable` | 409 | `conflict_error` | This site has no support address to send reports to. Use the email link instead. |
+| <a id="lz-7418"></a>`LZ-7418` | `support_report_rate_limited` | 429 | `rate_limit_error` | You have sent several reports in the last hour. Please wait a while before sending another. |
+| <a id="lz-7419"></a>`LZ-7419` | `support_report_failed` | 502 | `api_error` | The report could not be sent. Try again, or write to support directly. |
 | <a id="lz-7421"></a>`LZ-7421` | `mail_not_found` | 404 | `invalid_request_error` | The archived mail was not found. |
 | <a id="lz-7422"></a>`LZ-7422` | `mail_resend_failed` | 400 | `invalid_request_error` | The archived mail could not be resent. Check the delivery details. |
 | <a id="lz-7423"></a>`LZ-7423` | `admin_email_missing` | 400 | `invalid_request_error` | Add an email address to your account before sending a preview. |

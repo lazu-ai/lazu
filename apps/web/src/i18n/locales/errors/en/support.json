@@ -1,0 +1,6 @@
+{
+  "support_report_invalid": "The report was not sent: {{reason}}.",
+  "support_unavailable": "This site has no support address to send reports to. Use the email link instead.",
+  "support_report_rate_limited": "You have sent several reports in the last hour. Please wait a while before sending another.",
+  "support_report_failed": "The report could not be sent. Try again, or write to support directly."
+}

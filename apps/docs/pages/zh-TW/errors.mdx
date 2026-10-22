@@ -324,6 +324,10 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 | <a id="lz-7413"></a>`LZ-7413` | `password_invalid` | 400 | `invalid_request_error` | 密碼需為 8 到 64 個字元，且不超過 72 位元組。請換一組密碼。 |
 | <a id="lz-7414"></a>`LZ-7414` | `password_reset_link_invalid` | 400 | `invalid_request_error` | 重設連結無效或已過期。請重新申請一封重設郵件。 |
 | <a id="lz-7415"></a>`LZ-7415` | `password_reset_client_upgrade_required` | 400 | `invalid_request_error` | 頁面版本過舊，重設連結尚未使用。請重新整理頁面後重新設定密碼。 |
+| <a id="lz-7416"></a>`LZ-7416` | `support_report_invalid` | 400 | `invalid_request_error` | 報告沒有送出：\{\{reason\}\}。 |
+| <a id="lz-7417"></a>`LZ-7417` | `support_unavailable` | 409 | `conflict_error` | 這個站點沒有設定接收報告的支援信箱，請改用郵件聯絡。 |
+| <a id="lz-7418"></a>`LZ-7418` | `support_report_rate_limited` | 429 | `rate_limit_error` | 一小時內已經送出好幾份報告，請稍後再送。 |
+| <a id="lz-7419"></a>`LZ-7419` | `support_report_failed` | 502 | `api_error` | 報告沒有送出。請重試，或者直接寫信給客服。 |
 | <a id="lz-7421"></a>`LZ-7421` | `mail_not_found` | 404 | `invalid_request_error` | 找不到封存郵件。 |
 | <a id="lz-7422"></a>`LZ-7422` | `mail_resend_failed` | 400 | `invalid_request_error` | 封存郵件重發失敗，請查看投遞詳情。 |
 | <a id="lz-7423"></a>`LZ-7423` | `admin_email_missing` | 400 | `invalid_request_error` | 傳送預覽前，請先為帳戶新增電子郵件地址。 |
