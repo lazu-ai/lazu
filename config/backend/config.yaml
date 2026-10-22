@@ -162,6 +162,7 @@ email_notifications:
 telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   ops_chat: "${TELEGRAM_OPS_CHAT}"
+  # api_base: ""             # empty uses https://api.telegram.org
   updates: "${TELEGRAM_UPDATES}"
   webhook_secret: "${TELEGRAM_WEBHOOK_SECRET}"
   # webhook_url: "https://api.example.com/api/telegram/webhook"

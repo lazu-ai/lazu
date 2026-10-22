@@ -924,6 +924,9 @@ function payloadFor(
 
   if (pathname === '/api/status') return ok(fixtures.status);
   if (pathname === '/api/user/self') return ok(fixtures.user);
+  if (pathname === '/api/user/telegram') {
+    return ok({ available: false, linked: false });
+  }
   const extensionBody = extensionMockFor(pathname);
   if (extensionBody !== undefined) return extensionBody;
   if (pathname === '/api/user/' || pathname === '/api/user') {

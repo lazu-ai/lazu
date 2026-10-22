@@ -38,4 +38,6 @@ var (
 	NotifyTypeWebhook = "webhook" // Webhook
 	NotifyTypeBark    = "bark"    // Bark 推送
 	NotifyTypeGotify  = "gotify"  // Gotify 推送
+	// NotifyTypeTelegram sends to the Telegram account linked to the user.
+	NotifyTypeTelegram = "telegram"
 )

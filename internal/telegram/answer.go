@@ -148,9 +148,11 @@ func answerHandler(ctx context.Context, msg *IncomingMessage) bool {
 	if msg.ReplyTo != nil && msg.ReplyTo.From != nil && msg.ReplyTo.From.ID == me.ID {
 		previous = msg.ReplyTo.Text
 	}
-	answer, err := Answer(ctx, AnswerRequest{
-		Question: Truncate(q, questionMaxRunes), Previous: previous, Private: msg.Private(),
-	})
+	req := AnswerRequest{Question: Truncate(q, questionMaxRunes), Previous: previous, Private: msg.Private()}
+	if msg.Private() && AccountContext != nil {
+		req.Account = AccountContext(ctx, msg.From.ID)
+	}
+	answer, err := Answer(ctx, req)
 	if err != nil {
 		common.SysError("telegram: answer failed: " + err.Error())
 		reply(ctx, msg, phrase(msg, phraseFailed))
@@ -159,6 +161,8 @@ func answerHandler(ctx context.Context, msg *IncomingMessage) bool {
 	reply(ctx, msg, MarkdownToHTML(Truncate(answer, answerMaxRunes)))
 	return true
 }
+
+func formatInt(n int64) string { return strconv.FormatInt(n, 10) }
 
 func chatActionBody(msg *IncomingMessage) map[string]any {
 	body := map[string]any{"chat_id": msg.Chat.ID, "action": "typing"}
@@ -171,7 +175,7 @@ func chatActionBody(msg *IncomingMessage) map[string]any {
 // reply answers msg in its chat and topic. Telegram refuses HTML it cannot
 // parse; the text is then resent with the markup escaped.
 func reply(ctx context.Context, msg *IncomingMessage, html string) {
-	out := Message{Chat: Chat{ID: strconv.FormatInt(msg.Chat.ID, 10)}, Text: html, ReplyTo: msg.MessageID, DisableLinkCards: true}
+	out := Message{Chat: Chat{ID: formatInt(msg.Chat.ID)}, Text: html, ReplyTo: msg.MessageID, DisableLinkCards: true}
 	if msg.IsTopicMessage && msg.MessageThreadID > 0 {
 		out.Chat.ThreadID = msg.MessageThreadID
 	}

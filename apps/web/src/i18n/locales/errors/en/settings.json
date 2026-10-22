@@ -22,5 +22,7 @@
   "mail_send_failed": "The mail could not be sent. Check the delivery details.",
   "telegram_not_configured": "Telegram is not set up for this deployment: {{reason}}. Set telegram.bot_token and telegram.ops_chat in the deployment config, then restart.",
   "telegram_send_failed": "Telegram did not accept the message: {{reason}}. Check that the bot is a member of the chat and that the chat id is right.",
-  "telegram_mute_invalid": "The mute length must be a whole number of minutes from 0 to 10080 (one week). 0 lifts the mute."
+  "telegram_mute_invalid": "The mute length must be a whole number of minutes from 0 to 10080 (one week). 0 lifts the mute.",
+  "telegram_link_unavailable": "Telegram accounts cannot be linked here yet: this deployment's bot does not receive messages.",
+  "telegram_not_linked": "No Telegram account is linked. Link one first, then choose Telegram."
 }

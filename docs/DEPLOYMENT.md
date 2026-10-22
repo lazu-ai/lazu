@@ -109,6 +109,23 @@ message that contains an API key and asks the sender to revoke it. It answers
 each person at most six times in ten minutes and the whole deployment at most
 `telegram.answer.daily_limit` (300) times a UTC day.
 
+#### Linked accounts
+
+When the bot receives updates, people can link their Telegram account from
+**个人设置 › 余额提醒** by choosing Telegram: the console opens a one-time
+`t.me` link (valid ten minutes), they tap Start, and the bot completes the
+link in that private chat. A linked account then gets its low-balance
+reminders in Telegram, and in that private chat the bot may use the
+account's username, balance and latest failed requests (with request ids)
+when answering. Group answers never use account data. A link is stored as a
+`user_identities` row with provider `telegram`; it is not a sign-in method
+and does not appear among sign-in identities. Unlinking moves reminders back
+to mail.
+
+`telegram.api_base` points the bot at a local
+[telegram-bot-api](https://github.com/tdlib/telegram-bot-api) server instead
+of `https://api.telegram.org`.
+
 ### Fetching client-supplied media URLs
 
 When a request carries an image or file by URL and the selected provider
