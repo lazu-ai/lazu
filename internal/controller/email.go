@@ -66,7 +66,7 @@ func SendTestEmail(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if err := common.SendMail(common.MailMeta{Kind: common.MailKindOps}, "[Lazu ops] 测试邮件", email, body); err != nil {
+	if err := common.SendMail(common.MailMeta{Kind: common.MailKindOps, NotAnAlert: true}, "[Lazu ops] 测试邮件", email, body); err != nil {
 		// The SMTP server's reply can carry credentials or internal host
 		// names; it is logged with the request ID, never sent.
 		httperr.Write(c, types.WrapErr(err, types.ErrorCodeEmailTestFailed))

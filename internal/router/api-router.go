@@ -214,6 +214,8 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			adminConfigRoute.GET("/deployment-status", controller.GetDeploymentStatus)
 			adminConfigRoute.POST("/email/test", controller.SendTestEmail)
+			adminConfigRoute.POST("/telegram/test", controller.SendTelegramTest)
+			adminConfigRoute.POST("/telegram/mute", controller.MuteTelegramOps)
 			adminConfigRoute.GET("/announcements", controller.AdminListAnnouncements)
 			adminConfigRoute.POST("/announcements", controller.AdminCreateAnnouncement)
 			adminConfigRoute.PUT("/announcements/:id", controller.AdminUpdateAnnouncement)

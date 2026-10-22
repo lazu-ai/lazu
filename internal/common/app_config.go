@@ -104,6 +104,10 @@ type AppConfigStruct struct {
 	// accessor that reads it, never to another deployment's values.
 	Site SiteConfig `yaml:"site"`
 
+	// Telegram connects one bot to this deployment. Every field is optional;
+	// without a bot token nothing Telegram-related runs.
+	Telegram TelegramConfig `yaml:"telegram"`
+
 	// ProbeIdentities are the client identities that health probes and
 	// observation checks present to a source restricted to one client, keyed
 	// by the restriction (ProbeClientClaudeCode). Customer requests never use
@@ -162,6 +166,17 @@ type SiteConfig struct {
 	// SourceURL is where this deployment's source code is published. AGPL
 	// section 13 asks a network service to offer it; the console links here.
 	SourceURL string `yaml:"source_url"`
+}
+
+// TelegramConfig is the deployment's Telegram bot. The token is a secret:
+// set it through the TELEGRAM_BOT_TOKEN environment variable or an
+// env-expanded placeholder, never in a file that is committed.
+type TelegramConfig struct {
+	BotToken string `yaml:"bot_token"`
+	// OpsChat receives a copy of every operational alert: a chat id such as
+	// -1001234567890, optionally followed by :<topic id> for one topic of a
+	// forum group. Empty sends alerts by mail only.
+	OpsChat string `yaml:"ops_chat"`
 }
 
 // ProbeIdentityConfig is one client identity for probes. Metadata is a JSON
@@ -282,6 +297,12 @@ func applyAppConfigEnvironmentOverrides() {
 	}
 	if apiKey := strings.TrimSpace(os.Getenv("RESEND_API_KEY")); apiKey != "" {
 		AppConfig.Resend.APIKey = apiKey
+	}
+	if token := strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")); token != "" {
+		AppConfig.Telegram.BotToken = token
+	}
+	if chat := strings.TrimSpace(os.Getenv("TELEGRAM_OPS_CHAT")); chat != "" {
+		AppConfig.Telegram.OpsChat = chat
 	}
 	applyExtensionConfigEnvironment()
 }
@@ -591,6 +612,12 @@ func loadConfigFile(found string) {
 	}
 	if v := strings.TrimRight(strings.TrimSpace(userCfg.Site.SourceURL), "/"); v != "" {
 		AppConfig.Site.SourceURL = v
+	}
+	if v := strings.TrimSpace(userCfg.Telegram.BotToken); v != "" {
+		AppConfig.Telegram.BotToken = v
+	}
+	if v := strings.TrimSpace(userCfg.Telegram.OpsChat); v != "" {
+		AppConfig.Telegram.OpsChat = v
 	}
 	if len(userCfg.ProbeIdentities) > 0 {
 		AppConfig.ProbeIdentities = userCfg.ProbeIdentities

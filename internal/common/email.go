@@ -62,6 +62,12 @@ type MailMeta struct {
 	// link). Only its subject and status are archived, never its body.
 	Sensitive bool
 	Headers   map[string]string
+	// AlertText is the plain-text body chat sinks receive for an ops mail.
+	// Empty sends the subject alone.
+	AlertText string
+	// NotAnAlert keeps an ops mail away from chat sinks: the test mail checks
+	// mail delivery, not the alert channels.
+	NotAnAlert bool
 }
 
 // MailRecord is what the archive receives after every send attempt.
@@ -83,6 +89,9 @@ func SendMail(meta MailMeta, subject string, receiver string, content string) er
 	providerID, err := sendEmail(subject, receiver, content, nil, meta.Headers)
 	if meta.Kind == "" {
 		meta.Kind = MailKindOther
+	}
+	if meta.Kind == MailKindOps && !meta.NotAnAlert {
+		PushOpsAlert(OpsAlert{Subject: subject, Text: meta.AlertText})
 	}
 	if recorder := MailRecorder; recorder != nil {
 		recorder(MailRecord{Meta: meta, Subject: subject, Receiver: receiver, HTML: content, ProviderID: providerID, Err: err})

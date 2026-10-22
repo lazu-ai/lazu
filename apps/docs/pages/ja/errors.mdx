@@ -330,6 +330,9 @@ Lazu 側の問題（一時的に壊れたモデルルートなど）を表すエ
 | <a id="lz-7424"></a>`LZ-7424` | `mail_regenerate_failed` | 400 | `invalid_request_error` | メールの再生成に失敗しました。下書きは使用量レポートから再生成してください。 |
 | <a id="lz-7425"></a>`LZ-7425` | `digest_settings_invalid` | 400 | `invalid_request_error` | 使用量レポートの設定が無効です。 |
 | <a id="lz-7426"></a>`LZ-7426` | `mail_send_failed` | 400 | `invalid_request_error` | メールの送信に失敗しました。配信の詳細を確認してください。 |
+| <a id="lz-7431"></a>`LZ-7431` | `telegram_not_configured` | 400 | `invalid_request_error` | このデプロイでは Telegram が設定されていません：\{\{reason\}\}。デプロイ設定で telegram.bot_token と telegram.ops_chat を設定し、再起動してください。 |
+| <a id="lz-7432"></a>`LZ-7432` | `telegram_send_failed` | 502 | `api_error` | Telegram がメッセージを受け付けませんでした：\{\{reason\}\}。ボットがチャットに参加していること、chat id が正しいことを確認してください。 |
+| <a id="lz-7433"></a>`LZ-7433` | `telegram_mute_invalid` | 400 | `invalid_request_error` | ミュート時間は 0 から 10080 までの整数（分、最長 1 週間）で指定してください。0 でミュートを解除します。 |
 | <a id="lz-7501"></a>`LZ-7501` | `model_name_taken` | 409 | `conflict_error` | \{\{model\}\} という名前のモデルはすでに存在します。別の名前にするか、既存のモデルを編集してください。 |
 | <a id="lz-7502"></a>`LZ-7502` | `vendor_name_taken` | 409 | `conflict_error` | \{\{vendor\}\} という名前のベンダーはすでに存在します。別の名前にするか、既存のベンダーを編集してください。 |
 | <a id="lz-7503"></a>`LZ-7503` | `prefill_group_name_taken` | 409 | `conflict_error` | \{\{name\}\} という名前のプリセットグループはすでに存在します。別の名前にしてください。 |

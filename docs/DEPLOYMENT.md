@@ -53,12 +53,31 @@ them empty and the feature stays off.
 | Capability | Configuration |
 | --- | --- |
 | SMTP transport | `SMTP_ACCOUNT`, `SMTP_TOKEN` and host settings for the selected mail transport |
-| Telegram notifications | `TELEGRAM_BOT_TOKEN` |
+| Telegram alerts | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`; see [Telegram](#telegram) |
 | Separate browser origins | `FRONTEND_BASE_URL`, and exact `CORS_ALLOW_ORIGINS` where needed; see the sign-in guidance below |
 | Cloudflare edge purge on deploy | `CF_API_TOKEN` (a token scoped to Zone → Cache Purge for the site's zone) and `CF_ZONE_ID`; see below |
 
 Starting containers does not verify payment, email or object storage workflows.
 Validate each enabled integration with its actual provider configuration.
+
+### Telegram
+
+Create one bot with @BotFather and set `TELEGRAM_BOT_TOKEN` on the API and
+jobs containers. Every operational alert mail (disk, error rate, payment
+documents, backups, worker failures) is then also posted to
+`TELEGRAM_OPS_CHAT`:
+
+- The value is a chat id (`-1001234567890` for a group) or
+  `<chat id>:<topic id>` for one topic of a forum group. Add the bot to the
+  chat first; a private group of operators is the usual choice.
+- The same subject is posted at most once an hour, so a flapping check cannot
+  exhaust Telegram's limit of about 20 messages a minute per group. A failed
+  post is retried with the next occurrence.
+- An alert reaches the chat even when no admin address is configured.
+- **系统设置 › 站点与邮件 › Telegram 告警** sends a test message and mutes the
+  chat for two hours during maintenance. Muting never stops the mail.
+- Use a separate bot for development and production: one token can only
+  deliver its updates to one place.
 
 ### Fetching client-supplied media URLs
 
