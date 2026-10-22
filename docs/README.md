@@ -12,9 +12,9 @@ public docs site or the product design system.
   API references are generated from these files; public tutorials are authored
   separately in `apps/docs/pages/`.
 - `docs/` — durable architecture, contract and operations notes.
-- Plans, dated audits, decision records, growth notes and design explorations
-  for the hosted lazu.ai service live in the team's private ops repository.
-  References to them use the `lazu-ops:<path>` form.
+- Plans, dated audits, decision records and design explorations
+  for the hosted lazu.ai service are kept outside this repository.
+  References to them use the `archive:<path>` form.
 - `.local-results/work/` — temporary AI-assisted plans, experiments, and task
   notes. This path is local-only and should normally be deleted when the task
   is complete.

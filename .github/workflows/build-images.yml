@@ -15,9 +15,10 @@ name: Images
 #                    (recovers a push that started no run). On a tag: that
 #                    release rebuilt. Other branches are refused.
 #
-# When the images are published (or a build fails) the result is handed to
-# lazu-ai/lazu-ops, which builds lazu.ai's own images from the same commit and
-# decides what reaches lazu.ai.
+# When the images are published (or a build fails) the result is handed to a
+# downstream workflow, which builds lazu.ai's own images from the same commit
+# and decides what reaches lazu.ai. The secrets LAZU_HANDOFF_REPO (owner/name)
+# and LAZU_HANDOFF_WORKFLOW (its workflow file) name it.
 # Every job runs only in the lazu-ai organisation: forks and mirrors build
 # nothing and publish nothing.
 
@@ -117,7 +118,8 @@ jobs:
             printf '%s\n' "$changed_files"
 
             # Keep in step with affects_image in the alias job below, and with
-            # the API paths lazu-ops checks before an automatic frontend deploy.
+            # the API paths the downstream workflow checks before an automatic
+            # frontend deploy.
             while IFS= read -r file; do
               [[ -z "$file" ]] && continue
               case "$file" in
@@ -360,7 +362,7 @@ jobs:
           alias_unchanged docs "$BUILT_DOCS"
 
   hand-off:
-    # Tell lazu-ops what was published, or that publishing failed.
+    # Tell the downstream workflow what was published, or that publishing failed.
     needs: [changes, build, alias]
     if: ${{ always() && github.repository_owner == 'lazu-ai' && needs.changes.result == 'success' && needs.changes.outputs.any_build == 'true' && (needs.changes.outputs.release != 'true' || needs.changes.outputs.stable == 'true') }}
     runs-on: ubuntu-latest
@@ -377,19 +379,37 @@ jobs:
           echo "result=$result" >> "$GITHUB_OUTPUT"
           echo "Build: ${BUILD_RESULT}, alias: ${ALIAS_RESULT} -> ${result}"
 
-      - name: Mint a token for lazu-ops
+      - name: Resolve the downstream repository
+        id: target
+        env:
+          HANDOFF_REPO: ${{ secrets.LAZU_HANDOFF_REPO }}
+          HANDOFF_WORKFLOW: ${{ secrets.LAZU_HANDOFF_WORKFLOW }}
+        run: |
+          set -euo pipefail
+          if [[ "$HANDOFF_REPO" != */* || -z "$HANDOFF_WORKFLOW" ]]; then
+            echo "::error::LAZU_HANDOFF_REPO (owner/name) and LAZU_HANDOFF_WORKFLOW must be set"
+            exit 1
+          fi
+          # Only the whole secret is masked; mask the name the token step logs.
+          echo "::add-mask::${HANDOFF_REPO#*/}"
+          echo "owner=${HANDOFF_REPO%%/*}" >> "$GITHUB_OUTPUT"
+          echo "name=${HANDOFF_REPO#*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Mint a token for the downstream repository
         id: token
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.LAZU_RELEASE_APP_ID }}
           private-key: ${{ secrets.LAZU_RELEASE_APP_PRIVATE_KEY }}
-          owner: lazu-ai
-          repositories: lazu-ops
+          owner: ${{ steps.target.outputs.owner }}
+          repositories: ${{ steps.target.outputs.name }}
           permission-actions: write
 
-      - name: Hand off to lazu-ops
+      - name: Hand off downstream
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
+          HANDOFF_REPO: ${{ secrets.LAZU_HANDOFF_REPO }}
+          HANDOFF_WORKFLOW: ${{ secrets.LAZU_HANDOFF_WORKFLOW }}
           TRIGGER: ${{ needs.changes.outputs.release == 'true' && 'tag' || 'push' }}
           COMMIT_SHA: ${{ needs.changes.outputs.commit_sha }}
           SERVICES: ${{ needs.changes.outputs.services }}
@@ -403,11 +423,11 @@ jobs:
           if [[ "$RELEASE" == "true" ]]; then
             version="$APP_VERSION"
           fi
-          gh workflow run hosted-images.yml --repo lazu-ai/lazu-ops --ref main \
+          gh workflow run "$HANDOFF_WORKFLOW" --repo "$HANDOFF_REPO" --ref main \
             -f trigger="$TRIGGER" \
             -f sha="$COMMIT_SHA" \
             -f services="$SERVICES" \
             -f version="$version" \
             -f build_result="$BUILD_RESULT" \
             -f build_run_url="$RUN_URL"
-          echo "Handed off to lazu-ops hosted-images.yml: ${TRIGGER} ${COMMIT_SHA} (${SERVICES}, ${BUILD_RESULT})"
+          echo "Handed off downstream: ${TRIGGER} ${COMMIT_SHA} (${SERVICES}, ${BUILD_RESULT})"

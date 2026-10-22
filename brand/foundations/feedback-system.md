@@ -1,7 +1,7 @@
 # Feedback System — 纸上批注 + 墨条 Toast
 
 > **Locked:** 2026-08-28
-> **Approved exploration:** `lazu-ops:brand/explorations/feedback-2026-08/feedback-4ways.html`
+> **Approved exploration:** `archive:brand/explorations/feedback-2026-08/feedback-4ways.html`
 > **Decision:** inline / banner / 表单 / 公告条 = **方案 A 纸上批注**；toast = **方案 C 墨条**
 > **Inherits:** `yunmu-console.md`（地面、墨/纸反转、证据色）、`color-system.md`（语义色只表达状态）
 

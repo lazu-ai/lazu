@@ -4,7 +4,7 @@ Status: **LOCKED by user approval on 2026-09-29.** The user picked the list
 redesign with **L1** (lane tag in the model cell), the inline detail **M3**
 (C1 × C3: charge on the left, aligned time and cost bars on the right) and
 **S1** (one official-price line under the charge) on the design canvas
-`lazu-ops:brand/canvases.md`. The canvas keeps the
+`archive:brand/canvases.md`. The canvas keeps the
 rejected directions (A side pane, B sheet, C1–C4, M1/M2, S2/S3). This file is
 what `apps/web/src/pages/Log/` implements; where the canvas and this file
 disagree, this file wins.

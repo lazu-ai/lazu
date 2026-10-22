@@ -1,6 +1,6 @@
 /* Team projects — page and component styles.
    Values are brand tokens (Yunmu); the artboards in
-   lazu-ops:brand/explorations/team-workspace-2026-09 are the reference. Selection is
+   archive:brand/explorations/team-workspace-2026-09 are the reference. Selection is
    a whole-row tint only, never a left rail. Buttons are components/ui
    Buttons; the few bespoke controls opt out of the global button reset with
    data-owns-chrome. */

@@ -2,8 +2,8 @@
 
 **Status: LOCKED**
 **Locked: 2026-07-11**
-**Amended: 2026-09-21** — 公开页其余各页落地 Seal：FAQ 答案常开（第 33 条修订）、条款页与 Key 查询改纸面单栏、`/key` 与状态页归公开顶栏。决策板见 `lazu-ops:brand/explorations/brand-refresh-2026-09/` 的第二块画布。
-**Amended: 2026-09-20 (b)** — Hero 恢复控制台窗（成员与额度），display 阶随之收到 42–58px；第 03 / 16 条已按此改写。决策板 `lazu-ops:brand/explorations/brand-refresh-2026-09/` 的 `C · 窗`。
+**Amended: 2026-09-21** — 公开页其余各页落地 Seal：FAQ 答案常开（第 33 条修订）、条款页与 Key 查询改纸面单栏、`/key` 与状态页归公开顶栏。决策板见 `archive:brand/explorations/brand-refresh-2026-09/` 的第二块画布。
+**Amended: 2026-09-20 (b)** — Hero 恢复控制台窗（成员与额度），display 阶随之收到 42–58px；第 03 / 16 条已按此改写。决策板 `archive:brand/explorations/brand-refresh-2026-09/` 的 `C · 窗`。
 **Amended: 2026-09-20** — 随 `Seal` 标志决议，display 字体改为 Instrument Serif（`--lazu-font-display`），首页 Hero 改为编辑式单栏；第 01 / 03 / 16 / 17 / 19 / 20 条已按此改写。
 **Amended: 2026-08-20** — 颜色规则改为跟随 `02 云母 Yunmu`（见 `yunmu-console.md`）。
 公开页不再有自己的颜色层：`--lazu-web-landing-*` 已从 `tokens/public-web.css` 删除，

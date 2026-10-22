@@ -2,7 +2,7 @@
 
 **Status: LOCKED**  
 **Locked: 2026-08-20**  
-**Source exploration:** `lazu-ops:brand/explorations/console-f3-2026-08/ia-4skins.html`, skin `V2 云母`  
+**Source exploration:** `archive:brand/explorations/console-f3-2026-08/ia-4skins.html`, skin `V2 云母`  
 **Locked IA refinement:** `S1 钱包独立`（历史选择板已在决议固化后清理）
 **Locked settings refinement:** `settings-ui-2026-08` option 1 + admin option B, spacing `松`
 **Canonical registry:** `../BRAND.md`, section `02 云母 Yunmu (Console)`
@@ -86,12 +86,12 @@ It is a refinement of Yunmu, not a separate component or visual system.
 - Console shell: `apps/web/src/components/layout/PageLayout.tsx`
 - Canonical tokens: `brand/tokens/colors.css`, `brand/tokens/ui.css`,
   `brand/tokens/data-viz.css`
-- Model plaza: `lazu-ops:brand/explorations/console-f3-2026-08/pg-models-final.html`
-- Pricing operations: `lazu-ops:brand/explorations/console-f3-2026-08/pg-pricing-final.html`
+- Model plaza: `archive:brand/explorations/console-f3-2026-08/pg-models-final.html`
+- Pricing operations: `archive:brand/explorations/console-f3-2026-08/pg-pricing-final.html`
 - Customer account ledger:
-  `lazu-ops:brand/explorations/platform-accounts-2026-09/a-v3.html`
+  `archive:brand/explorations/platform-accounts-2026-09/a-v3.html`
 - Earlier organization and member concepts (superseded for the account page):
-  `lazu-ops:brand/explorations/console-f3-2026-08/pg-orgs-final.html` and
+  `archive:brand/explorations/console-f3-2026-08/pg-orgs-final.html` and
   `pg-members-final.html`
 
 Organization and member management must not claim working impersonation,
@@ -101,7 +101,7 @@ production data.
 
 ## Locked customer account ledger (2026-09-02)
 
-**Selected exploration:** `lazu-ops:brand/explorations/platform-accounts-2026-09/a-v3.html`
+**Selected exploration:** `archive:brand/explorations/platform-accounts-2026-09/a-v3.html`
 
 The selected surface is a customer ledger plus one account drawer, not a new
 organization profile route. Platform members are excluded from the customer
@@ -116,7 +116,7 @@ destructive or permission-changing actions require confirmation.
 ## Locked settings surfaces (2026-08-27)
 
 The selected production direction is option 1 from
-`lazu-ops:brand/explorations/settings-ui-2026-08/v3.html` for both personal and platform
+`archive:brand/explorations/settings-ui-2026-08/v3.html` for both personal and platform
 settings, with the `松` key/value spacing preset. Platform settings use option
 B from `admin.html`. These files remain decision evidence; the rules below are
 the canonical production constraint.
@@ -226,7 +226,7 @@ scale, so the same kind of row looked slightly different on every page.
 
 ## Locked channel health surface (2026-09-01)
 
-**Selected exploration:** `lazu-ops:brand/explorations/channel-stability-2026-09/r2-v3-badge-heatwall.html`
+**Selected exploration:** `archive:brand/explorations/channel-stability-2026-09/r2-v3-badge-heatwall.html`
 (the C face), with the A face taken from `r2-v1-inline-matrix.html`.
 
 Every model runs on two lanes, stable and eco, backed by different upstream
@@ -262,7 +262,7 @@ decision history.
    router's breaker verdict on the upstreams it would choose now, never a
    threshold on the window's percentage.
 3a. **One section per kind of model, each with its own figures.** (Locked
-   2026-09-26, canvas `lazu-ops:brand/canvases.md`.)
+   2026-09-26, canvas `archive:brand/canvases.md`.)
    Kind is what the model produces, read from the catalog's output modality:
    大模型 · 向量模型 · 图片生成 · 搜索工具, with 语音 and 视频生成 appearing
    when such models ship. Every section is 可用率 + one speed + one tail:
@@ -286,7 +286,7 @@ decision history.
 
 The owner chose C′ in Claude session `83ad64b0-5391-4173-989c-3d8910ecdc3e`
 at 13:31 UTC and approved the seven text simplifications at 13:55 UTC.
-Canvas: `lazu-ops:brand/canvases.md`.
+Canvas: `archive:brand/canvases.md`.
 This amendment supersedes the earlier lane-row layout and selected-row panel
 above; it preserves the lane as the unit of evidence and comparison.
 
@@ -322,7 +322,7 @@ above; it preserves the lane as the unit of evidence and comparison.
 ## Locked Seal refinement (2026-09-21)
 
 Owner-approved continuation of the 2026-09-20 Seal canvas
-`lazu-ops:brand/canvases.md`, reconfirmed during PR #252 repair.
+`archive:brand/canvases.md`, reconfirmed during PR #252 repair.
 
 - Console page headings use Instrument Serif at `--lazu-console-heading-size`.
   Display money uses `--lazu-console-money-size` or `--lazu-display-stat`,
@@ -348,7 +348,7 @@ rule for display money only. All other data typography remains unchanged.
 
 ## Locked console overview (2026-09-30)
 
-Owner-approved canvas `lazu-ops:brand/canvases.md`
+Owner-approved canvas `archive:brand/canvases.md`
 (pages 3 and 5). Implemented on `design/overview-redesign-2026-09`.
 
 - **Structure A3** on both planes. Platform: metrics grouped 服务质量 (success
@@ -372,8 +372,8 @@ Owner-approved canvas `lazu-ops:brand/canvases.md`
 
 ## Locked page-UX revision (2026-10-14)
 
-Owner-approved canvas `lazu-ops:brand/canvases.md`
-(audit: `lazu-ops:brand/explorations/page-audit-2026-10/index.html`). Five shared
+Owner-approved canvas `archive:brand/canvases.md`
+(audit: `archive:brand/explorations/page-audit-2026-10/index.html`). Five shared
 rules, then the pages built on them.
 
 1. **One page head.** Every console page's title sits at the same place —

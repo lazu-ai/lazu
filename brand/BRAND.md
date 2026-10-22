@@ -6,8 +6,8 @@
 
 - **Locked:** 2026-10-06
 - **Definition:** G1 = C2 减法 + 中性灰白底 + F2 青为结构色
-- **Canvas:** `lazu-ops:brand/canvases.md`（「控制台 · G1 全页面」，29 张真实页面）
-- **Decision history:** `lazu-ops:brand/explorations/positioning-team-stability-2026-10/`（实施单、注入式预览样式
+- **Canvas:** `archive:brand/canvases.md`（「控制台 · G1 全页面」，29 张真实页面）
+- **Decision history:** `archive:brand/explorations/positioning-team-stability-2026-10/`（实施单、注入式预览样式
   与未选方向；只作记录，不约束生产）
 - **Supersedes:** 02 云母的地面（三层暖纸渐变 + 双环境光 + 64px 网格）、悬浮圆角半透明侧栏、
   卡片 `backdrop-filter`、长春花蓝证据色、图表「墨」主序列，以及首页的 WebGL 地面着色器。
@@ -34,15 +34,15 @@
 9. **深色 = B 中性近黑**（2026-10-07）：底 `#0F0F11`（侧栏同底），卡片 `#18181B`，弹层 `#1D1D21`，
    线 8% 白（强调 14%），正文 `#ECECEE` / 次要 `#9B9DA4`，无阴影；主按钮反白（`#ECECEE` 底），
    青提亮为 `#4FB3AD`；提醒条用 14% 白线代替墨边。比较稿见画布
-   `lazu-ops:brand/canvases.md`「深色模式」页（A 石墨 / C 一层底 / D 青墨未选）。
+   `archive:brand/canvases.md`「深色模式」页（A 石墨 / C 一层底 / D 青墨未选）。
 
 落地：`tokens/colors.css` → `bun run brand:sync`；签名层 `apps/web/src/styles/yunmu.css`
 （文件名沿用）；视觉守护 `apps/web/tests/smoke/yunmu-visual.spec.ts`。
 
 ## Locked page-UX revision（2026-10-14）
 
-- **Canvas:** `lazu-ops:brand/canvases.md`（「页面体验修改稿」，共享件 + 9 张页面）
-- **Audit:** `lazu-ops:brand/explorations/page-audit-2026-10/index.html`
+- **Canvas:** `archive:brand/canvases.md`（「页面体验修改稿」，共享件 + 9 张页面）
+- **Audit:** `archive:brand/explorations/page-audit-2026-10/index.html`
 - **Rules:** `foundations/yunmu-console.md` → "Locked page-UX revision"
 
 在 G1 之上收齐五件共享件：一套页头几何；切换控件只留下划线 Tab（换视图）与分段框（筛表格）；
@@ -54,7 +54,7 @@
 > 地面、表面、侧栏、证据色与图表主色已被 G1（2026-10-06）取代；下列条目中未被取代的部分继续有效。
 
 - **Locked:** 2026-08-20
-- **Approved exploration:** `lazu-ops:brand/explorations/console-f3-2026-08/ia-4skins.html`, skin `V2 云母`
+- **Approved exploration:** `archive:brand/explorations/console-f3-2026-08/ia-4skins.html`, skin `V2 云母`
 - **Locked IA refinement:** `S1 钱包独立`；历史选择板已在决议固化后清理
 - **Canonical foundation:** `foundations/yunmu-console.md`
 - **Supersedes:** 01 Kumo Native 的"暖橙动作色"规则（第 2 条）。暖橙全面退出主按钮、图表与选中态。
@@ -87,7 +87,7 @@
 - 模型页改为卡片广场 + 详情模态（`pages/Routes/`），含稳定 / Agent 专线两条线路与分组折后价。
 - 定价运营页 `pages/PricingOps/`：双通道价目 + 计价方式（按 token / 按次 / 按时长）+ 跟随所选模型的发布历史。
 - 客户账户页 `pages/Organizations/`：客户台账 + 单一账户运营抽屉，锁定稿为
-  `lazu-ops:brand/explorations/platform-accounts-2026-09/a-v3.html`；只复用现有用户、Key、钱包、
+  `archive:brand/explorations/platform-accounts-2026-09/a-v3.html`；只复用现有用户、Key、钱包、
   用量与等级合同，不新增组织实体或虚构权限能力。
 - 设置界面锁定为 2026-08-27 refinement：个人设置与平台设置共用方案 1 的
   `label | value + action | explanation` 行系统，间距采用「松」；平台设置按方案 B
@@ -99,7 +99,7 @@
 
 ## Locked paper states · 系统状态面（2026-09-01，整页 2026-09-29 修订）
 
-- **Approved exploration:** 整页 `lazu-ops:brand/explorations/error-pages-2026-09-a/index.html`（方向 A）；卡片 `lazu-ops:brand/explorations/error-pages-2026-09/index.html`
+- **Approved exploration:** 整页 `archive:brand/explorations/error-pages-2026-09-a/index.html`（方向 A）；卡片 `archive:brand/explorations/error-pages-2026-09/index.html`
 - **Decision:** 整页 404 / 403 / 崩溃 / 功能未开启 / 一次性结果页 = `状态标记 + 一句话`（`StatusPage`），取代原 `折角 / 封条 / 撕边`；可操作空态 = `虚线位`，无操作空态 = `纯文字`；行内错误 = `断线`；加载 = `发丝线小圈`
 - **Rules:** `foundations/paper-states.md`
 
@@ -111,7 +111,7 @@
 
 ## Locked feedback system · 纸上批注 + 墨条 Toast（2026-08-28）
 
-- **Approved exploration:** `lazu-ops:brand/explorations/feedback-2026-08/feedback-4ways.html`
+- **Approved exploration:** `archive:brand/explorations/feedback-2026-08/feedback-4ways.html`
 - **Decision:** inline / banner / 表单 / 公告条采用 `A 纸上批注`；toast 采用 `C 墨条`（空态与整块状态面已于 2026-09-01 移交 `Locked paper states`，见上节）
 - **Rules:** `foundations/feedback-system.md`
 - **Tokens:** `tokens/colors.css` 的 `--lazu-info*` 与 `--lazu-toast-*`；`tokens/ui.css` 的 `--lazu-radius-notice` / `--lazu-radius-toast` / `--lazu-notice-icon` / `--lazu-shadow-toast`
@@ -141,7 +141,7 @@ Current shared rules:
 ## Locked logo system · Seal（2026-09-20）
 
 - **Selected direction:** `C · 印章 / Seal` + 字标 `W1 · Instrument Serif「Lazu」`
-- **Decision history:** `lazu-ops:brand/explorations/brand-refresh-2026-09/`（四套整体方案 → 字体海选 24 款 → 四个字标方向）
+- **Decision history:** `archive:brand/explorations/brand-refresh-2026-09/`（四套整体方案 → 字体海选 24 款 → 四个字标方向）
 - **Rules:** `foundations/logo-system.md`
 - **Canonical assets:** `assets/logo/`
 - **Supersedes:** `E · 配重方柱 / Counterweight`（2026-08-01）
@@ -190,13 +190,13 @@ Routing Ink 的选择板与旧审查稿已在决议固化后清理。
 
 Owner selected C′ and then approved the compact text treatment in local Claude
 session `83ad64b0-5391-4173-989c-3d8910ecdc3e` (13:31 and 13:55 UTC).
-Selected canvas: `lazu-ops:brand/canvases.md`.
+Selected canvas: `archive:brand/canvases.md`.
 See `foundations/yunmu-console.md`, “Locked model status cards”, for the
 production contract, including the scoped healthy-label and stream-rate rules.
 
 ## Locked console overview + sessions (2026-09-30)
 
-- **Canvas:** `lazu-ops:brand/canvases.md` (third page: overview A3, charts, palettes; fifth page: sessions)
+- **Canvas:** `archive:brand/canvases.md` (third page: overview A3, charts, palettes; fifth page: sessions)
 - **Decision:** overview A3 on both planes, charts 墨 + 柱与线, default range 24 小时; sessions as a 会话 tab with a full-page detail
 - **Rules:** `foundations/yunmu-console.md` → "Locked console overview"
 - **Tokens:** `tokens/colors.css` `--lazu-chart-1/2/3` now carry the ink series (light and dark)
@@ -216,7 +216,7 @@ production contract, including the scoped healthy-label and stream-rate rules.
 
 ## Locked Console / Docs review · 2026-09-06
 
-User approved the final `lazu-ops:brand/explorations/ui-redesign-2026-09/` prototypes for
+User approved the final `archive:brand/explorations/ui-redesign-2026-09/` prototypes for
 production implementation. See `foundations/console-review-2026-09.md` for the
 selected scope, exclusions, inline credential behavior and compact layouts.
 
@@ -244,7 +244,7 @@ team-console 探索稿的角色与后端待办，登记成员详情主从页例�
 
 - **Selected direction:** `A · 刻度`, drawn as `A2 · 填线`
 - **Rules:** `foundations/team-projects-2026-09.md` § Reasoning-effort cap and team refinement
-- **Visual reference:** `lazu-ops:brand/explorations/thinking-depth-2026-09/`（`python3 build.py`）
+- **Visual reference:** `archive:brand/explorations/thinking-depth-2026-09/`（`python3 build.py`）
 
 管理员给成员、成员的每把 Key 设「思考深度」上限：一把梯子
 `minimal < low < medium < high < xhigh < max`，选一档即上限，之下全可用；三层只能收窄
@@ -257,7 +257,7 @@ team-console 探索稿的角色与后端待办，登记成员详情主从页例�
 
 - **Selected direction:** list with `L1` lane tags, inline detail `M3`, official-price line `S1`
 - **Rules:** `foundations/usage-logs-2026-09.md`
-- **Visual reference:** design canvas `lazu-ops:brand/canvases.md`
+- **Visual reference:** design canvas `archive:brand/canvases.md`
 
 用量与日志：线路（稳定 / Agent）作为标签挂在模型名后，不再有「分组」列；失败只标状态格，不涂整行。
 点开一行在行下展开 M3 收据：左侧实扣 + 官方价与省下的钱，右侧时间条与费用条对齐，底部一行事实以请求 ID
@@ -267,7 +267,7 @@ team-console 探索稿的角色与后端待办，登记成员详情主从页例�
 
 - **Selected direction:** `C · 分层`（墨头 · 纸面 · 运维）
 - **Rules:** `foundations/emails.md`
-- **Visual reference:** `lazu-ops:brand/explorations/emails-2026-09/`（`python3 build.py`）
+- **Visual reference:** `archive:brand/explorations/emails-2026-09/`（`python3 build.py`）
 
 每封邮件按「新闻是什么」归入三层：金额或比例用墨头（付款、余额调整、余额不足、Key 用量），账号与团队用纸面，
 运维告警用只发管理员的等宽运维页。三层共用 640px 外框、卡片外页脚、一个墨色主按钮 + 一个文字链接。发给人的
@@ -278,7 +278,7 @@ team-console 探索稿的角色与后端待办，登记成员详情主从页例�
 
 - **Selected direction:** `方案二 · 墨头`（ink masthead）
 - **Rules:** `foundations/payment-emails.md`
-- **Visual reference:** `lazu-ops:brand/explorations/payment-emails-2026-09/`（`python3 build.py` 生成 `index.html`）
+- **Visual reference:** `archive:brand/explorations/payment-emails-2026-09/`（`python3 build.py` 生成 `index.html`）
 
 每笔付款成功的充值只发一封 Lazu 邮件（2026-09-27 由两封合并）：眉行 `PAYMENT RECEIVED`，主视觉是
 到账金额，事实为付款时间、支付方式、钱包余额与 Invoice 编号，主按钮 Open wallet 加一个 View invoice
@@ -288,7 +288,7 @@ team-console 探索稿的角色与后端待办，登记成员详情主从页例�
 
 ## Locked SEO surfaces + 运营 (2026-09-29)
 
-- **Approved canvas:** `lazu-ops:brand/canvases.md` (`lazu-ops:brand/explorations/seo-surfaces-2026-09/`)
+- **Approved canvas:** `archive:brand/canvases.md` (`archive:brand/explorations/seo-surfaces-2026-09/`)
 - **Rules:** `foundations/seo-surfaces-2026-09.md`
 
 Public header 模型 · 文档 · 博客 · 常见问题; four-column footer with the

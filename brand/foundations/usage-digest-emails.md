@@ -1,7 +1,7 @@
 # Usage digest e-mails — 周报与月报（2026-09-30）
 
 > **Locked:** 2026-09-30 by owner approval
-> **Design canvas:** `lazu-ops:brand/canvases.md`（「v2 · 当前稿」一行 + 「发出去的每一封都有存档」一行）
+> **Design canvas:** `archive:brand/canvases.md`（「v2 · 当前稿」一行 + 「发出去的每一封都有存档」一行）
 > **Inherits:** `emails.md`（三层邮件外壳、按读者语言发中英）、`payment-emails.md`（墨头版式、邮件实现约束、深色模式读法）、
 > `yunmu-console.md` § Locked console overview（墨 + 柱与线）、`logo-system.md`
 

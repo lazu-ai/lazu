@@ -14,7 +14,7 @@ const asArray = <T,>(value: unknown): T[] =>
 
 // Who runs Lazu, where it is registered and how to reach it — verifiable
 // facts, mirrored in the Organization schema (legalName / address /
-// contactPoint). Design: lazu-ops:brand/explorations/seo-surfaces-2026-09/About.dc.html
+// contactPoint). Design: archive:brand/explorations/seo-surfaces-2026-09/About.dc.html
 const About = () => {
   const { t } = useTranslation('marketing');
   const { locale } = splitMarketingPath(useLocation().pathname);

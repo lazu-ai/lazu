@@ -2,7 +2,7 @@
 
 Status: LOCKED by user approval on 2026-09-06.
 
-Selected reference: `lazu-ops:brand/explorations/ui-redesign-2026-09/`, final HTML and the
+Selected reference: `archive:brand/explorations/ui-redesign-2026-09/`, final HTML and the
 `compact-review.css` refinements. This decision supersedes conflicting earlier
 review notes in that exploration. Retain Yunmu colors, typography and tokens.
 

@@ -2,7 +2,7 @@
 
 Status: **LOCKED by user approval on 2026-09-16.** This document selects
 direction **B (table) + E (connect dialog)** out of
-`lazu-ops:brand/explorations/api-keys-2026-09/` and the revision boards that followed
+`archive:brand/explorations/api-keys-2026-09/` and the revision boards that followed
 it. The exploration keeps the rejected directions and the decision history;
 this file is what `apps/web/src/pages/Token/` implements. Where an artboard
 and this file disagree, this file wins.
@@ -194,7 +194,7 @@ wins.
 ## Revision 2026-10-02 — API addresses, toolbar off the card
 
 Approved on the canvas "API Keys 多接入域名"
-(`lazu-ops:brand/canvases.md`). Where this section and
+(`archive:brand/canvases.md`). Where this section and
 the text above disagree, this section wins.
 
 - **The overview cards are gone.** 启用中 lives in the status tabs; 本月已用
