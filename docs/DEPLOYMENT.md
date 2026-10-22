@@ -53,7 +53,7 @@ them empty and the feature stays off.
 | Capability | Configuration |
 | --- | --- |
 | SMTP transport | `SMTP_ACCOUNT`, `SMTP_TOKEN` and host settings for the selected mail transport |
-| Telegram alerts | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`; see [Telegram](#telegram) |
+| Telegram alerts and answer bot | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`, `TELEGRAM_UPDATES`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ANSWER_MODEL`, `TELEGRAM_ANSWER_API_KEY`, `TELEGRAM_ANSWER_CHATS`; see [Telegram](#telegram) |
 | Separate browser origins | `FRONTEND_BASE_URL`, and exact `CORS_ALLOW_ORIGINS` where needed; see the sign-in guidance below |
 | Cloudflare edge purge on deploy | `CF_API_TOKEN` (a token scoped to Zone → Cache Purge for the site's zone) and `CF_ZONE_ID`; see below |
 | Support address and community link on the web pages | `VITE_BRAND_SUPPORT_EMAIL`, `VITE_BRAND_COMMUNITY_URL`: build arguments of the frontend image (`apps/web/Dockerfile`), because the public pages are prerendered. The community link appears in the public footer, the console Help menu and the Organization schema; empty shows none |
@@ -79,6 +79,35 @@ documents, backups, worker failures) is then also posted to
   chat for two hours during maintenance. Muting never stops the mail.
 - Use a separate bot for development and production: one token can only
   deliver its updates to one place.
+
+#### Answer bot
+
+The same bot can answer questions from your published documentation, in
+private chats and in the groups you list:
+
+1. Choose how it receives messages. `TELEGRAM_UPDATES=webhook` registers
+   `<site.api_origin or web origin>/api/telegram/webhook` with Telegram at
+   startup; it needs a public HTTPS origin and `TELEGRAM_WEBHOOK_SECRET`
+   (letters, digits, `_` and `-`). `TELEGRAM_UPDATES=polling` needs neither;
+   only one process polls at a time.
+2. Create an API key on an account you own and set `TELEGRAM_ANSWER_API_KEY`
+   and `TELEGRAM_ANSWER_MODEL` (a fast, inexpensive chat model). The bot calls
+   this gateway's own `/v1` over loopback, so every answer is billed to that
+   account and appears in its usage like any request.
+3. List the group chat ids where it may answer in `TELEGRAM_ANSWER_CHATS`
+   (comma-separated). In other groups it stays silent, so nobody can spend the
+   key by adding the bot elsewhere. In a group it answers when mentioned,
+   when someone replies to it, or on `/ask <question>`; BotFather's default
+   privacy mode is enough for that.
+
+Answers come from `/llms.txt`, `/docs/llms.txt` and `/docs/llms-full.txt` on
+the web origin (`telegram.answer.knowledge_urls` changes them). Small files go
+with every question; the large one is split into pages and the pages that
+best match the question are sent. Error numbers named in a question are looked
+up in the error catalog. The bot cannot see accounts. It refuses to forward a
+message that contains an API key and asks the sender to revoke it. It answers
+each person at most six times in ten minutes and the whole deployment at most
+`telegram.answer.daily_limit` (300) times a UTC day.
 
 ### Fetching client-supplied media URLs
 

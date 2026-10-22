@@ -49,6 +49,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/user/reset", middleware.LoginRateLimit(), controller.ResetPassword)
 		apiRouter.POST("/user/reset/v2", middleware.LoginRateLimit(), controller.ResetPasswordV2)
 		apiRouter.POST("/stripe/webhook", controller.StripeWebhook)
+		apiRouter.POST("/telegram/webhook", controller.TelegramWebhook)
 		// Mail links: one-click opt-out (GET confirms, POST applies) and the
 		// usage digest's chart image. Both are signed, so no session is needed.
 		apiRouter.GET("/mail/unsubscribe", middleware.LookupRateLimit(), controller.MailUnsubscribePage)

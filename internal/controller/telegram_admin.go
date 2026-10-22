@@ -19,6 +19,9 @@ func telegramStatus(ctx context.Context) gin.H {
 		"bot_configured":      telegram.Configured(),
 		"ops_chat_configured": telegram.OpsConfigured(),
 		"ops_muted_until":     int64(0),
+		"updates":             telegram.Mode(),
+		"answer_configured":   telegram.AnswerConfigured(),
+		"answer_chats":        len(common.AppConfig.Telegram.Answer.Chats),
 	}
 	if until := telegram.OpsMutedUntil(ctx); until.After(time.Now()) {
 		status["ops_muted_until"] = until.Unix()

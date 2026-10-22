@@ -135,7 +135,7 @@ const createSections = (
     }),
     description: t('page.console.settingV2.branding.telegram.description', {
       defaultValue:
-        '运维告警邮件会同时发到 Telegram 群。同一主题一小时内只推送一次；静默只影响 Telegram，邮件照发。',
+        '运维告警邮件会同时发到 Telegram 群。同一主题一小时内只推送一次；静默只影响 Telegram，邮件照发。配置了答疑模型后，机器人会在私聊和指定的群里根据文档回答问题。',
     }),
     status: telegramStatus,
     fields: [],
