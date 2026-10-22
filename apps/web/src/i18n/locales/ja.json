@@ -295,6 +295,8 @@
     "console.topbar.changelog": "更新履歴",
     "console.topbar.source": "ソースコード",
     "console.topbar.reportIssue": "問題を報告",
+    "console.topbar.community": "コミュニティに参加",
+    "console.topbar.contactSupport": "サポートに連絡",
     "console.topbar.upstream": "New API をベースに開発",
     "console.topbar.account": "アカウント",
     "error.httpStatus": "サーバーがエラーステータスを返しました",

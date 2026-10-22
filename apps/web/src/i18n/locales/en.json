@@ -295,6 +295,8 @@
     "console.topbar.changelog": "Changelog",
     "console.topbar.source": "Source code",
     "console.topbar.reportIssue": "Report an issue",
+    "console.topbar.community": "Join the community",
+    "console.topbar.contactSupport": "Contact support",
     "console.topbar.upstream": "Built on New API",
     "console.topbar.account": "Account",
     "error.httpStatus": "The server returned an error status code",

@@ -3,7 +3,12 @@ import { Link, useLocation } from 'react-router-dom';
 import './public-footer.css';
 import ThemedBrandLogo from './ThemedBrandLogo';
 import { webExtensions } from '../../extensions';
-import { getDocsHomeURL, getDocsURL } from '../../helpers/brandUrls';
+import {
+  getCommunityURL,
+  getDocsHomeURL,
+  getDocsURL,
+  getSupportEmail,
+} from '../../helpers/brandUrls';
 import {
   isMarketingBarePath,
   localizedMarketingPath,
@@ -49,6 +54,8 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
     ? split.locale
     : (LOCALES.find((value) => value === i18n.language) ?? 'en');
   const at = (bare: string) => localizedMarketingPath(bare, locale);
+  const supportEmail = getSupportEmail();
+  const communityURL = getCommunityURL();
 
   const columns: { key: string; title: string; items: FooterItem[] }[] = [
     {
@@ -76,7 +83,10 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
       title: t('footer.company'),
       items: [
         { href: at('/about'), label: t('footer.about'), internal: true },
-        { href: 'mailto:support@lazu.ai', label: 'support@lazu.ai' },
+        ...(communityURL
+          ? [{ href: communityURL, label: t('footer.community') }]
+          : []),
+        { href: `mailto:${supportEmail}`, label: supportEmail },
       ],
     },
     {

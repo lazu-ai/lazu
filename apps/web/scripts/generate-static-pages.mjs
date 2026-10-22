@@ -67,7 +67,7 @@ const organizationNode = {
     width: 512,
     height: 512,
   },
-  email: 'support@lazu.ai',
+  email: env.supportEmail,
   foundingDate: '2025',
   address: {
     '@type': 'PostalAddress',
@@ -77,10 +77,13 @@ const organizationNode = {
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer support',
-    email: 'support@lazu.ai',
+    email: env.supportEmail,
     availableLanguage: ['en', 'zh', 'ja'],
   },
-  sameAs: ['https://x.com/try_lazu'],
+  sameAs: [
+    'https://x.com/try_lazu',
+    ...(env.communityUrl ? [env.communityUrl] : []),
+  ],
 };
 
 const websiteNode = {

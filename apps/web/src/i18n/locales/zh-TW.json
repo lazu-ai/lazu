@@ -295,6 +295,8 @@
     "console.topbar.changelog": "更新日誌",
     "console.topbar.source": "原始碼",
     "console.topbar.reportIssue": "回報問題",
+    "console.topbar.community": "加入社群",
+    "console.topbar.contactSupport": "聯絡支援",
     "console.topbar.upstream": "基於 New API",
     "console.topbar.account": "帳戶",
     "error.httpStatus": "伺服器返回了錯誤狀態碼",

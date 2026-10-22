@@ -26,3 +26,21 @@ export const getDocsQuickstartURL = (language = '') => {
  *  redirects (apps/docs/nginx.conf). */
 export const getDocsHomeURL = (language = '') =>
   DOCS_LOCALES.has(language) ? getDocsURL(`${language}/`) : getDocsBaseURL();
+
+/* Where readers write for help, and the community they can join. Both are
+ * deployment facts read at build time, like the docs URL above, because the
+ * public pages are prerendered and cannot wait for the server to say. A
+ * build without VITE_BRAND_COMMUNITY_URL shows no community link at all. */
+const DEFAULT_SUPPORT_EMAIL = 'support@lazu.ai';
+
+export const getSupportEmail = () =>
+  String(
+    import.meta.env.VITE_BRAND_SUPPORT_EMAIL || DEFAULT_SUPPORT_EMAIL,
+  ).trim();
+
+/** The community link (a Telegram group, a forum …), or null when the build
+ *  names none. Only absolute http(s) URLs are accepted. */
+export const getCommunityURL = (): string | null => {
+  const raw = String(import.meta.env.VITE_BRAND_COMMUNITY_URL || '').trim();
+  return /^https?:\/\/\S+$/.test(raw) ? raw : null;
+};
