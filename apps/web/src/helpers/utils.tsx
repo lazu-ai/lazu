@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { translateMessage } from './message-i18n';
 import { isAdminRole } from './roles';
 import { sanitizeMarkup } from './sanitize';
+import { openReportProblem } from '../components/support/reportChannel';
 import Pagination from '../components/ui/pagination';
 import { recordStatusIssue } from '../components/ui/status-center';
 import { toastConstants } from '../constants';
@@ -335,8 +336,25 @@ export function showError(error: unknown, fallback?: string) {
     dedupeKey: info.code || undefined,
   });
   if (!shouldShowErrorToast(info.code || message)) return;
+  // A failure worth a support reference is worth a report: the toast offers
+  // one, already carrying the error number and the request id.
+  const reportAction =
+    reference && getUserIdFromLocalStorage() !== -1
+      ? {
+          label: String(
+            i18n.t('console.report.action', { defaultValue: '报告问题' }),
+          ),
+          onClick: () =>
+            openReportProblem({
+              error: info.lazu || undefined,
+              message,
+              requestId: info.requestId || undefined,
+            }),
+        }
+      : undefined;
   report.toastId = toast.error(message, {
     ...showErrorOptions,
+    action: reportAction,
     description: reference || undefined,
     onDismiss: () => {
       report.toastId = undefined;

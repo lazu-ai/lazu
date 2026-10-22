@@ -1,0 +1,6 @@
+{
+  "support_report_invalid": "報告沒有送出：{{reason}}。",
+  "support_unavailable": "這個站點沒有設定接收報告的支援信箱，請改用郵件聯絡。",
+  "support_report_rate_limited": "一小時內已經送出好幾份報告，請稍後再送。",
+  "support_report_failed": "報告沒有送出。請重試，或者直接寫信給客服。"
+}

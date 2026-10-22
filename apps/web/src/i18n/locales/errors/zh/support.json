@@ -1,0 +1,6 @@
+{
+  "support_report_invalid": "报告没有发出：{{reason}}。",
+  "support_unavailable": "这个站点没有配置接收报告的支持邮箱，请改用邮件联系。",
+  "support_report_rate_limited": "一小时内已经发了好几份报告，请稍后再发。",
+  "support_report_failed": "报告没有发出去。请重试，或者直接写邮件给客服。"
+}

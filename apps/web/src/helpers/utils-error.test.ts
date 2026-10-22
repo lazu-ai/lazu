@@ -164,3 +164,90 @@ describe('error reporting across interceptor and caller', () => {
     expect(JSON.parse(stored)).toEqual([]);
   });
 });
+
+const lastToastOptions = () => {
+  const calls = vi.mocked(toast.error).mock.calls;
+  return calls[calls.length - 1]?.[1];
+};
+
+describe('report action on failures that carry a support reference', () => {
+  let clock = Date.now() + 10 * 60_000;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Past the toast throttle of the tests above.
+    clock += 10 * 60_000;
+    vi.setSystemTime(clock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  const stubWindow = (user: unknown) => {
+    const dispatched: Event[] = [];
+    const storage = {
+      setItem: () => {},
+      getItem: (key: string) =>
+        key === 'user' && user ? JSON.stringify(user) : null,
+      removeItem: () => {},
+    };
+    vi.stubGlobal('localStorage', storage);
+    vi.stubGlobal('window', {
+      localStorage: storage,
+      dispatchEvent: (event: Event) => {
+        dispatched.push(event);
+        return true;
+      },
+    });
+    return dispatched;
+  };
+
+  it('offers 报告问题 carrying the error number and request id', () => {
+    vi.clearAllMocks();
+    clearStatusIssues();
+    const dispatched = stubWindow({ id: 7 });
+    showError({
+      response: {
+        status: 502,
+        data: {
+          error: {
+            code: 'upstream_error',
+            type: 'api_error',
+            lazu: 'LZ-6001',
+            request_id: 'req_report',
+          },
+        },
+      },
+    });
+    const options = lastToastOptions() as {
+      action?: { label: string; onClick: () => void };
+    };
+    expect(options.action?.label).toBeTruthy();
+    options.action?.onClick();
+    const detail = (dispatched[0] as CustomEvent).detail;
+    expect(detail).toMatchObject({ error: 'LZ-6001', requestId: 'req_report' });
+  });
+
+  it('offers no report to a signed-out reader', () => {
+    vi.clearAllMocks();
+    clearStatusIssues();
+    stubWindow(null);
+    showError({
+      response: {
+        status: 502,
+        data: {
+          error: {
+            code: 'upstream_timeout',
+            type: 'api_error',
+            lazu: 'LZ-6002',
+            request_id: 'req_anon',
+          },
+        },
+      },
+    });
+    const options = lastToastOptions() as {
+      action?: unknown;
+    };
+    expect(options.action).toBeUndefined();
+  });
+});

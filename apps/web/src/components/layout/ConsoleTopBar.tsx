@@ -46,6 +46,7 @@ import { useAnnouncementsUnread } from '../../hooks/common/useAnnouncementsUnrea
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { formatVersionLabel } from '../announcements/versionLabel';
 import { openWhatsNewDialog } from '../announcements/whatsNewChannel';
+import { openReportProblem } from '../support/reportChannel';
 import {
   CompactConfirmation,
   DropdownMenu,
@@ -302,6 +303,16 @@ const ConsoleTopBar = () => {
                 </span>
               </DropdownMenuItem>
             ) : null}
+            <DropdownMenuItem
+              className='console-topbar__item'
+              onSelect={() => openReportProblem()}
+            >
+              <span>
+                {t('console.topbar.reportProblem', {
+                  defaultValue: '报告问题',
+                })}
+              </span>
+            </DropdownMenuItem>
             <DropdownMenuItem
               className='console-topbar__item'
               onSelect={() => {

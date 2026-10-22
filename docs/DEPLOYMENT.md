@@ -122,6 +122,19 @@ every time. Console, sign-in, payment and API routes are never cached.
 Enable the rule only after step 1, or a deploy can leave old pages at the
 edge for up to five minutes.
 
+## Problem reports
+
+The console's **报告问题** (in the Help menu, and on any error notice that
+shows an error number and request ID) mails a report to `site.support_email`,
+or to the admin alert address when that is empty. The report carries the
+reader's words, their account, the error number with its catalog code, the
+page, and, when the request ID belongs to their account and is less than 30
+days old, the request's model, time and failure reason. Replying to the mail
+reaches the reader (Reply-To). Each account may send five reports an hour.
+Without a support address or a mail transport, the console opens the reader's
+mail app instead. Subjects start with `[Lazu support]` and the error family
+(钱包, 上游, 模型与线路 …), so a mailbox rule can sort them.
+
 ## Model metadata synchronization: upgrade configuration
 
 The console's **upstream metadata preview and synchronization** require explicit

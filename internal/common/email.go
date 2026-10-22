@@ -51,6 +51,9 @@ const (
 type MailMeta struct {
 	Kind   string
 	UserID int
+	// ReplyTo sends replies to someone other than the sender (a support
+	// report's author).
+	ReplyTo string
 	// DeliveryID is set when the caller already claimed an archive row
 	// (usage digests); the recorder then updates that row instead of adding
 	// one.
@@ -80,6 +83,7 @@ var MailRecorder func(MailRecord)
 
 // SendMail sends one mail with its archive metadata and optional headers.
 func SendMail(meta MailMeta, subject string, receiver string, content string) error {
+	meta.Headers = withReplyTo(meta.Headers, meta.ReplyTo)
 	providerID, err := sendEmail(subject, receiver, content, nil, meta.Headers)
 	if meta.Kind == "" {
 		meta.Kind = MailKindOther
@@ -88,6 +92,21 @@ func SendMail(meta MailMeta, subject string, receiver string, content string) er
 		recorder(MailRecord{Meta: meta, Subject: subject, Receiver: receiver, HTML: content, ProviderID: providerID, Err: err})
 	}
 	return err
+}
+
+// withReplyTo returns headers with Reply-To added, leaving the caller's map
+// untouched. A value with a line break is dropped rather than sent.
+func withReplyTo(headers map[string]string, replyTo string) map[string]string {
+	replyTo = strings.TrimSpace(replyTo)
+	if replyTo == "" || strings.ContainsAny(replyTo, "\r\n") {
+		return headers
+	}
+	out := make(map[string]string, len(headers)+1)
+	for k, v := range headers {
+		out[k] = v
+	}
+	out["Reply-To"] = replyTo
+	return out
 }
 
 // EmailTransportConfigured reports whether identity mail has a usable
@@ -166,7 +185,18 @@ func sendEmailViaResend(subject string, receiver string, content string, attachm
 		params.Attachments = resendAttachments
 	}
 	if len(headers) > 0 {
-		params.Headers = headers
+		// Resend takes Reply-To as a field of its own.
+		rest := make(map[string]string, len(headers))
+		for k, v := range headers {
+			if strings.EqualFold(k, "Reply-To") {
+				params.ReplyTo = v
+				continue
+			}
+			rest[k] = v
+		}
+		if len(rest) > 0 {
+			params.Headers = rest
+		}
 	}
 
 	sent, err := client.Emails.Send(params)

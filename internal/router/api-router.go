@@ -147,6 +147,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.PUT("/setting", controller.UpdateUserSetting)
 				selfRoute.GET("/used-models", controller.GetUserUsedModels)
 				selfRoute.GET("/email/bind", middleware.AccountActionRateLimit(), controller.EmailBind)
+				selfRoute.POST("/support/report", middleware.AccountActionRateLimit(), controller.SubmitSupportReport)
 
 			}
 
