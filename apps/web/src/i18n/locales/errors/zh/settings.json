@@ -19,5 +19,8 @@
   "admin_email_missing": "发送预览前，请先为账户添加邮箱。",
   "mail_regenerate_failed": "邮件重新生成失败；草稿请从用量回顾页面重新生成。",
   "digest_settings_invalid": "用量回顾设置无效。",
-  "mail_send_failed": "邮件发送失败，请查看投递详情。"
+  "mail_send_failed": "邮件发送失败，请查看投递详情。",
+  "telegram_not_configured": "这个部署还没有配置 Telegram：{{reason}}。请在部署配置里设置 telegram.bot_token 和 telegram.ops_chat，然后重启。",
+  "telegram_send_failed": "Telegram 没有接受这条消息：{{reason}}。请确认机器人已在群里，并且 chat id 填写正确。",
+  "telegram_mute_invalid": "静默时长必须是 0 到 10080 之间的整数分钟（最长一周）。0 表示解除静默。"
 }

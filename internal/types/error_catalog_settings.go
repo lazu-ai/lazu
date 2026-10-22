@@ -24,6 +24,9 @@ const (
 	ErrorCodePasswordResetLinkInvalid           ErrorCode = "password_reset_link_invalid"
 	ErrorCodePasswordResetClientUpgradeRequired ErrorCode = "password_reset_client_upgrade_required"
 	ErrorCodeUUIDCollision                      ErrorCode = "uuid_collision"
+	ErrorCodeTelegramNotConfigured              ErrorCode = "telegram_not_configured"
+	ErrorCodeTelegramSendFailed                 ErrorCode = "telegram_send_failed"
+	ErrorCodeTelegramMuteInvalid                ErrorCode = "telegram_mute_invalid"
 )
 
 func init() {
@@ -93,6 +96,18 @@ func init() {
 		ErrorCodePasswordResetClientUpgradeRequired: {
 			ID: "LZ-7415", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
 			Template: "This page is out of date. Reload it and set the password again; the reset link has not been used.",
+		},
+		ErrorCodeTelegramNotConfigured: {
+			ID: "LZ-7431", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceOperator,
+			Template: "Telegram is not set up: {reason|set telegram.bot_token and telegram.ops_chat in the deployment config}.",
+		},
+		ErrorCodeTelegramSendFailed: {
+			ID: "LZ-7432", HTTPStatus: http.StatusBadGateway, Type: ErrorTypeAPI, Audience: AudienceOperator,
+			Template: "Telegram did not accept the message: {reason|no reply}. Check that the bot is a member of the chat and the chat id is right.",
+		},
+		ErrorCodeTelegramMuteInvalid: {
+			ID: "LZ-7433", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceOperator,
+			Template: "minutes must be a whole number from 0 to 10080 (one week); 0 lifts the mute.",
 		},
 		ErrorCodeUUIDCollision: {
 			Public: ErrorCodeInternalError, HTTPStatus: http.StatusInternalServerError, Type: ErrorTypeAPI,

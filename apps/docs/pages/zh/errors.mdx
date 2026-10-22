@@ -334,6 +334,9 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 | <a id="lz-7424"></a>`LZ-7424` | `mail_regenerate_failed` | 400 | `invalid_request_error` | 邮件重新生成失败；草稿请从用量回顾页面重新生成。 |
 | <a id="lz-7425"></a>`LZ-7425` | `digest_settings_invalid` | 400 | `invalid_request_error` | 用量回顾设置无效。 |
 | <a id="lz-7426"></a>`LZ-7426` | `mail_send_failed` | 400 | `invalid_request_error` | 邮件发送失败，请查看投递详情。 |
+| <a id="lz-7431"></a>`LZ-7431` | `telegram_not_configured` | 400 | `invalid_request_error` | 这个部署还没有配置 Telegram：\{\{reason\}\}。请在部署配置里设置 telegram.bot_token 和 telegram.ops_chat，然后重启。 |
+| <a id="lz-7432"></a>`LZ-7432` | `telegram_send_failed` | 502 | `api_error` | Telegram 没有接受这条消息：\{\{reason\}\}。请确认机器人已在群里，并且 chat id 填写正确。 |
+| <a id="lz-7433"></a>`LZ-7433` | `telegram_mute_invalid` | 400 | `invalid_request_error` | 静默时长必须是 0 到 10080 之间的整数分钟（最长一周）。0 表示解除静默。 |
 | <a id="lz-7501"></a>`LZ-7501` | `model_name_taken` | 409 | `conflict_error` | 已有名为 \{\{model\}\} 的模型。请换一个名称，或直接编辑已有模型。 |
 | <a id="lz-7502"></a>`LZ-7502` | `vendor_name_taken` | 409 | `conflict_error` | 已有名为 \{\{vendor\}\} 的供应商。请换一个名称，或直接编辑已有供应商。 |
 | <a id="lz-7503"></a>`LZ-7503` | `prefill_group_name_taken` | 409 | `conflict_error` | 已有名为 \{\{name\}\} 的预填组。请换一个名称。 |

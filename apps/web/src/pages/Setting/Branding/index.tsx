@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import EmailStatus from './EmailStatus';
+import TelegramStatus from './TelegramStatus';
 import { brandingDefaults, brandingSchema } from '../schemas';
 import {
   SettingsGroupPage,
@@ -27,6 +28,7 @@ const localeDocs = (prefix: string): SettingDoc[] =>
 const createSections = (
   t: TFunction,
   emailStatus: SettingSection['status'],
+  telegramStatus: SettingSection['status'],
 ): SettingSection[] => [
   {
     id: 'brand',
@@ -123,11 +125,29 @@ const createSections = (
       },
     ],
   },
+  /* Telegram has nothing to edit here: the token and the chat are secrets
+     and deployment facts, like mail delivery. The group exists so an
+     operator can see whether alerts reach the chat and act on it. */
+  {
+    id: 'telegram',
+    title: t('page.console.settingV2.branding.telegram.title', {
+      defaultValue: 'Telegram 告警',
+    }),
+    description: t('page.console.settingV2.branding.telegram.description', {
+      defaultValue:
+        '运维告警邮件会同时发到 Telegram 群。同一主题一小时内只推送一次；静默只影响 Telegram，邮件照发。',
+    }),
+    status: telegramStatus,
+    fields: [],
+  },
 ];
 
 export default function BrandingSetting() {
   const { t } = useTranslation();
-  const sections = useMemo(() => createSections(t, <EmailStatus />), [t]);
+  const sections = useMemo(
+    () => createSections(t, <EmailStatus />, <TelegramStatus />),
+    [t],
+  );
 
   return (
     <SettingsGroupPage

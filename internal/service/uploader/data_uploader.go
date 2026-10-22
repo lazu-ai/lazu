@@ -805,10 +805,11 @@ func SendUploadEmail(summary *UploadSummary, runErr error) error {
 	if runErr != nil || failed > 0 {
 		blocks = append(blocks, common.MailBlock{Muted: true, Text: "本地分片保留 7 天，下一轮会自动重试。"})
 	}
-	body, err := common.RenderMail(common.Mail{
+	mail := common.Mail{
 		Tier: common.MailOps, Source: "BACKUP", Severity: severity, Title: title,
 		Preheader: fmt.Sprintf("成功 %d，失败 %d", uploaded, failed), Blocks: blocks,
-	})
+	}
+	body, err := common.RenderMail(mail)
 	if err != nil {
 		return err
 	}
@@ -817,7 +818,7 @@ func SendUploadEmail(summary *UploadSummary, runErr error) error {
 	if common.SMTPFrom == "" && cfg.Upload.Email.From != "" {
 		common.SMTPFrom = cfg.Upload.Email.From
 	}
-	if err := common.SendMail(common.MailMeta{Kind: common.MailKindOps}, subject, to, body); err != nil {
+	if err := common.SendMail(common.MailMeta{Kind: common.MailKindOps, AlertText: common.MailAlertText(mail)}, subject, to, body); err != nil {
 		return err
 	}
 	common.SysLog(fmt.Sprintf("upload email sent to %s (subject=%s)", to, subject))

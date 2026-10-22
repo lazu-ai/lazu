@@ -39,5 +39,6 @@ func GetDeploymentStatus(c *gin.Context) {
 		"channel_probe": gin.H{
 			"env_managed": probeEnvManaged,
 		},
+		"telegram": telegramStatus(c.Request.Context()),
 	})
 }

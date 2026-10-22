@@ -143,6 +143,19 @@ email_notifications:
 #   source_url: "https://github.com/your-org/your-fork"
 
 # -----------------------------------------------------------
+# Telegram (optional)
+# One bot for this deployment, created with @BotFather. Keep the token in the
+# environment (TELEGRAM_BOT_TOKEN); TELEGRAM_OPS_CHAT overrides ops_chat too.
+# ops_chat receives a copy of every operational alert mail: a chat id such as
+# -1001234567890, optionally ":<topic id>" for one topic of a forum group.
+# The bot must be a member of that chat. Each subject is posted at most once
+# an hour; the console can mute the chat during maintenance.
+# -----------------------------------------------------------
+telegram:
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  ops_chat: "${TELEGRAM_OPS_CHAT}"
+
+# -----------------------------------------------------------
 # Probe identities (optional)
 # A source can be restricted to one client, such as "Claude Code clients only"
 # in the source form. Health probes and observation checks are not that client,

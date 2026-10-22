@@ -19,5 +19,8 @@
   "admin_email_missing": "プレビューの送信前にメールアドレスを登録してください。",
   "mail_regenerate_failed": "メールの再生成に失敗しました。下書きは使用量レポートから再生成してください。",
   "digest_settings_invalid": "使用量レポートの設定が無効です。",
-  "mail_send_failed": "メールの送信に失敗しました。配信の詳細を確認してください。"
+  "mail_send_failed": "メールの送信に失敗しました。配信の詳細を確認してください。",
+  "telegram_not_configured": "このデプロイでは Telegram が設定されていません：{{reason}}。デプロイ設定で telegram.bot_token と telegram.ops_chat を設定し、再起動してください。",
+  "telegram_send_failed": "Telegram がメッセージを受け付けませんでした：{{reason}}。ボットがチャットに参加していること、chat id が正しいことを確認してください。",
+  "telegram_mute_invalid": "ミュート時間は 0 から 10080 までの整数（分、最長 1 週間）で指定してください。0 でミュートを解除します。"
 }
