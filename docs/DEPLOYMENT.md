@@ -56,6 +56,7 @@ them empty and the feature stays off.
 | Telegram notifications | `TELEGRAM_BOT_TOKEN` |
 | Separate browser origins | `FRONTEND_BASE_URL`, and exact `CORS_ALLOW_ORIGINS` where needed; see the sign-in guidance below |
 | Cloudflare edge purge on deploy | `CF_API_TOKEN` (a token scoped to Zone → Cache Purge for the site's zone) and `CF_ZONE_ID`; see below |
+| Support address and community link on the web pages | `VITE_BRAND_SUPPORT_EMAIL`, `VITE_BRAND_COMMUNITY_URL`: build arguments of the frontend image (`apps/web/Dockerfile`), because the public pages are prerendered. The community link appears in the public footer, the console Help menu and the Organization schema; empty shows none |
 
 Starting containers does not verify payment, email or object storage workflows.
 Validate each enabled integration with its actual provider configuration.

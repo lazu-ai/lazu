@@ -35,6 +35,15 @@ export const env = {
   docsOrigin: process.env.DOCS_ORIGIN || 'https://lazu.ai/docs',
   repoUrl: process.env.REPO_URL || 'https://github.com/lazu-ai/lazu',
   brandName: process.env.BRAND_NAME || 'Lazu',
+  // The same brand facts the app reads (src/helpers/brandUrls.ts).
+  supportEmail: (
+    process.env.VITE_BRAND_SUPPORT_EMAIL || 'support@lazu.ai'
+  ).trim(),
+  communityUrl: /^https?:\/\/\S+$/.test(
+    (process.env.VITE_BRAND_COMMUNITY_URL || '').trim(),
+  )
+    ? process.env.VITE_BRAND_COMMUNITY_URL.trim()
+    : '',
   defaultPublicLang: normalizePublicLanguage(
     process.env.DEFAULT_PUBLIC_LANG || 'en',
   ),

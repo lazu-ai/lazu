@@ -48,6 +48,7 @@ import {
   showSuccess,
   timestamp2string,
 } from '../../helpers';
+import { getSupportEmail } from '../../helpers/brandUrls';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
@@ -809,7 +810,7 @@ const WalletPage = () => {
                     aria-label={t(`${topupNs}.recharge.contact`, {
                       defaultValue: '联系我们开通',
                     })}
-                    href='mailto:support@lazu.ai'
+                    href={`mailto:${getSupportEmail()}`}
                   />
                 }
                 size='sm'

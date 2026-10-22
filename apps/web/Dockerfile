@@ -15,6 +15,15 @@ COPY brand /repo/brand
 COPY internal/setting/system_setting/legal_defaults /repo/internal/setting/system_setting/legal_defaults
 COPY apps/web /repo/apps/web
 ENV DISABLE_ESLINT_PLUGIN=true
+# Brand facts baked into the prerendered pages and the console bundle
+# (src/helpers/brandUrls.ts). Empty keeps the defaults; an empty community
+# URL shows no community link.
+ARG VITE_BRAND_DOCS_URL=""
+ARG VITE_BRAND_SUPPORT_EMAIL=""
+ARG VITE_BRAND_COMMUNITY_URL=""
+ENV VITE_BRAND_DOCS_URL=${VITE_BRAND_DOCS_URL} \
+    VITE_BRAND_SUPPORT_EMAIL=${VITE_BRAND_SUPPORT_EMAIL} \
+    VITE_BRAND_COMMUNITY_URL=${VITE_BRAND_COMMUNITY_URL}
 RUN bun run build
 
 FROM nginx:alpine

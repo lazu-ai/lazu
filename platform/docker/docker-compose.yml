@@ -5,6 +5,11 @@ services:
       # apps/web, so it builds from the repository root, as CI does.
       context: ../..
       dockerfile: apps/web/Dockerfile
+      # Brand facts baked into the pages (apps/web/src/helpers/brandUrls.ts);
+      # empty keeps the defaults and shows no community link.
+      args:
+        VITE_BRAND_SUPPORT_EMAIL: ${VITE_BRAND_SUPPORT_EMAIL:-}
+        VITE_BRAND_COMMUNITY_URL: ${VITE_BRAND_COMMUNITY_URL:-}
     image: lazu-frontend:local
     container_name: lazu-frontend
     restart: always

@@ -34,7 +34,11 @@ import { UserContext } from '../../context/User';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
 import { useProject } from '../../features/projects/ProjectContext';
 import { API } from '../../helpers/api';
-import { getDocsBaseURL } from '../../helpers/brandUrls';
+import {
+  getCommunityURL,
+  getDocsBaseURL,
+  getSupportEmail,
+} from '../../helpers/brandUrls';
 import { githubNewIssueURL } from '../../helpers/sourceLinks';
 import { UPSTREAM_NOTICE, UPSTREAM_URL } from '../../helpers/upstream';
 import { showSuccess } from '../../helpers/utils';
@@ -109,6 +113,10 @@ const ConsoleTopBar = () => {
   /* Issues have a known address only on a GitHub repository; a source link on
      any other host keeps its own menu entry and offers no issue shortcut. */
   const issueHref = githubNewIssueURL(sourceHref);
+  /* The community link exists only when the build names one; support mail
+     always has an address (the brand default when the build sets none). */
+  const communityHref = getCommunityURL();
+  const supportEmail = getSupportEmail();
   /* An API-key pass has no wallet of its own, and a deployment can switch the
      page off entirely; /console/wallet refuses both. The sidebar and the
      mobile tab bar hide the entry on the same two tests, so this menu does. */
@@ -282,6 +290,30 @@ const ConsoleTopBar = () => {
                 </span>
               </DropdownMenuItem>
             ) : null}
+            {communityHref ? (
+              <DropdownMenuItem
+                className='console-topbar__item'
+                onSelect={() =>
+                  window.open(communityHref, '_blank', 'noopener')
+                }
+              >
+                <span>
+                  {t('console.topbar.community', { defaultValue: '加入社群' })}
+                </span>
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem
+              className='console-topbar__item'
+              onSelect={() => {
+                window.location.href = `mailto:${supportEmail}`;
+              }}
+            >
+              <span>
+                {t('console.topbar.contactSupport', {
+                  defaultValue: '联系支持',
+                })}
+              </span>
+            </DropdownMenuItem>
             {versionLabel ? (
               <>
                 <div className='console-topbar__rule' />
