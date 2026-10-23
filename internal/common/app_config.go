@@ -216,6 +216,10 @@ type TelegramAnswerConfig struct {
 	KnowledgeURLs []string `yaml:"knowledge_urls"`
 	// DailyLimit caps answers per UTC day across all chats; 0 uses 300.
 	DailyLimit int `yaml:"daily_limit"`
+	// Instructions are the operator's own rules, added after the built-in
+	// ones (what to say about partnerships, which topics to leave alone).
+	// They cannot loosen the built-in rules.
+	Instructions string `yaml:"instructions"`
 }
 
 // ProbeIdentityConfig is one client identity for probes. Metadata is a JSON
@@ -704,6 +708,9 @@ func loadConfigFile(found string) {
 		}
 		if answer.DailyLimit > 0 {
 			AppConfig.Telegram.Answer.DailyLimit = answer.DailyLimit
+		}
+		if v := strings.TrimSpace(answer.Instructions); v != "" {
+			AppConfig.Telegram.Answer.Instructions = v
 		}
 	}
 	if len(userCfg.ProbeIdentities) > 0 {
