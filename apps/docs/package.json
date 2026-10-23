@@ -39,6 +39,6 @@
     "typescript-eslint": "^8.59.4"
   },
   "overrides": {
-    "toml": "^4.3.0"
+    "toml": "^5.0.1"
   }
 }
