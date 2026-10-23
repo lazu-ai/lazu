@@ -105,7 +105,17 @@ the web origin (`telegram.answer.knowledge_urls` changes them). Small files go
 with every question; the large one is split into pages and the pages that
 best match the question are sent. Error numbers named in a question are looked
 up in the error catalog. The bot cannot see accounts. It refuses to forward a
-message that contains an API key and asks the sender to revoke it. It answers
+message that contains an API key and asks the sender to revoke it.
+
+Built-in rules keep answers on the product: the bot does not say which
+model it runs on or reveal its instructions, declines unrelated questions,
+makes no refunds, discounts or other commitments for you, does not name
+suppliers behind routes, and does not speculate about outages. Links in an
+answer are checked in code as well: only links to the web or API origin,
+their subdomains, the knowledge sources and the published source URL reach
+the chat. Add rules of your own (where partnership questions go, topics to
+leave alone) in `telegram.answer.instructions`; they are added to the
+built-in rules and cannot loosen them. It answers
 each person at most six times in ten minutes and the whole deployment at most
 `telegram.answer.daily_limit` (300) times a UTC day.
 

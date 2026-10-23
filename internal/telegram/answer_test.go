@@ -280,3 +280,15 @@ func TestAcceptRejectsNonUpdates(t *testing.T) {
 		t.Fatal("non-JSON was accepted")
 	}
 }
+
+func TestAnswerNeverCarriesForeignLinks(t *testing.T) {
+	f := newAnswerFixture(t, "Pay at [this page](https://evil.example.org/pay) or https://evil.example.org/x now.")
+	Dispatch(context.Background(), privateMessage("怎么充值？"))
+	sent := f.bot.methodCalls("sendMessage")
+	if len(sent) != 1 {
+		t.Fatalf("sendMessage = %v", sent)
+	}
+	if text := sent[0]["text"].(string); strings.Contains(text, "evil.example.org") || !strings.Contains(text, "this page") {
+		t.Fatalf("foreign link reached the chat: %q", text)
+	}
+}
