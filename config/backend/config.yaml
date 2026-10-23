@@ -150,10 +150,28 @@ email_notifications:
 # -1001234567890, optionally ":<topic id>" for one topic of a forum group.
 # The bot must be a member of that chat. Each subject is posted at most once
 # an hour; the console can mute the chat during maintenance.
+#
+# The same bot can answer questions from the documentation. Set updates to
+# "webhook" (Telegram posts to <api or web origin>/api/telegram/webhook; needs
+# HTTPS and webhook_secret) or "polling" (no public origin needed; one
+# process polls). answer.model and answer.api_key turn answering on: the bot
+# calls this gateway's own /v1 with that key, so answers are billed and
+# logged like any request. It answers in private chats and, when mentioned,
+# replied to or asked with /ask, in the group chats listed in answer.chats.
 # -----------------------------------------------------------
 telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   ops_chat: "${TELEGRAM_OPS_CHAT}"
+  updates: "${TELEGRAM_UPDATES}"
+  webhook_secret: "${TELEGRAM_WEBHOOK_SECRET}"
+  # webhook_url: "https://api.example.com/api/telegram/webhook"
+  answer:
+    model: "${TELEGRAM_ANSWER_MODEL}"
+    api_key: "${TELEGRAM_ANSWER_API_KEY}"
+    # base_url: ""            # empty calls this process over loopback
+    # chats: ["-1001234567890"]  # or TELEGRAM_ANSWER_CHATS=-100...,-100...
+    # knowledge_urls: []      # empty: /llms.txt, /docs/llms.txt, /docs/llms-full.txt
+    # daily_limit: 300
 
 # -----------------------------------------------------------
 # Probe identities (optional)

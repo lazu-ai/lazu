@@ -13,9 +13,12 @@ import { queryKeys } from '../../../lib/query-keys';
  * only silences Telegram; alert mail keeps going. */
 
 type TelegramStatusData = {
+  answer_chats?: number;
+  answer_configured?: boolean;
   bot_configured?: boolean;
   ops_chat_configured?: boolean;
   ops_muted_until?: number;
+  updates?: string;
 };
 
 const MUTE_MINUTES = 120;
@@ -106,6 +109,22 @@ export default function TelegramStatus() {
               minute: '2-digit',
             }),
           })}
+        </span>
+      ) : null}
+      {data?.bot_configured ? (
+        <span className='set-status__item'>
+          <span aria-hidden='true' className='set-status__sep'>
+            ·
+          </span>
+          {data.answer_configured && data.updates
+            ? t('page.console.settingV2.branding.telegramStatus.answerOn', {
+                defaultValue: '答疑机器人已开启（{{mode}}，{{count}} 个群）',
+                mode: data.updates,
+                count: data.answer_chats ?? 0,
+              })
+            : t('page.console.settingV2.branding.telegramStatus.answerOff', {
+                defaultValue: '答疑机器人未开启',
+              })}
         </span>
       ) : null}
       <span className='set-status__item'>
