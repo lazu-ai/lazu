@@ -138,7 +138,9 @@ func TestProjectTokenBudgetPageUsesFixedQueriesAndPreservesFacts(t *testing.T) {
 			create(core, &spends)
 			logs := []model.Log{
 				{RequestID: "reject-empty", ProjectID: project.ID, UserId: owner.Id, TokenId: tokens[0].Id, Type: model.LogTypeError, CreatedAt: now.Unix()},
-				{RequestID: "reject-legacy", ProjectID: 0, UserId: owner.Id, TokenId: tokens[0].Id, Type: model.LogTypeError, CreatedAt: now.Unix()},
+				// An owner's project-less rejection from before schema 37, as the
+				// backfill left it.
+				{RequestID: "reject-legacy", ProjectID: project.ID, UserId: owner.Id, TokenId: tokens[0].Id, Type: model.LogTypeError, CreatedAt: now.Unix()},
 				{RequestID: "reject-budget", ProjectID: project.ID, TokenId: tokens[0].Id, Type: model.LogTypeError, RejectionReason: "budget", CreatedAt: now.Unix()},
 				{RequestID: "reject-other-project", ProjectID: 99, UserId: owner.Id, TokenId: tokens[0].Id, Type: model.LogTypeError, CreatedAt: now.Unix()},
 				{RequestID: "reject-yesterday", ProjectID: project.ID, TokenId: tokens[0].Id, Type: model.LogTypeError, CreatedAt: now.AddDate(0, 0, -1).Unix()},

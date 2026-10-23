@@ -382,7 +382,7 @@ func readProjectMemberLastActive(project Project, userIDs []int) (map[int]int64,
 		Last   int64
 	}
 	db := TelemetryDB()
-	scope := "(logs.project_id = ? OR ((logs.project_id = 0 OR logs.project_id IS NULL) AND logs.user_id = ?))"
+	scope := "logs.project_id = ?"
 	var err error
 	if db.Dialector.Name() == "postgres" {
 		err = db.Raw(`SELECT member.user_id, COALESCE(newest.created_at, 0) AS last
@@ -390,9 +390,9 @@ func readProjectMemberLastActive(project Project, userIDs []int) (map[int]int64,
 			LEFT JOIN LATERAL (SELECT logs.created_at FROM logs
 				WHERE logs.user_id = member.user_id AND logs.type = ? AND `+scope+`
 				ORDER BY logs.request_ts DESC LIMIT 1) newest ON TRUE`,
-			postgresIntArray(userIDs), LogTypeConsume, project.ID, project.OwnerUserID).Scan(&rows).Error
+			postgresIntArray(userIDs), LogTypeConsume, project.ID).Scan(&rows).Error
 	} else {
-		err = db.Model(&Log{}).Where("logs.user_id IN ? AND logs.type = ? AND "+scope, userIDs, LogTypeConsume, project.ID, project.OwnerUserID).
+		err = db.Model(&Log{}).Where("logs.user_id IN ? AND logs.type = ? AND "+scope, userIDs, LogTypeConsume, project.ID).
 			Select("logs.user_id AS user_id, COALESCE(MAX(logs.created_at),0) AS last").Group("logs.user_id").Scan(&rows).Error
 	}
 	if err != nil {

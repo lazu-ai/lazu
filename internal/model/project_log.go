@@ -99,25 +99,25 @@ func ListProjectLogsContext(ctx context.Context, access ProjectLogAccess, filter
 func ListProjectLogPageContext(ctx context.Context, access ProjectLogAccess, filter ProjectLogFilter, offset, limit int) ([]*Log, error) {
 	query := ProjectLogsQuery(access, filter).WithContext(ctx)
 	var logs []*Log
-	err := projectLogPageQuery(query, filter, offset, limit).Find(&logs).Error
+	err := projectLogPageQuery(query, offset, limit).Find(&logs).Error
 	return logs, err
 }
 
-func projectLogPageQuery(query *gorm.DB, filter ProjectLogFilter, offset, limit int) *gorm.DB {
-	dailyWindow := filter.Start > 0 && filter.End > 0 && filter.End >= filter.Start && filter.End-filter.Start <= 24*60*60
-	if query.Dialector.Name() == "postgres" && dailyWindow {
-		// Keep every scope/filter inside the boundary. Otherwise LIMIT can choose
-		// an id-ordered Merge Append that walks a whole historical partition to
-		// discover it has no matching created_at rows. OFFSET 0 makes PostgreSQL
-		// filter first, then perform the original id ordering and page limit.
-		// It does not infer request_ts from created_at or materialize wide rows.
-		// This planner fix is verified for explicit daily windows. Keep broader
-		// or unbounded pages on their original index-ordered path; this bound
-		// does not change any API time filter, count, or pagination semantics.
-		query = query.Session(&gorm.Session{NewDB: true}).Model(&Log{}).
-			Table("(? OFFSET 0) AS logs", query)
+func projectLogPageQuery(query *gorm.DB, offset, limit int) *gorm.DB {
+	return orderLogsNewestFirst(query).Offset(offset).Limit(limit)
+}
+
+// SearchProjectLogs finds the request with this id among the project's logs
+// the viewer may see, and those whose content starts with the keyword within
+// the filter's window, or the last day when it has none.
+func SearchProjectLogs(ctx context.Context, access ProjectLogAccess, filter ProjectLogFilter) ([]*Log, error) {
+	keyword := filter.Keyword
+	filter.Keyword = ""
+	since := int64(0)
+	if filter.Start <= 0 {
+		since = time.Now().Add(-logSearchWindow).Unix()
 	}
-	return query.Order("logs.id DESC").Offset(offset).Limit(limit)
+	return searchLogs(func() *gorm.DB { return ProjectLogsQuery(access, filter).WithContext(ctx) }, keyword, since, false)
 }
 
 type ProjectLogView struct {

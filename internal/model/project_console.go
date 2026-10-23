@@ -118,10 +118,11 @@ func ReadProjectSummary(project Project, member ProjectMember) (ProjectSummary, 
 	return result, err
 }
 
-// Legacy log fallback is only valid for the original owner's default project.
-// Rows with a real project ID never fall through to the actor's default.
+// ProjectLogScope is a project's logs. Account logs are written with the
+// owner's project (accountLog) and schema 37 gave older project-less rows
+// theirs, so no fallback to the owner's rows remains.
 func ProjectLogScope(tx *gorm.DB, project Project) *gorm.DB {
-	return tx.Where("(logs.project_id = ? OR ((logs.project_id = 0 OR logs.project_id IS NULL) AND logs.user_id = ?))", project.ID, project.OwnerUserID)
+	return tx.Where("logs.project_id = ?", project.ID)
 }
 
 func ReadProjectSpend(project Project, start, end int64) (billing.MicroUSD, error) {

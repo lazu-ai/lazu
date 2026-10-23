@@ -81,7 +81,7 @@ func SearchUserLogs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	logs, err := model.ListProjectLogPageContext(c.Request.Context(), access, projectLogFilter(c), 0, common.MaxRecentItems)
+	logs, err := model.SearchProjectLogs(c.Request.Context(), access, projectLogFilter(c))
 	if err != nil {
 		logFailure(c, err)
 		return

@@ -196,6 +196,11 @@ probes and the model plaza's health for four days without anyone being told.
    when the job that maintains them is down. Route health is the model:
    `route_health_hourly` is recomputed per hour from raw facts, and readers
    compute the hours it has not reached themselves.
+6. A list over history pages in the order of an index that also serves its
+   filter, so LIMIT stops after one page. Log lists use `orderLogsNewestFirst`
+   (`created_at`, then `id`) through a `(filter, created_at)` index each;
+   `TestLogListsOrderNewestFirst` fails on a log list ordered by id, and
+   `TestPostgresLogPagesReadOnlyTheirPage` measures every list's plan.
 
 ### Protocol Layer
 
@@ -287,6 +292,13 @@ roadmap adds it, and until then the rule is a review rule.
 
 What recent work got wrong, and the rule that would have caught it. Keep this
 to the last few; a lesson that has become a rule with a test can be removed.
+
+- **2026-10-23, project log page.** A five-row page of a small project read
+  40 000 other rows. The list was ordered by id, a project's rows were found
+  through an OR fallback to its owner's project-less rows that no index served
+  in time order, and a planner fence covered only windows of up to a day.
+  Rule that catches it: Read Path 6 (Principle 5); schema 37 gave the
+  fallback's rows their project and removed the fence (Principle 6).
 
 - **2026-10-20, Claude thinking mapping.** Haiku 5.5 with `reasoning_effort`
   was encoded as legacy `thinking.enabled` with a token budget and refused by

@@ -52,7 +52,11 @@ func TestReceiptHTTPRequiresSameOwnerAndKeyRegardlessOfRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	fact := usagepkg.FactFromDTO(&dto.Usage{PromptTokens: 12, CompletionTokens: 3, InputTokenSource: dto.UsageSourceLocalEstimate})
-	if err := db.Create(&model.Log{UserId: 92001, TokenId: 92001, Type: model.LogTypeConsume, RequestID: "req-scope-fixture", PublicID: "log-scope-fixture", UsageFact: fact.JSONString(), Other: `{"admin_info":{"secret":"private-provider-field"}}`}).Error; err != nil {
+	var key model.Token
+	if err := db.First(&key, 92001).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.Log{ProjectID: key.ProjectID, UserId: 92001, TokenId: 92001, Type: model.LogTypeConsume, RequestID: "req-scope-fixture", PublicID: "log-scope-fixture", UsageFact: fact.JSONString(), Other: `{"admin_info":{"secret":"private-provider-field"}}`}).Error; err != nil {
 		t.Fatal(err)
 	}
 	router := gin.New()
