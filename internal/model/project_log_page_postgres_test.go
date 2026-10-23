@@ -38,7 +38,9 @@ func projectLogPagePostgresFixture(t *testing.T) (*gorm.DB, ProjectLogAccess, in
 	if err := ensureLogListIndexes(db, false); err != nil {
 		t.Fatal(err)
 	}
-	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).Unix()
+	// Last month, so the window, the month before it and the undated rows
+	// fall in different partitions whenever the test runs.
+	start := monthStart(time.Now()).AddDate(0, -1, 0).Unix()
 	access := ProjectLogAccess{Project: Project{ID: 42, OwnerUserID: 1}, Viewer: ProjectMember{ProjectID: 42, UserID: 1, Role: ProjectRoleOwner, Status: ProjectMemberActive}}
 	return db, access, start, start + 86400
 }
@@ -58,7 +60,7 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 	rows[7].Type = LogTypeUnknown
 	// created_at is authoritative: neither a different partition month nor an
 	// undated physical request key may remove a visible log.
-	rows[12].RequestTS = time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	rows[12].RequestTS = time.Unix(start, 0).UTC().AddDate(0, -1, 0).UnixMilli()
 	rows[13].RequestTS = 0
 	rows[1].TokenName = "member-key"
 	for _, i := range []int{14, 15} {
@@ -153,7 +155,7 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 	t.Run("duplicate-id-across-partitions", func(t *testing.T) {
 		a, b := row(21, 42, 1, end+1000), row(21, 42, 1, end+1000)
 		a.PublicID, b.PublicID = "log_page_tie_a", "log_page_tie_b"
-		a.RequestTS = time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC).UnixMilli()
+		a.RequestTS = time.Unix(start, 0).UTC().AddDate(0, -1, 1).UnixMilli()
 		if err := db.Create(&[]Log{a, b}).Error; err != nil {
 			t.Fatal(err)
 		}

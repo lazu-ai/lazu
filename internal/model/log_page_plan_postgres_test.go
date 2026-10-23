@@ -66,7 +66,7 @@ func logRowsRead(nodes []map[string]interface{}) float64 {
 // page, however wide the window or sparse the filter.
 func TestPostgresLogPagesReadOnlyTheirPage(t *testing.T) {
 	db, sparse, start, _ := projectLogPagePostgresFixture(t)
-	history := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC).Unix()
+	history := time.Unix(start, 0).UTC().AddDate(0, -1, 14).Unix() // mid-month, the month before
 	insert := func(from, to int, at int64, project, user, channel string) {
 		t.Helper()
 		sql := fmt.Sprintf(`INSERT INTO logs(id,public_id,request_ts,created_at,project_id,user_id,token_id,channel_id,type,content)
