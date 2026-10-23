@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestAccountLogBelongsToTheOwnedProject(t *testing.T) {
+func TestWriterGivesProjectlessLogsTheOwnedProject(t *testing.T) {
 	db := setupProjectTestDB(t, true)
 	if err := db.Create(&User{Id: 5, Username: "owner-five"}).Error; err != nil {
 		t.Fatal(err)
@@ -18,16 +18,35 @@ func TestAccountLogBelongsToTheOwnedProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	if project.ID == 0 {
-		project = Project{PublicID: "prj_account_log", OwnerUserID: 5, Name: "owned"}
+		project = Project{PublicID: "prj_writer_owned", OwnerUserID: 5, Name: "owned"}
 		if err := db.Create(&project).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
-	if log := accountLog(5, LogTypeTopup, "top-up"); log.ProjectID != project.ID || log.UserId != 5 || log.Username != "owner-five" || log.Type != LogTypeTopup {
-		t.Fatalf("owner's account log: %+v", log)
+	if log := accountLog(5, LogTypeTopup, "top-up"); log.UserId != 5 || log.Username != "owner-five" || log.Type != LogTypeTopup {
+		t.Fatalf("account log: %+v", log)
 	}
-	if log := accountLog(77, LogTypeManage, "change"); log.ProjectID != 0 {
-		t.Fatalf("a user without a project got project %d", log.ProjectID)
+	owner, stranger, other := 5, 77, 9
+	queued := relayConsumeLogEvent{UserID: owner, Type: LogTypeTopup}
+	working := relayConsumeLogEvent{UserID: owner, ProjectID: other, Type: LogTypeConsume}
+	nobody := relayConsumeLogEvent{UserID: stranger, Type: LogTypeManage}
+	events := []relayResultEvent{
+		{ConsumeLog: &queued},
+		{ConsumeLog: &working},
+		{ConsumeLog: &nobody},
+		{RoutingOutcome: &RoutingOutcome{RequestID: "outcome-only", UserID: &owner}},
+	}
+	if err := attributeEventsToOwnedProjects(events); err != nil {
+		t.Fatal(err)
+	}
+	if events[0].ConsumeLog.ProjectID != project.ID || events[1].ConsumeLog.ProjectID != other || events[2].ConsumeLog.ProjectID != 0 {
+		t.Fatalf("projects %d %d %d", events[0].ConsumeLog.ProjectID, events[1].ConsumeLog.ProjectID, events[2].ConsumeLog.ProjectID)
+	}
+	if got := events[3].RoutingOutcome.ProjectID; got == nil || *got != project.ID {
+		t.Fatalf("outcome-only row project %v", got)
+	}
+	if queued.ProjectID != 0 {
+		t.Fatal("the caller's event was rewritten in place")
 	}
 }
 

@@ -348,9 +348,8 @@ func GetLogByKey(key string) (logs []*Log, err error) {
 }
 
 // accountLog is a log about an account rather than a request: a top-up, an
-// administrator's change, a key being viewed. It belongs to the project the
-// account owns, which is where the console shows it; each user owns at most
-// one project.
+// administrator's change, a key being viewed. It carries no project; the
+// writer gives it the account's own (attributeEventsToOwnedProjects).
 func accountLog(userId int, logType int, content string) *Log {
 	username, _ := GetUsernameById(userId, false)
 	log := &Log{
@@ -359,13 +358,6 @@ func accountLog(userId int, logType int, content string) *Log {
 		CreatedAt: common.GetTimestamp(),
 		Type:      logType,
 		Content:   content,
-	}
-	if userId > 0 && CoreDB() != nil {
-		var project Project
-		if err := CoreDB().Select("id").Where("owner_user_id = ?", userId).Limit(1).Find(&project).Error; err != nil {
-			common.SysLog(fmt.Sprintf("account log: read the project of user %d: %v", userId, err))
-		}
-		log.ProjectID = project.ID
 	}
 	return log
 }

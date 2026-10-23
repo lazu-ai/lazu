@@ -146,3 +146,32 @@ func TestPostgresSchema37BackfillsOwnerLogsOnly(t *testing.T) {
 	}
 	check()
 }
+
+// An account log the previous release queued in the relay stream carries no
+// project. Persisted after the upgrade, it must still land in the owner's
+// project, or the project scope would hide it for good.
+func TestPostgresQueuedLegacyAccountLogGetsTheOwnedProject(t *testing.T) {
+	core, db := schema37PostgresFixture(t)
+	if err := core.Create(&Project{ID: 7, PublicID: "prj_v37_queued", OwnerUserID: 1, Name: "queued"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	event := newRelayConsumeLogEvent(&Log{UserId: 1, Type: LogTypeTopup, CreatedAt: time.Now().Unix(), Content: "queued before the upgrade"})
+	if event.ProjectID != 0 {
+		t.Fatal("fixture is not a project-less event")
+	}
+	if err := persistRelayResultBatch([]relayResultEvent{{ConsumeLog: &event}}); err != nil {
+		t.Fatal(err)
+	}
+	var stored Log
+	if err := db.Where("public_id = ?", event.PublicID).First(&stored).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.ProjectID != 7 {
+		t.Fatalf("queued account log stored with project %d", stored.ProjectID)
+	}
+	access := ProjectLogAccess{Project: Project{ID: 7, OwnerUserID: 1}, Viewer: ProjectMember{ProjectID: 7, UserID: 1, Role: ProjectRoleOwner, Status: ProjectMemberActive}}
+	logs, total, err := ListProjectLogsContext(context.Background(), access, ProjectLogFilter{}, 0, 5)
+	if err != nil || total != 1 || len(logs) != 1 {
+		t.Fatalf("project page: rows=%d total=%d err=%v", len(logs), total, err)
+	}
+}

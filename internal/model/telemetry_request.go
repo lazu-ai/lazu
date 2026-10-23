@@ -201,6 +201,9 @@ func persistRelayResultBatch(events []relayResultEvent) error {
 	if len(events) == 0 || TelemetryDB() == nil {
 		return nil
 	}
+	if err := attributeEventsToOwnedProjects(events); err != nil {
+		return err
+	}
 	var committed []Log
 	err := TelemetryDB().Transaction(func(tx *gorm.DB) error {
 		var err error

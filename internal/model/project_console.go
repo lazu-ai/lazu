@@ -118,9 +118,10 @@ func ReadProjectSummary(project Project, member ProjectMember) (ProjectSummary, 
 	return result, err
 }
 
-// ProjectLogScope is a project's logs. Account logs are written with the
-// owner's project (accountLog) and schema 37 gave older project-less rows
-// theirs, so no fallback to the owner's rows remains.
+// ProjectLogScope is a project's logs. The writer gives a log that arrives
+// without a project its owner's (attributeEventsToOwnedProjects) and schema
+// 37 gave older project-less rows theirs, so no fallback to the owner's rows
+// remains.
 func ProjectLogScope(tx *gorm.DB, project Project) *gorm.DB {
 	return tx.Where("logs.project_id = ?", project.ID)
 }

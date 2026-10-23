@@ -26,8 +26,10 @@ import (
 // A project's logs were also found through a fallback, rows without a
 // project written by the project's owner, which no index can serve in time
 // order. Schema 37 gives those rows their owner's project, the one the
-// console already showed them in, and new account logs are written with it
-// (accountLog), so a project's logs are exactly logs.project_id.
+// console already showed them in, and the writer does the same for every
+// log that arrives without one, including events a previous release queued
+// (attributeEventsToOwnedProjects), so a project's logs are exactly
+// logs.project_id.
 
 const logProjectPrefillMarker = "telemetry_log_project_prefill_v37"
 
@@ -234,4 +236,53 @@ func migrateSchema37Telemetry(db *gorm.DB) error {
 		}
 		return backfillLogProjectIDs(coreDB, session, from)
 	})
+}
+
+// attributeEventsToOwnedProjects gives a log that arrives without a project
+// the project its user owns, the one the console shows it in, before the
+// writer opens its transaction. Account logs are written this way, and
+// events a previous release queued before schema 37 still carry no project;
+// both would otherwise be outside every project's logs. Each user owns at
+// most one project. A batch with no such log costs nothing.
+func attributeEventsToOwnedProjects(events []relayResultEvent) error {
+	users := map[int]bool{}
+	for _, event := range events {
+		if log := event.ConsumeLog; log != nil && log.ProjectID == 0 && log.UserID > 0 {
+			users[log.UserID] = true
+		} else if outcome := event.RoutingOutcome; log == nil && outcome != nil && (outcome.ProjectID == nil || *outcome.ProjectID == 0) && outcome.UserID != nil && *outcome.UserID > 0 {
+			users[*outcome.UserID] = true
+		}
+	}
+	core := CoreDB()
+	if len(users) == 0 || core == nil || !core.Migrator().HasTable(&Project{}) {
+		return nil
+	}
+	ids := make([]int, 0, len(users))
+	for id := range users {
+		ids = append(ids, id)
+	}
+	var owners []struct {
+		ID          int
+		OwnerUserID int
+	}
+	if err := core.Model(&Project{}).Select("id", "owner_user_id").Where("owner_user_id IN ?", ids).Scan(&owners).Error; err != nil {
+		return fmt.Errorf("attribute logs to projects: %w", err)
+	}
+	projects := make(map[int]int, len(owners))
+	for _, owner := range owners {
+		projects[owner.OwnerUserID] = owner.ID
+	}
+	for i, event := range events {
+		if log := event.ConsumeLog; log != nil && log.ProjectID == 0 && projects[log.UserID] > 0 {
+			copy := *log
+			copy.ProjectID = projects[log.UserID]
+			events[i].ConsumeLog = &copy
+		} else if outcome := event.RoutingOutcome; log == nil && outcome != nil && (outcome.ProjectID == nil || *outcome.ProjectID == 0) && outcome.UserID != nil && projects[*outcome.UserID] > 0 {
+			copy := *outcome
+			project := projects[*outcome.UserID]
+			copy.ProjectID = &project
+			events[i].RoutingOutcome = &copy
+		}
+	}
+	return nil
 }
