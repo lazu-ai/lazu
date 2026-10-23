@@ -351,6 +351,8 @@ message; the cause is recorded against the request ID.
 | <a id="lz-7431"></a>`LZ-7431` | `telegram_not_configured` | 400 | `invalid_request_error` | Telegram is not set up for this deployment: \{\{reason\}\}. Set telegram.bot_token and telegram.ops_chat in the deployment config, then restart. |
 | <a id="lz-7432"></a>`LZ-7432` | `telegram_send_failed` | 502 | `api_error` | Telegram did not accept the message: \{\{reason\}\}. Check that the bot is a member of the chat and that the chat id is right. |
 | <a id="lz-7433"></a>`LZ-7433` | `telegram_mute_invalid` | 400 | `invalid_request_error` | The mute length must be a whole number of minutes from 0 to 10080 (one week). 0 lifts the mute. |
+| <a id="lz-7434"></a>`LZ-7434` | `telegram_link_unavailable` | 409 | `conflict_error` | Telegram accounts cannot be linked here yet: this deployment's bot does not receive messages. |
+| <a id="lz-7435"></a>`LZ-7435` | `telegram_not_linked` | 409 | `conflict_error` | No Telegram account is linked. Link one first, then choose Telegram. |
 | <a id="lz-7501"></a>`LZ-7501` | `model_name_taken` | 409 | `conflict_error` | A model named \{\{model\}\} already exists. Choose another name or edit the existing model. |
 | <a id="lz-7502"></a>`LZ-7502` | `vendor_name_taken` | 409 | `conflict_error` | A vendor named \{\{vendor\}\} already exists. Choose another name or edit the existing vendor. |
 | <a id="lz-7503"></a>`LZ-7503` | `prefill_group_name_taken` | 409 | `conflict_error` | A prefill group named \{\{name\}\} already exists. Choose another name. |

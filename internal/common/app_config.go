@@ -173,6 +173,9 @@ type SiteConfig struct {
 // env-expanded placeholder, never in a file that is committed.
 type TelegramConfig struct {
 	BotToken string `yaml:"bot_token"`
+	// APIBase is the Bot API server. Empty uses https://api.telegram.org;
+	// set it to run against a local telegram-bot-api server.
+	APIBase string `yaml:"api_base"`
 	// OpsChat receives a copy of every operational alert: a chat id such as
 	// -1001234567890, optionally followed by :<topic id> for one topic of a
 	// forum group. Empty sends alerts by mail only.
@@ -669,6 +672,9 @@ func loadConfigFile(found string) {
 	}
 	if v := strings.TrimSpace(userCfg.Telegram.OpsChat); v != "" {
 		AppConfig.Telegram.OpsChat = v
+	}
+	if v := strings.TrimRight(strings.TrimSpace(userCfg.Telegram.APIBase), "/"); v != "" {
+		AppConfig.Telegram.APIBase = v
 	}
 	if v := strings.ToLower(strings.TrimSpace(userCfg.Telegram.Updates)); v != "" {
 		AppConfig.Telegram.Updates = v

@@ -27,6 +27,8 @@ const (
 	ErrorCodeTelegramNotConfigured              ErrorCode = "telegram_not_configured"
 	ErrorCodeTelegramSendFailed                 ErrorCode = "telegram_send_failed"
 	ErrorCodeTelegramMuteInvalid                ErrorCode = "telegram_mute_invalid"
+	ErrorCodeTelegramLinkUnavailable            ErrorCode = "telegram_link_unavailable"
+	ErrorCodeTelegramNotLinked                  ErrorCode = "telegram_not_linked"
 )
 
 func init() {
@@ -108,6 +110,14 @@ func init() {
 		ErrorCodeTelegramMuteInvalid: {
 			ID: "LZ-7433", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceOperator,
 			Template: "minutes must be a whole number from 0 to 10080 (one week); 0 lifts the mute.",
+		},
+		ErrorCodeTelegramLinkUnavailable: {
+			ID: "LZ-7434", HTTPStatus: http.StatusConflict, Type: ErrorTypeConflict, Audience: AudienceCustomer,
+			Template: "Telegram accounts cannot be linked on this deployment: its bot does not receive messages.",
+		},
+		ErrorCodeTelegramNotLinked: {
+			ID: "LZ-7435", HTTPStatus: http.StatusConflict, Type: ErrorTypeConflict, Audience: AudienceCustomer,
+			Template: "No Telegram account is linked. Link one first.",
 		},
 		ErrorCodeUUIDCollision: {
 			Public: ErrorCodeInternalError, HTTPStatus: http.StatusInternalServerError, Type: ErrorTypeAPI,

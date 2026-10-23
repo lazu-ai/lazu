@@ -22,5 +22,7 @@
   "mail_send_failed": "メールの送信に失敗しました。配信の詳細を確認してください。",
   "telegram_not_configured": "このデプロイでは Telegram が設定されていません：{{reason}}。デプロイ設定で telegram.bot_token と telegram.ops_chat を設定し、再起動してください。",
   "telegram_send_failed": "Telegram がメッセージを受け付けませんでした：{{reason}}。ボットがチャットに参加していること、chat id が正しいことを確認してください。",
-  "telegram_mute_invalid": "ミュート時間は 0 から 10080 までの整数（分、最長 1 週間）で指定してください。0 でミュートを解除します。"
+  "telegram_mute_invalid": "ミュート時間は 0 から 10080 までの整数（分、最長 1 週間）で指定してください。0 でミュートを解除します。",
+  "telegram_link_unavailable": "現在ここでは Telegram を連携できません。このデプロイのボットがメッセージを受信していません。",
+  "telegram_not_linked": "Telegram アカウントが連携されていません。先に連携してから Telegram を選んでください。"
 }

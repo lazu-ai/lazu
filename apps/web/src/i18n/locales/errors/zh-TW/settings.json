@@ -22,5 +22,7 @@
   "mail_send_failed": "郵件傳送失敗，請查看投遞詳情。",
   "telegram_not_configured": "這個部署還沒有設定 Telegram：{{reason}}。請在部署設定裡設定 telegram.bot_token 和 telegram.ops_chat，然後重新啟動。",
   "telegram_send_failed": "Telegram 沒有接受這則訊息：{{reason}}。請確認機器人已在群組裡，並且 chat id 填寫正確。",
-  "telegram_mute_invalid": "靜默時長必須是 0 到 10080 之間的整數分鐘（最長一週）。0 表示解除靜默。"
+  "telegram_mute_invalid": "靜默時長必須是 0 到 10080 之間的整數分鐘（最長一週）。0 表示解除靜默。",
+  "telegram_link_unavailable": "這裡暫時不能綁定 Telegram：這個部署的機器人還沒有開啟收訊息。",
+  "telegram_not_linked": "還沒有綁定 Telegram。請先綁定，再選擇 Telegram 提醒。"
 }

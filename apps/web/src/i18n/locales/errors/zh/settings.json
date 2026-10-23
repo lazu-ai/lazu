@@ -22,5 +22,7 @@
   "mail_send_failed": "邮件发送失败，请查看投递详情。",
   "telegram_not_configured": "这个部署还没有配置 Telegram：{{reason}}。请在部署配置里设置 telegram.bot_token 和 telegram.ops_chat，然后重启。",
   "telegram_send_failed": "Telegram 没有接受这条消息：{{reason}}。请确认机器人已在群里，并且 chat id 填写正确。",
-  "telegram_mute_invalid": "静默时长必须是 0 到 10080 之间的整数分钟（最长一周）。0 表示解除静默。"
+  "telegram_mute_invalid": "静默时长必须是 0 到 10080 之间的整数分钟（最长一周）。0 表示解除静默。",
+  "telegram_link_unavailable": "这里暂时不能绑定 Telegram：这个部署的机器人还没有开启收消息。",
+  "telegram_not_linked": "还没有绑定 Telegram。请先绑定，再选择 Telegram 提醒。"
 }

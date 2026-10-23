@@ -212,3 +212,73 @@ test('personal settings stay within a narrow mobile viewport', async ({
   expect(columns.trim().split(/\s+/)).toHaveLength(1);
   await app.expectNoUnexpectedErrors();
 });
+
+test('Telegram reminders link the account through a one-time Telegram link', async ({
+  page,
+}) => {
+  let linked = false;
+  let linkRequests = 0;
+  const app = await setupMockedApp(page, {
+    user: {
+      setting: JSON.stringify({
+        notify_type: 'telegram',
+        quota_warning_threshold: 5,
+      }),
+    },
+    payloadFor: (url, request) => {
+      const { pathname } = new URL(url);
+      if (pathname === '/api/user/telegram' && request.method() === 'GET') {
+        return {
+          success: true,
+          message: '',
+          data: linked
+            ? { available: true, linked: true, linked_at: 1761100000 }
+            : { available: true, linked: false },
+        };
+      }
+      if (
+        pathname === '/api/user/telegram/link' &&
+        request.method() === 'POST'
+      ) {
+        linkRequests += 1;
+        return {
+          success: true,
+          message: '',
+          data: {
+            url: 'https://t.me/lazu_help_bot?start=link_smoke',
+            expires_in: 600,
+          },
+        };
+      }
+      return undefined;
+    },
+  });
+  await page.route('https://t.me/**', (route) =>
+    route.fulfill({ status: 200, body: 'telegram' }),
+  );
+
+  await expectRouteReady(page, '/console/personal');
+  await expect(page.getByText('通过Telegram提醒')).toBeVisible();
+  const row = page.locator('.set-row').filter({ hasText: '通过Telegram提醒' });
+  await row.getByRole('button', { name: '编辑' }).click();
+
+  const link = page.getByRole('button', { name: '绑定 Telegram' });
+  await expect(link).toBeVisible();
+  const popup = page.waitForEvent('popup');
+  await link.click();
+  expect((await popup).url()).toBe(
+    'https://t.me/lazu_help_bot?start=link_smoke',
+  );
+  expect(linkRequests).toBe(1);
+  await expect(
+    page.getByText('在 Telegram 里点「开始」完成绑定…'),
+  ).toBeVisible();
+
+  // The bot completes the link; the field notices on its next poll.
+  linked = true;
+  await expect(page.getByText(/已绑定 Telegram/)).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByRole('button', { name: '解绑' })).toBeVisible();
+  await app.expectNoUnexpectedErrors();
+});

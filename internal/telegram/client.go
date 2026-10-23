@@ -20,8 +20,15 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 )
 
-// apiBase is the Bot API origin. Tests point it at an httptest server.
+// apiBase is the default Bot API origin; telegram.api_base overrides it.
 var apiBase = "https://api.telegram.org"
+
+func botAPIBase() string {
+	if v := strings.TrimRight(strings.TrimSpace(common.AppConfig.Telegram.APIBase), "/"); v != "" {
+		return v
+	}
+	return apiBase
+}
 
 // MaxMessageRunes is Telegram's limit on a message's text after entity
 // parsing. Text is cut below it so the HTML markup still fits.
@@ -107,7 +114,7 @@ func Call(ctx context.Context, method string, body any, out any) error {
 	if err != nil {
 		return fmt.Errorf("telegram %s: encode: %w", method, err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBase+"/bot"+tok+"/"+method, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, botAPIBase()+"/bot"+tok+"/"+method, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("telegram %s: build request", method)
 	}
