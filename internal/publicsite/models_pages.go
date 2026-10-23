@@ -3,6 +3,7 @@ package publicsite
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -62,6 +63,41 @@ func RenderModelsIndex(catalog Catalog, locale string) ([]byte, error) {
 	return Render("models.gohtml", meta, page)
 }
 
+// laneOffer is a lane's headline price as a schema.org Offer, in the order
+// the page shows it (buildLane): per call or image, per second of video, per
+// million input tokens, per million output tokens. nil when the lane
+// publishes none of them.
+func laneOffer(lane Lane, model Model, canonical string) map[string]any {
+	list := LaneList(lane, model)
+	var price float64
+	var quantity int
+	var unit string
+	switch {
+	case list.PerCall != nil:
+		price, quantity, unit = *list.PerCall, 1, "request"
+		if laneImagePrices(lane, model) != nil {
+			unit = "image"
+		}
+	case list.PerSecond != nil:
+		price, quantity, unit = *list.PerSecond, 1, "second"
+	case list.Input != nil:
+		price, quantity, unit = *list.Input, 1000000, "input tokens"
+	case list.Output != nil:
+		price, quantity, unit = *list.Output, 1000000, "output tokens"
+	default:
+		return nil
+	}
+	return map[string]any{
+		"@type": "Offer", "name": laneLabel(lane, "en") + " lane",
+		"price": strconv.FormatFloat(price, 'f', -1, 64), "priceCurrency": "USD",
+		"availability": "https://schema.org/InStock", "seller": organizationRef(), "url": canonical,
+		"priceSpecification": map[string]any{
+			"@type": "UnitPriceSpecification", "price": price, "priceCurrency": "USD",
+			"referenceQuantity": map[string]any{"@type": "QuantitativeValue", "value": quantity, "unitText": unit},
+		},
+	}
+}
+
 // RenderModelPage renders one model page for a locale.
 func RenderModelPage(catalog Catalog, model Model, locale string) ([]byte, error) {
 	page := BuildModelPage(catalog, model, locale, DocsURL(locale, ""))
@@ -84,29 +120,28 @@ func RenderModelPage(catalog Catalog, model Model, locale string) ([]byte, error
 		if !LaneOn(lane) {
 			continue
 		}
-		list := LaneList(lane, model)
-		if list.Input == nil {
-			continue
+		if offer := laneOffer(lane, model, meta.Canonical); offer != nil {
+			offers = append(offers, offer)
 		}
-		offer := map[string]any{
-			"@type": "Offer", "name": laneLabel(lane, "en") + " lane",
-			"price": fmt.Sprintf("%.4f", *list.Input), "priceCurrency": "USD",
-			"availability": "https://schema.org/InStock", "seller": organizationRef(), "url": meta.Canonical,
-			"priceSpecification": map[string]any{
-				"@type": "UnitPriceSpecification", "price": *list.Input, "priceCurrency": "USD",
-				"referenceQuantity": map[string]any{"@type": "QuantitativeValue", "value": 1000000, "unitText": "input tokens"},
-			},
-		}
-		offers = append(offers, offer)
 	}
 	product := map[string]any{
 		"@type": "Product", "@id": meta.Canonical + "#product",
 		"name": page.Name, "alternateName": model.ID, "description": description,
 		"category": "AI model API", "url": meta.Canonical,
 		"brand": map[string]any{"@type": "Brand", "name": MakerName(model.Maker, "en")},
+		// Google rejects a Product with offers but no image as a merchant
+		// listing; the page's own share image is the one it shows.
+		"image": meta.OGImage,
 	}
 	if len(offers) > 0 {
 		product["offers"] = offers
+	} else {
+		// A Product needs offers, review or aggregateRating, or Search
+		// Console lists it as an invalid product snippet. A model with no
+		// published price on any lane is described as a plain Thing.
+		product["@type"] = "Thing"
+		delete(product, "brand")
+		delete(product, "category")
 	}
 	faqs := make([]any, 0, len(page.FAQs))
 	for _, item := range page.FAQs {
