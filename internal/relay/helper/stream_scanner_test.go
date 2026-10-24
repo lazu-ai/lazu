@@ -415,3 +415,57 @@ func TestStreamScannerHandler_ReturnsQuicklyOnCanceledClient(t *testing.T) {
 		t.Fatalf("expected quick return on canceled context, elapsed=%s", elapsed)
 	}
 }
+
+// An upstream that answers 200 and then sends only keep-alive comments until
+// it reports a failure minutes later must not hold the client past the
+// stream start deadline.
+func TestStreamStartDeadlineEndsAStreamThatSendsNoData(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	reader, writer := io.Pipe()
+	defer writer.Close()
+	go func() {
+		for i := 0; i < 50; i++ {
+			if _, err := io.WriteString(writer, ": keep-alive\n\n"); err != nil {
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}()
+	info := &relaycommon.RelayInfo{IsStream: true, StreamStartDeadline: time.Now().Add(100 * time.Millisecond)}
+	result := make(chan StreamScanResult, 1)
+	go func() {
+		result <- StreamScannerHandler(c, &http.Response{Body: reader}, info, func(string) bool { return true })
+	}()
+	select {
+	case got := <-result:
+		if !errors.Is(got.Err, relaycommon.ErrStreamStartDeadline) || got.Done {
+			t.Fatalf("result=%+v, want the stream start deadline", got)
+		}
+		if code := got.RelayError(false).GetErrorCode(); code != types.ErrorCodeUpstreamTimeout {
+			t.Fatalf("error code=%q want %q", code, types.ErrorCodeUpstreamTimeout)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("keep-alive comments held the stream past its start deadline")
+	}
+}
+
+// Once the first data event has arrived the deadline no longer applies: a
+// stream that starts in time may run as long as it keeps sending.
+func TestStreamStartDeadlineDoesNotCutAStartedStream(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	reader, writer := io.Pipe()
+	go func() {
+		defer writer.Close()
+		_, _ = io.WriteString(writer, "data: {\"type\":\"message_start\"}\n\n")
+		time.Sleep(300 * time.Millisecond)
+		_, _ = io.WriteString(writer, "data: {\"type\":\"message_stop\"}\n\ndata: [DONE]\n\n")
+	}()
+	info := &relaycommon.RelayInfo{IsStream: true, StreamStartDeadline: time.Now().Add(100 * time.Millisecond)}
+	var events int
+	got := StreamScannerHandler(c, &http.Response{Body: reader}, info, func(string) bool { events++; return true })
+	if got.Err != nil || !got.Done || events != 2 {
+		t.Fatalf("result=%+v events=%d, want a completed stream of 2 events", got, events)
+	}
+}

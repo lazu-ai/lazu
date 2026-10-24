@@ -326,3 +326,106 @@ func TestSharedTransportRejectsNonClaudeCodeClientBeforeNetwork(t *testing.T) {
 		t.Fatal("rejection marked as upstream attempt")
 	}
 }
+
+// A provider that queues a streamed request and only answers minutes later
+// (often with a 429) is abandoned at the stream start deadline, and the
+// failure is the provider's timeout, not a client that went away.
+func TestDoRequestAbandonsStreamWhoseHeadersMissTheStartDeadline(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer server.Close()
+	defer close(release)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	req, err := newUpstreamRequest(c, http.MethodPost, server.URL, strings.NewReader(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := &relaycommon.RelayInfo{IsStream: true, StreamStartDeadline: time.Now().Add(100 * time.Millisecond), ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	started := time.Now()
+	_, err = doRequest(c, req, info)
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("waited %s for headers past the deadline", elapsed)
+	}
+	var lazuErr *types.LazuError
+	if !errors.As(err, &lazuErr) {
+		t.Fatalf("expected LazuError, got %T: %v", err, err)
+	}
+	if got := lazuErr.GetErrorCode(); got != types.ErrorCodeUpstreamTimeout {
+		t.Fatalf("error code=%q want %q", got, types.ErrorCodeUpstreamTimeout)
+	}
+	// 504 is what keeps the relay loop from starting another attempt on a
+	// spent budget (classifyRelayRetryDecision: retryClassTimeout).
+	if lazuErr.StatusCode != http.StatusGatewayTimeout {
+		t.Fatalf("status=%d want %d", lazuErr.StatusCode, http.StatusGatewayTimeout)
+	}
+	if c.Request.Context().Err() != nil {
+		t.Fatal("the deadline must end the attempt, not the client request")
+	}
+}
+
+// The deadline covers the wait for headers only: a body that keeps arriving
+// after it has passed is still read to the end.
+func TestDoRequestKeepsReadingAStreamThatStartedBeforeTheDeadline(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "data: {\"n\":1}\n\n")
+		w.(http.Flusher).Flush()
+		time.Sleep(300 * time.Millisecond)
+		_, _ = io.WriteString(w, "data: {\"n\":2}\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	req, err := newUpstreamRequest(c, http.MethodPost, server.URL, strings.NewReader(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := &relaycommon.RelayInfo{IsStream: true, StreamStartDeadline: time.Now().Add(100 * time.Millisecond), ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	resp, err := doRequest(c, req, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatalf("body read failed after the deadline passed: %v", err)
+	}
+	if !strings.Contains(string(body), "[DONE]") {
+		t.Fatalf("body was cut short: %q", body)
+	}
+}
+
+// A non-streamed request carries its whole answer in the response, so its
+// headers are not held to the deadline.
+func TestDoRequestIgnoresStartDeadlineForNonStreamedRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer server.Close()
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{}`))
+	req, err := newUpstreamRequest(c, http.MethodPost, server.URL, strings.NewReader(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := &relaycommon.RelayInfo{StreamStartDeadline: time.Now().Add(50 * time.Millisecond), ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	resp, err := doRequest(c, req, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+}

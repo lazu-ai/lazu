@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
@@ -21,6 +22,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
+
+// ErrStreamStartDeadline is why a streamed attempt was abandoned at
+// StreamStartDeadline. It wraps context.DeadlineExceeded so every reader of a
+// stream failure reports it as an upstream timeout.
+var ErrStreamStartDeadline = fmt.Errorf("upstream did not start the stream before the deadline: %w", context.DeadlineExceeded)
 
 type ThinkingContentInfo struct {
 	IsFirstThinkingContent  bool
@@ -101,6 +107,13 @@ type RelayInfo struct {
 	StartTime                 time.Time
 	FirstResponseTime         time.Time
 	isFirstResponse           bool
+	// StreamStartDeadline is when a streamed request stops waiting for an
+	// upstream to start answering, across all of its attempts: the response
+	// headers, and then the first data event. Once an attempt has delivered
+	// one, only the idle timeout applies to it. Zero means unbounded, which is
+	// every non-streamed request (its headers arrive with the whole answer)
+	// and every call that does not come through the relay loop.
+	StreamStartDeadline time.Time
 	// FirstOutputTime is when the first event carrying output arrived. It is
 	// what time-to-first-token means, and it is kept apart from
 	// FirstResponseTime because a stream usually opens with a metadata frame —

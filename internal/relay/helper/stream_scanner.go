@@ -167,6 +167,19 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 		}
 	}()
 
+	// Headers alone do not start a stream: an upstream can answer 200 and
+	// then send nothing but keep-alive comments until it reports a failure.
+	// Until the first data event the stream start deadline still applies;
+	// after it, only the idle timeout does.
+	var startDeadline <-chan time.Time
+	startTimer := time.NewTimer(0)
+	startTimer.Stop()
+	if !info.StreamStartDeadline.IsZero() {
+		startTimer.Reset(time.Until(info.StreamStartDeadline))
+		startDeadline = startTimer.C
+	}
+	defer startTimer.Stop()
+
 	scanner.Split(bufio.ScanLines)
 	SetEventStreamHeaders(c)
 
@@ -289,6 +302,7 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			if data[:5] != "data:" && data[:6] != "[DONE]" {
 				continue
 			}
+			startTimer.Stop()
 			data = data[5:]
 			data = strings.TrimLeft(data, " ")
 			data = strings.TrimSuffix(data, "\r")
@@ -365,6 +379,9 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 		// 超时处理逻辑
 		logger.LogError(c, "streaming timeout")
 		state.fail(context.DeadlineExceeded)
+	case <-startDeadline:
+		logger.LogError(c, "upstream sent no data event before the stream start deadline")
+		state.fail(relaycommon.ErrStreamStartDeadline)
 	case <-stopChan:
 		// 正常结束
 		logger.LogInfo(c, "streaming finished")

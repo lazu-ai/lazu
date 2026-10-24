@@ -39,7 +39,9 @@ const (
 	// that sits on a request for half a minute and then reports overload) would
 	// otherwise multiply its own latency by the retry count. Past this point the
 	// error belongs to the client, whose own reconnect logic is better placed to
-	// decide what to do with it.
+	// decide what to do with it. No retry starts past it, and a streamed
+	// attempt still waiting for its upstream's headers or first data event is
+	// abandoned at it (RelayInfo.StreamStartDeadline).
 	relayFirstByteBudget = 90 * time.Second
 
 	// relayMaxRetryAfter bounds how long an upstream may push us out via
@@ -111,6 +113,16 @@ func relayRetryDelay(attempt int, retryAfter time.Duration) (delay time.Duration
 // spent on this request.
 func relayRetryWithinBudget(elapsed, delay time.Duration) bool {
 	return elapsed+delay < relayFirstByteBudget
+}
+
+// relayStreamStartDeadline is when a streamed request, started at started,
+// stops waiting for any attempt's upstream to begin answering. Zero for a
+// non-streamed request, whose headers arrive only with the whole answer.
+func relayStreamStartDeadline(stream bool, started time.Time) time.Time {
+	if !stream {
+		return time.Time{}
+	}
+	return started.Add(relayFirstByteBudget)
 }
 
 // waitRelayRetry paces the next attempt against an unhealthy upstream without
