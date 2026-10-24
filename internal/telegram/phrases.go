@@ -17,6 +17,8 @@ const (
 	phraseSlowDown
 	phraseDailyLimit
 	phraseFailed
+	phraseUserDaily
+	phraseLinkForMore
 )
 
 var phrases = map[phraseKey]map[string]string{
@@ -44,6 +46,16 @@ var phrases = map[phraseKey]map[string]string{
 		"en": "Today's automatic answers are used up. Please try again tomorrow or write to support.",
 		"zh": "今天的自动答疑次数已经用完，请明天再问，或者写信给客服。",
 		"ja": "本日の自動回答の上限に達しました。明日もう一度試すか、サポートにご連絡ください。",
+	},
+	phraseUserDaily: {
+		"en": "You have used today's questions. Please come back tomorrow, or write to support.",
+		"zh": "你今天的提问次数已经用完了，明天再来，或者写信给客服。",
+		"ja": "本日の質問回数の上限に達しました。明日またどうぞ。お急ぎの場合はサポートにご連絡ください。",
+	},
+	phraseLinkForMore: { // %d: the daily allowance
+		"en": "Without a linked account, private chats get %d questions a day. Link Telegram in the console to keep asking, or mention me in the community group.",
+		"zh": "未绑定账号时，私聊每天可以问 %d 次。在控制台绑定 Telegram 后可以继续提问，也可以到社群里 @我。",
+		"ja": "アカウント未連携の場合、プライベートチャットでの質問は 1 日 %d 回までです。コンソールで Telegram を連携すると続けて質問でき、コミュニティでメンションしても質問できます。",
 	},
 	phraseFailed: {
 		"en": "I could not answer that just now. Please try again in a moment.",

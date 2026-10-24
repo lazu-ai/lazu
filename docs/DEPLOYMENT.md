@@ -122,9 +122,13 @@ answer are checked in code as well: only links to the web or API origin,
 their subdomains, the knowledge sources and the published source URL reach
 the chat. Add rules of your own (where partnership questions go, topics to
 leave alone) in `telegram.answer.instructions`; they are added to the
-built-in rules and cannot loosen them. It answers
-each person at most six times in ten minutes and the whole deployment at most
-`telegram.answer.daily_limit` (300) times a UTC day.
+built-in rules and cannot loosen them. Per UTC day it answers
+each person at most `telegram.answer.per_user_daily` (20) times, groups and
+private chats together; someone who has not linked an account at most
+`telegram.answer.unlinked_private_daily` (5) times in a private chat; and the
+whole deployment at most `telegram.answer.daily_limit` (1000) times. Each
+person hears once a day which limit they reached. Within ten minutes a
+person gets at most six answers.
 
 #### Linked accounts
 

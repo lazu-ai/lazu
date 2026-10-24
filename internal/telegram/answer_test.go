@@ -207,8 +207,17 @@ func TestGroupAnswersOnlyInListedChatsAndWhenAddressed(t *testing.T) {
 	}
 }
 
+// linkedAs makes LinkedAccount answer linked for the test.
+func linkedAs(t *testing.T, linked bool) {
+	t.Helper()
+	old := LinkedAccount
+	LinkedAccount = func(context.Context, int64) bool { return linked }
+	t.Cleanup(func() { LinkedAccount = old })
+}
+
 func TestPerUserLimitWarnsOnceThenStaysQuiet(t *testing.T) {
 	f := newAnswerFixture(t, "ok")
+	linkedAs(t, true)
 	for i := 0; i < userWindowLimit+3; i++ {
 		Dispatch(context.Background(), privateMessage("q"))
 	}
@@ -290,5 +299,70 @@ func TestAnswerNeverCarriesForeignLinks(t *testing.T) {
 	}
 	if text := sent[0]["text"].(string); strings.Contains(text, "evil.example.org") || !strings.Contains(text, "this page") {
 		t.Fatalf("foreign link reached the chat: %q", text)
+	}
+}
+
+func TestUnlinkedPrivateChatGetsFiveADay(t *testing.T) {
+	f := newAnswerFixture(t, "ok")
+	for i := 0; i < defaultUnlinkedPrivateDaily+3; i++ {
+		Dispatch(context.Background(), privateMessage("q"))
+	}
+	if n := len(f.llmCalls()); n != defaultUnlinkedPrivateDaily {
+		t.Fatalf("model calls = %d, want %d", n, defaultUnlinkedPrivateDaily)
+	}
+	sent := f.bot.methodCalls("sendMessage")
+	if len(sent) != defaultUnlinkedPrivateDaily+1 {
+		t.Fatalf("messages = %d, want %d answers and one notice", len(sent), defaultUnlinkedPrivateDaily)
+	}
+	if text := sent[len(sent)-1]["text"].(string); !strings.Contains(text, "每天可以问 5 次") || !strings.Contains(text, "绑定 Telegram") {
+		t.Fatalf("notice = %q", text)
+	}
+}
+
+func TestLinkingLiftsThePrivateChatCap(t *testing.T) {
+	f := newAnswerFixture(t, "ok")
+	linkedAs(t, true)
+	for i := 0; i < defaultUnlinkedPrivateDaily+1; i++ {
+		Dispatch(context.Background(), privateMessage("q"))
+	}
+	if n := len(f.llmCalls()); n != defaultUnlinkedPrivateDaily+1 {
+		t.Fatalf("a linked account was held to the unlinked cap: %d answers", n)
+	}
+}
+
+func TestPerUserDailyCapCountsGroupsAndPrivateTogether(t *testing.T) {
+	f := newAnswerFixture(t, "ok")
+	linkedAs(t, true)
+	common.AppConfig.Telegram.Answer.PerUserDaily = 3
+	group := func() Update {
+		return Update{UpdateID: 9, Message: &IncomingMessage{MessageID: 12, From: &User{ID: 42, LanguageCode: "zh-hans"},
+			Chat: ChatInfo{ID: -1001, Type: "supergroup"}, Text: "@lazu_help_bot 你好"}}
+	}
+	Dispatch(context.Background(), group())
+	Dispatch(context.Background(), privateMessage("q"))
+	Dispatch(context.Background(), group())
+	Dispatch(context.Background(), privateMessage("q"))
+	Dispatch(context.Background(), group())
+	if n := len(f.llmCalls()); n != 3 {
+		t.Fatalf("model calls = %d, want 3", n)
+	}
+	sent := f.bot.methodCalls("sendMessage")
+	if len(sent) != 4 || !strings.Contains(sent[3]["text"].(string), "今天的提问次数已经用完") {
+		t.Fatalf("messages = %d, last = %v", len(sent), sent[len(sent)-1]["text"])
+	}
+}
+
+func TestSiteDailyCapNoticeOncePerPerson(t *testing.T) {
+	f := newAnswerFixture(t, "ok")
+	linkedAs(t, true)
+	common.AppConfig.Telegram.Answer.DailyLimit = 1
+	Dispatch(context.Background(), privateMessage("q"))
+	Dispatch(context.Background(), privateMessage("q"))
+	Dispatch(context.Background(), privateMessage("q"))
+	if n := len(f.llmCalls()); n != 1 {
+		t.Fatalf("model calls = %d, want 1", n)
+	}
+	if n := len(f.bot.methodCalls("sendMessage")); n != 2 {
+		t.Fatalf("messages = %d, want one answer and one notice", n)
 	}
 }
