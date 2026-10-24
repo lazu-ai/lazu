@@ -53,7 +53,7 @@ them empty and the feature stays off.
 | Capability | Configuration |
 | --- | --- |
 | SMTP transport | `SMTP_ACCOUNT`, `SMTP_TOKEN` and host settings for the selected mail transport |
-| Telegram alerts and answer bot | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`, `TELEGRAM_UPDATES`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ANSWER_MODEL`, `TELEGRAM_ANSWER_API_KEY`, `TELEGRAM_ANSWER_CHATS`; see [Telegram](#telegram) |
+| Telegram alerts, business events and answer bot | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`, `TELEGRAM_EVENTS_CHAT`, `TELEGRAM_EVENTS_TIMEZONE`, `TELEGRAM_UPDATES`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ANSWER_MODEL`, `TELEGRAM_ANSWER_API_KEY`, `TELEGRAM_ANSWER_CHATS`; see [Telegram](#telegram) |
 | Separate browser origins | `FRONTEND_BASE_URL`, and exact `CORS_ALLOW_ORIGINS` where needed; see the sign-in guidance below |
 | Cloudflare edge purge on deploy | `CF_API_TOKEN` (a token scoped to Zone → Cache Purge for the site's zone) and `CF_ZONE_ID`; see below |
 | Support address and community link on the web pages | `VITE_BRAND_SUPPORT_EMAIL`, `VITE_BRAND_COMMUNITY_URL`: build arguments of the frontend image (`apps/web/Dockerfile`), because the public pages are prerendered. The community link appears in the public footer, the console Help menu and the Organization schema; empty shows none |
@@ -79,6 +79,13 @@ documents, backups, worker failures) is then also posted to
   chat for two hours during maintenance. Muting never stops the mail.
 - Use a separate bot for development and production: one token can only
   deliver its updates to one place.
+- `TELEGRAM_EVENTS_CHAT` (same format, may be the ops chat) receives business
+  events: each new account (username, sign-in method, masked email) and each
+  completed top-up (amount paid and credited, method, first top-up), and at
+  09:00 in `TELEGRAM_EVENTS_TIMEZONE` (default UTC) a summary of the previous
+  day. A top-up is reported only after its transaction has committed as
+  successful. Past five events of a kind in a minute, the rest are reported
+  as one line. The summary counts events from the time it was turned on.
 
 #### Answer bot
 
