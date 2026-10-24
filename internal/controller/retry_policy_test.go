@@ -338,6 +338,18 @@ func TestRetryStopsWhenFirstByteBudgetIsSpent(t *testing.T) {
 	}
 }
 
+// The budget between attempts and the cut-off inside a streamed attempt are
+// the same clock; a non-streamed request is not cut off.
+func TestStreamStartDeadlineIsTheFirstByteBudget(t *testing.T) {
+	started := time.Now()
+	if got := relayStreamStartDeadline(true, started); !got.Equal(started.Add(relayFirstByteBudget)) {
+		t.Fatalf("stream deadline=%s want started+%s", got.Sub(started), relayFirstByteBudget)
+	}
+	if got := relayStreamStartDeadline(false, started); !got.IsZero() {
+		t.Fatalf("non-streamed request got a deadline %s after start", got.Sub(started))
+	}
+}
+
 // A provider asking for a longer pause than a retry is worth ends the sequence
 // instead of parking the caller on a dead request.
 func TestRetryAfterBeyondWindowStopsRetrying(t *testing.T) {

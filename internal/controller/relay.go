@@ -210,8 +210,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	// Retries are bounded by the first-byte budget, not just the attempt count:
 	// a provider that takes half a minute to report overload must not multiply
-	// that latency by the retry count before the client hears anything.
+	// that latency by the retry count before the client hears anything. The
+	// budget is checked between attempts, and a streamed attempt is also cut
+	// off inside it: without that, one provider that queues the request and
+	// answers 429 minutes later holds the client for as long as RELAY_TIMEOUT
+	// allows. A non-streamed attempt is not, because its headers arrive only
+	// with the whole answer.
 	relayStartedAt := time.Now()
+	relayInfo.StreamStartDeadline = relayStreamStartDeadline(relayInfo.IsStream, relayStartedAt)
 	pick := pickSameChannel
 	channelSwitchesUsed := 0
 	attemptsMade := 0
