@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import TelegramLinkField, { useTelegramLinkStatus } from './TelegramLinkField';
 import { UserContext } from '../../context/User';
 import {
   API,
@@ -651,6 +652,9 @@ const PersonalSetting = () => {
   });
 
   const notificationType = notificationForm.watch('warningType');
+  /* Telegram is offered only where the deployment's bot can complete a
+     link; an account that already chose it keeps seeing its choice. */
+  const telegramStatus = useTelegramLinkStatus();
   const toggleExpanded = (row: Exclude<ExpandedRow, null>) =>
     setExpanded((current) => (current === row ? null : row));
 
@@ -748,7 +752,9 @@ const PersonalSetting = () => {
           ? t(`${ns}.notification.webhook`)
           : savedNotifications.warningType === 'bark'
             ? 'Bark'
-            : 'Gotify',
+            : savedNotifications.warningType === 'telegram'
+              ? 'Telegram'
+              : 'Gotify',
     threshold: Number(
       savedNotifications.warningThreshold ??
         DEFAULT_QUOTA_WARNING_THRESHOLD_USD,
@@ -1275,6 +1281,10 @@ const PersonalSetting = () => {
                           </SelectItem>
                           <SelectItem value='bark'>Bark</SelectItem>
                           <SelectItem value='gotify'>Gotify</SelectItem>
+                          {telegramStatus.data?.available ||
+                          notificationType === 'telegram' ? (
+                            <SelectItem value='telegram'>Telegram</SelectItem>
+                          ) : null}
                         </Select>
                       </Field>
                       <Field>
@@ -1370,6 +1380,9 @@ const PersonalSetting = () => {
                         </>
                       ) : null}
                     </div>
+                    {notificationType === 'telegram' ? (
+                      <TelegramLinkField />
+                    ) : null}
                     <div className='set-ed__actions'>
                       <Button
                         disabled={!notificationReady}

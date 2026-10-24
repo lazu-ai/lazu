@@ -11,6 +11,11 @@ import (
 	"gorm.io/gorm"
 )
 
+// IdentityProviderTelegram marks a linked Telegram account. It is a contact
+// channel for notifications and the support bot, not a way to sign in:
+// sign-in listings leave it out and no sign-in path resolves it.
+const IdentityProviderTelegram = "telegram"
+
 // UserIdentity stores a stable external identity independently from the user
 // profile. A user can therefore sign in with more than one configured provider
 // without one provider overwriting another provider's subject identifier.

@@ -49,6 +49,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/user/reset", middleware.LoginRateLimit(), controller.ResetPassword)
 		apiRouter.POST("/user/reset/v2", middleware.LoginRateLimit(), controller.ResetPasswordV2)
 		apiRouter.POST("/stripe/webhook", controller.StripeWebhook)
+		apiRouter.POST("/telegram/webhook", controller.TelegramWebhook)
 		// Mail links: one-click opt-out (GET confirms, POST applies) and the
 		// usage digest's chart image. Both are signed, so no session is needed.
 		apiRouter.GET("/mail/unsubscribe", middleware.LookupRateLimit(), controller.MailUnsubscribePage)
@@ -145,6 +146,9 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/self/stripe/pay", middleware.AccountActionRateLimit(), controller.RequestStripePay)
 				selfRoute.POST("/stripe/amount", controller.RequestStripeAmount)
 				selfRoute.PUT("/setting", controller.UpdateUserSetting)
+				selfRoute.GET("/telegram", controller.GetSelfTelegram)
+				selfRoute.POST("/telegram/link", middleware.AccountActionRateLimit(), controller.CreateSelfTelegramLink)
+				selfRoute.DELETE("/telegram", controller.DeleteSelfTelegram)
 				selfRoute.GET("/used-models", controller.GetUserUsedModels)
 				selfRoute.GET("/email/bind", middleware.AccountActionRateLimit(), controller.EmailBind)
 				selfRoute.POST("/support/report", middleware.AccountActionRateLimit(), controller.SubmitSupportReport)

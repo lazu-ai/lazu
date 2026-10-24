@@ -1966,9 +1966,20 @@ func UpdateUserSetting(c *gin.Context) {
 	}
 
 	// 验证预警类型
-	if req.QuotaWarningType != dto.NotifyTypeEmail && req.QuotaWarningType != dto.NotifyTypeWebhook && req.QuotaWarningType != dto.NotifyTypeBark && req.QuotaWarningType != dto.NotifyTypeGotify {
+	if req.QuotaWarningType != dto.NotifyTypeEmail && req.QuotaWarningType != dto.NotifyTypeWebhook && req.QuotaWarningType != dto.NotifyTypeBark && req.QuotaWarningType != dto.NotifyTypeGotify && req.QuotaWarningType != dto.NotifyTypeTelegram {
 		httperr.Code(c, types.ErrorCodeSettingInvalid, types.D{"field": "quota_warning_type", "rule": "not_allowed"})
 		return
+	}
+	// Telegram reminders go to the linked account; without one there is
+	// nowhere to send them.
+	if req.QuotaWarningType == dto.NotifyTypeTelegram {
+		if _, linked, err := service.TelegramUserID(c.GetInt("id")); err != nil {
+			httperr.Write(c, err)
+			return
+		} else if !linked {
+			httperr.Code(c, types.ErrorCodeTelegramNotLinked)
+			return
+		}
 	}
 
 	// 验证预警阈值

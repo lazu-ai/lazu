@@ -173,10 +173,66 @@ type SiteConfig struct {
 // env-expanded placeholder, never in a file that is committed.
 type TelegramConfig struct {
 	BotToken string `yaml:"bot_token"`
+	// APIBase is the Bot API server. Empty uses https://api.telegram.org;
+	// set it to run against a local telegram-bot-api server.
+	APIBase string `yaml:"api_base"`
 	// OpsChat receives a copy of every operational alert: a chat id such as
 	// -1001234567890, optionally followed by :<topic id> for one topic of a
 	// forum group. Empty sends alerts by mail only.
 	OpsChat string `yaml:"ops_chat"`
+	// EventsChat receives business events as they happen: new accounts and
+	// completed top-ups, plus a daily summary. Same format as OpsChat; empty
+	// sends none. It may be the same chat as OpsChat.
+	EventsChat string `yaml:"events_chat"`
+	// EventsTimezone is the IANA zone the daily summary's day follows; it is
+	// posted at 09:00 there. Empty uses UTC.
+	EventsTimezone string `yaml:"events_timezone"`
+	// Updates is how the bot receives messages: "webhook" (Telegram posts
+	// to /api/telegram/webhook; needs a public HTTPS origin and
+	// WebhookSecret), "polling" (one process asks Telegram; for a single
+	// replica without a public origin) or empty (the bot only sends).
+	Updates string `yaml:"updates"`
+	// WebhookSecret is echoed by Telegram in every webhook call; requests
+	// without it are refused. 1-256 characters of A-Z, a-z, 0-9, _ and -.
+	WebhookSecret string `yaml:"webhook_secret"`
+	// WebhookURL overrides where Telegram posts updates. Empty uses
+	// site.api_origin, then the web origin, plus /api/telegram/webhook.
+	WebhookURL string `yaml:"webhook_url"`
+	// Answer lets the bot answer questions from this deployment's public
+	// documentation.
+	Answer TelegramAnswerConfig `yaml:"answer"`
+}
+
+// TelegramAnswerConfig is the documentation bot. It answers in private
+// chats and in the group chats listed in Chats, through this gateway's own
+// /v1 with an API key the operator owns, so every answer is billed and
+// logged like any other request.
+type TelegramAnswerConfig struct {
+	// Model and APIKey together turn answering on.
+	Model  string `yaml:"model"`
+	APIKey string `yaml:"api_key"`
+	// BaseURL is the OpenAI-compatible base the bot calls. Empty calls this
+	// process over loopback.
+	BaseURL string `yaml:"base_url"`
+	// Chats are the group chat ids where the bot answers when mentioned or
+	// replied to. Groups not listed are ignored, so a stranger adding the
+	// bot to a group cannot spend the key.
+	Chats []string `yaml:"chats"`
+	// KnowledgeURLs are the documents answers are grounded in. Empty uses
+	// /llms.txt, /docs/llms.txt and /docs/llms-full.txt on the web origin.
+	KnowledgeURLs []string `yaml:"knowledge_urls"`
+	// DailyLimit caps answers per UTC day across all chats; 0 uses 1000.
+	DailyLimit int `yaml:"daily_limit"`
+	// PerUserDaily caps one person's answers per UTC day, groups and private
+	// chats together; 0 uses 20.
+	PerUserDaily int `yaml:"per_user_daily"`
+	// UnlinkedPrivateDaily caps answers per UTC day in a private chat with
+	// someone who has not linked an account; 0 uses 5. Linking lifts it.
+	UnlinkedPrivateDaily int `yaml:"unlinked_private_daily"`
+	// Instructions are the operator's own rules, added after the built-in
+	// ones (what to say about partnerships, which topics to leave alone).
+	// They cannot loosen the built-in rules.
+	Instructions string `yaml:"instructions"`
 }
 
 // ProbeIdentityConfig is one client identity for probes. Metadata is a JSON
@@ -303,6 +359,27 @@ func applyAppConfigEnvironmentOverrides() {
 	}
 	if chat := strings.TrimSpace(os.Getenv("TELEGRAM_OPS_CHAT")); chat != "" {
 		AppConfig.Telegram.OpsChat = chat
+	}
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_EVENTS_CHAT")); v != "" {
+		AppConfig.Telegram.EventsChat = v
+	}
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_EVENTS_TIMEZONE")); v != "" {
+		AppConfig.Telegram.EventsTimezone = v
+	}
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("TELEGRAM_UPDATES"))); v != "" {
+		AppConfig.Telegram.Updates = v
+	}
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_WEBHOOK_SECRET")); v != "" {
+		AppConfig.Telegram.WebhookSecret = v
+	}
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_ANSWER_MODEL")); v != "" {
+		AppConfig.Telegram.Answer.Model = v
+	}
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_ANSWER_API_KEY")); v != "" {
+		AppConfig.Telegram.Answer.APIKey = v
+	}
+	if chats := nonEmptyTrimmed(strings.Split(os.Getenv("TELEGRAM_ANSWER_CHATS"), ",")); len(chats) > 0 {
+		AppConfig.Telegram.Answer.Chats = chats
 	}
 	applyExtensionConfigEnvironment()
 }
@@ -619,6 +696,54 @@ func loadConfigFile(found string) {
 	if v := strings.TrimSpace(userCfg.Telegram.OpsChat); v != "" {
 		AppConfig.Telegram.OpsChat = v
 	}
+	if v := strings.TrimSpace(userCfg.Telegram.EventsChat); v != "" {
+		AppConfig.Telegram.EventsChat = v
+	}
+	if v := strings.TrimSpace(userCfg.Telegram.EventsTimezone); v != "" {
+		AppConfig.Telegram.EventsTimezone = v
+	}
+	if v := strings.TrimRight(strings.TrimSpace(userCfg.Telegram.APIBase), "/"); v != "" {
+		AppConfig.Telegram.APIBase = v
+	}
+	if v := strings.ToLower(strings.TrimSpace(userCfg.Telegram.Updates)); v != "" {
+		AppConfig.Telegram.Updates = v
+	}
+	if v := strings.TrimSpace(userCfg.Telegram.WebhookSecret); v != "" {
+		AppConfig.Telegram.WebhookSecret = v
+	}
+	if v := strings.TrimSpace(userCfg.Telegram.WebhookURL); v != "" {
+		AppConfig.Telegram.WebhookURL = v
+	}
+	{
+		answer := userCfg.Telegram.Answer
+		if v := strings.TrimSpace(answer.Model); v != "" {
+			AppConfig.Telegram.Answer.Model = v
+		}
+		if v := strings.TrimSpace(answer.APIKey); v != "" {
+			AppConfig.Telegram.Answer.APIKey = v
+		}
+		if v := strings.TrimRight(strings.TrimSpace(answer.BaseURL), "/"); v != "" {
+			AppConfig.Telegram.Answer.BaseURL = v
+		}
+		if chats := nonEmptyTrimmed(answer.Chats); len(chats) > 0 {
+			AppConfig.Telegram.Answer.Chats = chats
+		}
+		if urls := nonEmptyTrimmed(answer.KnowledgeURLs); len(urls) > 0 {
+			AppConfig.Telegram.Answer.KnowledgeURLs = urls
+		}
+		if answer.DailyLimit > 0 {
+			AppConfig.Telegram.Answer.DailyLimit = answer.DailyLimit
+		}
+		if answer.PerUserDaily > 0 {
+			AppConfig.Telegram.Answer.PerUserDaily = answer.PerUserDaily
+		}
+		if answer.UnlinkedPrivateDaily > 0 {
+			AppConfig.Telegram.Answer.UnlinkedPrivateDaily = answer.UnlinkedPrivateDaily
+		}
+		if v := strings.TrimSpace(answer.Instructions); v != "" {
+			AppConfig.Telegram.Answer.Instructions = v
+		}
+	}
 	if len(userCfg.ProbeIdentities) > 0 {
 		AppConfig.ProbeIdentities = userCfg.ProbeIdentities
 	}
@@ -814,4 +939,15 @@ func parseDays(raw any) []int {
 	default:
 		return nil
 	}
+}
+
+// nonEmptyTrimmed trims every value and drops the empty ones.
+func nonEmptyTrimmed(values []string) []string {
+	var out []string
+	for _, v := range values {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }

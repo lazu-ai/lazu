@@ -31,7 +31,9 @@ func projectNotificationMailMeta(row model.ProjectNotification) common.MailMeta 
 		meta.Kind = common.MailKindPayment
 	case "auto-reload-failed":
 		meta.Kind = common.MailKindBalance
-	case "payment-alert":
+	case "payment-alert", "payment-risk":
+		// Operator alerts (payment documents, Stripe refunds and disputes):
+		// filed as ops, which also copies them to the ops chat sinks.
 		meta.Kind = common.MailKindOps
 	}
 	return meta

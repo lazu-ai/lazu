@@ -22,6 +22,21 @@ type fakeBotAPI struct {
 	paths    []string
 	fail     bool
 	response string
+	// respond, when set, answers by method name; empty falls through.
+	respond func(method string, body map[string]any) string
+}
+
+// methodCalls returns the bodies of calls to one Bot API method.
+func (f *fakeBotAPI) methodCalls(method string) []map[string]any {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []map[string]any
+	for i, p := range f.paths {
+		if strings.HasSuffix(p, "/"+method) {
+			out = append(out, f.calls[i])
+		}
+	}
+	return out
 }
 
 func (f *fakeBotAPI) count() int {
@@ -51,10 +66,19 @@ func useFakeBotAPI(t *testing.T, token, opsChat string) *fakeBotAPI {
 		fake.mu.Lock()
 		fake.calls = append(fake.calls, body)
 		fake.paths = append(fake.paths, r.URL.Path)
-		fail, response := fake.fail, fake.response
+		fail, response, respond := fake.fail, fake.response, fake.respond
 		fake.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
+		method := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+		if respond != nil {
+			if out := respond(method, body); out != "" {
+				_, _ = io.WriteString(w, out)
+				return
+			}
+		}
 		switch {
+		case method == "getMe":
+			_, _ = io.WriteString(w, `{"ok":true,"result":{"id":999,"is_bot":true,"username":"lazu_help_bot"}}`)
 		case response != "":
 			_, _ = io.WriteString(w, response)
 		case fail:
@@ -72,11 +96,13 @@ func useFakeBotAPI(t *testing.T, token, opsChat string) *fakeBotAPI {
 	common.AppConfig.Telegram.OpsChat = opsChat
 	common.RedisEnabled = false
 	resetLocalState()
+	resetIdentity()
 	t.Cleanup(func() {
 		apiBase = oldBase
 		common.AppConfig.Telegram = oldCfg
 		common.RedisEnabled = oldRedis
 		resetLocalState()
+		resetIdentity()
 	})
 	return fake
 }

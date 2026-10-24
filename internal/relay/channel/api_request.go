@@ -411,7 +411,8 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 		return nil, err
 	}
 
-	req = req.WithContext(requestContext(c))
+	attemptCtx, disarmStartDeadline, endAttempt := withStreamStartDeadline(requestContext(c), info)
+	req = req.WithContext(attemptCtx)
 
 	var client *http.Client
 	var err error
@@ -455,6 +456,12 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	// before this line to the selected channel.
 	releaseCapacity, capacityErr := service.AcquireChannelCapacity(req.Context(), info.ChannelId, info.ChannelSetting)
 	if capacityErr != nil {
+		endAttempt()
+		if errors.Is(context.Cause(attemptCtx), common.ErrStreamStartDeadline) {
+			// A retry may start with little of the budget left and spend it
+			// waiting on capacity admission; that is still a timeout.
+			return nil, streamStartDeadlineError(c)
+		}
 		var exhausted *service.ChannelCapacityError
 		if errors.As(capacityErr, &exhausted) {
 			seconds := int((exhausted.RetryAfter + time.Second - 1) / time.Second)
@@ -475,8 +482,21 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	// only when the request headers have been written onto the transport.
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{WroteHeaders: timing.StartUpstream, GotFirstResponseByte: timing.FirstUpstreamByte}))
 	resp, err := client.Do(req)
+	if err == nil && !disarmStartDeadline() {
+		// The deadline fired between the headers arriving and the disarm:
+		// the attempt context is being cancelled, so the body is unreadable.
+		_ = resp.Body.Close()
+		resp, err = nil, common.ErrStreamStartDeadline
+	}
 	if err != nil {
 		releaseCapacity()
+		endAttempt()
+		if errors.Is(err, common.ErrStreamStartDeadline) || errors.Is(context.Cause(attemptCtx), common.ErrStreamStartDeadline) {
+			// Checked before the client-cancel branch below: the attempt
+			// context was cancelled by the deadline, not by the client, and
+			// a slow provider must not be recorded as a client that left.
+			return nil, streamStartDeadlineError(c)
+		}
 		if errors.Is(err, context.Canceled) && errors.Is(req.Context().Err(), context.Canceled) {
 			logger.LogWarn(c, "upstream request stopped because the client canceled the request")
 			return nil, types.NewError(
@@ -502,13 +522,45 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	}
 	if resp == nil {
 		releaseCapacity()
+		endAttempt()
 		return nil, errors.New("resp is nil")
 	}
-	resp.Body = &capacityReadCloser{ReadCloser: resp.Body, release: releaseCapacity}
+	resp.Body = &capacityReadCloser{ReadCloser: resp.Body, release: func() {
+		releaseCapacity()
+		endAttempt()
+	}}
 
 	_ = req.Body.Close()
 	_ = c.Request.Body.Close()
 	return resp, nil
+}
+
+// withStreamStartDeadline bounds how long a streamed attempt waits for its
+// upstream's response headers. A provider that queues a request and answers
+// with a 429 minutes later would otherwise hold the client for as long as
+// RELAY_TIMEOUT allows, while the SSE pings keep both connections alive. The
+// deadline cancels the attempt context with ErrStreamStartDeadline; disarm
+// stops it once the headers are in, and reports false if it already fired.
+// The context lives on for the body and ends with endAttempt.
+func withStreamStartDeadline(parent context.Context, info *common.RelayInfo) (ctx context.Context, disarm func() bool, endAttempt func()) {
+	if info == nil || !info.IsStream || info.StreamStartDeadline.IsZero() {
+		return parent, func() bool { return true }, func() {}
+	}
+	ctx, cancel := context.WithCancelCause(parent)
+	timer := time.AfterFunc(time.Until(info.StreamStartDeadline), func() { cancel(common.ErrStreamStartDeadline) })
+	return ctx, timer.Stop, func() {
+		timer.Stop()
+		cancel(context.Canceled)
+	}
+}
+
+func streamStartDeadlineError(c *gin.Context) *types.LazuError {
+	logger.LogError(c, "upstream sent no response headers before the stream start deadline")
+	return types.NewError(
+		common.ErrStreamStartDeadline,
+		types.ErrorCodeUpstreamTimeout,
+		types.ErrOptionWithHideErrMsg("upstream provider did not respond in time"),
+	)
 }
 
 // Keep the lease while a stream or response body is being read, rather than

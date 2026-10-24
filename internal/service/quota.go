@@ -615,6 +615,9 @@ func checkAndSendQuotaNotify(relayInfo *relaycommon.RelayInfo, quota billing.Mic
 		} else if notifyType == dto.NotifyTypeGotify {
 			content = "{{value}}，当前剩余额度为 {{value}}，请及时充值。"
 			values = []interface{}{prompt, common.MailUSD(relayInfo.UserQuota.Dollars())}
+		} else if notifyType == dto.NotifyTypeTelegram {
+			content = "当前剩余额度为 {{value}}，请及时充值：{{value}}"
+			values = []interface{}{common.MailUSD(relayInfo.UserQuota.Dollars()), link}
 		} else {
 			content = "{{value}}，当前剩余额度为 {{value}}，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='{{value}}'>{{value}}</a>"
 			values = []interface{}{prompt, common.MailUSD(relayInfo.UserQuota.Dollars()), link, link}

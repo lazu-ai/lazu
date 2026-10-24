@@ -66,6 +66,8 @@ func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data 
 			return nil
 		}
 		return sendGotifyNotify(gotifyUrl, gotifyToken, userSetting.GotifyPriority, data)
+	case dto.NotifyTypeTelegram:
+		return sendTelegramNotify(userId, data)
 	}
 	return nil
 }

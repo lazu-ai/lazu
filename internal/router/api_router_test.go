@@ -91,6 +91,7 @@ func TestSetApiRouter_RegistersCriticalRoutes(t *testing.T) {
 	}{
 		{method: "GET", path: "/api/public/status"},
 		{method: "POST", path: "/api/stripe/webhook"},
+		{method: "POST", path: "/api/telegram/webhook"},
 		{method: "POST", path: "/api/user/stripe/pay"},
 		{method: "GET", path: "/api/user/self"},
 		{method: "GET", path: "/api/models/catalog"},

@@ -18,9 +18,12 @@ type linkedIdentity struct {
 	Removable bool   `json:"removable"`
 }
 
+// listUserIdentities lists the identities an account signs in with. A linked
+// Telegram account is a contact channel, not a sign-in method, so it is left
+// out.
 func listUserIdentities(userID int) ([]model.UserIdentity, error) {
 	var identities []model.UserIdentity
-	if err := model.CoreDB().Where("user_id = ?", userID).Order("created_at asc").Find(&identities).Error; err != nil {
+	if err := model.CoreDB().Where("user_id = ? AND provider <> ?", userID, model.IdentityProviderTelegram).Order("created_at asc").Find(&identities).Error; err != nil {
 		return nil, err
 	}
 	return identities, nil
