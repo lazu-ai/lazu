@@ -246,7 +246,7 @@ func startAPIWriters() func() {
 }
 
 func apiBackgroundWorkerTasks() []worker.Task {
-	return []worker.Task{worker.NewChannelProbeTask(), worker.NewVideoCanaryTask(), worker.NewAbilityAuditTask(), worker.NewModelsDevSyncTask(), worker.NewProjectNotificationTask(), worker.NewUsageDigestTask(), worker.NewMailArchiveTask(), worker.NewProjectPaymentDocumentTask(), worker.NewDashboardUsageRollupTask(), worker.NewRoutingRetentionTask(), worker.NewRouteHealthRollupTask(), worker.NewRouteHealthRollupWatchTask()}
+	return []worker.Task{worker.NewChannelProbeTask(), worker.NewVideoCanaryTask(), worker.NewAbilityAuditTask(), worker.NewModelsDevSyncTask(), worker.NewProjectNotificationTask(), worker.NewUsageDigestTask(), worker.NewMailArchiveTask(), worker.NewProjectPaymentDocumentTask(), worker.NewDashboardUsageRollupTask(), worker.NewRoutingRetentionTask(), worker.NewRouteHealthRollupTask(), worker.NewRouteHealthRollupWatchTask(), worker.NewUpstreamAccountWatchTask()}
 }
 
 func newHTTPServer(port string, handler http.Handler) *http.Server {

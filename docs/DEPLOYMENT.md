@@ -65,7 +65,8 @@ Validate each enabled integration with its actual provider configuration.
 
 Create one bot with @BotFather and set `TELEGRAM_BOT_TOKEN` on the API and
 jobs containers. Every operational alert mail (disk, error rate, payment
-documents, backups, worker failures) is then also posted to
+documents, backups, worker failures, a channel whose upstream keeps refusing
+its billing or key) is then also posted to
 `TELEGRAM_OPS_CHAT`:
 
 - The value is a chat id (`-1001234567890` for a group) or

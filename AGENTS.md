@@ -189,9 +189,9 @@ probes and the model plaza's health for four days without anyone being told.
 3. A background job's failure must not freeze another job's output: report it,
    then let independent work run.
 4. Anything that can silently degrade has an alert. Worker task failure
-   streaks, a lagging route health rollup and slow SQL (`SLOW_SQL_ALERT_MS`,
-   1s by default) mail `[Lazu ops]`; extend these rather than adding log-only
-   checks.
+   streaks, a lagging route health rollup, slow SQL (`SLOW_SQL_ALERT_MS`,
+   1s by default) and an upstream that keeps refusing a channel's billing or
+   key mail `[Lazu ops]`; extend these rather than adding log-only checks.
 5. A page that summarises history reads pre-aggregated hours, and still works
    when the job that maintains them is down. Route health is the model:
    `route_health_hourly` is recomputed per hour from raw facts, and readers

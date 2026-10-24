@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"time"
 
 	"gorm.io/gorm"
@@ -66,4 +67,34 @@ func recordRoutingAttemptOutcomeSync(outcome *RoutingAttemptOutcome) error {
 			"health_failed", "total_duration_ms",
 		}),
 	}).Create(outcome).Error
+}
+
+// UpstreamAccountFailure is how often one channel's upstream refused attempts
+// for an account reason in a window: its credentials, or its ability to pay.
+type UpstreamAccountFailure struct {
+	ChannelID  int
+	ErrorCode  string
+	StatusCode int
+	Failures   int64
+	// LastMs is the start of the latest failing request, in milliseconds.
+	LastMs int64
+}
+
+// RecentUpstreamAccountFailures counts attempts since `since` that failed
+// with one of codes, per channel and code. The window is bounded by the
+// indexed outcome time and by the partition key, so the scan stays small.
+func RecentUpstreamAccountFailures(ctx context.Context, since time.Time, codes []string) ([]UpstreamAccountFailure, error) {
+	db := TelemetryDB()
+	if db == nil {
+		return nil, nil
+	}
+	var rows []UpstreamAccountFailure
+	// request_ts is the request's start in milliseconds; a request that began
+	// up to an hour before the window can still finish inside it.
+	err := db.WithContext(ctx).Model(&RoutingAttemptOutcome{}).
+		Select("channel_id, error_code, max(status_code) AS status_code, count(*) AS failures, max(request_ts) AS last_ms").
+		Where("request_ts >= ? AND outcome_at >= ? AND channel_id > 0 AND error_code IN ?", since.Add(-time.Hour).UnixMilli(), since, codes).
+		Group("channel_id, error_code").
+		Scan(&rows).Error
+	return rows, err
 }
