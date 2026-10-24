@@ -48,7 +48,7 @@ var Degradations = []DegradationRule{
 		Applies: func(snapshot CapabilitySnapshot, unsupported FeatureSet, request *Request) bool {
 			// json_object asks for an object: only a schema whose root is
 			// one fits it; any other root goes as an instruction alone
-			return request.Output.Type == "json_schema" && objectRooted(request.Output.Schema) && !unsupported.Has(FeatureJSONOutput) && snapshot.Features.Has(FeatureJSONOutput)
+			return request.Output.Type == "json_schema" && objectRooted(request.Output.Schema) && !unsupported.Has(FeatureJSONOutput) && carriesJSONObject(snapshot)
 		},
 		Apply: func(request *Request) string {
 			appendInstruction(request, schemaInstruction(request.Output))
@@ -70,6 +70,26 @@ var Degradations = []DegradationRule{
 			return "response_format"
 		},
 	},
+	{
+		ID:      "json_object_to_instruction",
+		Feature: FeatureJSONOutput,
+		Reason:  "the channel has no bare JSON-object mode: the answer is asked for as a single JSON object in the instructions and no format field is sent",
+		Source:  "Anthropic's Messages API constrains output through output_config.format of type json_schema only (platform.claude.com/docs/en/build-with-claude/structured-outputs, 2026-10-25); its docs name prompt instructions as the way to ask for plain JSON",
+		Applies: func(snapshot CapabilitySnapshot, unsupported FeatureSet, request *Request) bool {
+			return request.Output.Type == "json_object"
+		},
+		Apply: func(request *Request) string {
+			appendInstruction(request, schemaInstruction(OutputConstraint{}))
+			request.Output = OutputConstraint{}
+			return "response_format"
+		},
+	},
+}
+
+// carriesJSONObject says whether some endpoint of the channel takes a bare
+// json_object format: known to the catalog, and not gapped everywhere.
+func carriesJSONObject(snapshot CapabilitySnapshot) bool {
+	return snapshot.Features.Has(FeatureJSONOutput) && snapshot.UnsupportedEverywhere(FeatureSet(1)<<FeatureJSONOutput) == 0
 }
 
 // Degrade applies the registered rules to a request on a channel: for each

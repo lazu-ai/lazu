@@ -10,6 +10,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	"github.com/lazu-ai/lazu/packages/domain/providercap"
 	"gorm.io/gorm"
 )
 
@@ -629,5 +630,62 @@ func TestPrepareAttemptKeepsExplicitClaudeReasoningOnResponses(t *testing.T) {
 	}
 	if attempt.Request.Reasoning.Effort == "none" {
 		t.Fatalf("the asked reasoning was dropped: %+v", attempt.Request.Reasoning)
+	}
+}
+
+// A Chat client asking for response_format json_object on an Anthropic
+// channel: the Messages API has a schema format but no bare JSON-object
+// mode, so the ask is stood in for by an instruction (degrade.go,
+// json_object_to_instruction) instead of refused before the upstream call.
+// The release-note generator (service.releaseNoteResponseFormat) sends this
+// shape to claude-haiku-5-5.
+func TestPrepareAttemptStandsInForJSONObjectOnAnthropic(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_degrade_json_object?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed := &textgen.ParsedRequest{
+		Client: textgen.Protocol{Family: textgen.ProtocolOpenAIChat},
+		Semantic: &textgen.Request{
+			Model:        textgen.ModelRef{Canonical: "claude-haiku-5-5"},
+			Instructions: []textgen.Instruction{{Role: "system", Text: "You write release notes."}},
+			Conversation: []textgen.InputItem{{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "summarize"}}}},
+			Output:       textgen.OutputConstraint{Type: "json_object"},
+		},
+	}
+	before, _ := json.Marshal(parsed.Semantic)
+	attempt, err := PrepareAttempt(parsed, &model.Channel{Type: constant.ChannelTypeAnthropic}, "claude-haiku-5-5")
+	if err != nil {
+		t.Fatalf("json_object on an Anthropic channel must be degraded, not refused: %v", err)
+	}
+	if attempt.Plan.Native || attempt.Plan.UpstreamProtocol.Family != textgen.ProtocolAnthropic {
+		t.Fatalf("expected a Messages bridge, got %+v", attempt.Plan)
+	}
+	if len(attempt.Plan.Warnings) != 1 || attempt.Plan.Warnings[0].Message != "degraded:json_object_to_instruction" || attempt.Plan.Warnings[0].Path != "response_format" {
+		t.Fatalf("expected the degradation warning on the plan, got %+v", attempt.Plan.Warnings)
+	}
+	if attempt.Request == parsed.Semantic || attempt.Request.Output.Type != "" {
+		t.Fatalf("expected a clone without a format field, got %+v", attempt.Request.Output)
+	}
+	if len(attempt.Request.Instructions) != 1 || !strings.HasPrefix(attempt.Request.Instructions[0].Text, "You write release notes.\n\n") || !strings.Contains(attempt.Request.Instructions[0].Text, "single JSON object") {
+		t.Fatalf("the ask must be spoken at the end of the one instruction, got %+v", attempt.Request.Instructions)
+	}
+	if after, _ := json.Marshal(parsed.Semantic); string(before) != string(after) {
+		t.Fatal("degradation changed caller input")
+	}
+	// the planner alone still refuses: degradation is the only way through
+	if _, err := textgen.PlanAttempt(parsed.Client, providercap.BuildSnapshot(providercap.SnapshotInput{APIType: constant.APITypeAnthropic}), parsed.Semantic, 1, "claude-haiku-5-5"); err == nil {
+		t.Fatal("without the stand-in the Messages bridge refuses json_object")
 	}
 }

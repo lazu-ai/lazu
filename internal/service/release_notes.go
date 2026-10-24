@@ -370,6 +370,12 @@ func stripJSONFence(content string) string {
 	return strings.TrimSpace(content)
 }
 
+// releaseNoteResponseFormat is the response_format for the model: a strict
+// schema for Gemini, json_object otherwise. The gateway carries json_object
+// to Anthropic's Messages API, which has no such mode, as an instruction
+// (textgen.Degradations, json_object_to_instruction) and says so in
+// X-Lazu-Warning; the prompt's own JSON contract and stripJSONFence cover
+// the answer either way.
 func releaseNoteResponseFormat(modelName string) map[string]any {
 	if !isGeminiReleaseNoteModel(modelName) {
 		return map[string]any{"type": "json_object"}
