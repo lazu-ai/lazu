@@ -20,13 +20,14 @@ Responses API *does* take the schema.
 ### 1. Endpoint gaps: route around a known gap
 
 `CapabilitySnapshot.EndpointGaps` lists, per native endpoint, the features the
-dialect's endpoint does not carry although its other endpoint does. It is a
-fact about the vendor's wire, declared once per dialect in
-`packages/domain/providercap` (`dialectEndpointGaps`), never about a model:
+dialect's endpoint does not carry. It is a fact about the vendor's wire,
+declared once per dialect in `packages/domain/providercap`
+(`dialectEndpointGaps`), never about a model:
 
 | Dialect | Endpoint | Gap |
 | --- | --- | --- |
 | `deepseek` | Chat Completions | `output.json_schema`, `output.json_schema.strict` |
+| `anthropic` | Messages | `output.json_object` (Messages constrains output through a JSON schema only; structured-outputs doc, 2026-10-25) |
 
 The planner (`textgen.PlanAttempt`) keeps native as the default. When the
 request uses a feature the native endpoint lacks and the other endpoint
@@ -34,7 +35,9 @@ carries it, it plans the existing one-hop bridge to that endpoint, with every
 bridge rule unchanged (reasoning state across tool calls still refuses the
 Chat→Responses bridge). The plan carries the warning
 `endpoint_bridge:<feature>`. If no lossless route exists, the request is
-refused with the feature ID and field path, as before.
+refused with the feature ID and field path, as before. A dialect with one
+endpoint (Anthropic) has nowhere to route to: its gap makes the feature
+unsupported on the channel, where only mechanism 2 can stand in.
 
 Gaps are part of the snapshot `Revision`. `FeaturesOn(endpoint)` and
 `UnsupportedEverywhere(required)` are the two readers.
@@ -54,8 +57,9 @@ triggers a rule. The provider's own refusal reaches the client, as before.
 
 | ID | Stands in for | What the client gets |
 | --- | --- | --- |
-| `json_schema_to_json_object` | `output.json_schema` | `json_object`, with the schema stated at the end of the instructions; only when the channel takes `json_object` |
+| `json_schema_to_json_object` | `output.json_schema` | `json_object`, with the schema stated at the end of the instructions; only when some endpoint of the channel takes `json_object` |
 | `json_schema_to_instruction` | `output.json_schema` | no format field; the schema stated in the instructions |
+| `json_object_to_instruction` | `output.json_object` | no format field; "respond with a single JSON object" stated at the end of the instructions. A Chat client's `response_format: json_object` to a Claude model goes this way (before 2026-10-25 the Messages bridge refused it) |
 
 Rules run in `runtime.PrepareAttempt`, before the upstream call, on a clone
 of the immutable request; the caller's request never changes. Because they

@@ -26,7 +26,7 @@ func deniedJSONSchema(dialect string, withJSONObject bool, endpoints ...FeatureI
 // Every registered rule has an ID, a reason, a source, and a case in this
 // table (AGENTS.md, Protocol Layer rule 5).
 func TestDegradationRegistryIsComplete(t *testing.T) {
-	cases := map[string]bool{"json_schema_to_json_object": true, "json_schema_to_instruction": true}
+	cases := map[string]bool{"json_schema_to_json_object": true, "json_schema_to_instruction": true, "json_object_to_instruction": true}
 	seen := map[string]bool{}
 	for _, rule := range Degradations {
 		if rule.ID == "" || rule.Reason == "" || rule.Source == "" || rule.Applies == nil || rule.Apply == nil {
@@ -124,5 +124,62 @@ func TestDegradeKeepsJSONObjectForObjectRootsOnly(t *testing.T) {
 func TestObjectRootedNeedsAnObjectMember(t *testing.T) {
 	if objectRooted([]byte(`{"type":["null"]}`)) || !objectRooted([]byte(`{"type":["object","null"]}`)) {
 		t.Fatal("a type list is an object root only with object in it")
+	}
+}
+
+// messagesOnlySnapshot is an Anthropic channel as providercap builds it: the
+// Messages endpoint alone, which takes json_schema but no bare json_object.
+func messagesOnlySnapshot() CapabilitySnapshot {
+	snapshot := snapshot("anthropic", FeatureEndpointMessages)
+	snapshot.Features.Add(FeatureJSONSchema)
+	snapshot.Features.Add(FeatureJSONOutput)
+	snapshot.EndpointGaps = map[FeatureID]FeatureSet{FeatureEndpointMessages: FeatureSet(1) << FeatureJSONOutput}
+	return snapshot
+}
+
+// json_object on a channel whose only endpoint lacks it is asked for in the
+// instructions; the format field goes. A Chat client's release-note request
+// to a Claude model is this case.
+func TestDegradeJSONObjectToInstructionWhenNoEndpointCarriesIt(t *testing.T) {
+	request := minimalRequest()
+	request.Instructions = []Instruction{{Role: "system", Text: "You write release notes."}}
+	request.Output = OutputConstraint{Type: "json_object"}
+	out, issues := Degrade(messagesOnlySnapshot(), request)
+	if out == request || request.Output.Type != "json_object" || len(request.Instructions) != 1 || strings.Contains(request.Instructions[0].Text, "JSON") {
+		t.Fatalf("request must be cloned, not rewritten: %+v %+v", request.Output, request.Instructions)
+	}
+	if out.Output.Type != "" || out.Output.Schema != nil || out.Output.Strict.Set {
+		t.Fatalf("expected no format field, got %+v", out.Output)
+	}
+	if len(out.Instructions) != 1 || out.Instructions[0].Text != "You write release notes.\n\nRespond with a single JSON object and nothing else." {
+		t.Fatalf("the ask must be spoken at the end of the one instruction, got %+v", out.Instructions)
+	}
+	if len(issues) != 1 || issues[0].Message != "degraded:json_object_to_instruction" || issues[0].Path != "response_format" || issues[0].Feature != FeatureJSONOutput {
+		t.Fatalf("unexpected warnings: %+v", issues)
+	}
+	// without an instruction, the ask is a new system instruction
+	bare := minimalRequest()
+	bare.Output = OutputConstraint{Type: "json_object"}
+	if out, _ := Degrade(messagesOnlySnapshot(), bare); len(out.Instructions) != 1 || out.Instructions[0].Role != "system" || out.Instructions[0].Text != "Respond with a single JSON object and nothing else." {
+		t.Fatalf("expected one system instruction, got %+v", out.Instructions)
+	}
+	// unknown is not unsupported: a Chat channel with no gap and no denial
+	// sends json_object as it came
+	plain := minimalRequest()
+	plain.Output = OutputConstraint{Type: "json_object"}
+	if out, issues := Degrade(snapshot("openai_chat_compatible", FeatureEndpointChat), plain); out != plain || issues != nil {
+		t.Fatalf("json_object on a channel that may carry it is untouched: %+v", issues)
+	}
+}
+
+// A schema denied on a channel with no bare json_object anywhere goes as an
+// instruction alone: json_schema_to_json_object would hand the Messages
+// bridge the one format it refuses.
+func TestDegradeDeniedSchemaSkipsJSONObjectWhereNoEndpointCarriesIt(t *testing.T) {
+	snapshot := messagesOnlySnapshot()
+	snapshot.Denied.Add(FeatureJSONSchema)
+	out, issues := Degrade(snapshot, schemaRequest())
+	if out.Output.Type != "" || len(issues) != 1 || issues[0].Message != "degraded:json_schema_to_instruction" {
+		t.Fatalf("expected the schema as an instruction alone, got %+v %+v", out.Output, issues)
 	}
 }

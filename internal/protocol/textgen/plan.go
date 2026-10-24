@@ -26,13 +26,13 @@ type CapabilitySnapshot struct {
 	Denied      FeatureSet
 	Constraints map[FeatureID]Constraint
 	// EndpointGaps lists, per native endpoint (FeatureEndpointChat,
-	// FeatureEndpointResponses), the features of Features that endpoint does
-	// NOT carry although another endpoint of the same dialect does: DeepSeek's
-	// Chat API takes no json_schema while its Responses API does. A gap is a
-	// known fact about the dialect, so the planner routes around it (the
-	// other endpoint, through a lossless bridge) or, when no endpoint carries
-	// the feature, treats it as unsupported; see FeaturesOn and
-	// UnsupportedEverywhere.
+	// FeatureEndpointResponses, FeatureEndpointMessages), the features that
+	// endpoint does NOT carry: DeepSeek's Chat API takes no json_schema while
+	// its Responses API does; Anthropic's Messages API, the dialect's only
+	// endpoint, takes no bare json_object. A gap is a known fact about the
+	// dialect, so the planner routes around it (the other endpoint, through a
+	// lossless bridge) or, when no endpoint carries the feature, treats it as
+	// unsupported; see FeaturesOn and UnsupportedEverywhere.
 	EndpointGaps map[FeatureID]FeatureSet
 }
 

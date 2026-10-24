@@ -198,7 +198,29 @@ func TestBuildSnapshotDeepSeekCarriesJSONSchemaOnResponsesOnly(t *testing.T) {
 		t.Fatalf("the gap holds without the catalog flag: %v", plain.EndpointGaps)
 	}
 	if other := BuildSnapshot(SnapshotInput{APIType: constant.APITypeOpenAI, Dialect: DialectOpenAI}); other.Revision == plain.Revision || other.EndpointGaps != nil {
-		t.Fatal("gaps are part of the revision, and only DeepSeek has them")
+		t.Fatal("gaps are part of the revision, and OpenAI has none")
+	}
+}
+
+// Anthropic's Messages API takes a schema but no bare json_object. Messages
+// is the dialect's only endpoint, so the gap leaves json_object unsupported
+// on the channel, where the registered stand-in applies; json_schema stays
+// carried. The gap is a wire fact and holds for a sparse catalog row.
+func TestAnthropicMessagesGapIsTheBareJSONObjectOnly(t *testing.T) {
+	snapshot := BuildSnapshot(SnapshotInput{APIType: constant.APITypeAnthropic, Model: model.ModelCapabilities{SupportsResponseSchema: true}})
+	gap := snapshot.EndpointGaps[textgen.FeatureEndpointMessages]
+	if !gap.Has(textgen.FeatureJSONOutput) || gap.Has(textgen.FeatureJSONSchema) {
+		t.Fatalf("gap: %v", gap.Names())
+	}
+	if snapshot.FeaturesOn(textgen.FeatureEndpointMessages).Has(textgen.FeatureJSONOutput) || !snapshot.FeaturesOn(textgen.FeatureEndpointMessages).Has(textgen.FeatureJSONSchema) {
+		t.Fatal("Messages carries json_schema and not json_object")
+	}
+	if snapshot.UnsupportedEverywhere(textgen.FeatureSet(1)<<textgen.FeatureJSONOutput) == 0 || snapshot.UnsupportedEverywhere(textgen.FeatureSet(1)<<textgen.FeatureJSONSchema) != 0 {
+		t.Fatal("json_object is unsupported everywhere on an Anthropic channel; json_schema is not")
+	}
+	plain := BuildSnapshot(SnapshotInput{APIType: constant.APITypeAnthropic})
+	if !plain.EndpointGaps[textgen.FeatureEndpointMessages].Has(textgen.FeatureJSONOutput) {
+		t.Fatalf("the gap holds without the catalog flag: %v", plain.EndpointGaps)
 	}
 }
 

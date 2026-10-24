@@ -166,3 +166,30 @@ func TestResponsesHelperBridgesAResponsesClientToMessages(t *testing.T) {
 		t.Fatalf("Responses fields leaked into the Messages body: %s", body)
 	}
 }
+
+// A Chat client's response_format json_object, which Messages has no mode
+// for, reaches the Messages API as an instruction at the end of the system
+// prompt and no output_format field: the registered stand-in
+// (textgen.Degradations, json_object_to_instruction) rewrote the IR the
+// bridge encodes. The release-note generator sends this shape.
+func TestTextHelperBridgesJSONObjectToMessagesAsAnInstruction(t *testing.T) {
+	raw := []byte(`{"model":"claude-haiku-5-5","messages":[{"role":"system","content":"You write release notes."},{"role":"user","content":"summarize"}],
+		"response_format":{"type":"json_object"},"max_tokens":300}`)
+	c, info, adapter := messagesBridgeContext(t, textgen.ProtocolOpenAIChat, "/v1/chat/completions", raw)
+	if ids := info.ProtocolPlan.Degradations(); len(ids) != 1 || ids[0] != "json_object_to_instruction" {
+		t.Fatalf("expected the json_object stand-in on the plan, got %v", info.ProtocolPlan.Warnings)
+	}
+	_ = TextHelper(c, info)
+	body := adapter.body
+	if len(body) == 0 {
+		t.Fatal("request did not reach the adapter")
+	}
+	if got := gjson.GetBytes(body, "system.0.text").String(); got != "You write release notes.\n\nRespond with a single JSON object and nothing else." {
+		t.Fatalf("system = %q (body %s)", got, body)
+	}
+	for _, absent := range []string{"output_format", "output_config", "response_format"} {
+		if gjson.GetBytes(body, absent).Exists() {
+			t.Errorf("%s must not reach the Messages API: %s", absent, body)
+		}
+	}
+}
