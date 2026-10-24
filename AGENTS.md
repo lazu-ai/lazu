@@ -372,4 +372,5 @@ Credentials and startup configuration belong in environment variables or backend
 - Keep changes scoped to the request. Opportunistic rewrites are a maintenance risk.
 - Store local generated files under `.local-results/<purpose>/`.
 - Open new GitHub pull requests as ready for review by default. Do not create draft PRs unless the user explicitly asks for draft mode.
+- Work on a branch in its own worktree, created from `origin/main` after a fetch; the `main` checkout is for reading and pulling. When your pull request merges, fast-forward `main`, remove the worktree and force-delete the branch (pull requests are squash-merged, so `git branch -d` refuses). Pull before smoke-testing a release.
 - Do not commit real secrets, production credentials, private endpoints, or local databases.
