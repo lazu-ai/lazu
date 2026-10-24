@@ -198,9 +198,13 @@ probes and the model plaza's health for four days without anyone being told.
    compute the hours it has not reached themselves.
 6. A list over history pages in the order of an index that also serves its
    filter, so LIMIT stops after one page. Log lists use `orderLogsNewestFirst`
-   (`created_at`, then `id`) through a `(filter, created_at)` index each;
+   (`created_at`, then `id`); the project, user, token and channel filters
+   each have a `(filter, created_at)` index (schema 37). The other admin
+   filters (username, model, token name, group) have none yet and walk
+   `created_at` backwards, so a sparse match over a wide window still reads
+   past rows; a new filter gets its index with it.
    `TestLogListsOrderNewestFirst` fails on a log list ordered by id, and
-   `TestPostgresLogPagesReadOnlyTheirPage` measures every list's plan.
+   `TestPostgresLogPagesReadOnlyTheirPage` measures the indexed lists' plans.
 
 ### Protocol Layer
 
