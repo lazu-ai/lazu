@@ -180,6 +180,13 @@ type TelegramConfig struct {
 	// -1001234567890, optionally followed by :<topic id> for one topic of a
 	// forum group. Empty sends alerts by mail only.
 	OpsChat string `yaml:"ops_chat"`
+	// EventsChat receives business events as they happen: new accounts and
+	// completed top-ups, plus a daily summary. Same format as OpsChat; empty
+	// sends none. It may be the same chat as OpsChat.
+	EventsChat string `yaml:"events_chat"`
+	// EventsTimezone is the IANA zone the daily summary's day follows; it is
+	// posted at 09:00 there. Empty uses UTC.
+	EventsTimezone string `yaml:"events_timezone"`
 	// Updates is how the bot receives messages: "webhook" (Telegram posts
 	// to /api/telegram/webhook; needs a public HTTPS origin and
 	// WebhookSecret), "polling" (one process asks Telegram; for a single
@@ -346,6 +353,12 @@ func applyAppConfigEnvironmentOverrides() {
 	}
 	if chat := strings.TrimSpace(os.Getenv("TELEGRAM_OPS_CHAT")); chat != "" {
 		AppConfig.Telegram.OpsChat = chat
+	}
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_EVENTS_CHAT")); v != "" {
+		AppConfig.Telegram.EventsChat = v
+	}
+	if v := strings.TrimSpace(os.Getenv("TELEGRAM_EVENTS_TIMEZONE")); v != "" {
+		AppConfig.Telegram.EventsTimezone = v
 	}
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("TELEGRAM_UPDATES"))); v != "" {
 		AppConfig.Telegram.Updates = v
@@ -676,6 +689,12 @@ func loadConfigFile(found string) {
 	}
 	if v := strings.TrimSpace(userCfg.Telegram.OpsChat); v != "" {
 		AppConfig.Telegram.OpsChat = v
+	}
+	if v := strings.TrimSpace(userCfg.Telegram.EventsChat); v != "" {
+		AppConfig.Telegram.EventsChat = v
+	}
+	if v := strings.TrimSpace(userCfg.Telegram.EventsTimezone); v != "" {
+		AppConfig.Telegram.EventsTimezone = v
 	}
 	if v := strings.TrimRight(strings.TrimSpace(userCfg.Telegram.APIBase), "/"); v != "" {
 		AppConfig.Telegram.APIBase = v

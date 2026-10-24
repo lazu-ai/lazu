@@ -162,6 +162,9 @@ email_notifications:
 telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   ops_chat: "${TELEGRAM_OPS_CHAT}"
+  # New accounts, completed top-ups and a daily summary (may equal ops_chat).
+  events_chat: "${TELEGRAM_EVENTS_CHAT}"
+  events_timezone: "${TELEGRAM_EVENTS_TIMEZONE}"
   # api_base: ""             # empty uses https://api.telegram.org
   updates: "${TELEGRAM_UPDATES}"
   webhook_secret: "${TELEGRAM_WEBHOOK_SECRET}"
