@@ -7,6 +7,11 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import {
+  getDefaultUsageLogDateRange,
+  toUnixRange,
+  type UsageLogDateRange,
+} from './usageLogDateRange';
 import { getUsageLogOwnerScope } from './usageLogOwnerScope';
 import { getUsageLogUrlRange } from './usageLogUrlRange';
 import {
@@ -26,23 +31,12 @@ import { asMicroUSD } from '../../helpers/money';
 import { renderQuota } from '../../helpers/render';
 import {
   copy,
-  getTodayStartTimestamp,
   showError,
   showSuccess,
   timestamp2string,
 } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
-
-type DateRangeValue = Date | number | string | undefined;
-
-type UsageLogDateRange =
-  | [DateRangeValue, DateRangeValue]
-  | {
-      exact?: boolean;
-      from?: DateRangeValue;
-      to?: DateRangeValue;
-    };
 
 export type UsageLogFilters = {
   channel: string;
@@ -309,32 +303,6 @@ const otherNumber = (other: UsageLogOther, key: keyof UsageLogOther) => {
   return undefined;
 };
 
-const toDate = (value: DateRangeValue) => {
-  if (value instanceof Date) {
-    return value;
-  }
-  if (value === undefined) {
-    return new Date();
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
-};
-
-const toUnixRange = (dateRange: UsageLogDateRange) => {
-  const from = Array.isArray(dateRange) ? dateRange[0] : dateRange?.from;
-  const to = Array.isArray(dateRange) ? dateRange[1] : dateRange?.to;
-  const start = toDate(from);
-  const end = toDate(to);
-  if (Array.isArray(dateRange) || !dateRange?.exact) {
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-  }
-  return {
-    end: Math.ceil(end.getTime() / 1000),
-    start: Math.floor(start.getTime() / 1000),
-  };
-};
-
 export const LOG_COLUMN_KEYS = {
   CHANNEL: 'channel',
   COMPLETION: 'completion',
@@ -355,12 +323,9 @@ export const LOG_COLUMN_KEYS = {
 } as const;
 
 export function getDefaultUsageLogFilters(): UsageLogFilters {
-  const start = new Date(getTodayStartTimestamp() * 1000);
-  const end = new Date();
-  end.setHours(end.getHours() + 1);
   return {
     channel: '',
-    dateRange: { from: start, to: end },
+    dateRange: getDefaultUsageLogDateRange(),
     group: '',
     logType: '0',
     model_name: '',

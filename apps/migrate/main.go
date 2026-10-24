@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	command := flag.String("command", "schema", "schema, routing-columns-prefill, gateway-timing-prefill, schema33-prefill, schema34-prefill, schema-version, schema-check, tables, inventory, verify, copy-telemetry, partition-audit, partitions, precharge-report, precharge-classify, settlement-waiver-report, settlement-waive, prepare-legacy-rollback, sequences, backup-audit, ledger-report, ledger-bootstrap, ledger-recover, ledger-drain-telemetry, or ledger-resume")
+	command := flag.String("command", "schema", "schema, routing-columns-prefill, gateway-timing-prefill, schema33-prefill, schema34-prefill, schema37-prefill, schema-version, schema-check, tables, inventory, verify, copy-telemetry, partition-audit, partitions, precharge-report, precharge-classify, settlement-waiver-report, settlement-waive, prepare-legacy-rollback, sequences, backup-audit, ledger-report, ledger-bootstrap, ledger-recover, ledger-drain-telemetry, or ledger-resume")
 	expectedVersion := flag.Int("expected-version", 0, "compiled target image schema version for the read-only deployment check")
 	legacyVersion := flag.Int("legacy-schema-version", model.LegacySchemaRollbackDefault, "actual previous image schema for prepare-legacy-rollback (supported: 23, 24, 25; default 23)")
 	scope := flag.String("scope", "core", "core or telemetry")
@@ -121,6 +121,29 @@ func main() {
 			fail(err)
 		}
 		fmt.Printf("Schema 34 prefilled in %s; the schema step builds only the most recent hours.\n", time.Since(started).Round(time.Second))
+	case "schema37-prefill":
+		// Online step before the schema-37 upgrade; see model.PrefillSchema37.
+		// It reads project owners from Core and writes Telemetry.
+		core, err := model.OpenMigrationDatabase(os.Getenv("DATABASE_URL"))
+		if err != nil {
+			fail(fmt.Errorf("open Core database: %w", err))
+		}
+		telemetry := strings.TrimSpace(os.Getenv("TELEMETRY_DATABASE_URL"))
+		if telemetry == "" {
+			telemetry = strings.TrimSpace(os.Getenv("LOG_SQL_DSN"))
+		}
+		if telemetry == "" {
+			telemetry = os.Getenv("DATABASE_URL")
+		}
+		db, err := model.OpenMigrationDatabase(telemetry)
+		if err != nil {
+			fail(fmt.Errorf("open Telemetry database: %w", err))
+		}
+		started := time.Now()
+		if err := model.PrefillSchema37(ctx, core, db); err != nil {
+			fail(err)
+		}
+		fmt.Printf("Schema 37 prefilled in %s; the schema step backfills only logs written since.\n", time.Since(started).Round(time.Second))
 	case "schema-check":
 		if err := checkConfiguredSchemas(ctx, *expectedVersion); err != nil {
 			fail(err)

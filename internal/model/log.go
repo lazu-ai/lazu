@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -346,10 +347,10 @@ func GetLogByKey(key string) (logs []*Log, err error) {
 	return logs, err
 }
 
-func RecordLog(userId int, logType int, content string) {
-	if logType == LogTypeConsume && !common.LogConsumeEnabled {
-		return
-	}
+// accountLog is a log about an account rather than a request: a top-up, an
+// administrator's change, a key being viewed. It carries no project; the
+// writer gives it the account's own (attributeEventsToOwnedProjects).
+func accountLog(userId int, logType int, content string) *Log {
 	username, _ := GetUsernameById(userId, false)
 	log := &Log{
 		UserId:    userId,
@@ -358,6 +359,14 @@ func RecordLog(userId int, logType int, content string) {
 		Type:      logType,
 		Content:   content,
 	}
+	return log
+}
+
+func RecordLog(userId int, logType int, content string) {
+	if logType == LogTypeConsume && !common.LogConsumeEnabled {
+		return
+	}
+	log := accountLog(userId, logType, content)
 	err := publishConsumeLogEvent(log)
 	if err != nil {
 		common.SysLog("failed to record log: " + err.Error())
@@ -368,14 +377,7 @@ func RecordLogWithAdminInfo(userId int, logType int, content string, adminInfo m
 	if logType == LogTypeConsume && !common.LogConsumeEnabled {
 		return
 	}
-	username, _ := GetUsernameById(userId, false)
-	log := &Log{
-		UserId:    userId,
-		Username:  username,
-		CreatedAt: common.GetTimestamp(),
-		Type:      logType,
-		Content:   content,
-	}
+	log := accountLog(userId, logType, content)
 	if len(adminInfo) > 0 {
 		log.Other = common.MapToJsonStr(map[string]interface{}{
 			"admin_info": adminInfo,
@@ -388,7 +390,6 @@ func RecordLogWithAdminInfo(userId int, logType int, content string, adminInfo m
 }
 
 func RecordTopupLog(userId int, content string, callerIp string, paymentMethod string, callbackPaymentMethod string) {
-	username, _ := GetUsernameById(userId, false)
 	adminInfo := map[string]interface{}{
 		"server_ip":               common.GetIp(),
 		"node_name":               common.NodeName,
@@ -399,17 +400,11 @@ func RecordTopupLog(userId int, content string, callerIp string, paymentMethod s
 		"callback_payment_method": callbackPaymentMethod,
 		"version":                 common.Version,
 	}
-	log := &Log{
-		UserId:    userId,
-		Username:  username,
-		CreatedAt: common.GetTimestamp(),
-		Type:      LogTypeTopup,
-		Content:   content,
-		Ip:        callerIp,
-		Other: common.MapToJsonStr(map[string]interface{}{
-			"admin_info": adminInfo,
-		}),
-	}
+	log := accountLog(userId, LogTypeTopup, content)
+	log.Ip = callerIp
+	log.Other = common.MapToJsonStr(map[string]interface{}{
+		"admin_info": adminInfo,
+	})
 	err := publishConsumeLogEvent(log)
 	if err != nil {
 		common.SysLog("failed to record topup log: " + err.Error())
@@ -1107,6 +1102,20 @@ func dimensionQuantity(fact usagepkg.Fact, name string) int {
 }
 
 func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userID int, tokenName string, startIdx int, num int, channel int, group string) (logs []*Log, total int64, err error) {
+	tx := allLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, userID, tokenName, channel, group)
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	err = orderLogsNewestFirst(tx).Limit(num).Offset(startIdx).Find(&logs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return logs, total, resolveLogChannelNames(logs)
+}
+
+// allLogsQuery is the administrator's log list before its order and page.
+func allLogsQuery(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userID int, tokenName string, channel int, group string) *gorm.DB {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = TelemetryDB().Where("logs.type <> ?", LogTypeUnknown)
@@ -1137,15 +1146,11 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
 	}
-	err = tx.Model(&Log{}).Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
-	err = tx.Order("logs.id desc").Limit(num).Offset(startIdx).Find(&logs).Error
-	if err != nil {
-		return nil, 0, err
-	}
+	return tx.Model(&Log{})
+}
 
+// resolveLogChannelNames fills each admin log row's channel name.
+func resolveLogChannelNames(logs []*Log) error {
 	channelIds := types.NewSet[int]()
 	for _, log := range logs {
 		if log.ChannelId != 0 {
@@ -1158,8 +1163,8 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 			Id   int    `gorm:"column:id"`
 			Name string `gorm:"column:name"`
 		}
-		if err = CoreDB().Table("channels").Select("id, name").Where("id IN ?", channelIds.Items()).Find(&channels).Error; err != nil {
-			return logs, total, err
+		if err := CoreDB().Table("channels").Select("id, name").Where("id IN ?", channelIds.Items()).Find(&channels).Error; err != nil {
+			return err
 		}
 		channelMap := make(map[int]string, len(channels))
 		for _, channel := range channels {
@@ -1170,72 +1175,77 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		}
 	}
 
-	return logs, total, err
+	return nil
 }
 
-func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string) (logs []*Log, total int64, err error) {
-	var tx *gorm.DB
-	if logType == LogTypeUnknown {
-		tx = TelemetryDB().Where("logs.user_id = ? AND logs.type <> ?", userId, LogTypeUnknown)
-	} else {
-		tx = TelemetryDB().Where("logs.user_id = ? and logs.type = ?", userId, logType)
-	}
-
-	if modelName != "" {
-		tx = tx.Where("logs.model_name like ?", modelName)
-	}
-	if tokenName != "" {
-		tx = tx.Where("logs.token_name = ?", tokenName)
-	}
-	if startTimestamp != 0 {
-		tx = tx.Where("logs.created_at >= ?", startTimestamp)
-	}
-	if endTimestamp != 0 {
-		tx = tx.Where("logs.created_at <= ?", endTimestamp)
-	}
-	if group != "" {
-		tx = tx.Where("logs."+logGroupCol+" = ?", group)
-	}
-	err = tx.Model(&Log{}).Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
-	err = tx.Order("logs.id desc").Limit(num).Offset(startIdx).Find(&logs).Error
-	if err != nil {
-		return nil, 0, err
-	}
-
-	formatUserLogs(logs)
-	return logs, total, err
+// orderLogsNewestFirst is the order of every log list: created_at, then id,
+// newest first. Each filter a list narrows by has a (column, created_at)
+// index (logListIndexes), so on the partitioned table every partition yields
+// rows already in this order and LIMIT stops after one page. Ordered by id
+// alone, a page of a filter that matches few rows walked the id index and
+// threw away every other row (schema_v37.go).
+func orderLogsNewestFirst(tx *gorm.DB) *gorm.DB {
+	return tx.Order("logs.created_at DESC").Order("logs.id DESC")
 }
 
-func SearchAllLogs(keyword string) (logs []*Log, err error) {
-	query := TelemetryDB().Where("type <> ?", LogTypeUnknown)
-	if logType, parseErr := strconv.Atoi(keyword); parseErr == nil {
-		query = query.Where("request_id = ? OR type = ? OR content LIKE ?", keyword, logType, keyword+"%")
-	} else {
-		query = query.Where("request_id = ? OR content LIKE ?", keyword, keyword+"%")
-	}
-	err = query.
-		Order("id desc").
-		Limit(common.MaxRecentItems).
-		Find(&logs).Error
-	return logs, err
+// logSearchWindow bounds a log search by content or type, which no index
+// serves; a request id is found anywhere in the retained logs.
+const logSearchWindow = 24 * time.Hour
+
+// SearchAllLogs finds the request with this id, and the last day's logs whose
+// content starts with the keyword or whose type it names.
+func SearchAllLogs(keyword string) ([]*Log, error) {
+	base := func() *gorm.DB { return TelemetryDB().Model(&Log{}).Where("logs.type <> ?", LogTypeUnknown) }
+	return searchLogs(base, keyword, time.Now().Add(-logSearchWindow).Unix(), true)
 }
 
-func SearchUserLogs(userId int, keyword string) (logs []*Log, err error) {
-	query := TelemetryDB().Where("user_id = ? AND type <> ?", userId, LogTypeUnknown)
-	if logType, parseErr := strconv.Atoi(keyword); parseErr == nil {
-		query = query.Where("request_id = ? OR type = ? OR content LIKE ?", keyword, logType, keyword+"%")
-	} else {
-		query = query.Where("request_id = ? OR content LIKE ?", keyword, keyword+"%")
+// searchLogs runs a search as two indexed reads: the exact request id, then
+// the content prefix (and, when asked, the log type) among logs since since,
+// or within the window base already holds when since is 0.
+func searchLogs(base func() *gorm.DB, keyword string, since int64, matchType bool) ([]*Log, error) {
+	var byID, recent []*Log
+	// Account logs have no request id; an empty keyword is not one.
+	if keyword != "" {
+		if err := orderLogsNewestFirst(base().Where("logs.request_id = ?", keyword)).Limit(common.MaxRecentItems).Find(&byID).Error; err != nil {
+			return nil, err
+		}
 	}
-	err = query.
-		Order("id desc").
-		Limit(common.MaxRecentItems).
-		Find(&logs).Error
-	formatUserLogs(logs)
-	return logs, err
+	query := base()
+	if since > 0 {
+		query = query.Where("logs.created_at >= ?", since)
+	}
+	if logType, err := strconv.Atoi(keyword); err == nil && matchType {
+		query = query.Where("(logs.type = ? OR logs.content LIKE ?)", logType, keyword+"%")
+	} else {
+		query = query.Where("logs.content LIKE ?", keyword+"%")
+	}
+	if err := orderLogsNewestFirst(query).Limit(common.MaxRecentItems).Find(&recent).Error; err != nil {
+		return nil, err
+	}
+	type key struct {
+		requestTS int64
+		publicID  string
+		id        int
+	}
+	seen := make(map[key]bool, len(byID)+len(recent))
+	logs := make([]*Log, 0, len(byID)+len(recent))
+	for _, log := range append(byID, recent...) {
+		k := key{log.RequestTS, log.PublicID, log.Id}
+		if !seen[k] {
+			seen[k] = true
+			logs = append(logs, log)
+		}
+	}
+	sort.SliceStable(logs, func(i, j int) bool {
+		if logs[i].CreatedAt != logs[j].CreatedAt {
+			return logs[i].CreatedAt > logs[j].CreatedAt
+		}
+		return logs[i].Id > logs[j].Id
+	})
+	if len(logs) > common.MaxRecentItems {
+		logs = logs[:common.MaxRecentItems]
+	}
+	return logs, nil
 }
 
 type Stat struct {
@@ -1545,6 +1555,19 @@ func GetTokenConsumeLogsByTokenIDWithFilters(tokenID int, startTimestamp int64, 
 		startIdx = 0
 	}
 
+	tx := tokenConsumeLogsQuery(tokenID, startTimestamp, endTimestamp, filter)
+	if err = tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err = orderLogsNewestFirst(tx).Limit(num).Offset(startIdx).Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+	formatUserLogs(logs)
+	return logs, total, nil
+}
+
+// tokenConsumeLogsQuery is a key's consume log list before its order and page.
+func tokenConsumeLogsQuery(tokenID int, startTimestamp int64, endTimestamp int64, filter TokenConsumeLogFilter) *gorm.DB {
 	tx := TelemetryDB().Model(&Log{}).
 		Where("token_id = ? AND type = ?", tokenID, LogTypeConsume)
 	if startTimestamp > 0 {
@@ -1566,14 +1589,7 @@ func GetTokenConsumeLogsByTokenIDWithFilters(tokenID int, startTimestamp int64, 
 		)
 	}
 
-	if err = tx.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	if err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&logs).Error; err != nil {
-		return nil, 0, err
-	}
-	formatUserLogs(logs)
-	return logs, total, nil
+	return tx
 }
 
 func GetTokenConsumeLogsByTokenID(tokenID int, startTimestamp int64, endTimestamp int64, startIdx int, num int) (logs []*Log, total int64, err error) {

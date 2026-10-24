@@ -820,8 +820,7 @@ func ListUserUsageLogs(userID int, window DashboardUsageWindow, limit int) ([]Lo
 		limit = 50000
 	}
 	var logs []Log
-	tx := userUsageBaseQuery(userID, window).
-		Order("logs.id desc").
+	tx := orderLogsNewestFirst(userUsageBaseQuery(userID, window)).
 		Limit(limit)
 	if err := tx.Find(&logs).Error; err != nil {
 		return nil, err
@@ -878,7 +877,7 @@ func ListDashboardUsageLogsContext(ctx context.Context, userID int, role int, wi
 		tx = tx.Where("logs.created_at <= ?", window.EndTimestamp)
 	}
 	var logs []Log
-	if err := tx.Order("logs.id desc").Limit(limit).Find(&logs).Error; err != nil {
+	if err := orderLogsNewestFirst(tx).Limit(limit).Find(&logs).Error; err != nil {
 		return nil, err
 	}
 	return logs, nil

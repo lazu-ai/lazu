@@ -1523,7 +1523,9 @@ func TestProjectLogAccessSeparatesProjectsAndMembers(t *testing.T) {
 		{ProjectID: shared.ID, UserId: users[1].Id, RequestID: "shared-personal", Type: LogTypeConsume},
 		{ProjectID: personal.ID, UserId: users[1].Id, RequestID: "other-project", Type: LogTypeConsume},
 		{ProjectID: shared.ID, UserId: users[2].Id, RequestID: "other-member", Type: LogTypeConsume},
-		{ProjectID: 0, UserId: users[0].Id, RequestID: "legacy-owner", Type: LogTypeConsume},
+		// The owner's project-less row from before schema 37, as the backfill
+		// left it.
+		{ProjectID: shared.ID, UserId: users[0].Id, RequestID: "legacy-owner", Type: LogTypeConsume},
 	} {
 		if err := db.Create(&row).Error; err != nil {
 			t.Fatal(err)
@@ -1543,8 +1545,8 @@ func TestProjectLogAccessSeparatesProjectsAndMembers(t *testing.T) {
 		}
 		return count
 	}
-	// The owner reads the whole project (including the legacy row backfilled to
-	// their default project); each member reads only their own attribution.
+	// The owner reads the whole project, including the backfilled legacy row;
+	// each member reads only their own attribution.
 	if count(users[0].Id) != 3 || count(users[1].Id) != 1 || count(users[2].Id) != 1 {
 		t.Fatal("cross-project or cross-member attribution leaked")
 	}

@@ -33,6 +33,9 @@ func persistRelayWriterBatch(batch relayWriterBatch) (map[string]bool, error) {
 			merged[patch.RequestID][field] = value
 		}
 	}
+	if err := attributeEventsToOwnedProjects(batch.results); err != nil {
+		return nil, err
+	}
 	var committed []Log
 	var found map[string]bool
 	err := db.Transaction(func(tx *gorm.DB) error {

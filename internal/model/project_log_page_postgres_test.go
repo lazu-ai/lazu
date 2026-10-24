@@ -2,12 +2,11 @@ package model
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +15,13 @@ import (
 
 func projectLogPagePostgresFixture(t *testing.T) (*gorm.DB, ProjectLogAccess, int64, int64) {
 	t.Helper()
-	_, db := postgresTelemetryFixture(t)
+	core, db := postgresTelemetryFixture(t)
+	if err := core.AutoMigrate(&Project{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := core.Create(&Project{ID: 42, PublicID: "prj_log_page", OwnerUserID: 1, Name: "log page"}).Error; err != nil {
+		t.Fatal(err)
+	}
 	oldGroup := logGroupCol
 	logGroupCol = `"group"`
 	t.Cleanup(func() { logGroupCol = oldGroup })
@@ -30,7 +35,12 @@ func projectLogPagePostgresFixture(t *testing.T) (*gorm.DB, ProjectLogAccess, in
 	if err := installEffortClampedColumn(db); err != nil {
 		t.Fatal(err)
 	}
-	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).Unix()
+	if err := ensureLogListIndexes(db, false); err != nil {
+		t.Fatal(err)
+	}
+	// Last month, so the window, the month before it and the undated rows
+	// fall in different partitions whenever the test runs.
+	start := monthStart(time.Now()).AddDate(0, -1, 0).Unix()
 	access := ProjectLogAccess{Project: Project{ID: 42, OwnerUserID: 1}, Viewer: ProjectMember{ProjectID: 42, UserID: 1, Role: ProjectRoleOwner, Status: ProjectMemberActive}}
 	return db, access, start, start + 86400
 }
@@ -50,7 +60,7 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 	rows[7].Type = LogTypeUnknown
 	// created_at is authoritative: neither a different partition month nor an
 	// undated physical request key may remove a visible log.
-	rows[12].RequestTS = time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	rows[12].RequestTS = time.Unix(start, 0).UTC().AddDate(0, -1, 0).UnixMilli()
 	rows[13].RequestTS = 0
 	rows[1].TokenName = "member-key"
 	for _, i := range []int{14, 15} {
@@ -64,6 +74,16 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 	}
 	if err := db.Model(&Log{}).Where("id = ?", 6).Update("project_id", nil).Error; err != nil {
 		t.Fatal(err)
+	}
+	// Rows 5 and 6 are the owner's project-less logs from before schema 37,
+	// 7 another user's. The backfill must leave every page exactly as the
+	// owner-fallback scope showed it.
+	if err := backfillLogProjectIDs(coreDB, db, math.MinInt64); err != nil {
+		t.Fatal(err)
+	}
+	var stillLegacy int64
+	if err := db.Model(&Log{}).Where("(project_id = 0 OR project_id IS NULL) AND user_id = 1").Count(&stillLegacy).Error; err != nil || stillLegacy != 0 {
+		t.Fatalf("owner rows left without a project: %d %v", stillLegacy, err)
 	}
 	base := ProjectLogFilter{Start: start, End: end}
 	member := owner
@@ -82,7 +102,8 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 	foreignActor := member
 	otherID := 3
 	foreignActor.ActorID = &otherID
-	all := []int{17, 16, 15, 14, 13, 12, 11, 6, 5, 3, 2, 1}
+	// Newest first by created_at: row 12 is at the window's end, 11 at its start.
+	all := []int{12, 17, 16, 15, 14, 13, 6, 5, 3, 2, 1, 11}
 	cases := []struct {
 		name   string
 		access ProjectLogAccess
@@ -95,14 +116,14 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 		{"actor", actor, base, []int{17, 16, 15, 13, 2}},
 		{"token", token, base, []int{17, 16, 15, 13, 2}},
 		{"invalid-project", invalid, base, nil}, {"removed", removed, base, nil}, {"member-foreign-actor", foreignActor, base, nil},
-		{"type", owner, ProjectLogFilter{Start: start, End: end, Type: LogTypeConsume}, []int{16, 14, 13, 12, 11, 6, 5, 3, 2, 1}},
+		{"type", owner, ProjectLogFilter{Start: start, End: end, Type: LogTypeConsume}, []int{12, 16, 14, 13, 6, 5, 3, 2, 1, 11}},
 		{"rejected-overrides-type", owner, ProjectLogFilter{Start: start, End: end, Type: LogTypeConsume, Rejected: true}, []int{17, 15}},
 		{"effort", owner, ProjectLogFilter{Start: start, End: end, EffortClamped: true}, []int{16}},
 		{"model", owner, ProjectLogFilter{Start: start, End: end, Model: "targ%"}, []int{16, 15}},
 		{"token-name", owner, ProjectLogFilter{Start: start, End: end, TokenName: "member-key"}, []int{16, 15, 2}},
 		{"group", owner, ProjectLogFilter{Start: start, End: end, Group: "target-group"}, []int{16, 15}},
 		{"reason", owner, ProjectLogFilter{Start: start, End: end, Reason: "quota"}, []int{15}},
-		{"unknown-reason", owner, ProjectLogFilter{Start: start, End: end, Reason: "unknown"}, []int{17, 16, 14, 13, 12, 11, 6, 5, 3, 2, 1}},
+		{"unknown-reason", owner, ProjectLogFilter{Start: start, End: end, Reason: "unknown"}, []int{12, 17, 16, 14, 13, 6, 5, 3, 2, 1, 11}},
 		{"request-keyword", owner, ProjectLogFilter{Start: start, End: end, Keyword: "reject-quota"}, []int{15}},
 		{"content-keyword", owner, ProjectLogFilter{Start: start, End: end, Keyword: "denied"}, []int{15}},
 		{"all-filters", member, ProjectLogFilter{Start: start, End: end, Type: LogTypeError, Model: "target", TokenName: "member-key", Group: "target-group", Reason: "quota", Keyword: "denied"}, []int{15}},
@@ -111,7 +132,7 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			var before []*Log
-			if err := ProjectLogsQuery(test.access, test.filter).Order("logs.id DESC").Find(&before).Error; err != nil {
+			if err := orderLogsNewestFirst(ProjectLogsQuery(test.access, test.filter)).Find(&before).Error; err != nil {
 				t.Fatal(err)
 			}
 			for _, page := range [][2]int{{0, 100}, {1, 2}, {100, 5}, {0, 0}} {
@@ -134,7 +155,7 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 	t.Run("duplicate-id-across-partitions", func(t *testing.T) {
 		a, b := row(21, 42, 1, end+1000), row(21, 42, 1, end+1000)
 		a.PublicID, b.PublicID = "log_page_tie_a", "log_page_tie_b"
-		a.RequestTS = time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC).UnixMilli()
+		a.RequestTS = time.Unix(start, 0).UTC().AddDate(0, -1, 1).UnixMilli()
 		if err := db.Create(&[]Log{a, b}).Error; err != nil {
 			t.Fatal(err)
 		}
@@ -165,96 +186,4 @@ func TestPostgresProjectLogPagesPreserveScopeFiltersAndCount(t *testing.T) {
 			t.Fatalf("page lost request cancellation: %v", err)
 		}
 	})
-}
-
-func TestPostgresProjectLogPageAvoidsHistoricalIDWalk(t *testing.T) {
-	db, access, start, end := projectLogPagePostgresFixture(t)
-	oldAt := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
-	if err := db.Exec(`INSERT INTO logs(id,public_id,request_ts,created_at,project_id,user_id,type,content)
-SELECT i,'log_history_'||i,?, ?,42,1,2,repeat('history',50) FROM generate_series(1000,21000) i`, oldAt.UnixMilli(), oldAt.Unix()).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Exec(`INSERT INTO logs(id,public_id,request_ts,created_at,project_id,user_id,type,content)
-SELECT i,'log_current_'||i,?, ?,CASE WHEN i <= 100 THEN 42 ELSE 43 END,1,2,repeat('current',50) FROM generate_series(1,2000) i`, start*1000, start).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Exec("ANALYZE logs").Error; err != nil {
-		t.Fatal(err)
-	}
-	filter := ProjectLogFilter{Start: start, End: end}
-	plan := func(query *gorm.DB) []map[string]interface{} {
-		t.Helper()
-		dry := query.Session(&gorm.Session{DryRun: true}).Find(&[]Log{})
-		var raw string
-		if err := db.Raw("EXPLAIN (ANALYZE,FORMAT JSON) "+dry.Statement.SQL.String(), dry.Statement.Vars...).Scan(&raw).Error; err != nil {
-			t.Fatal(err)
-		}
-		var values []struct{ Plan map[string]interface{} }
-		if err := json.Unmarshal([]byte(raw), &values); err != nil {
-			t.Fatal(err)
-		}
-		var nodes []map[string]interface{}
-		// Leaf nodes do not have a Plans key.
-		var safeWalk func(map[string]interface{})
-		safeWalk = func(node map[string]interface{}) {
-			nodes = append(nodes, node)
-			if children, ok := node["Plans"].([]interface{}); ok {
-				for _, child := range children {
-					safeWalk(child.(map[string]interface{}))
-				}
-			}
-		}
-		safeWalk(values[0].Plan)
-		return nodes
-	}
-	old := plan(ProjectLogsQuery(access, filter).Order("logs.id DESC").Limit(5))
-	badWalk := false
-	for _, node := range old {
-		removed, _ := node["Rows Removed by Filter"].(float64)
-		if node["Relation Name"] == "logs_202609" && strings.Contains(fmt.Sprint(node["Index Name"]), "_id_") && removed >= 20000 {
-			badWalk = true
-		}
-	}
-	if !badWalk {
-		t.Fatal("fixture did not reproduce the old LIMIT plan walking the empty historical leaf")
-	}
-	newPlan := plan(projectLogPageQuery(ProjectLogsQuery(access, filter), filter, 0, 5))
-	for _, node := range newPlan {
-		if node["Relation Name"] == "logs_202609" && strings.Contains(fmt.Sprint(node["Index Name"]), "_id_") {
-			t.Fatal("filtered page still walks the historical id index before LIMIT")
-		}
-	}
-	logs, total, err := ListProjectLogsContext(context.Background(), access, filter, 0, 5)
-	if err != nil || total != 100 || len(logs) != 5 || logs[0].Id != 100 || logs[4].Id != 96 {
-		t.Fatalf("filtered page/count changed: total=%d rows=%d err=%v", total, len(logs), err)
-	}
-	for _, test := range []struct {
-		name   string
-		filter ProjectLogFilter
-	}{
-		{"unwindowed-latest", ProjectLogFilter{}},
-		{"start-only", ProjectLogFilter{Start: oldAt.Unix()}},
-		{"end-only", ProjectLogFilter{End: end}},
-		{"wide-dense-history", ProjectLogFilter{Start: oldAt.Unix(), End: end}},
-	} {
-		t.Run(test.name+"-keeps-index-path", func(t *testing.T) {
-			nodes := plan(projectLogPageQuery(ProjectLogsQuery(access, test.filter), test.filter, 0, 5))
-			indexed := false
-			for _, node := range nodes {
-				if node["Relation Name"] == "logs_202609" && strings.Contains(fmt.Sprint(node["Index Name"]), "_id_") {
-					indexed = true
-					if node["Actual Rows"].(float64) > 5 {
-						t.Fatal("latest page unnecessarily read the complete historical leaf")
-					}
-				}
-			}
-			if !indexed {
-				t.Fatal("unwindowed latest page lost its original id index path")
-			}
-			logs, err := ListProjectLogPageContext(context.Background(), access, test.filter, 0, 5)
-			if err != nil || len(logs) != 5 || logs[0].Id != 21000 || logs[4].Id != 20996 {
-				t.Fatalf("unwindowed latest page changed: rows=%d err=%v", len(logs), err)
-			}
-		})
-	}
 }

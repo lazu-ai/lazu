@@ -1,9 +1,11 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	gormsqlite "github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -105,20 +107,25 @@ func TestSearchLogsFindsRequestOutsideCurrentPageWithoutCrossingUserBoundary(t *
 	cleanup := setupTokenConsumeLogFilterTestDB(t)
 	defer cleanup()
 
+	now := time.Now().Unix()
 	seedLogs := []*Log{
 		{
 			Id:        11,
 			RequestID: "req-health-deep-link",
+			ProjectID: 1,
 			UserId:    1,
 			Type:      LogTypeConsume,
 			Content:   "older receipt",
+			CreatedAt: now - 7*86400,
 		},
 		{
 			Id:        12,
 			RequestID: "req-other-user",
+			ProjectID: 2,
 			UserId:    2,
 			Type:      LogTypeConsume,
 			Content:   "other user receipt",
+			CreatedAt: now,
 		},
 	}
 	if err := telemetryDB.Create(&seedLogs).Error; err != nil {
@@ -133,7 +140,9 @@ func TestSearchLogsFindsRequestOutsideCurrentPageWithoutCrossingUserBoundary(t *
 		t.Fatalf("expected exact request receipt, got %+v", allLogs)
 	}
 
-	userLogs, err := SearchUserLogs(1, "req-health-deep-link")
+	// A request id is found however old; content and type only in the last day.
+	access := ProjectLogAccess{Project: Project{ID: 1, OwnerUserID: 1}, Viewer: ProjectMember{ProjectID: 1, UserID: 1, Role: ProjectRoleOwner, Status: ProjectMemberActive}}
+	userLogs, err := SearchProjectLogs(context.Background(), access, ProjectLogFilter{Keyword: "req-health-deep-link"})
 	if err != nil {
 		t.Fatalf("user request search failed: %v", err)
 	}
@@ -141,7 +150,7 @@ func TestSearchLogsFindsRequestOutsideCurrentPageWithoutCrossingUserBoundary(t *
 		t.Fatalf("expected user-scoped request receipt, got %+v", userLogs)
 	}
 
-	otherUserLogs, err := SearchUserLogs(1, "req-other-user")
+	otherUserLogs, err := SearchProjectLogs(context.Background(), access, ProjectLogFilter{Keyword: "req-other-user"})
 	if err != nil {
 		t.Fatalf("cross-user request search failed: %v", err)
 	}
@@ -153,8 +162,12 @@ func TestSearchLogsFindsRequestOutsideCurrentPageWithoutCrossingUserBoundary(t *
 	if err != nil {
 		t.Fatalf("numeric log type search failed: %v", err)
 	}
-	if len(typeLogs) != 2 {
-		t.Fatalf("expected both consume logs from numeric type search, got %+v", typeLogs)
+	if len(typeLogs) != 1 || typeLogs[0].Id != 12 {
+		t.Fatalf("expected only the last day's consume log from numeric type search, got %+v", typeLogs)
+	}
+	contentLogs, err := SearchAllLogs("older")
+	if err != nil || len(contentLogs) != 0 {
+		t.Fatalf("content search reached past the last day: %+v %v", contentLogs, err)
 	}
 }
 

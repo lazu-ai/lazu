@@ -900,7 +900,10 @@ func migrateLOGDB() error {
 	if err := migrateSchema33Telemetry(telemetryDB); err != nil {
 		return err
 	}
-	return migrateSchema34Telemetry(telemetryDB)
+	if err := migrateSchema34Telemetry(telemetryDB); err != nil {
+		return err
+	}
+	return migrateSchema37Telemetry(telemetryDB)
 }
 
 type legacyUsageDataRow struct {

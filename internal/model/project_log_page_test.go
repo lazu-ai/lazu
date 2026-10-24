@@ -18,7 +18,7 @@ func TestProjectLogPagesKeepSQLitePaginationAndContext(t *testing.T) {
 	if err := db.Create(&[]Log{
 		{Id: 10, ProjectID: 42, UserId: 1, Type: LogTypeConsume},
 		{Id: 20, ProjectID: 42, UserId: 2, Type: LogTypeConsume},
-		{Id: 30, ProjectID: 0, UserId: 1, Type: LogTypeError},
+		{Id: 30, ProjectID: 42, UserId: 1, Type: LogTypeError},
 		{Id: 40, ProjectID: 43, UserId: 1, Type: LogTypeConsume},
 	}).Error; err != nil {
 		t.Fatal(err)

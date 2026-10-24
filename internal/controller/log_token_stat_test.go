@@ -36,7 +36,7 @@ func TestTokenStatUsesOwnedImmutableID(t *testing.T) {
 		if err := db.Create(&tokens[i]).Error; err != nil {
 			t.Fatal(err)
 		}
-		log := model.Log{UserId: tokens[i].UserId, TokenId: tokens[i].Id, TokenName: "old-name", Type: model.LogTypeConsume, CreatedAt: 100, AmountMicrousd: 100}
+		log := model.Log{ProjectID: tokens[i].ProjectID, UserId: tokens[i].UserId, TokenId: tokens[i].Id, TokenName: "old-name", Type: model.LogTypeConsume, CreatedAt: 100, AmountMicrousd: 100}
 		if i > 0 {
 			log.AmountMicrousd = 900
 		}

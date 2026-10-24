@@ -13,6 +13,10 @@ import (
 )
 
 const (
+	// Version 37 orders log lists by created_at through a (filter, created_at)
+	// index each, adds the project one, and gives owners' project-less logs
+	// their project, so a project's logs are exactly logs.project_id.
+	// Upgrade with migrate -command schema37-prefill online first.
 	// Version 36 adds models.video_capabilities and video_pricing on
 	// model_sell_prices and provider_cost_prices (text JSON, added by
 	// AutoMigrate), for the video gateway's per-model capability rows and
@@ -62,7 +66,7 @@ const (
 	// Version 12 records the disputed and original charge amounts for proportional reversals.
 	// Version 11 adds payment reversal and dispute hold fields. Version 10
 	// retired startup seeders, so rollback across that floor remains unsafe.
-	SchemaVersionCurrent = 36
+	SchemaVersionCurrent = 37
 
 	schemaVersionPrimary = "primary"
 	schemaVersionLog     = "log"
