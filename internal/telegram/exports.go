@@ -13,6 +13,10 @@ import (
 // linked one. Group chats never call it.
 var AccountContext func(ctx context.Context, telegramUserID int64) string
 
+// LinkedAccount, when set, reports whether a Telegram user has linked an
+// account. Unlinked people get a smaller daily allowance in private chats.
+var LinkedAccount func(ctx context.Context, telegramUserID int64) bool
+
 // Reply answers msg in its chat and topic with HTML-mode text.
 func Reply(ctx context.Context, msg *IncomingMessage, html string) { reply(ctx, msg, html) }
 

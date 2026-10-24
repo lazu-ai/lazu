@@ -47,6 +47,10 @@ var (
 func init() {
 	telegram.RegisterHandler(handleTelegramStart)
 	telegram.AccountContext = telegramAccountContext
+	telegram.LinkedAccount = func(_ context.Context, telegramUserID int64) bool {
+		user, err := telegramUserFor(telegramUserID)
+		return err == nil && user != nil
+	}
 }
 
 // TelegramLinkAvailable reports whether accounts can be linked here: the bot

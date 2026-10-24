@@ -24,15 +24,18 @@ import (
 // the public reference only (account-aware handlers run before it).
 
 const (
-	defaultDailyLimit = 300
-	userWindow        = 10 * time.Minute
-	userWindowLimit   = 6
-	groupWindow       = time.Minute
-	groupWindowLimit  = 15
-	answerTimeout     = 75 * time.Second
-	answerMaxTokens   = 900
-	answerMaxRunes    = 3200
-	questionMaxRunes  = 2000
+	defaultDailyLimit           = 1000
+	defaultPerUserDaily         = 20
+	defaultUnlinkedPrivateDaily = 5
+	dayWindow                   = 25 * time.Hour
+	userWindow                  = 10 * time.Minute
+	userWindowLimit             = 6
+	groupWindow                 = time.Minute
+	groupWindowLimit            = 15
+	answerTimeout               = 75 * time.Second
+	answerMaxTokens             = 900
+	answerMaxRunes              = 3200
+	questionMaxRunes            = 2000
 )
 
 var answerHTTP = &http.Client{Timeout: answerTimeout}
@@ -128,18 +131,15 @@ func answerHandler(ctx context.Context, msg *IncomingMessage) bool {
 	if !msg.Private() && countWithin(ctx, fmt.Sprintf("answer:chat:%d", msg.Chat.ID), groupWindow) > groupWindowLimit {
 		return true
 	}
+	// Daily limits first: someone who has used their day hears nothing more,
+	// not a "slow down" as well.
+	if !withinDailyLimits(ctx, msg) {
+		return true
+	}
 	if n := countWithin(ctx, fmt.Sprintf("answer:user:%d", msg.From.ID), userWindow); n > userWindowLimit {
 		if n == userWindowLimit+1 {
 			reply(ctx, msg, phrase(msg, phraseSlowDown))
 		}
-		return true
-	}
-	limit := common.AppConfig.Telegram.Answer.DailyLimit
-	if limit <= 0 {
-		limit = defaultDailyLimit
-	}
-	if countWithin(ctx, "answer:day:"+time.Now().UTC().Format("2006-01-02"), 25*time.Hour) > int64(limit) {
-		reply(ctx, msg, phrase(msg, phraseDailyLimit))
 		return true
 	}
 
@@ -163,6 +163,43 @@ func answerHandler(ctx context.Context, msg *IncomingMessage) bool {
 }
 
 func formatInt(n int64) string { return strconv.FormatInt(n, 10) }
+
+func orDefault(v, def int) int {
+	if v > 0 {
+		return v
+	}
+	return def
+}
+
+// withinDailyLimits counts this question against the asker's day, the
+// unlinked private-chat day and the deployment's day, and tells the asker
+// once per day which limit they reached. Days are UTC.
+func withinDailyLimits(ctx context.Context, msg *IncomingMessage) bool {
+	cfg := common.AppConfig.Telegram.Answer
+	day := time.Now().UTC().Format("2006-01-02")
+	user := msg.From.ID
+	once := func(key string, html string) {
+		if claim(ctx, fmt.Sprintf("answer:notice:%s:%d:%s", key, user, day), dayWindow) {
+			reply(ctx, msg, html)
+		}
+	}
+	if countWithin(ctx, fmt.Sprintf("answer:userday:%d:%s", user, day), dayWindow) > int64(orDefault(cfg.PerUserDaily, defaultPerUserDaily)) {
+		once("user", phrase(msg, phraseUserDaily))
+		return false
+	}
+	if msg.Private() && (LinkedAccount == nil || !LinkedAccount(ctx, user)) {
+		limit := orDefault(cfg.UnlinkedPrivateDaily, defaultUnlinkedPrivateDaily)
+		if countWithin(ctx, fmt.Sprintf("answer:privday:%d:%s", user, day), dayWindow) > int64(limit) {
+			once("unlinked", Escape(fmt.Sprintf(phrases[phraseLinkForMore][lang(msg)], limit)))
+			return false
+		}
+	}
+	if countWithin(ctx, "answer:day:"+day, dayWindow) > int64(orDefault(cfg.DailyLimit, defaultDailyLimit)) {
+		once("site", phrase(msg, phraseDailyLimit))
+		return false
+	}
+	return true
+}
 
 func chatActionBody(msg *IncomingMessage) map[string]any {
 	body := map[string]any{"chat_id": msg.Chat.ID, "action": "typing"}

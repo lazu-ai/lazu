@@ -175,7 +175,9 @@ telegram:
     # base_url: ""            # empty calls this process over loopback
     # chats: ["-1001234567890"]  # or TELEGRAM_ANSWER_CHATS=-100...,-100...
     # knowledge_urls: []      # empty: /llms.txt, /docs/llms.txt, /docs/llms-full.txt
-    # daily_limit: 300
+    # daily_limit: 1000            # answers per UTC day, whole deployment
+    # per_user_daily: 20           # per person, groups and private chats together
+    # unlinked_private_daily: 5    # private chats of people without a linked account
     # instructions: |          # your own rules, added to the built-in ones
     #   Partnership and invoice questions go to support@example.com.
 

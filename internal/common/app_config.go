@@ -221,8 +221,14 @@ type TelegramAnswerConfig struct {
 	// KnowledgeURLs are the documents answers are grounded in. Empty uses
 	// /llms.txt, /docs/llms.txt and /docs/llms-full.txt on the web origin.
 	KnowledgeURLs []string `yaml:"knowledge_urls"`
-	// DailyLimit caps answers per UTC day across all chats; 0 uses 300.
+	// DailyLimit caps answers per UTC day across all chats; 0 uses 1000.
 	DailyLimit int `yaml:"daily_limit"`
+	// PerUserDaily caps one person's answers per UTC day, groups and private
+	// chats together; 0 uses 20.
+	PerUserDaily int `yaml:"per_user_daily"`
+	// UnlinkedPrivateDaily caps answers per UTC day in a private chat with
+	// someone who has not linked an account; 0 uses 5. Linking lifts it.
+	UnlinkedPrivateDaily int `yaml:"unlinked_private_daily"`
 	// Instructions are the operator's own rules, added after the built-in
 	// ones (what to say about partnerships, which topics to leave alone).
 	// They cannot loosen the built-in rules.
@@ -727,6 +733,12 @@ func loadConfigFile(found string) {
 		}
 		if answer.DailyLimit > 0 {
 			AppConfig.Telegram.Answer.DailyLimit = answer.DailyLimit
+		}
+		if answer.PerUserDaily > 0 {
+			AppConfig.Telegram.Answer.PerUserDaily = answer.PerUserDaily
+		}
+		if answer.UnlinkedPrivateDaily > 0 {
+			AppConfig.Telegram.Answer.UnlinkedPrivateDaily = answer.UnlinkedPrivateDaily
 		}
 		if v := strings.TrimSpace(answer.Instructions); v != "" {
 			AppConfig.Telegram.Answer.Instructions = v
