@@ -286,14 +286,6 @@ func channelHealthBucketIndexExpr(column string) string {
 	return fmt.Sprintf("CAST(%s AS %s)", quotient, channelHealthIntegerCast())
 }
 
-// SQLite renders booleans as integers; Postgres and MySQL accept TRUE.
-func channelHealthTrueLiteral() string {
-	if common.UsingSQLite {
-		return "1"
-	}
-	return "TRUE"
-}
-
 func channelHealthIntegerCast() string {
 	if common.UsingPostgreSQL {
 		return "BIGINT"
@@ -760,13 +752,6 @@ type ChannelHealthUnprobeableRow struct {
 	ChannelId int
 	SkippedAt ChannelHealthTime
 	Reason    string
-}
-
-// QueryChannelHealthUnprobeable returns the most recent skip per route, and
-// only where nothing has been checked since — a skip later superseded by a
-// real probe is history, not a blind spot.
-func QueryChannelHealthUnprobeable(since time.Time) ([]ChannelHealthUnprobeableRow, error) {
-	return QueryChannelHealthUnprobeableContext(context.Background(), since)
 }
 
 func QueryChannelHealthUnprobeableContext(ctx context.Context, since time.Time) ([]ChannelHealthUnprobeableRow, error) {
