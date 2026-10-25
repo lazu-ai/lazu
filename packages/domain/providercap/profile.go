@@ -243,7 +243,7 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	gaps := endpointGaps(dialect)
 	revisionParts := append([]string{dialect, strings.TrimSpace(input.ModelFamily)}, features.Names()...)
 	revisionParts = append(revisionParts, "denied:"+strings.Join(denied.Names(), ","))
-	for _, endpoint := range []textgen.FeatureID{textgen.FeatureEndpointChat, textgen.FeatureEndpointResponses} {
+	for _, endpoint := range []textgen.FeatureID{textgen.FeatureEndpointChat, textgen.FeatureEndpointResponses, textgen.FeatureEndpointMessages} {
 		if gap := gaps[endpoint]; gap != 0 {
 			revisionParts = append(revisionParts, "gap:"+endpoint.String()+":"+strings.Join(gap.Names(), ","))
 		}
@@ -260,10 +260,11 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	return textgen.CapabilitySnapshot{Dialect: dialect, Revision: revision, Features: features, Denied: denied, Constraints: constraints, EndpointGaps: gaps}
 }
 
-// dialectEndpointGaps is what a dialect's endpoint does NOT carry although
-// the dialect's other endpoint does: a known fact about the vendor's wire,
-// not about a model. The planner routes a request using such a feature
-// through the other endpoint (textgen.CapabilitySnapshot.EndpointGaps).
+// dialectEndpointGaps is what a dialect's endpoint does NOT carry: a known
+// fact about the vendor's wire, not about a model. When the dialect's other
+// endpoint carries the feature the planner routes the request through it;
+// when no endpoint does, the feature is unsupported on the channel and only
+// a registered degradation stands in (textgen.CapabilitySnapshot.EndpointGaps).
 var dialectEndpointGaps = map[string]map[textgen.FeatureID][]textgen.FeatureID{
 	// DeepSeek Chat Completions: response_format is text | json_object only
 	// (api-docs.deepseek.com/api/create-chat-completion, 2026-10-20);
@@ -272,6 +273,13 @@ var dialectEndpointGaps = map[string]map[textgen.FeatureID][]textgen.FeatureID{
 	// while the shared strict marker also comes from tools[i].strict, which
 	// DeepSeek Chat takes
 	DialectDeepSeek: {textgen.FeatureEndpointChat: {textgen.FeatureJSONSchema}},
+	// Anthropic Messages: structured output is output_config.format of type
+	// json_schema only; there is no bare JSON-object mode
+	// (platform.claude.com/docs/en/build-with-claude/structured-outputs,
+	// 2026-10-25). Messages is the dialect's only endpoint, so the gap makes
+	// json_object unsupported everywhere on the channel and the registered
+	// stand-in (textgen.Degradations, json_object_to_instruction) applies.
+	DialectAnthropic: {textgen.FeatureEndpointMessages: {textgen.FeatureJSONOutput}},
 }
 
 // endpointGaps is the dialect's gaps, nil when it has none. They are wire
