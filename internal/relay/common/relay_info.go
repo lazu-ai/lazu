@@ -8,6 +8,7 @@ import (
 	"github.com/tidwall/sjson"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -639,8 +640,12 @@ func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOther
 		{"safety_identifier", !channelOtherSettings.AllowSafetyIdentifier},
 		{"stream_options.include_obfuscation", !channelOtherSettings.AllowIncludeObfuscation},
 	}
+	// One scan for the top-level keys: each GetBytes below would otherwise
+	// scan the whole body just to learn its key is absent.
+	present := topLevelKeys(jsonData)
 	for _, field := range fields {
-		if !field.remove || !gjson.GetBytes(jsonData, field.path).Exists() {
+		top, _, _ := strings.Cut(field.path, ".")
+		if !field.remove || (present != nil && !present[top]) || !gjson.GetBytes(jsonData, field.path).Exists() {
 			continue
 		}
 		var err error
@@ -649,10 +654,28 @@ func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOther
 			return nil, err
 		}
 	}
+	if present != nil && !present["stream_options"] {
+		return jsonData, nil
+	}
 	if options := gjson.GetBytes(jsonData, "stream_options"); options.IsObject() && len(options.Map()) == 0 {
 		return sjson.DeleteBytes(jsonData, "stream_options")
 	}
 	return jsonData, nil
+}
+
+// topLevelKeys returns the keys of a JSON object body, or nil when the body
+// is not an object (callers then fall back to full lookups).
+func topLevelKeys(body []byte) map[string]bool {
+	root := gjson.Parse(unsafe.String(unsafe.SliceData(body), len(body)))
+	if !root.IsObject() {
+		return nil
+	}
+	keys := map[string]bool{}
+	root.ForEach(func(key, _ gjson.Result) bool {
+		keys[strings.Clone(key.Str)] = true
+		return true
+	})
+	return keys
 }
 
 // BillingUserID is separate from request identity. Legacy callers without a
