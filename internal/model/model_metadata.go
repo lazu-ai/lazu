@@ -287,19 +287,6 @@ func ListModelRankings(limit int, order string) ([]ModelMetadata, error) {
 	return list, hydrateLifetimeModelCounts(list)
 }
 
-// EnsureModelMetadataFromModels seeds metadata for existing model table entries.
-func EnsureModelMetadataFromModels() error {
-	var models []Model
-	if err := CoreDB().Select("model_name").Find(&models).Error; err != nil {
-		return err
-	}
-	names := make([]string, 0, len(models))
-	for _, m := range models {
-		names = append(names, m.ModelName)
-	}
-	return EnsureModelMetadataForNames(names)
-}
-
 // UpdateWeeklyRequestsFromLogs aggregates usage logs into weekly counters.
 func UpdateWeeklyRequestsFromLogs() error { return updateModelWindowRequestsFromDaily(7) }
 
