@@ -249,20 +249,21 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if info.ChannelType != constant.ChannelTypeOpenAI {
 		request.StreamOptions = nil
 	}
+	// every sampling field left out of the request, said once to the client
+	// at the end (relaycommon.WarnSamplingRefused)
+	var dropped []string
 	if strings.HasPrefix(info.UpstreamModelName, "o") || strings.HasPrefix(info.UpstreamModelName, "gpt-5") {
 		if request.MaxCompletionTokens == 0 && request.MaxTokens != 0 {
 			request.MaxCompletionTokens = request.MaxTokens
 			request.MaxTokens = 0
 		}
 
-		if strings.HasPrefix(info.UpstreamModelName, "o") {
-			request.Temperature = nil
-		}
-
-		if strings.HasPrefix(info.UpstreamModelName, "gpt-5") {
-			if info.UpstreamModelName != "gpt-5-chat-latest" {
-				request.Temperature = nil
+		// the o series and gpt-5 (but its chat model) take no temperature
+		if strings.HasPrefix(info.UpstreamModelName, "o") || info.UpstreamModelName != "gpt-5-chat-latest" {
+			if request.Temperature != nil {
+				dropped = append(dropped, "temperature")
 			}
+			request.Temperature = nil
 		}
 
 		info.ReasoningEffort = request.ReasoningEffort
@@ -285,8 +286,9 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 		if effort == "" && len(request.Reasoning) > 0 {
 			effort = gjson.GetBytes(request.Reasoning, "effort").Str
 		}
-		relaycommon.WarnSamplingRefused(c, info, dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP))
+		dropped = append(dropped, dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP)...)
 	}
+	relaycommon.WarnSamplingRefused(c, info, dropped)
 
 	return request, nil
 }

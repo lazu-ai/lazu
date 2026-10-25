@@ -18,6 +18,9 @@ import (
 // fields and numeric precision exactly as supplied by the client.
 func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo, responses bool) ([]byte, error) {
 	var err error
+	// every sampling field left out of the body, said once to the client at
+	// the end (relaycommon.WarnSamplingRefused)
+	var dropped []string
 	set := func(path string, value interface{}) {
 		if err != nil {
 			return
@@ -59,6 +62,9 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 				del("max_tokens")
 			}
 			if strings.HasPrefix(model, "o") || model != "gpt-5-chat-latest" {
+				if gjson.GetBytes(body, "temperature").Exists() {
+					dropped = append(dropped, "temperature")
+				}
 				del("temperature")
 			}
 			if !strings.HasPrefix(model, "o1-mini") && !strings.HasPrefix(model, "o1-preview") && gjson.GetBytes(body, "messages.0.role").Str == "system" {
@@ -83,17 +89,16 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 		if effort == "" {
 			effort = gjson.GetBytes(body, "reasoning.effort").Str
 		}
-		var dropped []string
 		for _, field := range samplingRefusedWhileReasoning(info, effort) {
 			if gjson.GetBytes(body, field).Exists() {
 				dropped = append(dropped, field)
 			}
 			del(field)
 		}
-		// no gin context here: the plan carries the warning and the caller
-		// rewrites the header (relaycommon.SetProtocolWarningHeader)
-		relaycommon.WarnSamplingRefused(nil, info, dropped)
 	}
+	// no gin context here: the plan carries the warning and the caller
+	// rewrites the header (relaycommon.SetProtocolWarningHeader)
+	relaycommon.WarnSamplingRefused(nil, info, dropped)
 	if err != nil {
 		return nil, err
 	}

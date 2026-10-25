@@ -200,3 +200,32 @@ func TestDroppedSamplingIsWarnedOnThePlanAndTheHeader(t *testing.T) {
 		t.Fatalf("native path warns on the plan: %+v", native.ProtocolPlan.Warnings)
 	}
 }
+
+// The temperature the o series and gpt-5 never take is dropped before the
+// catalog is consulted; the client is told about it the same way, once, and
+// a request without it hears nothing.
+func TestHardCodedTemperatureDropIsWarned(t *testing.T) {
+	stubCatalog(t)
+	zero := 0.0
+	typed := samplingInfo("gpt-5.5", "")
+	if _, err := (&Adaptor{}).ConvertOpenAIRequest(nil, typed, &dto.GeneralOpenAIRequest{Model: "gpt-5.5", Temperature: &zero}); err != nil {
+		t.Fatal(err)
+	}
+	if len(typed.ProtocolPlan.Warnings) != 1 || typed.ProtocolPlan.Warnings[0].Message != "sampling_refused:temperature" {
+		t.Fatalf("typed path: %+v", typed.ProtocolPlan.Warnings)
+	}
+	silent := samplingInfo("gpt-5.5", "")
+	if _, err := (&Adaptor{}).ConvertOpenAIRequest(nil, silent, &dto.GeneralOpenAIRequest{Model: "gpt-5.5"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(silent.ProtocolPlan.Warnings) != 0 {
+		t.Fatalf("no temperature sent, nothing to say: %+v", silent.ProtocolPlan.Warnings)
+	}
+	native := samplingInfo("o3", "")
+	if _, err := (&Adaptor{}).ConvertNativeRequest([]byte(`{"model":"o3","temperature":0.2,"messages":[{"role":"user","content":"hi"}]}`), native, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(native.ProtocolPlan.Warnings) != 1 || native.ProtocolPlan.Warnings[0].Message != "sampling_refused:temperature" {
+		t.Fatalf("native path: %+v", native.ProtocolPlan.Warnings)
+	}
+}

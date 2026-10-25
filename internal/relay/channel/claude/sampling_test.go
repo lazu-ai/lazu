@@ -82,6 +82,11 @@ func TestDropRefusedSampling(t *testing.T) {
 		t.Fatalf("top_k is not listed and must stay, got %d", request.TopK)
 	}
 
+	onlyTemperature := &dto.ClaudeRequest{Model: "claude-haiku-5-5", Temperature: common.GetPointer(0.2)}
+	if got := DropRefusedSampling(onlyTemperature, refusing); !reflect.DeepEqual(got, []string{"temperature"}) {
+		t.Fatalf("only the fields the request carried are named: %q", got)
+	}
+
 	kept := &dto.ClaudeRequest{Model: "claude-haiku-4-5-20251001", Temperature: common.GetPointer(0.2), TopP: 0.9}
 	if got := DropRefusedSampling(kept, listing); got != nil || kept.Temperature == nil || *kept.Temperature != 0.2 || kept.TopP != 0.9 {
 		t.Fatalf("a row that lists nothing drops nothing: %q %+v", got, kept)
