@@ -9,7 +9,7 @@ import { recordStatusIssue } from '../components/ui/status-center';
 import { toastConstants } from '../constants';
 import { THINK_TAG_REGEX, MESSAGE_ROLES } from '../constants/chat.constants';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
-import i18n from '../i18n/i18n';
+import i18n, { errorsNamespaceReady, loadErrorsNamespace } from '../i18n/i18n';
 import {
   SESSION_ENDED_CODES,
   errorMessage,
@@ -277,6 +277,16 @@ const endConsoleSession = () => {
  *  whether a support reference is shown. `fallback` is used only when
  *  neither the code nor the type has copy, or for a generic internal_error. */
 export function showError(error: unknown, fallback?: string) {
+  // The failure copy loads in the background at startup; a failure shown
+  // before it arrives waits for it (once: a failed load reports anyway).
+  if (!errorsNamespaceReady()) {
+    void loadErrorsNamespace().then(() => reportError(error, fallback));
+    return;
+  }
+  reportError(error, fallback);
+}
+
+function reportError(error: unknown, fallback?: string) {
   const info = readApiError(error);
   if (info.local === 'canceled') return;
   const message = errorMessage(error, fallback);

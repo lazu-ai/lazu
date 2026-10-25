@@ -8,7 +8,7 @@ import {
   safeJsonParse,
 } from './utils';
 import { MESSAGE_ROLES } from '../constants/chat.constants';
-import i18n from '../i18n/i18n';
+import i18n, { loadErrorsNamespace } from '../i18n/i18n';
 import { LazuApiError, readApiError } from '../lib/api-error';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
@@ -92,11 +92,17 @@ function patchAPIInstance(instance: AxiosInstance) {
   });
   // Installed per instance: updateAPI() builds a new one after sign-in, and
   // an interceptor attached only to the first would silently stop reporting.
+  // The failure copy (`errors` namespace) loads on demand; wait for it so
+  // the toast here and every caller's errorMessage() read it in the
+  // reader's language.
   instance.interceptors.response.use(
     (response) => response,
-    (error: Error & { config?: RequestConfig }) => {
-      if (!axios.isCancel(error) && !error.config?.skipErrorHandler) {
-        showError(error);
+    async (error: Error & { config?: RequestConfig }) => {
+      if (!axios.isCancel(error)) {
+        await loadErrorsNamespace();
+        if (!error.config?.skipErrorHandler) {
+          showError(error);
+        }
       }
       return Promise.reject(error);
     },

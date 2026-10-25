@@ -184,6 +184,9 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     `virtual:lazu-locale/errors/${locale}`,
   ];
   const localeGraph = new Set();
+  // `errors` loads after the first screen (i18n loadErrorsNamespace), so it
+  // counts toward the locale budget but not the cold startup one.
+  const startupLocaleGraph = new Set();
   for (const key of localeKeys) {
     const localeEntry = manifest[key];
     if (!localeEntry?.isDynamicEntry) {
@@ -191,6 +194,9 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     }
     for (const dependency of collectNonStaticGraph(key)) {
       localeGraph.add(dependency);
+      if (!key.startsWith('virtual:lazu-locale/errors/')) {
+        startupLocaleGraph.add(dependency);
+      }
     }
   }
   addBudget(
@@ -208,7 +214,7 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     [
       ...new Set([
         ...initialJavaScript,
-        ...[...localeGraph]
+        ...[...startupLocaleGraph]
           .map((key) => manifest[key]?.file)
           .filter((file) => typeof file === 'string' && file.endsWith('.js')),
       ]),

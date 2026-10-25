@@ -12,7 +12,11 @@ vi.mock('../i18n/i18n', () => {
     resources: { zh: { errors: zhErrors, translation: {} } },
     interpolation: { escapeValue: false },
   });
-  return { default: instance };
+  return {
+    default: instance,
+    errorsNamespaceReady: () => true,
+    loadErrorsNamespace: () => Promise.resolve(),
+  };
 });
 vi.mock('sonner', () => ({ toast: { error: vi.fn(() => 'error-toast') } }));
 
