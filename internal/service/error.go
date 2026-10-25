@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -42,31 +41,6 @@ import (
 //	openaiErr.LocalError = true
 //	return openaiErr
 //}
-
-func ClaudeErrorWrapper(err error, code string, statusCode int) *dto.ClaudeErrorWithStatusCode {
-	text := err.Error()
-	lowerText := strings.ToLower(text)
-	if !strings.HasPrefix(lowerText, "get file base64 from url") {
-		if strings.Contains(lowerText, "post") || strings.Contains(lowerText, "dial") || strings.Contains(lowerText, "http") {
-			common.SysLog(fmt.Sprintf("error: %s", text))
-			text = "请求上游地址失败"
-		}
-	}
-	claudeError := types.ClaudeError{
-		Message: text,
-		Type:    types.ErrorTypeAPI,
-	}
-	return &dto.ClaudeErrorWithStatusCode{
-		Error:      claudeError,
-		StatusCode: statusCode,
-	}
-}
-
-func ClaudeErrorWrapperLocal(err error, code string, statusCode int) *dto.ClaudeErrorWithStatusCode {
-	claudeErr := ClaudeErrorWrapper(err, code, statusCode)
-	claudeErr.LocalError = true
-	return claudeErr
-}
 
 // RelayErrorHandler classifies an upstream HTTP failure into a Lazu
 // error. Accepts *gin.Context so it can look up the active channel type
