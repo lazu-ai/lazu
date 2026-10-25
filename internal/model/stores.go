@@ -1,6 +1,8 @@
 package model
 
 import (
+	"database/sql"
+
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/store"
 	"gorm.io/gorm"
@@ -63,3 +65,24 @@ func TelemetryChannelTable() string {
 // TelemetrySchemaModels is the registry used by explicit migration commands and
 // embedded test installations. Production startups validate the migrated schema.
 func TelemetrySchemaModels() []interface{} { return telemetrySchemaModels() }
+
+// DBPoolStats reports database/sql pool statistics for the core and, when it
+// is a separate pool, the telemetry database, keyed "core" / "telemetry".
+func DBPoolStats() map[string]sql.DBStats {
+	out := map[string]sql.DBStats{}
+	pools := []struct {
+		name string
+		db   *gorm.DB
+	}{{"core", coreDB}, {"telemetry", telemetryDB}}
+	for _, pool := range pools {
+		if pool.db == nil || (pool.name == "telemetry" && pool.db == coreDB) {
+			continue
+		}
+		sqlDB, err := pool.db.DB()
+		if err != nil {
+			continue
+		}
+		out[pool.name] = sqlDB.Stats()
+	}
+	return out
+}
