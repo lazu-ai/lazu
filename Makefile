@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 FRONTEND_DIR := ./apps/web
-GO_TEST_PACKAGES := ./apps/... ./internal/... ./packages/...
+GO_TEST_PACKAGES := ./apps/... ./internal/... ./ops/... ./packages/... ./pkg/...
 APP_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 .PHONY: help
