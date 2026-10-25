@@ -187,6 +187,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # TestNoExpiredDeprecations compares "Deprecated: delete after vX"
+          # comments against the newest release tag.
+          LAZU_CHECK_VERSION="$(git ls-remote --tags --refs origin 'v*' | sed 's|.*refs/tags/||' | sort -V | tail -n 1)"
+          test -n "$LAZU_CHECK_VERSION"
+          export LAZU_CHECK_VERSION
           go test -p 1 -count=1 -json ./... | tee "$RUNNER_TEMP/lazu-go-tests.jsonl"
           python3 ops/scripts/check-native-test-coverage.py "$RUNNER_TEMP/lazu-go-tests.jsonl"
 
