@@ -313,12 +313,6 @@ func BuildOverviewContext(ctx context.Context, req OverviewRequest) (Overview, e
 	return out, nil
 }
 
-// buildOverviewTopups sums completed top-ups in the range and lists the
-// latest few with the payer's name.
-func buildOverviewTopups(req OverviewRequest) (*OverviewTopups, error) {
-	return buildOverviewTopupsContext(context.Background(), req)
-}
-
 func buildOverviewTopupsContext(ctx context.Context, req OverviewRequest) (*OverviewTopups, error) {
 	out := &OverviewTopups{Recent: []OverviewTopup{}}
 	base := CoreDB().WithContext(ctx).Model(&TopUp{}).Where("top_ups.status = ? AND top_ups.complete_time >= ? AND top_ups.complete_time < ?", "success", req.Start, req.End)
@@ -670,14 +664,6 @@ func overviewSignupSourcesContext(ctx context.Context, newcomers map[int]overvie
 	return out, nil
 }
 
-// buildOverviewClients splits the range's traffic by the agent or SDK that
-// sent it. It reads hourly usage slices (raw logs for a partial first or last
-// hour); grouping ninety days of logs took 1 s on 2026-10-16. Embedded
-// installs read the log, which covers only its retention.
-func buildOverviewClients(req OverviewRequest) ([]OverviewClient, error) {
-	return buildOverviewClientsContext(context.Background(), req)
-}
-
 type overviewClientRow struct {
 	Client string
 	Users  int64
@@ -723,12 +709,6 @@ func buildOverviewClientsContext(ctx context.Context, req OverviewRequest) ([]Ov
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].RequestCount > out[j].RequestCount })
 	return out, nil
-}
-
-// buildOverviewSessionStats summarises real agent sessions (not the per-Key
-// fallback) that were active in the range.
-func buildOverviewSessionStats(req OverviewRequest) (*OverviewSessionStats, error) {
-	return buildOverviewSessionStatsContext(context.Background(), req)
 }
 
 func buildOverviewSessionStatsContext(ctx context.Context, req OverviewRequest) (*OverviewSessionStats, error) {
