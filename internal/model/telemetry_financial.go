@@ -39,10 +39,6 @@ func persistFinancialTelemetry(receipt TelemetryFinancialReceipt) error {
 	return TelemetryDB().Clauses(clause.OnConflict{DoNothing: true}).Create(&receipt).Error
 }
 
-func persistFinancialTelemetryBatch(receipts []TelemetryFinancialReceipt) error {
-	return persistFinancialTelemetryBatchTx(TelemetryDB(), receipts)
-}
-
 func persistFinancialTelemetryBatchTx(tx *gorm.DB, receipts []TelemetryFinancialReceipt) error {
 	if len(receipts) == 0 {
 		return nil
