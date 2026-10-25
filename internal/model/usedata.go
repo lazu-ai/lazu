@@ -155,12 +155,6 @@ func GetUsageDataByUsername(username string, startTime int64, endTime int64) (us
 	return usageRows, err
 }
 
-func GetUsageDataByUserId(userId int, startTime int64, endTime int64) (usageData []*UsageData, err error) {
-	var usageRows []*UsageData
-	err = TelemetryDB().Table("usage_data").Where("user_id = ? and created_at >= ? and created_at <= ?", userId, startTime, endTime).Find(&usageRows).Error
-	return usageRows, err
-}
-
 func GetAllUsageData(startTime int64, endTime int64, username string) (usageData []*UsageData, err error) {
 	if username != "" {
 		return GetUsageDataByUsername(username, startTime, endTime)
