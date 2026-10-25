@@ -1615,19 +1615,6 @@ func GetPricingChannelGroups() []string {
 	return setting.KnownLaneSlugs()
 }
 
-func ContainsPricingChannelGroup(group string) bool {
-	group = NormalizeChannelLane(group)
-	if group == "" {
-		return false
-	}
-	for _, candidate := range GetPricingChannelGroups() {
-		if candidate == group {
-			return true
-		}
-	}
-	return false
-}
-
 func handleThinkingBudgetModel(name, prefix, wildcard string) string {
 	if strings.HasPrefix(name, prefix) && strings.Contains(name, "-thinking-") {
 		return wildcard
