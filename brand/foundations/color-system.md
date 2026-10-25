@@ -29,8 +29,8 @@ product code or introduce a separate palette for a route.
 
 ## Value authority
 
-Exact light/dark values live in [colors.css](../tokens/colors.css) and
-[colors.json](../tokens/colors.json). Chart and component tokens also live in
+Exact light/dark values live in [colors.css](../tokens/colors.css). Chart and
+component tokens also live in
 [data-viz.css](../tokens/data-viz.css) and [ui.css](../tokens/ui.css).
 Use these sources instead of maintaining a second hex table in prose.
 
