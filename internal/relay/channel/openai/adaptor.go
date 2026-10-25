@@ -285,22 +285,31 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 		if effort == "" && len(request.Reasoning) > 0 {
 			effort = gjson.GetBytes(request.Reasoning, "effort").Str
 		}
-		dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP)
+		relaycommon.WarnSamplingRefused(c, info, dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP))
 	}
 
 	return request, nil
 }
 
-// dropSampling clears the refused fields of a typed request.
-func dropSampling(refused []string, temperature, topP **float64) {
+// dropSampling clears the refused fields of a typed request and names the
+// ones the request carried, for the client's warning.
+func dropSampling(refused []string, temperature, topP **float64) []string {
+	var dropped []string
 	for _, field := range refused {
 		switch field {
 		case "temperature":
+			if *temperature != nil {
+				dropped = append(dropped, field)
+			}
 			*temperature = nil
 		case "top_p":
+			if *topP != nil {
+				dropped = append(dropped, field)
+			}
 			*topP = nil
 		}
 	}
+	return dropped
 }
 
 // chatToolsNeedReasoningOff mirrors the semantic attempt's rule on the native
@@ -543,7 +552,7 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 		if request.Reasoning != nil {
 			effort = request.Reasoning.Effort
 		}
-		dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP)
+		relaycommon.WarnSamplingRefused(c, info, dropSampling(samplingRefusedWhileReasoning(info, effort), &request.Temperature, &request.TopP))
 	}
 	return request, nil
 }

@@ -55,16 +55,23 @@ func EncodeBridgedRequest(c *gin.Context, info *relaycommon.RelayInfo, semantic 
 		}
 		return file.MimeType, file.Base64Data, nil
 	}
-	return encodeBridged(semantic, inline, CatalogPolicy(info.OriginModelName))
-}
-
-func encodeBridged(semantic *textgen.Request, inline func(string) (string, string, error), resolve PolicyResolver) (*dto.ClaudeRequest, error) {
-	if semantic == nil {
-		return nil, fmt.Errorf("missing immutable protocol request")
-	}
-	request, err := anthropic_messages.Encode(semantic, anthropic_messages.EncodeOptions{InlineImage: inline})
+	request, dropped, err := encodeBridged(semantic, inline, CatalogPolicy(info.OriginModelName))
 	if err != nil {
 		return nil, err
+	}
+	relaycommon.WarnSamplingRefused(c, info, dropped)
+	return request, nil
+}
+
+// encodeBridged is the Messages request for the IR with the thinking fitted
+// and the sampling fields the model refuses left out; dropped names those.
+func encodeBridged(semantic *textgen.Request, inline func(string) (string, string, error), resolve PolicyResolver) (request *dto.ClaudeRequest, dropped []string, err error) {
+	if semantic == nil {
+		return nil, nil, fmt.Errorf("missing immutable protocol request")
+	}
+	request, err = anthropic_messages.Encode(semantic, anthropic_messages.EncodeOptions{InlineImage: inline})
+	if err != nil {
+		return nil, nil, err
 	}
 	if resolve == nil {
 		resolve = StaticPolicy(ModelPolicy{})
@@ -74,8 +81,8 @@ func encodeBridged(semantic *textgen.Request, inline func(string) (string, strin
 	continueToolLoopWithoutThinking(request, resolve)
 	// after the thinking is fitted: EnsureThinkingConstraints writes
 	// temperature 1 beside a budget, which a refusing model takes no better
-	DropRefusedSampling(request, resolve)
-	return request, nil
+	dropped = DropRefusedSampling(request, resolve)
+	return request, dropped, nil
 }
 
 // continueToolLoopWithoutThinking turns thinking off for a request that

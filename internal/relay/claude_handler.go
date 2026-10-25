@@ -56,8 +56,9 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 			info.UpstreamModelName = request.Model
 		}
 		// sampling fields the model's catalog row refuses are left out, as
-		// the OpenAI channel leaves them out for its reasoning models
-		claudechannel.DropRefusedSampling(request, resolve)
+		// the OpenAI channel leaves them out for its reasoning models; the
+		// client is told in X-Lazu-Warning
+		relaycommon.WarnSamplingRefused(c, info, claudechannel.DropRefusedSampling(request, resolve))
 	}
 
 	var requestBody io.Reader

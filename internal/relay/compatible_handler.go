@@ -114,6 +114,9 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			if err == nil {
 				info.NativeBodyCache = body
 				info.NativeBodyChannelID = info.ChannelId
+				// the converter may have added to the plan's warnings
+				// (sampling the model refuses); the header follows the plan
+				relaycommon.SetProtocolWarningHeader(c, info.ProtocolPlan)
 			}
 		}
 		bodyTimer.Finish(err)

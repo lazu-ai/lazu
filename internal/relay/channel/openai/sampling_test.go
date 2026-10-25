@@ -2,7 +2,10 @@ package openai
 
 import (
 	"bytes"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
@@ -157,5 +160,43 @@ func TestConvertOpenAIResponsesRequestDropsSamplingWhileReasoning(t *testing.T) 
 				t.Fatalf("temperature kept = %v, top_p kept = %v; want %v, %v", got.Temperature != nil, got.TopP != nil, tc.wantTemp, tc.wantTopP)
 			}
 		})
+	}
+}
+
+// A field the channel leaves out is said in the attempt's plan and the
+// response header (sampling_refused:<field>), once per field; a request
+// that never carried the field says nothing.
+func TestDroppedSamplingIsWarnedOnThePlanAndTheHeader(t *testing.T) {
+	stubCatalog(t)
+	zero, half := 0.0, 0.5
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	info := samplingInfo("gpt-6-sol", "")
+	request := &dto.GeneralOpenAIRequest{Model: "gpt-6-sol", Temperature: &zero, TopP: &half}
+	if _, err := (&Adaptor{}).ConvertOpenAIRequest(c, info, request); err != nil {
+		t.Fatal(err)
+	}
+	if got := recorder.Header().Get(relaycommon.ProtocolWarningHeader); got != "sampling_refused:temperature, sampling_refused:top_p" {
+		t.Fatalf("header = %q", got)
+	}
+	if len(info.ProtocolPlan.Warnings) != 2 || info.ProtocolPlan.Warnings[0].Message != "sampling_refused:temperature" {
+		t.Fatalf("plan warnings = %+v", info.ProtocolPlan.Warnings)
+	}
+
+	quiet := samplingInfo("gpt-6-sol", "")
+	if _, err := (&Adaptor{}).ConvertOpenAIRequest(nil, quiet, &dto.GeneralOpenAIRequest{Model: "gpt-6-sol", TopP: &half}); err != nil {
+		t.Fatal(err)
+	}
+	if len(quiet.ProtocolPlan.Warnings) != 1 || quiet.ProtocolPlan.Warnings[0].Message != "sampling_refused:top_p" {
+		t.Fatalf("only the field the request carried is warned: %+v", quiet.ProtocolPlan.Warnings)
+	}
+
+	native := samplingInfo("gpt-6-luna", "")
+	body := []byte(`{"model":"gpt-6-luna","temperature":0,"messages":[{"role":"user","content":"hi"}]}`)
+	if _, err := (&Adaptor{}).ConvertNativeRequest(body, native, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(native.ProtocolPlan.Warnings) != 1 || native.ProtocolPlan.Warnings[0].Message != "sampling_refused:temperature" {
+		t.Fatalf("native path warns on the plan: %+v", native.ProtocolPlan.Warnings)
 	}
 }

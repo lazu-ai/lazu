@@ -25,7 +25,8 @@ func bridgeChat(req dto.GeneralOpenAIRequest, resolve PolicyResolver) (*dto.Clau
 	if err != nil {
 		return nil, err
 	}
-	return encodeBridged(semantic, nil, resolve)
+	request, _, err := encodeBridged(semantic, nil, resolve)
+	return request, err
 }
 
 // adaptivePolicy is a catalog row for a Claude from 4.6 on: adaptive

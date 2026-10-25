@@ -405,18 +405,11 @@ func shouldApplyOSSURL(c *gin.Context) bool {
 
 // setProtocolAttemptWarning tells the client what the attempt could not keep
 // as asked: a stateless bridge, an endpoint bridge for a feature, a
-// degradation (textgen/degrade.go). Every warning of the plan, comma
-// separated; the request detail keeps them one by one.
+// degradation (textgen/degrade.go). A channel that leaves a field out later
+// in the attempt adds its own warning and rewrites the header
+// (relaycommon.WarnSamplingRefused).
 func setProtocolAttemptWarning(c *gin.Context, plan *textgen.RelayPlan) {
-	c.Writer.Header().Del("X-Lazu-Warning")
-	if plan == nil || len(plan.Warnings) == 0 {
-		return
-	}
-	messages := make([]string, 0, len(plan.Warnings))
-	for _, warning := range plan.Warnings {
-		messages = append(messages, warning.Message)
-	}
-	c.Header("X-Lazu-Warning", strings.Join(messages, ", "))
+	relaycommon.SetProtocolWarningHeader(c, plan)
 }
 
 func recordProtocolAdmissionComparison(c *gin.Context, relayInfo *relaycommon.RelayInfo, admissionTokens int) {
