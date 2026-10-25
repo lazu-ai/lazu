@@ -3,7 +3,6 @@ import { flushSync } from 'react-dom';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AppFrame, AppProviders } from './AppRoot';
-import { prefetchAuthStatus } from './components/auth/authStatus';
 import '@fontsource-variable/geist/wght.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
@@ -12,6 +11,7 @@ import { webExtensions } from './extensions';
 import { i18nReady } from './i18n/i18n';
 import { preloadNotFound } from './lib/not-found-preload';
 import { startPrerender } from './lib/prerender-startup';
+import { prefetchRoute } from './lib/route-prefetch';
 import './index.css';
 import './styles/brand.generated.css';
 import './styles/tokens.css';
@@ -22,12 +22,12 @@ import './styles/yunmu.css';
 import './styles/console-review.css';
 // initialization
 
-/* A page that opens on the door needs to know which ways in are open, and the
- * door itself cannot ask until its chunk has arrived. Asking here puts the two
- * waits side by side instead of one after the other. */
-if (window.location.pathname === '/login') {
-  prefetchAuthStatus();
-}
+/* The router only asks for the opening page's chunk once the translations
+ * are in. Asking here puts the two downloads side by side instead of one
+ * after the other. For the door this also asks which ways in are open, and
+ * for console pages it warms the page's read-only data with the same query
+ * keys the page uses (lib/route-prefetch). */
+prefetchRoute(window.location.pathname);
 
 for (const extension of webExtensions()) extension.onAppStart?.();
 
