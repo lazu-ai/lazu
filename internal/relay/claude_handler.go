@@ -55,6 +55,9 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		if request.Model != originalModel {
 			info.UpstreamModelName = request.Model
 		}
+		// sampling fields the model's catalog row refuses are left out, as
+		// the OpenAI channel leaves them out for its reasoning models
+		claudechannel.DropRefusedSampling(request, resolve)
 	}
 
 	var requestBody io.Reader

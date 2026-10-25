@@ -29,6 +29,10 @@ type ModelPolicy struct {
 	Reasoning model.ModelReasoningOptions
 	// MaxOutputTokens is the catalog's output limit, 0 when it names none.
 	MaxOutputTokens int
+	// RefusedSampling is the Messages sampling fields the catalog row lists
+	// in unsupported_params (of temperature, top_p, top_k); the request goes
+	// without them (DropRefusedSampling).
+	RefusedSampling []string
 	// Known is whether the catalog has a row for the model at all.
 	Known bool
 }
@@ -65,6 +69,7 @@ func policyResolver(originModel string, reasoning func(...string) model.ModelRea
 				continue
 			}
 			policy.MaxOutputTokens = int(descriptor.MaxOutputTokens)
+			policy.RefusedSampling = refusedSampling(descriptor.UnsupportedParams)
 			policy.Known = true
 			break
 		}
