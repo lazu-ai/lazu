@@ -1,15 +1,17 @@
-package common
+package model
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 func TestPaymentEmailRendersSafeMailCompatibleMarkup(t *testing.T) {
 	body, err := RenderPaymentEmail(PaymentEmailContent{
 		LogoURL: "https://lazu.ai/lazu-email-logo-paper.png", Eyebrow: "PAYMENT RECEIVED",
 		Hero: "$5.00", Message: "API credit added to your Lazu account.",
-		Facts:     []MailFact{{Label: "Paid by", Value: `<script>alert(1)</script>`}, {Label: "Invoice", Value: `INV-<test>`, Mono: true}},
+		Facts:     []common.MailFact{{Label: "Paid by", Value: `<script>alert(1)</script>`}, {Label: "Invoice", Value: `INV-<test>`, Mono: true}},
 		ActionURL: "https://lazu.ai/console/wallet?top_up_id=top_test", ActionLabel: "Open wallet",
 		LinkURL: "https://lazu.ai/payment/document?document=invoice_page", LinkLabel: "View invoice",
 	})

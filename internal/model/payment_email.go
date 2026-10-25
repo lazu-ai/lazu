@@ -1,9 +1,11 @@
-package common
+package model
 
 import (
 	"bytes"
 	_ "embed"
 	"html/template"
+
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 //go:embed email_templates/payment.html
@@ -20,7 +22,7 @@ type PaymentEmailContent struct {
 	CompactHero bool
 	Message     string
 	Preheader   string
-	Facts       []MailFact
+	Facts       []common.MailFact
 	ActionURL   string
 	ActionLabel string
 	// One optional text link beside the button (View invoice).

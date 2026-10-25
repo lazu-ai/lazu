@@ -401,8 +401,8 @@ func (w *anthropicHubClient) write(c *gin.Context, frames []anthropic_messages.F
 		if err != nil {
 			return err
 		}
-		c.Render(-1, common.CustomEvent{Data: "event: " + frame.Event + "\n"})
-		c.Render(-1, common.CustomEvent{Data: "data: " + string(data)})
+		c.Render(-1, helper.CustomEvent{Data: "event: " + frame.Event + "\n"})
+		c.Render(-1, helper.CustomEvent{Data: "data: " + string(data)})
 		_ = helper.FlushWriter(c)
 	}
 	return nil

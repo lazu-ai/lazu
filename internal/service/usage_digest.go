@@ -308,7 +308,7 @@ func digestLoc(snap *DigestSnapshot) *time.Location {
 }
 
 // BuildDigestView words a snapshot for one reader.
-func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) common.DigestView {
+func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) DigestView {
 	lang := snap.Lang
 	t := func(zh, en string) string { return common.MailText(lang, zh, en) }
 	loc := digestLoc(snap)
@@ -317,7 +317,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 	prevStart := time.Unix(snap.PrevStart, 0).In(loc)
 	cur, prev := snap.Usage.Current, snap.Usage.Previous
 	weekly := snap.Kind == DigestWeekly
-	v := common.DigestView{Lang: lang, ChartURL: chartURL}
+	v := DigestView{Lang: lang, ChartURL: chartURL}
 	surface := model.GetUserHomeSurface(userID)
 	link := func(to model.SurfaceLink) string { return common.MailSiteURL(model.UserSurfacePath(surface, to)) }
 
@@ -368,7 +368,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 	// Wallet and how long it lasts at this period's pace.
 	days := snap.End - snap.Start
 	perDay := float64(cur.Spend) / (float64(days) / 86400)
-	v.Wallet = common.DigestCell{Label: t("钱包余额", "Wallet balance"), Value: common.MailUSD(microToDollars(snap.Usage.Wallet)), NoteColor: "#5f646d",
+	v.Wallet = DigestCell{Label: t("钱包余额", "Wallet balance"), Value: common.MailUSD(microToDollars(snap.Usage.Wallet)), NoteColor: "#5f646d",
 		LinkLabel: t("去充值", "Add credit"), LinkURL: link(model.SurfaceLinkWallet)}
 	if perDay > 0 {
 		runway := float64(snap.Usage.Wallet) / perDay
@@ -399,7 +399,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 	// Below list price: only requests whose receipt carries a fair list price
 	// can be compared. When some cannot, the note names the part that was
 	// compared; with nothing to compare, the cell is left out.
-	v.Saving = common.DigestCell{Label: t("比官方价少付", "Below list price"), ValueColor: "#3f7957"}
+	v.Saving = DigestCell{Label: t("比官方价少付", "Below list price"), ValueColor: "#3f7957"}
 	settings := DigestSettingsNow()
 	if saving := cur.Official - cur.Compared; cur.Official > 0 && saving > 0 &&
 		float64(saving) >= settings.MinSavingUSD*1e6 && float64(saving)*100 >= settings.MinSavingPct*float64(cur.Official) {
@@ -413,7 +413,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 		}
 	}
 
-	v.Success = common.DigestCell{Label: t("成功率", "Success rate"), Value: digestRate(cur)}
+	v.Success = DigestCell{Label: t("成功率", "Success rate"), Value: digestRate(cur)}
 	if prevMissing {
 		// Nothing to compare with.
 	} else if prev.Requests+prev.Errors > 0 {
@@ -448,7 +448,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 	if weekly {
 		for i := range snap.Usage.Days {
 			day := start.AddDate(0, 0, i)
-			v.AxisLabels = append(v.AxisLabels, common.DigestAxisLabel{Align: "center",
+			v.AxisLabels = append(v.AxisLabels, DigestAxisLabel{Align: "center",
 				Text: t(zhWeekdayShort[day.Weekday()]+" "+day.Format("02"), day.Format("Mon 2"))})
 		}
 	} else {
@@ -461,7 +461,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 			} else if i == len(marks)-1 {
 				align = "right"
 			}
-			v.AxisLabels = append(v.AxisLabels, common.DigestAxisLabel{Align: align, Text: start.AddDate(0, 0, m).Format("01-02")})
+			v.AxisLabels = append(v.AxisLabels, DigestAxisLabel{Align: align, Text: start.AddDate(0, 0, m).Format("01-02")})
 		}
 	}
 
@@ -472,7 +472,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 	}
 	v.ColPrev, v.ColCur, v.ColDelta = prevName, curName, t("变化", "Change")
 	ink, good := "#22242a", "#3f7957"
-	metric := func(label string, a, b float64, format func(float64) string, betterUp bool) common.DigestMetric {
+	metric := func(label string, a, b float64, format func(float64) string, betterUp bool) DigestMetric {
 		delta, change := digestPct(b, a)
 		color := ink
 		if betterUp && change > 0 {
@@ -481,7 +481,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 		if a <= 0 && b <= 0 {
 			delta = "—"
 		}
-		return common.DigestMetric{Label: label, Prev: format(a), Cur: format(b), Delta: delta, Color: color}
+		return DigestMetric{Label: label, Prev: format(a), Cur: format(b), Delta: delta, Color: color}
 	}
 	usd := func(x float64) string { return common.MailUSD(x / 1e6) }
 	count := func(x float64) string { return digestCount(int64(x)) }
@@ -491,7 +491,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 		}
 		return float64(u.Spend) / float64(u.Requests)
 	}
-	v.Metrics = []common.DigestMetric{
+	v.Metrics = []DigestMetric{
 		metric(t("花费", "Spend"), float64(prev.Spend), float64(cur.Spend), usd, false),
 		metric(t("请求", "Requests"), float64(prev.Requests), float64(cur.Requests), count, false),
 		metric("Tokens", float64(prev.Tokens), float64(cur.Tokens), count, false),
@@ -546,7 +546,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 		scale = max(scale, m.Spend, m.PrevSpend)
 	}
 	for i, m := range shown {
-		row := common.DigestModelRow{Name: m.Key, Mono: true, Cost: common.MailUSD(microToDollars(m.Spend)), Delta: digestSignedUSD(m.Spend - m.PrevSpend),
+		row := DigestModelRow{Name: m.Key, Mono: true, Cost: common.MailUSD(microToDollars(m.Spend)), Delta: digestSignedUSD(m.Spend - m.PrevSpend),
 			PrevPct: barPct(m.PrevSpend, scale), CurPct: barPct(m.Spend, scale)}
 		if m.Key == "" {
 			row.Name = t("未知模型", "Unknown model")
@@ -574,7 +574,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 		if i >= 4 || (s.Spend == 0 && s.Sessions == 0) {
 			continue
 		}
-		row := common.DigestSourceRow{Name: digestSourceName(s.Key, lang), Cost: common.MailUSD(microToDollars(s.Spend)), Delta: digestSignedUSD(s.Spend - s.PrevSpend)}
+		row := DigestSourceRow{Name: digestSourceName(s.Key, lang), Cost: common.MailUSD(microToDollars(s.Spend)), Delta: digestSignedUSD(s.Spend - s.PrevSpend)}
 		if prevMissing {
 			row.Delta = "—"
 		}
@@ -589,7 +589,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 	if lw := snap.LastWeek; lw != nil {
 		ws, we := time.Unix(lw.Start, 0).In(loc), time.Unix(lw.End, 0).In(loc).AddDate(0, 0, -1)
 		change, _ := digestPct(float64(lw.Spend), float64(lw.PrevSpend))
-		v.LastWeek = &common.DigestNote{Title: t("上周", "Last week"),
+		v.LastWeek = &DigestNote{Title: t("上周", "Last week"),
 			Text: t(fmt.Sprintf("%d 月 %d 日 – %d 月 %d 日花了 %s，和前一周比 %s。", int(ws.Month()), ws.Day(), int(we.Month()), we.Day(), common.MailUSD(microToDollars(lw.Spend)), change),
 				fmt.Sprintf("%s – %s: %s, %s on the week before.", ws.Format("Jan 2"), we.Format("Jan 2"), common.MailUSD(microToDollars(lw.Spend)), change))}
 	}
@@ -609,7 +609,7 @@ func BuildDigestView(snap *DigestSnapshot, userID int, chartURL template.URL) co
 				text = t(fmt.Sprintf("输入 %s / 输出 %s，每百万 tokens。", perMtok(*l.Input), perMtok(*l.Output)),
 					fmt.Sprintf("%s in / %s out per million tokens.", perMtok(*l.Input), perMtok(*l.Output)))
 			}
-			v.Launches = append(v.Launches, common.DigestLaunchRow{Name: l.Model, Text: text, LinkLabel: t("看价格", "Pricing"),
+			v.Launches = append(v.Launches, DigestLaunchRow{Name: l.Model, Text: text, LinkLabel: t("看价格", "Pricing"),
 				URL: common.MailSiteURL(publicsite.LocalizedPath("/models/"+publicsite.MakerSlug(l.Maker)+"/"+l.Model, locale))})
 		}
 	}
@@ -743,7 +743,7 @@ func DigestChartPNG(deliveryID uint64) ([]byte, error) {
 // sendDigest renders a snapshot into a claimed archive row and sends it.
 func sendDigest(row *model.MailDelivery, snap *DigestSnapshot, userID int, headers map[string]string) error {
 	view := BuildDigestView(snap, userID, digestChartURL(row.ID))
-	html, err := common.RenderDigestMail(view)
+	html, err := RenderDigestMail(view)
 	if err != nil {
 		_ = model.FailMailDelivery(row.ID, err)
 		return err
@@ -804,7 +804,7 @@ func RenderDigestPreview(userID int, kind string, now time.Time, lang string, up
 		return "", "", err
 	}
 	chart := template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(png))
-	html, err := common.RenderDigestMail(BuildDigestView(snap, userID, chart))
+	html, err := RenderDigestMail(BuildDigestView(snap, userID, chart))
 	return DigestSubject(snap), html, err
 }
 
@@ -1160,7 +1160,7 @@ func GenerateDigestDrafts(kind string, now time.Time) (int, error) {
 		if err := model.TelemetryDB().Create(row).Error; err != nil {
 			return made, err
 		}
-		html, err := common.RenderDigestMail(BuildDigestView(snap, d.UserID, digestChartURL(row.ID)))
+		html, err := RenderDigestMail(BuildDigestView(snap, d.UserID, digestChartURL(row.ID)))
 		if err != nil {
 			return made, err
 		}

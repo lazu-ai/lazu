@@ -60,7 +60,7 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected *dto.GeminiChatRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	request, err := common.DeepCopy(geminiReq)
+	request, err := DeepCopy(geminiReq)
 	if err != nil {
 		return types.NewError(fmt.Errorf("failed to copy request to GeminiChatRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}

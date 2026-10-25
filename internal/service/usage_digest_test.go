@@ -137,7 +137,7 @@ func TestDigestViewWordsChangesAndSkipsJargon(t *testing.T) {
 	if view.Eyebrow != "WEEKLY · SEP 21 – 27" {
 		t.Fatalf("eyebrow = %q", view.Eyebrow)
 	}
-	html, err := common.RenderDigestMail(view)
+	html, err := RenderDigestMail(view)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,13 +199,13 @@ func TestDigestSavingNamesTheComparedPartAndDropsWhenNone(t *testing.T) {
 	if partial.HeroDelta != "" || partial.Success.Note != "" {
 		t.Fatalf("incomplete previous period was mentioned: %q / %q", partial.HeroDelta, partial.Success.Note)
 	}
-	html, _ := common.RenderDigestMail(partial)
+	html, _ := RenderDigestMail(partial)
 	if contains(html, "数据不全") {
 		t.Fatal("mail mentions incomplete data")
 	}
 
 	none := BuildDigestView(base(model.DigestUsage{Current: model.DigestAmounts{Spend: 5_000_000, Requests: 3}, Days: make([]model.DigestDay, 30)}), 1, "https://lazu.ai/c.png")
-	html, _ = common.RenderDigestMail(none)
+	html, _ = RenderDigestMail(none)
 	if none.Saving.Value != "" || contains(html, "比官方价少付") || !contains(html, `width="50%"`) {
 		t.Fatal("saving cell shown without a list price")
 	}
@@ -215,7 +215,7 @@ func TestDigestSavingHidesBelowThreshold(t *testing.T) {
 	common.CryptoSecret = "digest-test-secret"
 	sh := mustZone(t, "Asia/Shanghai")
 	start := time.Date(2026, 9, 1, 0, 0, 0, 0, sh)
-	view := func(official, compared int64) common.DigestView {
+	view := func(official, compared int64) DigestView {
 		return BuildDigestView(&DigestSnapshot{Kind: DigestMonthly, Period: "2026-09", Timezone: "Asia/Shanghai", Lang: common.MailZH,
 			Start: start.Unix(), End: start.AddDate(0, 1, 0).Unix(), PrevStart: start.AddDate(0, -1, 0).Unix(), PrevEnd: start.Unix(),
 			Usage: model.DigestUsage{Current: model.DigestAmounts{Spend: compared, Requests: 5, Official: official, Compared: compared}, Days: make([]model.DigestDay, 30)}}, 1, "https://lazu.ai/c.png")
@@ -247,7 +247,7 @@ func TestMonthlyDigestCannotBeTurnedOff(t *testing.T) {
 	v := BuildDigestView(&DigestSnapshot{Kind: DigestMonthly, Period: "2026-09", Timezone: "Asia/Shanghai", Lang: common.MailZH,
 		Start: start.Unix(), End: start.AddDate(0, 1, 0).Unix(), PrevStart: start.AddDate(0, -1, 0).Unix(), PrevEnd: start.Unix(),
 		Usage: model.DigestUsage{Current: model.DigestAmounts{Spend: 5_000_000, Requests: 1}, Days: make([]model.DigestDay, 30)}}, 1, "https://lazu.ai/c.png")
-	html, _ := common.RenderDigestMail(v)
+	html, _ := RenderDigestMail(v)
 	if v.OptOutURL != "" || contains(html, "/api/mail/unsubscribe") {
 		t.Fatal("monthly digest carries an opt-out link")
 	}

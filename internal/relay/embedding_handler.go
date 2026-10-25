@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
@@ -25,7 +24,7 @@ func EmbeddingHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected *dto.EmbeddingRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	request, err := common.DeepCopy(embeddingReq)
+	request, err := DeepCopy(embeddingReq)
 	if err != nil {
 		return types.NewError(fmt.Errorf("failed to copy request to EmbeddingRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}

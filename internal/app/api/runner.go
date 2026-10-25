@@ -130,7 +130,7 @@ func Run() {
 		common.SafeGo("pprof-server", func() {
 			log.Println(http.ListenAndServe("127.0.0.1:8005", nil))
 		})
-		common.SafeGo("runtime-monitor", common.Monitor)
+		common.SafeGo("runtime-monitor", Monitor)
 		common.SysLog("pprof enabled")
 	}
 

@@ -1,9 +1,11 @@
-package common
+package service
 
 import (
 	"bytes"
 	_ "embed"
 	"html/template"
+
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 // The weekly and monthly usage digests keep their own locked layout
@@ -121,11 +123,11 @@ type DigestView struct {
 }
 
 func RenderDigestMail(view DigestView) (string, error) {
-	if view.Lang != MailEN {
-		view.Lang = MailZH
+	if view.Lang != common.MailEN {
+		view.Lang = common.MailZH
 	}
 	if view.LogoURL == "" {
-		view.LogoURL = MailSiteURL("/lazu-email-logo-paper.png")
+		view.LogoURL = common.MailSiteURL("/lazu-email-logo-paper.png")
 	}
 	var body bytes.Buffer
 	err := digestTemplate.Execute(&body, view)
