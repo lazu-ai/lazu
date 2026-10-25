@@ -72,6 +72,9 @@ func encodeBridged(semantic *textgen.Request, inline func(string) (string, strin
 	fitBridgedThinking(request, resolve)
 	PrepareNativeThinking(request, resolve)
 	continueToolLoopWithoutThinking(request, resolve)
+	// after the thinking is fitted: EnsureThinkingConstraints writes
+	// temperature 1 beside a budget, which a refusing model takes no better
+	DropRefusedSampling(request, resolve)
 	return request, nil
 }
 
