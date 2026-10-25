@@ -180,36 +180,6 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 	return string(configBytes)
 }
 
-// CheckUserExistOrDeleted check if user exist or deleted, if not exist, return false, nil, if deleted or exist, return true, nil
-func CheckUserExistOrDeleted(username string, email string) (bool, error) {
-	var user User
-
-	// err := CoreDB().Unscoped().First(&user, "username = ? or email = ?", username, email).Error
-	// check email if empty
-	var err error
-	if email == "" {
-		err = CoreDB().Unscoped().First(&user, "username = ?", username).Error
-	} else {
-		err = CoreDB().Unscoped().First(&user, "username = ? or email = ?", username, email).Error
-	}
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// not exist, return false, nil
-			return false, nil
-		}
-		// other error, return false, err
-		return false, err
-	}
-	// exist, return true, nil
-	return true, nil
-}
-
-func GetMaxUserId() int {
-	var user User
-	CoreDB().Unscoped().Last(&user)
-	return user.Id
-}
-
 // UserListOptions carries the optional server-side filter/sort the admin
 // console asks for. The zero value reproduces the historical behaviour
 // (no status filter, newest first), so existing callers are unaffected.
@@ -480,10 +450,6 @@ func applyUserStatusFilter(query *gorm.DB, status string) *gorm.DB {
 	default:
 		return query
 	}
-}
-
-func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err error) {
-	return GetAllUsersFiltered(pageInfo, UserListOptions{})
 }
 
 func GetAllUsersFiltered(pageInfo *common.PageInfo, opts UserListOptions) (users []*User, total int64, err error) {
@@ -1011,14 +977,6 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 		err = CoreDB().Omit("password").First(&user, "id = ?", id).Error
 	}
 	return &user, userLookupErr(err)
-}
-
-func DeleteUserById(id int) (err error) {
-	if id == 0 {
-		return ErrUserNotFound
-	}
-	user := User{Id: id}
-	return user.Delete()
 }
 
 func HardDeleteUserById(id int) error {
@@ -1878,11 +1836,6 @@ func GetUserUsedQuota(id int) (quota billing.MicroUSD, err error) {
 	return user.UsedQuota, err
 }
 
-func GetUserEmail(id int) (email string, err error) {
-	err = CoreDB().Model(&User{}).Where("id = ?", id).Select("email").Find(&email).Error
-	return email, err
-}
-
 // GetUserSetting gets setting from Redis first, falls back to CoreDB() if needed
 func GetUserSetting(id int, fromDB bool) (settingMap dto.UserSetting, err error) {
 	var setting string
@@ -1942,13 +1895,6 @@ func UpdateUserUsedQuota(id int, quota billing.MicroUSD) {
 		return
 	}
 	updateUserUsedQuota(id, quota)
-}
-
-func AdjustUserUsedQuota(id int, quotaDelta billing.MicroUSD) {
-	if quotaDelta == 0 {
-		return
-	}
-	updateUserUsedQuota(id, quotaDelta)
 }
 
 func updateUserUsedQuota(id int, quota billing.MicroUSD) {
