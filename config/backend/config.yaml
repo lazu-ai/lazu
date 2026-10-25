@@ -109,7 +109,7 @@ smtp:
   token: "${SMTP_TOKEN}"
 
 # Email notification switches. Subjects and layouts are fixed in code
-# (internal/common/email_templates/, brand/foundations/emails.md).
+# (email_templates/ beside each sender, brand/foundations/emails.md).
 email_notifications:
   # Display name shown as the sender
   from_name: Lazu

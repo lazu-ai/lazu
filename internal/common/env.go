@@ -36,3 +36,23 @@ func GetEnvOrDefaultBool(env string, defaultValue bool) bool {
 	}
 	return b
 }
+
+// RequestContentRetentionDays covers every copy of request content, including
+// object-storage captures and the first message/preview in Agent Sessions.
+// Keep the existing environment name so deployed retention choices still apply.
+func RequestContentRetentionDays() int {
+	return GetEnvOrDefault("R2_ARCHIVE_RETENTION_DAYS", 180)
+}
+
+// NormalizeRelayTimeoutSeconds keeps outbound relay/webhook HTTP clients from
+// silently falling back to net/http's unbounded zero timeout.
+func NormalizeRelayTimeoutSeconds(seconds int) int {
+	if seconds <= 0 {
+		return DefaultRelayTimeoutSeconds
+	}
+	return seconds
+}
+
+func RelayTimeoutFromEnv() int {
+	return NormalizeRelayTimeoutSeconds(GetEnvOrDefault("RELAY_TIMEOUT", DefaultRelayTimeoutSeconds))
+}
