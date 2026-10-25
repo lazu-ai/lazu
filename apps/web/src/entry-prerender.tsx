@@ -12,6 +12,7 @@ import en from './i18n/locales/en.json';
 import ja from './i18n/locales/ja.json';
 import zhTW from './i18n/locales/zh-TW.json';
 import zh from './i18n/locales/zh.json';
+import { preloadMarketingPage } from './lib/marketing-pages';
 import marketingEn from './marketing/marketing.en.json';
 import marketingJa from './marketing/marketing.ja.json';
 import marketingZhTW from './marketing/marketing.zh-TW.json';
@@ -52,6 +53,8 @@ const createPrerenderI18n = async (language: string) => {
 
 export const renderMarketingRoute = async (route: string, language = 'en') => {
   const i18n = await createPrerenderI18n(language);
+  // renderToString cannot wait for a lazy page; load it first.
+  await preloadMarketingPage(route);
   return renderToString(
     <React.StrictMode>
       <I18nextProvider i18n={i18n}>

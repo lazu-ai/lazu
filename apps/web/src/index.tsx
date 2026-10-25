@@ -10,6 +10,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import { webExtensions } from './extensions';
 import { i18nReady } from './i18n/i18n';
+import { preloadMarketingPage } from './lib/marketing-pages';
 import { preloadNotFound } from './lib/not-found-preload';
 import { startPrerender } from './lib/prerender-startup';
 import './index.css';
@@ -60,9 +61,14 @@ const app = (
 if (prerenderRoute) {
   // Keep the prerendered tree intact while its initial translations load.
   // Suspending the shell during hydration can misalign its sibling nodes.
-  void startPrerender(i18nReady, rootElement, () => {
-    ReactDOM.hydrateRoot(rootElement, app);
-  });
+  // The page's chunk must be in before hydrating (lib/marketing-pages).
+  void startPrerender(
+    Promise.all([i18nReady, preloadMarketingPage(prerenderRoute)]),
+    rootElement,
+    () => {
+      ReactDOM.hydrateRoot(rootElement, app);
+    },
+  );
 } else if (rootElement.dataset.prerenderRoute === '/__not-found') {
   // The prerendered 404 stays on screen (the guard in the page keeps it)
   // until the page that replaces it is complete: its chunk and its
@@ -74,13 +80,20 @@ if (prerenderRoute) {
     rootElement.style.removeProperty('visibility');
   });
 } else if (rootElement.dataset.prerenderRoute) {
-  // Marketing routes are eagerly imported. Hold the existing geometry until
-  // the correct language is ready instead of collapsing the entire document.
-  void startPrerender(i18nReady, rootElement, () => {
-    const root = ReactDOM.createRoot(rootElement);
-    flushSync(() => root.render(app));
-    rootElement.style.removeProperty('visibility');
-  });
+  // Hold the existing geometry until the correct language and the page's
+  // chunk are ready instead of collapsing the entire document.
+  void startPrerender(
+    Promise.all([
+      i18nReady,
+      preloadMarketingPage(rootElement.dataset.prerenderRoute),
+    ]),
+    rootElement,
+    () => {
+      const root = ReactDOM.createRoot(rootElement);
+      flushSync(() => root.render(app));
+      rootElement.style.removeProperty('visibility');
+    },
+  );
 } else {
   ReactDOM.createRoot(rootElement).render(app);
 }

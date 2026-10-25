@@ -217,13 +217,31 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
   );
 }
 
-const html = readFileSync(path.join(dist, 'index.html'), 'utf8');
-const preloadedFiles = [
-  ...html.matchAll(/rel="modulepreload"[^>]+href="\/([^"?]+)"/g),
-].map((match) => match[1]);
-const allowedPreloads = new Set(initialJavaScript.slice(1));
-for (const file of preloadedFiles) {
-  if (!allowedPreloads.has(file)) {
+const preloadsIn = (file) =>
+  [
+    ...readFileSync(path.join(dist, file), 'utf8').matchAll(
+      /rel="modulepreload"[^>]+href="\/([^"?]+)"/g,
+    ),
+  ].map((match) => match[1]);
+const staticPreloads = new Set(initialJavaScript.slice(1));
+// The console boots from app.html: it preloads nothing beyond the entry.
+for (const file of preloadsIn('app.html')) {
+  if (!staticPreloads.has(file)) {
+    failures.push(`app.html eagerly preloads non-static chunk: ${file}`);
+  }
+}
+// index.html is the prerendered home page: it may also preload the Home
+// page chunk it hydrates (generate-static-pages.mjs), and nothing else.
+const homeGraph = new Set();
+const visitHome = (key) => {
+  const item = manifest[key];
+  if (!item || item.isEntry || homeGraph.has(item.file)) return;
+  homeGraph.add(item.file);
+  for (const imported of item.imports || []) visitHome(imported);
+};
+visitHome('src/pages/Home/index.tsx');
+for (const file of preloadsIn('index.html')) {
+  if (!staticPreloads.has(file) && !homeGraph.has(file)) {
     failures.push(`index.html eagerly preloads non-static chunk: ${file}`);
   }
 }
