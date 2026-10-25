@@ -29,8 +29,9 @@ func refusedSampling(unsupportedParams []string) []string {
 
 // DropRefusedSampling leaves out of request the sampling fields its model's
 // policy refuses (ModelPolicy.RefusedSampling, read from the catalog row's
-// unsupported_params) and names what it dropped. Messages takes an absent
-// temperature with or without thinking, so nothing is put in its place.
+// unsupported_params) and names the ones the request carried, for the
+// client's warning. Messages takes an absent temperature with or without
+// thinking, so nothing is put in their place.
 //
 // Unlike OpenAI's reasoning models, which take temperature again at effort
 // "none" (openai.samplingRefusedWhileReasoning), a Claude model that refuses
@@ -43,16 +44,25 @@ func DropRefusedSampling(request *dto.ClaudeRequest, resolve PolicyResolver) []s
 	if request == nil || resolve == nil {
 		return nil
 	}
-	refused := resolve(request.Model).RefusedSampling
-	for _, field := range refused {
+	var dropped []string
+	for _, field := range resolve(request.Model).RefusedSampling {
 		switch field {
 		case "temperature":
+			if request.Temperature != nil {
+				dropped = append(dropped, field)
+			}
 			request.Temperature = nil
 		case "top_p":
+			if request.TopP != 0 {
+				dropped = append(dropped, field)
+			}
 			request.TopP = 0
 		case "top_k":
+			if request.TopK != 0 {
+				dropped = append(dropped, field)
+			}
 			request.TopK = 0
 		}
 	}
-	return refused
+	return dropped
 }

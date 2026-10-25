@@ -24,7 +24,7 @@ var modelNameJudgementDebt = map[string]int{
 	// the model line.
 	"gemini/relay-gemini.go": 9,
 	// o-series / gpt-5 parameter rewrites keyed on the model line.
-	"openai/adaptor.go":        6,
+	"openai/adaptor.go":        5,
 	"openai/native_request.go": 5,
 	// grok-3-mini reasoning_effort handling.
 	"xai/adaptor.go": 1,
