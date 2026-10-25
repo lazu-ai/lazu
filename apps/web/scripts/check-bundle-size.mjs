@@ -126,7 +126,7 @@ const addEntryGraphBudget = (name, entryKey, limit) => {
   addBudget(name, [...new Set(files)], limit);
 };
 
-// ConsoleRoot and MarketingLayout are now statically imported by AppRoot/App,
+// PageLayout and MarketingLayout are statically imported by AppRoot/App,
 // so their shell payload is already covered by the Initial JavaScript budget.
 // Keep route-level budgets on the current lazy equivalents to catch growth in
 // the heaviest authenticated route and the public marketing locale chunks.

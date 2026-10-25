@@ -1,7 +1,7 @@
 // The docs are served under lazu.ai/docs (Vocs `basePath`, which Vite exposes
 // as BASE_URL = "/docs/"). Vocs' own links add it; plain <a href> and
 // window.location reads in these components have to add or strip it here.
-export const BASE_PATH = import.meta.env.BASE_URL.replace(/\/+$/, "");
+const BASE_PATH = import.meta.env.BASE_URL.replace(/\/+$/, "");
 
 /** "/quickstart" -> "/docs/quickstart". Leaves absolute and relative URLs alone. */
 export function withBase(href: string): string {

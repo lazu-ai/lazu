@@ -10,17 +10,6 @@ import {
 import { readSelf, refreshSelf } from './useSelfQuery';
 import { StatusContext } from '../../context/Status';
 
-export {
-  DEFAULT_SIDEBAR_ADMIN_CONFIG,
-  SIDEBAR_SECTION_DEFINITIONS,
-  buildEnabledSidebarConfig,
-  buildSidebarSectionConfigs,
-  filterSidebarModulesConfig,
-  getSidebarPresetConfig,
-  normalizeSidebarModulesConfig,
-} from './sidebarConfig';
-export type { SidebarModulesConfig } from './sidebarConfig';
-
 type LoadUserConfigOptions = {
   /** Ask the server again instead of reading the shared copy. */
   fresh?: boolean;
