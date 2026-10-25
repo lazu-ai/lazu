@@ -25,6 +25,13 @@ var deprecatedOptions = []struct {
 			"WorkerAllowHttpImageRequestEnabled; media downloads and webhooks will then connect directly, " +
 			"under the media fetch policy (docs/DEPLOYMENT.md, Deprecated settings).",
 	},
+	{
+		key:    "general_setting.quota_display_type",
+		active: func(value string) bool { return strings.TrimSpace(value) == "TOKENS" },
+		notice: "general_setting.quota_display_type=TOKENS is deprecated and will be removed after 2027-01-24; " +
+			"amounts in log text will then always read in USD, as the console already shows them " +
+			"(docs/DEPLOYMENT.md, Deprecated settings).",
+	},
 }
 
 func deprecatedOptionNotices(options []*Option) []string {

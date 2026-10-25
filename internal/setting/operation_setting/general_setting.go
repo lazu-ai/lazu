@@ -4,7 +4,9 @@ import "github.com/lazu-ai/lazu/internal/setting/config"
 
 // 额度展示类型
 const (
-	QuotaDisplayTypeUSD    = "USD"
+	QuotaDisplayTypeUSD = "USD"
+	// Deprecated: delete after 2027-01-24 (log text always in USD; see
+	// model/option_deprecations.go and docs/DEPLOYMENT.md, Deprecated settings).
 	QuotaDisplayTypeTokens = "TOKENS"
 )
 
