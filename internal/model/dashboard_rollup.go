@@ -1028,10 +1028,6 @@ func dashboardRollupTotalsContext(ctx context.Context, scopeUserID int, startBuc
 	return totals, nil
 }
 
-func dashboardRollupDistinctDimensionCount(scopeUserID int, dimensionType string, startBucket int64, endExclusive int64) (int64, error) {
-	return dashboardRollupDistinctDimensionCountContext(context.Background(), scopeUserID, dimensionType, startBucket, endExclusive)
-}
-
 func dashboardRollupDistinctDimensionCountContext(ctx context.Context, scopeUserID int, dimensionType string, startBucket int64, endExclusive int64) (int64, error) {
 	var count int64
 	query := TelemetryDB().WithContext(ctx).Model(&DashboardUsageHourlyDimension{}).
@@ -1052,10 +1048,6 @@ func dashboardRollupDistinctDimensionCountContext(ctx context.Context, scopeUser
 		Distinct("dimension_id").
 		Count(&count).Error
 	return count, err
-}
-
-func dashboardRollupDimensionRows(scopeUserID int, dimensionType string, startBucket int64, endExclusive int64, limit int) ([]DashboardUsageDimensionRow, error) {
-	return dashboardRollupDimensionRowsContext(context.Background(), scopeUserID, dimensionType, startBucket, endExclusive, limit)
 }
 
 func dashboardRollupDimensionRowsContext(ctx context.Context, scopeUserID int, dimensionType string, startBucket int64, endExclusive int64, limit int) ([]DashboardUsageDimensionRow, error) {
@@ -1137,10 +1129,6 @@ func dashboardRollupDimensionRowsContext(ctx context.Context, scopeUserID int, d
 		result = result[:limit]
 	}
 	return result, nil
-}
-
-func dashboardRollupTimeSeries(scopeUserID int, startBucket int64, endExclusive int64) ([]DashboardUsageTimeRow, error) {
-	return dashboardRollupTimeSeriesContext(context.Background(), scopeUserID, startBucket, endExclusive)
 }
 
 func dashboardRollupTimeSeriesContext(ctx context.Context, scopeUserID int, startBucket int64, endExclusive int64) ([]DashboardUsageTimeRow, error) {
