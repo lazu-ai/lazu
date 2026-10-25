@@ -214,12 +214,6 @@ func ListExpiredFiles(now int64, limit int) ([]File, error) {
 	return files, err
 }
 
-func CountFilesByOwner(userID int) (int64, error) {
-	var count int64
-	err := CoreDB().Model(&File{}).Where("user_id = ?", userID).Count(&count).Error
-	return count, err
-}
-
 // incrementUserStorageBytes adds bytes to the account's counter. With a
 // positive limit the update is conditional, so concurrent uploads can never
 // take the counter past it.
