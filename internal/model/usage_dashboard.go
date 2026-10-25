@@ -343,10 +343,6 @@ func scanDashboardUsageTimeRows(tx *gorm.DB) ([]DashboardUsageTimeRow, error) {
 	return timeRows, err
 }
 
-func scanDashboardOutcomeStats(userID int, role int, window DashboardUsageWindow, totals *DashboardUsageTotals) error {
-	return scanDashboardOutcomeStatsContext(context.Background(), userID, role, window, totals)
-}
-
 func scanDashboardOutcomeStatsContext(ctx context.Context, userID int, role int, window DashboardUsageWindow, totals *DashboardUsageTotals) error {
 	if TelemetryDB() == nil || totals == nil {
 		return nil
@@ -376,10 +372,6 @@ func scanDashboardOutcomeStatsContext(ctx context.Context, userID int, role int,
 	totals.AvgLatencyMs = row.AvgLatencyMs
 	totals.P95LatencyMs = row.P95LatencyMs
 	return nil
-}
-
-func scanDashboardChannelRows(userID int, role int, window DashboardUsageWindow, limit int) ([]DashboardUsageDimensionRow, error) {
-	return scanDashboardChannelRowsContext(context.Background(), userID, role, window, limit)
 }
 
 func scanDashboardChannelRowsContext(ctx context.Context, userID int, role int, window DashboardUsageWindow, limit int) ([]DashboardUsageDimensionRow, error) {
@@ -813,19 +805,6 @@ func BuildDashboardUsageXLSX(usage DashboardUsage) ([]byte, error) {
 		return nil, err
 	}
 	return xlsx.Bytes(), nil
-}
-
-func ListUserUsageLogs(userID int, window DashboardUsageWindow, limit int) ([]Log, error) {
-	if limit <= 0 || limit > 50000 {
-		limit = 50000
-	}
-	var logs []Log
-	tx := orderLogsNewestFirst(userUsageBaseQuery(userID, window)).
-		Limit(limit)
-	if err := tx.Find(&logs).Error; err != nil {
-		return nil, err
-	}
-	return logs, nil
 }
 
 type DashboardUsageLogFilters struct {
