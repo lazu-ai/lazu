@@ -5,6 +5,12 @@ description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序�
 
 # 更新日誌
 
+## 2026-10-26 — 棄用兩項自部署設定
+
+- `LogConsumeEnabled=false` 已棄用。2027-01-24 之後消費日誌將一律寫入；如需控制儲存空間，請改用 `LOG_RETENTION_DAYS`。
+- Worker 下載代理（`WorkerUrl`、`WorkerValidKey`、`WorkerAllowHttpImageRequestEnabled`）已棄用。2027-01-24 之後媒體下載與 webhook 將直接連線，並依媒體抓取政策檢查位址。
+- 設定了其中任一項的部署，啟動時會輸出一行 `deprecated setting:` 提示。詳見部署指南的「Deprecated settings」一節。
+
 ## 2026-09-30 — Agent 工作階段、請求明細與長上下文价格
 
 - 以任務、模型及逐請求明細重做 Agent 工作階段。

@@ -424,6 +424,22 @@ unknown paths continue to return their normal responses.
 
 Change operational values directly in the console UI. These values are stored in the database `option` table and do not require a backend restart.
 
+## Deprecated settings
+
+A setting on its way out stays readable for at least 90 days. While it is
+configured away from its default, `lazu-backend` logs a line starting with
+`deprecated setting:` at startup that names the replacement and the removal
+date. In code the setting carries `// Deprecated: delete after <date>`; CI
+fails once that date has passed, so the removal is not forgotten.
+
+| Setting | Configured as | After removal | Replacement | Removed after |
+| --- | --- | --- | --- | --- |
+| `LogConsumeEnabled` | `false` | Consume logs are always written. The usage pages, usage digests and route health read them. | Bound storage with `LOG_RETENTION_DAYS` (Retention And Disk Maintenance). | 2027-01-24 |
+| `WorkerUrl`, `WorkerValidKey`, `WorkerAllowHttpImageRequestEnabled` | `WorkerUrl` set | Media downloads and webhooks connect directly. | The media fetch policy (Fetching client-supplied media URLs) checks each address. | 2027-01-24 |
+
+If you rely on one of these, open an issue before the removal date with what
+it does for you.
+
 ## Request content logging
 
 `model_log_enabled` (environment: `MODEL_LOG_ENABLED`) is off by default. When

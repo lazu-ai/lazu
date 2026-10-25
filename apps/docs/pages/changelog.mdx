@@ -5,6 +5,12 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 
 # Changelog
 
+## 2026-10-26 — Two self-hosting settings deprecated
+
+- `LogConsumeEnabled=false` is deprecated. After 2027-01-24 consume logs are always written; bound their storage with `LOG_RETENTION_DAYS`.
+- The Worker download proxy (`WorkerUrl`, `WorkerValidKey`, `WorkerAllowHttpImageRequestEnabled`) is deprecated. After 2027-01-24 media downloads and webhooks connect directly, under the media fetch policy.
+- A deployment that configures either now logs a `deprecated setting:` line at startup. Details are in the deployment guide's "Deprecated settings" section.
+
 ## 2026-09-30 — Agent sessions, receipts and long-context prices
 
 - Rebuilt Agent sessions around tasks, models and individual request receipts.

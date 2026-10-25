@@ -81,6 +81,8 @@ var EmailLoginAuthServerList = []string{
 var DebugEnabled bool
 var MemoryCacheEnabled bool
 
+// Deprecated: delete after 2027-01-24 (consume logs always written; see
+// model/option_deprecations.go and docs/DEPLOYMENT.md, Deprecated settings).
 var LogConsumeEnabled = true
 var ModelLogEnabled = false
 var ModelLogPath = ""
