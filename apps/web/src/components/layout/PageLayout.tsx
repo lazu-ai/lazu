@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   useCallback,
   useContext,
@@ -38,6 +39,7 @@ import {
 } from '../../helpers/utils';
 import { MOBILE_BREAKPOINT, useIsMobile } from '../../hooks/common/useIsMobile';
 import { unwrap } from '../../lib/api-error';
+import { queryKeys } from '../../lib/query-keys';
 import { useRoutePrefetch } from '../../lib/route-prefetch';
 import WhatsNewDialog from '../announcements/WhatsNewDialog';
 import ErrorBoundary from '../common/ErrorBoundary';
@@ -57,6 +59,19 @@ type ResizeHandler = (width: number) => void;
 type ApiGetConfig = NonNullable<Parameters<typeof API.get>[1]> & {
   skipErrorHandler?: boolean;
 };
+
+type StatusPayload = Record<string, unknown> & { system_name?: string };
+
+const fetchStatus = async (): Promise<StatusPayload> => {
+  const config: ApiGetConfig = { skipErrorHandler: true };
+  const data = unwrap<unknown>(await API.get('/api/status', config));
+  return data && typeof data === 'object' ? (data as StatusPayload) : {};
+};
+
+/* The deployment's public settings change only when an operator saves them;
+ * the settings pages invalidate this query when they do. Five minutes covers
+ * a change made from another browser. */
+const STATUS_STALE_MS = 5 * 60 * 1000;
 
 const debounce = (fn: ResizeHandler, delay: number): ResizeHandler => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -326,26 +341,30 @@ const PageLayout = () => {
     }
   }, [userDispatch]);
 
-  const loadStatus = useCallback(async () => {
-    try {
-      const config: ApiGetConfig = { skipErrorHandler: true };
-      const data = unwrap<unknown>(await API.get('/api/status', config));
-      const statusData =
-        data && typeof data === 'object'
-          ? (data as Record<string, unknown> & { system_name?: string })
-          : {};
-      statusDispatch({ type: 'set', payload: statusData });
-      setStatusData(statusData);
-      document.title = statusData.system_name || getSystemName();
-    } catch (error) {
-      console.warn('[PageLayout] Failed to load status', error);
-      recordStatusIssue({
-        kind: 'unavailable',
-        message: 'Backend status could not be loaded.',
-        source: 'Runtime',
-      });
-    }
-  }, [statusDispatch]);
+  const statusQuery = useQuery({
+    queryKey: queryKeys.status,
+    queryFn: fetchStatus,
+    enabled: !isMarketingRoute,
+    staleTime: STATUS_STALE_MS,
+  });
+
+  useEffect(() => {
+    const statusData = statusQuery.data;
+    if (!statusData) return;
+    statusDispatch({ type: 'set', payload: statusData });
+    setStatusData(statusData);
+    document.title = statusData.system_name || getSystemName();
+  }, [statusDispatch, statusQuery.data]);
+
+  useEffect(() => {
+    if (!statusQuery.error) return;
+    console.warn('[PageLayout] Failed to load status', statusQuery.error);
+    recordStatusIssue({
+      kind: 'unavailable',
+      message: 'Backend status could not be loaded.',
+      source: 'Runtime',
+    });
+  }, [statusQuery.error]);
 
   useEffect(() => {
     if (isMarketingRoute) return;
@@ -367,7 +386,6 @@ const PageLayout = () => {
     if (isMarketingRoute) return;
 
     loadUser();
-    loadStatus().catch(console.error);
 
     const systemName = getSystemName();
     if (systemName) {
@@ -382,7 +400,7 @@ const PageLayout = () => {
     if (savedLang) {
       i18n.changeLanguage(savedLang);
     }
-  }, [i18n, isMarketingRoute, loadStatus, loadUser, surfaceLanguage]);
+  }, [i18n, isMarketingRoute, loadUser, surfaceLanguage]);
 
   return (
     <div
