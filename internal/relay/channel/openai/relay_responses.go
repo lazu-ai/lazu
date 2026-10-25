@@ -322,28 +322,6 @@ func responsesFunctionArgumentKey(event *dto.ResponsesStreamResponse, item *dto.
 	return ""
 }
 
-func sendResponsesCompatChatStreamError(c *gin.Context, upstreamError *types.OpenAIError) error {
-	frame, message := channel.StreamFailureFrame(types.ErrorCodeUpstreamStreamFailed, upstreamError)
-	frame.RequestID = c.GetString(common.RequestIdKey)
-	if err := helper.ObjectData(c, gin.H{"error": frame}); err != nil {
-		return err
-	}
-	return fmt.Errorf("%s", message)
-}
-
-func failResponsesCompatChatStream(c *gin.Context, code types.ErrorCode, message string) {
-	var upstream *types.OpenAIError
-	if message != "" {
-		upstream = &types.OpenAIError{Message: message}
-	}
-	frame, _ := channel.StreamFailureFrame(code, upstream)
-	frame.RequestID = c.GetString(common.RequestIdKey)
-	_ = helper.ObjectData(c, gin.H{"error": frame})
-	helper.Done(c)
-	common.SetContextKey(c, constant.ContextKeyProtocolStreamTerminal, true)
-	common.SetContextKey(c, constant.ContextKeyProtocolStreamSettle, true)
-}
-
 // recordResponsesFinishReason translates how a Responses reply ended into the
 // chat vocabulary the outcome row stores. The Responses API has no
 // finish_reason: a reply cut off at max_output_tokens arrives as status
