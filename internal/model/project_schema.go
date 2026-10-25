@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+
 	"gorm.io/gorm"
 )
 
@@ -34,13 +35,6 @@ func validateTeamProjectSchema(db *gorm.DB, scope string) error {
 				return fmt.Errorf("project log schema missing logs.%s; run lazu-migrate", column)
 			}
 		}
-	}
-	return nil
-}
-func validateProjectSpendMigration() error {
-	var marker ProjectDataMigration
-	if err := CoreDB().Where("name = ? AND completed_at IS NOT NULL", "project_spend_history").First(&marker).Error; err != nil {
-		return fmt.Errorf("project spend history is not migrated; run lazu-migrate: %w", err)
 	}
 	return nil
 }
