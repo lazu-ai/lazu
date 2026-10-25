@@ -100,11 +100,9 @@ func preferredChannelIntentsFromContext(c *gin.Context) []string {
 	if !ok || parsed == nil || parsed.Semantic == nil {
 		return nil
 	}
-	ctx := context.Background()
-	if c.Request != nil {
-		ctx = c.Request.Context()
-	}
-	return preferredChannelIntents(ExtractSemanticFeatures(ctx, nil, parsed.Semantic))
+	// Only the image count matters here; building full features would hash
+	// the whole prompt again on every channel selection.
+	return preferredChannelIntents(&Features{VisionImageCount: semanticImageCount(parsed.Semantic)})
 }
 
 func selectProtocolCompatibleChannel(c *gin.Context, group, modelName string, excluded map[int]struct{}, preferredIntents []string) (*model.Channel, string, error) {

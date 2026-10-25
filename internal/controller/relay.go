@@ -149,7 +149,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	var meta *types.TokenCountMeta
 	if relayInfo.ProtocolRequest != nil {
-		meta = textgen.TokenCountMeta(relayInfo.ProtocolRequest)
+		// The distributor already projected this request for its context-window
+		// estimate; reuse it unless OSS enrichment replaced the request since.
+		if parsed, ok := common.GetContextKeyType[*textgen.ParsedRequest](c, constant.ContextKeyTextgenParsed); ok && parsed != nil && parsed.Semantic == relayInfo.ProtocolRequest {
+			meta = parsed.TokenCountMeta()
+		} else {
+			meta = textgen.TokenCountMeta(relayInfo.ProtocolRequest)
+		}
 	} else {
 		meta = request.GetTokenCountMeta()
 	}
