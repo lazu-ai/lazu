@@ -679,10 +679,6 @@ func checkMediaJobQuotaBeforeCharge(job MediaJob, charge billing.MicroUSD) error
 	return nil
 }
 
-func setMediaJobBillingReservation(job *MediaJob, amount billing.MicroUSD) (string, error) {
-	return setMediaJobBillingReservationWithID(job, amount, common.GeneratePublicID("mres"))
-}
-
 func setMediaJobBillingReservationWithID(job *MediaJob, amount billing.MicroUSD, reservationID string, admittedAt ...time.Time) (string, error) {
 	if job == nil || amount < 0 || strings.TrimSpace(reservationID) == "" {
 		return "", errors.New("invalid media job billing reservation")
@@ -1067,10 +1063,6 @@ func mediaJobUsageFactFor(job MediaJob, channelID int, settle bool) usagepkg.Fac
 		fact.Dimensions = append(fact.Dimensions, usagepkg.DimensionUsage{Name: usagepkg.DimensionRequest, Quantity: 1, Unit: usagepkg.UnitRequest})
 	}
 	return fact.Normalize()
-}
-
-func mediaJobMediaUnits(job MediaJob) usagepkg.MediaUnits {
-	return mediaJobMediaUnitsFor(job, false)
 }
 
 // mediaJobMediaUnitsFor reads the dimensions to price. A hold includes the
