@@ -2,6 +2,7 @@ package model
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
@@ -15,7 +16,7 @@ func TestUsageExportCannotBroadenMemberScopeOrExposePrivateMetadata(t *testing.T
 	for id := 1; id <= 2; id++ {
 		insertDashboardUsageLog(t, Log{UserId: id, PublicID: string(rune('a' + id)), RequestID: string(rune('a' + id)), Type: LogTypeConsume, CreatedAt: 100, AmountMicrousd: 5})
 	}
-	rows, err := ListDashboardUsageLogs(1, common.RoleCommonUser, DashboardUsageWindow{}, DashboardUsageLogFilters{UserID: 2, ChannelID: 99}, 100)
+	rows, err := ListDashboardUsageLogsContext(context.Background(), 1, common.RoleCommonUser, DashboardUsageWindow{}, DashboardUsageLogFilters{UserID: 2, ChannelID: 99}, 100)
 	if err != nil || len(rows) != 1 || rows[0].UserId != 1 {
 		t.Fatalf("member export widened scope: rows=%+v err=%v", rows, err)
 	}

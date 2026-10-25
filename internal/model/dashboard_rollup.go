@@ -856,10 +856,6 @@ func dashboardRollupName(name string) string {
 	return name
 }
 
-func BuildDashboardUsageFromRollupForRole(userID int, role int, startTimestamp int64, endTimestamp int64) (DashboardUsage, bool, error) {
-	return BuildDashboardUsageFromRollupForRoleContext(context.Background(), userID, role, startTimestamp, endTimestamp)
-}
-
 func BuildDashboardUsageFromRollupForRoleContext(ctx context.Context, userID int, role int, startTimestamp int64, endTimestamp int64) (DashboardUsage, bool, error) {
 	window := normalizeDashboardUsageWindow(startTimestamp, endTimestamp)
 	result := DashboardUsage{
@@ -966,10 +962,6 @@ func BuildAdminDashboardUsersContext(ctx context.Context, filters DashboardUsage
 	return BuildAdminDashboardUserRowsContext(ctx, filters, startTimestamp, endTimestamp)
 }
 
-func dashboardRollupCoverageReady(window DashboardUsageWindow) (bool, error) {
-	return dashboardRollupCoverageReadyContext(context.Background(), window)
-}
-
 // dashboardRollupCoverageReadyContext reports whether every finished hour of
 // the window has its platform row. The open hour is not required: until its
 // first request it has no row and nothing to add, and requiring it sent every
@@ -988,10 +980,6 @@ func dashboardRollupCoverageReadyContext(ctx context.Context, window DashboardUs
 		Where("scope_user_id = ? AND bucket_hour >= ? AND bucket_hour < ?", dashboardRollupScopeGlobal, startBucket, endExclusive).
 		Count(&count).Error
 	return count >= expected, err
-}
-
-func dashboardRollupTotals(scopeUserID int, startBucket int64, endExclusive int64) (DashboardUsageTotals, error) {
-	return dashboardRollupTotalsContext(context.Background(), scopeUserID, startBucket, endExclusive)
 }
 
 func dashboardRollupTotalsContext(ctx context.Context, scopeUserID int, startBucket int64, endExclusive int64) (DashboardUsageTotals, error) {

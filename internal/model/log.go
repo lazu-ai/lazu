@@ -1377,10 +1377,6 @@ func GetUserUsedModels(userId int) ([]string, error) {
 	return models, err
 }
 
-func GetConsumeLogByRequestIDForToken(userID int, tokenID int, requestID string, principals ...ProjectPrincipal) (*Log, error) {
-	return GetConsumeLogByRequestIDForTokenContext(context.Background(), userID, tokenID, requestID, principals...)
-}
-
 func GetConsumeLogByRequestIDForTokenContext(ctx context.Context, userID int, tokenID int, requestID string, principals ...ProjectPrincipal) (*Log, error) {
 	// A receipt belongs to one logical Key and its human actor.
 	var log Log

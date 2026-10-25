@@ -419,10 +419,6 @@ func scanDashboardChannelRowsContext(ctx context.Context, userID int, role int, 
 	return rows, err
 }
 
-func BuildUserDashboardUsage(userID int, startTimestamp int64, endTimestamp int64) (DashboardUsage, error) {
-	return BuildUserDashboardUsageContext(context.Background(), userID, startTimestamp, endTimestamp)
-}
-
 func BuildUserDashboardUsageContext(ctx context.Context, userID int, startTimestamp int64, endTimestamp int64) (DashboardUsage, error) {
 	window := normalizeDashboardUsageWindow(startTimestamp, endTimestamp)
 	result := DashboardUsage{
@@ -471,10 +467,6 @@ func BuildUserDashboardUsageContext(ctx context.Context, userID int, startTimest
 		return result, err
 	}
 	return result, nil
-}
-
-func BuildAdminDashboardUsage(startTimestamp int64, endTimestamp int64) (DashboardUsage, error) {
-	return BuildAdminDashboardUsageContext(context.Background(), startTimestamp, endTimestamp)
 }
 
 func BuildAdminDashboardUsageContext(ctx context.Context, startTimestamp int64, endTimestamp int64) (DashboardUsage, error) {
@@ -534,13 +526,6 @@ func BuildAdminDashboardUsageContext(ctx context.Context, startTimestamp int64, 
 	return result, nil
 }
 
-// BuildAdminDashboardUserRows applies the request-log owner, group, and channel
-// filters to the user ranking. Keeping this query separate avoids returning an
-// unfiltered top-50 aggregate beside a filtered request table.
-func BuildAdminDashboardUserRows(filters DashboardUsageLogFilters, startTimestamp int64, endTimestamp int64) ([]DashboardUsageDimensionRow, error) {
-	return BuildAdminDashboardUserRowsContext(context.Background(), filters, startTimestamp, endTimestamp)
-}
-
 // BuildAdminDashboardUserRowsContext returns the user rows of a filtered
 // usage log. PostgreSQL reads hourly usage slices: joining a filter's logs to
 // their routing outcomes took 1.7 s (one channel) to 6 s (one group) for
@@ -578,13 +563,6 @@ func BuildAdminDashboardUserRowsContext(ctx context.Context, filters DashboardUs
 	return scanDashboardUsageRows(tx, "logs.user_id", userNameExpr, groupExpr, limit)
 }
 
-// BuildAdminDashboardModelRows returns aggregates for an explicit bounded
-// model set. Unlike the dashboard's top-20 leaderboard, this is suitable for a
-// paginated catalog whose current page may contain lower-volume models.
-func BuildAdminDashboardModelRows(modelNames []string, startTimestamp int64, endTimestamp int64) ([]DashboardUsageDimensionRow, error) {
-	return BuildAdminDashboardModelRowsContext(context.Background(), modelNames, startTimestamp, endTimestamp)
-}
-
 func BuildAdminDashboardModelRowsContext(ctx context.Context, modelNames []string, startTimestamp int64, endTimestamp int64) ([]DashboardUsageDimensionRow, error) {
 	seen := make(map[string]struct{}, len(modelNames))
 	names := make([]string, 0, len(modelNames))
@@ -611,12 +589,6 @@ func BuildAdminDashboardModelRowsContext(ctx context.Context, modelNames []strin
 		modelNameExpr,
 		len(names),
 	)
-}
-
-// TTFT is measured independently from complete request duration. Only text
-// streaming observations with an actual first-token measurement contribute.
-func scanDashboardTTFTStats(userID int, role int, window DashboardUsageWindow, totals *DashboardUsageTotals) error {
-	return scanDashboardTTFTStatsContext(context.Background(), userID, role, window, totals)
 }
 
 func scanDashboardTTFTStatsContext(ctx context.Context, userID int, role int, window DashboardUsageWindow, totals *DashboardUsageTotals) error {
@@ -662,10 +634,6 @@ func scanDashboardTTFTStatsContext(ctx context.Context, userID int, role int, wi
 		totals.P95TTFTMs = &row.P95
 	}
 	return nil
-}
-
-func BuildDashboardUsageForRole(userID int, role int, startTimestamp int64, endTimestamp int64) (DashboardUsage, error) {
-	return BuildDashboardUsageForRoleContext(context.Background(), userID, role, startTimestamp, endTimestamp)
 }
 
 func BuildDashboardUsageForRoleContext(ctx context.Context, userID int, role int, startTimestamp int64, endTimestamp int64) (DashboardUsage, error) {
@@ -836,10 +804,6 @@ type DashboardUsageLogFilters struct {
 	TokenName string
 	UserID    int
 	Username  string
-}
-
-func ListDashboardUsageLogs(userID int, role int, window DashboardUsageWindow, filters DashboardUsageLogFilters, limit int) ([]Log, error) {
-	return ListDashboardUsageLogsContext(context.Background(), userID, role, window, filters, limit)
 }
 
 func ListDashboardUsageLogsContext(ctx context.Context, userID int, role int, window DashboardUsageWindow, filters DashboardUsageLogFilters, limit int) ([]Log, error) {
