@@ -475,10 +475,6 @@ func NewOpenAIError(err error, errorCode ErrorCode, statusCode int, ops ...LazuE
 	return NewErrorWithStatusCode(err, errorCode, statusCode, optionsToAny(ops)...)
 }
 
-func InitOpenAIError(errorCode ErrorCode, statusCode int, ops ...LazuErrorOption) *LazuError {
-	return NewErrorWithStatusCode(nil, errorCode, statusCode, optionsToAny(ops)...)
-}
-
 func NewErrorWithStatusCode(err error, errorCode ErrorCode, statusCode int, params ...any) *LazuError {
 	args, ops := splitErrorParams(params)
 	e := &LazuError{

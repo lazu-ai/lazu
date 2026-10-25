@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -233,47 +232,6 @@ func matchLocalModelLiteLLM(localName string, fullMap map[string]*litellmModel, 
 	}
 
 	return nil, ""
-}
-
-// generateTagsFromLiteLLM generates capability tags from LiteLLM model supports_* fields.
-func generateTagsFromLiteLLM(m *litellmModel) []string {
-	tagSet := make(map[string]bool)
-
-	if m.SupportsVision {
-		tagSet["多模态"] = true
-		tagSet["图片理解"] = true
-	}
-	if m.SupportsFunctionCalling || m.SupportsToolChoice {
-		tagSet["工具调用"] = true
-	}
-	if m.SupportsReasoning {
-		tagSet["推理"] = true
-	}
-	if m.SupportsWebSearch {
-		tagSet["搜索"] = true
-	}
-	if m.SupportsResponseSchema {
-		tagSet["结构化输出"] = true
-	}
-	if m.SupportsAudioInput || m.SupportsAudioOutput {
-		tagSet["音频"] = true
-	}
-	if m.SupportsPdfInput {
-		tagSet["文件理解"] = true
-	}
-	if m.SupportsComputerUse {
-		tagSet["计算机使用"] = true
-	}
-	if m.SupportsPromptCaching {
-		tagSet["缓存"] = true
-	}
-
-	tags := make([]string, 0, len(tagSet))
-	for t := range tagSet {
-		tags = append(tags, t)
-	}
-	sort.Strings(tags)
-	return tags
 }
 
 func capabilitiesFromLiteLLM(m *litellmModel) model.ModelCapabilities {

@@ -203,13 +203,3 @@ func IsArkBaseURL(baseURL string) bool {
 	}
 	return false
 }
-
-// DisplayFamily is the family name a driver reports for a channel and model,
-// for the console and the catalog.
-func DisplayFamily(ch Channel, modelName string) string {
-	driver, err := Select(ch, modelName)
-	if err != nil {
-		return ""
-	}
-	return driver.Family()
-}

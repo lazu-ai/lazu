@@ -3,6 +3,7 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/lazu-ai/lazu/pkg/billing"
 
 	"github.com/lazu-ai/lazu/internal/types"
@@ -21,15 +22,6 @@ type SimpleResponse struct {
 // GetOpenAIError 从动态错误类型中提取OpenAIError结构
 func (s *SimpleResponse) GetOpenAIError() *types.OpenAIError {
 	return GetOpenAIError(s.Error)
-}
-
-type TextResponse struct {
-	Id      string                     `json:"id"`
-	Object  string                     `json:"object"`
-	Created int64                      `json:"created"`
-	Model   string                     `json:"model"`
-	Choices []OpenAITextResponseChoice `json:"choices"`
-	Usage   `json:"usage"`
 }
 
 type OpenAITextResponseChoice struct {
@@ -63,19 +55,6 @@ type OpenAIEmbeddingResponse struct {
 	Object string                        `json:"object"`
 	Data   []OpenAIEmbeddingResponseItem `json:"data"`
 	Model  string                        `json:"model"`
-	Usage  `json:"usage"`
-}
-
-type FlexibleEmbeddingResponseItem struct {
-	Object    string `json:"object"`
-	Index     int    `json:"index"`
-	Embedding any    `json:"embedding"`
-}
-
-type FlexibleEmbeddingResponse struct {
-	Object string                          `json:"object"`
-	Data   []FlexibleEmbeddingResponseItem `json:"data"`
-	Model  string                          `json:"model"`
 	Usage  `json:"usage"`
 }
 
@@ -218,11 +197,6 @@ func (c *ChatCompletionsStreamResponse) GetSystemFingerprint() string {
 
 func (c *ChatCompletionsStreamResponse) SetSystemFingerprint(s string) {
 	c.SystemFingerprint = &s
-}
-
-type ChatCompletionsStreamResponseSimple struct {
-	Choices []ChatCompletionsStreamResponseChoice `json:"choices"`
-	Usage   *Usage                                `json:"usage"`
 }
 
 type CompletionsStreamResponse struct {

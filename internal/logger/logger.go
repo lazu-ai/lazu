@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -123,14 +122,4 @@ func FormatQuota(quota billing.MicroUSD) string {
 	default:
 		return fmt.Sprintf("＄%.6f", q/float64(billing.MicroUSDPerUSD))
 	}
-}
-
-// LogJson 仅供测试使用 only for test
-func LogJson(ctx context.Context, msg string, obj any) {
-	jsonStr, err := json.Marshal(obj)
-	if err != nil {
-		LogError(ctx, fmt.Sprintf("json marshal failed: %s", err.Error()))
-		return
-	}
-	LogDebug(ctx, fmt.Sprintf("%s | %s", msg, string(jsonStr)))
 }

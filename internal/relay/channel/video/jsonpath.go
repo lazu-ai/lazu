@@ -131,15 +131,3 @@ func numberValue(value any) (float64, bool) {
 		return 0, false
 	}
 }
-
-// compactError keeps the useful head of a provider error body.
-func compactError(body []byte) string {
-	text := strings.TrimSpace(string(body))
-	if len(text) > 500 {
-		text = text[:500]
-	}
-	if text == "" {
-		return "empty response"
-	}
-	return text
-}

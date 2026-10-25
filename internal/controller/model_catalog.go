@@ -253,10 +253,6 @@ func getCatalogBlockedVendorSet(c *gin.Context) map[int]struct{} {
 	return blocked
 }
 
-func tokenAllowsModel(tokenModelLimit map[string]bool, modelName string) bool {
-	return model.TokenModelLimitAllows(tokenModelLimit, modelName)
-}
-
 // The catalog has to answer the same question the relay does, or a Key scoped
 // to a whole vendor sees an empty model list and then works anyway.
 func tokenScopeAllowsModel(c *gin.Context, tokenModelLimit map[string]bool, modelName string) bool {
@@ -1923,32 +1919,6 @@ func recommendedMaxTokens(maxOutputTokens int64, fallback int64) int64 {
 		return maxOutputTokens
 	}
 	return fallback
-}
-
-func constraintToCatalogParam(description string, constraint *model.ParamConstraint) dto.CatalogParam {
-	param := dto.CatalogParam{
-		Description: description,
-	}
-	switch constraint.Type {
-	case "enum":
-		param.Type = "string"
-		param.Enum = append([]string(nil), constraint.Options...)
-		if constraint.Default != "" {
-			param.Default = constraint.Default
-		}
-	case "range":
-		param.Type = "integer"
-		param.Range = []float64{float64(constraint.Min), float64(constraint.Max)}
-		if constraint.Default != "" {
-			param.Default = constraint.Default
-		}
-	default:
-		param.Type = constraint.Type
-		if constraint.Default != "" {
-			param.Default = constraint.Default
-		}
-	}
-	return param
 }
 
 func catalogCapabilities(capabilities model.ModelCapabilities) dto.ModelCatalogCapabilities {

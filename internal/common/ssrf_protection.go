@@ -27,16 +27,6 @@ type SSRFProtection struct {
 	PrivateAllowList []string
 }
 
-// DefaultSSRFProtection 默认SSRF防护配置
-var DefaultSSRFProtection = &SSRFProtection{
-	AllowPrivateIp:   false,
-	DomainFilterMode: true,
-	DomainList:       []string{},
-	IpFilterMode:     true,
-	IpList:           []string{},
-	AllowedPorts:     []int{},
-}
-
 var lookupIP = net.LookupIP
 
 // ContextDialer is the subset of net.Dialer used by the SSRF-protected dialer.
