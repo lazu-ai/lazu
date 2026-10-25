@@ -11,10 +11,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func QueryOutcomesNeedingBackfill(start time.Time, end time.Time) ([]RoutingOutcome, error) {
-	return QueryOutcomesNeedingBackfillContext(context.Background(), start, end)
-}
-
 func QueryOutcomesNeedingBackfillContext(ctx context.Context, start time.Time, end time.Time) ([]RoutingOutcome, error) {
 	var outcomes []RoutingOutcome
 	store := TelemetryDB().WithContext(ctx)
@@ -38,14 +34,6 @@ func GetDecisionByRequestIDContext(ctx context.Context, requestID string) (*Rout
 		return nil, err
 	}
 	if err := query.First(&decision).Error; err != nil {
-		return nil, err
-	}
-	return &decision, nil
-}
-
-func GetDecisionByID(id int64) (*RoutingDecision, error) {
-	var decision RoutingDecision
-	if err := TelemetryDB().Where("id = ?", id).First(&decision).Error; err != nil {
 		return nil, err
 	}
 	return &decision, nil
@@ -201,19 +189,11 @@ func routingOutcomeConflictClause() clause.OnConflict {
 	}
 }
 
-func HasUserRetried(userID *int, promptHash string, start time.Time, end time.Time) (bool, error) {
-	return HasUserRetriedContext(context.Background(), userID, promptHash, start, end)
-}
-
 func HasUserRetriedContext(ctx context.Context, userID *int, promptHash string, start time.Time, end time.Time) (bool, error) {
 	if userID == nil || *userID == 0 || promptHash == "" {
 		return false, nil
 	}
 	return routingDecisionExists(TelemetryDB().WithContext(ctx), "user_id = ? AND prompt_hash = ? AND decision_at > ? AND decision_at <= ?", *userID, promptHash, start, end)
-}
-
-func HasUserSwitchedModel(sessionID string, resolvedModel string, start time.Time, end time.Time) (bool, error) {
-	return HasUserSwitchedModelContext(context.Background(), sessionID, resolvedModel, start, end)
 }
 
 func HasUserSwitchedModelContext(ctx context.Context, sessionID string, resolvedModel string, start time.Time, end time.Time) (bool, error) {
