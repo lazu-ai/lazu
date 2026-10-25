@@ -83,9 +83,16 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 		if effort == "" {
 			effort = gjson.GetBytes(body, "reasoning.effort").Str
 		}
+		var dropped []string
 		for _, field := range samplingRefusedWhileReasoning(info, effort) {
+			if gjson.GetBytes(body, field).Exists() {
+				dropped = append(dropped, field)
+			}
 			del(field)
 		}
+		// no gin context here: the plan carries the warning and the caller
+		// rewrites the header (relaycommon.SetProtocolWarningHeader)
+		relaycommon.WarnSamplingRefused(nil, info, dropped)
 	}
 	if err != nil {
 		return nil, err
