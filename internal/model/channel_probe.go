@@ -291,12 +291,6 @@ type ChannelProbeLastAttempt struct {
 	ProbedAt ChannelHealthTime
 }
 
-// LoadChannelProbeLastAttempts returns the most recent probe per cell within
-// the lookback window, keyed by lane/model/channel.
-func LoadChannelProbeLastAttempts(since time.Time) (map[string]time.Time, error) {
-	return LoadChannelProbeLastAttemptsContext(context.Background(), since)
-}
-
 func LoadChannelProbeLastAttemptsContext(ctx context.Context, since time.Time) (map[string]time.Time, error) {
 	return loadChannelProbeLastAttempts(ctx, since, "")
 }
