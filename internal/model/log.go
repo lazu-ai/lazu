@@ -767,10 +767,6 @@ func handleRelayResultEvent(event relayResultEvent) error {
 	return persistRelayResultBatch([]relayResultEvent{event})
 }
 
-func handleRelayResultEventBatch(events []relayResultEvent) error {
-	return persistRelayResultBatch(events)
-}
-
 func createConsumeLogsBatch(logs []Log) error {
 	events := make([]relayResultEvent, 0, len(logs))
 	for i := range logs {
@@ -993,10 +989,6 @@ func attachRoutingOutcomeUsageSnapshot(c *gin.Context, params RecordConsumeLogPa
 		snapshot.HasGrossMargin = true
 	}
 	common.SetContextKey(c, constant.ContextKeyRoutingOutcomeUsage, snapshot)
-}
-
-func resolveUpstreamCostUSD(params RecordConsumeLogParams, usageFact usagepkg.Fact) (float64, bool) {
-	return resolveUpstreamCostUSDAt(params, usageFact, time.Now())
 }
 
 func resolveUpstreamCostUSDAt(params RecordConsumeLogParams, usageFact usagepkg.Fact, at time.Time) (float64, bool) {

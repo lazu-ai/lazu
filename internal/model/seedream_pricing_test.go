@@ -3,6 +3,7 @@ package model
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	usagepkg "github.com/lazu-ai/lazu/internal/usage"
@@ -45,7 +46,7 @@ func TestSeedreamPricesAndUsageSurvivePersistence(t *testing.T) {
 	if err := db.Create(&cost).Error; err != nil {
 		t.Fatal(err)
 	}
-	costUSD, ok := resolveUpstreamCostUSD(RecordConsumeLogParams{ChannelId: 42, ModelName: row.ModelName, Other: map[string]interface{}{}}, parsed)
+	costUSD, ok := resolveUpstreamCostUSDAt(RecordConsumeLogParams{ChannelId: 42, ModelName: row.ModelName, Other: map[string]interface{}{}}, parsed, time.Now())
 	if !ok || math.Abs(costUSD-.0564) > 1e-9 {
 		t.Fatalf("wrong provider cost: %.9f %v", costUSD, ok)
 	}

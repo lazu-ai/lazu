@@ -45,7 +45,7 @@ func TestSearchModelsDoesNotMatchDescriptionOnly(t *testing.T) {
 		t.Fatalf("failed to create sonar model: %v", err)
 	}
 
-	got, total, err := SearchModels("deepseek", "", 0, 20, "name_asc")
+	got, total, err := SearchModelsWithFilters("deepseek", "", "", "", 0, 20, "name_asc")
 	if err != nil {
 		t.Fatalf("search failed: %v", err)
 	}
