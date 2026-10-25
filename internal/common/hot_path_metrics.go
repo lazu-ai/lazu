@@ -23,6 +23,9 @@ const (
 	HotPathStageProtocolParse             = "protocol.parse"
 	HotPathStageOutboundBody              = "protocol.outbound_body"
 	HotPathStageProtocolStreamEvent       = "protocol.stream_event"
+	// HotPathStageChatStreamEvent times one upstream event on the native
+	// chat stream (decode, usage, forward); conversion has its own stage.
+	HotPathStageChatStreamEvent = "relay.chat_stream_event"
 
 	HotPathCounterAuthTokenCacheHit         = "auth.token_cache.hit"  // secret-scan: allow -- metric label
 	HotPathCounterAuthTokenCacheMiss        = "auth.token_cache.miss" // secret-scan: allow -- metric label
@@ -47,11 +50,18 @@ var (
 	hotPathCounters         sync.Map // map[string]*atomic.Int64
 )
 
+// HotPathStageBucketsUS are the upper bounds, in microseconds, of the
+// per-stage duration histogram; the last bucket is unbounded.
+var HotPathStageBucketsUS = [...]int64{100, 250, 500, 1_000, 2_500, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000}
+
 type hotPathStageMetric struct {
 	count           atomic.Int64
 	errorCount      atomic.Int64
 	totalDurationUS atomic.Int64
 	maxDurationUS   atomic.Int64
+	// buckets[i] counts observations in (bound[i-1], bound[i]]; the extra
+	// slot counts those above the last bound.
+	buckets [len(HotPathStageBucketsUS) + 1]atomic.Int64
 }
 
 type HotPathStageTimer struct {
@@ -66,6 +76,11 @@ type HotPathStageStats struct {
 	TotalDurationUS int64   `json:"total_duration_us"`
 	MaxDurationUS   int64   `json:"max_duration_us"`
 	AvgDurationMS   float64 `json:"avg_duration_ms"`
+	// Buckets are cumulative counts at each HotPathStageBucketsUS bound. An
+	// array, not a slice, so stats stay comparable.
+	Buckets [len(HotPathStageBucketsUS)]int64 `json:"buckets"`
+	// HistogramCount is every bucketed observation, the +Inf bucket.
+	HistogramCount int64 `json:"histogram_count,omitempty"`
 }
 
 type HotPathMetricsSnapshot struct {
@@ -112,6 +127,14 @@ func ObserveHotPathStage(name string, duration time.Duration, failed bool) {
 		metric.errorCount.Add(1)
 	}
 	metric.totalDurationUS.Add(durationUS)
+	bucket := len(HotPathStageBucketsUS)
+	for i, bound := range HotPathStageBucketsUS {
+		if durationUS <= bound {
+			bucket = i
+			break
+		}
+	}
+	metric.buckets[bucket].Add(1)
 	for {
 		current := metric.maxDurationUS.Load()
 		if durationUS <= current {
@@ -167,6 +190,12 @@ func SnapshotHotPathMetrics() HotPathMetricsSnapshot {
 		if count > 0 {
 			stats.AvgDurationMS = float64(totalDurationUS) / float64(count) / 1000
 		}
+		var cumulative int64
+		for i := range HotPathStageBucketsUS {
+			cumulative += metric.buckets[i].Load()
+			stats.Buckets[i] = cumulative
+		}
+		stats.HistogramCount = cumulative + metric.buckets[len(HotPathStageBucketsUS)].Load()
 		snapshot.Stages[name] = stats
 		return true
 	})

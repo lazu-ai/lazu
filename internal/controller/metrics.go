@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -88,6 +89,8 @@ func GetPrometheusMetrics(c *gin.Context) {
 		writePrometheusSample(&b, "lazu_hot_path_stage_duration_seconds_avg", map[string]string{"stage": name}, stats.AvgDurationMS/1000)
 	}
 
+	writeHotPathStageHistogram(&b, stageNames, hotPath)
+
 	writePrometheusHelpType(&b, "lazu_hot_path_counter_total", "Hot-path counters.", "counter")
 	counterNames := sortedCounterNames(hotPath.Counters)
 	for _, name := range counterNames {
@@ -105,7 +108,88 @@ func GetPrometheusMetrics(c *gin.Context) {
 	writePrometheusHelpType(&b, "lazu_identity_l1_evictions_total", "Process-local identity snapshot cache evictions.", "counter")
 	writePrometheusSample(&b, "lazu_identity_l1_evictions_total", nil, float64(identityL1.Evictions))
 
+	writeRuntimeMetrics(&b)
+	writePoolMetrics(&b)
+
 	c.Data(200, prometheusContentType, []byte(b.String()))
+}
+
+// writeHotPathStageHistogram exposes each stage's duration distribution as a
+// Prometheus histogram, so quantiles can be computed across scrapes.
+func writeHotPathStageHistogram(b *strings.Builder, stageNames []string, hotPath common.HotPathMetricsSnapshot) {
+	const name = "lazu_hot_path_stage_latency_seconds"
+	writePrometheusHelpType(b, name, "Hot-path stage duration distribution.", "histogram")
+	for _, stage := range stageNames {
+		stats := hotPath.Stages[stage]
+		for i, bound := range common.HotPathStageBucketsUS {
+			le := strconv.FormatFloat(float64(bound)/1_000_000, 'f', -1, 64)
+			writePrometheusSample(b, name+"_bucket", map[string]string{"stage": stage, "le": le}, float64(stats.Buckets[i]))
+		}
+		writePrometheusSample(b, name+"_bucket", map[string]string{"stage": stage, "le": "+Inf"}, float64(stats.HistogramCount))
+		writePrometheusSample(b, name+"_sum", map[string]string{"stage": stage}, float64(stats.TotalDurationUS)/1_000_000)
+		writePrometheusSample(b, name+"_count", map[string]string{"stage": stage}, float64(stats.HistogramCount))
+	}
+}
+
+// writeRuntimeMetrics reads Go runtime statistics at scrape time; nothing is
+// recorded on the request path.
+func writeRuntimeMetrics(b *strings.Builder) {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	writePrometheusHelpType(b, "lazu_go_goroutines", "Goroutines that currently exist.", "gauge")
+	writePrometheusSample(b, "lazu_go_goroutines", nil, float64(runtime.NumGoroutine()))
+	writePrometheusHelpType(b, "lazu_go_heap_alloc_bytes", "Bytes of allocated heap objects.", "gauge")
+	writePrometheusSample(b, "lazu_go_heap_alloc_bytes", nil, float64(mem.HeapAlloc))
+	writePrometheusHelpType(b, "lazu_go_heap_inuse_bytes", "Bytes in in-use heap spans.", "gauge")
+	writePrometheusSample(b, "lazu_go_heap_inuse_bytes", nil, float64(mem.HeapInuse))
+	writePrometheusHelpType(b, "lazu_go_sys_bytes", "Bytes of memory obtained from the OS.", "gauge")
+	writePrometheusSample(b, "lazu_go_sys_bytes", nil, float64(mem.Sys))
+	writePrometheusHelpType(b, "lazu_go_gc_cycles_total", "Completed GC cycles.", "counter")
+	writePrometheusSample(b, "lazu_go_gc_cycles_total", nil, float64(mem.NumGC))
+	writePrometheusHelpType(b, "lazu_go_gc_pause_seconds_total", "Cumulative stop-the-world GC pause time.", "counter")
+	writePrometheusSample(b, "lazu_go_gc_pause_seconds_total", nil, float64(mem.PauseTotalNs)/1e9)
+	writePrometheusHelpType(b, "lazu_go_gc_last_pause_seconds", "Duration of the most recent GC pause.", "gauge")
+	writePrometheusSample(b, "lazu_go_gc_last_pause_seconds", nil, float64(mem.PauseNs[(mem.NumGC+255)%256])/1e9)
+}
+
+// writePoolMetrics reports database and Redis connection pool statistics at
+// scrape time, including how often callers waited for or failed to get a
+// connection.
+func writePoolMetrics(b *strings.Builder) {
+	pools := model.DBPoolStats()
+	names := make([]string, 0, len(pools))
+	for name := range pools {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	writePrometheusHelpType(b, "lazu_db_pool_open_connections", "Open database connections, in use and idle.", "gauge")
+	writePrometheusHelpType(b, "lazu_db_pool_in_use_connections", "Database connections currently in use.", "gauge")
+	writePrometheusHelpType(b, "lazu_db_pool_idle_connections", "Idle database connections.", "gauge")
+	writePrometheusHelpType(b, "lazu_db_pool_wait_total", "Times a caller waited for a database connection.", "counter")
+	writePrometheusHelpType(b, "lazu_db_pool_wait_seconds_total", "Total time callers waited for a database connection.", "counter")
+	for _, name := range names {
+		stats := pools[name]
+		labels := map[string]string{"db": name}
+		writePrometheusSample(b, "lazu_db_pool_open_connections", labels, float64(stats.OpenConnections))
+		writePrometheusSample(b, "lazu_db_pool_in_use_connections", labels, float64(stats.InUse))
+		writePrometheusSample(b, "lazu_db_pool_idle_connections", labels, float64(stats.Idle))
+		writePrometheusSample(b, "lazu_db_pool_wait_total", labels, float64(stats.WaitCount))
+		writePrometheusSample(b, "lazu_db_pool_wait_seconds_total", labels, stats.WaitDuration.Seconds())
+	}
+	if !common.RedisEnabled || common.RDB == nil {
+		return
+	}
+	redisStats := common.RDB.PoolStats()
+	writePrometheusHelpType(b, "lazu_redis_pool_total_connections", "Redis connections in the pool.", "gauge")
+	writePrometheusSample(b, "lazu_redis_pool_total_connections", nil, float64(redisStats.TotalConns))
+	writePrometheusHelpType(b, "lazu_redis_pool_idle_connections", "Idle Redis connections in the pool.", "gauge")
+	writePrometheusSample(b, "lazu_redis_pool_idle_connections", nil, float64(redisStats.IdleConns))
+	writePrometheusHelpType(b, "lazu_redis_pool_hits_total", "Times a free Redis connection was found in the pool.", "counter")
+	writePrometheusSample(b, "lazu_redis_pool_hits_total", nil, float64(redisStats.Hits))
+	writePrometheusHelpType(b, "lazu_redis_pool_misses_total", "Times no free Redis connection was in the pool.", "counter")
+	writePrometheusSample(b, "lazu_redis_pool_misses_total", nil, float64(redisStats.Misses))
+	writePrometheusHelpType(b, "lazu_redis_pool_timeouts_total", "Times waiting for a Redis connection timed out.", "counter")
+	writePrometheusSample(b, "lazu_redis_pool_timeouts_total", nil, float64(redisStats.Timeouts))
 }
 
 func writeProtocolMetrics(b *strings.Builder, hotPath common.HotPathMetricsSnapshot) {
