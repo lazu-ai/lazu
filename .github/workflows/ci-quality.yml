@@ -207,6 +207,9 @@ jobs:
       - name: Check the docs error reference is current
         run: go run ./ops/tools/errdocs -check
 
+      - name: Check every route has a caller, a document or an allowlist entry
+        run: make test-route-coverage
+
       - name: Check for Go functions nothing calls
         run: make test-deadcode
 
