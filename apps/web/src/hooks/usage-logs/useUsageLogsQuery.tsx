@@ -29,13 +29,9 @@ import { API } from '../../helpers/api';
 import { getLogOther } from '../../helpers/log';
 import { asMicroUSD } from '../../helpers/money';
 import { renderQuota } from '../../helpers/render';
-import {
-  copy,
-  showError,
-  showSuccess,
-  timestamp2string,
-} from '../../helpers/utils';
+import { copy, showError, showSuccess } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
+import { formatTimestamp } from '../../lib/date';
 import { queryKeys } from '../../lib/query-keys';
 
 export type UsageLogFilters = {
@@ -387,7 +383,7 @@ const normalizeLog = (record: UsageLogRecord): NormalizedUsageLogRecord => {
       otherString(other, 'refund_task_id') ||
       extractRefundTaskIdFromContent(content),
     taskIdentifier,
-    timestamp2string: timestamp2string(record?.created_at || 0),
+    timestamp2string: formatTimestamp(record?.created_at || 0),
   };
 };
 

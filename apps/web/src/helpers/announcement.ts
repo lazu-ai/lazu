@@ -1,4 +1,4 @@
-import { getRelativeTime } from './utils';
+import { formatRelativeTime } from '../lib/date';
 
 // Dispatched after announcements are dismissed (from any surface) so other
 // surfaces can refresh their per-user unread state from the server.
@@ -75,7 +75,7 @@ export const normalizeAnnouncement = (
     type: item?.type || 'default',
     title: item?.title || '',
     time: item?.time || formatAnnouncementAbsoluteTime(item?.publishDate),
-    relative: item?.relative || String(getRelativeTime(item?.publishDate)),
+    relative: item?.relative || String(formatRelativeTime(item?.publishDate)),
     isUnread:
       typeof item?.isUnread === 'boolean' ? item.isUnread : unreadSet.has(key),
   };

@@ -1,15 +1,11 @@
-import {
-  timestamp2string,
-  timestamp2string1,
-  copy,
-  showSuccess,
-} from './utils';
+import { timestamp2string1, copy, showSuccess } from './utils';
 import {
   STORAGE_KEYS,
   DEFAULT_TIME_INTERVALS,
   DEFAULTS,
   ILLUSTRATION_SIZE,
 } from '../constants/dashboard.constants';
+import { formatTimestamp } from '../lib/date';
 import type { LucideIcon } from 'lucide-react';
 import type { ComponentType, Dispatch, ReactNode, SetStateAction } from 'react';
 import { Progress, Divider, Empty } from '@/components/ui/console-primitives';
@@ -115,11 +111,11 @@ export const getInitialTimestamp = (): string => {
 
   switch (defaultTime) {
     case 'hour':
-      return timestamp2string(now - 86400);
+      return formatTimestamp(now - 86400);
     case 'week':
-      return timestamp2string(now - 86400 * 30);
+      return formatTimestamp(now - 86400 * 30);
     default:
-      return timestamp2string(now - 86400 * 7);
+      return formatTimestamp(now - 86400 * 7);
   }
 };
 
