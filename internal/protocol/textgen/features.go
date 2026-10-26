@@ -55,6 +55,9 @@ const (
 	// required: a native relay passes its own wire, the Messages encoder
 	// writes it, and only a bridge elsewhere refuses it.
 	FeatureAnthropicOptions
+	// FeatureEndpointGemini is Gemini's generateContent as a native
+	// endpoint of the channel.
+	FeatureEndpointGemini
 )
 
 var featureNames = map[FeatureID]string{
@@ -71,7 +74,7 @@ var featureNames = map[FeatureID]string{
 	FeatureIncludeUnsupported: "include.unsupported", FeatureOpaqueReasoningItem: "input.reasoning_opaque", FeatureInputReference: "input.reference",
 	FeatureStore: "lifecycle.store", FeatureHostedToolNativeOnly: "tools.hosted_native_only", FeatureOpaqueInputItem: "input.opaque_item",
 	FeatureEndpointMessages: "endpoint.messages", FeatureReasoningBudget: "reasoning.budget", FeatureAnthropicOptions: "vendor.anthropic",
-	FeatureUnknownField: "wire.unknown_field",
+	FeatureEndpointGemini: "endpoint.gemini", FeatureUnknownField: "wire.unknown_field",
 }
 
 func (f FeatureID) String() string {
@@ -89,7 +92,7 @@ func (s FeatureSet) Contains(required FeatureSet) bool      { return s&required 
 func (s FeatureSet) Missing(required FeatureSet) FeatureSet { return required &^ s }
 func (s FeatureSet) Names() []string {
 	result := make([]string, 0)
-	for feature := FeatureID(0); feature <= FeatureUnknownField; feature++ {
+	for feature := FeatureID(0); feature <= FeatureEndpointGemini; feature++ {
 		if s.Has(feature) {
 			result = append(result, feature.String())
 		}

@@ -727,10 +727,6 @@ func sanitizeOIDCUsername(username string) string {
 	return username
 }
 
-func uniqueOIDCUsername(base string) (string, error) {
-	return uniqueOIDCUsernameTx(model.CoreDB(), base)
-}
-
 func uniqueOIDCUsernameTx(db *gorm.DB, base string) (string, error) {
 	if db == nil {
 		return "", errors.New("database is not initialized")

@@ -462,9 +462,10 @@ func probeExplicitStream(jsonData []byte, info *relaycommon.RelayInfo) ([]byte, 
 	return relaycommon.SetExplicitStream(jsonData, info.IsStream)
 }
 
-// planProbeAttempt plans an OpenAI-shaped probe onto the channel exactly as
-// the relay plans a request (textgenruntime.PrepareAttempt), so the probe
-// takes the same native path or bridge. Other request shapes have no plan.
+// planProbeAttempt plans an OpenAI-shaped or Gemini probe onto the channel
+// exactly as the relay plans a request (textgenruntime.PrepareAttempt), so
+// the probe takes the same native path or bridge. Other request shapes have
+// no plan.
 func planProbeAttempt(info *relaycommon.RelayInfo, channel *model.Channel, request dto.Request) error {
 	var family textgen.ProtocolFamily
 	switch request.(type) {
@@ -472,6 +473,8 @@ func planProbeAttempt(info *relaycommon.RelayInfo, channel *model.Channel, reque
 		family = textgen.ProtocolOpenAIChat
 	case *dto.OpenAIResponsesRequest:
 		family = textgen.ProtocolOpenAIResponses
+	case *dto.GeminiChatRequest:
+		family = textgen.ProtocolGemini
 	default:
 		return nil
 	}
@@ -479,7 +482,13 @@ func planProbeAttempt(info *relaycommon.RelayInfo, channel *model.Channel, reque
 	if err != nil {
 		return err
 	}
-	parsed, err := textgenruntime.Parse(family, body)
+	var parsed *textgen.ParsedRequest
+	if family == textgen.ProtocolGemini {
+		// a Gemini client names its model in the URL
+		parsed, err = textgenruntime.ParseGemini(body, info.OriginModelName, info.IsStream)
+	} else {
+		parsed, err = textgenruntime.Parse(family, body)
+	}
 	if err != nil {
 		return err
 	}

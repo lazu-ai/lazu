@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"strings"
@@ -426,7 +427,7 @@ func TestChannelHealthExcludesLegacyOutcomesWithoutStampedLane(t *testing.T) {
 	if err != nil || len(percentiles) != 0 {
 		t.Fatalf("legacy percentiles = %+v err=%v, want none", percentiles, err)
 	}
-	last, err := QueryChannelHealthLastOutcomes(since)
+	last, err := QueryChannelHealthLastOutcomesContext(context.Background(), since)
 	if err != nil || len(last) != 0 {
 		t.Fatalf("legacy last outcomes = %+v err=%v, want none", last, err)
 	}
@@ -563,7 +564,7 @@ func TestChannelHealthQueriesExecute(t *testing.T) {
 		t.Errorf("grid = %+v, want one gpt-5.2 route on openai-main", grid)
 	}
 
-	lastOutcomes, err := QueryChannelHealthLastOutcomes(since)
+	lastOutcomes, err := QueryChannelHealthLastOutcomesContext(context.Background(), since)
 	if err != nil {
 		t.Fatalf("QueryChannelHealthLastOutcomes: %v", err)
 	}

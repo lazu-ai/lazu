@@ -722,25 +722,6 @@ func (token *Token) IsVendorLimited(vendorID int) bool {
 	return false
 }
 
-func GetAllUserTokens(userId int, startIdx int, num int) ([]*Token, error) {
-	return GetAllUserTokensByStatus(userId, 0, startIdx, num)
-}
-
-func publicUserTokenStatusQuery(userId int, status int) *gorm.DB {
-	query := publicUserTokenQuery(userId)
-	if status > 0 {
-		query = query.Where("status = ?", status)
-	}
-	return query
-}
-
-func GetAllUserTokensByStatus(userId int, status int, startIdx int, num int) ([]*Token, error) {
-	var tokens []*Token
-	var err error
-	err = publicUserTokenStatusQuery(userId, status).Order("id desc").Limit(num).Offset(startIdx).Find(&tokens).Error
-	return tokens, err
-}
-
 // GetUserTokensAdmin returns a page of a single account's tokens for the
 // admin console, newest first, with total. Internal extension tokens are
 // excluded exactly as the self-service listing excludes them. Callers must
@@ -752,15 +733,6 @@ func GetUserTokensAdmin(userId int, startIdx int, num int) (tokens []*Token, tot
 	}
 	err = publicUserTokenQuery(userId).Order("id desc").Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, total, err
-}
-
-func SearchUserTokens(userId int, keyword string, token string) (tokens []*Token, err error) {
-	return SearchUserTokensByStatus(userId, keyword, token, 0)
-}
-
-func SearchUserTokensByStatus(userId int, keyword string, token string, status int) (tokens []*Token, err error) {
-	err = FilterTokenSearch(publicUserTokenStatusQuery(userId, status), keyword, token).Find(&tokens).Error
-	return tokens, err
 }
 
 // FilterTokenSearch preserves single-box name and credential hint matching on
@@ -1214,17 +1186,6 @@ func DeleteTokenById(id int, userId int) (err error) {
 		return err
 	}
 	return token.Delete()
-}
-
-// CountUserTokens returns total number of tokens for the given user, used for pagination
-func CountUserTokens(userId int) (int64, error) {
-	return CountUserTokensByStatus(userId, 0)
-}
-
-func CountUserTokensByStatus(userId int, status int) (int64, error) {
-	var total int64
-	err := publicUserTokenStatusQuery(userId, status).Count(&total).Error
-	return total, err
 }
 
 // CountUsableUserTokens excludes hidden internal credentials as well as keys
