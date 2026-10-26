@@ -407,6 +407,19 @@ callback `/user/reset` and the canonical wallet callbacks `/console/wallet`
 and `/console/usage` redirect to the matching SPA routes while API paths and
 unknown paths continue to return their normal responses.
 
+## Upgrade path
+
+A release upgrades a deployment in one step from any schema version released in
+the last six months; it runs every migration in between on start (or through
+`lazu-migrate`). Migration code for older schema versions may be removed, and a
+release that removes it refuses to start on such a database with a message
+naming the release to upgrade to first, then to the current one.
+
+Today every schema version is inside the window: version 1 shipped with v0.1.0
+on 2026-07-13, so any lazu release upgrades directly. Version 1's code may go
+from 2027-01-13; the new-api era cleanup as a whole (schema versions 1–15, up
+to v0.7.108, 2026-09-30) from 2027-03-30.
+
 ## Changing Credentials
 
 1. Edit `.env` or `config/backend/config.yaml`.

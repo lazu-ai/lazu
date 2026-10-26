@@ -72,6 +72,30 @@ const (
 	schemaVersionLog     = "log"
 )
 
+// Migration support window (AGENTS.md, Deployment Notes): a deployment
+// upgrades in one step from any schema version released in the last six
+// months. A version's migration code may be deleted six months after it
+// shipped; schemaUpgradeFloor then rises to the oldest version still handled,
+// and a deployment below it upgrades through schemaUpgradeGateRelease first.
+// The oldest version, 1, shipped on 2026-07-13, so nothing is refused yet;
+// v15 and earlier (the new-api era cleanup) may go from 2027-03-30.
+var (
+	schemaUpgradeFloor       = 0
+	schemaUpgradeGateRelease = ""
+)
+
+// checkSchemaUpgradeFloor refuses a stored schema older than this release can
+// migrate from, naming the release to upgrade through.
+func checkSchemaUpgradeFloor(scope string, stored int) error {
+	if stored >= schemaUpgradeFloor {
+		return nil
+	}
+	return fmt.Errorf(
+		"%s schema version %d is older than version %d, the oldest this release upgrades from; upgrade to lazu %s first, then to this release",
+		scope, stored, schemaUpgradeFloor, schemaUpgradeGateRelease,
+	)
+}
+
 type SchemaVersion struct {
 	Scope     string    `gorm:"primaryKey;size:64"`
 	Version   int       `gorm:"not null"`
@@ -143,6 +167,11 @@ func runSchemaMigrations(db *gorm.DB, scope string, migrate func() error) error 
 				existing.Version,
 				SchemaVersionCurrent,
 			)
+		}
+		if err == nil {
+			if err := checkSchemaUpgradeFloor(scope, existing.Version); err != nil {
+				return err
+			}
 		}
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("read existing %s schema version: %w", scope, err)
