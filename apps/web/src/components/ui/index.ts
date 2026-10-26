@@ -3,12 +3,6 @@
    ones a page does not use out of its chunk; this barrel remains for
    extensions that import from 'components/ui'. */
 export {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from './accordion';
-export {
   AutoReloadCard,
   AutoReloadFailureNotice,
   type AutoReloadPauseReason,
@@ -118,13 +112,7 @@ export {
   TopupRecord,
   type TopupRecordData,
 } from './topup-record';
-export {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipRoot,
-  TooltipTrigger,
-} from './tooltip';
+export { Tooltip } from './tooltip';
 export { Upload } from './upload';
 export { InlineSecret } from './inline-secret';
 export { AgentBadge, agentName, isKnownAgent } from './agent-badge';

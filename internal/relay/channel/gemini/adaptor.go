@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	"github.com/lazu-ai/lazu/internal/relay/channel"
-	"github.com/lazu-ai/lazu/internal/relay/channel/openai"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/constant"
 	"github.com/lazu-ai/lazu/internal/setting/model_setting"
@@ -39,15 +41,6 @@ func (a *Adaptor) ConvertGeminiRequest(c *gin.Context, info *relaycommon.RelayIn
 		}
 	}
 	return request, nil
-}
-
-func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, req *dto.ClaudeRequest) (any, error) {
-	adaptor := openai.Adaptor{}
-	oaiReq, err := adaptor.ConvertClaudeRequest(c, info, req)
-	if err != nil {
-		return nil, err
-	}
-	return a.ConvertOpenAIRequest(c, info, oaiReq.(*dto.GeneralOpenAIRequest))
 }
 
 func (a *Adaptor) ConvertVideoRequest(_ *gin.Context, _ *relaycommon.RelayInfo, request dto.VideoRequest) (any, error) {
@@ -190,18 +183,6 @@ func (a *Adaptor) Init(info *relaycommon.RelayInfo) {
 
 func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 
-	if model_setting.GetGeminiSettings().ThinkingAdapterEnabled {
-		// 新增逻辑：处理 -thinking-<budget> 格式
-		if strings.Contains(info.UpstreamModelName, "-thinking-") {
-			parts := strings.Split(info.UpstreamModelName, "-thinking-")
-			info.UpstreamModelName = parts[0]
-		} else if strings.HasSuffix(info.UpstreamModelName, "-thinking") { // 旧的适配
-			info.UpstreamModelName = strings.TrimSuffix(info.UpstreamModelName, "-thinking")
-		} else if strings.HasSuffix(info.UpstreamModelName, "-nothinking") {
-			info.UpstreamModelName = strings.TrimSuffix(info.UpstreamModelName, "-nothinking")
-		}
-	}
-
 	version := model_setting.GetGeminiVersionSetting(info.UpstreamModelName)
 
 	if info.RelayMode == constant.RelayModeVideoSubmit {
@@ -247,12 +228,19 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 		return nil, errors.New("request is nil")
 	}
 
-	geminiRequest, err := CovertGemini2OpenAI(c, *request, info)
+	// A Chat request that reached the channel without a plan is encoded the
+	// way a bridged one is: decoded into the IR, then the Gemini codec and the
+	// channel's policy (EncodeBridgedRequest).
+	body, err := common.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
-
-	return geminiRequest, nil
+	semantic, _, err := openai_chat.Decode(body)
+	if err != nil {
+		return nil, err
+	}
+	semantic.Model.Upstream = info.UpstreamModelName
+	return EncodeBridgedRequest(c, info, semantic)
 }
 
 func (a *Adaptor) ConvertEmbeddingRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.EmbeddingRequest) (any, error) {
@@ -303,6 +291,12 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.LazuError) {
+	if BridgesToGemini(info) {
+		if info.IsStream {
+			return bridgedStreamHandler(c, resp, info)
+		}
+		return bridgedHandler(c, resp, info)
+	}
 	if info.RelayMode == constant.RelayModeGemini {
 		if strings.Contains(info.RequestURLPath, ":embedContent") ||
 			strings.Contains(info.RequestURLPath, ":batchEmbedContents") {
@@ -331,12 +325,21 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 		return GeminiEmbeddingHandler(c, info, resp)
 	}
 
-	if info.IsStream {
-		return GeminiChatStreamHandler(c, info, resp)
-	} else {
-		return GeminiChatHandler(c, info, resp)
+	if info.RelayMode == constant.RelayModeChatCompletions && info.ProtocolPlan == nil {
+		// an unplanned Chat request (the console playground is not parsed):
+		// ConvertOpenAIRequest encoded it through the codec, and its reply is
+		// served as a planned Chat client's
+		info.ProtocolPlan = &textgen.RelayPlan{
+			ClientProtocol:   textgen.Protocol{Family: textgen.ProtocolOpenAIChat, Dialect: "openai"},
+			UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolGemini, Dialect: "gemini"},
+		}
+		if info.IsStream {
+			return bridgedStreamHandler(c, resp, info)
+		}
+		return bridgedHandler(c, resp, info)
 	}
-
+	// text generation for any other client is planned and bridged above
+	return nil, types.NewError(fmt.Errorf("a Gemini channel serves text generation through a protocol plan; this request has none"), types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 }
 
 func (a *Adaptor) GetChannelName() string {
