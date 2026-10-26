@@ -21,14 +21,14 @@ import {
   Sun,
   Wallet,
 } from 'lucide-react';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './console-topbar.css';
 import { resolveConsoleSection } from './routeMeta';
 import { preloadConsoleRoute } from './routePreload';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
 import { useSession } from '../../context/User';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
@@ -79,7 +79,7 @@ const ConsoleTopBar = () => {
   const navigate = useNavigate();
   const project = useProject();
   const userSession = useSession();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const { activeScope } = useConsoleScope();
   const actualTheme = useActualTheme();
   const rawSetTheme = useSetTheme();

@@ -6,14 +6,13 @@
  * the control the person presses, on an uncluttered background — plus the
  * version and timestamp the server writes onto the account. Both are here.
  */
-import { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 
 const TermsNotice = () => {
   const { t } = useTranslation();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const hasUserAgreement = Boolean(statusState.status?.user_agreement_enabled);
   const hasPrivacyPolicy = Boolean(statusState.status?.privacy_policy_enabled);
 

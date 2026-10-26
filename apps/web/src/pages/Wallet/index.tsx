@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { Download, History, Search } from 'lucide-react';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -32,7 +32,7 @@ import {
 } from '../../components/ui/topup-bar';
 import { TopupRecord } from '../../components/ui/topup-record';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useSession } from '../../context/User';
 import { useTopUpOffer, webExtensions } from '../../extensions';
 import { API } from '../../helpers/api';
@@ -204,7 +204,7 @@ const WalletPage = () => {
   };
   const queryClient = useQueryClient();
   const userSession = useSession();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const [period, setPeriod] = useState<'current' | 'previous'>('current');
   const [selectedMethod, setSelectedMethod] = useState('stripe');
   const [confirmOpen, setConfirmOpen] = useState(false);

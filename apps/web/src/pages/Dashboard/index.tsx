@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { useContext, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PlatformOverview from './overview/PlatformOverview';
 import WorkspaceOverview from './overview/WorkspaceOverview';
@@ -8,7 +8,7 @@ import OnboardingTakeover from '../../components/onboarding/OnboardingTakeover';
 import useOnboarding from '../../components/onboarding/useOnboarding';
 import ConsolePage from '../../components/ui/console-page';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useSession } from '../../context/User';
 import { extensionSidebarEntries, webExtensions } from '../../extensions';
 import { LeaveProjectAction } from '../../features/projects/components/LeaveProjectAction';
@@ -51,7 +51,7 @@ const Dashboard = () => {
     nsMode: 'fallback',
   });
   const userSession = useSession();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const { availableScopes } = useConsoleScope();
   const project = useProject();
   const projectDetail = useProjectDetail({

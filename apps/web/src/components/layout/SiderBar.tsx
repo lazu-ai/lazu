@@ -1,5 +1,5 @@
 import { ArrowUpRight, BookOpen, LogOut } from 'lucide-react';
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ChromeControls from './headerbar/ChromeControls';
@@ -8,7 +8,7 @@ import { preloadConsoleRoute } from './routePreload';
 import { shouldRenderSidebarSection } from './sidebarVisibility';
 import { BrandLogo } from '../../brand';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
 import { useSession } from '../../context/User';
 import { extensionSidebarEntries } from '../../extensions';
@@ -132,7 +132,7 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
   const location = useLocation();
   const actualTheme = useActualTheme();
   const userSession = useSession();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   // Operators can point documentation elsewhere at runtime
   // (general_setting.docs_link); the build-time default is the fallback,
   // same order the public header uses.

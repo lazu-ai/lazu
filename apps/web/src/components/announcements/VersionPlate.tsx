@@ -1,5 +1,5 @@
 import { Bell } from 'lucide-react';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatVersionLabel } from './versionLabel';
 import {
@@ -9,7 +9,7 @@ import {
   todayDayKey,
 } from './whatsNewAutoOpen';
 import { openWhatsNewDialog } from './whatsNewChannel';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useSession } from '../../context/User';
 import { useAnnouncementsUnread } from '../../hooks/common/useAnnouncementsUnread';
 import './version-plate.css';
@@ -34,8 +34,8 @@ const VersionPlate = ({
   variant = 'sidebar',
 }: VersionPlateProps) => {
   const { t } = useTranslation();
-  const [statusState] = useContext(StatusContext);
   const userSession = useSession();
+  const statusState = useStatus();
   const user = userSession.user;
   const { criticalAnnouncement, hasCritical, hasUnread, unreadCount } =
     useAnnouncementsUnread(Boolean(user));

@@ -1,10 +1,10 @@
 import { Check, Globe2, Menu, Moon, Sun, X } from 'lucide-react';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import Reveal from './Reveal';
 import ThemedBrandLogo from './ThemedBrandLogo';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
 import { useSession } from '../../context/User';
 import { webExtensions } from '../../extensions';
@@ -70,7 +70,7 @@ const PublicHeader = ({ pathnameOverride }: PublicHeaderProps = {}) => {
     isMarketingBarePath(bare) ? localizedMarketingPath(bare, pathLocale) : bare;
   const actualTheme = useActualTheme();
   const setTheme = useSetTheme();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const isDark = actualTheme === 'dark';
   const brandName = t('brand.name');
 

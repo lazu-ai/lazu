@@ -1,5 +1,3 @@
-import { readStoredStatus } from '../../helpers/statusStorage';
-
 export type StatusPayload =
   | (Record<string, unknown> & {
       HeaderNavModules?: string;
@@ -37,31 +35,3 @@ export type StatusAction =
       type: string;
       payload?: StatusPayload;
     };
-
-export const reducer = (
-  state: StatusState,
-  action: StatusAction,
-): StatusState => {
-  switch (action.type) {
-    case 'set':
-      return {
-        ...state,
-        status: action.payload,
-      };
-    case 'unset':
-      return {
-        ...state,
-        status: undefined,
-      };
-    default:
-      return state;
-  }
-};
-
-const loadInitialStatus = (): StatusPayload => {
-  return readStoredStatus() as StatusPayload;
-};
-
-export const initialState: StatusState = {
-  status: loadInitialStatus(),
-};

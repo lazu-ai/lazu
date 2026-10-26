@@ -1,5 +1,5 @@
 import { RefreshCcw, Send } from 'lucide-react';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { formatVersionLabel } from './versionLabel';
@@ -7,7 +7,7 @@ import {
   WHATS_NEW_OPEN_EVENT,
   type WhatsNewOpenDetail,
 } from './whatsNewChannel';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useSession } from '../../context/User';
 import {
   ANNOUNCEMENTS_UPDATED_EVENT,
@@ -34,8 +34,8 @@ const dismissAnnouncement = async (id: number | string) => {
 const WhatsNewDialog = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
-  const [statusState] = useContext(StatusContext);
   const userSession = useSession();
+  const statusState = useStatus();
   const [items, setItems] = useState<Announcement[]>([]);
   const [pinnedAnnouncement, setPinnedAnnouncement] =
     useState<Announcement | null>(null);
