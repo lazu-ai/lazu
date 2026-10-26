@@ -39,10 +39,11 @@ import { API } from '../../helpers/api';
 import { getSupportEmail } from '../../helpers/brandUrls';
 import { asMicroUSD } from '../../helpers/money';
 import { getMicroUSDPerUSD, microUSDToUSD } from '../../helpers/render';
-import { isRoot, showError, timestamp2string } from '../../helpers/utils';
+import { isRoot, showError } from '../../helpers/utils';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
+import { formatTimestamp } from '../../lib/date';
 import { queryKeys } from '../../lib/query-keys';
 import './wallet.css';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -531,7 +532,7 @@ const WalletPage = () => {
         header: t(`${topupNs}.history.effective`),
         id: 'effective_time',
         cell: ({ row }) =>
-          timestamp2string(resolveTopupEffectiveTimestamp(row.original)),
+          formatTimestamp(resolveTopupEffectiveTimestamp(row.original)),
       },
     ];
     if (isRoot()) {

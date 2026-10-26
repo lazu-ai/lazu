@@ -5,7 +5,6 @@ export {
   formatDecimalValue,
   formatMessageForAPI,
   getLogo,
-  getRelativeTime,
   getSystemName,
   getUserFromLocalStorage,
   getUserIdFromLocalStorage,
@@ -17,7 +16,6 @@ export {
   showNotice,
   showSuccess,
   showWarning,
-  timestamp2string,
   timestamp2string1,
 } from './utils';
 export { copy } from './clipboard';

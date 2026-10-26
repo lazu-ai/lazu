@@ -15,7 +15,7 @@ import { Modal } from '../../components/ui/modal';
 import { Select } from '../../components/ui/select';
 import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import { getRelativeTime, showError } from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import {
   channelHealthQueryKey,
   useChannelHealthQuery,
@@ -29,6 +29,7 @@ import {
 } from '../../hooks/health/useChannelHealthQuery';
 import { unwrap } from '../../lib/api-error';
 import './channel-health.css';
+import { formatRelativeTime } from '../../lib/date';
 
 const ns = 'page.console.channelHealth';
 /** The console's one window: a week, drawn status-page style. */
@@ -407,7 +408,7 @@ export function ChannelHealthPage() {
         }),
         t(`${ns}.evidence.updated`, {
           defaultValue: '{{when}}更新',
-          when: getRelativeTime(payload.updated_at),
+          when: formatRelativeTime(payload.updated_at),
         }),
       ].join(' · ')
     : null;

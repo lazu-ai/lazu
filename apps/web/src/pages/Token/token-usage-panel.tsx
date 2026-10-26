@@ -8,8 +8,8 @@ import { UserContext } from '../../context/User';
 import { API } from '../../helpers/api';
 import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
-import { timestamp2string } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
+import { formatTimestamp } from '../../lib/date';
 import './token-usage-panel.css';
 
 /** Per-Key totals use its immutable public ID and an owner-checked endpoint. */
@@ -77,7 +77,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
   const expiryLabel =
     expired === -1
       ? t('page.console.token.usage.neverExpires', { defaultValue: '不过期' })
-      : timestamp2string(expired);
+      : formatTimestamp(expired);
   const daysLeft =
     expired === -1 ? null : dayjs.unix(expired).diff(dayjs(), 'day');
 
@@ -93,7 +93,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
     [
       t('secret.lastUsed'),
       record.last_used_at
-        ? timestamp2string(record.last_used_at)
+        ? formatTimestamp(record.last_used_at)
         : t('common.noData', { defaultValue: '无数据' }),
     ],
     [
@@ -118,7 +118,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
     [
       t('page.console.tables.create'),
       record.created_time
-        ? timestamp2string(record.created_time)
+        ? formatTimestamp(record.created_time)
         : t('common.noData', { defaultValue: '无数据' }),
     ],
   ];
