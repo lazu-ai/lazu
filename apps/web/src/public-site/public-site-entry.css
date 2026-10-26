@@ -6,7 +6,12 @@
  * imported went into a chunk shared by both entries, and Vite links an
  * entry's own CSS ahead of a shared chunk's. That is why public-site.css
  * comes first: it is the order these pages have shipped with, and keeping it
- * keeps them unchanged. */
+ * keeps them unchanged.
+ *
+ * The console's ui.css and shell.css are not here. No rule in either matches
+ * the API-rendered markup or the public chrome except `.lazu-card`'s
+ * overflow, which public-site.css sets itself. A page that mounts console UI
+ * components imports ui.css in that chunk. */
 @import './public-site.css';
 @import '../components/marketing/public-footer.css';
 @import '../pages/Home/lazu-landing.css';
@@ -15,7 +20,5 @@
 @import '../index.css';
 @import '../styles/brand.generated.css';
 @import '../styles/tokens.css';
-@import '../styles/ui.css';
-@import '../styles/shell.css';
 @import '../styles/atmosphere.css';
 @import '../styles/yunmu.css';

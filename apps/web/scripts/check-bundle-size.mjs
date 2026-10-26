@@ -19,6 +19,10 @@ const budgets = {
   // import at a time — and keeps ~15 KiB of headroom.
   initialJavaScript: 280 * 1024,
   initialCss: 65 * 1024,
+  // The stylesheet the API-rendered public pages (/models, legal pages) load
+  // through the public-site entry. Leaving out the console's ui.css and
+  // shell.css took it from 41.98 to 27.10 KiB gzip (2026-10).
+  publicSiteCss: 30 * 1024,
   // The Markdown graph absorbed what the entry gave up: micromark, remark and
   // the mdast utilities are ~47 KiB gzip and used to be paid by every visitor
   // to every page, including the landing page. They are now paid once, by the
@@ -78,6 +82,16 @@ addBudget(
   budgets.initialJavaScript,
 );
 addBudget('Initial CSS', [...new Set(initialCss)], budgets.initialCss);
+
+const publicSiteEntry = manifest['src/public-site/entry.ts'];
+if (!publicSiteEntry) {
+  throw new Error('Vite manifest is missing the public-site entry');
+}
+const publicSiteCss = new Set(publicSiteEntry.css || []);
+for (const key of publicSiteEntry.imports || []) {
+  for (const file of manifest[key]?.css || []) publicSiteCss.add(file);
+}
+addBudget('Public site CSS', [...publicSiteCss], budgets.publicSiteCss);
 
 const findEntryKey = (predicate, label) => {
   const entryKey = Object.entries(manifest).find(([, item]) =>
