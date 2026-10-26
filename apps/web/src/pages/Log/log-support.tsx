@@ -26,8 +26,8 @@ import {
   rejectionLabelKey,
 } from '../../features/projects/rejections';
 import { API } from '../../helpers/api';
+import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
 import {
   LOG_COLUMN_KEYS,
   getDefaultUsageLogFilters,
@@ -223,7 +223,7 @@ const logTypeLabel = (
 export const formatCost = (microusd: unknown) => {
   const value = Number(microusd) || 0;
   if (value === 0) return '$0';
-  if (Math.abs(value) < 1000) return renderQuota(asMicroUSD(value), 6);
+  if (Math.abs(value) < 1000) return formatMoney(asMicroUSD(value), 6);
   const usd = (Math.abs(value) / 1_000_000).toFixed(4);
   return `${value < 0 ? '-' : ''}$${usd}`;
 };

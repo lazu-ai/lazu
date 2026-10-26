@@ -1,9 +1,17 @@
 import i18next from 'i18next';
-import { asMicroUSD, type MicroUSD } from './money';
-import { copy, showSuccess, formatDecimalValue } from './utils';
+import {
+  asMicroUSD,
+  formatDecimalValue,
+  microUSDToUSD,
+  usdToMicroUSD,
+  type MicroUSD,
+} from './money';
+import { copy, showSuccess } from './utils';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import type { MouseEvent } from 'react';
 import { Modal, Tag } from '@/components/ui/console-primitives';
+
+export { getMicroUSDPerUSD, microUSDToUSD, usdToMicroUSD } from './money';
 
 // 颜色列表
 const colors: string[] = [
@@ -311,26 +319,6 @@ export function renderNumberWithPoint(num: number | undefined) {
   return fixed;
 }
 
-export function getMicroUSDPerUSD() {
-  const microUSDPerUSD = parseFloat(
-    localStorage.getItem('micro_usd_per_usd') || '1000000',
-  );
-  return Number.isFinite(microUSDPerUSD) && microUSDPerUSD > 0
-    ? microUSDPerUSD
-    : 1000000;
-}
-
-export function usdToMicroUSD(amount: number | string): MicroUSD {
-  const dollars = Number(amount);
-  return asMicroUSD(
-    Math.round((Number.isFinite(dollars) ? dollars : 0) * getMicroUSDPerUSD()),
-  );
-}
-
-export function microUSDToUSD(amountMicrousd: MicroUSD): number {
-  return amountMicrousd / getMicroUSDPerUSD();
-}
-
 export function renderUnitWithBalance(amount: number | string): MicroUSD {
   return usdToMicroUSD(amount);
 }
@@ -361,19 +349,6 @@ export function convertUSDToCurrency(usdAmount: number, digits = 2) {
   const { symbol, rate } = getCurrencyConfig();
   const convertedAmount = usdAmount * rate;
   return symbol + convertedAmount.toFixed(digits);
-}
-
-export function renderQuota(quota: MicroUSD | null | undefined, digits = 2) {
-  const quotaMicrousd = asMicroUSD(quota);
-  const resultUSD = microUSDToUSD(quotaMicrousd);
-  const symbol = '$';
-  const value = resultUSD;
-  const fixedResult = formatDecimalValue(value, digits);
-  if (parseFloat(fixedResult) === 0 && quotaMicrousd > 0 && value > 0) {
-    const minValue = Math.pow(10, -digits);
-    return symbol + formatDecimalValue(minValue, digits);
-  }
-  return symbol + fixedResult;
 }
 
 /**

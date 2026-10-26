@@ -42,9 +42,10 @@ import {
   type RateLimitCeiling,
 } from '../../constants/rate-limits';
 import { SEARCH_PROVIDERS } from '../../constants/search.constants';
+import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
-import { renderQuota, usdToMicroUSD } from '../../helpers/render';
+import { usdToMicroUSD } from '../../helpers/render';
 import {
   getDefaultTokenFormValues,
   useTokenDetailQuery,
@@ -583,7 +584,7 @@ function QuotaFields({
     unlimited,
     used: asMicroUSD(usedQuota),
   });
-  const usedText = renderQuota(quota.used);
+  const usedText = formatMoney(quota.used);
 
   return (
     <div className='tokv2-f'>
@@ -632,7 +633,7 @@ function QuotaFields({
           <span className='tokv2-meter__line'>
             {t('page.console.token.form.quotaMeter', {
               defaultValue: '已用 {{used}} / 总额 {{total}}',
-              total: renderQuota(quota.total),
+              total: formatMoney(quota.total),
               used: usedText,
             })}
           </span>
@@ -1814,7 +1815,7 @@ export function TokenFormDrawer({
             {isEdit && !team && quotaDisplay
               ? t('page.console.token.form.quotaUsedHint', {
                   defaultValue: '已用 {{used}} · 用完自动停用',
-                  used: renderQuota(quotaDisplay.used),
+                  used: formatMoney(quotaDisplay.used),
                 })
               : team
                 ? null

@@ -64,8 +64,8 @@ import {
   shouldAskKeyAudience,
 } from '../../features/projects/components/KeyAudienceModal';
 import { useProject } from '../../features/projects/ProjectContext';
+import { formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
-import { renderQuota } from '../../helpers/render';
 import { copy, showError, showSuccess } from '../../helpers/utils';
 import {
   useTokensQuery,
@@ -587,13 +587,13 @@ const Token = () => {
             unlimited: Boolean(row.original.unlimited_quota),
             used: row.original.used_quota,
           });
-          const usedText = renderQuota(quota.used);
+          const usedText = formatMoney(quota.used);
           const unlimited = quota.mode === 'unlimited';
           const totalText = unlimited
             ? t('page.console.token.create.unlimited', {
                 defaultValue: '不限',
               })
-            : renderQuota(quota.total);
+            : formatMoney(quota.total);
           const label = `${usedText} / ${totalText}`;
           const share = unlimited
             ? 0
@@ -627,7 +627,7 @@ const Token = () => {
         cell: ({ row }) =>
           row.original.unlimited_quota
             ? '∞'
-            : renderQuota(row.original.remain_quota),
+            : formatMoney(row.original.remain_quota),
       },
       {
         id: 'key',

@@ -53,7 +53,7 @@ import { compactNumber, formatUnixTime } from '../../components/ui/table-tools';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { API } from '../../helpers/api';
 import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
+import { formatMoney } from '../../helpers/money';
 import {
   getUserIdFromLocalStorage,
   showError,
@@ -247,7 +247,7 @@ const KeyInspectorPage = () => {
             {
               key: () => t('legacy.i18n.quota_usage.71f3614c99'),
               value: (datum: ChartDatum) =>
-                renderQuota(asMicroUSD(datum.quota)),
+                formatMoney(asMicroUSD(datum.quota)),
             },
             {
               key: () => t('legacy.i18n.token_usage.0ce7002aab'),
@@ -277,7 +277,7 @@ const KeyInspectorPage = () => {
             {
               key: (datum: ChartDatum) => String(datum.model || ''),
               value: (datum: ChartDatum) =>
-                renderQuota(asMicroUSD(datum.quota)),
+                formatMoney(asMicroUSD(datum.quota)),
             },
           ],
         },
@@ -330,7 +330,7 @@ const KeyInspectorPage = () => {
         header: t('legacy.i18n.quota_usage.71f3614c99'),
         id: 'quota',
         cell: ({ getValue }: CellContext<UsageRow, unknown>) =>
-          renderQuota(asMicroUSD(getValue())),
+          formatMoney(asMicroUSD(getValue())),
       },
       {
         accessorKey: 'prompt_tokens',
@@ -379,7 +379,7 @@ const KeyInspectorPage = () => {
         header: t('legacy.i18n.quota.3fa9a9d38e'),
         id: 'quota',
         cell: ({ getValue }: CellContext<UsageRow, unknown>) =>
-          renderQuota(asMicroUSD(getValue())),
+          formatMoney(asMicroUSD(getValue())),
       },
       {
         accessorKey: 'prompt_tokens',
@@ -524,7 +524,7 @@ const KeyInspectorPage = () => {
               <StatCard
                 icon={Coins}
                 label={t('legacy.i18n.remaining_quota.531e3faa2b')}
-                value={renderQuota(asMicroUSD(tokenMeta.total_available))}
+                value={formatMoney(asMicroUSD(tokenMeta.total_available))}
                 progress={
                   tokenMeta.unlimited_quota ? undefined : remainingPercent
                 }
@@ -538,7 +538,7 @@ const KeyInspectorPage = () => {
               <StatCard
                 icon={Zap}
                 label={t('legacy.i18n.quota_used.c5d7bd13e2')}
-                value={renderQuota(asMicroUSD(tokenMeta.total_used))}
+                value={formatMoney(asMicroUSD(tokenMeta.total_used))}
                 subtitle={t('legacy.i18n.total_usage.075a99430b')}
                 variant='warning'
               />

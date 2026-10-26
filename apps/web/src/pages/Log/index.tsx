@@ -55,8 +55,8 @@ import {
 } from '../../components/ui/table-tools';
 import { useConsoleScope } from '../../context/ConsoleScope';
 import { rejectionLabelKey } from '../../features/projects/rejections';
+import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
 import { showError } from '../../helpers/utils';
 import {
   LOG_COLUMN_KEYS,
@@ -897,7 +897,7 @@ const Token = () => {
                       <PendingValue chars={18} />
                     ) : (
                       t('page.console.log.footer.summary', {
-                        cost: renderQuota(
+                        cost: formatMoney(
                           asMicroUSD(logs.stat.amount_microusd),
                           6,
                         ),
@@ -954,7 +954,7 @@ const Token = () => {
                       <PendingValue chars={18} />
                     ) : (
                       t('page.console.log.footer.summary', {
-                        cost: renderQuota(
+                        cost: formatMoney(
                           asMicroUSD(logs.stat.amount_microusd),
                           6,
                         ),

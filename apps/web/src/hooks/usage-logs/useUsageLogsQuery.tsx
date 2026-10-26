@@ -28,7 +28,7 @@ import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { getLogOther } from '../../helpers/log';
 import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
+import { formatMoney } from '../../helpers/money';
 import {
   copy,
   showError,
@@ -426,18 +426,18 @@ const normalizeLogs = (
     const refundDisplay = otherString(normalized.otherParsed, 'refund_display');
     if (typeof refundAmount === 'number') {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(-Math.abs(refundAmount)), 6),
+        formatMoney(asMicroUSD(-Math.abs(refundAmount)), 6),
       );
     } else if (
       typeof normalized.amount_microusd === 'number' &&
       normalized.amount_microusd < 0
     ) {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(normalized.amount_microusd), 6),
+        formatMoney(asMicroUSD(normalized.amount_microusd), 6),
       );
     } else if (typeof taskAmount === 'number') {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(-Math.abs(taskAmount)), 6),
+        formatMoney(asMicroUSD(-Math.abs(taskAmount)), 6),
       );
     } else if (refundDisplay) {
       refundCostDisplay = refundDisplay;

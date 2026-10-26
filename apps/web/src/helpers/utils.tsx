@@ -1,6 +1,7 @@
 import React from 'react';
 import { toast } from 'sonner';
 import { translateMessage } from './message-i18n';
+import { formatDecimalValue } from './money';
 import { isAdminRole } from './roles';
 import { sanitizeMarkup } from './sanitize';
 import { openReportProblem } from '../components/support/reportChannel';
@@ -117,23 +118,7 @@ export function getUserIdFromLocalStorage() {
     : String(userId);
 }
 
-export function formatDecimalValue(value: unknown, digits = 6) {
-  if (value === undefined || value === null || Number.isNaN(value)) {
-    return '0';
-  }
-  const fixed = Number(value).toFixed(digits);
-  if (!fixed.includes('.')) {
-    return fixed;
-  }
-  let trimmed = fixed.replace(/0+$/, '');
-  if (trimmed.endsWith('.')) {
-    trimmed = trimmed.slice(0, -1);
-  }
-  if (trimmed === '' || trimmed === '-0') {
-    return '0';
-  }
-  return trimmed;
-}
+export { formatDecimalValue };
 
 const MODEL_TAG_SPLIT_REGEX = /[,;|\s]+/;
 const CONTEXT_NUMERIC_TAG_REGEX = /^\d+(?:\.\d+)?(?:k|m|b)?$/i;
