@@ -18,11 +18,8 @@ var modelNameJudgementDebt = map[string]int{
 	// Completion-API selection for the retired claude-2 and claude-instant
 	// lines; an endpoint-shape fact that belongs on the catalog row.
 	"claude/adaptor.go": 2,
-	// imagen / embedding routing by name and the -thinking- suffix check.
-	"gemini/adaptor.go": 10,
-	// Gemini 2.5 thinking budget clamps and unsupported-model lists keyed on
-	// the model line.
-	"gemini/relay-gemini.go": 9,
+	// imagen / embedding routing by name.
+	"gemini/adaptor.go": 9,
 	// o-series / gpt-5 parameter rewrites keyed on the model line.
 	"openai/adaptor.go":        5,
 	"openai/native_request.go": 5,

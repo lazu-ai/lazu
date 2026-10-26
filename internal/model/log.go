@@ -818,10 +818,6 @@ func attachRoutingOutcomeUsageSnapshot(c *gin.Context, params RecordConsumeLogPa
 	common.SetContextKey(c, constant.ContextKeyRoutingOutcomeUsage, snapshot)
 }
 
-func resolveUpstreamCostUSD(params RecordConsumeLogParams, usageFact usagepkg.Fact) (float64, bool) {
-	return resolveUpstreamCostUSDAt(params, usageFact, time.Now())
-}
-
 func resolveUpstreamCostUSDAt(params RecordConsumeLogParams, usageFact usagepkg.Fact, at time.Time) (float64, bool) {
 	if at.IsZero() {
 		at = time.Now()
@@ -924,17 +920,19 @@ func dimensionQuantity(fact usagepkg.Fact, name string) int {
 	return 0
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userID int, tokenName string, startIdx int, num int, channel int, group string) (logs []*Log, total int64, err error) {
+// GetAllLogs is one page of the administrator's log list. Its total is
+// exact up to LogCountExactLimit; atLeast says it stopped counting there.
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userID int, tokenName string, startIdx int, num int, channel int, group string) (logs []*Log, total int64, atLeast bool, err error) {
 	tx := allLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, userID, tokenName, channel, group)
-	err = tx.Count(&total).Error
+	total, atLeast, err = countLogsCapped(tx)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 	err = orderLogsNewestFirst(tx).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
-	return logs, total, resolveLogChannelNames(logs)
+	return logs, total, atLeast, resolveLogChannelNames(logs)
 }
 
 // allLogsQuery is the administrator's log list before its order and page.
@@ -1177,10 +1175,6 @@ func GetUserUsedModels(userId int) ([]string, error) {
 		Distinct("model_name").
 		Pluck("model_name", &models).Error
 	return models, err
-}
-
-func GetConsumeLogByRequestIDForToken(userID int, tokenID int, requestID string, principals ...ProjectPrincipal) (*Log, error) {
-	return GetConsumeLogByRequestIDForTokenContext(context.Background(), userID, tokenID, requestID, principals...)
 }
 
 func GetConsumeLogByRequestIDForTokenContext(ctx context.Context, userID int, tokenID int, requestID string, principals ...ProjectPrincipal) (*Log, error) {

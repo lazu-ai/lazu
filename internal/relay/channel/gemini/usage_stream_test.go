@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 )
 
@@ -119,7 +120,7 @@ func TestGeminiTextGenerationStreamHandlerReconcilesTotalAfterTextFallback(t *te
 	}
 }
 
-func TestGeminiChatStreamHandlerReconcilesTotalAfterTextFallback(t *testing.T) {
+func TestBridgedStreamReconcilesTotalAfterTextFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
@@ -131,7 +132,7 @@ func TestGeminiChatStreamHandlerReconcilesTotalAfterTextFallback(t *testing.T) {
 	}()
 
 	streamBody := strings.Join([]string{
-		`data: {"candidates":[{"content":{"parts":[{"text":"hello from Gemini"}]}}],"usageMetadata":{"promptTokenCount":20,"totalTokenCount":20}}`,
+		`data: {"candidates":[{"content":{"parts":[{"text":"hello from Gemini"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":20,"totalTokenCount":20}}`,
 		``,
 	}, "\n")
 	resp := &http.Response{
@@ -143,7 +144,8 @@ func TestGeminiChatStreamHandlerReconcilesTotalAfterTextFallback(t *testing.T) {
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o-mini"},
 	}
 
-	usage, err := GeminiChatStreamHandler(c, info, resp)
+	info.ProtocolPlan = &textgen.RelayPlan{ClientProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIChat}, UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolGemini}}
+	usage, err := bridgedStreamHandler(c, resp, info)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -189,7 +191,7 @@ func TestGeminiTextGenerationStreamHandlerDoesNotClassifyInlineAudioAsImage(t *t
 	}
 }
 
-func TestGeminiChatStreamHandlerDoesNotClassifyInlineAudioAsImage(t *testing.T) {
+func TestBridgedStreamDoesNotClassifyInlineAudioAsImage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
@@ -202,7 +204,7 @@ func TestGeminiChatStreamHandlerDoesNotClassifyInlineAudioAsImage(t *testing.T) 
 
 	audioData := base64.StdEncoding.EncodeToString(make([]byte, 8000))
 	streamBody := strings.Join([]string{
-		fmt.Sprintf(`data: {"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"audio/wav","data":"%s"}}]}}]}`, audioData),
+		fmt.Sprintf(`data: {"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"audio/wav","data":"%s"}}]},"finishReason":"STOP"}]}`, audioData),
 		``,
 	}, "\n")
 	resp := &http.Response{
@@ -214,7 +216,8 @@ func TestGeminiChatStreamHandlerDoesNotClassifyInlineAudioAsImage(t *testing.T) 
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gemini-test"},
 	}
 
-	usage, err := GeminiChatStreamHandler(c, info, resp)
+	info.ProtocolPlan = &textgen.RelayPlan{ClientProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIChat}, UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolGemini}}
+	usage, err := bridgedStreamHandler(c, resp, info)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}

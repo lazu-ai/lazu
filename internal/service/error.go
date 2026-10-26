@@ -15,33 +15,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//// OpenAIErrorWrapper wraps an error into an OpenAIErrorWithStatusCode
-//func OpenAIErrorWrapper(err error, code string, statusCode int) *dto.OpenAIErrorWithStatusCode {
-//	text := err.Error()
-//	lowerText := strings.ToLower(text)
-//	if !strings.HasPrefix(lowerText, "get file base64 from url") && !strings.HasPrefix(lowerText, "mime type is not supported") {
-//		if strings.Contains(lowerText, "post") || strings.Contains(lowerText, "dial") || strings.Contains(lowerText, "http") {
-//			common.SysLog(fmt.Sprintf("error: %s", text))
-//			text = "请求上游地址失败"
-//		}
-//	}
-//	openAIError := dto.OpenAIError{
-//		Message: text,
-//		Type:    "lazu_error",
-//		Code:    code,
-//	}
-//	return &dto.OpenAIErrorWithStatusCode{
-//		Error:      openAIError,
-//		StatusCode: statusCode,
-//	}
-//}
-//
-//func OpenAIErrorWrapperLocal(err error, code string, statusCode int) *dto.OpenAIErrorWithStatusCode {
-//	openaiErr := OpenAIErrorWrapper(err, code, statusCode)
-//	openaiErr.LocalError = true
-//	return openaiErr
-//}
-
 // RelayErrorHandler classifies an upstream HTTP failure into a Lazu
 // error. Accepts *gin.Context so it can look up the active channel type
 // and dispatch to the provider-specific errmap (Anthropic / Gemini /

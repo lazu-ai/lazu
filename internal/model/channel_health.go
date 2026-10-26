@@ -687,14 +687,6 @@ func RouteHealthEnabledChannels(grid []ChannelHealthLaneCell) map[int]bool {
 	return enabled
 }
 
-// QueryChannelHealthLastProbes returns the newest non-skipped probe per
-// channel. Skipped attempts are excluded here exactly as they are from the
-// health aggregates: a local pre-provider error says nothing about the
-// upstream, so surfacing it as "last checked" would misreport what we know.
-func QueryChannelHealthLastProbes(since time.Time) ([]ChannelHealthLastProbeRow, error) {
-	return QueryChannelHealthLastProbesContext(context.Background(), since)
-}
-
 func QueryChannelHealthLastProbesContext(ctx context.Context, since time.Time) ([]ChannelHealthLastProbeRow, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -790,12 +782,6 @@ func QueryChannelHealthUnprobeableContext(ctx context.Context, since time.Time) 
 		return nil, err
 	}
 	return rows, nil
-}
-
-// QueryChannelHealthLastOutcomes returns only the newest customer evidence for
-// each route, for the probe scheduler.
-func QueryChannelHealthLastOutcomes(since time.Time) ([]ChannelHealthLastOutcomeRow, error) {
-	return QueryChannelHealthLastOutcomesContext(context.Background(), since)
 }
 
 func QueryChannelHealthLastOutcomesContext(ctx context.Context, since time.Time) ([]ChannelHealthLastOutcomeRow, error) {

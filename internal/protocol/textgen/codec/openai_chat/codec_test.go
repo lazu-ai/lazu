@@ -63,6 +63,22 @@ func TestDecodePreservesPresenceAndMarksUnmodeledFieldsUnknown(t *testing.T) {
 	}
 }
 
+func TestEncodeDropsCompletedGeminiReasoning(t *testing.T) {
+	request := &textgen.Request{Conversation: []textgen.InputItem{
+		{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "first"}}},
+		{Kind: textgen.InputReasoning, Role: "assistant", Opaque: []textgen.OpaqueValue{{Dialect: "gemini", Value: json.RawMessage(`"signature"`)}}},
+		{Kind: textgen.InputMessage, Role: "assistant", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "answer"}}},
+		{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "next"}}},
+	}}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wire.Messages) != 3 {
+		t.Fatalf("completed Gemini reasoning should be omitted, got %+v", wire.Messages)
+	}
+}
+
 func TestDecodeTreatsNullableOptionsAsOmitted(t *testing.T) {
 	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"user","content":"hello"}],"temperature":null,"top_p":null,"top_k":null,"seed":null,"stop":null,"n":null,"logprobs":null,"top_logprobs":null,"max_completion_tokens":null,"store":null}`))
 	if err != nil {
@@ -356,6 +372,24 @@ func TestDecodePreservesOnlyExplicitImageDetail(t *testing.T) {
 	parts := request.Conversation[0].Content
 	if len(parts) != 2 || parts[0].Detail != "" || parts[1].Detail != "high" {
 		t.Fatalf("image detail presence changed: %+v", parts)
+	}
+}
+
+func TestDecodePreservesLegacyFunctionResult(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"user","content":"q"},{"role":"function","name":"lookup","content":"{\"ok\":true}"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := request.Conversation[1]
+	if result.Kind != textgen.InputFunctionResult || result.Role != "function" || result.Name != "lookup" || result.Output != `{"ok":true}` {
+		t.Fatalf("legacy function result lost: %+v", result)
+	}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wire.Messages) != 2 || wire.Messages[1].Role != "function" || wire.Messages[1].Name == nil || *wire.Messages[1].Name != "lookup" {
+		t.Fatalf("legacy function result did not round-trip: %+v", wire.Messages)
 	}
 }
 
