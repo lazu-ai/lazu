@@ -304,7 +304,7 @@ Claude 客户端的映射以真实录制的 Claude Code 请求为准（`testdata
 - thinking 预算按档位映射为 effort（`textgen.EffortForBudget`，与 `model.EffortBudgetTokens` 反向同表），Chat 和 Responses 同一张表；Chat 客户端的 `reasoning.max_tokens` 到 Responses 也不再拒绝。目录未声明会推理的模型，桥接时不发 thinking（Claude Code 每个请求都带），与旧转换一致。
 - `context_management` 只有 `clear_thinking_*` 时是提示性的；其它编辑、`mcp_servers`、Anthropic 自己执行的工具和 `server_tool_use` 历史，桥接时按字段路径拒绝，native 不受影响。
 
-回退开关 `global.legacy_claude_client_conversion` 和请求方向的旧转换 `ClaudeToOpenAIRequest` 已删除（2026-10-26）：`/v1/messages` 总是解析、规划，OpenAI 和 Gemini 渠道走 Chat 桥接，Anthropic 渠道走 native。旧转换在它做对的用例上的输出存为 `service/testdata/claude_bridge/`，由 `TestClaudeToChatMatchesTheGoldenFiles` 守住。响应方向的 `StreamResponseOpenAI2Claude`、`ResponseOpenAI2Claude` 随 Gemini 渠道接入 codec 一起删除（2026-10-26）。
+回退开关 `global.legacy_claude_client_conversion` 和请求方向的旧转换 `ClaudeToOpenAIRequest` 已删除（2026-10-26）：`/v1/messages` 总是解析、规划，OpenAI 和 Gemini 渠道走 Chat 桥接，Anthropic 渠道走 native。旧转换在它做对的用例上的输出存为 `internal/service/testdata/claude_bridge/`，由 `TestClaudeToChatMatchesTheGoldenFiles` 守住。响应方向的 `StreamResponseOpenAI2Claude`、`ResponseOpenAI2Claude` 随 Gemini 渠道接入 codec 一起删除（2026-10-26）。
 
 已接入 handler（2026-10-21，Responses 上游的 Chat 客户端）：`relay_responses.go` 里逐事件拼 Chat chunk 的兼容分支删除，改为 `openai.chatClientResponsesStream`：Responses decoder 解一次，Chat emitter 发出，规则与另两个 hub 相同（首个内容之前什么都不写，之前的失败可重试，之后告知客户端且不重放），计费所需的副作用（内置工具计数、图片生成、finish reason、交换日志）保留，失败帧仍用错误目录的 `streamFailureFrame`。行为变化：内容之前的 `response.failed` 由「写给客户端、不重试」改为可重试（与 native Responses 路径一致）。顺带修正：Responses decoder 对只有 done 事件的 function_call 先发 start；Chat emitter 每个调用的 id 和 name 只写一次，逐段拼接的客户端不会把名字拼成两遍。整段回复仍走 `ResponsesResponseToChat`（它保留 annotations）。
 
@@ -314,7 +314,7 @@ Gemini codec（2026-10-21，只有 codec，未接入）：`codec/gemini` 有请�
 
 Gemini 渠道接入（2026-10-26）：gemini 方言的快照带 `FeatureEndpointGemini`，规划器把 Chat、Responses、Claude 客户端在 Gemini 渠道上规划为到 Gemini 端点的 bridge（`bridgeOrder`，`geminiBridgeIssue`：按 id 引用的文件拒绝，Chat 客户端沿用旧路径的宽松，其他客户端按到 Chat 的规则判断）。请求侧 `gemini.EncodeBridgedRequest` 用 codec 编码，再加渠道策略：媒体 URL 取回内联、图片张数上限、response modalities、safety settings，以及 thinking——`extra_body.google.thinking_config` 照旧接受，否则目录为模型列出的 effort 映射为 `thinkingLevel`、budget 映射为 `thinkingBudget`，并返回思考内容。没有规划的 Chat 请求（`ConvertOpenAIRequest`）也先解码成 IR 再走同一个函数。响应侧 `bridgedStreamHandler` / `bridgedHandler` 用 Gemini decoder 解一次，按客户端协议发出；上游没报输出用量且回复带内联媒体时，用量按 Gemini 的规则估算（`HubStream.Settle`：每张图 258，音频按时长），不把 data URL 当文本计。Chat 客户端的 function call thought signature 经 `extra_content.google.thought_signature` 往返：回复中写在调用的首个分片，历史里读回 `InputItem.Opaque`。旧的 `CovertGemini2OpenAI`、`GeminiChatStreamHandler` / `GeminiChatHandler`、thinking adapter（`gemini.thinking_adapter_*` 设置与 `-thinking` 后缀）一起删除；旧转换器在它做对的用例上的输出存为 `channel/gemini/testdata/chat_to_gemini/`，由 `TestBridgedChatToGeminiMatchesTheGoldenFiles` 守住。旧的流式回复把 function call 的参数片段拆成多个调用、丢掉推理，新路径整体发出调用并返回推理。
 
-尚未接入：Gemini 客户端（`/v1beta/models/*:generateContent` 到非 Gemini 渠道）仍走 `service/convert.go` 的 Gemini↔Chat 转换器，由 `TestGeminiDecodeMatchesTheLegacyConverter`、`TestGeminiRenderMatchesTheLegacyConverter` 守住；解析需对照录下的 gemini-cli 请求（`client/gemini_cli/tool_turn.json`）。
+尚未接入：Gemini 客户端（`/v1beta/models/*:generateContent` 到非 Gemini 渠道）仍走 `internal/service/convert.go` 的 Gemini↔Chat 转换器，由 `TestGeminiDecodeMatchesTheLegacyConverter`、`TestGeminiRenderMatchesTheLegacyConverter` 守住；解析需对照录下的 gemini-cli 请求（`client/gemini_cli/tool_turn.json`）。
 
 ### 流式不变量（fixture 必须逐条覆盖）
 
