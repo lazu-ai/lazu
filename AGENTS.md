@@ -270,11 +270,13 @@ roadmap adds it, and until then the rule is a review rule.
    `TestEncodeMatchesLegacyGoldens`). Legacy pairwise converters are deleted
    in the PR that lands their codec or the release after it, and gain no new
    features meanwhile: `relay-claude.go`'s Chat↔Messages pair went with the
-   Messages hub (2026-10-21). The Claude-client converters in
-   `service/convert.go` stay one release behind
-   `global.legacy_claude_client_conversion`, held to the hub by the live
-   differential test `TestClaudeToChatMatchesTheLegacyConverter`, and go
-   the release after. The Gemini codec landed without wiring (2026-10-21);
+   Messages hub (2026-10-21). The Claude-client request converter and its
+   switch went in the following release; its output on the cases it got
+   right is `service/testdata/claude_bridge/`, held by
+   `TestClaudeToChatMatchesTheGoldenFiles`. The Chat→Claude response
+   converters in `service/convert.go` stay until the Gemini wiring slice:
+   adaptors that answer through the legacy Chat handlers (Gemini among them)
+   still turn their responses into Messages with them. The Gemini codec landed without wiring (2026-10-21);
    `relay-gemini.go` and the Gemini converters in `service/convert.go`
    stay, held to it by three live differential tests, until the wiring
    slice. Enforced by review.
