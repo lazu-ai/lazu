@@ -448,6 +448,7 @@ body.lazu-site {
 }
 
 .lazu-site a.lazu-card {
+  overflow: hidden;
   background: var(--lazu-surface);
   border: 1px solid var(--lazu-border);
   border-radius: 11px;
