@@ -120,6 +120,7 @@ type ItemsPayload<T> = {
   page: number;
   pageSize: number;
   total: number;
+  totalAtLeast?: boolean;
 };
 
 type FetchUsageLogsParams = {
@@ -784,6 +785,7 @@ export function useUsageLogsQuery() {
     page,
     pageSize,
     total: 0,
+    totalAtLeast: false,
   };
 
   return {
@@ -813,6 +815,8 @@ export function useUsageLogsQuery() {
     submitFilters,
     t,
     total: pageData.total,
+    // The server stopped counting at `total`; show it as a lower bound.
+    totalAtLeast: pageData.totalAtLeast === true,
     userInfo,
     userInfoLoading: userInfoMutation.isPending,
     usageLogs: pageData.items,

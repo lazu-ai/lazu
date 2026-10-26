@@ -516,7 +516,7 @@ func TestUserAccountOperationalAggregations(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("seed immutable-id logs: %v", err)
 	}
-	logs, total, err := GetAllLogs(LogTypeUnknown, 0, 0, "", "owner-five", 5, "", 0, 20, 0, "")
+	logs, total, _, err := GetAllLogs(LogTypeUnknown, 0, 0, "", "owner-five", 5, "", 0, 20, 0, "")
 	if err != nil || total != 2 || len(logs) != 2 {
 		t.Fatalf("GetAllLogs user_id total=%d rows=%#v err=%v, want 2", total, logs, err)
 	}

@@ -74,31 +74,6 @@ func TestClearToolCallsRemovesGeminiThoughtSignatureFromArgumentChunk(t *testing
 	}
 }
 
-func TestGetResponseToolCallPreservesGeminiIDAndThoughtSignature(t *testing.T) {
-	part := dto.GeminiPart{
-		ThoughtSignature: "signature-123",
-		FunctionCall: &dto.FunctionCall{
-			ID:           "call_123",
-			FunctionName: "get_weather",
-			Arguments:    map[string]interface{}{"city": "Taipei"},
-		},
-	}
-
-	call := getResponseToolCall(&part)
-	if call == nil {
-		t.Fatal("expected tool call")
-	}
-	if call.ID != "call_123" {
-		t.Fatalf("expected Gemini function id call_123, got %q", call.ID)
-	}
-	if call.ExtraContent == nil || call.ExtraContent.Google == nil {
-		t.Fatal("expected google extra_content")
-	}
-	if got := call.ExtraContent.Google.ThoughtSignature; got != "signature-123" {
-		t.Fatalf("expected thought signature signature-123, got %q", got)
-	}
-}
-
 func TestConvertOpenAIToolHistoryPreservesGeminiIDAndThoughtSignature(t *testing.T) {
 	assistant := dto.Message{Role: "assistant", Content: ""}
 	assistant.SetToolCalls([]dto.ToolCallRequest{
@@ -123,6 +98,7 @@ func TestConvertOpenAIToolHistoryPreservesGeminiIDAndThoughtSignature(t *testing
 		ToolCallId: "call_123",
 	}
 	request := dto.GeneralOpenAIRequest{
+		Model: "gemini-3.6-flash",
 		Messages: []dto.Message{
 			{Role: "user", Content: "Check the weather."},
 			assistant,
@@ -133,7 +109,7 @@ func TestConvertOpenAIToolHistoryPreservesGeminiIDAndThoughtSignature(t *testing
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gemini-3.6-flash"},
 	}
 
-	converted, err := CovertGemini2OpenAI(nil, request, info)
+	converted, err := convertChatRequest(t, request, info)
 	if err != nil {
 		t.Fatalf("convert request: %v", err)
 	}

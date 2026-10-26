@@ -96,6 +96,17 @@ func ListProjectLogsContext(ctx context.Context, access ProjectLogAccess, filter
 	return logs, total, err
 }
 
+// ListProjectLogsCappedContext is the console's log page: its total is
+// exact up to LogCountExactLimit, and atLeast says it stopped counting there.
+func ListProjectLogsCappedContext(ctx context.Context, access ProjectLogAccess, filter ProjectLogFilter, offset, limit int) ([]*Log, int64, bool, error) {
+	total, atLeast, err := countLogsCapped(ProjectLogsQuery(access, filter).WithContext(ctx))
+	if err != nil {
+		return nil, 0, false, err
+	}
+	logs, err := ListProjectLogPageContext(ctx, access, filter, offset, limit)
+	return logs, total, atLeast, err
+}
+
 func ListProjectLogPageContext(ctx context.Context, access ProjectLogAccess, filter ProjectLogFilter, offset, limit int) ([]*Log, error) {
 	query := ProjectLogsQuery(access, filter).WithContext(ctx)
 	var logs []*Log
@@ -181,23 +192,6 @@ func ReadProjectLedgerSpend(projectID, actorID int, start, end int64) (billing.M
 	}
 	err := query.Select("COALESCE(SUM(amount_microusd),0)").Scan(&amount).Error
 	return amount, err
-}
-
-func ProjectAuxTokenScope(tx *gorm.DB, access ProjectLogAccess) *gorm.DB {
-	tokens := CoreDB().Unscoped().Model(&Token{}).Select("id").Where("project_id = ?", access.Project.ID)
-	if !access.Viewer.IsManager() {
-		tokens = tokens.Where("user_id = ?", access.Viewer.UserID)
-	}
-	if access.TokenID > 0 {
-		tokens = tokens.Where("id = ?", access.TokenID)
-	}
-	if access.ActorID != nil {
-		tokens = tokens.Where("user_id = ?", *access.ActorID)
-	}
-	return tx.Where("token_id IN (?)", tokens)
-}
-func BuildProjectDashboardUsage(access ProjectLogAccess, start, end int64) (DashboardUsage, error) {
-	return BuildProjectDashboardUsageContext(context.Background(), access, start, end)
 }
 
 // BuildProjectDashboardUsageContext answers every project-scoped usage page:

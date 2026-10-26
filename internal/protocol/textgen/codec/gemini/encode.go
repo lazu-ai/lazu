@@ -76,7 +76,11 @@ func Encode(request *textgen.Request, opts EncodeOptions) (*dto.GeminiChatReques
 			part := dto.GeminiPart{FunctionCall: &dto.FunctionCall{ID: item.CallID, FunctionName: item.FunctionName, Arguments: args}, ThoughtSignature: signatureOf(item.Opaque)}
 			appendPart(out, "model", part)
 		case textgen.InputFunctionResult:
-			part := dto.GeminiPart{FunctionResponse: &dto.GeminiFunctionResponse{ID: item.CallID, Name: names[item.CallID], Response: responseOf(textgen.ResultText(item))}}
+			name := item.Name
+			if name == "" {
+				name = names[item.CallID]
+			}
+			part := dto.GeminiPart{FunctionResponse: &dto.GeminiFunctionResponse{ID: item.CallID, Name: name, Response: responseOf(textgen.ResultText(item))}}
 			appendResult(out, part)
 			images, err := encodeParts(item.Content, opts)
 			if err != nil {

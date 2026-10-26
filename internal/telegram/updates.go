@@ -107,16 +107,6 @@ func Me(ctx context.Context) (botIdentity, error) {
 	return me, nil
 }
 
-// cachedUsername is the bot's username if getMe already answered.
-func cachedUsername() string {
-	identity.Lock()
-	defer identity.Unlock()
-	if identity.forTokens == token() {
-		return identity.bot.Username
-	}
-	return ""
-}
-
 // --- dispatch ---
 
 // Handler answers one message. It returns true when it handled the message,
