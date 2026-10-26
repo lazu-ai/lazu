@@ -757,10 +757,6 @@ func handleRelayResultEvent(event relayResultEvent) error {
 	return persistRelayResultBatch([]relayResultEvent{event})
 }
 
-func handleRelayResultEventBatch(events []relayResultEvent) error {
-	return persistRelayResultBatch(events)
-}
-
 func ensureConsumeLogPublicID(log *Log) {
 	if log == nil || log.PublicID != "" || log.RequestID == "" {
 		return

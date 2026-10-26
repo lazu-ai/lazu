@@ -152,39 +152,6 @@ func GetLocalRealtimeID(c *gin.Context) string {
 	return fmt.Sprintf("evt_%s", logID)
 }
 
-func GenerateStartEmptyResponse(id string, createAt int64, model string, systemFingerprint *string) *dto.ChatCompletionsStreamResponse {
-	return &dto.ChatCompletionsStreamResponse{
-		Id:                id,
-		Object:            "chat.completion.chunk",
-		Created:           createAt,
-		Model:             model,
-		SystemFingerprint: systemFingerprint,
-		Choices: []dto.ChatCompletionsStreamResponseChoice{
-			{
-				Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
-					Role:    "assistant",
-					Content: common.GetPointer(""),
-				},
-			},
-		},
-	}
-}
-
-func GenerateStopResponse(id string, createAt int64, model string, finishReason string) *dto.ChatCompletionsStreamResponse {
-	return &dto.ChatCompletionsStreamResponse{
-		Id:                id,
-		Object:            "chat.completion.chunk",
-		Created:           createAt,
-		Model:             model,
-		SystemFingerprint: nil,
-		Choices: []dto.ChatCompletionsStreamResponseChoice{
-			{
-				FinishReason: &finishReason,
-			},
-		},
-	}
-}
-
 func GenerateFinalUsageResponse(id string, createAt int64, model string, usage dto.Usage) *dto.ChatCompletionsStreamResponse {
 	return &dto.ChatCompletionsStreamResponse{
 		Id:                id,

@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/base64"
 	"fmt"
-	"strings"
 )
 
 func parseAudio(audioBase64 string, format string) (duration float64, err error) {
@@ -36,20 +35,4 @@ func parseAudioAtSampleRate(audioBase64 string, format string, sampleRateOverrid
 
 	duration = float64(samplesCount) / float64(sampleRate)
 	return duration, nil
-}
-
-func DecodeBase64AudioData(audioBase64 string) (string, error) {
-	// 检查并移除 data:audio/xxx;base64, 前缀
-	idx := strings.Index(audioBase64, ",")
-	if idx != -1 {
-		audioBase64 = audioBase64[idx+1:]
-	}
-
-	// 解码 Base64 数据
-	_, err := base64.StdEncoding.DecodeString(audioBase64)
-	if err != nil {
-		return "", fmt.Errorf("base64 decode error: %v", err)
-	}
-
-	return audioBase64, nil
 }
