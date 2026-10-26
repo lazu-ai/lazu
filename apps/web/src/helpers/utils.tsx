@@ -397,4 +397,3 @@ export const isValidMessage = (message: unknown): message is ChatMessage => {
   if (!isRecord(message) || typeof message.role !== 'string') return false;
   return message.content !== undefined && message.content !== null;
 };
-
