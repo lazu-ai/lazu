@@ -91,7 +91,7 @@ test-relay-safety:
 DEADCODE_VERSION ?= v0.52.0
 test-deadcode:
 	@python3 -m unittest discover -s ops/scripts -p test_check_deadcode.py -q
-	@go run golang.org/x/tools/cmd/deadcode@$(DEADCODE_VERSION) -test \
+	@set -o pipefail; go run golang.org/x/tools/cmd/deadcode@$(DEADCODE_VERSION) -test \
 		-f '{{range .Funcs}}{{$$.Path}}.{{.Name}}{{"\n"}}{{end}}' ./... \
-		| sed -e 's|^github.com/lazu-ai/lazu/||' | LC_ALL=C sort -u \
+		| sed -e '\#/node_modules/#d' -e 's|^github.com/lazu-ai/lazu/||' | LC_ALL=C sort -u \
 		| python3 ops/scripts/check_deadcode.py ops/extension-surface.txt ops/deadcode-baseline.txt

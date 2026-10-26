@@ -40,6 +40,11 @@ def main(argv):
     baseline, more = entries(argv[2], need_reason=False)
     problems += more
     findings = {line.strip() for line in sys.stdin if line.strip()}
+    if not findings:
+        # deadcode always reports something on this tree; no input means it
+        # failed or never ran, which must not pass as a clean result.
+        print('no deadcode output on stdin; the analyzer did not run', file=sys.stderr)
+        return 2
     new = sorted(findings - surface - baseline)
     gone = sorted((surface | baseline) - findings)
     for problem in problems:

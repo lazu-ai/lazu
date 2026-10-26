@@ -46,6 +46,11 @@ class CheckDeadcodeTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn('pkg.removed', out)
 
+    def test_empty_input_fails(self):
+        # A failed analyzer run produces no output; that must not pass.
+        code, _ = self.run_check('pkg.Hook  # extension hook\n', 'pkg.old\n', '')
+        self.assertEqual(code, 2)
+
 
 if __name__ == '__main__':
     unittest.main()
