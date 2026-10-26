@@ -9,6 +9,7 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
@@ -324,6 +325,19 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 		return GeminiEmbeddingHandler(c, info, resp)
 	}
 
+	if info.RelayMode == constant.RelayModeChatCompletions && info.ProtocolPlan == nil {
+		// an unplanned Chat request (the console playground is not parsed):
+		// ConvertOpenAIRequest encoded it through the codec, and its reply is
+		// served as a planned Chat client's
+		info.ProtocolPlan = &textgen.RelayPlan{
+			ClientProtocol:   textgen.Protocol{Family: textgen.ProtocolOpenAIChat, Dialect: "openai"},
+			UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolGemini, Dialect: "gemini"},
+		}
+		if info.IsStream {
+			return bridgedStreamHandler(c, resp, info)
+		}
+		return bridgedHandler(c, resp, info)
+	}
 	// text generation for any other client is planned and bridged above
 	return nil, types.NewError(fmt.Errorf("a Gemini channel serves text generation through a protocol plan; this request has none"), types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 }

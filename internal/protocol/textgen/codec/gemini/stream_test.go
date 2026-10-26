@@ -69,6 +69,35 @@ func TestDecodeRecordedToolCall(t *testing.T) {
 	}
 }
 
+// Gemini 2.5 names no function call id (the recorded Gemini 3 reply does);
+// a Chat or Responses client needs one to pair the result, so the decoder
+// makes one, different for every call.
+func TestDecodeGivesACallWithoutAnIDOne(t *testing.T) {
+	ids := map[string]bool{}
+	for range 2 {
+		decoder := &StreamDecoder{}
+		var col textgen.Collector
+		for _, data := range fixtures.Data(t, "gemini/tool_call.sse") {
+			events, err := decoder.Decode(strings.Replace(data, `,"id": "call_1200091"`, "", 1))
+			if err != nil {
+				t.Fatal(err)
+			}
+			col.Add(events...)
+		}
+		for _, part := range col.Result().Parts {
+			if part.Kind == textgen.PartTool {
+				if !strings.HasPrefix(part.CallID, "call_") || part.CallID == "call_1200091" {
+					t.Fatalf("call id %q", part.CallID)
+				}
+				ids[part.CallID] = true
+			}
+		}
+	}
+	if len(ids) != 2 {
+		t.Fatalf("each call gets its own id: %v", ids)
+	}
+}
+
 func TestDecodeRecordedJSONSchemaAnswersJSON(t *testing.T) {
 	result := collectRecording(t, "gemini/json_schema.sse")
 	var text strings.Builder
