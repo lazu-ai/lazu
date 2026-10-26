@@ -24,26 +24,24 @@ import {
 } from './account-model';
 import AccountDrawer from './AccountDrawer';
 import useAuthStatus from '../../components/auth/useAuthStatus';
+import { Badge } from '../../components/ui/badge';
+import { Button, buttonVariants } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { DataSurface } from '../../components/ui/data-surface';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorState } from '../../components/ui/error-state';
+import { Field, Label } from '../../components/ui/field';
+import { IconButton } from '../../components/ui/icon-button';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
 import {
-  Badge,
-  Button,
-  buttonVariants,
-  DataSurface,
-  DataTableShell,
-  EmptyState,
-  ErrorState,
-  Field,
-  IconButton,
-  Input,
-  Label,
-  Modal,
-  Pagination,
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Select,
-} from '../../components/ui';
-import ConsolePage from '../../components/ui/console-page';
+} from '../../components/ui/popover';
+import { Select } from '../../components/ui/select';
 import {
   DEFAULT_PAGE_SIZE_OPTIONS,
   coerceItemsPayload,

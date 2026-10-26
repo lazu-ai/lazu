@@ -4,7 +4,8 @@
  * page and the attention list (S8). */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Textarea } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { Textarea } from '../../../components/ui/textarea';
 import { isLazuApiError } from '../../../lib/api-error';
 import {
   BUDGET_REQUEST_NOTE_MIN,

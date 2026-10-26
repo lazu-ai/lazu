@@ -30,20 +30,20 @@ import {
   sessionStatus,
   sessionTitle,
 } from './SessionsView';
+import { AgentBadge, agentName } from '../../../components/ui/agent-badge';
+import { Button } from '../../../components/ui/button';
 import {
-  AgentBadge,
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  ErrorState,
-  PendingBlock,
-  PendingValue,
-  agentName,
+} from '../../../components/ui/dropdown-menu';
+import { ErrorState } from '../../../components/ui/error-state';
+import {
   formatCount,
   formatMicroUsd,
-} from '../../../components/ui';
+} from '../../../components/ui/metric-format';
+import { PendingBlock, PendingValue } from '../../../components/ui/pending';
 import { copy, showError, showSuccess } from '../../../helpers/utils';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import {

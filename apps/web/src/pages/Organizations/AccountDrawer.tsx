@@ -21,18 +21,15 @@ import {
 } from './account-model';
 import AccountAccessAddresses from './AccountAccessAddresses';
 import { Sparkline } from '../../components/charts/mini';
-import {
-  Badge,
-  Button,
-  Drawer,
-  Field,
-  Input,
-  Label,
-  Modal,
-  PendingValue,
-  Select,
-  Tooltip,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Drawer } from '../../components/ui/drawer';
+import { Field, Label } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { PendingValue } from '../../components/ui/pending';
+import { Select } from '../../components/ui/select';
+import { Tooltip } from '../../components/ui/tooltip';
 import { showSuccess, usdToMicroUSD } from '../../helpers';
 import { API } from '../../helpers/api';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';

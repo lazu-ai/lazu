@@ -11,7 +11,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InviteModal } from './InviteModal';
-import { Button, Modal } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { Modal } from '../../../components/ui/modal';
 import { useProject } from '../ProjectContext';
 import { useProjectDetail } from '../queries';
 

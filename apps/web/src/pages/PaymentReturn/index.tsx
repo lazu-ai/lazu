@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { Button, StatusPage } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { StatusPage } from '../../components/ui/status-page';
 
 type PaymentReturnProps = {
   status?: 'success' | 'fail' | string;

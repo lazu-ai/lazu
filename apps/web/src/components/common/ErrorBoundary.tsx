@@ -6,7 +6,8 @@ import {
   isStaleChunkError,
   reloadForStaleChunk,
 } from '../../lib/stale-chunk';
-import { Button, StatusPage } from '../ui';
+import { Button } from '../ui/button';
+import { StatusPage } from '../ui/status-page';
 
 type ErrorBoundaryProps = WithTranslation & {
   children?: ReactNode;

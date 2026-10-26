@@ -10,7 +10,7 @@ import {
 } from '../../helpers/authNavigation';
 import { setUserData } from '../../helpers/data';
 import { showError } from '../../helpers/utils';
-import { LoadingState } from '../ui';
+import { LoadingState } from '../ui/loading-state';
 
 export default function OIDCCallback() {
   const { t } = useTranslation();

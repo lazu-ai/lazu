@@ -44,7 +44,7 @@ import ErrorBoundary from '../common/ErrorBoundary';
 import PublicFooter from '../marketing/PublicFooter';
 import PublicHeader from '../marketing/PublicHeader';
 import ReportProblemDialog from '../support/ReportProblemDialog';
-import { StatusCenter, recordStatusIssue } from '../ui';
+import { StatusCenter, recordStatusIssue } from '../ui/status-center';
 import type { UserPayload } from '../../context/User/reducer';
 import type { CSSProperties } from 'react';
 

@@ -15,17 +15,11 @@ import {
   validateDraft,
   type LaneDraft,
 } from './ratioPricing';
-import {
-  Badge,
-  Button,
-  IconButton,
-  Modal,
-  ModalFrame,
-  ModalTitle,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { IconButton } from '../../components/ui/icon-button';
+import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
 import {
   useModelOpsMutations,

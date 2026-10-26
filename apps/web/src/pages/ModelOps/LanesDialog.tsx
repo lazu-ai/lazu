@@ -1,7 +1,10 @@
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import LaneForm from './LaneForm';
-import { Button, Input, Modal, PendingBlock } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { PendingBlock } from '../../components/ui/pending';
 import { isRoot } from '../../helpers/utils';
 import {
   useChannelLanesQuery,

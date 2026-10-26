@@ -12,12 +12,10 @@ import {
   type PricePlan,
 } from './pricePlans';
 import { usePricePlansQuery } from './usePricePlans';
-import {
-  Button,
-  ConsolePage,
-  ErrorState,
-  PendingBlock,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { ErrorState } from '../../components/ui/error-state';
+import { PendingBlock } from '../../components/ui/pending';
 import { isRoot } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import type { TFunction } from 'i18next';

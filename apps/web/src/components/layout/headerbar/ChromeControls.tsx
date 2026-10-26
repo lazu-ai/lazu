@@ -3,13 +3,13 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ThemeToggle from './ThemeToggle';
 import { useSetTheme } from '../../../context/Theme';
+import { Button } from '../../ui/button';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../../ui';
+} from '../../ui/dropdown-menu';
 
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English', shortLabel: 'EN' },

@@ -2,8 +2,9 @@ import { lazy, Suspense, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { UsageHeadSlotContext } from './headSlot';
-import { LoadingState, Tabs, TabsList, TabsTrigger } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
+import { LoadingState } from '../../components/ui/loading-state';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useSidebar } from '../../hooks/common/useSidebar';
 
 const Log = lazy(() => import('../Log'));

@@ -13,16 +13,18 @@ import {
   rangeToQueryWindow,
   type TimePickerValue,
 } from '../../../components/dashboard/time-picker-v3';
+import { Button } from '../../../components/ui/button';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
+import {
   formatCount,
-  PendingValue,
   relativeChange,
-} from '../../../components/ui';
+} from '../../../components/ui/metric-format';
+import { PendingValue } from '../../../components/ui/pending';
 
 const ns = 'page.console.overview';
 

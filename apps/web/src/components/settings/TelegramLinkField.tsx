@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { API } from '../../helpers';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
-import { Button } from '../ui';
+import { Button } from '../ui/button';
 import { PendingValue } from '../ui/pending';
 
 /* Telegram reminders go to the Telegram account linked to this one. Linking

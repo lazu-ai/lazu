@@ -8,13 +8,10 @@ import {
   type ReactNode,
 } from 'react';
 import { formatInfoValue, infoSourceLabel, modalityLabel } from './modelInfo';
-import {
-  Button,
-  Checkbox,
-  Input,
-  Select,
-  SelectItem,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Input } from '../../components/ui/input';
+import { Select, SelectItem } from '../../components/ui/select';
 import { API } from '../../helpers/api';
 import { showError, showSuccess } from '../../helpers/utils';
 import {

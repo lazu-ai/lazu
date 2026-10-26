@@ -15,8 +15,10 @@
 import { Check, Pencil, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Pending } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
 import ConsolePage from '../../../components/ui/console-page';
+import { Input } from '../../../components/ui/input';
+import { Pending } from '../../../components/ui/pending';
 import { canInviteRole } from '../access';
 import { INVITE_VALID_DAYS, draftFromMicro, validateBudget } from '../budget';
 import { Card, SegControl } from '../components/atoms';

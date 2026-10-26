@@ -31,7 +31,8 @@ export {
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Checkbox, Input } from '../../../components/ui';
+import { Checkbox } from '../../../components/ui/checkbox';
+import { Input } from '../../../components/ui/input';
 import { PjBadge, Meter } from '../../../components/ui/project-primitives';
 import { cn } from '../../../lib/cn';
 import {

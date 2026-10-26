@@ -60,22 +60,22 @@ import {
   type SampleLanguage,
 } from './code-samples';
 import { LaneBlock, LaneHealthLegend } from './lane-block';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorState } from '../../components/ui/error-state';
+import { Input } from '../../components/ui/input';
+import { LoadingState } from '../../components/ui/loading-state';
+import { Modal } from '../../components/ui/modal';
+import { ProviderLogo } from '../../components/ui/provider-icons';
+import { RefreshButton } from '../../components/ui/refresh-button';
 import {
-  Badge,
-  Button,
-  EmptyState,
-  ErrorState,
-  Input,
-  LoadingState,
-  Modal,
-  RefreshButton,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '../../components/ui';
-import ConsolePage from '../../components/ui/console-page';
-import { ProviderLogo } from '../../components/ui/provider-icons';
+} from '../../components/ui/tabs';
 import { API } from '../../helpers/api';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
 import { modelDisplayName } from '../../lib/model-display-name';

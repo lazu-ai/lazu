@@ -15,12 +15,12 @@ import { Check, ChevronDown, Plus, Settings2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Button } from '../../../components/ui/button';
 import {
-  Button,
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '../../../components/ui';
+} from '../../../components/ui/popover';
 import { formatUSD } from '../money';
 import { useProject } from '../ProjectContext';
 import { useMyBudget } from '../queries';

@@ -29,19 +29,20 @@ import {
   type ConnectTool,
   type ConnectToolId,
 } from './tools';
+import { Button } from '../../../components/ui/button';
+import { InlineNotice } from '../../../components/ui/inline-notice';
 import {
-  Button,
-  InlineNotice,
   ModalFrame,
   ModalTitle,
   ModalDescription,
-  Select,
-  SelectItem,
+} from '../../../components/ui/modal';
+import { Select, SelectItem } from '../../../components/ui/select';
+import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '../../../components/ui';
+} from '../../../components/ui/tabs';
 import { copy, showError, showSuccess } from '../../../helpers/utils';
 import { errorMessage } from '../../../lib/api-error';
 import { cn } from '../../../lib/cn';

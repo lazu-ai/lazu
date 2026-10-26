@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { type Account } from './account-model';
-import { PendingBlock, Switch } from '../../components/ui';
+import { PendingBlock } from '../../components/ui/pending';
+import { Switch } from '../../components/ui/switch';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
 import {
   type AccessAddressKind,

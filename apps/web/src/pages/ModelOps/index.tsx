@@ -15,17 +15,17 @@ import { buildModelViews, type ModelRecord, type ModelView } from './modelView';
 import { findSellPriceRow, normalizeLaneSlug } from './sellPrices';
 import SyncPreviewModal from './SyncPreviewModal';
 import ModelUpdates from './UpdatesPage';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
 import {
-  Button,
-  ConsolePage,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Input,
-  Modal,
-  Pagination,
-} from '../../components/ui';
+} from '../../components/ui/dropdown-menu';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
 import { API } from '../../helpers/api';
 import { isRoot, showError, showSuccess } from '../../helpers/utils';
 import { useModelInfoReviewsQuery } from '../../hooks/models/useModelInfoQuery';

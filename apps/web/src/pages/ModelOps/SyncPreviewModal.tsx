@@ -1,10 +1,8 @@
-import {
-  Badge,
-  Button,
-  ErrorState,
-  LoadingState,
-  Modal,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { ErrorState } from '../../components/ui/error-state';
+import { LoadingState } from '../../components/ui/loading-state';
+import { Modal } from '../../components/ui/modal';
 import {
   useSyncPreviewQuery,
   type SyncPreviewKind,

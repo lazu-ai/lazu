@@ -7,13 +7,11 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { mailApi, mailKeys, type DigestSettings } from './mailApi';
 import { zonedParts } from './mailShared';
-import {
-  Button,
-  Input,
-  Modal,
-  PendingValue,
-  notify,
-} from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { Modal } from '../../../components/ui/modal';
+import { PendingValue } from '../../../components/ui/pending';
+import { notify } from '../../../components/ui/toast';
 
 type Draft = {
   min_spend_usd: string;

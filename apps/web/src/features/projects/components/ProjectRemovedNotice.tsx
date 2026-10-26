@@ -3,7 +3,8 @@
  * reader's own project. */
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatusPage } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { StatusPage } from '../../../components/ui/status-page';
 import { useProject } from '../ProjectContext';
 
 export function ProjectRemovedNotice() {

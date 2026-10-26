@@ -1,12 +1,8 @@
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import {
-  Field,
-  FieldMessage,
-  Input,
-  Select,
-  SelectItem,
-} from '../../components/ui';
+import { Field, FieldMessage } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { Select, SelectItem } from '../../components/ui/select';
 import type { ChannelFormValues } from './SourceForm';
 
 export function DecisionSourceFields({

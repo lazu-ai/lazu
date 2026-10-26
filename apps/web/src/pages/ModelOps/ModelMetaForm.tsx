@@ -5,18 +5,13 @@ import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { modalityLabel } from './modelInfo';
 import { withModelInfo } from './modelRegistration';
-import {
-  Button,
-  Field,
-  FieldMessage,
-  InlineNotice,
-  Input,
-  MultiSelect,
-  Select,
-  SelectItem,
-  Switch,
-  Textarea,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Field, FieldMessage } from '../../components/ui/field';
+import { InlineNotice } from '../../components/ui/inline-notice';
+import { Input } from '../../components/ui/input';
+import { MultiSelect, Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
+import { Textarea } from '../../components/ui/textarea';
 import {
   lookupModelInfo,
   useModelMakersQuery,

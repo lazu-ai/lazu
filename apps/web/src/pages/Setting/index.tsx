@@ -7,17 +7,17 @@ import {
   useSettingsNavigationBlocked,
   useSettingsSaveAll,
 } from './headerActions';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { DataCard } from '../../components/ui/data-card';
+import { LoadingState } from '../../components/ui/loading-state';
+import { Modal } from '../../components/ui/modal';
 import {
-  Button,
-  DataCard,
-  LoadingState,
-  Modal,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '../../components/ui';
-import ConsolePage from '../../components/ui/console-page';
+} from '../../components/ui/tabs';
 import { isRoot } from '../../helpers';
 
 const RateLimits = lazy(() => import('./Access/RateLimits'));

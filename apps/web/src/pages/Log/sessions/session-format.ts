@@ -1,6 +1,7 @@
 /* Shared wording and arithmetic for the session list, the session detail and
  * the session block in a request receipt. */
-import { isKnownAgent, splitDuration } from '../../../components/ui';
+import { isKnownAgent } from '../../../components/ui/agent-badge';
+import { splitDuration } from '../../../components/ui/metric-format';
 import type { AgentSessionRange } from '../../../hooks/usage-logs/useAgentSessions';
 import type { TFunction } from 'i18next';
 

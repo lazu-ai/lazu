@@ -1,7 +1,8 @@
 import React from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, StatusPage } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { StatusPage } from '../../components/ui/status-page';
 import { suggestRoute } from '../../lib/route-suggest';
 
 /* React Router numbers the entries it pushed; idx 0 is where this tab came

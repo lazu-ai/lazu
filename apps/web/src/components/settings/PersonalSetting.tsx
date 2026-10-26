@@ -25,23 +25,16 @@ import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import useAuthStatus from '../auth/useAuthStatus';
-import {
-  Button,
-  Modal,
-  PendingBlock,
-  PendingValue,
-  Field,
-  FieldMessage,
-  InlineNotice,
-  Input,
-  Label,
-  Select,
-  SelectItem,
-  Switch,
-  SettingsCard,
-  SettingsRow,
-} from '../ui';
+import { Button } from '../ui/button';
 import ConsolePage from '../ui/console-page';
+import { Field, FieldMessage, Label } from '../ui/field';
+import { InlineNotice } from '../ui/inline-notice';
+import { Input } from '../ui/input';
+import { Modal } from '../ui/modal';
+import { PendingBlock, PendingValue } from '../ui/pending';
+import { Select, SelectItem } from '../ui/select';
+import { SettingsCard, SettingsRow } from '../ui/settings-card';
+import { Switch } from '../ui/switch';
 import './personal.css';
 import '../../styles/settings-surface.css';
 import type { ChangeEvent } from 'react';

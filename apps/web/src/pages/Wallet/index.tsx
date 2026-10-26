@@ -11,29 +11,25 @@ import {
 } from './walletAmounts';
 import { buildDailyWalletLedger, type WalletLedgerDay } from './walletLedger';
 import VChart from '../../components/common/charts/VChart';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Field, FieldMessage, Label } from '../../components/ui/field';
+import { InlineNotice } from '../../components/ui/inline-notice';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
+import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import {
-  Badge,
-  Button,
-  DataTableShell,
-  EmptyState,
-  Field,
-  FieldMessage,
-  Input,
-  InlineNotice,
-  Label,
-  Modal,
-  Pagination,
-  Tabs,
-  TabsList,
-  TabsTrigger,
   TOPUP_DEFAULT,
   TOPUP_MAX_DEFAULT,
   TOPUP_MIN_DEFAULT,
   TopupBar,
-  TopupRecord,
-} from '../../components/ui';
-import ConsolePage from '../../components/ui/console-page';
-import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
+} from '../../components/ui/topup-bar';
+import { TopupRecord } from '../../components/ui/topup-record';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { StatusContext } from '../../context/Status';
 import { UserContext } from '../../context/User';

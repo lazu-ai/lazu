@@ -19,20 +19,21 @@ import {
   spanText,
   spanTextCompact,
 } from './session-format';
+import { AgentBadge, agentName } from '../../../components/ui/agent-badge';
 import {
-  AgentBadge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  EmptyState,
-  ErrorState,
-  Pagination,
-  PendingValue,
-  agentName,
+} from '../../../components/ui/dropdown-menu';
+import { EmptyState } from '../../../components/ui/empty-state';
+import { ErrorState } from '../../../components/ui/error-state';
+import {
   formatCount,
   formatMicroUsd,
-} from '../../../components/ui';
+} from '../../../components/ui/metric-format';
+import { Pagination } from '../../../components/ui/pagination';
+import { PendingValue } from '../../../components/ui/pending';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import {
   type AgentSessionListItem,

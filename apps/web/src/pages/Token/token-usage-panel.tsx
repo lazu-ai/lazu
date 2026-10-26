@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Button } from '../../components/ui';
+import { Button } from '../../components/ui/button';
 import { UserContext } from '../../context/User';
 import { API, asMicroUSD, timestamp2string } from '../../helpers';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';

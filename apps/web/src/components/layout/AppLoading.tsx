@@ -22,8 +22,8 @@ import { useLocation } from 'react-router-dom';
 import { normalizeShellPath } from './route-shell';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import DoorSkeleton, { useDoorReveal } from '../auth/DoorSkeleton';
-import { Skeleton } from '../ui';
 import { KeyLookupHeading } from '../ui/key-lookup';
+import { Skeleton } from '../ui/skeleton';
 
 function ContentSkeleton() {
   return (

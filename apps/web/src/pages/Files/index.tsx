@@ -8,17 +8,13 @@ import { isAxiosError } from 'axios';
 import { Download, FileText, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  DataTableShell,
-  EmptyState,
-  ErrorState,
-  IconButton,
-  Modal,
-  Select,
-  SelectItem,
-  Tag,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorState } from '../../components/ui/error-state';
+import { IconButton } from '../../components/ui/icon-button';
+import { Modal } from '../../components/ui/modal';
+import { Select, SelectItem } from '../../components/ui/select';
 import {
   ColumnVisibilityMenu,
   ConsoleTableFrame,
@@ -28,6 +24,7 @@ import {
   truncateMiddle,
   useColumnVisibility,
 } from '../../components/ui/table-tools';
+import { Tag } from '../../components/ui/tag';
 import { API } from '../../helpers/api';
 import { showError, showSuccess } from '../../helpers/utils';
 import { apiErrorHandler } from '../../lib/api-error';

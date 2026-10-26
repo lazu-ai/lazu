@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react';
 import { AuthExits } from './AuthExits';
 import TermsNotice from './TermsNotice';
-import { Skeleton } from '../ui';
+import { Skeleton } from '../ui/skeleton';
 
 const REVEAL_DELAY_MS = 300;
 

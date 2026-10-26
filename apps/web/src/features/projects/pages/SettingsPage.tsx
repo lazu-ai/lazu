@@ -8,19 +8,21 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '../../../components/ui/button';
+import ConsolePage from '../../../components/ui/console-page';
+import { EffortCapControl } from '../../../components/ui/effort-cap';
+import { Input } from '../../../components/ui/input';
+import { Modal } from '../../../components/ui/modal';
+import { PendingBlock, PendingValue } from '../../../components/ui/pending';
 import {
-  Button,
-  EffortCapControl,
-  Input,
-  Modal,
   Popover,
   PopoverContent,
   PopoverTrigger,
+} from '../../../components/ui/popover';
+import {
   SettingsCard,
   SettingsRow,
-} from '../../../components/ui';
-import ConsolePage from '../../../components/ui/console-page';
-import { PendingBlock, PendingValue } from '../../../components/ui/pending';
+} from '../../../components/ui/settings-card';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import { errorMessage, isLazuApiError } from '../../../lib/api-error';
 import { draftFromMicro, validateBudget, type BudgetDraft } from '../budget';

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, DataCard } from '../ui';
+import { DataCard } from '../ui/data-card';
+import { Modal } from '../ui/modal';
 
 type ManagementKind = 'channel' | 'user' | 'model';
 

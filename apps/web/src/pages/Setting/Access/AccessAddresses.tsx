@@ -1,7 +1,10 @@
 import { Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, PendingBlock, Select } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { PendingBlock } from '../../../components/ui/pending';
+import { Select } from '../../../components/ui/select';
 import { showSuccess } from '../../../helpers';
 import { getExternalAPIBaseURL } from '../../../helpers/apiUrl';
 import {

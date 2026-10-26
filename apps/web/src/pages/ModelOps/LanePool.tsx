@@ -2,7 +2,8 @@ import { formatLatency, formatRate, healthTone } from './formatters';
 import { ModelOpsBars } from './healthBars';
 import { ObservationStrip } from './observation';
 import SourceTypeBadge from './SourceTypeBadge';
-import { Button, Input } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import type { ModelOpsPoolEntry } from '../../hooks/models/useModelOpsQuery';
 import type { TFunction } from 'i18next';
 

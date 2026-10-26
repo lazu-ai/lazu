@@ -1,54 +1,41 @@
 import { Bell, Check, MoreHorizontal, UploadCloud } from 'lucide-react';
 import { useState } from 'react';
+import { Badge } from './badge';
+import { Button } from './button';
+import { Checkbox } from './checkbox';
+import { DataCard } from './data-card';
+import { DataSurface } from './data-surface';
+import { DataTableShell } from './data-table-shell';
+import { DatePicker, DateRangePicker } from './date-picker';
+import { Drawer, DrawerTrigger } from './drawer';
 import {
-  Badge,
-  Button,
-  Checkbox,
-  DataCard,
-  DataSurface,
-  DataTableShell,
-  DatePicker,
-  DateRangePicker,
-  Drawer,
-  DrawerTrigger,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  EmptyState,
-  ErrorState,
-  Field,
-  FieldMessage,
-  FilterBar,
-  IconButton,
-  Input,
-  Label,
-  LoadingState,
-  Modal,
-  ModalTrigger,
-  MultiSelect,
-  PageHeader,
-  Pagination,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  Select,
-  SelectItem,
-  Skeleton,
-  StatusDot,
-  Switch,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  Tag,
-  Textarea,
-  Toolbar,
-  ToolbarGroup,
-  Tooltip,
-  Upload,
-  notify,
-} from '.';
+} from './dropdown-menu';
+import { EmptyState } from './empty-state';
+import { ErrorState } from './error-state';
+import { Field, FieldMessage, Label } from './field';
+import { FilterBar } from './filter-bar';
+import { IconButton } from './icon-button';
+import { Input } from './input';
+import { LoadingState } from './loading-state';
+import { Modal, ModalTrigger } from './modal';
+import { PageHeader } from './page-header';
+import { Pagination } from './pagination';
+import { Popover, PopoverContent, PopoverTrigger } from './popover';
+import { MultiSelect, Select, SelectItem } from './select';
+import { Skeleton } from './skeleton';
+import { StatusDot } from './status-dot';
+import { Switch } from './switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs';
+import { Tag } from './tag';
+import { Textarea } from './textarea';
+import { notify } from './toast';
+import { Toolbar, ToolbarGroup } from './toolbar';
+import { Tooltip } from './tooltip';
+import { Upload } from './upload';
 import type { ComponentType, ReactNode } from 'react';
 
 type SampleRow = {

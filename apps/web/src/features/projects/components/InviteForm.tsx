@@ -7,7 +7,7 @@
  * (S3.1), role limited to what the inviter may hand out, budget as a cap. */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input } from '../../../components/ui';
+import { Input } from '../../../components/ui/input';
 import { isLazuApiError } from '../../../lib/api-error';
 import { canInviteRole } from '../access';
 import {

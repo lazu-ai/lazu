@@ -1,4 +1,4 @@
-import { Badge } from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
 import type { PlanStatus } from './pricePlans';
 import type { TFunction } from 'i18next';
 

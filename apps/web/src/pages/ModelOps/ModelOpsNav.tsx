@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { PendingValue } from '../../components/ui';
+import { PendingValue } from '../../components/ui/pending';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import {
   useModelOpsSourcesQuery,

@@ -2,15 +2,11 @@
 import { ChevronDown, Check } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  Checkbox,
-  Input,
-  Modal,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from './index';
+import { Button } from './button';
+import { Checkbox } from './checkbox';
+import { Input } from './input';
+import { Modal } from './modal';
+import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { cn } from '../../lib/cn';
 import './project-primitives.css';
 /* Three, and only three: a plain label, something the reader should act on,

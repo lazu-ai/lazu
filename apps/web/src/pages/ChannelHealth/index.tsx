@@ -4,17 +4,15 @@ import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { StatusBanner, StatusBoard } from './status-board';
-import {
-  Badge,
-  Button,
-  EmptyState,
-  ErrorState,
-  Input,
-  LoadingState,
-  Modal,
-  Select,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
+import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorState } from '../../components/ui/error-state';
+import { Input } from '../../components/ui/input';
+import { LoadingState } from '../../components/ui/loading-state';
+import { Modal } from '../../components/ui/modal';
+import { Select } from '../../components/ui/select';
 import { API } from '../../helpers/api';
 import {
   getRelativeTime,

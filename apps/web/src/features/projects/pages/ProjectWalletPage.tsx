@@ -10,20 +10,16 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Button,
-  Input,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '../../../components/ui';
-import {
   AutoReloadCard,
   AutoReloadFailureNotice,
   type AutoReloadSettings,
   type AutoReloadState,
 } from '../../../components/ui/auto-reload-card';
+import { Button } from '../../../components/ui/button';
 import ConsolePage from '../../../components/ui/console-page';
+import { Input } from '../../../components/ui/input';
 import { PaymentAdminTools } from '../../../components/ui/payment-admin-tools';
+import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import {
   TOPUP_MAX_DEFAULT,
   TOPUP_MIN_DEFAULT,

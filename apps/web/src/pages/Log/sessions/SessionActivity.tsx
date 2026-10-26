@@ -12,7 +12,10 @@ import {
   durationText,
   shortThreadId,
 } from './session-format';
-import { formatCount, formatMicroUsd } from '../../../components/ui';
+import {
+  formatCount,
+  formatMicroUsd,
+} from '../../../components/ui/metric-format';
 import type {
   AgentSessionDetail,
   AgentSessionRequest,

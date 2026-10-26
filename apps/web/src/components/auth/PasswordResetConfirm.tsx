@@ -10,7 +10,8 @@ import { API, updateAPI } from '../../helpers/api';
 import { setUserData } from '../../helpers/data';
 import { showError, showNotice } from '../../helpers/utils';
 import { readApiError, unwrap } from '../../lib/api-error';
-import { Button, InlineNotice } from '../ui';
+import { Button } from '../ui/button';
+import { InlineNotice } from '../ui/inline-notice';
 import type { SubmitHandler } from 'react-hook-form';
 
 type PasswordResetConfirmValues = {

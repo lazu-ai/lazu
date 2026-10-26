@@ -1,8 +1,11 @@
 import dayjs from 'dayjs';
 import { Boxes, Clock, KeyRound, Layers } from 'lucide-react';
 import { z } from 'zod';
-import { Badge, DataCard, DataSurface, Tag } from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { DataCard } from '../../components/ui/data-card';
+import { DataSurface } from '../../components/ui/data-surface';
 import { formatUnixTime } from '../../components/ui/table-tools';
+import { Tag } from '../../components/ui/tag';
 import type { TFunction } from 'i18next';
 import type { LucideIcon } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';

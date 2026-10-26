@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
-import { Button, StatusPage } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { StatusPage } from '../../components/ui/status-page';
 
 const Forbidden = () => {
   const { t } = useTranslation();

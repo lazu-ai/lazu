@@ -6,18 +6,17 @@
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '../../../components/ui/button';
+import { Checkbox } from '../../../components/ui/checkbox';
+import { EffortCapControl } from '../../../components/ui/effort-cap';
+import { Input } from '../../../components/ui/input';
+import { Modal } from '../../../components/ui/modal';
+import { PendingValue, PendingBlock } from '../../../components/ui/pending';
 import {
-  Button,
-  Checkbox,
-  EffortCapControl,
-  Input,
-  Modal,
-  PendingValue,
-  PendingBlock,
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '../../../components/ui';
+} from '../../../components/ui/popover';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import { errorMessage, isLazuApiError } from '../../../lib/api-error';
 import {

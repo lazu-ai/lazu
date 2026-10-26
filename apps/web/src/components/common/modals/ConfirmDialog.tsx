@@ -1,7 +1,8 @@
 import { AlertTriangle, Info } from 'lucide-react';
 import React, { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Modal } from '../../ui';
+import { Button } from '../../ui/button';
+import { Modal } from '../../ui/modal';
 
 type ConfirmDialogProps = {
   cancelText?: ReactNode;
