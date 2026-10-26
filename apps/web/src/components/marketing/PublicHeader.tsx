@@ -6,7 +6,7 @@ import Reveal from './Reveal';
 import ThemedBrandLogo from './ThemedBrandLogo';
 import { StatusContext } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { webExtensions } from '../../extensions';
 import { getDocsHomeURL } from '../../helpers/brandUrls';
 import {
@@ -118,10 +118,10 @@ const PublicHeader = ({ pathnameOverride }: PublicHeaderProps = {}) => {
   // Crawlers and the prerendered HTML always see the signed-out actions; a
   // signed-in visitor gets the way back to the console once the page is
   // live (after mount, so hydration matches the prerender).
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const signedIn = mounted && Boolean(userState?.user);
+  const signedIn = mounted && Boolean(userSession.user);
 
   // Each language is a real link to this page in that language, so the
   // alternates are crawlable from the page body as well as from hreflang.

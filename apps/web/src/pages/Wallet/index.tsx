@@ -33,7 +33,7 @@ import {
 import { TopupRecord } from '../../components/ui/topup-record';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { StatusContext } from '../../context/Status';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { useTopUpOffer, webExtensions } from '../../extensions';
 import { API } from '../../helpers/api';
 import { getSupportEmail } from '../../helpers/brandUrls';
@@ -203,7 +203,7 @@ const WalletPage = () => {
     setSearchParams(next, { replace: true });
   };
   const queryClient = useQueryClient();
-  const [userState, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const [statusState] = useContext(StatusContext);
   const [period, setPeriod] = useState<'current' | 'previous'>('current');
   const [selectedMethod, setSelectedMethod] = useState('stripe');
@@ -235,13 +235,13 @@ const WalletPage = () => {
   const startTimestamp = rangeFrom.unix();
   const endTimestamp = rangeTo.unix();
 
-  const userQuery = useSelfQuery(Boolean(userState?.user?.id));
+  const userQuery = useSelfQuery(Boolean(userSession.user?.id));
   useEffect(() => {
     const data = userQuery.data;
     if (data) {
-      userDispatch({ type: 'login', payload: data });
+      userSession.signIn(data);
     }
-  }, [userQuery.data, userDispatch]);
+  }, [userQuery.data, userSession.signIn]);
 
   const usageQuery = useQuery({
     queryKey: [
@@ -383,7 +383,7 @@ const WalletPage = () => {
 
   const info =
     topupInfoQuery.data || normalizeTopupInfo(statusState?.status, {});
-  const user = userQuery.data || userState?.user;
+  const user = userQuery.data || userSession.user;
   const walletBalance =
     user?.quota === undefined || user?.quota === null
       ? null

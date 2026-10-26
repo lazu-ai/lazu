@@ -10,7 +10,7 @@ import {
 } from './whatsNewAutoOpen';
 import { openWhatsNewDialog } from './whatsNewChannel';
 import { StatusContext } from '../../context/Status';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { useAnnouncementsUnread } from '../../hooks/common/useAnnouncementsUnread';
 import './version-plate.css';
 
@@ -35,8 +35,8 @@ const VersionPlate = ({
 }: VersionPlateProps) => {
   const { t } = useTranslation();
   const [statusState] = useContext(StatusContext);
-  const [userState] = useContext(UserContext);
-  const user = userState.user;
+  const userSession = useSession();
+  const user = userSession.user;
   const { criticalAnnouncement, hasCritical, hasUnread, unreadCount } =
     useAnnouncementsUnread(Boolean(user));
   const [pulse, setPulse] = useState(false);
