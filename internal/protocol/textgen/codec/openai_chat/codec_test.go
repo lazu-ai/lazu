@@ -359,6 +359,24 @@ func TestDecodePreservesOnlyExplicitImageDetail(t *testing.T) {
 	}
 }
 
+func TestDecodePreservesLegacyFunctionResult(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"user","content":"q"},{"role":"function","name":"lookup","content":"{\"ok\":true}"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := request.Conversation[1]
+	if result.Kind != textgen.InputFunctionResult || result.Role != "function" || result.Name != "lookup" || result.Output != `{"ok":true}` {
+		t.Fatalf("legacy function result lost: %+v", result)
+	}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wire.Messages) != 2 || wire.Messages[1].Role != "function" || wire.Messages[1].Name == nil || *wire.Messages[1].Name != "lookup" {
+		t.Fatalf("legacy function result did not round-trip: %+v", wire.Messages)
+	}
+}
+
 func TestDecodeMarksImageMimeTypeNativeOnly(t *testing.T) {
 	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://example.test/signed","detail":"high","mime_type":"image/png"}}]}]}`))
 	if err != nil {

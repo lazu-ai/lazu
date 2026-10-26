@@ -282,27 +282,6 @@ const createSections = (
     description: t('page.console.settingV2.upstream.gemini.description'),
     fields: [
       {
-        key: 'gemini.thinking_adapter',
-        kind: 'group',
-        label: 'Thinking Adapter',
-        description: t('page.console.settingV2.upstream.field.geminiThinking'),
-        parts: [
-          { key: 'gemini.thinking_adapter_enabled', kind: 'boolean' },
-          /* Stored as a fraction of max tokens, not a percentage: the
-             relay multiplies MaxTokens by this value directly. Showing it
-             with a % suffix invited someone to type 80 and multiply every
-             budget by eighty. */
-          {
-            key: 'gemini.thinking_adapter_budget_tokens_percentage',
-            kind: 'number',
-            unit: t('page.console.settingV2.upstream.unit.fraction', {
-              defaultValue: '× 上限',
-            }),
-            width: 'sm',
-          },
-        ],
-      },
-      {
         key: 'gemini.safety_settings',
         kind: 'rows',
         label: t('page.console.settingV2.upstream.field.geminiSafetyLabel', {

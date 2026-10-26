@@ -2061,7 +2061,6 @@
     "page.console.settingV2.upstream.field.claudeThinking": "As for Gemini: converts reasoning_effort into budget_tokens. The number is a 0–1 fraction of the request’s max tokens.",
     "page.console.settingV2.upstream.field.geminiSafety": "How hard to block each kind of content. `default` covers categories not listed separately; an empty category follows it.",
     "page.console.settingV2.upstream.field.geminiSafetyLabel": "Content blocking",
-    "page.console.settingV2.upstream.field.geminiThinking": "Converts an OpenAI-style reasoning_effort into a thinking budget. The number is a 0–1 fraction the gateway multiplies the request’s max tokens by.",
     "page.console.settingV2.upstream.field.geminiVersion": "Which Gemini API version a model goes through. `default` is used by any model not listed.",
     "page.console.settingV2.upstream.field.geminiVersionLabel": "API version",
     "page.console.settingV2.upstream.field.passThrough": "Request pass-through",

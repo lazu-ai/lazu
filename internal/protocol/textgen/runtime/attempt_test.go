@@ -690,10 +690,10 @@ func TestPrepareAttemptStandsInForJSONObjectOnAnthropic(t *testing.T) {
 	}
 }
 
-// A Claude client is served natively by an Anthropic channel and bridged to
-// Chat by OpenAI and Gemini channels: the legacy pairwise converters that
-// used to serve it on those channels are gone, so every such attempt must be
-// planned.
+// A Claude client is served natively by an Anthropic channel, bridged to
+// Chat by an OpenAI channel and to generateContent by a Gemini one: the
+// legacy pairwise converters that used to serve it on those channels are
+// gone, so every such attempt must be planned.
 func TestClaudeClientIsPlannedOnEveryClaudeCapableChannel(t *testing.T) {
 	previousDB := model.CoreDB()
 	db, err := gorm.Open(gormsqlite.Open("file:runtime_claude_client?mode=memory&cache=shared"), &gorm.Config{})
@@ -723,7 +723,7 @@ func TestClaudeClientIsPlannedOnEveryClaudeCapableChannel(t *testing.T) {
 	}{
 		{constant.ChannelTypeAnthropic, true, textgen.ProtocolAnthropic},
 		{constant.ChannelTypeOpenAI, false, textgen.ProtocolOpenAIChat},
-		{constant.ChannelTypeGemini, false, textgen.ProtocolOpenAIChat},
+		{constant.ChannelTypeGemini, false, textgen.ProtocolGemini},
 	} {
 		attempt, err := PrepareAttempt(parsed, &model.Channel{Type: tc.channelType}, "fixture")
 		if err != nil {

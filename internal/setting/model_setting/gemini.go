@@ -6,11 +6,9 @@ import (
 
 // GeminiSettings 定义Gemini模型的配置
 type GeminiSettings struct {
-	SafetySettings                        map[string]string `json:"safety_settings"`
-	VersionSettings                       map[string]string `json:"version_settings"`
-	SupportedImagineModels                []string          `json:"supported_imagine_models"`
-	ThinkingAdapterEnabled                bool              `json:"thinking_adapter_enabled"`
-	ThinkingAdapterBudgetTokensPercentage float64           `json:"thinking_adapter_budget_tokens_percentage"`
+	SafetySettings         map[string]string `json:"safety_settings"`
+	VersionSettings        map[string]string `json:"version_settings"`
+	SupportedImagineModels []string          `json:"supported_imagine_models"`
 }
 
 // 默认配置
@@ -31,8 +29,6 @@ var defaultGeminiSettings = GeminiSettings{
 		"gemini-3.1-flash-lite-image",
 		"gemini-nano-banana-2",
 	},
-	ThinkingAdapterEnabled:                false,
-	ThinkingAdapterBudgetTokensPercentage: 0.6,
 }
 
 // 全局实例
