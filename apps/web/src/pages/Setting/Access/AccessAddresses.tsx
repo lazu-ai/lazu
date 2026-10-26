@@ -2,8 +2,8 @@ import { Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, PendingBlock, Select } from '../../../components/ui';
+import { notify } from '../../../components/ui/toast';
 import { getExternalAPIBaseURL } from '../../../helpers/apiUrl';
-import { showSuccess } from '../../../helpers/utils';
 import {
   type AccessAddressKind,
   useAccessAddressesAdmin,
@@ -174,7 +174,7 @@ export default function AccessAddresses() {
                 .map((draft) => ({ kind: draft.kind, url: draft.url.trim() })),
               {
                 onSuccess: () =>
-                  showSuccess(
+                  notify.success(
                     t('page.console.settingV2.access.addresses.saved', {
                       defaultValue: '接入地址已保存',
                     }),

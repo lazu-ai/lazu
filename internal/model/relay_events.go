@@ -69,17 +69,6 @@ func PublishRelayEvent(eventType string, payload any) error {
 	return err
 }
 
-func relayEventXAddArgs(eventType string, raw []byte) *redis.XAddArgs {
-	return &redis.XAddArgs{
-		Stream: common.RelayEventStream,
-		MaxLen: relayEventMaxLength(),
-		Values: map[string]any{
-			"type":    eventType,
-			"payload": string(raw),
-		},
-	}
-}
-
 func StartRelayEventConsumer(ctx context.Context) {
 	if !relayEventConsumerAvailable() {
 		return

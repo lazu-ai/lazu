@@ -76,7 +76,6 @@ import {
 } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
 import { ProviderLogo } from '../../components/ui/provider-icons';
-import { API } from '../../helpers/api';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
 import { modelDisplayName } from '../../lib/model-display-name';
 import {

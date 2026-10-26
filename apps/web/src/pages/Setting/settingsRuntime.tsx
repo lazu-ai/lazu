@@ -25,10 +25,11 @@ import {
   Switch,
   Textarea,
 } from '../../components/ui';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
 import { toBoolean } from '../../helpers/boolean';
 import { sanitizeMarkup } from '../../helpers/sanitize';
-import { showSuccess, showWarning } from '../../helpers/utils';
+import { showWarning } from '../../helpers/utils';
 import '../../components/common/DocumentRenderer/legal-document.css';
 import '../../styles/settings-surface.css';
 import { apiErrorHandlerWith, unwrap } from '../../lib/api-error';
@@ -1435,7 +1436,7 @@ export const SettingsGroupPage = ({
           serializeValue(previous[leaf.key]),
       );
       if (!changed.length) {
-        showWarning(t('page.console.settingV2.runtime.noChanges'));
+        notify.warning(t('page.console.settingV2.runtime.noChanges'));
         return [];
       }
       const submitted = changed.map((leaf) => ({
@@ -1496,7 +1497,7 @@ export const SettingsGroupPage = ({
       // /api/status publishes many of these options (name, logo, top-up
       // range, sign-in methods); let the console pick them up now.
       void queryClient.invalidateQueries({ queryKey: queryKeys.status });
-      showSuccess(
+      notify.success(
         t('page.console.settingV2.runtime.saveSuccess', {
           count: submitted.length,
         }),

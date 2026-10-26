@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import React, { useContext, useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PlatformOverview from './overview/PlatformOverview';
 import WorkspaceOverview from './overview/WorkspaceOverview';

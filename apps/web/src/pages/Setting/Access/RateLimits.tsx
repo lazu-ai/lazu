@@ -18,8 +18,8 @@ import {
   Switch,
 } from '../../../components/ui';
 import { coerceItemsPayload } from '../../../components/ui/table-tools';
+import { notify } from '../../../components/ui/toast';
 import { API } from '../../../helpers/api';
-import { showSuccess } from '../../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../../lib/api-error';
 import { queryKeys } from '../../../lib/query-keys';
 import './rate-limits.css';
@@ -137,7 +137,7 @@ export default function RateLimits() {
       }
     },
     onSuccess: () => {
-      showSuccess(t('common.saved', { defaultValue: '已保存' }));
+      notify.success(t('common.saved', { defaultValue: '已保存' }));
       void queryClient.invalidateQueries({ queryKey: RATE_LIMIT_QUERY_KEY });
       // The upstream settings form shows the same switch.
       void queryClient.invalidateQueries({
