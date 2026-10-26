@@ -2,6 +2,7 @@ package router
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -215,7 +216,8 @@ func TestResponsesToolRoundtripThroughRelayAndFailover(t *testing.T) {
 	if attempts != requests || outcomes != requests {
 		t.Fatalf("incorrect request/attempt accounting: %d/%d requests=%d", attempts, outcomes, requests)
 	}
-	rows, err := model.QueryChannelHealthEvidence(time.Now().UTC().Add(-time.Hour))
+	window, err := model.LoadRouteHealthWindow(context.Background(), time.Now().UTC().Add(-time.Hour), time.Now())
+	rows := window.Evidence()
 	if err != nil || len(rows) != 2 {
 		t.Fatalf("health lost failed attempts: rows=%+v err=%v", rows, err)
 	}

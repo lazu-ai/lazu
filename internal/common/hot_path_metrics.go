@@ -184,9 +184,3 @@ func SnapshotHotPathMetrics() HotPathMetricsSnapshot {
 	})
 	return snapshot
 }
-
-func resetHotPathMetricsForTest() {
-	hotPathMetricsStartedAt = time.Now().Unix()
-	hotPathStageMetrics = sync.Map{}
-	hotPathCounters = sync.Map{}
-}

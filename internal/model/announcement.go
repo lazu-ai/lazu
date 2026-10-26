@@ -657,15 +657,6 @@ func ListUnseenAnnouncements(userID int, locale string, limit int) ([]Announceme
 	return result, nil
 }
 
-// HasUnseenCriticalAnnouncement is deliberately independent of the bounded
-// unseen feed. The version plate uses it to decide whether to open the update
-// panel automatically, so a critical item must not be hidden behind newer
-// notices that filled the current page.
-func HasUnseenCriticalAnnouncement(userID int) (bool, error) {
-	item, err := UnseenCriticalAnnouncement(userID, "zh")
-	return item != nil, err
-}
-
 // UnseenCriticalAnnouncement returns the newest unread critical item without
 // applying the ordinary unseen-page limit. It supplies the exact item that
 // triggered a critical auto-open, so the dialog never hides that reason behind

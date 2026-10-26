@@ -23,13 +23,6 @@ var (
 	tokenUsageAlertStore = make(map[string]time.Time)
 )
 
-// waitTokenUsageAlerts joins admitted alerts, including SendMail's delivery
-// recorder. Call only after producers have stopped, such as fixture teardown;
-// this is not a barrier against concurrent new admissions.
-func waitTokenUsageAlerts() {
-	tokenUsageAlertJobs.Wait()
-}
-
 /*
 checkAndSendTokenUsageAlert mails the payer once when a Key crosses the share of
 its own quota that its owner asked to hear about.

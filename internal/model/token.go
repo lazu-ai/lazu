@@ -1239,41 +1239,6 @@ func CountUsableUserTokens(userId int) (int64, error) {
 	return total, err
 }
 
-// BatchDeleteTokens 删除指定用户的一组令牌，返回成功删除数量
-func BatchDeleteTokens(ids []int, userId int) (int, error) {
-	if len(ids) == 0 {
-		return 0, types.Err(types.ErrorCodeInvalidRequest, types.D{"field": "ids"})
-	}
-
-	tx := CoreDB().Begin()
-
-	var tokens []Token
-	if err := excludeInternalTokens(tx).Where("user_id = ? AND id IN (?)", userId, ids).Find(&tokens).Error; err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	if err := excludeInternalTokens(tx).Where("user_id = ? AND id IN (?)", userId, ids).Delete(&Token{}).Error; err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return 0, err
-	}
-
-	digests := make([]string, 0, len(tokens))
-	for index := range tokens {
-		digests = append(digests, tokens[index].CacheDigest())
-	}
-	cacheErr := cacheInvalidateTokenSnapshotsWithFence(digests)
-	if cacheErr != nil {
-		return len(tokens), &TokenMutationCommittedError{Operation: "batch deletion", Cause: cacheErr}
-	}
-
-	return len(tokens), nil
-}
-
 func InvalidateUserTokensCache(userId int) error {
 	if !common.RedisEnabled {
 		return nil

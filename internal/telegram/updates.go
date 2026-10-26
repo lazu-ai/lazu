@@ -328,10 +328,3 @@ func holdPollLease(ctx context.Context) bool {
 	}
 	return common.RDB.Expire(ctx, key, time.Minute).Err() == nil
 }
-
-// resetIdentity forgets the cached getMe answer (tests).
-func resetIdentity() {
-	identity.Lock()
-	identity.bot, identity.triedAt, identity.forTokens = botIdentity{}, time.Time{}, ""
-	identity.Unlock()
-}

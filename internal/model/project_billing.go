@@ -641,12 +641,6 @@ func ListProjectTopUpsMissingDocuments(limit int, since int64) ([]TopUp, error) 
 	return orders, err
 }
 
-// Move an attempted order behind untouched ones, including when Stripe has
-// not produced a final invoice yet. A failed old order must not block the queue.
-func MarkProjectTopUpDocumentChecked(id int, checkedAt int64) error {
-	return CoreDB().Model(&TopUp{}).Where("id = ?", id).Update("document_checked_at", checkedAt).Error
-}
-
 // ClaimProjectTopUpsForDocumentReconciliation records a bounded retry lease
 // before any external Stripe call. Workers release their database lock after
 // this transaction; a failed call becomes eligible again after five minutes.

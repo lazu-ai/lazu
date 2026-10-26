@@ -1446,10 +1446,6 @@ func getConsumeSummaryByScope(scopeColumn string, scopeID int, startTimestamp in
 	return summary, err
 }
 
-func GetTokenUsageSeriesByTokenID(tokenID int, startTimestamp int64, endTimestamp int64, granularity string) ([]TokenUsageSeriesPoint, error) {
-	return getUsageSeriesByScope("token_id", tokenID, startTimestamp, startTimestamp > 0, endTimestamp, endTimestamp > 0, granularity)
-}
-
 func GetUserUsageSeriesByUserIDInWindow(userID int, startTimestamp int64, endTimestamp int64, granularity string) ([]TokenUsageSeriesPoint, error) {
 	return getUsageSeriesByScope("user_id", userID, startTimestamp, true, endTimestamp, true, granularity)
 }

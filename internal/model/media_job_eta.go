@@ -91,9 +91,3 @@ func MediaJobProgress(job MediaJob, now time.Time) (progress int, etaSeconds int
 	}
 	return progress, etaSeconds, true
 }
-
-func resetMediaJobTypicalCache() {
-	mediaJobTypicalMu.Lock()
-	mediaJobTypicalCache = map[string]mediaJobTypical{}
-	mediaJobTypicalMu.Unlock()
-}

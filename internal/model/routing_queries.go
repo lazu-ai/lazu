@@ -223,10 +223,6 @@ func HasUserSwitchedModelContext(ctx context.Context, sessionID string, resolved
 	return routingDecisionExists(TelemetryDB().WithContext(ctx), "session_id = ? AND resolved_model <> ? AND decision_at > ? AND decision_at <= ?", sessionID, resolvedModel, start, end)
 }
 
-func UpdateOutcomeQualitySignals(requestID string, retried bool, switched bool) error {
-	return UpdateOutcomeQualitySignalsContext(context.Background(), requestID, retried, switched)
-}
-
 func UpdateOutcomeQualitySignalsContext(ctx context.Context, requestID string, retried bool, switched bool) error {
 	store := TelemetryDB().WithContext(ctx)
 	if routingFactsAreViews(store) {

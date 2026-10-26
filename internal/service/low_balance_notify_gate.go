@@ -246,15 +246,6 @@ func ensureLowBalanceMemoryCleanup() {
 	})
 }
 
-func stopLowBalanceMemoryCleanup() {
-	lowBalanceCleanupMu.Lock()
-	defer lowBalanceCleanupMu.Unlock()
-	if lowBalanceCleanupCancel != nil {
-		lowBalanceCleanupCancel()
-		lowBalanceCleanupCancel = nil
-	}
-}
-
 func pruneLowBalanceMemoryState(now time.Time) {
 	cutoff := now.Add(-time.Duration(lowBalanceMemoryRetentionDays) * 24 * time.Hour).Unix()
 	lowBalanceStoreMu.Lock()

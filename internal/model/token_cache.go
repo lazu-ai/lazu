@@ -36,19 +36,6 @@ type tokenQuotaCacheSnapshot struct {
 	used   billing.MicroUSD
 }
 
-func cacheSetToken(token Token) error {
-	key := token.CacheDigest()
-	if key == "" {
-		return fmt.Errorf("token cache digest is empty")
-	}
-	token.Clean()
-	err := common.RedisHSetObj(fmt.Sprintf("token:%s", key), &token, time.Duration(common.RedisKeyCacheSeconds())*time.Second)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func cacheSetTokenIfMissing(token Token, guard *tokenCacheFillGuard) error {
 	key := token.CacheDigest()
 	if key == "" {

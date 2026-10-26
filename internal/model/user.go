@@ -1883,45 +1883,6 @@ func GetUserEmail(id int) (email string, err error) {
 	return email, err
 }
 
-// GetUserSetting gets setting from Redis first, falls back to CoreDB() if needed
-func GetUserSetting(id int, fromDB bool) (settingMap dto.UserSetting, err error) {
-	var setting string
-	var needsPassword bool
-	defer func() {
-		// Update Redis cache asynchronously on successful CoreDB() read
-		if shouldUpdateRedis(fromDB, err) {
-			common.SafeGo("user-setting-cache-refresh", func() {
-				if err := updateUserSettingCache(id, setting); err != nil {
-					common.SysLog("failed to update user setting cache: " + err.Error())
-				}
-			})
-		}
-	}()
-	if !fromDB && common.RedisEnabled {
-		setting, err := getUserSettingCache(id)
-		if err == nil {
-			return setting, nil
-		}
-		// Don't return error - fall through to CoreDB()
-	}
-	fromDB = true
-	var settingRow struct {
-		Setting       string
-		NeedsPassword bool
-	}
-	err = CoreDB().Model(&User{}).Where("id = ?", id).Select("setting", "needs_password").Find(&settingRow).Error
-	if err != nil {
-		return settingMap, err
-	}
-	setting = settingRow.Setting
-	needsPassword = settingRow.NeedsPassword
-	userBase := &UserBase{
-		Setting:       setting,
-		NeedsPassword: needsPassword,
-	}
-	return userBase.GetSetting(), nil
-}
-
 //func GetRootUserEmail() (email string) {
 //	CoreDB().Model(&User{}).Where("role = ?", common.RoleRootUser).Select("email").Find(&email)
 //	return email

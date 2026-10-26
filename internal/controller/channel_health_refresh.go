@@ -29,9 +29,3 @@ func refreshChannelHealthInBackground(reason string) {
 		}
 	}()
 }
-
-// WaitForChannelHealthRefreshes blocks until every refresh started so far has
-// finished. It exists for tests; a request never calls it.
-func WaitForChannelHealthRefreshes() {
-	channelHealthRefreshes.Wait()
-}
