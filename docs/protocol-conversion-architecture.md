@@ -304,7 +304,7 @@ Claude 客户端的映射以真实录制的 Claude Code 请求为准（`testdata
 - thinking 预算按档位映射为 effort（`textgen.EffortForBudget`，与 `model.EffortBudgetTokens` 反向同表），Chat 和 Responses 同一张表；Chat 客户端的 `reasoning.max_tokens` 到 Responses 也不再拒绝。目录未声明会推理的模型，桥接时不发 thinking（Claude Code 每个请求都带），与旧转换一致。
 - `context_management` 只有 `clear_thinking_*` 时是提示性的；其它编辑、`mcp_servers`、Anthropic 自己执行的工具和 `server_tool_use` 历史，桥接时按字段路径拒绝，native 不受影响。
 
-回退开关：`global.legacy_claude_client_conversion`（控制台「上游」设置）打开后，`/v1/messages` 不解析、不规划，完全走旧转换。开关只保留这一个版本；下一版本删除 `ClaudeToOpenAIRequest`、`StreamResponseOpenAI2Claude`、`ResponseOpenAI2Claude` 和开关本身，差分测试 `TestClaudeToChatMatchesTheLegacyConverter` 届时转为 golden 文件。
+回退开关 `global.legacy_claude_client_conversion` 和请求方向的旧转换 `ClaudeToOpenAIRequest` 已删除（2026-10-26）：`/v1/messages` 总是解析、规划，OpenAI 和 Gemini 渠道走 Chat 桥接，Anthropic 渠道走 native。旧转换在它做对的用例上的输出存为 `internal/service/testdata/claude_bridge/`，由 `TestClaudeToChatMatchesTheGoldenFiles` 守住。响应方向的 `StreamResponseOpenAI2Claude`、`ResponseOpenAI2Claude` 暂时保留：经旧 Chat handler 回答的 adaptor（包括 Gemini）仍用它们把响应转成 Messages，等 Gemini 接入 codec 时一起删除。
 
 已接入 handler（2026-10-21，Responses 上游的 Chat 客户端）：`relay_responses.go` 里逐事件拼 Chat chunk 的兼容分支删除，改为 `openai.chatClientResponsesStream`：Responses decoder 解一次，Chat emitter 发出，规则与另两个 hub 相同（首个内容之前什么都不写，之前的失败可重试，之后告知客户端且不重放），计费所需的副作用（内置工具计数、图片生成、finish reason、交换日志）保留，失败帧仍用错误目录的 `streamFailureFrame`。行为变化：内容之前的 `response.failed` 由「写给客户端、不重试」改为可重试（与 native Responses 路径一致）。顺带修正：Responses decoder 对只有 done 事件的 function_call 先发 start；Chat emitter 每个调用的 id 和 name 只写一次，逐段拼接的客户端不会把名字拼成两遍。整段回复仍走 `ResponsesResponseToChat`（它保留 annotations）。
 

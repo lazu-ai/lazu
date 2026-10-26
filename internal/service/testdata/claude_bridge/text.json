@@ -1,0 +1,12 @@
+{
+  "max_tokens": 200,
+  "messages": [
+    {
+      "content": "Say hi.",
+      "role": "user"
+    }
+  ],
+  "model": "m",
+  "temperature": 0.3,
+  "top_p": 0.9
+}
