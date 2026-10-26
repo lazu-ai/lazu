@@ -4,7 +4,6 @@ import {
   Activity,
   BarChart3,
   Coins,
-  KeyRound,
   PieChart,
   Search,
   TrendingUp,
@@ -28,9 +27,7 @@ import {
   type UsageRow,
 } from './support';
 import VChart from '../../components/common/charts/VChart';
-import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { DataCard } from '../../components/ui/data-card';
 import { DataSurface } from '../../components/ui/data-surface';
 import { DataTableShell } from '../../components/ui/data-table-shell';
 import { DateRangePicker } from '../../components/ui/date-picker';
@@ -49,15 +46,12 @@ import {
   TabsTrigger,
 } from '../../components/ui/tabs';
 import { Tag } from '../../components/ui/tag';
+import { notify } from '../../components/ui/toast';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { API } from '../../helpers/api';
 import { asMicroUSD } from '../../helpers/money';
 import { renderQuota } from '../../helpers/render';
-import {
-  getUserIdFromLocalStorage,
-  showError,
-  showWarning,
-} from '../../helpers/utils';
+import { getUserIdFromLocalStorage, showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
 import type { CellContext, ColumnDef } from '@tanstack/react-table';
 
@@ -147,7 +141,7 @@ const KeyInspectorPage = () => {
             total: filteredItems.length,
           },
         };
-        showWarning(
+        notify.warning(
           t(
             'legacy.i18n.your_backend_version_does_not_support_server_side_filters_yet_au.8586f138b1',
           ),

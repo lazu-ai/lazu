@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
 import { tokenStatusCode } from './tokenStatusCode';
-import { asMicroUSD } from '../../helpers';
+import { asMicroUSD } from '../../helpers/money';
 import {
   fetchAllTokenRecords,
   type TokenRecord,

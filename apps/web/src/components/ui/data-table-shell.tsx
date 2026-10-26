@@ -20,13 +20,7 @@ import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useMotionPresence } from '../../hooks/common/useMotionPresence';
 import { cn } from '../../lib/cn';
 import './row-actions.css';
-import type {
-  Cell,
-  Column,
-  ColumnDef,
-  Row,
-  Table,
-} from '@tanstack/react-table';
+import type { Cell, Column, ColumnDef, Table } from '@tanstack/react-table';
 import type { Dispatch, MouseEvent, ReactNode, SetStateAction } from 'react';
 
 // Column ids that get special placement on mobile cards.

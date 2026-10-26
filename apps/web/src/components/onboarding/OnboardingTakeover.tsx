@@ -1,10 +1,10 @@
 import { Check } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import './onboarding.css';
-import { showSuccess } from '../../helpers/utils';
 import { Button } from '../ui/button';
+import { notify } from '../ui/toast';
 import type { OnboardingState } from './useOnboarding';
 
 type Props = {
@@ -87,7 +87,7 @@ const OnboardingTakeover = ({
     try {
       await navigator.clipboard.writeText(command);
       setCopied(true);
-      showSuccess(t('page.console.onboarding.copied'));
+      notify.success(t('page.console.onboarding.copied'));
     } catch {
       setCopied(false);
     }

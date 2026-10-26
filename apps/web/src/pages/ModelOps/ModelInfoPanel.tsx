@@ -13,7 +13,7 @@ import { Checkbox } from '../../components/ui/checkbox';
 import { Input } from '../../components/ui/input';
 import { Select, SelectItem } from '../../components/ui/select';
 import { API } from '../../helpers/api';
-import { showError, showSuccess } from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import {
   useModelInfoMutations,
   useModelInfoReviewsQuery,

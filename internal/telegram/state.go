@@ -113,11 +113,3 @@ func countWithin(ctx context.Context, key string, window time.Duration) int64 {
 	local.value["count:"+key] = strconv.FormatInt(n, 10)
 	return n
 }
-
-// resetLocalState clears process-memory state (tests).
-func resetLocalState() {
-	local.Lock()
-	local.until = map[string]time.Time{}
-	local.value = map[string]string{}
-	local.Unlock()
-}

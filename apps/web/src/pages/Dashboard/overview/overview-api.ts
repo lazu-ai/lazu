@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { API } from '../../../helpers';
+import { API } from '../../../helpers/api';
 import { unwrap } from '../../../lib/api-error';
 
 /** Mirrors internal/model/overview.go. Money is microUSD. */

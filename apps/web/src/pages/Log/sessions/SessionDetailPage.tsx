@@ -9,7 +9,6 @@ import {
   SK,
   type SessionLane,
   clockSecondsText,
-  clockText,
   durationText,
   officialSaving,
   pct,
@@ -44,7 +43,8 @@ import {
   formatMicroUsd,
 } from '../../../components/ui/metric-format';
 import { PendingBlock, PendingValue } from '../../../components/ui/pending';
-import { copy, showError, showSuccess } from '../../../helpers/utils';
+import { notify } from '../../../components/ui/toast';
+import { copy, showError } from '../../../helpers/utils';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import {
   type AgentSessionDetail,
@@ -135,7 +135,7 @@ export default function SessionDetailPage() {
 
   const copyText = async (value: unknown) => {
     if (await copy(String(value ?? ''))) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }

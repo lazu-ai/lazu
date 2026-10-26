@@ -11,7 +11,7 @@ import {
   X,
   Copy,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { AccessAddressStrip } from './access-addresses';
 import { ConnectModal } from './connect/ConnectModal';
@@ -56,6 +56,7 @@ import {
   formatUnixTime,
   useColumnVisibility,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import {
   KeyAudienceModal,
   shouldAskKeyAudience,
@@ -250,7 +251,7 @@ const Token = () => {
       // was on screen, and otherwise show nothing.
       if (wasRevealed) revealNow(rotateTarget, key);
       else hideRevealed();
-      showSuccess(
+      notify.success(
         t('page.console.token.toast.rotated', {
           defaultValue: '已重新生成 {{name}}，旧值已失效',
           name: String(rotateTarget.name || ''),

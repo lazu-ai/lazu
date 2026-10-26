@@ -18,18 +18,17 @@ import { API } from '../../helpers/api';
 import { getDocsBaseURL } from '../../helpers/brandUrls';
 import { resolveGatewayHref } from '../../helpers/gatewayNavigation';
 import { getLucideIcon } from '../../helpers/lucide';
-import { showSuccess } from '../../helpers/utils';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { CompactConfirmation } from '../ui/compact-confirmation';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Skeleton } from '../ui/skeleton';
 /* The sidebar renders the `.pj-sidefoot` role row on every console page, but
    the project stylesheet used to arrive only with a project page's own imports
    — so on Usage, Keys and Models it rendered unstyled. The sidebar shows it,
    so the sidebar imports its styles. */
 import '../../features/projects/projects.css';
+import { notify } from '../ui/toast';
 
 const ROUTER_MAP = {
   token: '/console/token',
@@ -162,7 +161,7 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
       // The session may already be gone server-side; the cleanup below is what
       // actually signs this browser out.
     }
-    showSuccess(t('legacy.i18n.logout_successful.ea3f16cb50'));
+    notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
     userDispatch({ type: 'logout' });
     localStorage.removeItem('user');
     navigate('/login');

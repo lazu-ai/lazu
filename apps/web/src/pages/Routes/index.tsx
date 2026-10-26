@@ -76,7 +76,6 @@ import {
   TabsList,
   TabsTrigger,
 } from '../../components/ui/tabs';
-import { API } from '../../helpers/api';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
 import { modelDisplayName } from '../../lib/model-display-name';
 import {

@@ -5,7 +5,7 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { PendingBlock } from '../../../components/ui/pending';
 import { Select } from '../../../components/ui/select';
-import { showSuccess } from '../../../helpers';
+import { notify } from '../../../components/ui/toast';
 import { getExternalAPIBaseURL } from '../../../helpers/apiUrl';
 import {
   type AccessAddressKind,
@@ -177,7 +177,7 @@ export default function AccessAddresses() {
                 .map((draft) => ({ kind: draft.kind, url: draft.url.trim() })),
               {
                 onSuccess: () =>
-                  showSuccess(
+                  notify.success(
                     t('page.console.settingV2.access.addresses.saved', {
                       defaultValue: '接入地址已保存',
                     }),

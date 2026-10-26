@@ -17,7 +17,6 @@ import {
 } from '../../../components/ui/auto-reload-card';
 import { Button } from '../../../components/ui/button';
 import ConsolePage from '../../../components/ui/console-page';
-import { Input } from '../../../components/ui/input';
 import { PaymentAdminTools } from '../../../components/ui/payment-admin-tools';
 import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import {
@@ -28,16 +27,14 @@ import {
 import { TopupRecord } from '../../../components/ui/topup-record';
 import { StatusContext } from '../../../context/Status';
 import { useTopUpOffer, webExtensions } from '../../../extensions';
-import { getMicroUSDPerUSD } from '../../../helpers';
 import { API } from '../../../helpers/api';
+import { getMicroUSDPerUSD } from '../../../helpers/render';
 import { errorMessage, unwrap } from '../../../lib/api-error';
 import { buildDailyWalletLedger } from '../../../pages/Wallet/walletLedger';
 import { canManageBilling, canTopUp as roleCanTopUp } from '../access';
 import { validateTopUpAmount } from '../budget';
 import {
   Card,
-  ErrLine,
-  Kvs,
   Ledger,
   PjBadge,
   SectionHead,
@@ -47,7 +44,7 @@ import {
   formatMonthDay,
 } from '../components/atoms';
 import { ShareBalanceCard } from '../components/ShareBalanceCard';
-import { formatUSD, formatUSDShort, toMicro } from '../money';
+import { formatUSD, formatUSDShort } from '../money';
 import { paymentDocumentPath } from '../paymentDocument';
 import { useProject } from '../ProjectContext';
 import {
@@ -68,7 +65,8 @@ import type { ProjectAutoReload, ProjectTopup } from '../types';
 type Tab = 'ledger' | 'topups' | 'monthly';
 
 export default function ProjectWalletPage() {
-  const { t } = useTranslation(['projects', 'translation'], {
+  // Loads the wallet namespaces before either view renders.
+  useTranslation(['projects', 'translation'], {
     nsMode: 'fallback',
   });
   const project = useProject();
