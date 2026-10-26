@@ -45,7 +45,7 @@ func (s CapabilitySnapshot) FeaturesOn(endpoint FeatureID) FeatureSet {
 // endpoints lists the native endpoints the snapshot has.
 func (s CapabilitySnapshot) endpoints() []FeatureID {
 	var out []FeatureID
-	for _, endpoint := range []FeatureID{FeatureEndpointChat, FeatureEndpointResponses, FeatureEndpointMessages} {
+	for _, endpoint := range []FeatureID{FeatureEndpointChat, FeatureEndpointResponses, FeatureEndpointMessages, FeatureEndpointGemini} {
 		if s.Features.Has(endpoint) {
 			out = append(out, endpoint)
 		}
@@ -60,6 +60,8 @@ func endpointOf(family ProtocolFamily) FeatureID {
 		return FeatureEndpointResponses
 	case ProtocolAnthropic:
 		return FeatureEndpointMessages
+	case ProtocolGemini:
+		return FeatureEndpointGemini
 	}
 	return FeatureEndpointChat
 }
@@ -71,6 +73,8 @@ func familyOf(endpoint FeatureID) ProtocolFamily {
 		return ProtocolOpenAIResponses
 	case FeatureEndpointMessages:
 		return ProtocolAnthropic
+	case FeatureEndpointGemini:
+		return ProtocolGemini
 	}
 	return ProtocolOpenAIChat
 }
@@ -201,15 +205,16 @@ func PlanAttempt(client Protocol, snapshot CapabilitySnapshot, request *Request,
 }
 
 // bridgeOrder lists the upstream protocols a client protocol may be bridged
-// to, preferred first: the OpenAI sibling, then Anthropic's Messages.
+// to, preferred first: the OpenAI sibling, then Anthropic's Messages, then
+// Gemini's generateContent (a Gemini channel's only endpoint).
 func bridgeOrder(client ProtocolFamily) []ProtocolFamily {
 	switch client {
 	case ProtocolOpenAIChat:
-		return []ProtocolFamily{ProtocolOpenAIResponses, ProtocolAnthropic}
+		return []ProtocolFamily{ProtocolOpenAIResponses, ProtocolAnthropic, ProtocolGemini}
 	case ProtocolOpenAIResponses:
-		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolAnthropic}
+		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolAnthropic, ProtocolGemini}
 	case ProtocolAnthropic:
-		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses}
+		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses, ProtocolGemini}
 	}
 	return nil
 }
@@ -337,6 +342,9 @@ func requireFeatures(snapshot CapabilitySnapshot, required FeatureSet, uses []Fe
 func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
 	if upstream == ProtocolAnthropic {
 		return messagesBridgeIssue(request, uses)
+	}
+	if upstream == ProtocolGemini {
+		return geminiBridgeIssue(client, request, uses)
 	}
 	if upstream == ProtocolOpenAIChat && request != nil {
 		for index, item := range request.Conversation {
@@ -486,4 +494,27 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 		}
 	}
 	return nil
+}
+
+// geminiBridgeIssue is what keeps a request off the bridge to Gemini's
+// generateContent. A Gemini channel used to take Chat clients natively and
+// convert them itself, leaving out what Gemini has no field for (n, log
+// probabilities, unknown fields) without refusing; the bridge keeps that, so
+// moving the channel onto the codec turns away nothing it served. Gemini takes
+// files inline only, so a file referenced by id is refused, as before. Claude
+// and Responses clients keep the checks of the Chat bridge they took before.
+func geminiBridgeIssue(client ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
+	if request != nil {
+		for index, item := range request.Conversation {
+			for partIndex, part := range item.Content {
+				if part.Kind == ContentFile && part.FileID != "" && part.Data == "" {
+					return &Issue{Feature: FeatureInputFile, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].file_id", Message: "Gemini takes files inline, not by id"}
+				}
+			}
+		}
+	}
+	if client == ProtocolOpenAIChat {
+		return nil
+	}
+	return bridgeIssue(client, ProtocolOpenAIChat, request, uses)
 }

@@ -137,7 +137,7 @@ func TestClaudeClientIsBridgedOnOpenAIAndGeminiChannels(t *testing.T) {
 
 	for _, tc := range []struct {
 		upstream, model, wantText string
-		wantShape              string
+		wantShape                 string
 	}{
 		{"gemini", "gemini-3.5-flash", "Hello, nice to meet you", "contents"},
 		{"openai", "deepseek-flash", "", "messages"},

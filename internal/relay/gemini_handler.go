@@ -10,7 +10,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
-	"github.com/lazu-ai/lazu/internal/relay/channel/gemini"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
@@ -20,17 +19,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-func isNoThinkingRequest(req *dto.GeminiChatRequest) bool {
-	if req.GenerationConfig.ThinkingConfig != nil && req.GenerationConfig.ThinkingConfig.ThinkingBudget != nil {
-		configBudget := req.GenerationConfig.ThinkingConfig.ThinkingBudget
-		if configBudget != nil && *configBudget == 0 {
-			// 如果思考预算为 0，则认为是非思考请求
-			return true
-		}
-	}
-	return false
-}
 
 func trimModelThinking(modelName string) string {
 	// 去除模型名称中的 -nothinking 后缀
@@ -69,24 +57,6 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 	err = helper.ModelMappedHelper(c, info, request)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
-	}
-
-	if model_setting.GetGeminiSettings().ThinkingAdapterEnabled {
-		if isNoThinkingRequest(request) {
-			// check is thinking
-			if !strings.Contains(info.OriginModelName, "-nothinking") {
-				// Try to use the no-thinking variant when it has an explicit sell price.
-				noThinkingModelName := info.OriginModelName + "-nothinking"
-				hasSellPrice := helper.HasExplicitSellPrice(noThinkingModelName)
-				if hasSellPrice {
-					info.OriginModelName = noThinkingModelName
-					info.UpstreamModelName = noThinkingModelName
-				}
-			}
-		}
-		if request.GenerationConfig.ThinkingConfig == nil {
-			gemini.ThinkingAdaptor(request, info)
-		}
 	}
 
 	adaptor := GetAdaptor(info.ApiType)

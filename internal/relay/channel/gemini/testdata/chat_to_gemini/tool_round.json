@@ -1,0 +1,70 @@
+{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "Weather in Paris?"
+        }
+      ],
+      "role": "user"
+    },
+    {
+      "parts": [
+        {
+          "functionCall": {
+            "args": {
+              "city": "Paris"
+            },
+            "id": "call_1",
+            "name": "get_weather"
+          }
+        }
+      ],
+      "role": "model"
+    },
+    {
+      "parts": [
+        {
+          "functionResponse": {
+            "id": "call_1",
+            "name": "get_weather",
+            "response": {
+              "temp": 21
+            }
+          }
+        },
+        {
+          "functionResponse": {
+            "id": "call_1",
+            "name": "get_weather",
+            "response": {
+              "content": "sunny"
+            }
+          }
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "tools": [
+    {
+      "functionDeclarations": [
+        {
+          "description": "Weather",
+          "name": "get_weather",
+          "parameters": {
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "city"
+            ],
+            "type": "object"
+          }
+        }
+      ]
+    }
+  ]
+}

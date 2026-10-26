@@ -298,11 +298,40 @@ func decodeMessages(messages []dto.Message, request *textgen.Request) error {
 				if call.ID == "" {
 					return fmt.Errorf("messages[%d].tool_calls[%d].id is required", index, callIndex)
 				}
-				request.Conversation = append(request.Conversation, textgen.InputItem{Kind: textgen.InputFunctionCall, Role: role, CallID: call.ID, FunctionName: call.Function.Name, Arguments: call.Function.Arguments})
+				request.Conversation = append(request.Conversation, textgen.InputItem{Kind: textgen.InputFunctionCall, Role: role, CallID: call.ID, FunctionName: call.Function.Name, Arguments: call.Function.Arguments, Opaque: geminiSignatureOf(call.ExtraContent)})
 			}
 		}
 	}
 	return nil
+}
+
+// geminiSealedBy is the dialect the Gemini codec seals a signed tool call
+// with (gemini.SealedBy). A Chat client carries that signature in the call's
+// extra_content.google.thought_signature, as Gemini's own Chat endpoint does,
+// and Gemini refuses a later turn whose function call lost it.
+const geminiSealedBy = "gemini"
+
+// geminiSignatureOf keeps a tool call's Gemini thought signature for a Gemini
+// upstream. The extra_content is still marked unknown above, so a plan to any
+// other upstream is decided as before.
+func geminiSignatureOf(value *dto.ToolCallExtraContent) []textgen.OpaqueValue {
+	if value == nil || value.Google == nil || value.Google.ThoughtSignature == "" {
+		return nil
+	}
+	encoded, err := json.Marshal(value.Google.ThoughtSignature)
+	if err != nil {
+		return nil
+	}
+	return []textgen.OpaqueValue{{Dialect: geminiSealedBy, Value: encoded}}
+}
+
+// geminiExtraContent is the extra_content a tool call the Gemini codec sealed
+// is returned with, so the client can send the signature back.
+func geminiExtraContent(sealedBy, signature string) *dto.ToolCallExtraContent {
+	if sealedBy != geminiSealedBy || signature == "" {
+		return nil
+	}
+	return &dto.ToolCallExtraContent{Google: &dto.GoogleToolCallExtraContent{ThoughtSignature: signature}}
 }
 
 func hasToolCallExtraContent(value *dto.ToolCallExtraContent) bool {

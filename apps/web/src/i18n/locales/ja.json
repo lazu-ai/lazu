@@ -2061,7 +2061,6 @@
     "page.console.settingV2.upstream.field.claudeThinking": "Gemini と同じく reasoning_effort を budget_tokens に換算します。数値は 0〜1 の割合で、その要求の max tokens に掛けられます。",
     "page.console.settingV2.upstream.field.geminiSafety": "種類ごとのブロック強度です。default は個別に挙げていないカテゴリに適用され、空のカテゴリはそれに従います。",
     "page.console.settingV2.upstream.field.geminiSafetyLabel": "コンテンツのブロック",
-    "page.console.settingV2.upstream.field.geminiThinking": "OpenAI 形式の reasoning_effort を thinking budget に換算します。数値は 0〜1 の割合で、その要求の max tokens に掛けられます。",
     "page.console.settingV2.upstream.field.geminiVersion": "そのモデルが通る Gemini API のバージョンです。default は個別に挙げていないモデルが使います。",
     "page.console.settingV2.upstream.field.geminiVersionLabel": "API バージョン",
     "page.console.settingV2.upstream.field.passThrough": "Request pass-through",

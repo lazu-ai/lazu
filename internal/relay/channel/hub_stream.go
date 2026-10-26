@@ -68,6 +68,9 @@ type HubStream struct {
 	// the settled one (Messages' cache-exclusive input, for a Chat or
 	// Responses client).
 	ClientUsage func(*dto.Usage) *dto.Usage
+	// Settle replaces SettleHubUsage, for an upstream whose own rules
+	// estimate what it did not report (Gemini's inline media).
+	Settle func(c *gin.Context, info *relaycommon.RelayInfo, result textgen.Result) *dto.Usage
 }
 
 // RunHubStream serves a streamed upstream reply to the client through the
@@ -134,7 +137,11 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 	if hub.Unreleased != nil {
 		col.Add(hub.Unreleased()...)
 	}
-	usage := SettleHubUsage(c, info, col.Result())
+	settle := SettleHubUsage
+	if hub.Settle != nil {
+		settle = hub.Settle
+	}
+	usage := settle(c, info, col.Result())
 	shown := usage
 	if hub.ClientUsage != nil {
 		shown = hub.ClientUsage(usage)

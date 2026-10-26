@@ -273,13 +273,14 @@ roadmap adds it, and until then the rule is a review rule.
    Messages hub (2026-10-21). The Claude-client request converter and its
    switch went in the following release; its output on the cases it got
    right is `service/testdata/claude_bridge/`, held by
-   `TestClaudeToChatMatchesTheGoldenFiles`. The Chat→Claude response
-   converters in `service/convert.go` stay until the Gemini wiring slice:
-   adaptors that answer through the legacy Chat handlers (Gemini among them)
-   still turn their responses into Messages with them. The Gemini codec landed without wiring (2026-10-21);
-   `relay-gemini.go` and the Gemini converters in `service/convert.go`
-   stay, held to it by three live differential tests, until the wiring
-   slice. Enforced by review.
+   `TestClaudeToChatMatchesTheGoldenFiles`. Gemini channels serve Chat,
+   Responses and Claude clients through the Gemini codec (2026-10-26); the
+   Chat→Gemini converter, the legacy Gemini Chat handlers and the Chat→Claude
+   response converters went with that slice, and the converter's output is
+   `channel/gemini/testdata/chat_to_gemini/`, held by
+   `TestBridgedChatToGeminiMatchesTheGoldenFiles`. The Gemini-client
+   converters in `service/convert.go` stay, held by two live differential
+   tests, until Gemini clients are parsed into the IR. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
    Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
    (made by `go test -tags record` in `internal/relay/contracttest`, keys from

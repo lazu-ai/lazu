@@ -2061,7 +2061,6 @@
     "page.console.settingV2.upstream.field.claudeThinking": "同 Gemini：把 reasoning_effort 换算成 budget_tokens。右侧是 0–1 的比例，乘以本次请求的 max tokens。",
     "page.console.settingV2.upstream.field.geminiSafety": "每类内容的拦截强度。default 适用于没有单独列出的类别；留空的类别跟随 default。",
     "page.console.settingV2.upstream.field.geminiSafetyLabel": "内容安全拦截",
-    "page.console.settingV2.upstream.field.geminiThinking": "把 OpenAI 风格的 reasoning_effort 换算成 thinking budget。右侧是 0–1 的比例，网关用它乘以本次请求的 max tokens。",
     "page.console.settingV2.upstream.field.geminiVersion": "某个模型要走哪个 Gemini API 版本。default 是没单独列出的模型用的版本。",
     "page.console.settingV2.upstream.field.geminiVersionLabel": "API 版本",
     "page.console.settingV2.upstream.field.passThrough": "请求透传",
