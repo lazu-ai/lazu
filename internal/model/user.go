@@ -533,10 +533,6 @@ func GetAllUsersFiltered(pageInfo *common.PageInfo, opts UserListOptions) (users
 	return users, total, nil
 }
 
-func SearchUsers(keyword string, startIdx int, num int) ([]*User, int64, error) {
-	return SearchUsersFiltered(keyword, startIdx, num, UserListOptions{})
-}
-
 func applyUserSearch(query *gorm.DB, keyword string) *gorm.DB {
 	likeCondition := "public_id = ? OR username LIKE ? OR email LIKE ? OR display_name LIKE ?"
 	args := []interface{}{keyword, "%" + keyword + "%", "%" + keyword + "%", "%" + keyword + "%"}

@@ -196,11 +196,6 @@ type overviewUserHour struct {
 	BucketHour int64 `gorm:"column:bucket_hour"`
 }
 
-// BuildOverview answers the console overview for one scope and range.
-func BuildOverview(req OverviewRequest) (Overview, error) {
-	return BuildOverviewContext(context.Background(), req)
-}
-
 func BuildOverviewContext(ctx context.Context, req OverviewRequest) (Overview, error) {
 	if req.Now <= 0 {
 		req.Now = time.Now().Unix()
@@ -589,13 +584,6 @@ func overviewChannelsContext(ctx context.Context, signups []OverviewSignupSource
 		return nil, nil
 	}
 	return out, nil
-}
-
-// overviewSignupSources groups new users by where they came from: the utm
-// source when the link carried one, else the referring site, else "invite"
-// for an invite code, else "" for a direct visit.
-func overviewSignupSources(newcomers map[int]overviewNewcomer) (map[string][]OverviewSignupSource, error) {
-	return overviewSignupSourcesContext(context.Background(), newcomers)
 }
 
 func overviewSignupSourcesContext(ctx context.Context, newcomers map[int]overviewNewcomer) (map[string][]OverviewSignupSource, error) {

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -97,7 +98,7 @@ func TestReceiptHTTPRequiresSameOwnerAndKeyRegardlessOfRole(t *testing.T) {
 		})
 	}
 	for _, ids := range [][2]int{{0, 92001}, {92001, 0}, {0, 0}, {-1, 92001}} {
-		if _, err := model.GetConsumeLogByRequestIDForToken(ids[0], ids[1], "req-scope-fixture"); err == nil {
+		if _, err := model.GetConsumeLogByRequestIDForTokenContext(context.Background(), ids[0], ids[1], "req-scope-fixture"); err == nil {
 			t.Fatal("missing identity broadened receipt lookup")
 		}
 	}

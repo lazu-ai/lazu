@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -1824,17 +1825,17 @@ func TestProjectReceiptRequiresMatchingLogicalKeyAndProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	principal := ProjectPrincipal{ProjectID: project.ID, PayerUserID: holder.Id, ActorUserID: holder.Id, TokenID: 42}
-	if _, err := GetConsumeLogByRequestIDForToken(holder.Id, 42, row.RequestID, principal); err != nil {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), holder.Id, 42, row.RequestID, principal); err != nil {
 		t.Fatal(err)
 	}
 	other := principal
 	other.ActorUserID = holder.Id + 1000
-	if _, err := GetConsumeLogByRequestIDForToken(other.ActorUserID, 42, row.RequestID, other); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), other.ActorUserID, 42, row.RequestID, other); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("cross-actor receipt: %v", err)
 	}
 	actorless := principal
 	actorless.ActorUserID = 0
-	if _, err := GetConsumeLogByRequestIDForToken(0, 42, row.RequestID, actorless); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), 0, 42, row.RequestID, actorless); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatal("actor zero got a receipt")
 	}
 }
@@ -2765,13 +2766,13 @@ func TestProjectKeyUsageIsBoundedByItsOwnActor(t *testing.T) {
 	if seriesRequests != 1 || seriesAmount != 7 {
 		t.Fatalf("series is not bounded by its own actor: %d %d", seriesRequests, seriesAmount)
 	}
-	if _, err := GetConsumeLogByRequestIDForToken(owner.Id, keyID, "current-receipt", principal); err != nil {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), owner.Id, keyID, "current-receipt", principal); err != nil {
 		t.Fatalf("own receipt is unreachable: %v", err)
 	}
-	if _, err := GetConsumeLogByRequestIDForToken(owner.Id, keyID, "actorless-receipt", principal); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), owner.Id, keyID, "actorless-receipt", principal); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("an actorless receipt was handed to the credential holder: %v", err)
 	}
-	if _, err := GetConsumeLogByRequestIDForToken(owner.Id, keyID, "stranger-receipt", principal); !errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), owner.Id, keyID, "stranger-receipt", principal); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("another actor's receipt leaked: %v", err)
 	}
 }

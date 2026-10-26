@@ -576,12 +576,6 @@ type AgentSessionDetail struct {
 
 const agentSessionRequestLimit = 2000
 
-// GetAgentSessionDetail loads one session by public id. userID 0 is an
-// admin read; otherwise the session must belong to userID.
-func GetAgentSessionDetail(userID int, publicID string) (*AgentSessionDetail, error) {
-	return GetAgentSessionDetailPage(userID, publicID, 0, 0)
-}
-
 // The cursor orders by completion time and log ID; equal timestamps never skip
 // rows. Every page repeats the ownership check before accessing the log TelemetryDB().
 func GetAgentSessionDetailPage(userID int, publicID string, afterTime int64, afterID int) (*AgentSessionDetail, error) {

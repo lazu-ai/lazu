@@ -92,7 +92,7 @@ func TestTelemetryBatchReplayIsAtomicAndCountersLiveOutsideCore(t *testing.T) {
 	core, db := isolatedTelemetryStores(t)
 	event := telemetryFixture(common.GenerateRequestID())
 	for i := 0; i < 3; i++ {
-		if err := handleRelayResultEventBatch([]relayResultEvent{event, event}); err != nil {
+		if err := persistRelayResultBatch([]relayResultEvent{event, event}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -165,7 +165,7 @@ func TestTelemetryBatchFailureRollsBackReceiptLogAndDerivedRows(t *testing.T) {
 func TestTelemetryBatchAggregatesSeveralRequestsAndPreservesRetryEvidence(t *testing.T) {
 	_, db := isolatedTelemetryStores(t)
 	events := []relayResultEvent{telemetryFixture(common.GenerateRequestID()), telemetryFixture(common.GenerateRequestID())}
-	if err := handleRelayResultEventBatch(events); err != nil {
+	if err := persistRelayResultBatch(events); err != nil {
 		t.Fatal(err)
 	}
 	var total DashboardUsageHourlyTotal

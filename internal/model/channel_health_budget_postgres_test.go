@@ -279,7 +279,7 @@ func TestPostgresChannelHealthSnapshotQueryParity(t *testing.T) {
 		{"excluded-route", func() (interface{}, error) {
 			return QueryChannelHealthPercentilesWithAliases(since, nil, ChannelHealthRouteRef{ModelName: "resolved", Lane: "direct", ChannelId: 7})
 		}},
-		{"last-probes", func() (interface{}, error) { return QueryChannelHealthLastProbes(since) }},
+		{"last-probes", func() (interface{}, error) { return QueryChannelHealthLastProbesContext(context.Background(), since) }},
 	}
 	for _, check := range checks {
 		t.Run(check.name, func(t *testing.T) {
