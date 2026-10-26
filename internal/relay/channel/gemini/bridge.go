@@ -381,7 +381,10 @@ func bridgedHandler(c *gin.Context, resp *http.Response, info *relaycommon.Relay
 			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 		}
 	case textgen.ProtocolOpenAIResponses:
-		rendered = openai_responses.ChatResponseToResponses(openai_chat.Render(result, info.UpstreamModelName), info.UpstreamModelName, info.ProtocolRequest)
+		rendered, err = openai_responses.Render(events, result.ResponseID, info.UpstreamModelName, info.ProtocolRequest, usage)
+		if err != nil {
+			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+		}
 	default:
 		rendered = openai_chat.Render(result, info.UpstreamModelName)
 	}
