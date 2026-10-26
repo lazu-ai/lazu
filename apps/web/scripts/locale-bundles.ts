@@ -76,6 +76,50 @@ export function readLocale(
   };
 }
 
+const pluralSuffix = /_(?:ordinal_)?(?:zero|one|two|few|many|other)$/;
+const pluralFamily = (key: string) => key.replace(pluralSuffix, '');
+
+/** One language's resources with its fallbacks already applied: each key
+ *  takes the most specific language that has a value for it. i18next treats
+ *  null as missing (returnNull: false), so null falls through as well; an
+ *  empty string is a value. Arrays are values, not trees.
+ *
+ *  Plural forms move as a family: i18next tries every form a language has
+ *  (count_zero, count_other, count …) before it falls back to the next
+ *  language, so when a more specific language has any form of a key, none of
+ *  the fallback's forms of that key may be added (a fallback count_zero would
+ *  otherwise win over the language's own count_other). */
+export function mergeLocaleChain(chain: Resource[]): Resource {
+  let merged: Resource = {};
+  for (const resource of chain) merged = mergeOver(merged, resource);
+  return merged;
+}
+
+function mergeOver(base: Resource, over: Resource): Resource {
+  const present = Object.entries(over).filter(
+    ([, value]) => value !== undefined && value !== null,
+  );
+  const families = new Set(
+    present
+      .filter(([, value]) => !record(value))
+      .map(([key]) => pluralFamily(key)),
+  );
+  const merged: Resource = {};
+  for (const [key, value] of Object.entries(base)) {
+    if (record(value) || !families.has(pluralFamily(key))) merged[key] = value;
+  }
+  for (const [key, value] of present) {
+    const current = merged[key];
+    merged[key] = record(value)
+      ? mergeOver(record(current) ? current : {}, value)
+      : value;
+  }
+  return merged;
+}
+
+/** The resources a language's locale chunk carries: only that language, with
+ *  its fallback chain (zh-TW -> zh -> en, others -> en) resolved here at build
+ *  time instead of shipping every fallback language in the chunk. */
 export function bundledLocale(
   root: string,
   namespace: string,
@@ -88,9 +132,11 @@ export function bundledLocale(
       : language === 'en'
         ? ['en']
         : ['en', language];
-  return Object.fromEntries(
-    chain.map((lang) => [lang, readLocale(root, namespace, lang, watch)]),
-  );
+  return {
+    [language]: mergeLocaleChain(
+      chain.map((lang) => readLocale(root, namespace, lang, watch)),
+    ),
+  };
 }
 
 export function packLocaleResources(
