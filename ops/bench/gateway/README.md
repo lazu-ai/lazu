@@ -59,9 +59,6 @@ and effective PG/Redis settings. It omits environment variables, usernames,
 hostnames and endpoint paths. Existing resource limits and numeric gates remain
 unchanged; the manifest records an uncapped container as uncapped. Server hardware
 evidence does not turn the synthetic loopback fixture into production acceptance.
-The historical schema-21 `6a29da9e7` target uses `legacy_run.sh` with supplied
-old binaries and the same current mock/client/delay binaries. Its different
-migration, seed and metric contracts are described below.
 
 Private overrides: `LAZU_BENCH_PG_PORT`, `LAZU_BENCH_REDIS_PORT`,
 `LAZU_BENCH_UPSTREAM_PORT`, `LAZU_BENCH_GATEWAY_PORT`, `LAZU_BENCH_DURATION`
@@ -186,52 +183,11 @@ migration validation.
 
 The historical Mac `final-awake` 0/35ms pair passed 10/11 and 10/11 numeric flags,
 respectively. New scanner/client changes require fresh dedicated-server evidence;
-all flags, actual failures and provenance are in [validation.md](validation.md).
+all flags, actual failures and provenance are in the dated validation record,
+which is kept outside this repository with the other audits.
 Settlement visibility covers Core settlement commits only, not Telemetry or full
 Console first visibility.
 
-## Historical schema-21 comparison
-
-`legacy_run.sh` requires `LAZU_BENCH_LEGACY_BIN_DIR` containing gateway/migrate
-built from exact commit `6a29da9e75ab76af38d270b9be58151c94c3e63d`, plus a
-`build-source.txt` containing that SHA. It records this caller attestation and
-binary hashes; it does not independently rebuild or prove the attestation.
-`LAZU_BENCH_TOOLS_BIN_DIR` supplies the identical `mock`, `bench` and `pgdelay`
-executables from the modern comparison run. Both runners create fresh synthetic
-fixtures; the old API retains its original in-process event consumer.
-
-The old API binds all interfaces. On the isolated host, first restrict inbound
-traffic to the selected legacy gateway port to loopback for both IPv4 and IPv6,
-then attest it with `LAZU_BENCH_LEGACY_BIND_ISOLATED=true`. The runner refuses
-to start without that attestation; it cannot verify an external host firewall.
-Default legacy fixture ports are PostgreSQL 15483, Redis 16393, mock 10082,
-gateway 10110 and delay 15484. None use existing data stores.
-
-```sh
-LAZU_BENCH_LEGACY_BIND_ISOLATED=true \
-LAZU_BENCH_LEGACY_BIN_DIR=.local-results/gateway-bench/legacy21-bin \
-LAZU_BENCH_TOOLS_BIN_DIR=.local-results/gateway-bench/server-0ms \
-LAZU_BENCH_OUT_DIR=.local-results/gateway-bench/legacy21-0ms \
-./ops/bench/gateway/legacy_run.sh
-```
-
-Run sequentially, wait for owned ports to release, and add `LAZU_BENCH_PG_RTT_MS=35`
-with a new output directory for the delayed comparison. The default twelve-case
-matrix excludes stress; `LAZU_BENCH_STRESS_ENABLED=true` explicitly adds the two
-500 RPS cases. `LAZU_BENCH_LEGACY_CASES` can select entries such as
-`responses:1:1,responses:600:8` for diagnosis. Old SQL pools default to 15 versus
-modern 6 per store/role; database max_connections remains 30 and this configuration
-difference must accompany the numbers.
-
-Legacy SQL is total API-process I/O including its consumer and periodic work;
-Redis counts are server commands. Required Redis dispatches, API-only SQL,
-separate-worker I/O, modern permanent financial ledger and Core commit visibility
-are unavailable. They are recorded as null / unsupported, never zero or PASS.
-`comparison_complete` requires complete successful HTTP streams. Old Core wallet
-equality and old queue drain are checked independently. Script exit 0 denotes a
-completed observation; `release_acceptance` is null and does not claim modern
-eleven-gate acceptance.
-
-最终独立8核/16GB优化版同机与35ms对照已按原门槛11/11通过；完整12格、压力发出数/状态、账务、同源哈希和短样本限制见[validation.md](validation.md)。原Mac10/11与Linux初轮发压不足的历史失败保留。更高目标负载与API参数对照作为单独观察，不改变原验收定义。
+最终独立8核/16GB优化版同机与35ms对照已按原门槛11/11通过；完整12格、压力发出数/状态、账务、同源哈希和短样本限制见日期验证记录（与其他审计一起保存在本仓库之外）。原Mac10/11与Linux初轮发压不足的历史失败保留。更高目标负载与API参数对照作为单独观察，不改变原验收定义。
 
 额外四组unique压力参数实验与单独CPU采样均已完成。pool64 / GOGC100 / GOMEMLIMIT1GiB在这台共享八核fixture中改善高压结果，但实际发出量仍未达到1000/2000RPS；生产默认参数未变。完整HTTP失败、未发arrival、采样CPU/RSS、账务与归因限制见验证报告，不能用runner exit0代替容量验收。
