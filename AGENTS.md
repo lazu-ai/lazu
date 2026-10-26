@@ -93,7 +93,9 @@ These rules come from [CONTRIBUTING.md](./CONTRIBUTING.md) and should be treated
 
 ### Avoid Touching Unless The Task Requires It
 
-- `t('...')` i18n key calls
+- Existing i18n keys: do not rename or re-key them. A change that deletes the
+  last `t('...')` read of a key deletes that key from all four locales in the
+  same PR.
 - `packages/contracts/openapi/*.yaml`
 - Go backend business logic
 - Production deployment files for lazu.ai (deploy script, production Compose
@@ -270,14 +272,21 @@ roadmap adds it, and until then the rule is a review rule.
    `TestEncodeMatchesLegacyGoldens`). Legacy pairwise converters are deleted
    in the PR that lands their codec or the release after it, and gain no new
    features meanwhile: `relay-claude.go`'s Chat↔Messages pair went with the
-   Messages hub (2026-10-21). The Claude-client converters in
-   `service/convert.go` stay one release behind
-   `global.legacy_claude_client_conversion`, held to the hub by the live
-   differential test `TestClaudeToChatMatchesTheLegacyConverter`, and go
-   the release after. The Gemini codec landed without wiring (2026-10-21);
-   `relay-gemini.go` and the Gemini converters in `service/convert.go`
-   stay, held to it by three live differential tests, until the wiring
-   slice. Enforced by review.
+   Messages hub (2026-10-21). The Claude-client request converter and its
+   switch went in the following release; its output on the cases it got
+   right is `service/testdata/claude_bridge/`, held by
+   `TestClaudeToChatMatchesTheGoldenFiles`. Gemini channels serve Chat,
+   Responses and Claude clients through the Gemini codec (2026-10-26); the
+   Chat→Gemini converter, the legacy Gemini Chat handlers and the Chat→Claude
+   response converters went with that slice, and the converter's output is
+   `channel/gemini/testdata/chat_to_gemini/`, held by
+   `TestBridgedChatToGeminiMatchesTheGoldenFiles`. Gemini clients are parsed
+   into the IR and planned like the others since the following slice; the
+   Gemini-client converters in `service/convert.go` went with it, and their
+   output is `service/testdata/gemini_to_chat/` and
+   `service/testdata/chat_to_gemini_reply/`, held by
+   `TestGeminiToChatMatchesTheGoldenFiles` and
+   `TestChatReplyToGeminiMatchesTheGoldenFiles`. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
    Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
    (made by `go test -tags record` in `internal/relay/contracttest`, keys from
@@ -349,6 +358,9 @@ Treat as at least P1 in this repository:
   still pending.
 - A real secret, production credential or private endpoint in a tracked file
   (this repository is public).
+- A new `*Context`, batch or codec path whose predecessor is still compiled
+  and reached only by tests (Principle 6): the PR moves those tests onto the
+  new path and deletes the old one, or names the release that will.
 
 ## Common Commands
 
@@ -381,6 +393,8 @@ Self-hosted deployments should provide `DATABASE_URL`, `ROOT_USERNAME`, and `ROO
 
 Migration support window: a deployment upgrades in one step from any schema version released in the last six months. A version's migration code may be deleted six months after it shipped; the same change raises `schemaUpgradeFloor` in `internal/model/schema_version.go` and names the gate release older deployments upgrade through first (docs/DEPLOYMENT.md, Upgrade path).
 
+PostgreSQL is the only supported database for deployments. SQLite is for tests only: new features need no SQLite path, and an existing SQLite branch may be removed when the code around it changes.
+
 Credentials and startup configuration belong in environment variables or backend config files. Changing them requires restarting the backend container. Operational values such as pricing, announcements, model ratios, and channel toggles belong in the console UI.
 
 ## Agent Execution Notes
@@ -388,6 +402,11 @@ Credentials and startup configuration belong in environment variables or backend
 - Read [CONTRIBUTING.md](./CONTRIBUTING.md) before large changes.
 - If blocked for more than about 30 minutes, leave a short `TODO(<context>)` comment, skip that item, and report the blocker.
 - Keep changes scoped to the request. Opportunistic rewrites are a maintenance risk.
+- A PR that adds a twin of an existing function (a `*Context` variant, a batch
+  version, a codec replacing a converter) lists in its description every
+  function it retires and moves their tests onto the new code in the same PR.
+  Keeping the old one as a wrapper so tests stay green is how dead code
+  accumulates.
 - Store local generated files under `.local-results/<purpose>/`.
 - Open new GitHub pull requests as ready for review by default. Do not create draft PRs unless the user explicitly asks for draft mode.
 - Work on a branch in its own worktree, created from `origin/main` after a fetch; the `main` checkout is for reading and pulling. When your pull request merges, fast-forward `main`, remove the worktree and force-delete the branch (pull requests are squash-merged, so `git branch -d` refuses). Pull before smoke-testing a release.
