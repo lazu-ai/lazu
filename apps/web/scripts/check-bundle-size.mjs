@@ -28,13 +28,17 @@ const budgets = {
   markdownJavaScript: 190 * 1024,
   markdownCss: 12 * 1024,
   vchartRuntime: 350 * 1024,
-  // Whole locale graphs, including errors and every fallback language. The
-  // blocking cold-start budgets below also include the application entry.
+  // Whole locale graphs, including errors. Since 2026-10 each language's
+  // chunk carries only that language, its fallbacks resolved at build time
+  // (scripts/locale-bundles.ts), not every fallback language: zh 129.61 ->
+  // 80.62, zh-TW 169.17 -> 81.32, ja 133.26 -> 86.05 KiB gzip. The ceilings
+  // drop with it. The blocking cold-start budgets below also include the
+  // application entry.
   locale: {
     default: 76 * 1024,
-    zh: 130 * 1024,
-    'zh-TW': 170 * 1024,
-    ja: 135 * 1024,
+    zh: 90 * 1024,
+    'zh-TW': 90 * 1024,
+    ja: 95 * 1024,
   },
   consoleRouteJavaScript: 175 * 1024,
   marketingRouteJavaScript: 20 * 1024,

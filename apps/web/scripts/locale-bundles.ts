@@ -76,6 +76,30 @@ export function readLocale(
   };
 }
 
+/** One language's resources with its fallbacks already applied: each key
+ *  takes the most specific language that has a value for it. i18next treats
+ *  null as missing (returnNull: false), so null falls through as well; an
+ *  empty string is a value. Arrays are values, not trees. */
+export function mergeLocaleChain(chain: Resource[]): Resource {
+  const merged: Resource = {};
+  for (const resource of chain) {
+    for (const [key, value] of Object.entries(resource)) {
+      if (value === undefined || value === null) continue;
+      const current = merged[key];
+      merged[key] =
+        record(value) && record(current)
+          ? mergeLocaleChain([current as Resource, value as Resource])
+          : record(value)
+            ? mergeLocaleChain([value as Resource])
+            : value;
+    }
+  }
+  return merged;
+}
+
+/** The resources a language's locale chunk carries: only that language, with
+ *  its fallback chain (zh-TW -> zh -> en, others -> en) resolved here at build
+ *  time instead of shipping every fallback language in the chunk. */
 export function bundledLocale(
   root: string,
   namespace: string,
@@ -88,9 +112,11 @@ export function bundledLocale(
       : language === 'en'
         ? ['en']
         : ['en', language];
-  return Object.fromEntries(
-    chain.map((lang) => [lang, readLocale(root, namespace, lang, watch)]),
-  );
+  return {
+    [language]: mergeLocaleChain(
+      chain.map((lang) => readLocale(root, namespace, lang, watch)),
+    ),
+  };
 }
 
 export function packLocaleResources(
