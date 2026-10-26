@@ -198,6 +198,20 @@ func writeUpstreamConnMetrics(b *strings.Builder) {
 	writePrometheusHelpType(b, "lazu_upstream_connections_total", "Upstream connections the relay client used, by whether an idle one was reused.", "counter")
 	writePrometheusSample(b, "lazu_upstream_connections_total", map[string]string{"reused": "true"}, float64(reused))
 	writePrometheusSample(b, "lazu_upstream_connections_total", map[string]string{"reused": "false"}, float64(opened))
+	writeDurationHistogram(b, "lazu_upstream_dial_seconds", "Time to dial a new upstream connection.", &common.UpstreamDialDurations)
+	writeDurationHistogram(b, "lazu_upstream_tls_handshake_seconds", "Time for the TLS handshake of a new upstream connection.", &common.UpstreamTLSHandshakeDurations)
+}
+
+func writeDurationHistogram(b *strings.Builder, name, help string, histogram *common.DurationHistogram) {
+	cumulative, sum := histogram.Snapshot()
+	writePrometheusHelpType(b, name, help, "histogram")
+	for i, bound := range common.UpstreamDurationBounds {
+		writePrometheusSample(b, name+"_bucket", map[string]string{"le": strconv.FormatFloat(bound, 'g', -1, 64)}, float64(cumulative[i]))
+	}
+	total := cumulative[len(cumulative)-1]
+	writePrometheusSample(b, name+"_bucket", map[string]string{"le": "+Inf"}, float64(total))
+	writePrometheusSample(b, name+"_sum", nil, sum)
+	writePrometheusSample(b, name+"_count", nil, float64(total))
 }
 
 func writeProtocolMetrics(b *strings.Builder, hotPath common.HotPathMetricsSnapshot) {
