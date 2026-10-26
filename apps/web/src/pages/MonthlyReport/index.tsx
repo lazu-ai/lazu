@@ -23,7 +23,10 @@ import {
 } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
-import { API, asMicroUSD, renderQuota, showSuccess } from '../../helpers';
+import { API } from '../../helpers/api';
+import { asMicroUSD } from '../../helpers/money';
+import { renderQuota } from '../../helpers/render';
+import { showSuccess } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
 import { queryKeys } from '../../lib/query-keys';

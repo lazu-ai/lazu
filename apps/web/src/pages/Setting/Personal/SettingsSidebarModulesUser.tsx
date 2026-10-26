@@ -2,7 +2,8 @@ import { Settings } from 'lucide-react';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../context/Status';
-import { API, showSuccess, showError } from '../../../helpers';
+import { API } from '../../../helpers/api';
+import { showSuccess, showError } from '../../../helpers/utils';
 import {
   buildSidebarSectionConfigs,
   filterSidebarModulesConfig,

@@ -6,7 +6,17 @@ import type {
   WebExtension,
 } from './types';
 
-export type * from './types';
+export type {
+  ExtensionSurface,
+  LocalizedLabel,
+  OpsTab,
+  OpsTabContext,
+  PublicNav,
+  SidebarEntry,
+  StatusPayload,
+  TopUpOffer,
+  WebExtension,
+} from './types';
 
 /* Extensions compiled into this build: src/extensions/<name>/extension.tsx,
    each exporting its WebExtension as default. None in the public tree.

@@ -3,7 +3,7 @@
  * account drawer. 0 means no limit at every level; all of it applies only while
  * ModelRequestRateLimitEnabled is on (internal/setting/rate_limit.go). */
 import { useQuery } from '@tanstack/react-query';
-import { API } from '../../../helpers';
+import { API } from '../../../helpers/api';
 import { unwrap } from '../../../lib/api-error';
 import { queryKeys } from '../../../lib/query-keys';
 

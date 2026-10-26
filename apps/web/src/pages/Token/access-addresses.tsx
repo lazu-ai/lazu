@@ -2,8 +2,8 @@ import { Copy } from 'lucide-react';
 import { useContext, useMemo } from 'react';
 import { Button } from '../../components/ui';
 import { UserContext } from '../../context/User';
-import { copy, showSuccess } from '../../helpers';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
+import { copy, showSuccess } from '../../helpers/utils';
 import type { TFunction } from 'i18next';
 
 export type AccessAddressKind = 'global' | 'cn_direct';

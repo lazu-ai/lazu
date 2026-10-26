@@ -14,12 +14,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import TelegramLinkField, { useTelegramLinkStatus } from './TelegramLinkField';
 import { UserContext } from '../../context/User';
-import {
-  API,
-  getMicroUSDPerUSD,
-  setUserData,
-  showSuccess,
-} from '../../helpers';
+import { API } from '../../helpers/api';
+import { setUserData } from '../../helpers/data';
+import { getMicroUSDPerUSD } from '../../helpers/render';
+import { showSuccess } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';

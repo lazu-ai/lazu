@@ -32,8 +32,8 @@ import {
 import { TopupRecord } from '../../../components/ui/topup-record';
 import { StatusContext } from '../../../context/Status';
 import { useTopUpOffer, webExtensions } from '../../../extensions';
-import { getMicroUSDPerUSD } from '../../../helpers';
 import { API } from '../../../helpers/api';
+import { getMicroUSDPerUSD } from '../../../helpers/render';
 import { errorMessage, unwrap } from '../../../lib/api-error';
 import { buildDailyWalletLedger } from '../../../pages/Wallet/walletLedger';
 import { canManageBilling, canTopUp as roleCanTopUp } from '../access';

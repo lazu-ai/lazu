@@ -25,8 +25,10 @@ import {
   Switch,
   Textarea,
 } from '../../components/ui';
-import { API, showSuccess, showWarning, toBoolean } from '../../helpers';
+import { API } from '../../helpers/api';
+import { toBoolean } from '../../helpers/boolean';
 import { sanitizeMarkup } from '../../helpers/sanitize';
+import { showSuccess, showWarning } from '../../helpers/utils';
 import '../../components/common/DocumentRenderer/legal-document.css';
 import '../../styles/settings-surface.css';
 import { apiErrorHandlerWith, unwrap } from '../../lib/api-error';

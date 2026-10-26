@@ -6,8 +6,8 @@ import { sanitizeMarkup } from './sanitize';
 import { openReportProblem } from '../components/support/reportChannel';
 import Pagination from '../components/ui/pagination';
 import { recordStatusIssue } from '../components/ui/status-center';
-import { toastConstants } from '../constants';
 import { THINK_TAG_REGEX, MESSAGE_ROLES } from '../constants/chat.constants';
+import { toastConstants } from '../constants/toast.constants';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import i18n from '../i18n/i18n';
 import {

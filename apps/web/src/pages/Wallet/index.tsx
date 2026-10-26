@@ -38,17 +38,16 @@ import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { StatusContext } from '../../context/Status';
 import { UserContext } from '../../context/User';
 import { useTopUpOffer, webExtensions } from '../../extensions';
+import { API } from '../../helpers/api';
+import { getSupportEmail } from '../../helpers/brandUrls';
+import { asMicroUSD } from '../../helpers/money';
+import { getMicroUSDPerUSD, microUSDToUSD } from '../../helpers/render';
 import {
-  API,
-  asMicroUSD,
-  getMicroUSDPerUSD,
   isRoot,
-  microUSDToUSD,
   showError,
   showSuccess,
   timestamp2string,
-} from '../../helpers';
-import { getSupportEmail } from '../../helpers/brandUrls';
+} from '../../helpers/utils';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';

@@ -6,8 +6,9 @@ import {
   type ReportProblemDetail,
 } from './reportChannel';
 import { UserContext } from '../../context/User';
-import { API, showSuccess } from '../../helpers';
+import { API } from '../../helpers/api';
 import { getSupportEmail } from '../../helpers/brandUrls';
+import { showSuccess } from '../../helpers/utils';
 import { apiErrorHandler, readApiError, unwrap } from '../../lib/api-error';
 import { Button, Modal, Textarea } from '../ui';
 

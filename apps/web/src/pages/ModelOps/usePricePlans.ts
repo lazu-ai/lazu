@@ -1,7 +1,7 @@
 /* 专属折扣 reads and writes. All of /api/price-plans is root-only, so every
  * query here takes an `enabled` flag and callers pass isRoot(). */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { API } from '../../helpers';
+import { API } from '../../helpers/api';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import type {

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { API } from '../../../helpers';
+import { API } from '../../../helpers/api';
 import { queryKeys } from '../../../lib/query-keys';
 
 /* CHANNEL_TEST_FREQUENCY is reapplied every time the gateway reads the monitor
