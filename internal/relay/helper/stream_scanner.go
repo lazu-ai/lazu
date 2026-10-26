@@ -261,9 +261,23 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			clear(buffer[:])
 			streamScannerBuffers.Put(buffer)
 		}()
-		// At most one callback runs at a time. A timed-out callback ends this
-		// scanner, so its eventual send cannot be mistaken for a later event.
+		// One goroutine runs every callback of this stream, one at a time, so
+		// an event costs a channel hand-off rather than a pool task. A callback
+		// that does not answer within 10s ends this scanner, so its eventual
+		// result cannot be mistaken for a later event's; closing events lets
+		// the handler goroutine exit once that callback returns.
 		handlerDone := make(chan bool, 1)
+		events := make(chan string)
+		defer close(events)
+		common.SafeCtxGo(ctx, "stream-scanner-data-handler", func() {
+			for data := range events {
+				handlerDone <- func() bool {
+					writeMutex.Lock()
+					defer writeMutex.Unlock()
+					return dataHandler(data)
+				}()
+			}
+		})
 		handlerTimeout := time.NewTimer(10 * time.Second)
 		handlerTimeout.Stop()
 		defer handlerTimeout.Stop()
@@ -317,11 +331,17 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 
 				// 使用超时机制防止写操作阻塞
 				handlerTimeout.Reset(10 * time.Second)
-				common.SafeCtxGo(ctx, "stream-scanner-data-handler", func() {
-					writeMutex.Lock()
-					defer writeMutex.Unlock()
-					handlerDone <- dataHandler(data)
-				})
+				select {
+				case events <- data:
+				case <-handlerTimeout.C:
+					logger.LogError(c, "data handler timeout")
+					state.fail(context.DeadlineExceeded)
+					return
+				case <-ctx.Done():
+					return
+				case <-stopChan:
+					return
+				}
 
 				select {
 				case success := <-handlerDone:
