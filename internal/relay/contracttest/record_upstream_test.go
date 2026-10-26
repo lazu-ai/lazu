@@ -80,6 +80,12 @@ var upstreamCases = []upstreamCase{
 		body: `{"contents":[{"role":"user","parts":[{"text":"Weather in Paris?"}]}],"tools":[{"functionDeclarations":[{"name":"get_weather","description":"Get the weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}]}],"toolConfig":{"functionCallingConfig":{"mode":"ANY"}}}`},
 	{vendor: "gemini", name: "json_schema", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
 		body: `{"contents":[{"role":"user","parts":[{"text":"Title this chat about protocol gateways."}]}],"generationConfig":{"responseMimeType":"application/json","responseSchema":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}}}`},
+	{vendor: "gemini", name: "thinking", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
+		body: `{"contents":[{"role":"user","parts":[{"text":"Is 391 prime? Answer in one sentence."}]}],"generationConfig":{"thinkingConfig":{"includeThoughts":true,"thinkingBudget":1024}}}`},
+	{vendor: "gemini", name: "parallel_tool_calls", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
+		body: `{"contents":[{"role":"user","parts":[{"text":"What is the weather in Paris and in Tokyo? Call the tool for both cities."}]}],"tools":[{"functionDeclarations":[{"name":"get_weather","description":"Get the weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}]}],"toolConfig":{"functionCallingConfig":{"mode":"ANY"}}}`},
+	{vendor: "gemini", name: "image_output", url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:streamGenerateContent?alt=sse", auth: "x-goog-api-key",
+		body: `{"contents":[{"role":"user","parts":[{"text":"Draw a small plain red circle on white."}]}],"generationConfig":{"responseModalities":["TEXT","IMAGE"]}}`},
 }
 
 var vendorKeys = map[string]string{"anthropic": "ANTHROPIC_API_KEY", "deepseek": "DEEPSEEK_API_KEY", "gemini": "GEMINI_API_KEY"}

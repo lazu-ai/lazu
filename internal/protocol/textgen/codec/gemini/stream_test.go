@@ -69,6 +69,35 @@ func TestDecodeRecordedToolCall(t *testing.T) {
 	}
 }
 
+// Gemini 2.5 names no function call id (the recorded Gemini 3 reply does);
+// a Chat or Responses client needs one to pair the result, so the decoder
+// makes one, different for every call.
+func TestDecodeGivesACallWithoutAnIDOne(t *testing.T) {
+	ids := map[string]bool{}
+	for range 2 {
+		decoder := &StreamDecoder{}
+		var col textgen.Collector
+		for _, data := range fixtures.Data(t, "gemini/tool_call.sse") {
+			events, err := decoder.Decode(strings.Replace(data, `,"id": "call_1200091"`, "", 1))
+			if err != nil {
+				t.Fatal(err)
+			}
+			col.Add(events...)
+		}
+		for _, part := range col.Result().Parts {
+			if part.Kind == textgen.PartTool {
+				if !strings.HasPrefix(part.CallID, "call_") || part.CallID == "call_1200091" {
+					t.Fatalf("call id %q", part.CallID)
+				}
+				ids[part.CallID] = true
+			}
+		}
+	}
+	if len(ids) != 2 {
+		t.Fatalf("each call gets its own id: %v", ids)
+	}
+}
+
 func TestDecodeRecordedJSONSchemaAnswersJSON(t *testing.T) {
 	result := collectRecording(t, "gemini/json_schema.sse")
 	var text strings.Builder
@@ -97,5 +126,62 @@ func TestDecodeErrorsAndBlockedPrompts(t *testing.T) {
 	col.Add(events...)
 	if result := col.Result(); !result.StopSeen || result.Stop != textgen.StopFilter {
 		t.Fatalf("a blocked prompt stops as filtered: %+v", result)
+	}
+}
+
+// gemini-3.5-flash with includeThoughts: the thought summary arrives as
+// reasoning, then the answer as text.
+func TestDecodeRecordedThinking(t *testing.T) {
+	result := collectRecording(t, "gemini/thinking.sse")
+	var reasoning, text strings.Builder
+	for _, part := range result.Parts {
+		switch part.Kind {
+		case textgen.PartReasoning:
+			reasoning.WriteString(part.Text)
+		case textgen.PartText:
+			text.WriteString(part.Text)
+		}
+	}
+	if reasoning.Len() == 0 || !strings.Contains(text.String(), "391") || result.Stop != textgen.StopEnd {
+		t.Fatalf("reasoning %q text %q stop %s", reasoning.String(), text.String(), result.Stop)
+	}
+	if result.Usage == nil || result.Usage.CompletionTokenDetails.ReasoningTokens == 0 {
+		t.Fatalf("usage: %+v", result.Usage)
+	}
+}
+
+// Two calls in one reply, each whole, with distinct ids.
+func TestDecodeRecordedParallelToolCalls(t *testing.T) {
+	result := collectRecording(t, "gemini/parallel_tool_calls.sse")
+	cities := map[string]bool{}
+	ids := map[string]bool{}
+	for _, part := range result.Parts {
+		if part.Kind != textgen.PartTool {
+			continue
+		}
+		var args map[string]string
+		if part.Name != "get_weather" || json.Unmarshal([]byte(part.Text), &args) != nil {
+			t.Fatalf("tool call: %+v", part)
+		}
+		cities[args["city"]] = true
+		ids[part.CallID] = true
+	}
+	if !cities["Paris"] || !cities["Tokyo"] || len(ids) != 2 || result.Stop != textgen.StopTool {
+		t.Fatalf("cities %v ids %v stop %s", cities, ids, result.Stop)
+	}
+}
+
+// gemini-3.1-flash-image answers with an inline image; the decoder carries
+// it as a data URL in the text (bytes shortened in the recording).
+func TestDecodeRecordedImageOutput(t *testing.T) {
+	result := collectRecording(t, "gemini/image_output.sse")
+	var text strings.Builder
+	for _, part := range result.Parts {
+		if part.Kind == textgen.PartText {
+			text.WriteString(part.Text)
+		}
+	}
+	if !strings.Contains(text.String(), "data:image/jpeg;base64,") || !result.StopSeen {
+		t.Fatalf("text %q result %+v", text.String(), result)
 	}
 }

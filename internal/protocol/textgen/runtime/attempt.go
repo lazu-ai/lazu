@@ -273,6 +273,11 @@ func chatToolsNeedReasoningOff(request *textgen.Request, modelName string) bool 
 // onto the IR nor a reason to refuse the bridge. Between Chat and
 // Responses, where one channel serves both, the override stays semantic.
 func OverrideIsUpstreamWire(client textgen.Protocol, snapshot textgen.CapabilitySnapshot) bool {
+	if snapshot.Features.Has(textgen.FeatureEndpointGemini) {
+		// a Gemini channel's override names generateContent fields, as it
+		// did when the channel converted every request itself
+		return client.Family != textgen.ProtocolGemini
+	}
 	return (client.Family == textgen.ProtocolAnthropic) != snapshot.Features.Has(textgen.FeatureEndpointMessages)
 }
 

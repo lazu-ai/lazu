@@ -19,11 +19,13 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.11",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.4.17",
+    "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
     "i18next": "^26.0.10",
     "i18next-browser-languagedetector": "^7.2.0",
     "katex": "^0.16.22",
+    "lowlight": "^3.3.0",
     "lucide-react": "^0.511.0",
     "marked": "^4.1.1",
     "mdast-util-from-markdown": "2.0.3",
@@ -36,7 +38,6 @@
     "react-i18next": "^13.0.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^6.3.0",
-    "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
@@ -45,7 +46,7 @@
     "tailwind-merge": "^3.5.0",
     "unist-util-visit": "^5.0.0",
     "use-debounce": "^10.0.4",
-    "zod": "^4.4.1"
+    "zod": "^4.6.7"
   },
   "scripts": {
     "dev": "bun run brand:sync && vite",
@@ -87,7 +88,7 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@so1ve/prettier-config": "^3.1.0",
-    "@storybook/react-vite": "^10.3.6",
+    "@storybook/react-vite": "^10.6.3",
     "@types/node": "^25.6.2",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
@@ -105,19 +106,21 @@
     "postcss": "^8.5.18",
     "prettier": "^3.0.0",
     "rollup-plugin-visualizer": "^7.0.1",
-    "storybook": "^10.3.6",
+    "storybook": "^10.6.3",
     "tailwindcss": "^3",
     "terser": "5.51.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.2",
-    "vite": "^6.4.3",
+    "vite": "^6.4.5",
     "vitest": "^3.2.6"
   },
   "overrides": {
     "brace-expansion": "5.0.11",
     "braces": "file:./vendor/braces",
     "browserslist": "4.28.7",
+    "dompurify": "3.4.17",
+    "follow-redirects": "1.16.1",
     "form-data": "4.0.6",
     "js-yaml": "4.3.2",
     "minimist": "1.2.8",
@@ -125,7 +128,7 @@
     "postcss": "8.5.18",
     "source-map-js": "1.2.2",
     "tinypool": "2.1.2",
-    "vite": "6.4.3",
+    "vite": "6.4.5",
     "ws": "8.21.0"
   },
   "prettier": {

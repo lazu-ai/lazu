@@ -616,3 +616,28 @@ func TestBridgesRefuseFileImagesAndForeignTiers(t *testing.T) {
 		t.Fatalf("tier: %v", err)
 	}
 }
+
+func TestResponsesGeminiBridgeRefusesToolCallsThatLoseSignatures(t *testing.T) {
+	capabilities := snapshot("gemini", FeatureEndpointGemini, FeatureFunctionTools)
+	client := Protocol{Family: ProtocolOpenAIResponses, Dialect: "openai"}
+
+	request := minimalRequest()
+	request.Tools = []ToolDefinition{{Type: "function", Name: "lookup"}}
+	_, err := PlanAttempt(client, capabilities, request, 1, "gemini-2.5-pro")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureFunctionTools || unsupported.Path != "tools[0]" {
+		t.Fatalf("Responses tools must fail before a Gemini call can emit an unreturnable signature: %v", err)
+	}
+
+	request.ToolPolicy.Mode = "none"
+	if _, err := PlanAttempt(client, capabilities, request, 1, "gemini-2.5-pro"); err != nil {
+		t.Fatalf("disabled tools cannot produce a signed call and should remain bridgeable: %v", err)
+	}
+
+	continuation := minimalRequest()
+	continuation.Conversation = append(continuation.Conversation, InputItem{Kind: InputFunctionCall, CallID: "call_1", FunctionName: "lookup", Arguments: `{}`})
+	_, err = PlanAttempt(client, capabilities, continuation, 1, "gemini-2.5-pro")
+	if !errors.As(err, &unsupported) || unsupported.Path != "input[1]" {
+		t.Fatalf("a Responses tool continuation must fail closed, got %v", err)
+	}
+}

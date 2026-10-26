@@ -7,7 +7,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	textgenruntime "github.com/lazu-ai/lazu/internal/protocol/textgen/runtime"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -41,17 +40,7 @@ func TextgenParse(family textgen.ProtocolFamily) gin.HandlerFunc {
 	}
 }
 
-// ClaudeClientParse is TextgenParse for Claude clients on /v1/messages,
-// unless the operator has switched them back to the legacy conversion
-// (model_setting.GlobalSettings.LegacyClaudeClientConversion): then nothing
-// is parsed and nothing planned, exactly as before the hub.
+// ClaudeClientParse is TextgenParse for Claude clients on /v1/messages.
 func ClaudeClientParse() gin.HandlerFunc {
-	parse := TextgenParse(textgen.ProtocolAnthropic)
-	return func(c *gin.Context) {
-		if model_setting.GetGlobalSettings().LegacyClaudeClientConversion {
-			c.Next()
-			return
-		}
-		parse(c)
-	}
+	return TextgenParse(textgen.ProtocolAnthropic)
 }
