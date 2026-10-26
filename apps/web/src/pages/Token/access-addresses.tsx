@@ -1,9 +1,10 @@
 import { Copy } from 'lucide-react';
-import { useContext, useMemo } from 'react';
-import { Button } from '../../components/ui';
-import { UserContext } from '../../context/User';
-import { copy, showSuccess } from '../../helpers';
+import { useMemo } from 'react';
+import { Button } from '../../components/ui/button';
+import { notify } from '../../components/ui/toast';
+import { useSession } from '../../context/User';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
+import { copy } from '../../helpers/utils';
 import type { TFunction } from 'i18next';
 
 export type AccessAddressKind = 'global' | 'cn_direct';
@@ -55,10 +56,10 @@ const kindNote = (kind: AccessAddressKind, t: TFunction) =>
  * default address is already in every snippet the connect dialog writes.
  */
 export function AccessAddressStrip({ t }: { t: TFunction }) {
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const extras = useMemo(
-    () => readAccessAddresses(userState.user),
-    [userState.user],
+    () => readAccessAddresses(userSession.user),
+    [userSession.user],
   );
   const addresses = useMemo(() => {
     const fallback = getExternalAPIBaseURL(
@@ -112,7 +113,7 @@ export function AccessAddressStrip({ t }: { t: TFunction }) {
               })}
               onClick={async () => {
                 if (await copy(address.url)) {
-                  showSuccess(
+                  notify.success(
                     t('page.console.token.address.copied', {
                       defaultValue: '已复制 {{url}}',
                       url: address.url,

@@ -110,14 +110,6 @@ func (redisDispatchMetricsHook) AfterProcessPipeline(ctx context.Context, _ []re
 	return (redisDispatchMetricsHook{}).AfterProcess(ctx, nil)
 }
 
-func ParseRedisOption() *redis.Options {
-	opt, err := redis.ParseURL(os.Getenv("REDIS_CONN_STRING"))
-	if err != nil {
-		FatalLog("failed to parse Redis connection string: " + err.Error())
-	}
-	return opt
-}
-
 func RedisSet(key string, value string, expiration time.Duration) error {
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis SET: key=%s, value=%s, expiration=%v", key, value, expiration))

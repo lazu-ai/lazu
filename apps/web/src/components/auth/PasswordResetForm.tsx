@@ -16,7 +16,7 @@ import { EMAIL_VALID_MINUTES, RESEND_SECONDS, canSendTo } from './resend';
 import { API } from '../../helpers/api';
 import { showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
-import { Button } from '../ui';
+import { Button } from '../ui/button';
 import type { CSSProperties } from 'react';
 
 const PasswordResetForm = () => {

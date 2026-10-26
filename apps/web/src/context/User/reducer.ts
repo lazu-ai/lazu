@@ -24,25 +24,3 @@ export type UserAction =
       type: string;
       payload?: UserPayload;
     };
-
-export const reducer = (state: UserState, action: UserAction): UserState => {
-  switch (action.type) {
-    case 'login':
-      return {
-        ...state,
-        user: action.payload,
-      };
-    case 'logout':
-      return {
-        ...state,
-        user: undefined,
-      };
-
-    default:
-      return state;
-  }
-};
-
-export const initialState: UserState = {
-  user: undefined,
-};

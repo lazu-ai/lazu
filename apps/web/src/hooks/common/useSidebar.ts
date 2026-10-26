@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_SIDEBAR_ADMIN_CONFIG,
   buildEnabledSidebarConfig,
@@ -8,18 +8,7 @@ import {
   type SidebarModulesConfig,
 } from './sidebarConfig';
 import { readSelf, refreshSelf } from './useSelfQuery';
-import { StatusContext } from '../../context/Status';
-
-export {
-  DEFAULT_SIDEBAR_ADMIN_CONFIG,
-  SIDEBAR_SECTION_DEFINITIONS,
-  buildEnabledSidebarConfig,
-  buildSidebarSectionConfigs,
-  filterSidebarModulesConfig,
-  getSidebarPresetConfig,
-  normalizeSidebarModulesConfig,
-} from './sidebarConfig';
-export type { SidebarModulesConfig } from './sidebarConfig';
+import { useStatus } from '../../context/Status';
 
 type LoadUserConfigOptions = {
   /** Ask the server again instead of reading the shared copy. */
@@ -37,7 +26,7 @@ const sidebarEventTarget = new EventTarget();
 const SIDEBAR_REFRESH_EVENT = 'sidebar-refresh';
 
 export const useSidebar = () => {
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const queryClient = useQueryClient();
   const [userConfig, setUserConfig] = useState(() =>
     buildEnabledSidebarConfig(DEFAULT_SIDEBAR_ADMIN_CONFIG),

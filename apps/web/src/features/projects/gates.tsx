@@ -7,7 +7,8 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { accountPaymentQueryOptions } from './paymentRecord';
 import { useProject } from './ProjectContext';
 import Loading from '../../components/layout/AppLoading';
-import { Button, InlineNotice } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { InlineNotice } from '../../components/ui/inline-notice';
 import type { ReactNode } from 'react';
 
 const ProjectWalletPage = lazy(() => import('./pages/ProjectWalletPage'));

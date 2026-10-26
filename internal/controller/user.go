@@ -160,7 +160,7 @@ func Register(c *gin.Context) {
 		httperr.Code(c, types.ErrorCodeInvalidRequest)
 		return
 	}
-	if err := common.Validate.Struct(&user); err != nil {
+	if err := Validate.Struct(&user); err != nil {
 		httperr.Write(c, userFieldInvalid(err))
 		return
 	}
@@ -1250,7 +1250,7 @@ func UpdateUser(c *gin.Context) {
 	if updatedUser.Password == "" {
 		updatedUser.Password = "$I_LOVE_U" // make Validator happy :)
 	}
-	if err := common.Validate.Struct(&updatedUser); err != nil {
+	if err := Validate.Struct(&updatedUser); err != nil {
 		httperr.Write(c, userFieldInvalid(err))
 		return
 	}
@@ -1448,7 +1448,7 @@ func UpdateSelf(c *gin.Context) {
 	if user.Password == "" {
 		user.Password = "$I_LOVE_U" // make Validator happy :)
 	}
-	if err := common.Validate.Struct(&user); err != nil {
+	if err := Validate.Struct(&user); err != nil {
 		httperr.Write(c, userFieldInvalid(err))
 		return
 	}
@@ -1587,7 +1587,7 @@ func CreateUser(c *gin.Context) {
 		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "password"})
 		return
 	}
-	if err := common.Validate.Struct(&user); err != nil {
+	if err := Validate.Struct(&user); err != nil {
 		httperr.Write(c, userFieldInvalid(err))
 		return
 	}

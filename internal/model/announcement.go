@@ -657,15 +657,6 @@ func ListUnseenAnnouncements(userID int, locale string, limit int) ([]Announceme
 	return result, nil
 }
 
-// HasUnseenCriticalAnnouncement is deliberately independent of the bounded
-// unseen feed. The version plate uses it to decide whether to open the update
-// panel automatically, so a critical item must not be hidden behind newer
-// notices that filled the current page.
-func HasUnseenCriticalAnnouncement(userID int) (bool, error) {
-	item, err := UnseenCriticalAnnouncement(userID, "zh")
-	return item != nil, err
-}
-
 // UnseenCriticalAnnouncement returns the newest unread critical item without
 // applying the ordinary unseen-page limit. It supplies the exact item that
 // triggered a critical auto-open, so the dialog never hides that reason behind
@@ -1126,24 +1117,6 @@ func GeneratedReleaseDeploymentForRange(previousCommitSHA, commitSHA string) (*R
 		return nil, nil, err
 	}
 	return &deployment, &announcement, nil
-}
-
-func UpdateGeneratedAnnouncementDelivery(announcementID uint, delivery string) (*Announcement, error) {
-	if CoreDB() == nil || announcementID == 0 {
-		return nil, errors.New("announcement is required")
-	}
-	normalizedDelivery := normalizeAnnouncementDelivery(delivery)
-	if err := CoreDB().Model(&Announcement{}).Where("id = ?", announcementID).Updates(map[string]any{
-		"delivery":   normalizedDelivery,
-		"updated_at": time.Now().UTC(),
-	}).Error; err != nil {
-		return nil, err
-	}
-	var announcement Announcement
-	if err := CoreDB().First(&announcement, announcementID).Error; err != nil {
-		return nil, err
-	}
-	return &announcement, nil
 }
 
 func RecordReleaseDeploymentWithAnnouncement(deployment *ReleaseDeployment, announcementInput *AnnouncementUpsert) (*ReleaseDeployment, *Announcement, error) {

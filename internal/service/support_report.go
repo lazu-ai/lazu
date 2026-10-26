@@ -217,11 +217,3 @@ func SubmitSupportReport(ctx context.Context, user *model.User, report SupportRe
 	meta := common.MailMeta{Kind: common.MailKindOther, UserID: user.Id, ReplyTo: strings.TrimSpace(user.Email)}
 	return common.SendMail(meta, strings.Join(subjectParts, " "), receiver, body)
 }
-
-// resetSupportReportCounts clears the in-memory counter (tests).
-func resetSupportReportCounts() {
-	m := &supportReportCountsMem
-	m.Lock()
-	m.window, m.count = map[int]time.Time{}, map[int]int{}
-	m.Unlock()
-}

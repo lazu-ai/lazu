@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { Check, ChevronDown, Copy, Plus, Search, X } from 'lucide-react';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -16,7 +16,6 @@ import {
   initials,
   int,
   isFrozen,
-  isLowBalance,
   isZeroBalance,
   providerLabel,
   toAccount,
@@ -24,34 +23,33 @@ import {
 } from './account-model';
 import AccountDrawer from './AccountDrawer';
 import useAuthStatus from '../../components/auth/useAuthStatus';
+import { Badge } from '../../components/ui/badge';
+import { Button, buttonVariants } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { DataSurface } from '../../components/ui/data-surface';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorState } from '../../components/ui/error-state';
+import { Field, Label } from '../../components/ui/field';
+import { IconButton } from '../../components/ui/icon-button';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
 import {
-  Badge,
-  Button,
-  buttonVariants,
-  DataSurface,
-  DataTableShell,
-  EmptyState,
-  ErrorState,
-  Field,
-  IconButton,
-  Input,
-  Label,
-  Modal,
-  Pagination,
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Select,
-} from '../../components/ui';
-import ConsolePage from '../../components/ui/console-page';
+} from '../../components/ui/popover';
+import { Select } from '../../components/ui/select';
 import {
   DEFAULT_PAGE_SIZE_OPTIONS,
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
-import { UserContext } from '../../context/User';
-import { copy, showError, showSuccess } from '../../helpers';
+import { notify } from '../../components/ui/toast';
+import { useSession } from '../../context/User';
 import { API } from '../../helpers/api';
+import { copy, showError } from '../../helpers/utils';
 import { getUserFromLocalStorage, isRoot } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { usePricePlansQuery } from '../ModelOps/usePricePlans';
@@ -262,7 +260,7 @@ function FilterChip({
 export default function OrganizationsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
   const { status: authStatus } = useAuthStatus();
   const configuredProviderIDs = new Set(
@@ -270,10 +268,10 @@ export default function OrganizationsPage() {
   );
 
   const callerRole =
-    Number(userState?.user?.role) ||
+    Number(userSession.user?.role) ||
     Number(getUserFromLocalStorage()?.role) ||
     0;
-  const callerId = userState?.user?.id ?? getUserFromLocalStorage()?.id;
+  const callerId = userSession.user?.id ?? getUserFromLocalStorage()?.id;
 
   const [filters, setFilters] = useState<AccountFilters>(() => ({
     ...emptyFilters,
@@ -532,7 +530,7 @@ export default function OrganizationsPage() {
       );
     },
     onSuccess: () => {
-      showSuccess(
+      notify.success(
         t('page.console.orgs.created', { defaultValue: '客户账户已创建' }),
       );
       setCreating(false);
@@ -547,7 +545,9 @@ export default function OrganizationsPage() {
       unwrap(await API.delete(`/api/user/${account.id}`));
     },
     onSuccess: () => {
-      showSuccess(t('page.console.orgs.deleted', { defaultValue: '已删除' }));
+      notify.success(
+        t('page.console.orgs.deleted', { defaultValue: '已删除' }),
+      );
       setDeleting(null);
       closeAccount();
       invalidate();
@@ -611,7 +611,7 @@ export default function OrganizationsPage() {
 
   const copyAccountId = async (value: string) => {
     if (await copy(value)) {
-      showSuccess(
+      notify.success(
         t('page.console.orgs.copyIdSuccess', { defaultValue: 'ID 已复制' }),
       );
     }
