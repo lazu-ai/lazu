@@ -8,7 +8,7 @@ import OnboardingTakeover from '../../components/onboarding/OnboardingTakeover';
 import useOnboarding from '../../components/onboarding/useOnboarding';
 import ConsolePage from '../../components/ui/console-page';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { UserContext } from '../../context/User';
 import { extensionSidebarEntries, webExtensions } from '../../extensions';
 import { LeaveProjectAction } from '../../features/projects/components/LeaveProjectAction';
@@ -50,7 +50,7 @@ const Dashboard = () => {
     nsMode: 'fallback',
   });
   const [userState] = useContext(UserContext);
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const { availableScopes } = useConsoleScope();
   const project = useProject();
   const projectDetail = useProjectDetail({

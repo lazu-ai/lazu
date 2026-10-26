@@ -28,7 +28,7 @@ import './console-topbar.css';
 import { resolveConsoleSection } from './routeMeta';
 import { preloadConsoleRoute } from './routePreload';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
 import { UserContext } from '../../context/User';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
@@ -79,7 +79,7 @@ const ConsoleTopBar = () => {
   const navigate = useNavigate();
   const project = useProject();
   const [userState, userDispatch] = useContext(UserContext);
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const { activeScope } = useConsoleScope();
   const actualTheme = useActualTheme();
   const rawSetTheme = useSetTheme();

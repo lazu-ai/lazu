@@ -35,7 +35,7 @@ import {
 import ConsolePage from '../../components/ui/console-page';
 import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { UserContext } from '../../context/User';
 import { useTopUpOffer, webExtensions } from '../../extensions';
 import {
@@ -212,7 +212,7 @@ const WalletPage = () => {
   };
   const queryClient = useQueryClient();
   const [userState, userDispatch] = useContext(UserContext);
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const [period, setPeriod] = useState<'current' | 'previous'>('current');
   const [selectedMethod, setSelectedMethod] = useState('stripe');
   const [confirmOpen, setConfirmOpen] = useState(false);

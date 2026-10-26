@@ -22,14 +22,13 @@ import {
 } from './routeMeta';
 import SiderBar from './SiderBar';
 import App from '../../App';
-import { StatusContext } from '../../context/Status';
+import { statusQueryOptions } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
 import { UserContext } from '../../context/User';
 import { surfaceForPath } from '../../extensions';
 import { surfaceLanguageKey } from '../../extensions/i18n';
 import { ProjectRemovedNotice } from '../../features/projects/components/ProjectRemovedNotice';
 import { useProject } from '../../features/projects/ProjectContext';
-import { API } from '../../helpers/api';
 import { setStatusData } from '../../helpers/data';
 import {
   getLogo,
@@ -38,8 +37,6 @@ import {
   safeJsonParse,
 } from '../../helpers/utils';
 import { MOBILE_BREAKPOINT, useIsMobile } from '../../hooks/common/useIsMobile';
-import { unwrap } from '../../lib/api-error';
-import { queryKeys } from '../../lib/query-keys';
 import { useRoutePrefetch } from '../../lib/route-prefetch';
 import WhatsNewDialog from '../announcements/WhatsNewDialog';
 import ErrorBoundary from '../common/ErrorBoundary';
@@ -55,23 +52,6 @@ const useIsomorphicLayoutEffect =
   typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 type ResizeHandler = (width: number) => void;
-
-type ApiGetConfig = NonNullable<Parameters<typeof API.get>[1]> & {
-  skipErrorHandler?: boolean;
-};
-
-type StatusPayload = Record<string, unknown> & { system_name?: string };
-
-const fetchStatus = async (): Promise<StatusPayload> => {
-  const config: ApiGetConfig = { skipErrorHandler: true };
-  const data = unwrap<unknown>(await API.get('/api/status', config));
-  return data && typeof data === 'object' ? (data as StatusPayload) : {};
-};
-
-/* The deployment's public settings change only when an operator saves them;
- * the settings pages invalidate this query when they do. Five minutes covers
- * a change made from another browser. */
-const STATUS_STALE_MS = 5 * 60 * 1000;
 
 const debounce = (fn: ResizeHandler, delay: number): ResizeHandler => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -112,7 +92,6 @@ const PageLayout = () => {
   // lands on a module that is already in memory instead of waiting for one.
   useRoutePrefetch();
   const [, userDispatch] = useContext(UserContext);
-  const [, statusDispatch] = useContext(StatusContext);
   const { removedNotice } = useProject();
   const location = useLocation();
   const pathname = normalizeShellPath(location.pathname);
@@ -342,19 +321,16 @@ const PageLayout = () => {
   }, [userDispatch]);
 
   const statusQuery = useQuery({
-    queryKey: queryKeys.status,
-    queryFn: fetchStatus,
+    ...statusQueryOptions(),
     enabled: !isMarketingRoute,
-    staleTime: STATUS_STALE_MS,
   });
 
   useEffect(() => {
     const statusData = statusQuery.data;
     if (!statusData) return;
-    statusDispatch({ type: 'set', payload: statusData });
     setStatusData(statusData);
     document.title = statusData.system_name || getSystemName();
-  }, [statusDispatch, statusQuery.data]);
+  }, [statusQuery.data]);
 
   useEffect(() => {
     if (!statusQuery.error) return;

@@ -8,7 +8,7 @@ import { preloadConsoleRoute } from './routePreload';
 import { shouldRenderSidebarSection } from './sidebarVisibility';
 import { BrandLogo } from '../../brand';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
 import { UserContext } from '../../context/User';
 import { extensionSidebarEntries } from '../../extensions';
@@ -137,7 +137,7 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
   const location = useLocation();
   const actualTheme = useActualTheme();
   const [userState, userDispatch] = useContext(UserContext);
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   // Operators can point documentation elsewhere at runtime
   // (general_setting.docs_link); the build-time default is the fallback,
   // same order the public header uses.

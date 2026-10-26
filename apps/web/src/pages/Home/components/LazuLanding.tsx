@@ -9,13 +9,13 @@ License, or (at your option) any later version.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useLandingFacts } from './useLandingFacts';
 import BrandLogo from '../../../brand/BrandLogo';
 import Reveal from '../../../components/marketing/Reveal';
-import { StatusContext } from '../../../context/Status';
+import { useStatus } from '../../../context/Status';
 import { useActualTheme } from '../../../context/Theme';
 import { getDocsBaseURL } from '../../../helpers/brandUrls';
 import '../../../styles/fonts.css';
@@ -209,7 +209,7 @@ const useAfterMount = () => {
 
 const LazuLanding = () => {
   const { t } = useTranslation('marketing');
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const actualTheme = useActualTheme();
   const shotRef = useRef<HTMLDivElement | null>(null);
   const ready = useAfterMount();

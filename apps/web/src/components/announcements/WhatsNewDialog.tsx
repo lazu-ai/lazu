@@ -7,7 +7,7 @@ import {
   WHATS_NEW_OPEN_EVENT,
   type WhatsNewOpenDetail,
 } from './whatsNewChannel';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { UserContext } from '../../context/User';
 import {
   ANNOUNCEMENTS_UPDATED_EVENT,
@@ -33,7 +33,7 @@ const dismissAnnouncement = async (id: number | string) => {
 const WhatsNewDialog = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const [userState] = useContext(UserContext);
   const [items, setItems] = useState<Announcement[]>([]);
   const [pinnedAnnouncement, setPinnedAnnouncement] =

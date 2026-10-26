@@ -1,7 +1,7 @@
 import { Settings } from 'lucide-react';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StatusContext } from '../../../context/Status';
+import { useStatus } from '../../../context/Status';
 import { API, showSuccess, showError } from '../../../helpers';
 import {
   buildSidebarSectionConfigs,
@@ -55,7 +55,7 @@ export default function SettingsSidebarModulesUser({
 }: SettingsSidebarModulesUserProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
 
   const {
     loading: permissionsLoading,

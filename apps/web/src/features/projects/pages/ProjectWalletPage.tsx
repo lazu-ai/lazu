@@ -6,7 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { Download } from 'lucide-react';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -30,7 +30,7 @@ import {
   TopupBar,
 } from '../../../components/ui/topup-bar';
 import { TopupRecord } from '../../../components/ui/topup-record';
-import { StatusContext } from '../../../context/Status';
+import { useStatus } from '../../../context/Status';
 import { useTopUpOffer, webExtensions } from '../../../extensions';
 import { getMicroUSDPerUSD } from '../../../helpers';
 import { API } from '../../../helpers/api';
@@ -109,7 +109,7 @@ function OwnerWallet() {
     nsMode: 'fallback',
   });
   const project = useProject();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const wallet = useProjectWallet();
   const topups = useProjectTopups();
   const detail = useProjectDetail();

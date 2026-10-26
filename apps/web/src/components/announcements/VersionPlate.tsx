@@ -9,7 +9,7 @@ import {
   todayDayKey,
 } from './whatsNewAutoOpen';
 import { openWhatsNewDialog } from './whatsNewChannel';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { UserContext } from '../../context/User';
 import { useAnnouncementsUnread } from '../../hooks/common/useAnnouncementsUnread';
 import './version-plate.css';
@@ -34,7 +34,7 @@ const VersionPlate = ({
   variant = 'sidebar',
 }: VersionPlateProps) => {
   const { t } = useTranslation();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const [userState] = useContext(UserContext);
   const user = userState.user;
   const { criticalAnnouncement, hasCritical, hasUnread, unreadCount } =
