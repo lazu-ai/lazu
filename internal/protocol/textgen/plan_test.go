@@ -104,6 +104,37 @@ func TestPlanAttemptRejectsGeminiToolsOnReasoningResponsesBridge(t *testing.T) {
 	}
 }
 
+func TestPlanAttemptRejectsMultipleGeminiCandidatesOnBridge(t *testing.T) {
+	request := minimalRequest()
+	request.Sampling.N = Some(2)
+	_, err := PlanAttempt(
+		Protocol{Family: ProtocolGemini, Dialect: "gemini"},
+		snapshot("openai_chat_compatible", FeatureEndpointChat, FeatureN),
+		request, 1, "upstream",
+	)
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureN || unsupported.Path != "generationConfig.candidateCount" {
+		t.Fatalf("multiple Gemini candidates must fail before a lossy bridge: %v", err)
+	}
+
+	request.Sampling.N = Some(1)
+	if _, err := PlanAttempt(Protocol{Family: ProtocolGemini, Dialect: "gemini"}, snapshot("openai_chat_compatible", FeatureEndpointChat, FeatureN), request, 1, "upstream"); err != nil {
+		t.Fatalf("one Gemini candidate should remain bridgeable: %v", err)
+	}
+}
+
+func TestPlanAttemptRejectsGeminiOnNonPlanAwareChatWire(t *testing.T) {
+	_, err := PlanAttempt(
+		Protocol{Family: ProtocolGemini, Dialect: "gemini"},
+		snapshot("xai", FeatureEndpointChat),
+		minimalRequest(), 1, "upstream",
+	)
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || !strings.Contains(unsupported.Reason, "not an OpenAI-compatible chat wire") {
+		t.Fatalf("non-plan-aware Chat transport must fail closed: %v", err)
+	}
+}
+
 // With reasoning off there is no reasoning state to lose, so a Chat request
 // with tools — first call or continuation — bridges to Responses.
 func TestPlanAttemptBridgesChatToolsWithReasoningOff(t *testing.T) {

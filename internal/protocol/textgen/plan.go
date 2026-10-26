@@ -228,8 +228,15 @@ func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySna
 	if upstream == "" || upstream == client.Family || !snapshot.Features.Has(endpointOf(upstream)) {
 		return nil, &UnsupportedFeatureError{Feature: endpoint, Path: "", Reason: "channel has no native endpoint and no lossless bridge target"}
 	}
-	if client.Family == ProtocolOpenAIResponses && upstream == ProtocolOpenAIChat && !supportsOpenAIChatWireBridge(snapshot.Dialect) {
+	if client.Family != ProtocolOpenAIChat && upstream == ProtocolOpenAIChat && !supportsOpenAIChatWireBridge(snapshot.Dialect) {
 		return nil, &UnsupportedFeatureError{Feature: endpoint, Path: "", Reason: "channel transport is not an OpenAI-compatible chat wire dialect"}
+	}
+	if client.Family == ProtocolGemini && request.Sampling.N.Set && request.Sampling.N.Value > 1 {
+		return nil, &UnsupportedFeatureError{
+			Feature: FeatureN,
+			Path:    "generationConfig.candidateCount",
+			Reason:  "the Gemini bridge supports exactly one candidate",
+		}
 	}
 	// With reasoning off there is no reasoning state for Chat to lose, so the
 	// bridge stays lossless for tool calls.

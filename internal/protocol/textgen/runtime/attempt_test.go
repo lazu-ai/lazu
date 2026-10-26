@@ -201,6 +201,9 @@ func TestSnapshotForCustomAndXAIProtocolBoundaries(t *testing.T) {
 	if _, err := PlanForChannel(&textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolOpenAIResponses}, Semantic: request}, xai, "test-model"); err == nil {
 		t.Fatal("xAI Responses-to-Chat bridge must fail closed until its adaptor is plan-aware")
 	}
+	if _, err := PlanForChannel(&textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolGemini}, Semantic: request}, xai, "test-model"); err == nil {
+		t.Fatal("xAI Gemini-to-Chat bridge must fail closed until its adaptor is plan-aware")
+	}
 }
 
 func TestPrepareAttemptReplansFromOriginalRequestAcrossDialects(t *testing.T) {
