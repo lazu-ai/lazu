@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -30,7 +30,8 @@ import {
   splitDuration,
 } from '../../../components/ui';
 import { ComboChart } from '../../../components/ui/combo-chart';
-import { API, isRoot } from '../../../helpers';
+import { API } from '../../../helpers/api';
+import { isRoot } from '../../../helpers/utils';
 import { useChannelHealthQuery } from '../../../hooks/health/useChannelHealthQuery';
 import { unwrap } from '../../../lib/api-error';
 import './overview.css';

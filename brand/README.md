@@ -17,7 +17,6 @@
 - `foundations/`：仍被当前产品引用的正式规则。
 - `tokens/`：生产代码同步使用的 canonical tokens。
 - `archive:brand/explorations/`：决策历史；只有被 `BRAND.md` 或 locked foundation 明确选中的方向可以实现。
-- `styles.css`：Brand specimen 的样式入口。
 - `SKILL.md`：供设计任务读取本目录的最小入口。
 
 生产组件实现位于 `apps/web/src/components/ui/`，生成后的 Web token 位于 `apps/web/src/styles/brand.generated.css`。二者是 Brand 的消费者，不是第二套设计规范。

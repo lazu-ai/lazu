@@ -14,12 +14,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import TelegramLinkField, { useTelegramLinkStatus } from './TelegramLinkField';
 import { UserContext } from '../../context/User';
-import {
-  API,
-  getMicroUSDPerUSD,
-  setUserData,
-  showSuccess,
-} from '../../helpers';
+import { API } from '../../helpers/api';
+import { setUserData } from '../../helpers/data';
+import { getMicroUSDPerUSD } from '../../helpers/render';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
@@ -31,7 +28,6 @@ import {
   PendingBlock,
   PendingValue,
   Field,
-  FieldMessage,
   InlineNotice,
   Input,
   Label,
@@ -44,6 +40,7 @@ import {
 import ConsolePage from '../ui/console-page';
 import './personal.css';
 import '../../styles/settings-surface.css';
+import { notify } from '../ui/toast';
 import type { ChangeEvent } from 'react';
 
 const ns = 'page.console.personal';
@@ -482,7 +479,7 @@ const PersonalSetting = () => {
     },
     onSuccess: (_result, values) => {
       notificationForm.reset(values);
-      showSuccess(t(`${ns}.notification.saved`));
+      notify.success(t(`${ns}.notification.saved`));
       queryClient.invalidateQueries({ queryKey: queryKeys.user });
     },
     onError: apiErrorHandler,
@@ -496,7 +493,7 @@ const PersonalSetting = () => {
       unwrap(await API.put('/api/user/self/mail-prefs', values));
     },
     onSuccess: () => {
-      showSuccess(t(`${ns}.notification.saved`));
+      notify.success(t(`${ns}.notification.saved`));
       queryClient.invalidateQueries({ queryKey: queryKeys.user });
     },
     onError: apiErrorHandler,
@@ -508,7 +505,7 @@ const PersonalSetting = () => {
       unwrap(await API.put('/api/user/self/timezone', { timezone }));
     },
     onSuccess: () => {
-      showSuccess(t(`${ns}.notification.saved`));
+      notify.success(t(`${ns}.notification.saved`));
       setExpanded(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.user });
     },
@@ -541,7 +538,7 @@ const PersonalSetting = () => {
       return email;
     },
     onSuccess: (email) => {
-      showSuccess(t(`${ns}.email.success`));
+      notify.success(t(`${ns}.email.success`));
       setExpanded(null);
       emailForm.reset();
       userDispatch({ type: 'login', payload: { ...user, email } });
@@ -554,7 +551,7 @@ const PersonalSetting = () => {
     mutationFn: async (email) => {
       unwrap(await API.get('/api/verification', { params: { email } }));
     },
-    onSuccess: () => showSuccess(t(`${ns}.email.codeSent`)),
+    onSuccess: () => notify.success(t(`${ns}.email.codeSent`)),
     onError: apiErrorHandler,
   });
 
@@ -602,7 +599,7 @@ const PersonalSetting = () => {
       );
     },
     onSuccess: async (_result, username) => {
-      showSuccess(t(`${ns}.username.success`));
+      notify.success(t(`${ns}.username.success`));
       setExpanded(null);
       setUsernameDraft('');
       userDispatch({ type: 'login', payload: { ...user, username } });
@@ -626,7 +623,7 @@ const PersonalSetting = () => {
       );
     },
     onSuccess: async () => {
-      showSuccess(t(`${ns}.password.success`));
+      notify.success(t(`${ns}.password.success`));
       setExpanded(null);
       passwordForm.reset();
       await queryClient.invalidateQueries({ queryKey: IDENTITY_QUERY_KEY });
@@ -642,7 +639,7 @@ const PersonalSetting = () => {
       unwrap(await API.delete('/api/user/self'));
     },
     onSuccess: async () => {
-      showSuccess(t(`${ns}.delete.success`));
+      notify.success(t(`${ns}.delete.success`));
       await API.get('/api/user/logout');
       userDispatch({ type: 'logout' });
       localStorage.removeItem('user');

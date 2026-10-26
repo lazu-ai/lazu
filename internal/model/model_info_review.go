@@ -118,11 +118,6 @@ func RecordModelInfoReviewDB(db *gorm.DB, row ModelInfoReview) error {
 	return db.Create(&row).Error
 }
 
-// RecordModelInfoFill logs a filled field so it can be undone.
-func RecordModelInfoFill(modelName, maker, field, previous, value string, syncRun int64) error {
-	return RecordModelInfoFillDB(CoreDB(), modelName, maker, field, previous, value, syncRun)
-}
-
 func RecordModelInfoFillDB(db *gorm.DB, modelName, maker, field, previous, value string, syncRun int64) error {
 	var count int64
 	if err := db.Model(&ModelInfoReview{}).Where("kind = ? AND status = ? AND model_name = ? AND field = ? AND sync_run = ? AND local_value = ? AND upstream_value = ?",

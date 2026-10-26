@@ -425,3 +425,72 @@ test('inspector tabs have keyboard navigation and ledger rows stay one line on m
   expect(Math.max(...cells) - Math.min(...cells)).toBeLessThan(2);
   await app.expectNoUnexpectedErrors();
 });
+
+test('来源表单 edits request overrides and keeps the stored ones on save', async ({
+  page,
+}) => {
+  const saved = [];
+  const detail = {
+    id: 1,
+    name: 'OpenAI smoke channel',
+    type: 1,
+    status: 1,
+    group: 'direct',
+    source_type: 'official',
+    models: 'gpt-4o-mini',
+    priority: 1,
+    weight: 70,
+    base_url: 'https://api.openai.com',
+    settings: '{"protocol_dialect":"openai"}',
+    param_override: '{"temperature":0.2}',
+    header_override: '{"X-Org":"lazu"}',
+    status_code_mapping: '',
+  };
+  const app = await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: (url, request) => {
+      const { pathname } = new URL(url);
+      if (pathname === '/api/channel/1' && request.method() === 'GET') {
+        return { success: true, message: '', data: detail };
+      }
+      if (pathname.startsWith('/api/channel') && request.method() === 'PUT') {
+        saved.push(request.postDataJSON());
+        return { success: true, message: '', data: detail };
+      }
+      return undefined;
+    },
+  });
+  await expectRouteReady(page, '/console/model-ops/sources');
+  await page
+    .locator('.mo-ledger__row', { hasText: 'OpenAI smoke channel' })
+    .first()
+    .getByRole('button', { name: '编辑' })
+    .click();
+  await page.getByRole('tab', { name: '线路' }).click();
+  await page.locator('details.mo-advanced > summary').click();
+
+  await expect(page.locator('#channel-param-override')).toHaveValue(
+    /"temperature": 0.2/,
+  );
+  await expect(page.locator('#channel-header-override')).toHaveValue(
+    /"X-Org": "lazu"/,
+  );
+
+  const mapping = page.locator('#channel-status-code-mapping');
+  await mapping.fill('{"400": 500}');
+  await page.locator('button[form="source-form"]').click();
+  await expect(page.locator('.mo-advanced')).toContainText(
+    '状态码映射必须是状态码对状态码',
+  );
+  expect(saved).toHaveLength(0);
+
+  await mapping.fill('{"400": "503"}');
+  await page.locator('button[form="source-form"]').click();
+  await expect.poll(() => saved.length).toBe(1);
+  expect(saved[0]).toMatchObject({
+    param_override: '{"temperature":0.2}',
+    header_override: '{"X-Org":"lazu"}',
+    status_code_mapping: '{"400":"503"}',
+  });
+  await app.expectNoUnexpectedErrors();
+});

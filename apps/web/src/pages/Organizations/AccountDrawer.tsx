@@ -33,8 +33,9 @@ import {
   Select,
   Tooltip,
 } from '../../components/ui';
-import { showSuccess, usdToMicroUSD } from '../../helpers';
 import { API } from '../../helpers/api';
+import { usdToMicroUSD } from '../../helpers/render';
+import { showSuccess } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import AccountSessions from '../Log/sessions/AccountSessions';
 

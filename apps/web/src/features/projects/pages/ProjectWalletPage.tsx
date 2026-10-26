@@ -9,13 +9,7 @@ import { Download } from 'lucide-react';
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import {
-  Button,
-  Input,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '../../../components/ui';
+import { Button, Tabs, TabsList, TabsTrigger } from '../../../components/ui';
 import {
   AutoReloadCard,
   AutoReloadFailureNotice,
@@ -32,16 +26,14 @@ import {
 import { TopupRecord } from '../../../components/ui/topup-record';
 import { StatusContext } from '../../../context/Status';
 import { useTopUpOffer, webExtensions } from '../../../extensions';
-import { getMicroUSDPerUSD } from '../../../helpers';
 import { API } from '../../../helpers/api';
+import { getMicroUSDPerUSD } from '../../../helpers/render';
 import { errorMessage, unwrap } from '../../../lib/api-error';
 import { buildDailyWalletLedger } from '../../../pages/Wallet/walletLedger';
 import { canManageBilling, canTopUp as roleCanTopUp } from '../access';
 import { validateTopUpAmount } from '../budget';
 import {
   Card,
-  ErrLine,
-  Kvs,
   Ledger,
   PjBadge,
   SectionHead,
@@ -51,7 +43,7 @@ import {
   formatMonthDay,
 } from '../components/atoms';
 import { ShareBalanceCard } from '../components/ShareBalanceCard';
-import { formatUSD, formatUSDShort, toMicro } from '../money';
+import { formatUSD, formatUSDShort } from '../money';
 import { paymentDocumentPath } from '../paymentDocument';
 import { useProject } from '../ProjectContext';
 import {
@@ -72,7 +64,8 @@ import type { ProjectAutoReload, ProjectTopup } from '../types';
 type Tab = 'ledger' | 'topups' | 'monthly';
 
 export default function ProjectWalletPage() {
-  const { t } = useTranslation(['projects', 'translation'], {
+  // Loads the wallet namespaces before either view renders.
+  useTranslation(['projects', 'translation'], {
     nsMode: 'fallback',
   });
   const project = useProject();

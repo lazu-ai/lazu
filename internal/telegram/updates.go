@@ -107,16 +107,6 @@ func Me(ctx context.Context) (botIdentity, error) {
 	return me, nil
 }
 
-// cachedUsername is the bot's username if getMe already answered.
-func cachedUsername() string {
-	identity.Lock()
-	defer identity.Unlock()
-	if identity.forTokens == token() {
-		return identity.bot.Username
-	}
-	return ""
-}
-
 // --- dispatch ---
 
 // Handler answers one message. It returns true when it handled the message,
@@ -327,11 +317,4 @@ func holdPollLease(ctx context.Context) bool {
 		return false
 	}
 	return common.RDB.Expire(ctx, key, time.Minute).Err() == nil
-}
-
-// resetIdentity forgets the cached getMe answer (tests).
-func resetIdentity() {
-	identity.Lock()
-	identity.bot, identity.triedAt, identity.forTokens = botIdentity{}, time.Time{}, ""
-	identity.Unlock()
 }
