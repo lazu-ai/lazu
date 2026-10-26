@@ -348,7 +348,7 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 		}
 	}
 	if upstream == ProtocolAnthropic {
-		return messagesBridgeIssue(request, uses)
+		return messagesBridgeIssue(client, request, uses)
 	}
 	if upstream == ProtocolGemini {
 		return geminiBridgeIssue(client, request, uses)
@@ -373,15 +373,9 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 		return &Issue{Feature: FeatureAnthropicOptions, Path: path, Message: "Anthropic's speed tier has no equivalent outside the Messages API"}
 	}
 	for _, use := range uses {
-		if client == ProtocolAnthropic && use.Feature == FeatureOpaqueReasoningItem && use.Detail == "anthropic" {
-			// thinking Anthropic sealed means something to Anthropic alone;
-			// another vendor's model cannot use it, so leaving it out loses
-			// nothing (the OpenAI encoders skip it)
-			continue
-		}
-		if client == ProtocolGemini && use.Feature == FeatureOpaqueReasoningItem && use.Detail == "gemini" {
-			// a Gemini thought signature, likewise: it means something to
-			// Gemini alone
+		if discardableOpaqueReasoning(client, use) {
+			// A completed turn's vendor-bound reasoning state means nothing to
+			// another vendor and its encoder leaves it out.
 			continue
 		}
 		switch use.Feature {
@@ -458,8 +452,11 @@ func jsonObject(text string) bool {
 	return json.Unmarshal([]byte(text), &object) == nil && object != nil
 }
 
-func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
+func messagesBridgeIssue(client ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
 	for _, use := range uses {
+		if discardableOpaqueReasoning(client, use) {
+			continue
+		}
 		switch use.Feature {
 		case FeatureUnknownField, FeaturePreviousResponse, FeatureConversation, FeaturePromptTemplate, FeatureIncludeEncryptedReasoning, FeatureIncludeUnsupported, FeatureHostedToolNativeOnly, FeatureOpaqueReasoningItem, FeatureInputReference, FeatureOpaqueInputItem:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
@@ -509,6 +506,11 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 		}
 	}
 	return nil
+}
+
+func discardableOpaqueReasoning(client ProtocolFamily, use FeatureUse) bool {
+	return use.Feature == FeatureOpaqueReasoningItem &&
+		((client == ProtocolAnthropic && use.Detail == "anthropic") || (client == ProtocolGemini && use.Detail == "gemini"))
 }
 
 // geminiBridgeIssue is what keeps a request off the bridge to Gemini's

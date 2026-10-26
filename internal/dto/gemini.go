@@ -214,13 +214,14 @@ func (r *GeminiChatRequest) GetTokenCountMeta() *types.TokenCountMeta {
 }
 
 func (r *GeminiChatRequest) IsStream(c *gin.Context) bool {
-	if strings.Contains(c.Request.URL.Path, ":streamGenerateContent") {
-		return true
-	}
-	if c.Query("alt") == "sse" {
-		return true
-	}
-	return false
+	return IsGeminiStreamRequest(c)
+}
+
+// IsGeminiStreamRequest is the one stream predicate for Gemini's two wire
+// forms: the streaming action and generateContent negotiated as SSE.
+func IsGeminiStreamRequest(c *gin.Context) bool {
+	return c != nil && c.Request != nil &&
+		(strings.Contains(c.Request.URL.Path, ":streamGenerateContent") || c.Query("alt") == "sse")
 }
 
 func (r *GeminiChatRequest) SetModelName(modelName string) {

@@ -26,6 +26,8 @@ var knownGeneration = map[string]struct{}{
 	"temperature": {}, "topP": {}, "topK": {}, "maxOutputTokens": {}, "stopSequences": {}, "candidateCount": {},
 	"seed": {}, "responseMimeType": {}, "responseSchema": {}, "responseJsonSchema": {}, "thinkingConfig": {},
 	"responseLogprobs": {}, "logprobs": {},
+	"top_p": {}, "top_k": {}, "max_output_tokens": {}, "stop_sequences": {}, "candidate_count": {},
+	"response_mime_type": {}, "response_schema": {}, "response_json_schema": {}, "thinking_config": {}, "response_logprobs": {},
 }
 
 // Decode is a generateContent request (a Gemini client's body) as the IR,

@@ -6,6 +6,7 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	textgenruntime "github.com/lazu-ai/lazu/internal/protocol/textgen/runtime"
 	"github.com/lazu-ai/lazu/internal/types"
@@ -70,7 +71,7 @@ func GeminiClientParse() gin.HandlerFunc {
 			abortRequestBodyError(c, err)
 			return
 		}
-		parsed, decodeErr := textgenruntime.ParseGemini(body, extractModelNameFromGeminiPath(path), action == "streamGenerateContent")
+		parsed, decodeErr := textgenruntime.ParseGemini(body, extractModelNameFromGeminiPath(path), dto.IsGeminiStreamRequest(c))
 		if decodeErr != nil {
 			parseTimer.Finish(decodeErr)
 			abortWithCode(c, types.ErrorCodeInvalidRequest, types.D{"reason": decodeErr.Error()})

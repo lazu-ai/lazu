@@ -108,6 +108,20 @@ func TestDecodeGenerationConfigPresenceThoughtsAndSchema(t *testing.T) {
 	}
 }
 
+func TestDecodeGenerationConfigAcceptsSupportedSnakeCaseFields(t *testing.T) {
+	request, _, err := Decode([]byte(`{"contents":[{"role":"user","parts":[{"text":"q"}]}],"generation_config":{"top_p":0.7,"top_k":12,"max_output_tokens":321,"stop_sequences":["END"],"candidate_count":1}}`), "gemini-3-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(request.Raw.UnknownFields) != 0 {
+		t.Fatalf("supported snake_case fields marked unknown: %v", request.Raw.UnknownFields)
+	}
+	if !request.Sampling.TopP.Set || request.Sampling.TopP.Value != 0.7 || !request.Sampling.TopK.Set || request.Sampling.TopK.Value != 12 ||
+		!request.Sampling.MaxOutput.Set || request.Sampling.MaxOutput.Value != 321 || !request.Sampling.Stop.Set || !request.Sampling.N.Set || request.Sampling.N.Value != 1 {
+		t.Fatalf("snake_case generation config lost: %+v", request.Sampling)
+	}
+}
+
 // A real Gemini CLI request (the turn after it called read_file) decodes:
 // system instruction, the tool set, the call and its response paired, and
 // the thinking budget it asked for.

@@ -641,3 +641,26 @@ func TestResponsesGeminiBridgeRefusesToolCallsThatLoseSignatures(t *testing.T) {
 		t.Fatalf("a Responses tool continuation must fail closed, got %v", err)
 	}
 }
+
+func TestGeminiBridgeDropsOnlyCompletedTurnSignatures(t *testing.T) {
+	client := Protocol{Family: ProtocolGemini, Dialect: "gemini"}
+	signature := []OpaqueValue{{Dialect: "gemini", Value: json.RawMessage(`"signed"`)}}
+
+	history := minimalRequest()
+	history.Conversation = append(history.Conversation,
+		InputItem{Kind: InputMessage, Role: "assistant", Content: []ContentPart{{Kind: ContentText, Text: "done"}}},
+		InputItem{Kind: InputReasoning, Role: "assistant", Opaque: signature},
+		InputItem{Kind: InputMessage, Role: "user", Content: []ContentPart{{Kind: ContentText, Text: "new turn"}}},
+	)
+	if _, err := PlanAttempt(client, anthropicSnapshot(), history, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("a completed Gemini turn's signature should be discarded on a Messages bridge: %v", err)
+	}
+
+	running := minimalRequest()
+	running.Conversation = append(running.Conversation, InputItem{Kind: InputReasoning, Role: "assistant", Opaque: signature})
+	_, err := PlanAttempt(client, anthropicSnapshot(), running, 1, "claude-haiku-5-5")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Path != "input[1]" || unsupported.Feature != FeatureOpaqueReasoningItem {
+		t.Fatalf("the running turn must stay on Gemini, got %v", err)
+	}
+}
