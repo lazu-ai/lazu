@@ -183,14 +183,4 @@ func appendInstruction(request *Request, text string) {
 	request.Instructions = []Instruction{{Role: "system", Text: text}}
 }
 
-// DegradationIDs lists the registered rule IDs, for the registry test and
-// the docs.
-func DegradationIDs() []string {
-	out := make([]string, 0, len(Degradations))
-	for _, rule := range Degradations {
-		out = append(out, rule.ID)
-	}
-	return out
-}
-
 func (r DegradationRule) String() string { return fmt.Sprintf("%s (%s)", r.ID, r.Feature.String()) }

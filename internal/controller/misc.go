@@ -21,23 +21,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func getRecentAnnouncements() []map[string]interface{} {
-	rawAnnouncements := console_setting.GetConsoleSetting().Announcements
-	normalizedJSON, normalizedList, changed, err := console_setting.NormalizeAnnouncementsJSONString(rawAnnouncements)
-	if err != nil {
-		common.SysError("failed to normalize announcements: " + err.Error())
-		return console_setting.GetAnnouncements()
-	}
-
-	if changed {
-		if err := model.UpdateOption("console_setting.announcements", normalizedJSON); err != nil {
-			common.SysError("failed to persist pruned announcements: " + err.Error())
-		}
-	}
-
-	return normalizedList
-}
-
 func TestStatus(c *gin.Context) {
 	if err := model.PingDB(); err != nil {
 		httperr.Write(c, types.WrapErr(err, types.ErrorCodeDatabaseUnreachable))

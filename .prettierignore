@@ -6,4 +6,3 @@ apps/docs/public/brand.generated.css
 
 # Design explorations are standalone artefacts, reviewed as-is.
 brand/_ds_bundle.js
-brand/foundations/*.card.html

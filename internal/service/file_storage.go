@@ -87,16 +87,6 @@ func filePurposeShort(purpose string) string {
 	}
 }
 
-func BuildLegacyUserFileStorageKey(userID int) string {
-	basePath := strings.Trim(common.AppConfig.ArtifactStorage.BasePath, "/")
-	parts := make([]string, 0, 4)
-	if basePath != "" {
-		parts = append(parts, basePath)
-	}
-	parts = append(parts, "files", fmt.Sprintf("%d", userID), uuid.NewString())
-	return path.Join(parts...)
-}
-
 func DefaultFileExpiresAt(now int64) int64 {
 	return now + FileStorageTTLSeconds
 }

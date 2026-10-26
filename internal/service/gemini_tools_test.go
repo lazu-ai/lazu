@@ -5,8 +5,20 @@ import (
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
-	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
+	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 )
+
+// geminiToChat is a Gemini client's request as the protocol hub sends it to
+// a Chat upstream: gemini.Decode, then openai_chat.Encode.
+func geminiToChat(body []byte) (*dto.GeneralOpenAIRequest, error) {
+	request, _, err := geminicodec.Decode(body, "gpt-4o")
+	if err != nil {
+		return nil, err
+	}
+	request.Model.Upstream = "gpt-4o"
+	return openai_chat.Encode(request)
+}
 
 func TestGeminiGetToolsSnakeCase(t *testing.T) {
 	payload := []byte(`{
@@ -46,7 +58,7 @@ func TestGeminiGetToolsSnakeCase(t *testing.T) {
 	}
 }
 
-func TestGeminiToOpenAIRequestTools(t *testing.T) {
+func TestGeminiToChatTools(t *testing.T) {
 	payload := []byte(`{
 		"contents": [{"role":"user","parts":[{"text":"hi"}]}],
 		"tools": [{
@@ -67,10 +79,7 @@ func TestGeminiToOpenAIRequestTools(t *testing.T) {
 		t.Fatalf("unmarshal gemini request: %v", err)
 	}
 
-	info := &relaycommon.RelayInfo{
-		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o"},
-	}
-	openaiReq, err := GeminiToOpenAIRequest(&req, info)
+	openaiReq, err := geminiToChat(payload)
 	if err != nil {
 		t.Fatalf("convert to openai request: %v", err)
 	}
@@ -211,7 +220,7 @@ func TestGeminiThoughtSignatureRoundTrip(t *testing.T) {
 	}
 }
 
-func TestGeminiToOpenAIRequest_PreservesToolCallIDsForFunctionResponses(t *testing.T) {
+func TestGeminiToChatPreservesToolCallIDsForFunctionResponses(t *testing.T) {
 	payload := []byte(`{
 		"contents": [
 			{
@@ -240,10 +249,7 @@ func TestGeminiToOpenAIRequest_PreservesToolCallIDsForFunctionResponses(t *testi
 		t.Fatalf("unmarshal gemini request: %v", err)
 	}
 
-	info := &relaycommon.RelayInfo{
-		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o"},
-	}
-	openaiReq, err := GeminiToOpenAIRequest(&req, info)
+	openaiReq, err := geminiToChat(payload)
 	if err != nil {
 		t.Fatalf("convert to openai request: %v", err)
 	}
@@ -268,7 +274,7 @@ func TestGeminiToOpenAIRequest_PreservesToolCallIDsForFunctionResponses(t *testi
 	}
 }
 
-func TestGeminiToOpenAIRequest_GeneratesUniqueToolCallIDsAroundPreservedIDs(t *testing.T) {
+func TestGeminiToChatGeneratesUniqueToolCallIDsAroundPreservedIDs(t *testing.T) {
 	payload := []byte(`{
 		"contents": [
 			{
@@ -297,10 +303,7 @@ func TestGeminiToOpenAIRequest_GeneratesUniqueToolCallIDsAroundPreservedIDs(t *t
 		t.Fatalf("unmarshal gemini request: %v", err)
 	}
 
-	info := &relaycommon.RelayInfo{
-		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o"},
-	}
-	openaiReq, err := GeminiToOpenAIRequest(&req, info)
+	openaiReq, err := geminiToChat(payload)
 	if err != nil {
 		t.Fatalf("convert to openai request: %v", err)
 	}
@@ -323,7 +326,7 @@ func TestGeminiToOpenAIRequest_GeneratesUniqueToolCallIDsAroundPreservedIDs(t *t
 	}
 }
 
-func TestGeminiToOpenAIRequest_ReservesFuturePreservedIDsBeforeGenerating(t *testing.T) {
+func TestGeminiToChatReservesFuturePreservedIDsBeforeGenerating(t *testing.T) {
 	payload := []byte(`{
 		"contents": [
 			{
@@ -352,10 +355,7 @@ func TestGeminiToOpenAIRequest_ReservesFuturePreservedIDsBeforeGenerating(t *tes
 		t.Fatalf("unmarshal gemini request: %v", err)
 	}
 
-	info := &relaycommon.RelayInfo{
-		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o"},
-	}
-	openaiReq, err := GeminiToOpenAIRequest(&req, info)
+	openaiReq, err := geminiToChat(payload)
 	if err != nil {
 		t.Fatalf("convert to openai request: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestGeminiToOpenAIRequest_ReservesFuturePreservedIDsBeforeGenerating(t *tes
 	}
 }
 
-func TestGeminiToOpenAIRequest_RejectsDuplicatePreservedToolCallIDs(t *testing.T) {
+func TestGeminiToChatRejectsDuplicatePreservedToolCallIDs(t *testing.T) {
 	payload := []byte(`{
 		"contents": [
 			{
@@ -394,146 +394,7 @@ func TestGeminiToOpenAIRequest_RejectsDuplicatePreservedToolCallIDs(t *testing.T
 		t.Fatalf("unmarshal gemini request: %v", err)
 	}
 
-	info := &relaycommon.RelayInfo{
-		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o"},
-	}
-	if _, err := GeminiToOpenAIRequest(&req, info); err == nil {
+	if _, err := geminiToChat(payload); err == nil {
 		t.Fatal("expected duplicate preserved tool call ids to be rejected")
-	}
-}
-
-func TestGeminiHasCurrentTurnThoughtSignature(t *testing.T) {
-	payload := []byte(`{
-		"contents": [
-			{
-				"role": "user",
-				"parts": [{"text": "北京的天气怎么样，现在几点了？"}]
-			},
-			{
-				"role": "model",
-				"parts": [
-					{"thoughtSignature": "sig-123", "functionCall": {"id": "call_1", "name": "get_weather", "args": {"city": "北京"}}},
-					{"functionCall": {"id": "call_2", "name": "get_time", "args": {}}}
-				]
-			},
-			{
-				"role": "user",
-				"parts": [
-					{"functionResponse": {"name": "get_weather", "response": {"result": {"temperature": 26}}}},
-					{"functionResponse": {"name": "get_time", "response": {"result": {"time": "10:00"}}}}
-				]
-			}
-		]
-	}`)
-
-	var req dto.GeminiChatRequest
-	if err := json.Unmarshal(payload, &req); err != nil {
-		t.Fatalf("unmarshal gemini request: %v", err)
-	}
-
-	if !req.HasCurrentTurnThoughtSignature() {
-		t.Fatal("expected request to report current-turn thoughtSignature")
-	}
-}
-
-func TestGeminiHasCurrentTurnThoughtSignature_IgnoresCurrentTurnToolLoopWithoutThoughtSignature(t *testing.T) {
-	payload := []byte(`{
-		"contents": [
-			{
-				"role": "user",
-				"parts": [{"text": "北京的天气怎么样，现在几点了？"}]
-			},
-			{
-				"role": "model",
-				"parts": [
-					{"functionCall": {"id": "call_1", "name": "get_weather", "args": {"city": "北京"}}},
-					{"functionCall": {"id": "call_2", "name": "get_time", "args": {}}}
-				]
-			},
-			{
-				"role": "user",
-				"parts": [
-					{"functionResponse": {"name": "get_weather", "response": {"result": {"temperature": 26}}}},
-					{"functionResponse": {"name": "get_time", "response": {"result": {"time": "10:00"}}}}
-				]
-			}
-		]
-	}`)
-
-	var req dto.GeminiChatRequest
-	if err := json.Unmarshal(payload, &req); err != nil {
-		t.Fatalf("unmarshal gemini request: %v", err)
-	}
-
-	if req.HasCurrentTurnThoughtSignature() {
-		t.Fatal("expected current-turn tool loop without thoughtSignature to be relayable")
-	}
-}
-
-func TestGeminiHasCurrentTurnThoughtSignature_IgnoresHistoricalCompletedToolLoop(t *testing.T) {
-	payload := []byte(`{
-		"contents": [
-			{
-				"role": "user",
-				"parts": [{"text": "北京的天气怎么样？"}]
-			},
-			{
-				"role": "model",
-				"parts": [
-					{"functionCall": {"id": "call_1", "name": "get_weather", "args": {"city": "北京"}}, "thoughtSignature": "sig-123"}
-				]
-			},
-			{
-				"role": "user",
-				"parts": [
-					{"functionResponse": {"name": "get_weather", "response": {"result": {"temperature": 26}}}}
-				]
-			},
-			{
-				"role": "model",
-				"parts": [{"text": "北京现在晴，26 度。"}]
-			},
-			{
-				"role": "user",
-				"parts": [{"text": "那上海呢？"}]
-			}
-		]
-	}`)
-
-	var req dto.GeminiChatRequest
-	if err := json.Unmarshal(payload, &req); err != nil {
-		t.Fatalf("unmarshal gemini request: %v", err)
-	}
-
-	if req.HasCurrentTurnThoughtSignature() {
-		t.Fatal("expected completed historical tool loop to be ignored")
-	}
-}
-
-func TestGeminiHasCurrentTurnThoughtSignature_IgnoresHistoricalThinkingSignature(t *testing.T) {
-	payload := []byte(`{
-		"contents": [
-			{
-				"role": "user",
-				"parts": [{"text": "先想一下。"}]
-			},
-			{
-				"role": "model",
-				"parts": [{"text": "这是历史回答。", "thoughtSignature": "sig-thinking-only"}]
-			},
-			{
-				"role": "user",
-				"parts": [{"text": "继续。"}]
-			}
-		]
-	}`)
-
-	var req dto.GeminiChatRequest
-	if err := json.Unmarshal(payload, &req); err != nil {
-		t.Fatalf("unmarshal gemini request: %v", err)
-	}
-
-	if req.HasCurrentTurnThoughtSignature() {
-		t.Fatal("expected historical thoughtSignature to be ignored")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen/fixtures"
 )
 
 // Gemini to Gemini keeps the thought signatures where Gemini put them: on
@@ -88,6 +89,20 @@ func TestDecodeMatchesFunctionResponsesByID(t *testing.T) {
 	}
 }
 
+func TestDecodePreservesLiteralBackslashesInFunctionArguments(t *testing.T) {
+	request, _, err := Decode([]byte(`{"contents":[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"functionCall":{"name":"read","args":{"path":"C:\\temp\\new","trailing":"C:\\tmp\\"}}}]}]}`), "gemini-3-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var arguments map[string]string
+	if err := json.Unmarshal([]byte(request.Conversation[1].Arguments), &arguments); err != nil {
+		t.Fatal(err)
+	}
+	if arguments["path"] != `C:\temp\new` || arguments["trailing"] != `C:\tmp\` {
+		t.Fatalf("literal backslashes changed: %#v", arguments)
+	}
+}
+
 // Explicit zeros are values; includeThoughts asks for a summary; a Gemini
 // Schema becomes JSON Schema.
 func TestDecodeGenerationConfigPresenceThoughtsAndSchema(t *testing.T) {
@@ -104,5 +119,47 @@ func TestDecodeGenerationConfigPresenceThoughtsAndSchema(t *testing.T) {
 	}
 	if got := string(request.Output.Schema); got != `{"properties":{"type":{"type":["string","null"]}},"type":"object"}` {
 		t.Fatalf("schema: %s", got)
+	}
+}
+
+func TestDecodeGenerationConfigAcceptsSupportedSnakeCaseFields(t *testing.T) {
+	request, _, err := Decode([]byte(`{"contents":[{"role":"user","parts":[{"text":"q"}]}],"generation_config":{"top_p":0.7,"top_k":12,"max_output_tokens":321,"stop_sequences":["END"],"candidate_count":1}}`), "gemini-3-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(request.Raw.UnknownFields) != 0 {
+		t.Fatalf("supported snake_case fields marked unknown: %v", request.Raw.UnknownFields)
+	}
+	if !request.Sampling.TopP.Set || request.Sampling.TopP.Value != 0.7 || !request.Sampling.TopK.Set || request.Sampling.TopK.Value != 12 ||
+		!request.Sampling.MaxOutput.Set || request.Sampling.MaxOutput.Value != 321 || !request.Sampling.Stop.Set || !request.Sampling.N.Set || request.Sampling.N.Value != 1 {
+		t.Fatalf("snake_case generation config lost: %+v", request.Sampling)
+	}
+}
+
+// A real Gemini CLI request (the turn after it called read_file) decodes:
+// system instruction, the tool set, the call and its response paired, and
+// the thinking budget it asked for.
+func TestDecodeGeminiCLIToolTurn(t *testing.T) {
+	request, wire, err := Decode(fixtures.ClientRequest(t, "gemini_cli/tool_turn.json"), "gemini-2.5-pro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wire == nil || len(request.Instructions) == 0 || len(request.Tools) != 12 {
+		t.Fatalf("instructions %d tools %d", len(request.Instructions), len(request.Tools))
+	}
+	var call, result *textgen.InputItem
+	for index := range request.Conversation {
+		switch item := &request.Conversation[index]; item.Kind {
+		case textgen.InputFunctionCall:
+			call = item
+		case textgen.InputFunctionResult:
+			result = item
+		}
+	}
+	if call == nil || result == nil || call.FunctionName != "read_file" || call.CallID == "" || result.CallID != call.CallID {
+		t.Fatalf("call %+v result %+v", call, result)
+	}
+	if budget := request.Reasoning.Budget; !budget.Set || budget.Value != 8192 {
+		t.Fatalf("reasoning: %+v", request.Reasoning)
 	}
 }
