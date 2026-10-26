@@ -90,8 +90,7 @@ packages/domain/providercap/   # 从 bool Profile 演进为能力快照（见能
 
 **作为新 Codec 起点与 golden baseline 复用，禁止从零重写**：
 
-- `ChatCompletionsToResponsesRequest` 的消息、工具、JSON Schema 映射（[openai_responses_compat.go](../internal/service/openai_responses_compat.go)）；
-- `OpenAIResponsesToChatCompletionsResponse` 的文本、tool call、annotations、usage 映射；
+- Chat ↔ Responses 的消息、工具、JSON Schema、文本、tool call、annotations、usage 映射：已由 [codec/openai_responses](../internal/protocol/textgen/codec/openai_responses/) 承接；最初作为起点的 service 层转换函数已删除；
 - [relay_responses.go](../internal/relay/channel/openai/relay_responses.go) 的流式兼容处理经验与 fixture；
 - `ValidateOutboundResponsesStore` 的原生 Responses preflight；
 - provider transport（URL、认证、header、HTTP client）、raw usage → UsageFact 映射；
