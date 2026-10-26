@@ -6,7 +6,8 @@
  * that still open it as a dialog pass `first` and get the project-name field.
  * The dialog cannot close while a send is in flight. */
 import { useTranslation } from 'react-i18next';
-import { Button, Modal } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { Modal } from '../../../components/ui/modal';
 import { INVITE_VALID_DAYS } from '../budget';
 import { useProject } from '../ProjectContext';
 import { InviteFields, useInviteDraft } from './InviteForm';

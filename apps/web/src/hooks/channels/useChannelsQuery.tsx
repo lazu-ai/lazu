@@ -6,17 +6,16 @@ import {
 } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  DEFAULT_PROTOCOL_DIALECT,
-  inferProtocolDialect,
-} from './channelProtocolDialect';
+import { inferProtocolDialect } from './channelProtocolDialect';
+import { compactOverride, overrideFormText } from './source-overrides';
 import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
-import { copy, showError, showInfo, showSuccess } from '../../helpers/utils';
+import { copy, showError, showSuccess } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
@@ -58,6 +57,9 @@ type ChannelFormValues = LooseRecord & {
   shared_max_rps?: number;
   shared_max_in_flight?: number;
   settings?: string;
+  param_override?: string;
+  header_override?: string;
+  status_code_mapping?: string;
   video_content_url_template?: string;
   video_envelope?: string;
   video_family?: string;
@@ -247,6 +249,9 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
       2,
     ),
     remark: data.remark || '',
+    param_override: overrideFormText(data.param_override),
+    header_override: overrideFormText(data.header_override),
+    status_code_mapping: overrideFormText(data.status_code_mapping),
     settings: JSON.stringify(settings),
     source_type: normalizeSourceType(data.source_type),
     status: data.status === undefined ? true : Number(data.status) === 1,
@@ -281,6 +286,11 @@ const normalizeChannelPayload = (
     name: String(values.name || '').trim(),
     priority: Number(values.priority || 0),
     remark: String(values.remark || '').trim(),
+    // Sent every time, so clearing a field clears it; an edit form shows the
+    // stored values, so saving unchanged keeps them.
+    param_override: compactOverride(values.param_override),
+    header_override: compactOverride(values.header_override),
+    status_code_mapping: compactOverride(values.status_code_mapping),
     source_type: normalizeSourceType(values.source_type),
     status: values.status ? 1 : 2,
     tag: String(values.tag || '').trim(),
@@ -501,13 +511,13 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
     },
     onSuccess: (payload, variables) => {
       if (variables.action === 'test') {
-        showInfo(
+        notify.info(
           t('page.console.channel.testStarted', {
             name: variables.record?.name || variables.id,
           }),
         );
       } else {
-        showSuccess(t('page.console.tables.actionSuccess'));
+        notify.success(t('page.console.tables.actionSuccess'));
       }
       invalidate();
     },
@@ -557,7 +567,7 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
       return splitListValue(unwrap<unknown>(response));
     },
     onSuccess: (models) => {
-      showSuccess(
+      notify.success(
         t('page.console.channel.form.fetchModelsSuccess', {
           count: models.length,
         }),
@@ -582,7 +592,7 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
       return response ? unwrap<unknown>(response) : undefined;
     },
     onSuccess: () => {
-      showSuccess(t('page.console.tables.actionSuccess'));
+      notify.success(t('page.console.tables.actionSuccess'));
       invalidate();
     },
     onError: apiErrorHandler,
@@ -593,7 +603,7 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
       .filter(Boolean)
       .join(' ');
     if (await copy(text)) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }

@@ -178,4 +178,3 @@ site (`apps/docs/package.json`). Their own dependencies are pinned in
 | `internal/service/sharefonts/`                   | Fonts drawn into share images                                                                                  | SIL OFL 1.1 (license files alongside)             |
 | `apps/web/vendor/braces/`                        | Patched copy of `braces`                                                                                       | MIT (`LICENSE` alongside)                         |
 | `apps/web/src/brand/assets/providers/`           | Provider icons from lobe-icons                                                                                 | MIT (`LICENSE.lobe-icons.txt` alongside)          |
-| `.claude/skills/`, `.agents/skills/`             | Design skills from [emilkowalski/skills](https://github.com/emilkowalski/skills), pinned in `skills-lock.json` | MIT (`LICENSE.emilkowalski-skills.txt` alongside) |

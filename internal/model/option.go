@@ -244,6 +244,9 @@ func loadOptionsFromDatabase() {
 			common.SysLog("failed to update option map: " + err.Error())
 		}
 	}
+	for _, notice := range deprecatedOptionNotices(options) {
+		common.SysLog("deprecated setting: " + notice)
+	}
 }
 
 func SyncOptions(frequency int) {

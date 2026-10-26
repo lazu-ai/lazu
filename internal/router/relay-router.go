@@ -58,6 +58,7 @@ func SetRelayRouter(router *gin.Engine) {
 	}
 
 	playgroundRouter := router.Group("/pg")
+	playgroundRouter.Use(retiring(userSunset, ""))
 	playgroundRouter.Use(middleware.SystemPerformanceCheck())
 	playgroundRouter.Use(middleware.RelayRequestBodyLimit())
 	playgroundRouter.Use(middleware.UserAuth(), middleware.Distribute())
@@ -158,6 +159,9 @@ func SetRelayRouter(router *gin.Engine) {
 	{
 		httpRouter := relayV1Router.Group("")
 		httpRouter.Use(middleware.ModelRequestRateLimit())
+		// /models/*path below: a Gemini client's generateContent is parsed
+		// and planned like the other text-generation clients
+		httpRouter.Use(middleware.GeminiClientParse())
 		httpRouter.Use(middleware.Distribute())
 
 		// chat related routes
@@ -210,13 +214,13 @@ func SetRelayRouter(router *gin.Engine) {
 		})
 
 		// not implemented
-		httpRouter.POST("/images/variations", controller.RelayNotImplemented)
-		httpRouter.POST("/fine-tunes", controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes", controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes/:id", controller.RelayNotImplemented)
-		httpRouter.POST("/fine-tunes/:id/cancel", controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes/:id/events", controller.RelayNotImplemented)
-		httpRouter.DELETE("/models/:model", controller.RelayNotImplemented)
+		httpRouter.POST("/images/variations", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.POST("/fine-tunes", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.GET("/fine-tunes", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.GET("/fine-tunes/:id", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.POST("/fine-tunes/:id/cancel", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.GET("/fine-tunes/:id/events", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.DELETE("/models/:model", retiring(userSunset, ""), controller.RelayNotImplemented)
 	}
 
 	relayGeminiRouter := router.Group("/v1beta")
@@ -224,6 +228,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relayGeminiRouter.Use(middleware.RelayRequestBodyLimit())
 	relayGeminiRouter.Use(middleware.TokenAuth())
 	relayGeminiRouter.Use(middleware.ModelRequestRateLimit())
+	relayGeminiRouter.Use(middleware.GeminiClientParse())
 	relayGeminiRouter.Use(middleware.Distribute())
 	{
 		// Gemini API 路径格式: /v1beta/models/{model_name}:{action}

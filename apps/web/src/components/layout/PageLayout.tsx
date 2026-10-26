@@ -1,6 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -21,14 +21,13 @@ import {
 } from './routeMeta';
 import SiderBar from './SiderBar';
 import App from '../../App';
-import { StatusContext } from '../../context/Status';
+import { statusQueryOptions } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { surfaceForPath } from '../../extensions';
 import { surfaceLanguageKey } from '../../extensions/i18n';
 import { ProjectRemovedNotice } from '../../features/projects/components/ProjectRemovedNotice';
 import { useProject } from '../../features/projects/ProjectContext';
-import { API } from '../../helpers/api';
 import { setStatusData } from '../../helpers/data';
 import {
   getLogo,
@@ -37,14 +36,13 @@ import {
   safeJsonParse,
 } from '../../helpers/utils';
 import { MOBILE_BREAKPOINT, useIsMobile } from '../../hooks/common/useIsMobile';
-import { unwrap } from '../../lib/api-error';
 import { useRoutePrefetch } from '../../lib/route-prefetch';
 import WhatsNewDialog from '../announcements/WhatsNewDialog';
 import ErrorBoundary from '../common/ErrorBoundary';
 import PublicFooter from '../marketing/PublicFooter';
 import PublicHeader from '../marketing/PublicHeader';
 import ReportProblemDialog from '../support/ReportProblemDialog';
-import { StatusCenter, recordStatusIssue } from '../ui';
+import { StatusCenter, recordStatusIssue } from '../ui/status-center';
 import type { UserPayload } from '../../context/User/reducer';
 import type { CSSProperties } from 'react';
 
@@ -53,10 +51,6 @@ const useIsomorphicLayoutEffect =
   typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 type ResizeHandler = (width: number) => void;
-
-type ApiGetConfig = NonNullable<Parameters<typeof API.get>[1]> & {
-  skipErrorHandler?: boolean;
-};
 
 const debounce = (fn: ResizeHandler, delay: number): ResizeHandler => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -96,8 +90,7 @@ const PageLayout = () => {
   // A hovered or focused link starts its destination's chunk, so the click
   // lands on a module that is already in memory instead of waiting for one.
   useRoutePrefetch();
-  const [, userDispatch] = useContext(UserContext);
-  const [, statusDispatch] = useContext(StatusContext);
+  const userSession = useSession();
   const { removedNotice } = useProject();
   const location = useLocation();
   const pathname = normalizeShellPath(location.pathname);
@@ -320,32 +313,33 @@ const PageLayout = () => {
     const raw = localStorage.getItem('user');
     const data = safeJsonParse<UserPayload>(raw);
     if (data) {
-      userDispatch({ type: 'login', payload: data });
+      userSession.signIn(data);
     } else if (raw) {
       localStorage.removeItem('user');
     }
-  }, [userDispatch]);
+  }, [userSession.signIn]);
 
-  const loadStatus = useCallback(async () => {
-    try {
-      const config: ApiGetConfig = { skipErrorHandler: true };
-      const data = unwrap<unknown>(await API.get('/api/status', config));
-      const statusData =
-        data && typeof data === 'object'
-          ? (data as Record<string, unknown> & { system_name?: string })
-          : {};
-      statusDispatch({ type: 'set', payload: statusData });
-      setStatusData(statusData);
-      document.title = statusData.system_name || getSystemName();
-    } catch (error) {
-      console.warn('[PageLayout] Failed to load status', error);
-      recordStatusIssue({
-        kind: 'unavailable',
-        message: 'Backend status could not be loaded.',
-        source: 'Runtime',
-      });
-    }
-  }, [statusDispatch]);
+  const statusQuery = useQuery({
+    ...statusQueryOptions(),
+    enabled: !isMarketingRoute,
+  });
+
+  useEffect(() => {
+    const statusData = statusQuery.data;
+    if (!statusData) return;
+    setStatusData(statusData);
+    document.title = statusData.system_name || getSystemName();
+  }, [statusQuery.data]);
+
+  useEffect(() => {
+    if (!statusQuery.error) return;
+    console.warn('[PageLayout] Failed to load status', statusQuery.error);
+    recordStatusIssue({
+      kind: 'unavailable',
+      message: 'Backend status could not be loaded.',
+      source: 'Runtime',
+    });
+  }, [statusQuery.error]);
 
   useEffect(() => {
     if (isMarketingRoute) return;
@@ -367,7 +361,6 @@ const PageLayout = () => {
     if (isMarketingRoute) return;
 
     loadUser();
-    loadStatus().catch(console.error);
 
     const systemName = getSystemName();
     if (systemName) {
@@ -382,7 +375,7 @@ const PageLayout = () => {
     if (savedLang) {
       i18n.changeLanguage(savedLang);
     }
-  }, [i18n, isMarketingRoute, loadStatus, loadUser, surfaceLanguage]);
+  }, [i18n, isMarketingRoute, loadUser, surfaceLanguage]);
 
   return (
     <div

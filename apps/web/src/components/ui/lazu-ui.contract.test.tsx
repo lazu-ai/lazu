@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AuthProgress } from './auth-progress';
 import { Button } from './button';
-import { Modal as LegacyModal } from './console-primitives-core';
 import { EmptyState } from './empty-state';
 import { FieldMessage } from './field';
 import { InlineNotice } from './inline-notice';
@@ -86,19 +85,6 @@ describe('Lazu UI Brand contracts', () => {
     );
     expect(html).toContain('lucide-circle-alert');
     expect(html).not.toContain('lucide-circle-x');
-  });
-
-  it('associates legacy dialog titles with the role-bearing element', () => {
-    const html = renderToStaticMarkup(
-      <LegacyModal visible title='Confirm deletion'>
-        This cannot be undone.
-      </LegacyModal>,
-    );
-    expect(html).toContain('role="dialog"');
-    expect(html).toMatch(/aria-labelledby="([^"]+)"/);
-    const titleId = html.match(/aria-labelledby="([^"]+)"/)?.[1];
-    expect(titleId).toBeTruthy();
-    expect(html).toContain(`id="${titleId}"`);
   });
 
   it('emits tone classes used by non-color status shapes', () => {

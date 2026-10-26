@@ -7,7 +7,9 @@ import {
   formatThreshold,
   infoFieldLabel,
 } from './modelInfo';
-import { Button, ErrorState, PendingValue } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { ErrorState } from '../../components/ui/error-state';
+import { PendingValue } from '../../components/ui/pending';
 import {
   useModelInfoMutations,
   useModelInfoReviewsQuery,

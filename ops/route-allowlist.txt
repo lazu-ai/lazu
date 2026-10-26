@@ -12,27 +12,19 @@ GET /api/channel/tag/models  # pending: no caller in this repository; the route 
 GET /api/community/models  # pending: no caller in this repository; the route table decides
 GET /api/community/models/:id  # pending: no caller in this repository; the route table decides
 GET /api/community/stats  # pending: no caller in this repository; the route table decides
-GET /api/data/  # pending: no caller in this repository; the route table decides
-GET /api/data/self  # pending: no caller in this repository; the route table decides
-GET /api/log/self/in_flight  # pending: no caller in this repository; the route table decides
-GET /api/log/self/tasks/:id  # pending: no caller in this repository; the route table decides
-GET /api/log/token  # pending: no caller in this repository; the route table decides
 GET /api/mail/chart/:file  # webhook: links and images in sent email
 GET /api/mail/unsubscribe  # webhook: links and images in sent email
 GET /api/model_info/reviews/count  # pending: no caller in this repository; the route table decides
 GET /api/model_ops/spend  # pending: no caller in this repository; the route table decides
 GET /api/models/missing  # pending: no caller in this repository; the route table decides
-GET /api/models/rankings  # pending: no caller in this repository; the route table decides
 GET /api/ops/mail/digest/preview  # pending: no caller in this repository; the route table decides
 GET /api/performance/stats  # pending: no caller in this repository; the route table decides
 GET /api/pricing/wallet_reconciliation  # pending: no caller in this repository; the route table decides
 GET /api/status/test  # pending: no caller in this repository; the route table decides
+GET /api/token/options  # external-api: compatibility clients request compact enabled-Key choices
 GET /api/upload/pending-files  # pending: no caller in this repository; the route table decides
 GET /api/uptime/status  # pending: no caller in this repository; the route table decides
-GET /api/usage/token/  # pending: no caller in this repository; the route table decides
-GET /api/user/models/classified  # pending: no caller in this repository; the route table decides
 GET /api/user/token  # pending: no caller in this repository; the route table decides
-GET /api/user/used-models  # pending: no caller in this repository; the route table decides
 GET /api/v1/models/info  # pending: no caller in this repository; the route table decides
 GET /api/vendors/:id  # pending: no caller in this repository; the route table decides
 GET /api/vendors/search  # pending: no caller in this repository; the route table decides
@@ -93,6 +85,7 @@ HEAD /zh/privacy.md  # browser: public page or its Markdown copy, linked from se
 HEAD /zh/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 POST /api/channel/:id/key  # pending: no caller in this repository; the route table decides
+POST /api/channel_health/route_retreat/clear  # external-api: operators clear a repaired route's temporary breaker retreat
 POST /api/channel/batch  # pending: no caller in this repository; the route table decides
 POST /api/channel/batch/tag  # pending: no caller in this repository; the route table decides
 POST /api/channel/multi_key/manage  # pending: no caller in this repository; the route table decides
@@ -111,15 +104,11 @@ POST /api/upload/run  # pending: no caller in this repository; the route table d
 POST /api/upload/single  # pending: no caller in this repository; the route table decides
 POST /api/user/register  # pending: no caller in this repository; the route table decides
 POST /api/user/reset  # pending: no caller in this repository; the route table decides
-POST /api/user/self/stripe/pay  # pending: no caller in this repository; the route table decides
-POST /api/user/stripe/amount  # pending: no caller in this repository; the route table decides
 POST /api/workers/channel-test  # pending: no caller in this repository; the route table decides
 POST /v1/edits  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/engines/:model/embeddings  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/fine-tunes  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/fine-tunes/:id/cancel  # external-api: OpenAI-compatible endpoint SDK clients call
-POST /v1/images/variations  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/media/jobs  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/moderations  # external-api: OpenAI-compatible endpoint SDK clients call
 PUT /api/channel/tag  # pending: no caller in this repository; the route table decides
-PUT /api/user/:id/has_topped_up  # pending: no caller in this repository; the route table decides

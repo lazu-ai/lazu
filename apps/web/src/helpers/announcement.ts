@@ -1,4 +1,4 @@
-import { getRelativeTime } from './utils';
+import { formatRelativeTime } from '../lib/date';
 
 // Dispatched after announcements are dismissed (from any surface) so other
 // surfaces can refresh their per-user unread state from the server.
@@ -39,10 +39,10 @@ const getAnnouncementTimestamp = (
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 };
 
-export const getAnnouncementKey = (item: Announcement = {}): string =>
+const getAnnouncementKey = (item: Announcement = {}): string =>
   `${item?.publishDate || ''}-${(item?.content || '').slice(0, 30)}`;
 
-export const formatAnnouncementAbsoluteTime = (
+const formatAnnouncementAbsoluteTime = (
   publishDate?: Date | number | string,
 ): string => {
   const timestamp = getAnnouncementTimestamp(publishDate);
@@ -52,7 +52,7 @@ export const formatAnnouncementAbsoluteTime = (
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
-export const sortAnnouncementsByDateDesc = <T extends Announcement>(
+const sortAnnouncementsByDateDesc = <T extends Announcement>(
   announcements: T[] = [] as T[],
 ): T[] =>
   [...announcements].sort(
@@ -61,7 +61,7 @@ export const sortAnnouncementsByDateDesc = <T extends Announcement>(
       getAnnouncementTimestamp(left?.publishDate),
   );
 
-export const normalizeAnnouncement = (
+const normalizeAnnouncement = (
   item: Announcement = {},
   index = 0,
   unreadSet = new Set<string>(),
@@ -75,7 +75,7 @@ export const normalizeAnnouncement = (
     type: item?.type || 'default',
     title: item?.title || '',
     time: item?.time || formatAnnouncementAbsoluteTime(item?.publishDate),
-    relative: item?.relative || String(getRelativeTime(item?.publishDate)),
+    relative: item?.relative || String(formatRelativeTime(item?.publishDate)),
     isUnread:
       typeof item?.isUnread === 'boolean' ? item.isUnread : unreadSet.has(key),
   };
@@ -88,14 +88,3 @@ export const normalizeAnnouncements = (
   sortAnnouncementsByDateDesc(announcements).map((item, index) =>
     normalizeAnnouncement(item, index, unreadSet),
   );
-
-export const getAnnouncementStats = (announcements: Announcement[] = []) => {
-  const normalizedList = normalizeAnnouncements(announcements);
-
-  return {
-    total: normalizedList.length,
-    latest: normalizedList[0] || null,
-    unread: normalizedList.filter((item) => item.isUnread).length,
-    withExtra: normalizedList.filter((item) => Boolean(item.extra)).length,
-  };
-};

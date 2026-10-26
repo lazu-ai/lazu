@@ -116,7 +116,7 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []*dto.ChatCompletionsStre
 			index := e.toolCount
 			e.toolCount++
 			e.tools[event.ToolIndex] = index
-			call := dto.ToolCallResponse{ID: event.ToolCallID, Type: "function", Function: dto.FunctionResponse{Name: event.ToolName, Arguments: ""}}
+			call := dto.ToolCallResponse{ID: event.ToolCallID, Type: "function", Function: dto.FunctionResponse{Name: event.ToolName, Arguments: ""}, ExtraContent: geminiExtraContent(event.SealedBy, event.Text)}
 			call.SetIndex(index)
 			e.named[event.ToolIndex] = [2]bool{event.ToolCallID != "", event.ToolName != ""}
 			out = append(out, e.chunk(dto.ChatCompletionsStreamResponseChoiceDelta{ToolCalls: []dto.ToolCallResponse{call}}, nil, nil))
@@ -247,7 +247,7 @@ func Render(result textgen.Result, model string) *dto.OpenAITextResponse {
 			if strings.TrimSpace(args) == "" {
 				args = "{}"
 			}
-			calls = append(calls, dto.ToolCallRequest{ID: part.CallID, Type: "function", Function: dto.FunctionRequest{Name: part.Name, Arguments: args}})
+			calls = append(calls, dto.ToolCallRequest{ID: part.CallID, Type: "function", Function: dto.FunctionRequest{Name: part.Name, Arguments: args}, ExtraContent: geminiExtraContent(part.SealedBy, part.Signature)})
 		}
 	}
 	message := dto.Message{Role: "assistant", ReasoningContent: reasoning.String()}

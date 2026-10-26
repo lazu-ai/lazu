@@ -4,34 +4,24 @@ import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { StatusBanner, StatusBoard } from './status-board';
-import {
-  Badge,
-  Button,
-  EmptyState,
-  ErrorState,
-  Input,
-  LoadingState,
-  Modal,
-  Select,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
+import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorState } from '../../components/ui/error-state';
+import { Input } from '../../components/ui/input';
+import { LoadingState } from '../../components/ui/loading-state';
+import { Modal } from '../../components/ui/modal';
+import { Select } from '../../components/ui/select';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import {
-  getRelativeTime,
-  isRoot as isPlatformAdmin,
-  showError,
-  showSuccess,
-} from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import {
   channelHealthQueryKey,
   useChannelHealthQuery,
-  useChannelHealthRetreatMutation,
-  useChannelHealthRoleMutation,
   type ChannelHealthBucket,
-  type ChannelHealthChannel,
   type ChannelHealthKind,
   type ChannelHealthKindSection,
-  type ChannelHealthRole,
   type ChannelHealthProvider,
   type ChannelHealthProviderLane,
   type ChannelHealthRow,
@@ -39,6 +29,7 @@ import {
 } from '../../hooks/health/useChannelHealthQuery';
 import { unwrap } from '../../lib/api-error';
 import './channel-health.css';
+import { formatRelativeTime } from '../../lib/date';
 
 const ns = 'page.console.channelHealth';
 /** The console's one window: a week, drawn status-page style. */
@@ -285,14 +276,8 @@ export function ChannelHealthPage() {
      bars and the availability are the week behind it, the span a status page
      reader expects. A day showed too little and asked the reader to choose. */
   const health = useChannelHealthQuery(HEALTH_WINDOW);
-  const roleMutation = useChannelHealthRoleMutation();
-  const retreatMutation = useChannelHealthRetreatMutation();
   const payload = health.data;
   const isAdmin = Boolean(payload?.is_admin);
-  // The page chrome must not wait for the payload, or an operator's title
-  // would flip from the customer wording once the request lands. The local
-  // role answers synchronously; the payload still governs the data views.
-  const operator = isPlatformAdmin();
   const providers = useMemo(() => payload?.providers ?? [], [payload]);
 
   // The by-upstream view is an admin-only operations lens. The locked health
@@ -344,14 +329,6 @@ export function ChannelHealthPage() {
     },
     [t],
   );
-
-  const roleLabel = (role?: ChannelHealthRole) => {
-    if (role === 'backup')
-      return t(`${ns}.role.backup`, { defaultValue: '备用' });
-    if (role === 'inventory')
-      return t(`${ns}.role.inventory`, { defaultValue: '库存' });
-    return t(`${ns}.role.primary`, { defaultValue: '主用' });
-  };
 
   const deferredSearch = useDeferredValue(search);
   const query = deferredSearch.trim().toLowerCase();
@@ -431,7 +408,7 @@ export function ChannelHealthPage() {
         }),
         t(`${ns}.evidence.updated`, {
           defaultValue: '{{when}}更新',
-          when: getRelativeTime(payload.updated_at),
+          when: formatRelativeTime(payload.updated_at),
         }),
       ].join(' · ')
     : null;
@@ -489,66 +466,6 @@ export function ChannelHealthPage() {
   /* Roles and retreats are the two things an operator changes from this page.
      Everything else here reports; these two act, so they live next to the
      evidence that prompts them rather than in a separate settings screen. */
-  /* Always the slug the server sent, never one derived from the display key:
-     `lane` shows two lanes to customers by collapsing every other one into
-     稳定, so reversing it would write to 直连 for a source that only serves an
-     operator-created lane. */
-  const routeLane = (row: ChannelHealthRow) =>
-    row.lane_slug || (row.lane === 'eco' ? 'cheap' : 'direct');
-
-  /* Abilities are stored under the routed name, which for an aliased variant
-     is not the catalog name the row is shown under. */
-  const routeModel = (row: ChannelHealthRow, source: ChannelHealthChannel) =>
-    source.ability_model || row.model_name;
-
-  const changeRole = async (
-    row: ChannelHealthRow,
-    source: ChannelHealthChannel,
-    role: ChannelHealthRole,
-  ) => {
-    if ((source.role || 'primary') === role) return;
-    try {
-      await roleMutation.mutateAsync({
-        channel_id: source.channel_id,
-        lane: routeLane(row),
-        model: routeModel(row, source),
-        role,
-      });
-      showSuccess(
-        t(`${ns}.panel.roleDone`, {
-          defaultValue: '{{name}} 在这条线路上改为{{role}}',
-          name: source.channel_name,
-          role: roleLabel(role),
-        }),
-      );
-      await refreshHealth();
-    } catch {
-      /* The request interceptor has reported the failure. */
-    }
-  };
-
-  const clearRetreat = async (
-    row: ChannelHealthRow,
-    source: ChannelHealthChannel,
-  ) => {
-    try {
-      await retreatMutation.mutateAsync({
-        channel_id: source.channel_id,
-        lane: routeLane(row),
-        model: routeModel(row, source),
-      });
-      showSuccess(
-        t(`${ns}.panel.restoreDone`, {
-          defaultValue: '{{name}} 已重新进入轮转',
-          name: source.channel_name,
-        }),
-      );
-      await refreshHealth();
-    } catch {
-      /* The request interceptor has reported the failure. */
-    }
-  };
-
   const runFloor = async () => {
     if (!floorTarget) return;
     const routes = liveLanes(floorTarget).map((lane) => ({
@@ -568,7 +485,7 @@ export function ChannelHealthPage() {
           routes,
         }),
       );
-      showSuccess(
+      notify.success(
         t(`${ns}.floor.done`, {
           count: routes.length,
           defaultValue: '已把 {{count}} 条通道上的权重降到 0',
@@ -593,7 +510,7 @@ export function ChannelHealthPage() {
           reason: 'paused from the channel health ledger',
         }),
       );
-      showSuccess(
+      notify.success(
         t(`${ns}.pause.done`, {
           defaultValue: '已停用 {{name}}',
           name: pauseTarget.channel_name,
@@ -637,7 +554,7 @@ export function ChannelHealthPage() {
             lane: lane.lane === 'eco' ? 'cheap' : 'direct',
           }),
         );
-        showSuccess(
+        notify.success(
           t(`${ns}.test.done`, {
             defaultValue: '{{name}} 测试通过',
             name: provider.channel_name,

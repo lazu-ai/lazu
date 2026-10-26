@@ -190,14 +190,11 @@ jobs:
           go test -p 1 -count=1 -json ./... | tee "$RUNNER_TEMP/lazu-go-tests.jsonl"
           python3 ops/scripts/check-native-test-coverage.py "$RUNNER_TEMP/lazu-go-tests.jsonl"
 
-      - name: Check deployment schema refusal
-        run: |
-          # The production deploy script and its test live with lazu.ai's
-          # private operations; repositories without them skip this check.
-          if [ -f ops/scripts/deploy_schema_test.py ]; then
-            python3 ops/scripts/deploy_schema_test.py
-          fi
-          python3 ops/scripts/check_native_test_coverage_test.py
+      - name: Test the native test coverage checker
+        run: python3 ops/scripts/check_native_test_coverage_test.py
+
+      - name: Check controllers do not expose raw integer ids
+        run: bash ops/scripts/check-public-id-exposure.sh
 
       - name: Run Go vet
         run: go vet ./...

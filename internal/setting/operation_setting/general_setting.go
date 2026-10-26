@@ -4,7 +4,9 @@ import "github.com/lazu-ai/lazu/internal/setting/config"
 
 // 额度展示类型
 const (
-	QuotaDisplayTypeUSD    = "USD"
+	QuotaDisplayTypeUSD = "USD"
+	// Deprecated: delete after 2027-01-24 (log text always in USD; see
+	// model/option_deprecations.go and docs/DEPLOYMENT.md, Deprecated settings).
 	QuotaDisplayTypeTokens = "TOKENS"
 )
 
@@ -43,9 +45,4 @@ func NormalizeQuotaDisplayType(value string) string {
 // GetQuotaDisplayType 返回额度展示类型
 func GetQuotaDisplayType() string {
 	return NormalizeQuotaDisplayType(generalSetting.QuotaDisplayType)
-}
-
-// IsCurrencyDisplay 是否以货币形式展示（USD；TOKENS 为非货币展示）
-func IsCurrencyDisplay() bool {
-	return GetQuotaDisplayType() != QuotaDisplayTypeTokens
 }

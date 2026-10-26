@@ -6,17 +6,12 @@ import { z } from 'zod';
 import { DecisionSourceFields } from './DecisionSourceFields';
 import { SOURCE_TYPES } from './formatters';
 import { sourceTypeLabel } from './SourceTypeBadge';
-import {
-  Button,
-  Field,
-  FieldMessage,
-  Input,
-  MultiSelect,
-  Select,
-  SelectItem,
-  Switch,
-  Textarea,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Field, FieldMessage } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { MultiSelect, Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
+import { Textarea } from '../../components/ui/textarea';
 import {
   CHANNEL_OPTIONS,
   getChannelOptionLabel,
@@ -25,6 +20,13 @@ import {
   inferProtocolDialect,
   protocolDialectAfterBaseURLChange,
 } from '../../hooks/channels/channelProtocolDialect';
+import {
+  fitsStatusCodeMapping,
+  isHeaderOverride,
+  isParamOverride,
+  isStatusCodeMapping,
+  STATUS_CODE_MAPPING_MAX_LENGTH,
+} from '../../hooks/channels/source-overrides';
 import {
   getDefaultChannelFormValues,
   useChannelDetailQuery,
@@ -65,6 +67,9 @@ export type ChannelFormValues = {
   protocol_dialect: string;
   provider_cost_prices?: string;
   remark?: string;
+  param_override?: string;
+  header_override?: string;
+  status_code_mapping?: string;
   settings?: string;
   status: boolean;
   tag?: string;
@@ -180,6 +185,24 @@ const buildChannelFormSchema = (t: TFunction, isEdit: boolean) =>
 
     provider_cost_prices: z.string().optional(),
     remark: z.string().trim().optional(),
+    param_override: z
+      .string()
+      .optional()
+      .refine(isParamOverride, t(`${ns}.error.param_override.object`)),
+    header_override: z
+      .string()
+      .optional()
+      .refine(isHeaderOverride, t(`${ns}.error.header_override.object`)),
+    status_code_mapping: z
+      .string()
+      .optional()
+      .refine(isStatusCodeMapping, t(`${ns}.error.status_code_mapping.object`))
+      .refine(
+        fitsStatusCodeMapping,
+        t(`${ns}.error.status_code_mapping.length`, {
+          max: STATUS_CODE_MAPPING_MAX_LENGTH,
+        }),
+      ),
     settings: z
       .string()
       .optional()
@@ -1042,6 +1065,72 @@ export default function SourceForm({
                       placeholder={t(`${ns}.placeholder.remark`)}
                       {...form.register('remark')}
                     />
+                  </Field>
+                  <Field className='mo-form__wide'>
+                    <label
+                      className='lazu-label'
+                      htmlFor='channel-param-override'
+                    >
+                      {t(`${ns}.field.param_override`)}{' '}
+                      <code className='mo-code'>param_override</code>
+                    </label>
+                    <Textarea
+                      disabled={loading}
+                      id='channel-param-override'
+                      placeholder={t(`${ns}.placeholder.param_override`)}
+                      rows={4}
+                      {...form.register('param_override')}
+                    />
+                    <FieldMessage>
+                      {t(`${ns}.help.param_override`)}
+                    </FieldMessage>
+                    <FieldMessage error>
+                      {form.formState.errors.param_override?.message}
+                    </FieldMessage>
+                  </Field>
+                  <Field className='mo-form__wide'>
+                    <label
+                      className='lazu-label'
+                      htmlFor='channel-header-override'
+                    >
+                      {t(`${ns}.field.header_override`)}{' '}
+                      <code className='mo-code'>header_override</code>
+                    </label>
+                    <Textarea
+                      disabled={loading}
+                      id='channel-header-override'
+                      placeholder={t(`${ns}.placeholder.header_override`)}
+                      rows={3}
+                      {...form.register('header_override')}
+                    />
+                    <FieldMessage>
+                      {t(`${ns}.help.header_override`)}
+                    </FieldMessage>
+                    <FieldMessage error>
+                      {form.formState.errors.header_override?.message}
+                    </FieldMessage>
+                  </Field>
+                  <Field className='mo-form__wide'>
+                    <label
+                      className='lazu-label'
+                      htmlFor='channel-status-code-mapping'
+                    >
+                      {t(`${ns}.field.status_code_mapping`)}{' '}
+                      <code className='mo-code'>status_code_mapping</code>
+                    </label>
+                    <Textarea
+                      disabled={loading}
+                      id='channel-status-code-mapping'
+                      placeholder={t(`${ns}.placeholder.status_code_mapping`)}
+                      rows={3}
+                      {...form.register('status_code_mapping')}
+                    />
+                    <FieldMessage>
+                      {t(`${ns}.help.status_code_mapping`)}
+                    </FieldMessage>
+                    <FieldMessage error>
+                      {form.formState.errors.status_code_mapping?.message}
+                    </FieldMessage>
                   </Field>
                   <Field className='mo-form__wide'>
                     <label className='lazu-label' htmlFor='channel-settings'>

@@ -35,7 +35,7 @@ A terminal successful text response can have no generated text while still repor
 
 ## Recovery
 
-`apps/worker/main.go` registers both recovery tasks when the database is ready. The failure reconciler defaults to enabled (`SETTLEMENT_FAILURE_RECONCILER_ENABLED=true`, 30 seconds); durable outbox recording and its reconciler are optional (`SETTLEMENT_OUTBOX_ENABLED=false`, 15-second interval when enabled). Outbox being off does not mean failure recovery is absent.
+`apps/worker/main.go` registers both recovery tasks when the database is ready. The failure reconciler defaults to enabled (`SETTLEMENT_FAILURE_RECONCILER_ENABLED=true`, 30 seconds); durable outbox recording and its reconciler are optional (`SETTLEMENT_OUTBOX_ENABLED=false`, 15-second interval when enabled). Outbox being off does not mean failure recovery is absent. The outbox switch is deprecated and is removed after 2027-01-24 (DEPLOYMENT.md, Deprecated settings).
 
 Replays check the unique wallet event before charging, reopen stale claims, and refund the account even when its API key has been removed. An insufficient-balance recovery goes to manual review rather than overdrafting. Verify the actual worker, configuration, pending count and oldest pending record in the deployment before asserting operational recovery is healthy. Local replay tests do not establish production configuration or backlog state.
 
@@ -56,3 +56,10 @@ total = subtotal - discount
 ## Operational Notes
 
 The relay path may pre-consume quota before the upstream call finishes. On non-billable failures the post-call handler must refund the pre-consumed amount. Consumption logs should include `amount_microusd`, token counts, pricing version, and line items so billing can be audited without reconstructing provider responses.
+
+## Account tiers
+
+Account tiers are not in use. `users.group` is the tier field and is no longer
+a customer-selectable routing group; the tier thresholds and automatic
+adjustment that once lived alongside it are not active, and enabling them
+needs a separate product decision.

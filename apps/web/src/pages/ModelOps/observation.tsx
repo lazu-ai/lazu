@@ -1,5 +1,7 @@
 import { formatRate } from './formatters';
-import { Button, Modal, Tooltip } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Modal } from '../../components/ui/modal';
+import { Tooltip } from '../../components/ui/tooltip';
 import type {
   ModelOpsObservation,
   ModelOpsObservationCheck,

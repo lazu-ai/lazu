@@ -1,5 +1,5 @@
 import { RefreshCcw, Send } from 'lucide-react';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { formatVersionLabel } from './versionLabel';
@@ -7,8 +7,8 @@ import {
   WHATS_NEW_OPEN_EVENT,
   type WhatsNewOpenDetail,
 } from './whatsNewChannel';
-import { StatusContext } from '../../context/Status';
-import { UserContext } from '../../context/User';
+import { useStatus } from '../../context/Status';
+import { useSession } from '../../context/User';
 import {
   ANNOUNCEMENTS_UPDATED_EVENT,
   type Announcement,
@@ -17,7 +17,8 @@ import { API } from '../../helpers/api';
 import { showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
 import AnnouncementTimeline from '../common/announcement/AnnouncementTimeline';
-import { Button, Modal } from '../ui';
+import { Button } from '../ui/button';
+import { Modal } from '../ui/modal';
 import './whats-new-dialog.css';
 
 type AnnouncementList = {
@@ -33,8 +34,8 @@ const dismissAnnouncement = async (id: number | string) => {
 const WhatsNewDialog = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
-  const [statusState] = useContext(StatusContext);
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
+  const statusState = useStatus();
   const [items, setItems] = useState<Announcement[]>([]);
   const [pinnedAnnouncement, setPinnedAnnouncement] =
     useState<Announcement | null>(null);
@@ -43,7 +44,7 @@ const WhatsNewDialog = () => {
   const [markingRead, setMarkingRead] = useState(false);
 
   const isConsoleRoute = location.pathname.startsWith('/console');
-  const user = userState.user;
+  const user = userSession.user;
   const announcementLocale = i18n.resolvedLanguage || i18n.language;
 
   const loadAnnouncements = useCallback(

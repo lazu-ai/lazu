@@ -4,7 +4,7 @@ import { Navigate, NavLink, useLocation, useParams } from 'react-router-dom';
 import MailDetail from './MailDetail';
 import MailLog from './MailLog';
 import './ops.css';
-import { Skeleton } from '../../../components/ui';
+import { Skeleton } from '../../../components/ui/skeleton';
 import { extensionOpsTabs, type OpsTab } from '../../../extensions';
 import AnnouncementsPage from '../Announcements';
 
