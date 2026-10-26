@@ -110,6 +110,7 @@ func GetPrometheusMetrics(c *gin.Context) {
 
 	writeRuntimeMetrics(&b)
 	writePoolMetrics(&b)
+	writeStreamBacklogMetrics(&b)
 
 	c.Data(200, prometheusContentType, []byte(b.String()))
 }
