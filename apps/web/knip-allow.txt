@@ -1,0 +1,16 @@
+# knip findings meant to stay: "<finding>  # <reason>". See scripts/check_knip.py.
+dependencies package.json html-to-image  # imported only by an extension
+devDependencies package.json braces  # pins the vendored copy through overrides
+exports src/context/Theme/index.tsx useTheme  # imported only by an extension
+exports src/helpers/utils.tsx downloadTextAsFile  # imported only by an extension
+exports src/lib/video-pricing.ts readVideoCapabilities  # imported only by an extension
+file scripts/extensions.d.mts  # type declarations for scripts/extensions.mjs
+file src/pages/Console/Ops/GatewayPerformance.tsx  # imported only by an extension
+types src/components/auth/useAuthStatus.ts AuthProvider  # imported only by an extension
+types src/components/auth/useAuthStatus.ts AuthStatus  # imported only by an extension
+types src/components/ui/combo-chart.tsx ComboLineSeries  # imported only by an extension
+types src/components/ui/combo-chart.tsx ComboTone  # imported only by an extension
+types src/context/Theme/index.tsx ThemeMode  # imported only by an extension
+types src/extensions/i18n.ts ExtensionI18n  # imported only by an extension
+types src/lib/video-pricing.ts VideoCapabilities  # imported only by an extension
+types src/lib/video-pricing.ts VideoOptions  # imported only by an extension

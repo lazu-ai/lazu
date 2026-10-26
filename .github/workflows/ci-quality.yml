@@ -266,6 +266,9 @@ jobs:
       - name: Check web i18n coverage
         run: bun run i18n:check
 
+      - name: Check unused web files, dependencies and exports
+        run: bun run knip:check
+
       - name: Audit web dependencies
         if: needs.changes.outputs.web_dependencies == 'true'
         run: bun audit --audit-level=high
