@@ -2,6 +2,8 @@ package service
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -9,34 +11,39 @@ import (
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
-	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 )
 
-// The Gemini codec's whole-reply render is held to the legacy
-// Chat-to-Gemini reply converter (ResponseOpenAI2Gemini) on the replies it
-// renders right, until the legacy converter is deleted. A function call's
-// id, which the legacy converter dropped, is left out of the comparison.
+// The Gemini codec's whole-reply render, for a Gemini client served from a
+// Chat upstream, is held to golden files under testdata/chat_to_gemini_reply:
+// the legacy Chat-to-Gemini reply converter's output on the replies it got
+// right, saved before it was deleted (AGENTS.md, Protocol Layer 7). A
+// function call's id, which the legacy converter dropped, is left out.
 var geminiRenderCases = map[string]string{
 	"text":   `{"id":"c1","object":"chat.completion","model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"Hello."},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`,
 	"length": `{"id":"c1","object":"chat.completion","model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"Hel"},"finish_reason":"length"}],"usage":{"prompt_tokens":5,"completion_tokens":1,"total_tokens":6}}`,
 	"tool":   `{"id":"c1","object":"chat.completion","model":"m","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Paris\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":5,"completion_tokens":9,"total_tokens":14}}`,
 }
 
-func TestGeminiRenderMatchesTheLegacyConverter(t *testing.T) {
+func TestChatReplyToGeminiMatchesTheGoldenFiles(t *testing.T) {
 	for name, body := range geminiRenderCases {
 		t.Run(name, func(t *testing.T) {
 			var chat dto.OpenAITextResponse
 			if err := json.Unmarshal([]byte(body), &chat); err != nil {
 				t.Fatal(err)
 			}
-			legacy := ResponseOpenAI2Gemini(&chat, &relaycommon.RelayInfo{})
 			var col textgen.Collector
 			col.Add(openai_chat.DecodeCompletion(&chat)...)
-			got, want := normaliseGeminiReply(t, geminicodec.Render(col.Result())), normaliseGeminiReply(t, legacy)
-			if !reflect.DeepEqual(got, want) {
+			raw, err := os.ReadFile(filepath.Join("testdata", "chat_to_gemini_reply", name+".json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want map[string]any
+			if err := json.Unmarshal(raw, &want); err != nil {
+				t.Fatal(err)
+			}
+			if got := normaliseGeminiReply(t, geminicodec.Render(col.Result())); !reflect.DeepEqual(got, want) {
 				g, _ := json.MarshalIndent(got, "", "  ")
-				w, _ := json.MarshalIndent(want, "", "  ")
-				t.Fatalf("render differs from the legacy converter\n got: %s\nwant: %s", g, w)
+				t.Fatalf("render differs from %s.json\n got: %s\nwant: %s", name, g, raw)
 			}
 		})
 	}

@@ -76,8 +76,9 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 	inputTokens := parsed.InputTokens
 	// A Claude client is never degraded: its native path sends the client's
 	// own bytes, and Messages has no json_object to stand in with; a denial
-	// stands as a pre-flight refusal.
-	if !hasNestedUnknownField(effective) && client.Family != textgen.ProtocolAnthropic {
+	// stands as a pre-flight refusal. A Gemini client's native path sends its
+	// own bytes too.
+	if !hasNestedUnknownField(effective) && client.Family != textgen.ProtocolAnthropic && client.Family != textgen.ProtocolGemini {
 		var degraded *textgen.Request
 		degraded, degradations = textgen.Degrade(snapshot, effective)
 		if len(degradations) > 0 {

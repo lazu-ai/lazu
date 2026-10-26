@@ -215,6 +215,8 @@ func bridgeOrder(client ProtocolFamily) []ProtocolFamily {
 		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolAnthropic, ProtocolGemini}
 	case ProtocolAnthropic:
 		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses, ProtocolGemini}
+	case ProtocolGemini:
+		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses, ProtocolAnthropic}
 	}
 	return nil
 }
@@ -340,6 +342,11 @@ func requireFeatures(snapshot CapabilitySnapshot, required FeatureSet, uses []Fe
 }
 
 func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
+	if client == ProtocolGemini {
+		if issue := geminiCurrentTurnSignature(request); issue != nil {
+			return issue
+		}
+	}
 	if upstream == ProtocolAnthropic {
 		return messagesBridgeIssue(request, uses)
 	}
@@ -372,6 +379,11 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 			// nothing (the OpenAI encoders skip it)
 			continue
 		}
+		if client == ProtocolGemini && use.Feature == FeatureOpaqueReasoningItem && use.Detail == "gemini" {
+			// a Gemini thought signature, likewise: it means something to
+			// Gemini alone
+			continue
+		}
 		switch use.Feature {
 		case FeatureUnknownField, FeaturePreviousResponse, FeatureConversation, FeaturePromptTemplate, FeatureIncludeEncryptedReasoning, FeatureIncludeUnsupported, FeatureHostedWebSearch, FeatureHostedToolNativeOnly, FeatureOpaqueReasoningItem, FeatureInputReference:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
@@ -396,7 +408,10 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 				return &Issue{Feature: use.Feature, Path: use.Path, Message: "Responses has no lossless equivalent"}
 			}
 		case FeatureReasoningSummary:
-			if upstream == ProtocolOpenAIChat {
+			// a Gemini client's includeThoughts asks for the thoughts there
+			// are, which a Chat upstream returns as reasoning_content; a
+			// Responses summary is a different text Chat cannot ask for
+			if upstream == ProtocolOpenAIChat && client != ProtocolGemini {
 				return &Issue{Feature: use.Feature, Path: use.Path, Message: "Chat Completions has no lossless equivalent"}
 			}
 		}
@@ -517,4 +532,32 @@ func geminiBridgeIssue(client ProtocolFamily, request *Request, uses []FeatureUs
 		return nil
 	}
 	return bridgeIssue(client, ProtocolOpenAIChat, request, uses)
+}
+
+// geminiCurrentTurnSignature refuses a Gemini client's request whose turn
+// is still running on Gemini's thoughts: a thought signature after the last
+// user prompt (a function result is not one). Gemini refuses the next call
+// of that turn without its signatures, so the turn stays on a Gemini
+// upstream; signatures of finished turns mean nothing elsewhere and are left
+// out.
+func geminiCurrentTurnSignature(request *Request) *Issue {
+	if request == nil {
+		return nil
+	}
+	start := 0
+	for index := len(request.Conversation) - 1; index >= 0; index-- {
+		item := request.Conversation[index]
+		if item.Kind == InputMessage && item.Role == "user" {
+			start = index + 1
+			break
+		}
+	}
+	for index := start; index < len(request.Conversation); index++ {
+		for _, opaque := range request.Conversation[index].Opaque {
+			if opaque.Dialect == "gemini" {
+				return &Issue{Feature: FeatureOpaqueReasoningItem, Path: "input[" + itoa(index) + "]", Message: "a Gemini thought signature in the running turn needs a Gemini upstream"}
+			}
+		}
+	}
+	return nil
 }

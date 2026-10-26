@@ -229,22 +229,41 @@ func mediaOf(part dto.GeminiPart, path string, request *textgen.Request) (textge
 }
 
 func decodeTools(wire *dto.GeminiChatRequest, request *textgen.Request) {
+	declarations := rawFunctionDeclarations(wire.Tools)
 	for index, tool := range wire.GetTools() {
 		path := fmt.Sprintf("tools[%d]", index)
 		if tool.FunctionDeclarations != nil {
-			raw, _ := json.Marshal(tool.FunctionDeclarations)
+			// read from the client's bytes: the typed tool keeps only the
+			// OpenAPI-subset parameters
+			raw := declarations[index]
+			if len(raw) == 0 {
+				raw, _ = json.Marshal(tool.FunctionDeclarations)
+			}
 			var functions []struct {
 				Name        string          `json:"name"`
 				Description string          `json:"description"`
 				Parameters  json.RawMessage `json:"parameters"`
+				// a plain JSON Schema, which newer clients (Gemini CLI)
+				// send in place of the OpenAPI-subset parameters
+				ParametersJsonSchema json.RawMessage `json:"parametersJsonSchema"`
 			}
 			if json.Unmarshal(raw, &functions) != nil {
-				unknown(request, path+".functionDeclarations", tool.FunctionDeclarations)
+				var function struct {
+					Name                 string          `json:"name"`
+					Description          string          `json:"description"`
+					Parameters           json.RawMessage `json:"parameters"`
+					ParametersJsonSchema json.RawMessage `json:"parametersJsonSchema"`
+				}
+				if json.Unmarshal(raw, &function) != nil {
+					unknown(request, path+".functionDeclarations", tool.FunctionDeclarations)
+				} else {
+					functions = append(functions, function)
+				}
 			}
 			for _, function := range functions {
-				parameters := function.Parameters
-				if bytes.Equal(bytes.TrimSpace(parameters), []byte("null")) {
-					parameters = nil
+				parameters := nonNull(function.Parameters)
+				if len(parameters) == 0 {
+					parameters = nonNull(function.ParametersJsonSchema)
 				}
 				request.Tools = append(request.Tools, textgen.ToolDefinition{Type: "function", Name: function.Name, Description: function.Description, Parameters: parameters})
 			}
@@ -260,6 +279,35 @@ func decodeTools(wire *dto.GeminiChatRequest, request *textgen.Request) {
 			}
 		}
 	}
+}
+
+// rawFunctionDeclarations is each tool's functionDeclarations as the client
+// sent it, by tool index (tools is an array or a single object).
+func rawFunctionDeclarations(tools json.RawMessage) map[int]json.RawMessage {
+	var list []map[string]json.RawMessage
+	if json.Unmarshal(tools, &list) != nil {
+		var single map[string]json.RawMessage
+		if json.Unmarshal(tools, &single) != nil {
+			return nil
+		}
+		list = []map[string]json.RawMessage{single}
+	}
+	out := make(map[int]json.RawMessage, len(list))
+	for index, tool := range list {
+		if raw, ok := tool["functionDeclarations"]; ok {
+			out[index] = raw
+		} else if raw, ok := tool["function_declarations"]; ok {
+			out[index] = raw
+		}
+	}
+	return out
+}
+
+func nonNull(raw json.RawMessage) json.RawMessage {
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil
+	}
+	return raw
 }
 
 func decodeToolConfig(config *dto.ToolConfig, request *textgen.Request) {

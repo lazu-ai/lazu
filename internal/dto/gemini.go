@@ -272,41 +272,6 @@ func (r *GeminiChatRequest) HasThoughtSignature() bool {
 	return false
 }
 
-func (r *GeminiChatRequest) HasCurrentTurnThoughtSignature() bool {
-	startIndex := r.lastUserPromptIndex() + 1
-	if startIndex < 0 {
-		startIndex = 0
-	}
-	if startIndex >= len(r.Contents) {
-		return false
-	}
-
-	for _, content := range r.Contents[startIndex:] {
-		for _, part := range content.Parts {
-			if part.ThoughtSignature != "" {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (r *GeminiChatRequest) lastUserPromptIndex() int {
-	for i := len(r.Contents) - 1; i >= 0; i-- {
-		content := r.Contents[i]
-		if content.Role != "user" {
-			continue
-		}
-		for _, part := range content.Parts {
-			if part.FunctionResponse == nil {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
 type GeminiThinkingConfig struct {
 	IncludeThoughts bool   `json:"includeThoughts,omitempty"`
 	ThinkingBudget  *int   `json:"thinkingBudget,omitempty"`

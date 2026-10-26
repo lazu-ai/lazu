@@ -7,6 +7,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 )
@@ -42,4 +43,17 @@ func Parse(family textgen.ProtocolFamily, body []byte) (*textgen.ParsedRequest, 
 		dialect = "anthropic"
 	}
 	return &textgen.ParsedRequest{Client: textgen.Protocol{Family: family, Dialect: dialect}, Semantic: semantic, Wire: wire, Features: features, Uses: uses}, nil
+}
+
+// ParseGemini is Parse for a Gemini client, whose model and whether it
+// streams are in the URL (/models/{model}:streamGenerateContent), not the
+// body.
+func ParseGemini(body []byte, model string, stream bool) (*textgen.ParsedRequest, error) {
+	semantic, wire, err := geminicodec.Decode(body, model)
+	if err != nil {
+		return nil, err
+	}
+	semantic.Lifecycle.Stream = stream
+	features, uses := textgen.ExtractFeatures(semantic)
+	return &textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolGemini, Dialect: "gemini"}, Semantic: semantic, Wire: wire, Features: features, Uses: uses}, nil
 }
