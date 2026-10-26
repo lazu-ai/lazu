@@ -319,18 +319,48 @@ func HubClientFor(c *gin.Context, info *relaycommon.RelayInfo) HubClient {
 	case textgen.ProtocolGemini:
 		return &geminiHubClient{emitter: geminicodec.NewStreamEmitter()}
 	}
-	return &chatHubClient{emitter: openai_chat.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName), includeUsage: info.ShouldIncludeUsage}
+	return &chatHubClient{emitter: openai_chat.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName), includeUsage: info.ShouldIncludeUsage, thinkToContent: info.ChannelSetting.ThinkingToContent}
 }
 
 // chatHubClient writes Chat Completions chunks, [DONE] at the end.
 type chatHubClient struct {
 	emitter      *openai_chat.StreamEmitter
 	includeUsage bool
+	// thinkToContent is the channel's thinking_to_content: reasoning is
+	// written as content inside <think> tags, for clients that read only
+	// content (openai.sendStreamData does the same on the native path)
+	thinkToContent bool
+	thinkOpened    bool
+	thinkClosed    bool
+}
+
+// thinkingAsContent moves a chunk's reasoning into its content when the
+// channel asks for it.
+func (w *chatHubClient) thinkingAsContent(chunk *dto.ChatCompletionsStreamResponse) {
+	if !w.thinkToContent || chunk == nil {
+		return
+	}
+	for index := range chunk.Choices {
+		delta := &chunk.Choices[index].Delta
+		if reasoning := delta.GetReasoningContent(); reasoning != "" {
+			if !w.thinkOpened {
+				reasoning = "<think>\n" + reasoning
+				w.thinkOpened = true
+			}
+			delta.SetContentString(reasoning)
+			delta.ReasoningContent = nil
+			delta.Reasoning = nil
+		} else if content := delta.GetContentString(); content != "" && w.thinkOpened && !w.thinkClosed {
+			delta.SetContentString("\n</think>\n" + content)
+			w.thinkClosed = true
+		}
+	}
 }
 
 func (w *chatHubClient) Emit(c *gin.Context, events []textgen.Event) (bool, error) {
 	chunks := w.emitter.Emit(events...)
 	for _, chunk := range chunks {
+		w.thinkingAsContent(chunk)
 		if err := helper.ObjectData(c, chunk); err != nil {
 			return true, err
 		}
@@ -344,6 +374,7 @@ func (w *chatHubClient) Finish(c *gin.Context, usage *dto.Usage) error {
 		return err
 	}
 	for _, chunk := range chunks {
+		w.thinkingAsContent(chunk)
 		if !w.includeUsage {
 			if openai_chat.IsUsageChunk(chunk) {
 				continue
