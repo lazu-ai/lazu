@@ -110,6 +110,7 @@ func GetPrometheusMetrics(c *gin.Context) {
 
 	writeRuntimeMetrics(&b)
 	writePoolMetrics(&b)
+	writeUpstreamConnMetrics(&b)
 
 	c.Data(200, prometheusContentType, []byte(b.String()))
 }
@@ -190,6 +191,13 @@ func writePoolMetrics(b *strings.Builder) {
 	writePrometheusSample(b, "lazu_redis_pool_misses_total", nil, float64(redisStats.Misses))
 	writePrometheusHelpType(b, "lazu_redis_pool_timeouts_total", "Times waiting for a Redis connection timed out.", "counter")
 	writePrometheusSample(b, "lazu_redis_pool_timeouts_total", nil, float64(redisStats.Timeouts))
+}
+
+func writeUpstreamConnMetrics(b *strings.Builder) {
+	reused, opened := common.UpstreamConnCounts()
+	writePrometheusHelpType(b, "lazu_upstream_connections_total", "Upstream connections the relay client used, by whether an idle one was reused.", "counter")
+	writePrometheusSample(b, "lazu_upstream_connections_total", map[string]string{"reused": "true"}, float64(reused))
+	writePrometheusSample(b, "lazu_upstream_connections_total", map[string]string{"reused": "false"}, float64(opened))
 }
 
 func writeProtocolMetrics(b *strings.Builder, hotPath common.HotPathMetricsSnapshot) {

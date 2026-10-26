@@ -36,6 +36,8 @@ func TestPrometheusMetricsExposeRuntimePoolsAndStageHistogram(t *testing.T) {
 		`lazu_hot_path_stage_latency_seconds_bucket{le="0.0025",stage="relay.chat_stream_event"}`,
 		`lazu_hot_path_stage_latency_seconds_bucket{le="+Inf",stage="relay.chat_stream_event"}`,
 		`lazu_hot_path_stage_latency_seconds_count{stage="relay.chat_stream_event"}`,
+		`lazu_upstream_connections_total{reused="true"}`,
+		`lazu_upstream_connections_total{reused="false"}`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("metrics output lacks %q", want)
