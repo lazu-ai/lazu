@@ -14,12 +14,12 @@
  * the paper states' reason phrases. */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, X } from 'lucide-react';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './button';
 import { InlineNotice } from './inline-notice';
 import { PendingValue } from './pending';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { accountPaymentQueryOptions } from '../../features/projects/paymentRecord';
 import { API } from '../../helpers/api';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
@@ -123,7 +123,7 @@ function TopupRecordContent({
   onClose,
 }: TopupRecordProps) {
   const { t, i18n } = useTranslation();
-  const [, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const queryClient = useQueryClient();
   const refreshedPayment = useRef<string | null>(null);
   const [startedAt] = useState(() => Date.now());
@@ -192,7 +192,7 @@ function TopupRecordContent({
       // The browser session must still be cleared when the server session expired.
     }
     const next = `${window.location.pathname}${window.location.search}`;
-    userDispatch({ type: 'logout' });
+    userSession.signOut();
     localStorage.removeItem('user');
     window.location.replace(`/login?next=${encodeURIComponent(next)}`);
   }

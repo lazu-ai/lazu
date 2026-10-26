@@ -9,7 +9,6 @@ import {
   SK,
   type SessionLane,
   clockSecondsText,
-  clockText,
   durationText,
   officialSaving,
   pct,
@@ -30,21 +29,22 @@ import {
   sessionStatus,
   sessionTitle,
 } from './SessionsView';
+import { AgentBadge, agentName } from '../../../components/ui/agent-badge';
+import { Button } from '../../../components/ui/button';
 import {
-  AgentBadge,
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  ErrorState,
-  PendingBlock,
-  PendingValue,
-  agentName,
+} from '../../../components/ui/dropdown-menu';
+import { ErrorState } from '../../../components/ui/error-state';
+import {
   formatCount,
   formatMicroUsd,
-} from '../../../components/ui';
-import { copy, showError, showSuccess } from '../../../helpers/utils';
+} from '../../../components/ui/metric-format';
+import { PendingBlock, PendingValue } from '../../../components/ui/pending';
+import { notify } from '../../../components/ui/toast';
+import { copy, showError } from '../../../helpers/utils';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import {
   type AgentSessionDetail,
@@ -135,7 +135,7 @@ export default function SessionDetailPage() {
 
   const copyText = async (value: unknown) => {
     if (await copy(String(value ?? ''))) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }

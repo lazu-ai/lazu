@@ -3,6 +3,11 @@
   "entry": [
     "src/public-site/entry.ts",
     "src/entry-prerender.tsx",
+    "src/components/ui/index.ts",
+    "src/context/Status/index.tsx",
+    "src/context/User/index.tsx",
+    "src/extensions/index.ts",
+    "src/helpers/index.ts",
     "scripts/*.{mjs,ts}",
     "src/**/*.type-test.ts",
     "i18next.config.ts"

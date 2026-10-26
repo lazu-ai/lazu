@@ -1,11 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import {
-  getUserIdFromLocalStorage,
-  showError,
-  showSuccess,
-} from '../../helpers/utils';
+import { getUserIdFromLocalStorage, showError } from '../../helpers/utils';
 import {
   apiErrorHandler,
   apiErrorHandlerWith,
@@ -408,7 +405,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(response);
     },
     onSuccess: () => {
-      showSuccess(t('page.console.modelOps.weightSaved'));
+      notify.success(t('page.console.modelOps.weightSaved'));
       invalidate();
     },
     onError: apiErrorHandlerWith(t('page.console.modelOps.weightFailed')),
@@ -429,7 +426,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(response);
     },
     onSuccess: () => {
-      showSuccess(t('page.console.modelOps.weightSaved'));
+      notify.success(t('page.console.modelOps.weightSaved'));
       invalidate();
     },
     onError: apiErrorHandlerWith(t('page.console.modelOps.weightFailed')),
@@ -448,7 +445,7 @@ export function useModelOpsMutations(t: TFunction) {
       return data?.updated ?? variables.ids.length;
     },
     onSuccess: (updated) => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.batchStatusDone', {
           count: Number(updated) || 0,
           defaultValue: '已更新 {{count}} 个模型的上架状态',
@@ -464,7 +461,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(await API.get(`/api/channel/test/${id}?model=`));
     },
     onSuccess: () => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.testDone', { defaultValue: '测试完成' }),
       );
       invalidate();
@@ -477,7 +474,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(await API.get('/api/channel/test'));
     },
     onSuccess: () => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.testAllStarted', {
           defaultValue: '已开始测试全部来源',
         }),
@@ -499,7 +496,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(response);
     },
     onSuccess: () => {
-      showSuccess(t('page.console.tables.actionSuccess'));
+      notify.success(t('page.console.tables.actionSuccess'));
       invalidate();
     },
     onError: apiErrorHandler,
@@ -514,7 +511,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<{ id?: string; internal_id?: number }>(response);
     },
     onSuccess: () => {
-      showSuccess(t('page.console.modelOps.vendorCreated'));
+      notify.success(t('page.console.modelOps.vendorCreated'));
       queryClient.invalidateQueries({
         queryKey: queryKeys.console.detail('models', 'vendors'),
       });
@@ -538,7 +535,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(response);
     },
     onSuccess: (_data, variables) => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.observation.done', {
           defaultValue: '{{name}} 已上线为备用',
           name: variables.source.name,
@@ -562,7 +559,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(response);
     },
     onSuccess: (_data, variables) => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.observation.removed', {
           count: variables.models.length,
           defaultValue: '已从 {{name}} 移除 {{count}} 个模型',
@@ -590,7 +587,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(response);
     },
     onSuccess: (_data, variables) => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.observation.done', {
           defaultValue: '{{name}} 已上线为备用',
           name: variables.entry.name,
@@ -618,7 +615,7 @@ export function useModelOpsMutations(t: TFunction) {
       return unwrap<unknown>(response);
     },
     onSuccess: (_data, variables) => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.tier.promoteDone', {
           defaultValue: '{{name}} 已升为主用',
           name: variables.entry.name,

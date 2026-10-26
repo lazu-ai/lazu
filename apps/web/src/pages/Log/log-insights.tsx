@@ -9,24 +9,18 @@ import {
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { EMPTY_CELL, UserIdentity, type LogBadgeVariant } from './log-support';
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Field,
-  Input,
-  Select,
-  SelectItem,
-  Switch,
-  Tag,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Field } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
 import { TextStack, compactNumber } from '../../components/ui/table-tools';
+import { Tag } from '../../components/ui/tag';
 import { asMicroUSD } from '../../helpers/money';
-import {
-  microUSDToUSD,
-  renderQuota,
-  usdToMicroUSD,
-} from '../../helpers/render';
+import { formatMoney } from '../../helpers/money';
+import { microUSDToUSD, usdToMicroUSD } from '../../helpers/render';
 import { useSpendBudgetsQuery } from '../../hooks/usage-logs/useUsageLogsQuery';
 import './log-table.css';
 import type {
@@ -335,7 +329,7 @@ export function BudgetGuardPanel({
                       </Tag>
                     </td>
                     <td className='text-right font-mono'>
-                      {renderQuota(asMicroUSD(budget.limit_microusd || 0), 6)}
+                      {formatMoney(asMicroUSD(budget.limit_microusd || 0), 6)}
                     </td>
                     <td>
                       <span className='inline-flex flex-wrap gap-1'>
@@ -442,12 +436,12 @@ export function BudgetGuardPanel({
                     </td>
                     <td className='text-right'>
                       <TextStack
-                        title={renderQuota(
+                        title={formatMoney(
                           asMicroUSD(alert.spent_microusd || 0),
                           6,
                         )}
                         description={t('page.console.log.budget.alertDelta', {
-                          value: renderQuota(
+                          value: formatMoney(
                             asMicroUSD(alert.delta_microusd || 0),
                             6,
                           ),
@@ -588,7 +582,7 @@ export function UsageUserRanking({
                     <td className='logv2-num'>{compactNumber(requests)}</td>
                     <td className='logv2-num'>{compactNumber(tokens)}</td>
                     <td className='logv2-num'>
-                      <b>{renderQuota(asMicroUSD(amount), 6)}</b>
+                      <b>{formatMoney(asMicroUSD(amount), 6)}</b>
                     </td>
                     <td
                       className={
@@ -628,7 +622,7 @@ export function UsageUserRanking({
       <div className='logv2-foot'>
         <span>
           {t('page.console.log.footer.usersSummary', {
-            cost: renderQuota(asMicroUSD(totalMicrousd), 6),
+            cost: formatMoney(asMicroUSD(totalMicrousd), 6),
             count: rows.length,
             defaultValue: '{{count}} 个活跃用户 · 合计 {{cost}}',
           })}

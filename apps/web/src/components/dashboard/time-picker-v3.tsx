@@ -11,7 +11,7 @@
  *   No double-click anywhere.
  * - Apply commits the draft; outside-click / Esc cancels.
  */
-import React, {
+import {
   useCallback,
   useEffect,
   useLayoutEffect,

@@ -98,6 +98,8 @@ lazu 的默认配置面要保持克制。默认 Compose 文件和公开部署文
 
 ## 本地检查
 
+克隆后运行一次 `lefthook install`，提交前会自动跑 Prettier、ESLint 和类型检查（见 `lefthook.yml`）。
+
 前端相关改动至少跑对应 app 的检查：
 
 ```bash

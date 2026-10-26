@@ -143,8 +143,23 @@ SELECT i,'log_plan_'||i, (?::bigint + i %% 86400) * 1000, ?::bigint + i %% 86400
 	if err != nil || len(found) != 1 || found[0].Id != 20005 {
 		t.Fatalf("request id search: %d rows, %v", len(found), err)
 	}
-	admin, total, err := GetAllLogs(0, month.Start, month.End, "", "", 1, "", 0, 5, 0, "")
+	admin, total, _, err := GetAllLogs(0, month.Start, month.End, "", "", 1, "", 0, 5, 0, "")
 	if err != nil || total != 15 || len(admin) != 5 || admin[0].UserId != 1 {
 		t.Fatalf("admin user page: rows=%d total=%d err=%v", len(admin), total, err)
+	}
+
+	// The console's count stops at LogCountExactLimit: a dense month reads
+	// at most one row past the limit instead of all of them.
+	if read := logRowsRead(explainLogPage(t, db, ProjectLogsQuery(dense, month).Select("1").Limit(LogCountExactLimit+1))); read > float64(LogCountExactLimit+1) {
+		t.Fatalf("capped count read %.0f rows", read)
+	}
+	if _, total, atLeast, err := ListProjectLogsCappedContext(context.Background(), dense, month, 0, 5); err != nil || total != int64(LogCountExactLimit) || !atLeast {
+		t.Fatalf("dense project count: total=%d atLeast=%t err=%v", total, atLeast, err)
+	}
+	if _, total, atLeast, err := ListProjectLogsCappedContext(context.Background(), sparse, days, 0, 5); err != nil || total != 30 || atLeast {
+		t.Fatalf("sparse project count: total=%d atLeast=%t err=%v", total, atLeast, err)
+	}
+	if _, total, atLeast, err := GetAllLogs(0, month.Start, month.End, "", "", 0, "", 0, 5, 0, ""); err != nil || total != int64(LogCountExactLimit) || !atLeast {
+		t.Fatalf("admin month count: total=%d atLeast=%t err=%v", total, atLeast, err)
 	}
 }

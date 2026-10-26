@@ -1,4 +1,4 @@
-export const DEFAULT_PROTOCOL_DIALECT = 'openai_chat_compatible';
+const DEFAULT_PROTOCOL_DIALECT = 'openai_chat_compatible';
 
 export const defaultProtocolDialectForChannelType = (
   channelType: unknown,

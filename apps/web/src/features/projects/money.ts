@@ -8,8 +8,6 @@ export const toUSD = (micro: number | null | undefined): number | null =>
     ? null
     : Number(micro) / MICRO;
 
-export const toMicro = (usd: number): number => Math.round(usd * MICRO);
-
 export const formatUSD = (
   micro: number | null | undefined,
   options: { unlimited?: string; digits?: number } = {},

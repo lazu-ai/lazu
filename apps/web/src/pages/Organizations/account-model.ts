@@ -210,9 +210,6 @@ export const int = (value?: number | null) =>
 export const isFrozen = (account: Pick<Account, 'status'>) =>
   account.status !== 1;
 
-export const isLowBalance = (account: Account) =>
-  !isFrozen(account) && (account.balance_microusd ?? 0) < LOW_BALANCE_MICROUSD;
-
 export const isZeroBalance = (account: Account) =>
   !isFrozen(account) && (account.balance_microusd ?? 0) <= 0;
 

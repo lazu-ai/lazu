@@ -24,18 +24,14 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { getLogOther } from '../../helpers/log';
-import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
-import {
-  copy,
-  showError,
-  showSuccess,
-  timestamp2string,
-} from '../../helpers/utils';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
+import { copy, showError } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
+import { formatTimestamp } from '../../lib/date';
 import { queryKeys } from '../../lib/query-keys';
 
 export type UsageLogFilters = {
@@ -120,6 +116,7 @@ type ItemsPayload<T> = {
   page: number;
   pageSize: number;
   total: number;
+  totalAtLeast?: boolean;
 };
 
 type FetchUsageLogsParams = {
@@ -387,7 +384,7 @@ const normalizeLog = (record: UsageLogRecord): NormalizedUsageLogRecord => {
       otherString(other, 'refund_task_id') ||
       extractRefundTaskIdFromContent(content),
     taskIdentifier,
-    timestamp2string: timestamp2string(record?.created_at || 0),
+    timestamp2string: formatTimestamp(record?.created_at || 0),
   };
 };
 
@@ -426,18 +423,18 @@ const normalizeLogs = (
     const refundDisplay = otherString(normalized.otherParsed, 'refund_display');
     if (typeof refundAmount === 'number') {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(-Math.abs(refundAmount)), 6),
+        formatMoney(asMicroUSD(-Math.abs(refundAmount)), 6),
       );
     } else if (
       typeof normalized.amount_microusd === 'number' &&
       normalized.amount_microusd < 0
     ) {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(normalized.amount_microusd), 6),
+        formatMoney(asMicroUSD(normalized.amount_microusd), 6),
       );
     } else if (typeof taskAmount === 'number') {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(-Math.abs(taskAmount)), 6),
+        formatMoney(asMicroUSD(-Math.abs(taskAmount)), 6),
       );
     } else if (refundDisplay) {
       refundCostDisplay = refundDisplay;
@@ -763,7 +760,7 @@ export function useUsageLogsQuery() {
 
   const copyText = async (value: unknown) => {
     if (await copy(String(value ?? ''))) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }
@@ -784,6 +781,7 @@ export function useUsageLogsQuery() {
     page,
     pageSize,
     total: 0,
+    totalAtLeast: false,
   };
 
   return {
@@ -813,6 +811,8 @@ export function useUsageLogsQuery() {
     submitFilters,
     t,
     total: pageData.total,
+    // The server stopped counting at `total`; show it as a lower bound.
+    totalAtLeast: pageData.totalAtLeast === true,
     userInfo,
     userInfoLoading: userInfoMutation.isPending,
     usageLogs: pageData.items,

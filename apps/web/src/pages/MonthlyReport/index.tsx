@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
-  CalendarRange,
   FileDown,
   FileText,
   Mail,
@@ -9,21 +8,21 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import VChart from '../../components/common/charts/VChart';
-import {
-  Badge,
-  Button,
-  DataCard,
-  DataTableShell,
-  DatePicker,
-  EmptyState,
-  Switch,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
+import { DataCard } from '../../components/ui/data-card';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { DatePicker } from '../../components/ui/date-picker';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Switch } from '../../components/ui/switch';
+import { notify } from '../../components/ui/toast';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
-import { API, asMicroUSD, renderQuota, showSuccess } from '../../helpers';
+import { API } from '../../helpers/api';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
 import { queryKeys } from '../../lib/query-keys';
@@ -196,7 +195,7 @@ const MonthlyReportPage = () => {
       );
     },
     onSuccess: () => {
-      showSuccess(t(`${ns}.generate.success`));
+      notify.success(t(`${ns}.generate.success`));
       queryClient.invalidateQueries({ queryKey: queryKeys.console.root });
     },
     onError: apiErrorHandler,
@@ -208,7 +207,7 @@ const MonthlyReportPage = () => {
       return next;
     },
     onSuccess: () => {
-      showSuccess(t(`${ns}.subscription.saved`));
+      notify.success(t(`${ns}.subscription.saved`));
       queryClient.invalidateQueries({ queryKey: queryKeys.console.root });
     },
     onError: apiErrorHandler,
@@ -256,7 +255,7 @@ const MonthlyReportPage = () => {
             {
               key: t(`${ns}.chart.dailySpend`),
               value: (datum: { amount?: number } | undefined) =>
-                renderQuota(asMicroUSD(datum?.amount)),
+                formatMoney(asMicroUSD(datum?.amount)),
             },
           ],
         },
@@ -305,7 +304,7 @@ const MonthlyReportPage = () => {
         header: t(`${ns}.table.cost`),
         accessorKey: 'total_cost',
         cell: ({ row }) =>
-          renderQuota(
+          formatMoney(
             asMicroUSD(
               normalizeSummary(row.original.summary)?.overview?.total_cost,
             ),
@@ -389,7 +388,7 @@ const MonthlyReportPage = () => {
         <MetricCard
           icon={Wallet}
           label={t(`${ns}.metric.cost`)}
-          value={renderQuota(asMicroUSD(overview.total_cost))}
+          value={formatMoney(asMicroUSD(overview.total_cost))}
           helper={t(`${ns}.metric.monthTotal`)}
           variant='info'
         />
@@ -514,7 +513,7 @@ const MonthlyReportPage = () => {
                     </div>
                   </div>
                   <div className='text-right font-mono'>
-                    <div>{renderQuota(asMicroUSD(model.cost))}</div>
+                    <div>{formatMoney(asMicroUSD(model.cost))}</div>
                     <div className='text-xs text-[var(--ui-text-secondary)]'>
                       {model.tokens?.toLocaleString() || 0}
                     </div>

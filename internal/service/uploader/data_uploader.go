@@ -3,7 +3,6 @@ package uploader
 import (
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -70,28 +69,6 @@ func dateBucketFromFilename(base string) string {
 		return m[1] + "-" + m[2]
 	}
 	return time.Now().Format("2006-01")
-}
-
-// uploadFileGzipped streams a local file through gzip into the object store.
-// JSONL compresses ~10:1, so this both saves bandwidth and slashes R2 storage
-// cost on the archive prefix.
-func uploadFileGzipped(ctx context.Context, client storage.ObjectStorage, key string, localPath string) error {
-	f, err := os.Open(localPath)
-	if err != nil {
-		return fmt.Errorf("open %s: %w", localPath, err)
-	}
-	defer f.Close()
-
-	var buf bytes.Buffer
-	gw := gzip.NewWriter(&buf)
-	if _, err := io.Copy(gw, f); err != nil {
-		_ = gw.Close()
-		return fmt.Errorf("gzip %s: %w", localPath, err)
-	}
-	if err := gw.Close(); err != nil {
-		return fmt.Errorf("close gzip writer: %w", err)
-	}
-	return client.Put(ctx, key, &buf, "application/gzip")
 }
 
 var cr *cron.Cron
