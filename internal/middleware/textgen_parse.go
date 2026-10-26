@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	textgenruntime "github.com/lazu-ai/lazu/internal/protocol/textgen/runtime"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -41,17 +42,43 @@ func TextgenParse(family textgen.ProtocolFamily) gin.HandlerFunc {
 	}
 }
 
-// ClaudeClientParse is TextgenParse for Claude clients on /v1/messages,
-// unless the operator has switched them back to the legacy conversion
-// (model_setting.GlobalSettings.LegacyClaudeClientConversion): then nothing
-// is parsed and nothing planned, exactly as before the hub.
+// ClaudeClientParse is TextgenParse for Claude clients on /v1/messages.
 func ClaudeClientParse() gin.HandlerFunc {
-	parse := TextgenParse(textgen.ProtocolAnthropic)
+	return TextgenParse(textgen.ProtocolAnthropic)
+}
+
+// GeminiClientParse is TextgenParse for Gemini clients on
+// /v1beta/models/{model}:generateContent (and its /v1 and streaming forms).
+// The same route carries embeddings and other actions, which pass through
+// unparsed.
+func GeminiClientParse() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if model_setting.GetGlobalSettings().LegacyClaudeClientConversion {
+		path := c.Request.URL.Path
+		colon := strings.LastIndex(path, ":")
+		if colon < 0 || !strings.Contains(path, "/models/") {
 			c.Next()
 			return
 		}
-		parse(c)
+		action := path[colon+1:]
+		if action != "generateContent" && action != "streamGenerateContent" {
+			c.Next()
+			return
+		}
+		parseTimer := common.StartHotPathStage(common.HotPathStageProtocolParse)
+		body, err := common.GetRequestBody(c)
+		if err != nil {
+			parseTimer.Finish(err)
+			abortRequestBodyError(c, err)
+			return
+		}
+		parsed, decodeErr := textgenruntime.ParseGemini(body, extractModelNameFromGeminiPath(path), dto.IsGeminiStreamRequest(c))
+		if decodeErr != nil {
+			parseTimer.Finish(decodeErr)
+			abortWithCode(c, types.ErrorCodeInvalidRequest, types.D{"reason": decodeErr.Error()})
+			return
+		}
+		parseTimer.Finish(nil)
+		common.SetContextKey(c, constant.ContextKeyTextgenParsed, parsed)
+		c.Next()
 	}
 }
