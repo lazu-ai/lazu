@@ -87,4 +87,4 @@ test-relay-safety:
 
 test-route-coverage:
 	@python3 -m unittest discover -s ops/scripts -p test_check_route_coverage.py -q
-	@go run ./ops/tools/routes | python3 ops/scripts/check_route_coverage.py
+	@set -o pipefail; go run ./ops/tools/routes | python3 ops/scripts/check_route_coverage.py

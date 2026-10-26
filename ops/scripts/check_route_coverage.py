@@ -69,6 +69,10 @@ def read_allowlist(path):
 def main(argv):
     allowlist_path = pathlib.Path(argv[1]) if len(argv) > 1 else ROOT / 'ops/route-allowlist.txt'
     routes = sorted({' '.join(line.split()) for line in sys.stdin if line.strip()})
+    if not routes:
+        # The enumerator always prints routes; no input means it failed.
+        print('no routes on stdin; the route enumerator did not run', file=sys.stderr)
+        return 2
     text = corpus()
     uncovered = [r for r in routes if not pattern(r.split(' ', 1)[1]).search(text)]
     if argv[2:] == ['--print']:

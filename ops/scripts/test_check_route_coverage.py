@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 import unittest
@@ -25,6 +26,17 @@ class RoutePatternTest(unittest.TestCase):
 
     def test_query_string_counts(self):
         self.assertTrue(self.matches('/api/user/register', "'/api/user/register?turnstile=' + token"))
+
+
+class MainTest(unittest.TestCase):
+    def test_empty_input_fails(self):
+        # A failed enumerator run produces no routes; that must not pass.
+        stdin = sys.stdin
+        sys.stdin = io.StringIO('')
+        try:
+            self.assertEqual(crc.main(['x']), 2)
+        finally:
+            sys.stdin = stdin
 
 
 if __name__ == '__main__':
