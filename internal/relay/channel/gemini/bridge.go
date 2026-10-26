@@ -40,8 +40,17 @@ func BridgesToGemini(info *relaycommon.RelayInfo) bool {
 // one candidate, response modalities, thinking for the model, and safety
 // settings.
 func EncodeBridgedRequest(c *gin.Context, info *relaycommon.RelayInfo, request *textgen.Request) (*dto.GeminiChatRequest, error) {
+	return encodeBridgedRequest(info, request, func(url string) (string, string, error) {
+		return inlineMediaFromURL(c, url)
+	})
+}
+
+func encodeBridgedRequest(info *relaycommon.RelayInfo, request *textgen.Request, inlineImage func(string) (string, string, error)) (*dto.GeminiChatRequest, error) {
+	if err := checkInputImageCount(request); err != nil {
+		return nil, err
+	}
 	out, err := geminicodec.Encode(request, geminicodec.EncodeOptions{
-		InlineImage: func(url string) (string, string, error) { return inlineMediaFromURL(c, url) },
+		InlineImage: inlineImage,
 	})
 	if err != nil {
 		return nil, err
@@ -63,6 +72,77 @@ func EncodeBridgedRequest(c *gin.Context, info *relaycommon.RelayInfo, request *
 	out.GenerationConfig.ThinkingConfig = thinking
 	out.SafetySettings = safetySettings()
 	return out, nil
+}
+
+// checkInputImageCount rejects an oversized semantic turn before the encoder
+// fetches any remote image. Function results can share the preceding Gemini
+// user content, so their images are accumulated just as the encoder does.
+func checkInputImageCount(request *textgen.Request) error {
+	if request == nil || constant.GeminiVisionMaxImageNum < 0 {
+		return nil
+	}
+	role := ""
+	images := 0
+	start := func(nextRole string) {
+		role = nextRole
+		images = 0
+	}
+	addImages := func(parts []textgen.ContentPart) error {
+		for _, part := range parts {
+			if part.Kind == textgen.ContentImage || (part.Kind == textgen.ContentFile && strings.HasPrefix(strings.ToLower(part.Data), "data:image/")) {
+				images++
+			}
+		}
+		if images > constant.GeminiVisionMaxImageNum {
+			return fmt.Errorf("too many images in the message, max allowed is %d", constant.GeminiVisionMaxImageNum)
+		}
+		return nil
+	}
+	for _, item := range request.Conversation {
+		switch item.Kind {
+		case textgen.InputMessage:
+			if item.Role == "system" || item.Role == "developer" || len(item.Content) == 0 {
+				continue
+			}
+			if item.Role == "assistant" || item.Role == "model" {
+				start("model")
+			} else {
+				start("user")
+			}
+			if err := addImages(item.Content); err != nil {
+				return err
+			}
+		case textgen.InputFunctionCall:
+			if role != "model" {
+				start("model")
+			}
+		case textgen.InputFunctionResult:
+			if role == "" || role == "model" {
+				start("user")
+			}
+			if err := addImages(item.Content); err != nil {
+				return err
+			}
+		case textgen.InputReasoning:
+			if hasGeminiSignature(item.Opaque) && role != "model" {
+				start("model")
+			}
+		}
+	}
+	return nil
+}
+
+func hasGeminiSignature(values []textgen.OpaqueValue) bool {
+	for _, value := range values {
+		if value.Dialect != geminicodec.SealedBy {
+			continue
+		}
+		var signature string
+		if json.Unmarshal(value.Value, &signature) == nil && signature != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // inlineMediaFromURL fetches media named by an http(s) URL for Gemini,

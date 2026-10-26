@@ -506,9 +506,19 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 func geminiBridgeIssue(client ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
 	if request != nil {
 		for index, item := range request.Conversation {
+			if client == ProtocolOpenAIResponses && (item.Kind == InputFunctionCall || item.Kind == InputFunctionResult) {
+				return &Issue{Feature: FeatureFunctionTools, Path: "input[" + itoa(index) + "]", Message: "Responses cannot preserve Gemini thought signatures across tool-call continuation"}
+			}
 			for partIndex, part := range item.Content {
 				if part.Kind == ContentFile && part.FileID != "" && part.Data == "" {
 					return &Issue{Feature: FeatureInputFile, Path: "input[" + itoa(index) + "].content[" + itoa(partIndex) + "].file_id", Message: "Gemini takes files inline, not by id"}
+				}
+			}
+		}
+		if client == ProtocolOpenAIResponses && request.ToolPolicy.Mode != "none" {
+			for index, tool := range request.Tools {
+				if tool.Type == "function" {
+					return &Issue{Feature: FeatureFunctionTools, Path: "tools[" + itoa(index) + "]", Message: "Responses cannot preserve Gemini thought signatures across tool-call continuation"}
 				}
 			}
 		}
