@@ -106,28 +106,6 @@ func telemetryOutcomeRow(outcome *RoutingOutcome, log *Log) *dashboardRollupOutc
 	return row
 }
 
-func recordHourlyUsageTx(tx *gorm.DB, log *Log, outcome *RoutingOutcome) error {
-	if log == nil && outcome == nil {
-		return nil
-	}
-	at := int64(0)
-	if log != nil {
-		at = log.CreatedAt
-	}
-	if outcome != nil {
-		at = outcome.OutcomeAt.Unix()
-	}
-	if at <= 0 {
-		at = time.Now().Unix()
-	}
-	hour := at - at%3600
-	state := dashboardRollupState()
-	if err := buildHourlyState(state, log, outcome); err != nil {
-		return err
-	}
-	return applyHourlyStateTx(tx, hour, state)
-}
-
 func buildHourlyState(state *dashboardRollupBuildState, log *Log, outcome *RoutingOutcome) error {
 	if log != nil {
 		if err := validateTelemetryLogNumbers(log); err != nil {

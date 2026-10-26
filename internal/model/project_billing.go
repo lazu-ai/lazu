@@ -372,7 +372,7 @@ func queueProjectPaymentEmailTx(tx *gorm.DB, project Project, order TopUp, atCre
 	if order.AutoReload {
 		message = "Auto-reload added API credit to your Lazu account."
 	}
-	content := common.PaymentEmailContent{
+	content := PaymentEmailContent{
 		LogoURL: paymentEmailLogo(order.StripeReturnBase), Eyebrow: "PAYMENT RECEIVED",
 		Hero: credit, CompactHero: order.CreditedMicrousd.Dollars() >= 1000,
 		Message: message, Preheader: subject, Facts: facts,
@@ -392,7 +392,7 @@ func queueProjectPaymentEmailTx(tx *gorm.DB, project Project, order TopUp, atCre
 			return body, nil
 		}
 		content.ActionURL = paymentEmailWalletURL(order.StripeReturnBase, project.PublicID, order.PublicID, "", surface)
-		body, err := common.RenderPaymentEmail(content)
+		body, err := RenderPaymentEmail(content)
 		if err != nil {
 			return "", err
 		}
@@ -635,12 +635,6 @@ func ListProjectTopUpsMissingDocuments(limit int, since int64) ([]TopUp, error) 
 	err := CoreDB().Where("project_id > 0 AND status = ? AND complete_time >= ? AND stripe_checkout_session_id <> '' AND (invoice_status <> ? OR (paid_amount > 0 AND stripe_receipt_url = ''))", common.TopUpStatusSuccess, since, "ready").
 		Order("document_checked_at ASC, complete_time ASC, id ASC").Limit(limit).Find(&orders).Error
 	return orders, err
-}
-
-// Move an attempted order behind untouched ones, including when Stripe has
-// not produced a final invoice yet. A failed old order must not block the queue.
-func MarkProjectTopUpDocumentChecked(id int, checkedAt int64) error {
-	return CoreDB().Model(&TopUp{}).Where("id = ?", id).Update("document_checked_at", checkedAt).Error
 }
 
 // ClaimProjectTopUpsForDocumentReconciliation records a bounded retry lease

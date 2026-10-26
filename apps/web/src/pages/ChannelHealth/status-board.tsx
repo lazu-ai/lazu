@@ -532,16 +532,6 @@ export const StatusBoard = memo(function StatusBoard({
     return result;
   }, [allRows]);
 
-  const statusWord = (status: ChannelHealthStatus) =>
-    t(`${ns}.statusWord.${status}`, {
-      defaultValue: {
-        operational: '正常',
-        degraded: '降级',
-        outage: '中断',
-        unknown: '暂无数据',
-      }[status],
-    });
-
   // Construct formatters once per language, shared by every row.
   const formatters = useMemo(() => {
     const locale = i18n.language || undefined;

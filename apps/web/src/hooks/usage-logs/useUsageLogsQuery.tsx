@@ -24,17 +24,12 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { getLogOther } from '../../helpers/log';
-import { asMicroUSD } from '../../helpers/money';
-import { formatMoney } from '../../helpers/money';
-import {
-  copy,
-  showError,
-  showSuccess,
-  timestamp2string,
-} from '../../helpers/utils';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
+import { copy, showError, timestamp2string } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
@@ -764,7 +759,7 @@ export function useUsageLogsQuery() {
 
   const copyText = async (value: unknown) => {
     if (await copy(String(value ?? ''))) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }

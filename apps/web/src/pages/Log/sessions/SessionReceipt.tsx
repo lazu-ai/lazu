@@ -10,7 +10,8 @@ import {
   shortThreadId,
 } from './session-format';
 import { sessionDetailHref } from './SessionsView';
-import { AgentBadge, PendingValue } from '../../../components/ui';
+import { AgentBadge } from '../../../components/ui/agent-badge';
+import { PendingValue } from '../../../components/ui/pending';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import {
   useAgentSessionDetailQuery,

@@ -5,7 +5,7 @@ import { UsersRound } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InviteModal } from './InviteModal';
-import { Button } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
 import { useProject } from '../ProjectContext';
 import { useProjectDetail } from '../queries';
 

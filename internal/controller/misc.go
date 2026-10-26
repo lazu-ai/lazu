@@ -196,7 +196,7 @@ func dispatchEmailVerification(email string, lang string) {
 
 func SendPasswordResetEmail(c *gin.Context) {
 	email := c.Query("email")
-	if err := common.Validate.Var(email, "required,email"); err != nil {
+	if err := Validate.Var(email, "required,email"); err != nil {
 		httperr.Invalid(c, "email")
 		return
 	}

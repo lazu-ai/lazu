@@ -14,9 +14,30 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// streamFlushCoalescerKey holds the *streamFlushCoalescer of the stream
+// scanner serving this request, if any.
+const streamFlushCoalescerKey = "lazu_stream_flush_coalescer"
+
+// streamFlushCoalescer lets the stream scanner hold back flushes while more
+// upstream events are already buffered: those are written straight after, so
+// one flush can carry them all. Accessed only under the scanner's write lock.
+type streamFlushCoalescer struct {
+	deferring bool // the event being handled has more buffered behind it
+	pending   bool // a write is waiting for a flush
+}
+
 func FlushWriter(c *gin.Context) error {
 	if c.Writer == nil {
 		return nil
+	}
+	if value, ok := c.Get(streamFlushCoalescerKey); ok {
+		if coalescer, _ := value.(*streamFlushCoalescer); coalescer != nil {
+			if coalescer.deferring {
+				coalescer.pending = true
+				return nil
+			}
+			coalescer.pending = false
+		}
 	}
 	if flusher, ok := c.Writer.(http.Flusher); ok {
 		flusher.Flush()
@@ -46,23 +67,23 @@ func ClaudeData(c *gin.Context, resp dto.ClaudeResponse) error {
 	if err != nil {
 		common.SysError("error marshalling stream response: " + err.Error())
 	} else {
-		c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
-		c.Render(-1, common.CustomEvent{Data: "data: " + string(jsonData)})
+		c.Render(-1, CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
+		c.Render(-1, CustomEvent{Data: "data: " + string(jsonData)})
 	}
 	_ = FlushWriter(c)
 	return nil
 }
 
 func ResponseChunkData(c *gin.Context, resp dto.ResponsesStreamResponse, data string) {
-	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
-	c.Render(-1, common.CustomEvent{Data: fmt.Sprintf("data: %s", data)})
+	c.Render(-1, CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
+	c.Render(-1, CustomEvent{Data: fmt.Sprintf("data: %s", data)})
 	_ = FlushWriter(c)
 }
 
 func StringData(c *gin.Context, str string) error {
 	//str = strings.TrimPrefix(str, "data: ")
 	//str = strings.TrimSuffix(str, "\r")
-	c.Render(-1, common.CustomEvent{Data: "data: " + str})
+	c.Render(-1, CustomEvent{Data: "data: " + str})
 	_ = FlushWriter(c)
 	return nil
 }
