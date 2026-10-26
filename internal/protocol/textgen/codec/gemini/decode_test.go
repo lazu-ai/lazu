@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen/fixtures"
 )
 
 // Gemini to Gemini keeps the thought signatures where Gemini put them: on
@@ -104,5 +105,33 @@ func TestDecodeGenerationConfigPresenceThoughtsAndSchema(t *testing.T) {
 	}
 	if got := string(request.Output.Schema); got != `{"properties":{"type":{"type":["string","null"]}},"type":"object"}` {
 		t.Fatalf("schema: %s", got)
+	}
+}
+
+// A real Gemini CLI request (the turn after it called read_file) decodes:
+// system instruction, the tool set, the call and its response paired, and
+// the thinking budget it asked for.
+func TestDecodeGeminiCLIToolTurn(t *testing.T) {
+	request, wire, err := Decode(fixtures.ClientRequest(t, "gemini_cli/tool_turn.json"), "gemini-2.5-pro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wire == nil || len(request.Instructions) == 0 || len(request.Tools) != 12 {
+		t.Fatalf("instructions %d tools %d", len(request.Instructions), len(request.Tools))
+	}
+	var call, result *textgen.InputItem
+	for index := range request.Conversation {
+		switch item := &request.Conversation[index]; item.Kind {
+		case textgen.InputFunctionCall:
+			call = item
+		case textgen.InputFunctionResult:
+			result = item
+		}
+	}
+	if call == nil || result == nil || call.FunctionName != "read_file" || call.CallID == "" || result.CallID != call.CallID {
+		t.Fatalf("call %+v result %+v", call, result)
+	}
+	if budget := request.Reasoning.Budget; !budget.Set || budget.Value != 8192 {
+		t.Fatalf("reasoning: %+v", request.Reasoning)
 	}
 }
