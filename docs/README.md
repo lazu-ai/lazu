@@ -44,7 +44,7 @@ their history. Retain selected Brand references and their required assets.
 | --- | --- |
 | Set up or contribute | [Project README](../README.md), [engineering rules](../CONTRIBUTING.md), [Agent entry](../AGENTS.md) |
 | Understand protocol behavior | [Protocol conversion](protocol-conversion-architecture.md), [errors](ERRORS.md), [request lifecycle](request-lifecycle-contract.md) |
-| Understand charges and account tiers | [Billing contract](billing-contract.md), [tier implementation — not in use](tier-policy.md) |
+| Understand charges and account tiers | [Billing contract](billing-contract.md) |
 | Deploy and operate | [Deployment](DEPLOYMENT.md), [Files API operations](../ops/scripts/files-api/README.md) |
 | Change public docs or translations | [Docs authoring and generation](../apps/docs/README.md), [translation glossary](i18n.md) |
 | Change product UI | [Brand index](../brand/README.md); current rules start at [BRAND.md](../brand/BRAND.md) |

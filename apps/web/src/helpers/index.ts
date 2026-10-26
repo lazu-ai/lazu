@@ -1,91 +1,31 @@
-/* Explicit re-exports, so a name's source module stays visible. Code in this
-   repository imports helpers from their own modules; this barrel remains for
-   extensions that import from 'helpers'. */
+/* Explicit re-exports keep each public name's source visible. */
 export { ModuleRoute, PrivateRoute, RootRoute, authHeader } from './auth';
 export {
-  MODEL_MARKET_TAG_MAX_DISPLAY,
-  MODEL_PRICING_ENDPOINT_COLOR_MAP,
-  buildMessageContent,
-  calculatePricingDisplay,
-  compareObjects,
-  createCardProPagination,
-  createLoadingAssistantMessage,
-  createMessage,
   downloadTextAsFile,
-  formatDateString,
-  formatDateTimeString,
   formatDecimalValue,
   formatMessageForAPI,
-  formatModelContextLength,
-  formatPriceInfo,
-  formatPriceInfoStructured,
-  generateMessageId,
-  getLastAssistantMessage,
-  getLastUserMessage,
   getLogo,
-  getModelPricingEndpointColor,
   getRelativeTime,
   getSystemName,
-  getTextContent,
-  getTodayStartTimestamp,
   getUserFromLocalStorage,
   getUserIdFromLocalStorage,
-  getVisibleModelTags,
-  hasImageContent,
-  isContextNumericModelTag,
   isRoot,
   isValidMessage,
-  normalizeHeaderNavModulesConfig,
-  normalizeModelTag,
-  openPage,
-  processIncompleteThinkTags,
-  processThinkTags,
-  removeTrailingSlash,
-  resetPricingFilters,
   safeJsonParse,
-  selectFilter,
-  setPromptShown,
-  shouldShowPrompt,
   showError,
   showInfo,
   showNotice,
   showSuccess,
   showWarning,
-  splitModelTags,
   timestamp2string,
   timestamp2string1,
-  verifyJSON,
-  verifyJSONPromise,
 } from './utils';
 export { copy } from './clipboard';
+export { API, postSSE, updateAPI } from './api';
 export {
-  API,
-  buildApiPayload,
-  handleApiError,
-  postSSE,
-  processModelsData,
-  syncAccountLanguage,
-  syncAccountTimezone,
-  updateAPI,
-} from './api';
-export {
-  convertUSDToCurrency,
-  getCurrencyConfig,
   getMicroUSDPerUSD,
-  getUSDFromMicrousd,
   microUSDToUSD,
-  modelColorMap,
-  modelToColor,
-  renderGroup,
-  renderNumber,
-  renderNumberWithPoint,
   renderQuota,
-  renderQuotaNumberWithDigit,
-  renderQuotaWithAmount,
-  renderText,
-  renderUnitWithBalance,
-  stringToColor,
-  truncateText,
   usdToMicroUSD,
 } from './render';
 export {
@@ -101,33 +41,7 @@ export {
 } from './money';
 export { getLogOther } from './log';
 export { setStatusData, setUserData } from './data';
-export {
-  fetchTokenKeys,
-  fetchTokenOptions,
-  getServerAddress,
-  type TokenOption,
-} from './token';
 export { toBoolean } from './boolean';
-export {
-  aggregateDataByTimeAndModel,
-  calculateTrendData,
-  createFormField,
-  createSectionTitle,
-  generateChartTimePoints,
-  getDefaultTime,
-  getInitialTimestamp,
-  getTimeInterval,
-  getTrendSpec,
-  getUptimeStatusColor,
-  getUptimeStatusText,
-  handleCopyUrl,
-  handleSpeedTest,
-  initializeMaps,
-  processRawData,
-  renderMonitorList,
-  updateChartSpec,
-  updateMapValue,
-} from './dashboard';
 export { sanitizeMarkup } from './sanitize';
 export {
   getPrimaryModelPrice,

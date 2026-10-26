@@ -405,23 +405,6 @@ func recordSpendBudgetChargeTx(tx *gorm.DB, input SpendBudgetChargeInput) error 
 	return recordProjectSpendTx(tx, input)
 }
 
-func applicableSpendBudgets(userID int, tokenID int) ([]SpendBudget, error) {
-	return applicableSpendBudgetsWithDB(CoreDB(), userID, tokenID)
-}
-
-func applicableSpendBudgetsWithDB(tx *gorm.DB, userID int, tokenID int) ([]SpendBudget, error) {
-	return applicableProjectSpendBudgetsWithDB(tx, SpendBudgetChargeInput{UserID: userID, TokenID: tokenID}, true)
-}
-
-// ReadProjectSpendBudgets does not acquire transaction locks; it is suitable
-// for console reads only. Charging must use the locking path below.
-func ReadProjectSpendBudgets(projectID, actorUserID, tokenID int) ([]SpendBudget, error) {
-	if projectID <= 0 {
-		return nil, errors.New("project id required")
-	}
-	return applicableProjectSpendBudgetsWithDB(CoreDB(), SpendBudgetChargeInput{ProjectID: projectID, ActorUserID: actorUserID, TokenID: tokenID}, false)
-}
-
 func applicableProjectSpendBudgetsWithDB(tx *gorm.DB, input SpendBudgetChargeInput, lock bool) ([]SpendBudget, error) {
 	var budgets []SpendBudget
 	if tx == nil {
@@ -553,10 +536,6 @@ func createSpendBudgetChargeOnce(tx *gorm.DB, budget SpendBudget, input SpendBud
 	return true, nil
 }
 
-func sumSpendBudgetAlertPeriods(budget SpendBudget, periodStart int64, periodEnd int64) (billing.MicroUSD, billing.MicroUSD, error) {
-	return sumSpendBudgetAlertPeriodsWithDB(CoreDB(), budget, periodStart, periodEnd)
-}
-
 func sumSpendBudgetAlertPeriodsWithDB(tx *gorm.DB, budget SpendBudget, periodStart int64, periodEnd int64) (billing.MicroUSD, billing.MicroUSD, error) {
 	if budget.BurstMultiplier <= 0 || periodEnd <= periodStart {
 		currentSpend, err := sumSpendMicrousdForBudgetWithDB(tx, budget, periodStart, periodEnd)
@@ -583,10 +562,6 @@ func createSpendBudgetAlertOnce(tx *gorm.DB, alert SpendBudgetAlert) error {
 		return nil
 	}
 	return tx.Create(&alert).Error
-}
-
-func sumSpendMicrousdForBudget(budget SpendBudget, periodStart int64, periodEnd int64) (billing.MicroUSD, error) {
-	return sumSpendMicrousdForBudgetWithDB(CoreDB(), budget, periodStart, periodEnd)
 }
 
 func sumSpendMicrousdForBudgetWithDB(db *gorm.DB, budget SpendBudget, periodStart int64, periodEnd int64) (billing.MicroUSD, error) {
@@ -621,10 +596,6 @@ func sumSpendMicrousdForBudgetWithDB(db *gorm.DB, budget SpendBudget, periodStar
 	}
 	err = tx.Select("COALESCE(SUM(amount_microusd), 0)").Scan(&sum).Error
 	return sum, err
-}
-
-func sumSpendMicrousdForBudgetPair(budget SpendBudget, periodStart int64, periodEnd int64) (billing.MicroUSD, billing.MicroUSD, error) {
-	return sumSpendMicrousdForBudgetPairWithDB(CoreDB(), budget, periodStart, periodEnd)
 }
 
 func sumSpendMicrousdForBudgetPairWithDB(db *gorm.DB, budget SpendBudget, periodStart int64, periodEnd int64) (billing.MicroUSD, billing.MicroUSD, error) {
