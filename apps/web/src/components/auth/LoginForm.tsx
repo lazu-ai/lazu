@@ -56,9 +56,10 @@ import {
   postLoginDestination,
 } from '../../helpers/authNavigation';
 import { setUserData } from '../../helpers/data';
-import { showError, showSuccess, showWarning } from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
 import { Button } from '../ui';
+import { notify } from '../ui/toast';
 import type { CSSProperties } from 'react';
 
 const CODE_LENGTH = 6;
@@ -296,7 +297,7 @@ const LoginForm = () => {
     localStorage.setItem('user', JSON.stringify(data));
     setUserData(data);
     updateAPI();
-    showSuccess(t('page.public.auth.loginSuccess'));
+    notify.success(t('page.public.auth.loginSuccess'));
     navigate(postLoginDestination(requestedDestination, data.role), {
       replace: true,
       // The invitation page accepts on arrival instead of asking again.
@@ -394,7 +395,7 @@ const LoginForm = () => {
       offerToSavePassword(trimmed, password);
       completeLogin(data);
       if (trimmed === 'root' && password === '123456') {
-        showWarning(t('page.public.auth.defaultPasswordWarning'));
+        notify.warning(t('page.public.auth.defaultPasswordWarning'));
       }
     } catch (failure) {
       showError(failure, t('page.public.auth.errors.loginFailed'));

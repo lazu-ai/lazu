@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
-  CalendarRange,
   FileDown,
   FileText,
   Mail,
@@ -9,7 +8,7 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import VChart from '../../components/common/charts/VChart';
 import {
@@ -22,8 +21,9 @@ import {
   Switch,
 } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
+import { notify } from '../../components/ui/toast';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
-import { API, asMicroUSD, renderQuota, showSuccess } from '../../helpers';
+import { API, asMicroUSD, renderQuota } from '../../helpers';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
 import { queryKeys } from '../../lib/query-keys';
@@ -196,7 +196,7 @@ const MonthlyReportPage = () => {
       );
     },
     onSuccess: () => {
-      showSuccess(t(`${ns}.generate.success`));
+      notify.success(t(`${ns}.generate.success`));
       queryClient.invalidateQueries({ queryKey: queryKeys.console.root });
     },
     onError: apiErrorHandler,
@@ -208,7 +208,7 @@ const MonthlyReportPage = () => {
       return next;
     },
     onSuccess: () => {
-      showSuccess(t(`${ns}.subscription.saved`));
+      notify.success(t(`${ns}.subscription.saved`));
       queryClient.invalidateQueries({ queryKey: queryKeys.console.root });
     },
     onError: apiErrorHandler,

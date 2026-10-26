@@ -226,19 +226,6 @@ func trimTokenNote(value string) string {
 	return trimmed
 }
 
-func publicTokenPayloads(c *gin.Context, tokens []*model.Token) []gin.H {
-	result := make([]gin.H, 0, len(tokens))
-	remaining := tokenDisplayRemaining(c, tokens)
-	for _, token := range tokens {
-		payload := publicTokenPayload(c, token)
-		if token != nil && !token.UnlimitedQuota {
-			payload["remain_quota"] = remaining[token.Id]
-		}
-		result = append(result, payload)
-	}
-	return result
-}
-
 // Only read-only list and usage paths call this helper. Base payloads remain
 // committed so saving an editor cannot overwrite quota with a held Hot value.
 func tokenDisplayRemaining(c *gin.Context, tokens []*model.Token) map[int]billing.MicroUSD {
@@ -399,30 +386,6 @@ func RevealTokenKey(c *gin.Context) {
 		wakeProjectNotifications()
 	}
 	common.ApiSuccess(c, gin.H{"key": key, "notification_status": notification})
-}
-
-func GetTokenStatus(c *gin.Context) {
-	tokenId := c.GetInt("token_id")
-	token, err := model.GetTokenById(tokenId)
-	principal := model.RequestResourcePrincipal(c)
-	if err == nil && (principal.ProjectID <= 0 || token.ProjectID != principal.ProjectID || token.UserId != principal.ActorUserID) {
-		err = model.ErrProjectForbidden
-	}
-	if err != nil {
-		keyFailure(c, err)
-		return
-	}
-	expiredAt := token.ExpiredTime
-	if expiredAt == -1 {
-		expiredAt = 0
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"object":          "credit_summary",
-		"total_granted":   token.RemainQuota,
-		"total_used":      0, // not supported currently
-		"total_available": token.RemainQuota,
-		"expires_at":      expiredAt * 1000,
-	})
 }
 
 func GetTokenUsage(c *gin.Context) {

@@ -17,7 +17,6 @@ import {
   Package,
   Trophy,
   CalendarCheck,
-  Terminal,
   FileText,
   Activity,
   Building2,

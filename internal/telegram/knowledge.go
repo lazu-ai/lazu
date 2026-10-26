@@ -381,10 +381,3 @@ func Reference(ctx context.Context, question string) string {
 	}
 	return b.String()
 }
-
-// resetKnowledge clears the cache (tests).
-func resetKnowledge() {
-	knowledge.Lock()
-	knowledge.docs, knowledge.fetchedAt, knowledge.urls, knowledge.fetching = nil, time.Time{}, "", false
-	knowledge.Unlock()
-}

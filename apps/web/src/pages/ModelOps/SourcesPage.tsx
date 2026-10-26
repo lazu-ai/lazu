@@ -56,8 +56,6 @@ export default function SourcesPage() {
      a hard-coded pair would hide whatever an operator added. */
   const lanesQuery = useChannelLanesQuery();
   const lanes = lanesQuery.data ?? [];
-  const laneName = (slug?: string) =>
-    lanes.find((lane) => lane.slug === slug)?.name || slug || '';
   const [step, setStep] = useState<SourceStep>('credential');
   const [pendingDelete, setPendingDelete] = useState<ModelOpsSource | null>(
     null,
