@@ -261,6 +261,16 @@ func decodeMessages(messages []dto.Message, request *textgen.Request) error {
 			continue
 		}
 		seenConversation = true
+		if role == "function" {
+			if name == "" {
+				return fmt.Errorf("messages[%d].name is required for role function", index)
+			}
+			if message.Content != nil && !message.IsStringContent() {
+				markUnknown(request, fmt.Sprintf("messages[%d].content", index), message.Content)
+			}
+			request.Conversation = append(request.Conversation, textgen.InputItem{Kind: textgen.InputFunctionResult, Role: role, Name: name, Output: messageText(message)})
+			continue
+		}
 		if role == "tool" {
 			if strings.TrimSpace(message.ToolCallId) == "" {
 				return fmt.Errorf("messages[%d].tool_call_id is required", index)
@@ -746,6 +756,10 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 		case textgen.InputFunctionResult:
 			pendingReasoning = -1
 			message := dto.Message{Role: "tool", ToolCallId: item.CallID}
+			if item.Role == "function" {
+				message.Role, message.ToolCallId = "function", ""
+				message.Name = &item.Name
+			}
 			message.SetStringContent(textgen.ResultText(item))
 			wire.Messages = append(wire.Messages, message)
 			for _, part := range item.Content {
