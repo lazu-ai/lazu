@@ -14,7 +14,7 @@ description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序�
 - Playground 路由 `/pg/chat/completions`；控制台已沒有 Playground。
 - 回傳 501 的 `/v1/fine-tunes*`、`/v1/images/variations`、`DELETE /v1/models/:model`，以及餘額介面 `/v1/dashboard/billing/*`、`/dashboard/billing/*`，由控制台錢包取代。
 - `/api/community/*` 和 `/api/models/rankings`。
-- 管理介面（2026-12-01 之後刪除）：`/api/channel/tag/*`、`/api/channel/batch*`（改用逐一渠道操作），`POST /api/notification/email/{send,announcement}`（改用公告），`/api/upload/*`（改用 `config.yaml` 裡的排程上傳），`/api/workers/*`。
+- 管理介面（2026-12-01 之後刪除）：`/api/channel/tag/*`、`/api/channel/batch*`（改用逐一渠道操作），`POST /api/notification/email/{send,announcement}`（改用公告），`/api/upload/*`（改用 `config.yaml` 裡的排程上傳），`/api/workers/*`，`GET /api/data/`（它讀取的 `usage_data` 表也已棄用）。
 
 ## 2026-09-30 — Agent 工作階段、請求明細與長上下文价格
 

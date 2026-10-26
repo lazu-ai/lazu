@@ -14,7 +14,7 @@ Each route below now answers with `Deprecation`, `Sunset` and, where something r
 - The playground route `/pg/chat/completions`; the console has no playground.
 - `/v1/fine-tunes*`, `/v1/images/variations` and `DELETE /v1/models/:model`, which answer 501, and the balance endpoints `/v1/dashboard/billing/*` and `/dashboard/billing/*`; the console wallet replaces them.
 - `/api/community/*` and `/api/models/rankings`.
-- Admin, after 2026-12-01: `/api/channel/tag/*` and `/api/channel/batch*` (use per-channel actions), `POST /api/notification/email/{send,announcement}` (use announcements), `/api/upload/*` (use the scheduled upload in `config.yaml`) and `/api/workers/*`.
+- Admin, after 2026-12-01: `/api/channel/tag/*` and `/api/channel/batch*` (use per-channel actions), `POST /api/notification/email/{send,announcement}` (use announcements), `/api/upload/*` (use the scheduled upload in `config.yaml`), `/api/workers/*` and `GET /api/data/` (the `usage_data` table it reads is deprecated too).
 
 ## 2026-09-30 — Agent sessions, receipts and long-context prices
 

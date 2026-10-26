@@ -371,7 +371,7 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/self/search", middleware.UserAuth(), controller.SearchUserLogs)
 
 		dataRoute := apiRouter.Group("/data")
-		dataRoute.GET("/", middleware.RootAuth(), controller.GetAllUsageData)
+		dataRoute.GET("/", retiring(adminSunset, ""), middleware.RootAuth(), controller.GetAllUsageData)
 		dataRoute.GET("/self", retiring(userSunset, "/api/data/dashboard/self"), middleware.UserAuth(), controller.GetUserUsageData)
 		dataRoute.GET("/dashboard", middleware.UserAuth(), controller.GetUserDashboardUsage)
 		dataRoute.GET("/overview", middleware.UserAuth(), controller.GetOverview)

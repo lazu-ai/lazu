@@ -14,7 +14,7 @@ description: "Lazu API、モデルカタログ、ドキュメントの変更を�
 - Playground のルート `/pg/chat/completions`。コンソールに Playground はもうありません。
 - 501 を返す `/v1/fine-tunes*`、`/v1/images/variations`、`DELETE /v1/models/:model`、および残高 API `/v1/dashboard/billing/*`、`/dashboard/billing/*`。コンソールのウォレットが代わりになります。
 - `/api/community/*` と `/api/models/rankings`。
-- 管理用（2026-12-01 以降に削除）：`/api/channel/tag/*`、`/api/channel/batch*`（チャネルごとの操作へ）、`POST /api/notification/email/{send,announcement}`（お知らせ機能へ）、`/api/upload/*`（`config.yaml` の定期アップロードへ）、`/api/workers/*`。
+- 管理用（2026-12-01 以降に削除）：`/api/channel/tag/*`、`/api/channel/batch*`（チャネルごとの操作へ）、`POST /api/notification/email/{send,announcement}`（お知らせ機能へ）、`/api/upload/*`（`config.yaml` の定期アップロードへ）、`/api/workers/*`、`GET /api/data/`（読み出し元の `usage_data` テーブルも非推奨）。
 
 ## 2026-09-30 — Agent セッション、明細と長文脈料金
 
