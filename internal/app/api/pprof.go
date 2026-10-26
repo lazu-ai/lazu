@@ -1,4 +1,4 @@
-package common
+package api
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/shirou/gopsutil/cpu"
 )
 
@@ -22,18 +23,18 @@ func Monitor() {
 			if _, err := os.Stat("./pprof"); os.IsNotExist(err) {
 				err := os.Mkdir("./pprof", os.ModePerm)
 				if err != nil {
-					SysLog("Failed to create pprof directory: " + err.Error())
+					common.SysLog("Failed to create pprof directory: " + err.Error())
 					continue
 				}
 			}
 			f, err := os.Create("./pprof/" + fmt.Sprintf("cpu-%s.pprof", time.Now().Format("20060102150405")))
 			if err != nil {
-				SysLog("Failed to create pprof file: " + err.Error())
+				common.SysLog("Failed to create pprof file: " + err.Error())
 				continue
 			}
 			err = pprof.StartCPUProfile(f)
 			if err != nil {
-				SysLog("Failed to start pprof: " + err.Error())
+				common.SysLog("Failed to start pprof: " + err.Error())
 				continue
 			}
 			time.Sleep(10 * time.Second) // profile for 30 seconds

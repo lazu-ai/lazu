@@ -139,7 +139,7 @@ func TestClaudeRetryStartsFromTheClientsRequest(t *testing.T) {
 	if err := json.Unmarshal(raw, &request); err != nil {
 		t.Fatal(err)
 	}
-	before, err := common.DeepCopy(&request)
+	before, err := DeepCopy(&request)
 	if err != nil {
 		t.Fatal(err)
 	}

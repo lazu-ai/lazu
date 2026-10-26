@@ -1,4 +1,4 @@
-package common
+package relay
 
 import (
 	"fmt"

@@ -1,6 +1,8 @@
 package common
 
-import "github.com/lazu-ai/lazu/internal/constant"
+import (
+	"github.com/lazu-ai/lazu/internal/constant"
+)
 
 // GetEndpointTypesByChannelType 获取渠道支持的端点类型列表。
 //
@@ -12,7 +14,9 @@ import "github.com/lazu-ai/lazu/internal/constant"
 // 第 3 点确保：即使 Claude 模型配置在 OpenAI 兼容渠道上，模型广场也会显示
 // /v1/messages 端点，因为系统的 adaptor 层已实现跨格式转换。
 func GetEndpointTypesByChannelType(channelType int, modelName string) []constant.EndpointType {
-	if IsDecisionModel(modelName) { return []constant.EndpointType{constant.EndpointTypeDecisions} }
+	if IsDecisionModel(modelName) {
+		return []constant.EndpointType{constant.EndpointTypeDecisions}
+	}
 	var endpointTypes []constant.EndpointType
 	switch channelType {
 	case constant.ChannelTypeAnthropic:
@@ -55,4 +59,36 @@ func appendEndpointIfMissing(endpoints []constant.EndpointType, ep constant.Endp
 		}
 	}
 	return append(endpoints, ep)
+}
+
+// EndpointInfo 描述单个端点的默认请求信息
+// path: 上游路径
+// method: HTTP 请求方式，例如 POST/GET
+// 目前均为 POST，后续可扩展
+//
+// json 标签用于直接序列化到 API 输出
+// 例如：{"path":"/v1/chat/completions","method":"POST"}
+
+type EndpointInfo struct {
+	Path   string `json:"path"`
+	Method string `json:"method"`
+}
+
+// defaultEndpointInfoMap 保存内置端点的默认 Path 与 Method
+var defaultEndpointInfoMap = map[constant.EndpointType]EndpointInfo{
+	constant.EndpointTypeDecisions:       {Path: "/v1/decisions", Method: "POST"},
+	constant.EndpointTypeOpenAI:          {Path: "/v1/chat/completions", Method: "POST"},
+	constant.EndpointTypeOpenAIResponse:  {Path: "/v1/responses", Method: "POST"},
+	constant.EndpointTypeAnthropic:       {Path: "/v1/messages", Method: "POST"},
+	constant.EndpointTypeGemini:          {Path: "/v1beta/models/{model}:generateContent", Method: "POST"},
+	constant.EndpointTypeJinaRerank:      {Path: "/v1/rerank", Method: "POST"},
+	constant.EndpointTypeImageGeneration: {Path: "/v1/images/generations", Method: "POST"},
+	constant.EndpointTypeVideoGeneration: {Path: "/v1/videos", Method: "POST"},
+	constant.EndpointTypeEmbeddings:      {Path: "/v1/embeddings", Method: "POST"},
+}
+
+// GetDefaultEndpointInfo 返回指定端点类型的默认信息以及是否存在
+func GetDefaultEndpointInfo(et constant.EndpointType) (EndpointInfo, bool) {
+	info, ok := defaultEndpointInfoMap[et]
+	return info, ok
 }

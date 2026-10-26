@@ -1,4 +1,4 @@
-package common
+package controller
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 // Fixed-window counters keyed by what an attacker is aiming at — an account,
@@ -32,11 +33,11 @@ func attemptKey(scope string, subject string) string {
 // window and how long until the window resets.
 func AttemptCount(scope string, subject string) (int64, time.Duration) {
 	key := attemptKey(scope, subject)
-	if RedisEnabled && RDB != nil {
+	if common.RedisEnabled && common.RDB != nil {
 		ctx := context.Background()
-		count, err := RDB.Get(ctx, key).Int64()
+		count, err := common.RDB.Get(ctx, key).Int64()
 		if err == nil {
-			ttl, _ := RDB.TTL(ctx, key).Result()
+			ttl, _ := common.RDB.TTL(ctx, key).Result()
 			return count, max(ttl, 0)
 		}
 		if errors.Is(err, redis.Nil) {
@@ -56,18 +57,18 @@ func AttemptCount(scope string, subject string) (int64, time.Duration) {
 // does not slide, so a steady trickle cannot keep it open forever.
 func RecordAttempt(scope string, subject string, window time.Duration) (int64, time.Duration) {
 	key := attemptKey(scope, subject)
-	if RedisEnabled && RDB != nil {
+	if common.RedisEnabled && common.RDB != nil {
 		ctx := context.Background()
-		count, err := RDB.Incr(ctx, key).Result()
+		count, err := common.RDB.Incr(ctx, key).Result()
 		if err == nil {
 			if count == 1 {
-				_ = RDB.Expire(ctx, key, window).Err()
+				_ = common.RDB.Expire(ctx, key, window).Err()
 				return count, window
 			}
-			ttl, ttlErr := RDB.TTL(ctx, key).Result()
+			ttl, ttlErr := common.RDB.TTL(ctx, key).Result()
 			if ttlErr == nil && ttl < 0 {
 				// A key that lost its expiry would lock the subject out for good.
-				_ = RDB.Expire(ctx, key, window).Err()
+				_ = common.RDB.Expire(ctx, key, window).Err()
 				ttl = window
 			}
 			return count, max(ttl, 0)
@@ -95,8 +96,8 @@ func RecordAttempt(scope string, subject string, window time.Duration) (int64, t
 // ClearAttempts forgets the subject's attempts, e.g. after a successful login.
 func ClearAttempts(scope string, subject string) {
 	key := attemptKey(scope, subject)
-	if RedisEnabled && RDB != nil {
-		_ = RDB.Del(context.Background(), key).Err()
+	if common.RedisEnabled && common.RDB != nil {
+		_ = common.RDB.Del(context.Background(), key).Err()
 	}
 	attemptMutex.Lock()
 	delete(attemptStore, key)

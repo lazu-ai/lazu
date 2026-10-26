@@ -372,7 +372,7 @@ func queueProjectPaymentEmailTx(tx *gorm.DB, project Project, order TopUp, atCre
 	if order.AutoReload {
 		message = "Auto-reload added API credit to your Lazu account."
 	}
-	content := common.PaymentEmailContent{
+	content := PaymentEmailContent{
 		LogoURL: paymentEmailLogo(order.StripeReturnBase), Eyebrow: "PAYMENT RECEIVED",
 		Hero: credit, CompactHero: order.CreditedMicrousd.Dollars() >= 1000,
 		Message: message, Preheader: subject, Facts: facts,
@@ -392,7 +392,7 @@ func queueProjectPaymentEmailTx(tx *gorm.DB, project Project, order TopUp, atCre
 			return body, nil
 		}
 		content.ActionURL = paymentEmailWalletURL(order.StripeReturnBase, project.PublicID, order.PublicID, "", surface)
-		body, err := common.RenderPaymentEmail(content)
+		body, err := RenderPaymentEmail(content)
 		if err != nil {
 			return "", err
 		}
