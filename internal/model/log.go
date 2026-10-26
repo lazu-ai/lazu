@@ -761,16 +761,6 @@ func handleRelayResultEventBatch(events []relayResultEvent) error {
 	return persistRelayResultBatch(events)
 }
 
-func createConsumeLogsBatch(logs []Log) error {
-	events := make([]relayResultEvent, 0, len(logs))
-	for i := range logs {
-		ensureConsumeLogPublicID(&logs[i])
-		event := newRelayConsumeLogEvent(&logs[i])
-		events = append(events, relayResultEvent{ConsumeLog: &event})
-	}
-	return persistRelayResultBatch(events)
-}
-
 func ensureConsumeLogPublicID(log *Log) {
 	if log == nil || log.PublicID != "" || log.RequestID == "" {
 		return
@@ -778,51 +768,6 @@ func ensureConsumeLogPublicID(log *Log) {
 	log.PublicID = fmt.Sprintf("%s_%s", common.PublicLogIDPrefix, log.RequestID)
 	if log.Type != LogTypeUnknown && log.Type != LogTypeConsume && log.Type != LogTypeError {
 		log.PublicID += fmt.Sprintf("_%d", log.Type)
-	}
-}
-
-func consumeLogSideEffects(log *Log, async bool) {
-	if log == nil {
-		return
-	}
-	if log.Type == LogTypeConsume && log.RequestID != "" {
-		if err := ReleaseSpendBudgetReservation(SpendBudgetChargeInput{
-			ProjectID: log.ProjectID, PayerUserID: log.PayerUserID, ActorUserID: log.UserId,
-			UserID:    log.UserId,
-			TokenID:   log.TokenId,
-			RequestID: log.RequestID,
-		}); err != nil {
-			common.SysLog("failed to release spend budget reservation: " + err.Error())
-		}
-		StampUserRequestActivity(log.UserId, log.CreatedAt)
-		RecordSessionActivity(log, false)
-	}
-	if common.DataExportEnabled {
-		fn := func() {
-			createdAt := log.CreatedAt
-			if createdAt == 0 {
-				createdAt = common.GetTimestamp()
-			}
-			LogUsageData(log.UserId, log.Username, log.ModelName, log.AmountMicrousd, createdAt, log.PromptTokens+log.CompletionTokens)
-		}
-		if async {
-			common.SafeGo("usage-data-log", fn)
-		} else {
-			fn()
-		}
-	}
-	if log.ModelName != "" {
-		modelName := log.ModelName
-		fn := func() {
-			if err := IncrementModelRequests(modelName); err != nil {
-				common.SysLog("failed to increment model requests: " + err.Error())
-			}
-		}
-		if async {
-			common.SafeGo("model-request-counter", fn)
-		} else {
-			fn()
-		}
 	}
 }
 
