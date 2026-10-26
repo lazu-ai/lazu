@@ -9,6 +9,8 @@ This page covers running Lazu with Docker Compose: the bundled stack in
 - Redis 6+
 - Docker and Docker Compose
 
+SQLite is used by the test suite only; deployments run PostgreSQL.
+
 ## Prebuilt images
 
 The bundled stack builds from source. To run published images instead, use
@@ -419,6 +421,33 @@ unknown paths continue to return their normal responses.
 
 3. Verify that the recreated service is healthy at `/readyz`; test retained
    payment and email integrations from their normal operational workflows.
+
+## Environment variables kept from earlier releases
+
+These variables keep the names they had before Lazu. They stay as they are,
+because renaming them would break existing deployments. Each takes effect at
+startup.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `REDIS_CONN_STRING` | unset | Redis URL. Unset, Redis is off. |
+| `SYNC_FREQUENCY` | `60` | Seconds between reloads of options, channels, route health and the catalog from the database into memory. |
+| `MEMORY_CACHE_ENABLED` | `false` | Keeps channels in memory. Redis or PostgreSQL turns it on regardless. |
+| `CHANNEL_UPDATE_FREQUENCY` | unset | Minutes between automatic channel balance refreshes. Unset, they do not run. |
+| `CHANNEL_TEST_FREQUENCY` | unset | Minutes between automatic channel tests. A positive value overrides the console's monitor setting and turns the tests on. |
+| `RELAY_TIMEOUT` | `600` | Seconds an outbound relay or webhook request may take. `0` or less means the default. |
+| `STREAMING_TIMEOUT` | `900` | Seconds a stream may go without a line from the upstream before it is ended. |
+| `FORCE_STREAM_OPTION` | `true` | Adds `stream_options.include_usage` to streamed Chat requests on channels that support it, so the upstream reports usage. |
+| `GET_MEDIA_TOKEN` | `true` | Estimates prompt tokens locally when a streamed response carries no usage. Off, such a response bills no prompt tokens. |
+| `GET_MEDIA_TOKEN_NOT_STREAM` | `true` | The same estimate for non-streamed responses. It applies only while `GET_MEDIA_TOKEN` is on. |
+| `GENERATE_DEFAULT_TOKEN` | `false` | Creates an API key for each new user. |
+| `NOTIFY_LIMIT_COUNT` | `2` | Notifications of one kind a user can receive per window. |
+| `NOTIFICATION_LIMIT_DURATION_MINUTE` | `10` | Length of that window, in minutes. |
+| `ERROR_LOG_ENABLED` | `false` | Writes relay errors to `ERROR_LOG_PATH`, or to `errors.jsonl` in the export directory. |
+| `MAX_FILE_DOWNLOAD_MB` | `20` | Largest file or image the gateway fetches from a URL in a request. |
+| `MAX_VIDEO_DOWNLOAD_MB` | `200` | Largest generated video fetched from a provider. |
+| `SQLITE_PATH` | `lazu.db?_busy_timeout=30000` | SQLite file for local runs and tests. Deployments use `DATABASE_URL`. |
+| `ENABLE_PPROF` | `false` | Serves Go pprof on `127.0.0.1:8005`, reachable from inside the container only. |
 
 ## Changing Operational Params
 
