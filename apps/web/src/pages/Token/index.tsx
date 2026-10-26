@@ -11,7 +11,7 @@ import {
   X,
   Copy,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { AccessAddressStrip } from './access-addresses';
 import { ConnectModal } from './connect/ConnectModal';
@@ -38,19 +38,16 @@ import {
   retainVisibleTokenIds,
 } from './tokenSelection';
 import { tokenStatusCode } from './tokenStatusCode';
-import {
-  Badge,
-  Button,
-  Checkbox,
-  DataTableShell,
-  EmptyState,
-  Input,
-  Modal,
-  Select,
-  SelectItem,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Checkbox } from '../../components/ui/checkbox';
 import { ControlAppearanceContext } from '../../components/ui/control-appearance';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
 import { PendingValue } from '../../components/ui/pending';
+import { Select, SelectItem } from '../../components/ui/select';
 import {
   ColumnVisibilityMenu,
   ConsoleTableFrame,

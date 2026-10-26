@@ -14,29 +14,24 @@ import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import TelegramLinkField, { useTelegramLinkStatus } from './TelegramLinkField';
 import { useSession } from '../../context/User';
-import { API, getMicroUSDPerUSD, setUserData } from '../../helpers';
+import { API } from '../../helpers/api';
+import { setUserData } from '../../helpers/data';
+import { getMicroUSDPerUSD } from '../../helpers/render';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import useAuthStatus from '../auth/useAuthStatus';
-import {
-  Button,
-  Modal,
-  PendingBlock,
-  PendingValue,
-  Field,
-  FieldMessage,
-  InlineNotice,
-  Input,
-  Label,
-  Select,
-  SelectItem,
-  Switch,
-  SettingsCard,
-  SettingsRow,
-} from '../ui';
+import { Button } from '../ui/button';
 import ConsolePage from '../ui/console-page';
+import { Field, Label } from '../ui/field';
+import { InlineNotice } from '../ui/inline-notice';
+import { Input } from '../ui/input';
+import { Modal } from '../ui/modal';
+import { PendingBlock, PendingValue } from '../ui/pending';
+import { Select, SelectItem } from '../ui/select';
+import { SettingsCard, SettingsRow } from '../ui/settings-card';
+import { Switch } from '../ui/switch';
 import './personal.css';
 import '../../styles/settings-surface.css';
 import { notify } from '../ui/toast';

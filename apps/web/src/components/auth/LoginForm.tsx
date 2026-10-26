@@ -58,7 +58,7 @@ import {
 import { setUserData } from '../../helpers/data';
 import { showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
-import { Button } from '../ui';
+import { Button } from '../ui/button';
 import { notify } from '../ui/toast';
 import type { CSSProperties } from 'react';
 

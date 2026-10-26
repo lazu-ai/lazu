@@ -17,15 +17,13 @@ import {
   kindLabel,
   statusLabel,
 } from './mailShared';
-import {
-  Button,
-  ConsolePage,
-  ErrorState,
-  Input,
-  Pagination,
-  PendingBlock,
-  Select,
-} from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import ConsolePage from '../../../components/ui/console-page';
+import { ErrorState } from '../../../components/ui/error-state';
+import { Input } from '../../../components/ui/input';
+import { Pagination } from '../../../components/ui/pagination';
+import { PendingBlock } from '../../../components/ui/pending';
+import { Select } from '../../../components/ui/select';
 
 const ROW_HEIGHT = 49;
 

@@ -1,4 +1,4 @@
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import {
   lazy,
@@ -11,18 +11,18 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import './announcements.css';
+import { Button } from '../../../components/ui/button';
+import ConsolePage from '../../../components/ui/console-page';
+import { ErrorState } from '../../../components/ui/error-state';
+import { Input } from '../../../components/ui/input';
+import { Modal } from '../../../components/ui/modal';
 import {
-  Button,
-  ConsolePage,
-  ErrorState,
-  Input,
-  Skeleton,
-  Modal,
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Select,
-} from '../../../components/ui';
+} from '../../../components/ui/popover';
+import { Select } from '../../../components/ui/select';
+import { Skeleton } from '../../../components/ui/skeleton';
 import { notify } from '../../../components/ui/toast';
 import {
   ANNOUNCEMENTS_UPDATED_EVENT,

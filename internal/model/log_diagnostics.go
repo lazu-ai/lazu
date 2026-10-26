@@ -11,29 +11,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// UpdateRequestLogDiagnosticsBatch merges independent diagnostic events for
-// each request and updates one PostgreSQL batch. Missing rows remain unacked so
-// a diagnostic published before its final log can be retried by the consumer.
-func UpdateRequestLogDiagnosticsBatch(events []RequestDiagnosticsEvent) (map[string]bool, error) {
-	if len(events) == 0 {
-		return map[string]bool{}, nil
-	}
-	db := TelemetryDB()
-	if db == nil {
-		return nil, errors.New("telemetry database unavailable")
-	}
-	if db.Dialector.Name() == "postgres" {
-		return updateRequestLogDiagnosticsBatchTx(db, events)
-	}
-	var found map[string]bool
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var err error
-		found, err = updateRequestLogDiagnosticsBatchTx(tx, events)
-		return err
-	})
-	return found, err
-}
-
 func updateRequestLogDiagnosticsBatchTx(db *gorm.DB, events []RequestDiagnosticsEvent) (map[string]bool, error) {
 	merged := make(map[string]map[string]interface{}, len(events))
 	for _, event := range events {

@@ -46,13 +46,13 @@ import { useSidebar } from '../../hooks/common/useSidebar';
 import { formatVersionLabel } from '../announcements/versionLabel';
 import { openWhatsNewDialog } from '../announcements/whatsNewChannel';
 import { openReportProblem } from '../support/reportChannel';
+import { CompactConfirmation } from '../ui/compact-confirmation';
 import {
-  CompactConfirmation,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../ui';
+} from '../ui/dropdown-menu';
 import { notify } from '../ui/toast';
 
 const LANGUAGES = [

@@ -757,13 +757,7 @@ func handleRelayResultEvent(event relayResultEvent) error {
 	return persistRelayResultBatch([]relayResultEvent{event})
 }
 
-func createConsumeLogsBatch(logs []Log) error {
-	events := make([]relayResultEvent, 0, len(logs))
-	for i := range logs {
-		ensureConsumeLogPublicID(&logs[i])
-		event := newRelayConsumeLogEvent(&logs[i])
-		events = append(events, relayResultEvent{ConsumeLog: &event})
-	}
+func handleRelayResultEventBatch(events []relayResultEvent) error {
 	return persistRelayResultBatch(events)
 }
 
@@ -774,51 +768,6 @@ func ensureConsumeLogPublicID(log *Log) {
 	log.PublicID = fmt.Sprintf("%s_%s", common.PublicLogIDPrefix, log.RequestID)
 	if log.Type != LogTypeUnknown && log.Type != LogTypeConsume && log.Type != LogTypeError {
 		log.PublicID += fmt.Sprintf("_%d", log.Type)
-	}
-}
-
-func consumeLogSideEffects(log *Log, async bool) {
-	if log == nil {
-		return
-	}
-	if log.Type == LogTypeConsume && log.RequestID != "" {
-		if err := ReleaseSpendBudgetReservation(SpendBudgetChargeInput{
-			ProjectID: log.ProjectID, PayerUserID: log.PayerUserID, ActorUserID: log.UserId,
-			UserID:    log.UserId,
-			TokenID:   log.TokenId,
-			RequestID: log.RequestID,
-		}); err != nil {
-			common.SysLog("failed to release spend budget reservation: " + err.Error())
-		}
-		StampUserRequestActivity(log.UserId, log.CreatedAt)
-		RecordSessionActivity(log, false)
-	}
-	if common.DataExportEnabled {
-		fn := func() {
-			createdAt := log.CreatedAt
-			if createdAt == 0 {
-				createdAt = common.GetTimestamp()
-			}
-			LogUsageData(log.UserId, log.Username, log.ModelName, log.AmountMicrousd, createdAt, log.PromptTokens+log.CompletionTokens)
-		}
-		if async {
-			common.SafeGo("usage-data-log", fn)
-		} else {
-			fn()
-		}
-	}
-	if log.ModelName != "" {
-		modelName := log.ModelName
-		fn := func() {
-			if err := IncrementModelRequests(modelName); err != nil {
-				common.SysLog("failed to increment model requests: " + err.Error())
-			}
-		}
-		if async {
-			common.SafeGo("model-request-counter", fn)
-		} else {
-			fn()
-		}
 	}
 }
 
@@ -1291,10 +1240,6 @@ func getConsumeSummaryByScope(scopeColumn string, scopeID int, startTimestamp in
 			"COALESCE(AVG(use_time), 0) AS avg_use_time",
 	).Scan(&summary).Error
 	return summary, err
-}
-
-func GetTokenUsageSeriesByTokenID(tokenID int, startTimestamp int64, endTimestamp int64, granularity string) ([]TokenUsageSeriesPoint, error) {
-	return getUsageSeriesByScope("token_id", tokenID, startTimestamp, startTimestamp > 0, endTimestamp, endTimestamp > 0, granularity)
 }
 
 func GetUserUsageSeriesByUserIDInWindow(userID int, startTimestamp int64, endTimestamp int64, granularity string) ([]TokenUsageSeriesPoint, error) {

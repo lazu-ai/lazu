@@ -6,10 +6,12 @@ import {
   type ReportProblemDetail,
 } from './reportChannel';
 import { useSession } from '../../context/User';
-import { API } from '../../helpers';
+import { API } from '../../helpers/api';
 import { getSupportEmail } from '../../helpers/brandUrls';
 import { apiErrorHandler, readApiError, unwrap } from '../../lib/api-error';
-import { Button, Modal, Textarea } from '../ui';
+import { Button } from '../ui/button';
+import { Modal } from '../ui/modal';
+import { Textarea } from '../ui/textarea';
 import { notify } from '../ui/toast';
 
 /* 报告问题: the reader's own words plus what the console already knows (the

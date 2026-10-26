@@ -100,31 +100,6 @@ func IncrementModelRequests(modelName string) error {
 	return recordModelRequestTx(TelemetryDB(), modelName)
 }
 
-func modelRequestIncrementConflictClause(now time.Time) clause.OnConflict {
-	return clause.OnConflict{
-		Columns: []clause.Column{{Name: "model_name"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"total_requests": incrementCurrentTableColumn("total_requests"),
-			"updated_at":     now,
-		}),
-	}
-}
-
-func incrementCurrentTableColumn(columnName string) clause.Expr {
-	return gorm.Expr("? + 1", clause.Column{
-		Table: clause.CurrentTable,
-		Name:  columnName,
-	})
-}
-
-func ResetWeeklyStats() error {
-	return resetModelRequestCounter(CoreDB(), "weekly_requests")
-}
-
-func ResetMonthlyStats() error {
-	return resetModelRequestCounter(CoreDB(), "monthly_requests")
-}
-
 func resetModelRequestCounter(db *gorm.DB, column string) error {
 	return db.Session(&gorm.Session{AllowGlobalUpdate: true}).Model(&ModelMetadata{}).Update(column, 0).Error
 }

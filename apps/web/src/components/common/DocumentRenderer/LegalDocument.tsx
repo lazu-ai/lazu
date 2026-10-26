@@ -15,7 +15,6 @@ import { Link } from 'react-router-dom';
 import RemarkGfm from 'remark-gfm';
 import {
   bodyWithoutHeadMatter,
-  chapterId,
   outlineOf,
   splitChapterHeading,
   updatedDateOf,

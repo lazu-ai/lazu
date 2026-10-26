@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -17,19 +17,20 @@ import {
   type NeedItem,
 } from './overview-parts';
 import {
-  Select,
   AgentBadge,
   agentName,
+  isKnownAgent,
+} from '../../../components/ui/agent-badge';
+import { ComboChart } from '../../../components/ui/combo-chart';
+import {
   formatCount,
   formatMicroUsd,
   formatMicroUsdCompact,
   formatRatio,
-  isKnownAgent,
-  PendingBlock,
-  PendingValue,
   splitDuration,
-} from '../../../components/ui';
-import { ComboChart } from '../../../components/ui/combo-chart';
+} from '../../../components/ui/metric-format';
+import { PendingBlock, PendingValue } from '../../../components/ui/pending';
+import { Select } from '../../../components/ui/select';
 import { API, isRoot } from '../../../helpers';
 import { useChannelHealthQuery } from '../../../hooks/health/useChannelHealthQuery';
 import { unwrap } from '../../../lib/api-error';
