@@ -188,6 +188,23 @@ When a Cloudflare worker (`WorkerUrl`) does the fetching, the policy is
 checked before the URL is handed over, and the worker follows redirects on
 its own.
 
+### Outbound connections
+
+The gateway makes two kinds of outbound request, with different rules:
+
+- **URLs that arrive in a request** (images and files by URL, generated media)
+  go through the media fetch policy above.
+- **Addresses an operator configures** may be private and are not checked
+  against that policy. These are channel base URLs, the Uptime Kuma address,
+  the Telegram `api_base` and knowledge URLs, the answerer and release-note
+  model endpoints, search backends, object storage, notification webhooks
+  and the model metadata sources. Each has its own timeout.
+
+The clients for these addresses honour `HTTP_PROXY`, `HTTPS_PROXY` and
+`NO_PROXY`. New
+code builds a client with an explicit timeout rather than using net/http's
+default client, which has none; a test enforces this.
+
 ### Cloudflare edge caching of public pages
 
 The public pages (home, FAQ, about, legal, model pages, blog, docs and their
