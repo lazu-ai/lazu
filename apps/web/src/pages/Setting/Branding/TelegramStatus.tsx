@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../../../components/ui';
 import { PendingValue } from '../../../components/ui/pending';
 import { notify } from '../../../components/ui/toast';
-import { API } from '../../../helpers';
+import { API } from '../../../helpers/api';
 import { apiErrorHandlerWith, unwrap } from '../../../lib/api-error';
 import { queryKeys } from '../../../lib/query-keys';
 

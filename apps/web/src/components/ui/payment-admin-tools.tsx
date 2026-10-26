@@ -16,7 +16,8 @@ import {
   PendingBlock,
 } from './index';
 import { notify } from './toast';
-import { API, isRoot, showError } from '../../helpers';
+import { API } from '../../helpers/api';
+import { isRoot, showError } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../lib/api-error';
 

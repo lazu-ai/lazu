@@ -26,8 +26,10 @@ import {
   Textarea,
 } from '../../components/ui';
 import { notify } from '../../components/ui/toast';
-import { API, showWarning, toBoolean } from '../../helpers';
+import { API } from '../../helpers/api';
+import { toBoolean } from '../../helpers/boolean';
 import { sanitizeMarkup } from '../../helpers/sanitize';
+import { showWarning } from '../../helpers/utils';
 import '../../components/common/DocumentRenderer/legal-document.css';
 import '../../styles/settings-surface.css';
 import { apiErrorHandlerWith, unwrap } from '../../lib/api-error';

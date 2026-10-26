@@ -18,7 +18,7 @@ import {
   TabsTrigger,
 } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
-import { isRoot } from '../../helpers';
+import { isRoot } from '../../helpers/utils';
 
 const RateLimits = lazy(() => import('./Access/RateLimits'));
 

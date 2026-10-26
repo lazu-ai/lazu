@@ -30,7 +30,8 @@ import {
   splitDuration,
 } from '../../../components/ui';
 import { ComboChart } from '../../../components/ui/combo-chart';
-import { API, isRoot } from '../../../helpers';
+import { API } from '../../../helpers/api';
+import { isRoot } from '../../../helpers/utils';
 import { useChannelHealthQuery } from '../../../hooks/health/useChannelHealthQuery';
 import { unwrap } from '../../../lib/api-error';
 import './overview.css';

@@ -19,7 +19,7 @@ import {
 } from '../../../components/ui';
 import { coerceItemsPayload } from '../../../components/ui/table-tools';
 import { notify } from '../../../components/ui/toast';
-import { API } from '../../../helpers';
+import { API } from '../../../helpers/api';
 import { apiErrorHandler, unwrap } from '../../../lib/api-error';
 import { queryKeys } from '../../../lib/query-keys';
 import './rate-limits.css';

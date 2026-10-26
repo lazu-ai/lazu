@@ -48,7 +48,7 @@ import {
 } from '../../components/ui';
 import { coerceItemsPayload } from '../../components/ui/table-tools';
 import { notify } from '../../components/ui/toast';
-import { API } from '../../helpers';
+import { API } from '../../helpers/api';
 import { isRoot } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../lib/api-error';

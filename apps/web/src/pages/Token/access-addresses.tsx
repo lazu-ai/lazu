@@ -3,8 +3,8 @@ import { useContext, useMemo } from 'react';
 import { Button } from '../../components/ui';
 import { notify } from '../../components/ui/toast';
 import { UserContext } from '../../context/User';
-import { copy } from '../../helpers';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
+import { copy } from '../../helpers/utils';
 import type { TFunction } from 'i18next';
 
 export type AccessAddressKind = 'global' | 'cn_direct';

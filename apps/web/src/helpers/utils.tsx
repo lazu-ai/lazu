@@ -5,7 +5,7 @@ import { sanitizeMarkup } from './sanitize';
 import { openReportProblem } from '../components/support/reportChannel';
 import { recordStatusIssue } from '../components/ui/status-center';
 import { notify } from '../components/ui/toast';
-import { toastConstants } from '../constants';
+import { toastConstants } from '../constants/toast.constants';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import i18n, { errorsNamespaceReady, loadErrorsNamespace } from '../i18n/i18n';
 import {

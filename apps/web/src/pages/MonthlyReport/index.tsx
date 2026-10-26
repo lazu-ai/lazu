@@ -23,7 +23,9 @@ import {
 import ConsolePage from '../../components/ui/console-page';
 import { notify } from '../../components/ui/toast';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
-import { API, asMicroUSD, renderQuota } from '../../helpers';
+import { API } from '../../helpers/api';
+import { asMicroUSD } from '../../helpers/money';
+import { renderQuota } from '../../helpers/render';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
 import { queryKeys } from '../../lib/query-keys';
