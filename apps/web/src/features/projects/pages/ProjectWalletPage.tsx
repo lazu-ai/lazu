@@ -6,28 +6,29 @@
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { Download } from 'lucide-react';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Button, Tabs, TabsList, TabsTrigger } from '../../../components/ui';
 import {
   AutoReloadCard,
   AutoReloadFailureNotice,
   type AutoReloadSettings,
   type AutoReloadState,
 } from '../../../components/ui/auto-reload-card';
+import { Button } from '../../../components/ui/button';
 import ConsolePage from '../../../components/ui/console-page';
 import { PaymentAdminTools } from '../../../components/ui/payment-admin-tools';
+import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import {
   TOPUP_MAX_DEFAULT,
   TOPUP_MIN_DEFAULT,
   TopupBar,
 } from '../../../components/ui/topup-bar';
 import { TopupRecord } from '../../../components/ui/topup-record';
-import { StatusContext } from '../../../context/Status';
+import { useStatus } from '../../../context/Status';
 import { useTopUpOffer, webExtensions } from '../../../extensions';
-import { getMicroUSDPerUSD } from '../../../helpers';
 import { API } from '../../../helpers/api';
+import { getMicroUSDPerUSD } from '../../../helpers/render';
 import { errorMessage, unwrap } from '../../../lib/api-error';
 import { buildDailyWalletLedger } from '../../../pages/Wallet/walletLedger';
 import { canManageBilling, canTopUp as roleCanTopUp } from '../access';
@@ -102,7 +103,7 @@ function OwnerWallet() {
     nsMode: 'fallback',
   });
   const project = useProject();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const wallet = useProjectWallet();
   const topups = useProjectTopups();
   const detail = useProjectDetail();

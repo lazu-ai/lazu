@@ -13,29 +13,25 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import TelegramLinkField, { useTelegramLinkStatus } from './TelegramLinkField';
-import { UserContext } from '../../context/User';
-import { API, getMicroUSDPerUSD, setUserData } from '../../helpers';
+import { useSession } from '../../context/User';
+import { API } from '../../helpers/api';
+import { setUserData } from '../../helpers/data';
+import { getMicroUSDPerUSD } from '../../helpers/render';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import useAuthStatus from '../auth/useAuthStatus';
-import {
-  Button,
-  Modal,
-  PendingBlock,
-  PendingValue,
-  Field,
-  InlineNotice,
-  Input,
-  Label,
-  Select,
-  SelectItem,
-  Switch,
-  SettingsCard,
-  SettingsRow,
-} from '../ui';
+import { Button } from '../ui/button';
 import ConsolePage from '../ui/console-page';
+import { Field, Label } from '../ui/field';
+import { InlineNotice } from '../ui/inline-notice';
+import { Input } from '../ui/input';
+import { Modal } from '../ui/modal';
+import { PendingBlock, PendingValue } from '../ui/pending';
+import { Select, SelectItem } from '../ui/select';
+import { SettingsCard, SettingsRow } from '../ui/settings-card';
+import { Switch } from '../ui/switch';
 import './personal.css';
 import '../../styles/settings-surface.css';
 import { notify } from '../ui/toast';
@@ -385,7 +381,7 @@ const PersonalSetting = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [userState, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const [expanded, setExpanded] = useState<ExpandedRow>(null);
   const [usernameDraft, setUsernameDraft] = useState('');
   const [deleteText, setDeleteText] = useState('');
@@ -413,14 +409,14 @@ const PersonalSetting = () => {
     },
   });
 
-  const userQuery = useSelfQuery(Boolean(userState?.user?.id));
+  const userQuery = useSelfQuery(Boolean(userSession.user?.id));
   useEffect(() => {
     const data = userQuery.data;
     if (data) {
-      userDispatch({ type: 'login', payload: data });
+      userSession.signIn(data);
       setUserData(data);
     }
-  }, [userQuery.data, userDispatch]);
+  }, [userQuery.data, userSession.signIn]);
 
   const revealPending = useDelayedReveal();
   const notificationReady = userQuery.isSuccess && Boolean(userQuery.data);
@@ -435,7 +431,7 @@ const PersonalSetting = () => {
     }
   }, [notificationForm, notificationSettings, notificationReady]);
 
-  const user = (userState?.user || userQuery.data || {}) as UserRecord;
+  const user = (userSession.user || userQuery.data || {}) as UserRecord;
   // The login payload in context can predate the plan; the fresh read has it.
   const pricePlan = (userQuery.data as UserRecord | undefined)?.price_plan;
   const emailCodeAuthAvailable = Boolean(authStatus?.email_code_auth);
@@ -539,7 +535,7 @@ const PersonalSetting = () => {
       notify.success(t(`${ns}.email.success`));
       setExpanded(null);
       emailForm.reset();
-      userDispatch({ type: 'login', payload: { ...user, email } });
+      userSession.signIn({ ...user, email });
       queryClient.invalidateQueries({ queryKey: queryKeys.user });
     },
     onError: apiErrorHandler,
@@ -600,7 +596,7 @@ const PersonalSetting = () => {
       notify.success(t(`${ns}.username.success`));
       setExpanded(null);
       setUsernameDraft('');
-      userDispatch({ type: 'login', payload: { ...user, username } });
+      userSession.signIn({ ...user, username });
       setUserData({ ...user, username });
       await queryClient.invalidateQueries({ queryKey: queryKeys.user });
     },
@@ -639,7 +635,7 @@ const PersonalSetting = () => {
     onSuccess: async () => {
       notify.success(t(`${ns}.delete.success`));
       await API.get('/api/user/logout');
-      userDispatch({ type: 'logout' });
+      userSession.signOut();
       localStorage.removeItem('user');
       navigate('/login');
     },

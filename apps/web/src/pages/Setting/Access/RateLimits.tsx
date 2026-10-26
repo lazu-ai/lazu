@@ -9,17 +9,14 @@ import {
   useRateLimitOptionsQuery,
   type RateLimitOptions,
 } from './rateLimitOptions';
-import {
-  Button,
-  ErrorState,
-  Input,
-  PendingBlock,
-  PendingValue,
-  Switch,
-} from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { ErrorState } from '../../../components/ui/error-state';
+import { Input } from '../../../components/ui/input';
+import { PendingBlock, PendingValue } from '../../../components/ui/pending';
+import { Switch } from '../../../components/ui/switch';
 import { coerceItemsPayload } from '../../../components/ui/table-tools';
 import { notify } from '../../../components/ui/toast';
-import { API } from '../../../helpers';
+import { API } from '../../../helpers/api';
 import { apiErrorHandler, unwrap } from '../../../lib/api-error';
 import { queryKeys } from '../../../lib/query-keys';
 import './rate-limits.css';

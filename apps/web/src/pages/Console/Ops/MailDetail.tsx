@@ -13,15 +13,12 @@ import {
   kindLabel,
   statusLabel,
 } from './mailShared';
-import {
-  Button,
-  ConsolePage,
-  ErrorState,
-  Modal,
-  PendingBlock,
-  PendingValue,
-  notify,
-} from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import ConsolePage from '../../../components/ui/console-page';
+import { ErrorState } from '../../../components/ui/error-state';
+import { Modal } from '../../../components/ui/modal';
+import { PendingBlock, PendingValue } from '../../../components/ui/pending';
+import { notify } from '../../../components/ui/toast';
 import type { TFunction } from 'i18next';
 import type { ReactNode } from 'react';
 

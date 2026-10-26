@@ -1,11 +1,12 @@
 import { toast } from 'sonner';
 import { translateMessage } from './message-i18n';
+import { formatDecimalValue } from './money';
 import { isAdminRole } from './roles';
 import { sanitizeMarkup } from './sanitize';
 import { openReportProblem } from '../components/support/reportChannel';
 import { recordStatusIssue } from '../components/ui/status-center';
 import { notify } from '../components/ui/toast';
-import { toastConstants } from '../constants';
+import { toastConstants } from '../constants/toast.constants';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import i18n, { errorsNamespaceReady, loadErrorsNamespace } from '../i18n/i18n';
 import {
@@ -91,23 +92,7 @@ export function getUserIdFromLocalStorage() {
     : String(userId);
 }
 
-export function formatDecimalValue(value: unknown, digits = 6) {
-  if (value === undefined || value === null || Number.isNaN(value)) {
-    return '0';
-  }
-  const fixed = Number(value).toFixed(digits);
-  if (!fixed.includes('.')) {
-    return fixed;
-  }
-  let trimmed = fixed.replace(/0+$/, '');
-  if (trimmed.endsWith('.')) {
-    trimmed = trimmed.slice(0, -1);
-  }
-  if (trimmed === '' || trimmed === '-0') {
-    return '0';
-  }
-  return trimmed;
-}
+export { formatDecimalValue };
 
 export { copy } from './clipboard';
 
@@ -311,34 +296,6 @@ export function showNotice(message: unknown, isHTML = false) {
   }
 }
 
-export function timestamp2string(timestamp: number) {
-  let date = new Date(timestamp * 1000);
-  let year = date.getFullYear().toString();
-  let month = (date.getMonth() + 1).toString();
-  let day = date.getDate().toString();
-  let hour = date.getHours().toString();
-  let minute = date.getMinutes().toString();
-  let second = date.getSeconds().toString();
-  if (month.length === 1) {
-    month = '0' + month;
-  }
-  if (day.length === 1) {
-    day = '0' + day;
-  }
-  if (hour.length === 1) {
-    hour = '0' + hour;
-  }
-  if (minute.length === 1) {
-    minute = '0' + minute;
-  }
-  if (second.length === 1) {
-    second = '0' + second;
-  }
-  return (
-    year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second
-  );
-}
-
 export function timestamp2string1(
   timestamp: number,
   dataExportDefaultTime: 'hour' | 'week' | string = 'hour',
@@ -413,63 +370,4 @@ export const formatMessageForAPI = (
 export const isValidMessage = (message: unknown): message is ChatMessage => {
   if (!isRecord(message) || typeof message.role !== 'string') return false;
   return message.content !== undefined && message.content !== null;
-};
-
-// 计算相对时间（几天前、几小时前等）
-export const getRelativeTime = (
-  publishDate: Date | number | string | undefined,
-) => {
-  if (!publishDate) return '';
-
-  const now = new Date();
-  const pubDate = new Date(publishDate);
-
-  // 如果日期无效，返回原始字符串
-  if (isNaN(pubDate.getTime())) return String(publishDate);
-
-  const diffMs = now.getTime() - pubDate.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  const diffWeeks = Math.floor(diffDays / 7);
-  const diffMonths = Math.floor(diffDays / 30);
-  const diffYears = Math.floor(diffDays / 365);
-
-  // 如果是未来时间，显示具体日期
-  if (diffMs < 0) {
-    return formatDateString(pubDate);
-  }
-
-  // 根据时间差返回相应的描述
-  if (diffSeconds < 60) {
-    return String(i18n.t('common.relativeTime.justNow'));
-  } else if (diffMinutes < 60) {
-    return String(
-      i18n.t('common.relativeTime.minutesAgo', { count: diffMinutes }),
-    );
-  } else if (diffHours < 24) {
-    return String(i18n.t('common.relativeTime.hoursAgo', { count: diffHours }));
-  } else if (diffDays < 7) {
-    return String(i18n.t('common.relativeTime.daysAgo', { count: diffDays }));
-  } else if (diffWeeks < 4) {
-    return String(i18n.t('common.relativeTime.weeksAgo', { count: diffWeeks }));
-  } else if (diffMonths < 12) {
-    return String(
-      i18n.t('common.relativeTime.monthsAgo', { count: diffMonths }),
-    );
-  } else if (diffYears < 2) {
-    return String(i18n.t('common.relativeTime.oneYearAgo'));
-  } else {
-    // 超过2年显示具体日期
-    return formatDateString(pubDate);
-  }
-};
-
-// 格式化日期字符串
-const formatDateString = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 };

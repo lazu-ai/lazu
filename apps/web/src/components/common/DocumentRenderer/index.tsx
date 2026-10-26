@@ -10,13 +10,11 @@ import {
 import { showError } from '../../../helpers/utils';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../../lib/api-error';
-import {
-  Button,
-  DataSurface,
-  EmptyState,
-  PageHeader,
-  Skeleton,
-} from '../../ui';
+import { Button } from '../../ui/button';
+import { DataSurface } from '../../ui/data-surface';
+import { EmptyState } from '../../ui/empty-state';
+import { PageHeader } from '../../ui/page-header';
+import { Skeleton } from '../../ui/skeleton';
 import './legal-document.css';
 
 /* The document itself loads with its Markdown pipeline, once there is a

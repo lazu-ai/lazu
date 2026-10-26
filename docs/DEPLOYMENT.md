@@ -483,6 +483,25 @@ startup.
 
 Change operational values directly in the console UI. These values are stored in the database `option` table and do not require a backend restart.
 
+## Deprecated settings
+
+A setting on its way out stays readable for at least 90 days. While it is
+configured away from its default, `lazu-backend` logs a line starting with
+`deprecated setting:` at startup that names the replacement and the removal
+date. In code the setting carries `// Deprecated: delete after <date>`; CI
+fails once that date has passed, so the removal is not forgotten.
+
+| Setting | Configured as | After removal | Replacement | Removed after |
+| --- | --- | --- | --- | --- |
+| `LogConsumeEnabled` | `false` | Consume logs are always written. The usage pages, usage digests and route health read them. | Bound storage with `LOG_RETENTION_DAYS` (Retention And Disk Maintenance). | 2027-01-24 |
+| `WorkerUrl`, `WorkerValidKey`, `WorkerAllowHttpImageRequestEnabled` | `WorkerUrl` set | Media downloads and webhooks connect directly. | The media fetch policy (Fetching client-supplied media URLs) checks each address. | 2027-01-24 |
+| `general_setting.quota_display_type` | `TOKENS` | Amounts in log text read in USD, as the console already shows them. | None needed. | 2027-01-24 |
+| `DataExportEnabled`, `DataExportInterval` | `DataExportEnabled` on | The hourly `usage_data` table stops being written, then goes, with `GET /api/data/` and `GET /api/data/self`. The dashboard and usage pages do not read it. | Export the table first if you keep it: `pg_dump --table=usage_data`. | 2027-02-01 |
+| `SETTLEMENT_OUTBOX_ENABLED` (environment) | `true` | The settlement outbox and its reconciler are gone. Failed settlements are still recovered by the failure reconciler (`SETTLEMENT_FAILURE_RECONCILER_ENABLED`). | Keep it on until the outbox holds no unresolved rows, then unset it. | 2027-01-24 |
+
+If you rely on one of these, open an issue before the removal date with what
+it does for you.
+
 ## Request content logging
 
 `model_log_enabled` (environment: `MODEL_LOG_ENABLED`) is off by default. When

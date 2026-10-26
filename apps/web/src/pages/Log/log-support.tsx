@@ -7,17 +7,16 @@ import { Link } from 'react-router-dom';
 import { useDebouncedCallback } from 'use-debounce';
 import { z } from 'zod';
 import { SessionLogCell, SessionReceiptBlock } from './sessions/SessionReceipt';
+import { Button } from '../../components/ui/button';
+import { DateRangePicker } from '../../components/ui/date-picker';
+import { submitFilterFormFromSelect } from '../../components/ui/filter-bar';
+import { Input } from '../../components/ui/input';
 import {
-  Button,
-  DateRangePicker,
-  Input,
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Select,
-  SelectItem,
-  submitFilterFormFromSelect,
-} from '../../components/ui';
+} from '../../components/ui/popover';
+import { Select, SelectItem } from '../../components/ui/select';
 import { compactNumber } from '../../components/ui/table-tools';
 import { ReasonChip } from '../../features/projects/components/atoms';
 import {
@@ -26,8 +25,8 @@ import {
   rejectionLabelKey,
 } from '../../features/projects/rejections';
 import { API } from '../../helpers/api';
+import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
 import {
   LOG_COLUMN_KEYS,
   getDefaultUsageLogFilters,
@@ -223,7 +222,7 @@ const logTypeLabel = (
 const formatCost = (microusd: unknown) => {
   const value = Number(microusd) || 0;
   if (value === 0) return '$0';
-  if (Math.abs(value) < 1000) return renderQuota(asMicroUSD(value), 6);
+  if (Math.abs(value) < 1000) return formatMoney(asMicroUSD(value), 6);
   const usd = (Math.abs(value) / 1_000_000).toFixed(4);
   return `${value < 0 ? '-' : ''}$${usd}`;
 };

@@ -14,20 +14,17 @@ import { z } from 'zod';
 import { useSettingsSaveGroup } from './headerActions';
 import { readSettingInvalid } from './settingInvalid';
 import { LegalDocumentPreview } from '../../components/common/DocumentRenderer/LegalDocument';
-import {
-  Button,
-  FieldMessage,
-  Input,
-  Label,
-  Modal,
-  Select,
-  SelectItem,
-  Switch,
-  Textarea,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { FieldMessage, Label } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
+import { Textarea } from '../../components/ui/textarea';
 import { notify } from '../../components/ui/toast';
-import { API, showWarning, toBoolean } from '../../helpers';
+import { API, toBoolean } from '../../helpers';
 import { sanitizeMarkup } from '../../helpers/sanitize';
+import { showWarning } from '../../helpers/utils';
 import '../../components/common/DocumentRenderer/legal-document.css';
 import '../../styles/settings-surface.css';
 import { apiErrorHandlerWith, unwrap } from '../../lib/api-error';
