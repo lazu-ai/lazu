@@ -38,12 +38,12 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			credentialRoute.POST("/ephemeral", controller.IssueEphemeralCredential)
 		}
-		apiRouter.GET("/models/rankings", controller.GetModelRankings)
-		apiRouter.GET("/community/models", controller.GetCommunityModels)
-		apiRouter.GET("/community/models/:id", controller.GetCommunityModelByID)
-		apiRouter.GET("/community/stats", controller.GetCommunityStats)
+		apiRouter.GET("/models/rankings", retiring(userSunset, ""), controller.GetModelRankings)
+		apiRouter.GET("/community/models", retiring(userSunset, ""), controller.GetCommunityModels)
+		apiRouter.GET("/community/models/:id", retiring(userSunset, ""), controller.GetCommunityModelByID)
+		apiRouter.GET("/community/stats", retiring(userSunset, ""), controller.GetCommunityStats)
 		apiRouter.GET("/v1/models/info", controller.GetPublicModelList)
-		apiRouter.POST("/community/export", middleware.RootAuth(), controller.ExportCommunityModels)
+		apiRouter.POST("/community/export", retiring(userSunset, ""), middleware.RootAuth(), controller.ExportCommunityModels)
 		apiRouter.GET("/verification", middleware.MailSendRateLimit(), controller.SendEmailVerification)
 		apiRouter.GET("/reset_password", middleware.MailSendRateLimit(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.LoginRateLimit(), controller.ResetPassword)
@@ -130,7 +130,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/self", controller.GetSelf)
 				selfRoute.GET("/models", controller.GetUserModels)
 				selfRoute.GET("/models/catalog", controller.ListUserModelCatalog)
-				selfRoute.GET("/models/classified", controller.GetUserModelsClassified)
+				selfRoute.GET("/models/classified", retiring(userSunset, "/api/user/models/catalog"), controller.GetUserModelsClassified)
 				selfRoute.PUT("/self", controller.UpdateSelf)
 				selfRoute.PUT("/self/language", controller.UpdateSelfLanguage)
 				selfRoute.PUT("/self/timezone", controller.UpdateSelfTimezone)
@@ -143,13 +143,13 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/payments/:topup_id", controller.GetOwnPaymentRecord)
 				selfRoute.GET("/wallet/ledger", controller.GetUserWalletLedger)
 				selfRoute.POST("/stripe/pay", middleware.AccountActionRateLimit(), controller.RequestStripePay)
-				selfRoute.POST("/self/stripe/pay", middleware.AccountActionRateLimit(), controller.RequestStripePay)
-				selfRoute.POST("/stripe/amount", controller.RequestStripeAmount)
+				selfRoute.POST("/self/stripe/pay", retiring(userSunset, "/api/user/stripe/pay"), middleware.AccountActionRateLimit(), controller.RequestStripePay)
+				selfRoute.POST("/stripe/amount", retiring(userSunset, ""), controller.RequestStripeAmount)
 				selfRoute.PUT("/setting", controller.UpdateUserSetting)
 				selfRoute.GET("/telegram", controller.GetSelfTelegram)
 				selfRoute.POST("/telegram/link", middleware.AccountActionRateLimit(), controller.CreateSelfTelegramLink)
 				selfRoute.DELETE("/telegram", controller.DeleteSelfTelegram)
-				selfRoute.GET("/used-models", controller.GetUserUsedModels)
+				selfRoute.GET("/used-models", retiring(userSunset, ""), controller.GetUserUsedModels)
 				selfRoute.GET("/email/bind", middleware.AccountActionRateLimit(), controller.EmailBind)
 				selfRoute.POST("/support/report", middleware.AccountActionRateLimit(), controller.SubmitSupportReport)
 
@@ -182,7 +182,7 @@ func SetApiRouter(router *gin.Engine) {
 			rootRoute := userRoute.Group("/")
 			rootRoute.Use(middleware.RootAuth())
 			{
-				rootRoute.PUT("/:id/has_topped_up", controller.SetUserHasToppedUp)
+				rootRoute.PUT("/:id/has_topped_up", retiring(userSunset, ""), controller.SetUserHasToppedUp)
 			}
 		}
 		accessAddressRoute := apiRouter.Group("/access-address")
@@ -280,7 +280,7 @@ func SetApiRouter(router *gin.Engine) {
 			searchBackendRoute.DELETE("/:id", controller.DeleteSearchBackend)
 		}
 		notificationRoute := apiRouter.Group("/notification")
-		notificationRoute.Use(middleware.RootAuth())
+		notificationRoute.Use(retiring(adminSunset, "/api/admin/announcements"), middleware.RootAuth())
 		{
 			notificationRoute.POST("/email/send", controller.SendBroadcastEmail)
 			notificationRoute.POST("/email/announcement", controller.SendAnnouncementEmail)
@@ -303,16 +303,16 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.PUT("/", controller.UpdateChannel)
 			channelRoute.PUT("/:id/status", controller.UpdateChannelStatusById)
 			channelRoute.DELETE("/disabled", controller.DeleteDisabledChannel)
-			channelRoute.POST("/tag/disabled", controller.DisableTagChannels)
-			channelRoute.POST("/tag/enabled", controller.EnableTagChannels)
-			channelRoute.PUT("/tag", controller.EditTagChannels)
+			channelRoute.POST("/tag/disabled", retiring(adminSunset, ""), controller.DisableTagChannels)
+			channelRoute.POST("/tag/enabled", retiring(adminSunset, ""), controller.EnableTagChannels)
+			channelRoute.PUT("/tag", retiring(adminSunset, ""), controller.EditTagChannels)
 			channelRoute.DELETE("/:id", controller.DeleteChannel)
-			channelRoute.POST("/batch", controller.DeleteChannelBatch)
+			channelRoute.POST("/batch", retiring(adminSunset, ""), controller.DeleteChannelBatch)
 			channelRoute.POST("/fix", controller.FixChannelsAbilities)
 			channelRoute.GET("/fetch_models/:id", controller.FetchUpstreamModels)
 			channelRoute.POST("/fetch_models", controller.FetchModels)
-			channelRoute.POST("/batch/tag", controller.BatchSetChannelTag)
-			channelRoute.GET("/tag/models", controller.GetTagModels)
+			channelRoute.POST("/batch/tag", retiring(adminSunset, ""), controller.BatchSetChannelTag)
+			channelRoute.GET("/tag/models", retiring(adminSunset, ""), controller.GetTagModels)
 			channelRoute.POST("/copy/:id", controller.CopyChannel)
 			channelRoute.POST("/multi_key/manage", controller.ManageMultiKeys)
 		}
@@ -345,7 +345,7 @@ func SetApiRouter(router *gin.Engine) {
 		usageRoute := apiRouter.Group("/usage")
 		{
 			tokenUsageRoute := usageRoute.Group("/token")
-			tokenUsageRoute.Use(middleware.TokenAuth(), middleware.RejectEphemeralCredentialOutsideRelay())
+			tokenUsageRoute.Use(retiring(userSunset, "/api/usage/summary"), middleware.TokenAuth(), middleware.RejectEphemeralCredentialOutsideRelay())
 			{
 				tokenUsageRoute.GET("/", controller.GetTokenUsage)
 			}
@@ -363,22 +363,22 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/sessions/:session_id", middleware.RootAuth(), controller.GetAllLogSessionDetail)
 		logRoute.GET("/search", middleware.RootAuth(), controller.SearchAllLogs)
 		logRoute.GET("/self", middleware.UserAuth(), controller.GetUserLogs)
-		logRoute.GET("/self/in_flight", middleware.UserAuth(), controller.GetUserInFlightMediaJobs)
+		logRoute.GET("/self/in_flight", retiring(userSunset, "/api/log/self/tasks"), middleware.UserAuth(), controller.GetUserInFlightMediaJobs)
 		logRoute.GET("/self/tasks", middleware.UserAuth(), controller.GetUserTasks)
-		logRoute.GET("/self/tasks/:id", middleware.UserAuth(), controller.GetUserTask)
+		logRoute.GET("/self/tasks/:id", retiring(userSunset, ""), middleware.UserAuth(), controller.GetUserTask)
 		logRoute.GET("/self/sessions", middleware.UserAuth(), controller.GetUserLogSessions)
 		logRoute.GET("/self/sessions/:session_id", middleware.UserAuth(), controller.GetUserLogSessionDetail)
 		logRoute.GET("/self/search", middleware.UserAuth(), controller.SearchUserLogs)
 
 		dataRoute := apiRouter.Group("/data")
 		dataRoute.GET("/", middleware.RootAuth(), controller.GetAllUsageData)
-		dataRoute.GET("/self", middleware.UserAuth(), controller.GetUserUsageData)
+		dataRoute.GET("/self", retiring(userSunset, "/api/data/dashboard/self"), middleware.UserAuth(), controller.GetUserUsageData)
 		dataRoute.GET("/dashboard", middleware.UserAuth(), controller.GetUserDashboardUsage)
 		dataRoute.GET("/overview", middleware.UserAuth(), controller.GetOverview)
 		dataRoute.GET("/dashboard/self", middleware.UserAuth(), controller.GetSelfDashboardUsage)
 		dataRoute.GET("/export", middleware.UserAuth(), controller.ExportUserUsage)
 
-		logRoute.GET("/token", middleware.UserAuth(), controller.GetLogByKey)
+		logRoute.GET("/token", retiring(userSunset, "/api/log/self"), middleware.UserAuth(), controller.GetLogByKey)
 		groupRoute := apiRouter.Group("/group")
 		groupRoute.Use(middleware.RootAuth())
 		{
@@ -401,7 +401,7 @@ func SetApiRouter(router *gin.Engine) {
 
 		// Model ranking admin controls
 		modelRankingAdmin := apiRouter.Group("/models/rankings")
-		modelRankingAdmin.Use(middleware.RootAuth())
+		modelRankingAdmin.Use(retiring(userSunset, ""), middleware.RootAuth())
 		{
 			modelRankingAdmin.POST("/recalculate", controller.RecalculateModelRankings)
 		}
@@ -497,7 +497,7 @@ func SetApiRouter(router *gin.Engine) {
 
 		// Manual upload trigger (Admin)
 		uploadRoute := apiRouter.Group("/upload")
-		uploadRoute.Use(middleware.RootAuth())
+		uploadRoute.Use(retiring(adminSunset, ""), middleware.RootAuth())
 		{
 			uploadRoute.POST("/run", controller.UploadNow)
 			uploadRoute.GET("/pending-files", controller.GetPendingFiles)
@@ -506,7 +506,7 @@ func SetApiRouter(router *gin.Engine) {
 
 		// Manual worker triggers (Admin)
 		workersRoute := apiRouter.Group("/workers")
-		workersRoute.Use(middleware.RootAuth())
+		workersRoute.Use(retiring(adminSunset, ""), middleware.RootAuth())
 		{
 			workersRoute.GET("/status", controller.GetWorkerStatuses)
 			workersRoute.GET("/status/:name", controller.GetWorkerStatus)

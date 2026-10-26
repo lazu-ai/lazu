@@ -58,6 +58,7 @@ func SetRelayRouter(router *gin.Engine) {
 	}
 
 	playgroundRouter := router.Group("/pg")
+	playgroundRouter.Use(retiring(userSunset, ""))
 	playgroundRouter.Use(middleware.SystemPerformanceCheck())
 	playgroundRouter.Use(middleware.RelayRequestBodyLimit())
 	playgroundRouter.Use(middleware.UserAuth(), middleware.Distribute())
@@ -210,13 +211,13 @@ func SetRelayRouter(router *gin.Engine) {
 		})
 
 		// not implemented
-		httpRouter.POST("/images/variations", controller.RelayNotImplemented)
-		httpRouter.POST("/fine-tunes", controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes", controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes/:id", controller.RelayNotImplemented)
-		httpRouter.POST("/fine-tunes/:id/cancel", controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes/:id/events", controller.RelayNotImplemented)
-		httpRouter.DELETE("/models/:model", controller.RelayNotImplemented)
+		httpRouter.POST("/images/variations", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.POST("/fine-tunes", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.GET("/fine-tunes", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.GET("/fine-tunes/:id", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.POST("/fine-tunes/:id/cancel", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.GET("/fine-tunes/:id/events", retiring(userSunset, ""), controller.RelayNotImplemented)
+		httpRouter.DELETE("/models/:model", retiring(userSunset, ""), controller.RelayNotImplemented)
 	}
 
 	relayGeminiRouter := router.Group("/v1beta")

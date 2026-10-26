@@ -5,6 +5,17 @@ description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序�
 
 # 更新日誌
 
+## 2026-10-26 — 一批 API 路由計畫下線
+
+下列路由現在會回傳 `Deprecation`、`Sunset` 回應標頭；有替代介面的，還會回傳 `Link: <…>; rel="successor-version"`。管理介面在 2026-12-01 之後刪除，使用者介面和公開 API 在 2027-02-01 之後刪除。每次刪除前都會核對正式環境的存取紀錄。
+
+- `POST /api/user/self/stripe/pay`：改用 `POST /api/user/stripe/pay`。`POST /api/user/stripe/amount`：金額由控制台計算。
+- `/api/user/used-models`、`/api/user/models/classified`（改用 `/api/user/models/catalog`）、`PUT /api/user/:id/has_topped_up`、`/api/data/self`（改用 `/api/data/dashboard/self`）、`/api/log/token`（改用 `/api/log/self`）、`/api/usage/token`（改用 `/api/usage/summary`）、`/api/log/self/in_flight`（改用 `/api/log/self/tasks`）、`/api/log/self/tasks/:id`。
+- Playground 路由 `/pg/chat/completions`；控制台已沒有 Playground。
+- 回傳 501 的 `/v1/fine-tunes*`、`/v1/images/variations`、`DELETE /v1/models/:model`，以及餘額介面 `/v1/dashboard/billing/*`、`/dashboard/billing/*`，由控制台錢包取代。
+- `/api/community/*` 和 `/api/models/rankings`。
+- 管理介面（2026-12-01 之後刪除）：`/api/channel/tag/*`、`/api/channel/batch*`（改用逐一渠道操作），`POST /api/notification/email/{send,announcement}`（改用公告），`/api/upload/*`（改用 `config.yaml` 裡的排程上傳），`/api/workers/*`。
+
 ## 2026-09-30 — Agent 工作階段、請求明細與長上下文价格
 
 - 以任務、模型及逐請求明細重做 Agent 工作階段。

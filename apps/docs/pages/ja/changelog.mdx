@@ -5,6 +5,17 @@ description: "Lazu API、モデルカタログ、ドキュメントの変更を�
 
 # 更新履歴
 
+## 2026-10-26 — 一部の API ルートの廃止予定
+
+以下のルートは `Deprecation` と `Sunset` ヘッダーを返すようになりました。後継がある場合は `Link: <…>; rel="successor-version"` も返します。管理用ルートは 2026-12-01 以降、ユーザー向けルートと公開 API は 2027-02-01 以降に削除します。削除の前に本番のアクセス記録を確認します。
+
+- `POST /api/user/self/stripe/pay`：`POST /api/user/stripe/pay` を使ってください。`POST /api/user/stripe/amount`：金額はコンソールで計算します。
+- `/api/user/used-models`、`/api/user/models/classified`（`/api/user/models/catalog` へ）、`PUT /api/user/:id/has_topped_up`、`/api/data/self`（`/api/data/dashboard/self` へ）、`/api/log/token`（`/api/log/self` へ）、`/api/usage/token`（`/api/usage/summary` へ）、`/api/log/self/in_flight`（`/api/log/self/tasks` へ）、`/api/log/self/tasks/:id`。
+- Playground のルート `/pg/chat/completions`。コンソールに Playground はもうありません。
+- 501 を返す `/v1/fine-tunes*`、`/v1/images/variations`、`DELETE /v1/models/:model`、および残高 API `/v1/dashboard/billing/*`、`/dashboard/billing/*`。コンソールのウォレットが代わりになります。
+- `/api/community/*` と `/api/models/rankings`。
+- 管理用（2026-12-01 以降に削除）：`/api/channel/tag/*`、`/api/channel/batch*`（チャネルごとの操作へ）、`POST /api/notification/email/{send,announcement}`（お知らせ機能へ）、`/api/upload/*`（`config.yaml` の定期アップロードへ）、`/api/workers/*`。
+
 ## 2026-09-30 — Agent セッション、明細と長文脈料金
 
 - タスク、モデル、個別請求明細を中心に Agent セッションを再構成しました。

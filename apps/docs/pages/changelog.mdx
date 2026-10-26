@@ -5,6 +5,17 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 
 # Changelog
 
+## 2026-10-26 — API routes scheduled for removal
+
+Each route below now answers with `Deprecation`, `Sunset` and, where something replaces it, a `Link: <…>; rel="successor-version"` header. Admin routes go after 2026-12-01; user routes and public API shapes after 2027-02-01. Production access is checked before each removal.
+
+- `POST /api/user/self/stripe/pay`: use `POST /api/user/stripe/pay`. `POST /api/user/stripe/amount`: the console computes the amount.
+- `/api/user/used-models`, `/api/user/models/classified` (use `/api/user/models/catalog`), `PUT /api/user/:id/has_topped_up`, `/api/data/self` (use `/api/data/dashboard/self`), `/api/log/token` (use `/api/log/self`), `/api/usage/token` (use `/api/usage/summary`), `/api/log/self/in_flight` (use `/api/log/self/tasks`), `/api/log/self/tasks/:id`.
+- The playground route `/pg/chat/completions`; the console has no playground.
+- `/v1/fine-tunes*`, `/v1/images/variations` and `DELETE /v1/models/:model`, which answer 501, and the balance endpoints `/v1/dashboard/billing/*` and `/dashboard/billing/*`; the console wallet replaces them.
+- `/api/community/*` and `/api/models/rankings`.
+- Admin, after 2026-12-01: `/api/channel/tag/*` and `/api/channel/batch*` (use per-channel actions), `POST /api/notification/email/{send,announcement}` (use announcements), `/api/upload/*` (use the scheduled upload in `config.yaml`) and `/api/workers/*`.
+
 ## 2026-09-30 — Agent sessions, receipts and long-context prices
 
 - Rebuilt Agent sessions around tasks, models and individual request receipts.
