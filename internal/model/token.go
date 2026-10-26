@@ -722,25 +722,6 @@ func (token *Token) IsVendorLimited(vendorID int) bool {
 	return false
 }
 
-func GetAllUserTokens(userId int, startIdx int, num int) ([]*Token, error) {
-	return GetAllUserTokensByStatus(userId, 0, startIdx, num)
-}
-
-func publicUserTokenStatusQuery(userId int, status int) *gorm.DB {
-	query := publicUserTokenQuery(userId)
-	if status > 0 {
-		query = query.Where("status = ?", status)
-	}
-	return query
-}
-
-func GetAllUserTokensByStatus(userId int, status int, startIdx int, num int) ([]*Token, error) {
-	var tokens []*Token
-	var err error
-	err = publicUserTokenStatusQuery(userId, status).Order("id desc").Limit(num).Offset(startIdx).Find(&tokens).Error
-	return tokens, err
-}
-
 // GetUserTokensAdmin returns a page of a single account's tokens for the
 // admin console, newest first, with total. Internal extension tokens are
 // excluded exactly as the self-service listing excludes them. Callers must
@@ -752,15 +733,6 @@ func GetUserTokensAdmin(userId int, startIdx int, num int) (tokens []*Token, tot
 	}
 	err = publicUserTokenQuery(userId).Order("id desc").Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, total, err
-}
-
-func SearchUserTokens(userId int, keyword string, token string) (tokens []*Token, err error) {
-	return SearchUserTokensByStatus(userId, keyword, token, 0)
-}
-
-func SearchUserTokensByStatus(userId int, keyword string, token string, status int) (tokens []*Token, err error) {
-	err = FilterTokenSearch(publicUserTokenStatusQuery(userId, status), keyword, token).Find(&tokens).Error
-	return tokens, err
 }
 
 // FilterTokenSearch preserves single-box name and credential hint matching on
@@ -1193,40 +1165,6 @@ func TokenModelScopeAllows(limits map[string]bool, vendors map[int]struct{}, mod
 	return ok
 }
 
-func DisableModelLimits(tokenId int) error {
-	token, err := GetTokenById(tokenId)
-	if err != nil {
-		return err
-	}
-	token.ModelLimitsEnabled = false
-	token.ModelLimits = ""
-	return token.Update()
-}
-
-func DeleteTokenById(id int, userId int) (err error) {
-	// Why we need userId here? In case user want to delete other's token.
-	if id == 0 || userId == 0 {
-		return types.Err(types.ErrorCodeInvalidRequest, types.D{"field": "id"})
-	}
-	token := Token{Id: id, UserId: userId}
-	err = excludeInternalTokens(CoreDB()).Where(token).First(&token).Error
-	if err != nil {
-		return err
-	}
-	return token.Delete()
-}
-
-// CountUserTokens returns total number of tokens for the given user, used for pagination
-func CountUserTokens(userId int) (int64, error) {
-	return CountUserTokensByStatus(userId, 0)
-}
-
-func CountUserTokensByStatus(userId int, status int) (int64, error) {
-	var total int64
-	err := publicUserTokenStatusQuery(userId, status).Count(&total).Error
-	return total, err
-}
-
 // CountUsableUserTokens excludes hidden internal credentials as well as keys
 // that cannot authenticate a new public API request.
 func CountUsableUserTokens(userId int) (int64, error) {
@@ -1237,41 +1175,6 @@ func CountUsableUserTokens(userId int) (int64, error) {
 		Where("unlimited_quota = ? OR remain_quota > 0", true).
 		Count(&total).Error
 	return total, err
-}
-
-// BatchDeleteTokens 删除指定用户的一组令牌，返回成功删除数量
-func BatchDeleteTokens(ids []int, userId int) (int, error) {
-	if len(ids) == 0 {
-		return 0, types.Err(types.ErrorCodeInvalidRequest, types.D{"field": "ids"})
-	}
-
-	tx := CoreDB().Begin()
-
-	var tokens []Token
-	if err := excludeInternalTokens(tx).Where("user_id = ? AND id IN (?)", userId, ids).Find(&tokens).Error; err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	if err := excludeInternalTokens(tx).Where("user_id = ? AND id IN (?)", userId, ids).Delete(&Token{}).Error; err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return 0, err
-	}
-
-	digests := make([]string, 0, len(tokens))
-	for index := range tokens {
-		digests = append(digests, tokens[index].CacheDigest())
-	}
-	cacheErr := cacheInvalidateTokenSnapshotsWithFence(digests)
-	if cacheErr != nil {
-		return len(tokens), &TokenMutationCommittedError{Operation: "batch deletion", Cause: cacheErr}
-	}
-
-	return len(tokens), nil
 }
 
 func InvalidateUserTokensCache(userId int) error {
@@ -1299,11 +1202,4 @@ func InvalidateUserTokensCache(userId int) error {
 		digests = append(digests, token.CacheDigest())
 	}
 	return cacheInvalidateTokenSnapshotsWithFence(digests)
-}
-
-func InvalidateTokenCache(key string) error {
-	if !common.RedisEnabled || key == "" {
-		return nil
-	}
-	return cacheInvalidateTokenSnapshotsWithFence([]string{TokenKeyDigest(key)})
 }

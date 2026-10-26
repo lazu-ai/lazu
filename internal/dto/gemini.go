@@ -214,13 +214,14 @@ func (r *GeminiChatRequest) GetTokenCountMeta() *types.TokenCountMeta {
 }
 
 func (r *GeminiChatRequest) IsStream(c *gin.Context) bool {
-	if strings.Contains(c.Request.URL.Path, ":streamGenerateContent") {
-		return true
-	}
-	if c.Query("alt") == "sse" {
-		return true
-	}
-	return false
+	return IsGeminiStreamRequest(c)
+}
+
+// IsGeminiStreamRequest is the one stream predicate for Gemini's two wire
+// forms: the streaming action and generateContent negotiated as SSE.
+func IsGeminiStreamRequest(c *gin.Context) bool {
+	return c != nil && c.Request != nil &&
+		(strings.Contains(c.Request.URL.Path, ":streamGenerateContent") || c.Query("alt") == "sse")
 }
 
 func (r *GeminiChatRequest) SetModelName(modelName string) {
@@ -270,41 +271,6 @@ func (r *GeminiChatRequest) HasThoughtSignature() bool {
 		}
 	}
 	return false
-}
-
-func (r *GeminiChatRequest) HasCurrentTurnThoughtSignature() bool {
-	startIndex := r.lastUserPromptIndex() + 1
-	if startIndex < 0 {
-		startIndex = 0
-	}
-	if startIndex >= len(r.Contents) {
-		return false
-	}
-
-	for _, content := range r.Contents[startIndex:] {
-		for _, part := range content.Parts {
-			if part.ThoughtSignature != "" {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (r *GeminiChatRequest) lastUserPromptIndex() int {
-	for i := len(r.Contents) - 1; i >= 0; i-- {
-		content := r.Contents[i]
-		if content.Role != "user" {
-			continue
-		}
-		for _, part := range content.Parts {
-			if part.FunctionResponse == nil {
-				return i
-			}
-		}
-	}
-	return -1
 }
 
 type GeminiThinkingConfig struct {

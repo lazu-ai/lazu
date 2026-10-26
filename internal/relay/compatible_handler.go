@@ -491,21 +491,6 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage 
 
 }
 
-// stripLazuMetadata removes the `metadata.lazu` private routing-hints
-// object from both the parsed request struct AND the cached raw request body
-// before forwarding upstream. OpenAI requires metadata values to be flat
-// strings, so leaving the nested object in place causes a 400
-// invalid_request_error.
-//
-// The raw-body strip is critical: MergeUnknownTopLevelFieldsFromContext
-// re-injects any top-level field that exists in the original body but not
-// the converted body, which would un-do the struct-level strip if metadata
-// was dropped from the struct (because of `omitempty`).
-func stripLazuMetadata(c *gin.Context, req *dto.GeneralOpenAIRequest) {
-	stripLazuFromRequest(req)
-	stripLazuFromCachedBody(c)
-}
-
 // stripProviderSpecificToolCallMetadata prevents provider extensions returned
 // by one channel from leaking into a later request routed to a different
 // protocol family. TextHelper operates on a deep copy of the client request,
@@ -566,46 +551,6 @@ func stripLazuFromRequest(req *dto.GeneralOpenAIRequest) {
 	if b, err := json.Marshal(m); err == nil {
 		req.Metadata = b
 	}
-}
-
-func stripLazuFromCachedBody(c *gin.Context) {
-	if c == nil {
-		return
-	}
-	rawBody, err := common.GetRequestBody(c)
-	if err != nil || len(rawBody) == 0 {
-		return
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(rawBody, &raw); err != nil {
-		return
-	}
-	mdRaw, ok := raw["metadata"]
-	if !ok || len(mdRaw) == 0 {
-		return
-	}
-	var md map[string]any
-	if err := json.Unmarshal(mdRaw, &md); err != nil {
-		return
-	}
-	if _, ok := md["lazu"]; !ok {
-		return
-	}
-	delete(md, "lazu")
-	if len(md) == 0 {
-		delete(raw, "metadata")
-	} else {
-		newMD, err := json.Marshal(md)
-		if err != nil {
-			return
-		}
-		raw["metadata"] = newMD
-	}
-	newBody, err := json.Marshal(raw)
-	if err != nil {
-		return
-	}
-	c.Set(common.KeyRequestBody, newBody)
 }
 
 // degradedChatRequest is the Chat request a degraded native plan sends: the

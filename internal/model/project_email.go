@@ -43,18 +43,6 @@ func projectMailStatus(lang, status string) string {
 	return status
 }
 
-// userMailLangTx reads the console language of an account.
-func userMailLangTx(tx *gorm.DB, userID int) string {
-	if userID <= 0 {
-		return common.MailDefaultLang
-	}
-	var user User
-	if err := tx.Select("id", "setting").First(&user, userID).Error; err != nil {
-		return common.MailDefaultLang
-	}
-	return common.MailLang(user.GetSetting().Language)
-}
-
 func userMailNameTx(tx *gorm.DB, userID int) string {
 	if userID <= 0 {
 		return ""

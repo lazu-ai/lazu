@@ -25,7 +25,8 @@ import {
   Switch,
   Textarea,
 } from '../../components/ui';
-import { API, showSuccess, showWarning, toBoolean } from '../../helpers';
+import { notify } from '../../components/ui/toast';
+import { API, showWarning, toBoolean } from '../../helpers';
 import { sanitizeMarkup } from '../../helpers/sanitize';
 import '../../components/common/DocumentRenderer/legal-document.css';
 import '../../styles/settings-surface.css';
@@ -1433,7 +1434,7 @@ export const SettingsGroupPage = ({
           serializeValue(previous[leaf.key]),
       );
       if (!changed.length) {
-        showWarning(t('page.console.settingV2.runtime.noChanges'));
+        notify.warning(t('page.console.settingV2.runtime.noChanges'));
         return [];
       }
       const submitted = changed.map((leaf) => ({
@@ -1491,7 +1492,10 @@ export const SettingsGroupPage = ({
         [...queryKeys.console.detail('settings', title)],
         (current) => ({ ...(current || defaults), ...saved }),
       );
-      showSuccess(
+      // /api/status publishes many of these options (name, logo, top-up
+      // range, sign-in methods); let the console pick them up now.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.status });
+      notify.success(
         t('page.console.settingV2.runtime.saveSuccess', {
           count: submitted.length,
         }),

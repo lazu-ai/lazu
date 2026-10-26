@@ -12,36 +12,25 @@ import (
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen/fixtures"
 	textgenruntime "github.com/lazu-ai/lazu/internal/protocol/textgen/runtime"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 )
 
-// Claude clients are parsed for the hub unless the operator switched them
-// back to the legacy conversion, which then sees no parsed request at all.
-func TestClaudeClientParseHonoursTheLegacySwitch(t *testing.T) {
+// Claude clients on /v1/messages are always parsed for the hub.
+func TestClaudeClientParseParsesForTheHub(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	settings := model_setting.GetGlobalSettings()
-	previous := settings.LegacyClaudeClientConversion
-	t.Cleanup(func() { settings.LegacyClaudeClientConversion = previous })
 	body := []byte(`{"model":"m","max_tokens":10,"messages":[{"role":"user","content":"hi"}]}`)
-	for _, legacy := range []bool{false, true} {
-		settings.LegacyClaudeClientConversion = legacy
-		var parsed *textgen.ParsedRequest
-		router := gin.New()
-		router.POST("/v1/messages", ClaudeClientParse(), func(c *gin.Context) {
-			parsed, _ = common.GetContextKeyType[*textgen.ParsedRequest](c, constant.ContextKeyTextgenParsed)
-			c.Status(http.StatusNoContent)
-		})
-		recorder := httptest.NewRecorder()
-		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body)))
-		if recorder.Code != http.StatusNoContent {
-			t.Fatalf("legacy=%t: status %d %s", legacy, recorder.Code, recorder.Body.String())
-		}
-		if legacy != (parsed == nil) {
-			t.Fatalf("legacy=%t: parsed=%v", legacy, parsed)
-		}
-		if !legacy && parsed.Client.Family != textgen.ProtocolAnthropic {
-			t.Fatalf("parsed as %+v", parsed.Client)
-		}
+	var parsed *textgen.ParsedRequest
+	router := gin.New()
+	router.POST("/v1/messages", ClaudeClientParse(), func(c *gin.Context) {
+		parsed, _ = common.GetContextKeyType[*textgen.ParsedRequest](c, constant.ContextKeyTextgenParsed)
+		c.Status(http.StatusNoContent)
+	})
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body)))
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status %d %s", recorder.Code, recorder.Body.String())
+	}
+	if parsed == nil || parsed.Client.Family != textgen.ProtocolAnthropic {
+		t.Fatalf("parsed = %+v", parsed)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
@@ -68,6 +69,9 @@ type HubStream struct {
 	// the settled one (Messages' cache-exclusive input, for a Chat or
 	// Responses client).
 	ClientUsage func(*dto.Usage) *dto.Usage
+	// Settle replaces SettleHubUsage, for an upstream whose own rules
+	// estimate what it did not report (Gemini's inline media).
+	Settle func(c *gin.Context, info *relaycommon.RelayInfo, result textgen.Result) *dto.Usage
 }
 
 // RunHubStream serves a streamed upstream reply to the client through the
@@ -134,7 +138,11 @@ func RunHubStream(c *gin.Context, resp *http.Response, info *relaycommon.RelayIn
 	if hub.Unreleased != nil {
 		col.Add(hub.Unreleased()...)
 	}
-	usage := SettleHubUsage(c, info, col.Result())
+	settle := SettleHubUsage
+	if hub.Settle != nil {
+		settle = hub.Settle
+	}
+	usage := settle(c, info, col.Result())
 	shown := usage
 	if hub.ClientUsage != nil {
 		shown = hub.ClientUsage(usage)
@@ -308,19 +316,51 @@ func HubClientFor(c *gin.Context, info *relaycommon.RelayInfo) HubClient {
 		return &responsesHubClient{emitter: openai_responses.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName, info.ProtocolRequest, openai_responses.RetainedOutputLimit(info.ProtocolRequest))}
 	case textgen.ProtocolAnthropic:
 		return &anthropicHubClient{emitter: anthropic_messages.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName)}
+	case textgen.ProtocolGemini:
+		return &geminiHubClient{emitter: geminicodec.NewStreamEmitter()}
 	}
-	return &chatHubClient{emitter: openai_chat.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName), includeUsage: info.ShouldIncludeUsage}
+	return &chatHubClient{emitter: openai_chat.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName), includeUsage: info.ShouldIncludeUsage, thinkToContent: info.ChannelSetting.ThinkingToContent}
 }
 
 // chatHubClient writes Chat Completions chunks, [DONE] at the end.
 type chatHubClient struct {
 	emitter      *openai_chat.StreamEmitter
 	includeUsage bool
+	// thinkToContent is the channel's thinking_to_content: reasoning is
+	// written as content inside <think> tags, for clients that read only
+	// content (openai.sendStreamData does the same on the native path)
+	thinkToContent bool
+	thinkOpened    bool
+	thinkClosed    bool
+}
+
+// thinkingAsContent moves a chunk's reasoning into its content when the
+// channel asks for it.
+func (w *chatHubClient) thinkingAsContent(chunk *dto.ChatCompletionsStreamResponse) {
+	if !w.thinkToContent || chunk == nil {
+		return
+	}
+	for index := range chunk.Choices {
+		delta := &chunk.Choices[index].Delta
+		if reasoning := delta.GetReasoningContent(); reasoning != "" {
+			if !w.thinkOpened {
+				reasoning = "<think>\n" + reasoning
+				w.thinkOpened = true
+			}
+			delta.SetContentString(reasoning)
+			delta.ReasoningContent = nil
+			delta.Reasoning = nil
+		} else if content := delta.GetContentString(); content != "" && w.thinkOpened && !w.thinkClosed {
+			delta.SetContentString("\n</think>\n" + content)
+			w.thinkClosed = true
+		}
+	}
 }
 
 func (w *chatHubClient) Emit(c *gin.Context, events []textgen.Event) (bool, error) {
 	chunks := w.emitter.Emit(events...)
 	for _, chunk := range chunks {
+		w.thinkingAsContent(chunk)
 		if err := helper.ObjectData(c, chunk); err != nil {
 			return true, err
 		}
@@ -334,6 +374,7 @@ func (w *chatHubClient) Finish(c *gin.Context, usage *dto.Usage) error {
 		return err
 	}
 	for _, chunk := range chunks {
+		w.thinkingAsContent(chunk)
 		if !w.includeUsage {
 			if openai_chat.IsUsageChunk(chunk) {
 				continue
@@ -401,8 +442,8 @@ func (w *anthropicHubClient) write(c *gin.Context, frames []anthropic_messages.F
 		if err != nil {
 			return err
 		}
-		c.Render(-1, common.CustomEvent{Data: "event: " + frame.Event + "\n"})
-		c.Render(-1, common.CustomEvent{Data: "data: " + string(data)})
+		c.Render(-1, helper.CustomEvent{Data: "event: " + frame.Event + "\n"})
+		c.Render(-1, helper.CustomEvent{Data: "data: " + string(data)})
 		_ = helper.FlushWriter(c)
 	}
 	return nil
@@ -423,4 +464,38 @@ func (w *anthropicHubClient) Finish(c *gin.Context, usage *dto.Usage) error {
 
 func (w *anthropicHubClient) Fail(c *gin.Context, frame types.OpenAIError, _ *dto.Usage) {
 	_ = w.write(c, w.emitter.FailWithSemanticError(&textgen.SemanticError{Type: types.ClaudeErrorType(frame.Type, http.StatusBadGateway), Message: frame.Message}))
+}
+
+// geminiHubClient writes streamGenerateContent chunks (alt=sse: one data
+// line per chunk, no end marker).
+type geminiHubClient struct {
+	emitter *geminicodec.StreamEmitter
+}
+
+func (w *geminiHubClient) write(c *gin.Context, chunks []*dto.GeminiChatResponse) error {
+	for _, chunk := range chunks {
+		if err := helper.ObjectData(c, chunk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *geminiHubClient) Emit(c *gin.Context, events []textgen.Event) (bool, error) {
+	chunks := w.emitter.Emit(events...)
+	return len(chunks) > 0, w.write(c, chunks)
+}
+
+func (w *geminiHubClient) Finish(c *gin.Context, usage *dto.Usage) error {
+	chunks, err := w.emitter.Finish(usage)
+	if err != nil {
+		return err
+	}
+	return w.write(c, chunks)
+}
+
+func (w *geminiHubClient) Fail(c *gin.Context, frame types.OpenAIError, _ *dto.Usage) {
+	if payload := w.emitter.Fail(&textgen.SemanticError{Type: frame.Type, Message: frame.Message}); payload != nil {
+		_ = helper.ObjectData(c, payload)
+	}
 }

@@ -4,22 +4,59 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown, {
   type Options as ReactMarkdownOptions,
 } from 'react-markdown';
-import RehypeHighlight from 'rehype-highlight';
-import RehypeKatex from 'rehype-katex';
 import RemarkBreaks from 'remark-breaks';
 import RemarkGfm from 'remark-gfm';
-import RemarkMath from 'remark-math';
 import { useDebouncedCallback } from 'use-debounce';
+import { hasMath } from './has-math';
+import RehypeHighlightSubset from './rehype-highlight-subset';
 import { copy } from '../../../helpers/clipboard';
 import { rehypeSplitWordsIntoSpans } from '../../../helpers/rehype-streaming';
 import { sanitizeMarkup } from '../../../helpers/sanitize';
-import { Button, Tooltip, Toast } from '@/components/ui/console-primitives';
+import { Button } from '@/components/ui/button';
 import { IconCopy } from '@/components/ui/icon-aliases';
-import 'katex/dist/katex.min.css';
+import { notify } from '@/components/ui/toast';
+import { Tooltip } from '@/components/ui/tooltip';
 import 'highlight.js/styles/github.css';
+import 'katex/dist/katex.min.css';
 import './markdown.css';
 
 type MermaidRuntime = (typeof import('mermaid'))['default'];
+
+/* Formulas are rare, so remark-math and rehype-katex (KaTeX itself, ~77 KiB
+   gzip) load only for content that may hold one (hasMath: a `$` or a ```math
+   fence); until they arrive it renders as text. The stylesheet stays static: it is small, and a dynamic CSS import
+   would pull the entry stylesheet into this chunk's CSS. */
+type MathPlugins = {
+  remark: NonNullable<ReactMarkdownOptions['remarkPlugins']>[number];
+  rehype: NonNullable<ReactMarkdownOptions['rehypePlugins']>[number];
+};
+let mathPlugins: MathPlugins | null = null;
+let mathPluginsPromise: Promise<MathPlugins> | null = null;
+function loadMathPlugins(): Promise<MathPlugins> {
+  mathPluginsPromise ??= Promise.all([
+    import('remark-math'),
+    import('rehype-katex'),
+  ]).then(([remark, rehype]) => {
+    mathPlugins = { remark: remark.default, rehype: rehype.default };
+    return mathPlugins;
+  });
+  return mathPluginsPromise;
+}
+function useMathPlugins(content: string): MathPlugins | null {
+  const wanted = hasMath(content);
+  const [loaded, setLoaded] = useState(mathPlugins);
+  useEffect(() => {
+    if (!wanted || loaded) return;
+    let active = true;
+    void loadMathPlugins().then((plugins) => {
+      if (active) setLoaded(plugins);
+    });
+    return () => {
+      active = false;
+    };
+  }, [wanted, loaded]);
+  return wanted ? loaded : null;
+}
 
 const CodeBlockContext = React.createContext(false);
 
@@ -198,9 +235,8 @@ export function PreCode({ children }: { children?: React.ReactNode }) {
         >
           <Tooltip content={t('legacy.i18n.copy_code.3b1fde4d23')}>
             <Button
-              size='small'
-              theme='borderless'
-              icon={<IconCopy />}
+              size='sm'
+              variant='ghost'
               onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -209,11 +245,11 @@ export function PreCode({ children }: { children?: React.ReactNode }) {
                   const code = codeElement?.textContent ?? '';
                   copy(code).then((success) => {
                     if (success) {
-                      Toast.success(
+                      notify.success(
                         t('legacy.i18n.code_copied_to_clipboard.f2755c6008'),
                       );
                     } else {
-                      Toast.error(
+                      notify.error(
                         t(
                           'legacy.i18n.copy_failed_please_copy_manually.2b1cae855e',
                         ),
@@ -230,7 +266,9 @@ export function PreCode({ children }: { children?: React.ReactNode }) {
                 border: '1px solid var(--ui-border)',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
               }}
-            />
+            >
+              <IconCopy />
+            </Button>
           </Tooltip>
         </div>
         {children}
@@ -323,7 +361,7 @@ function CustomCode({
             justifyContent: 'center',
           }}
         >
-          <Button size='small' onClick={toggleCollapsed} theme='solid'>
+          <Button size='sm' variant='secondary' onClick={toggleCollapsed}>
             {t('legacy.i18n.show_more.a2205b3878')}
           </Button>
         </div>
@@ -415,26 +453,22 @@ function _MarkdownContent(props: MarkdownContentProps) {
   // 判断是否为用户消息
   const isUserMessage = className && className.includes('user-message');
 
+  const math = useMathPlugins(escapedContent);
+
   const rehypePluginsBase = useMemo(() => {
     const base: NonNullable<ReactMarkdownOptions['rehypePlugins']> = [
-      RehypeKatex,
-      [
-        RehypeHighlight,
-        {
-          detect: false,
-          ignoreMissing: true,
-        },
-      ],
+      ...(math ? [math.rehype] : []),
+      RehypeHighlightSubset,
     ];
     if (animated) {
       base.push([rehypeSplitWordsIntoSpans, { previousContentLength }]);
     }
     return base;
-  }, [animated, previousContentLength]);
+  }, [animated, math, previousContentLength]);
 
   return (
     <ReactMarkdown
-      remarkPlugins={[RemarkMath, RemarkGfm, RemarkBreaks]}
+      remarkPlugins={[...(math ? [math.remark] : []), RemarkGfm, RemarkBreaks]}
       rehypePlugins={rehypePluginsBase}
       components={{
         pre: PreCode,
