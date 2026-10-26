@@ -178,7 +178,7 @@ func TestPostgresTelemetryRetentionPreservesIndependentPolicies(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			exported, err := ListDashboardUsageLogs(0, common.RoleRootUser, DashboardUsageWindow{}, DashboardUsageLogFilters{}, 100)
+			exported, err := ListDashboardUsageLogsContext(context.Background(), 0, common.RoleRootUser, DashboardUsageWindow{}, DashboardUsageLogFilters{}, 100)
 			if err != nil {
 				t.Fatal(err)
 			}

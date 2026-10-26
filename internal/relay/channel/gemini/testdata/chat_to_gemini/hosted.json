@@ -1,0 +1,24 @@
+{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "news"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "tools": [
+    {
+      "googleSearch": {}
+    },
+    {
+      "functionDeclarations": [
+        {
+          "name": "lookup"
+        }
+      ]
+    }
+  ]
+}
