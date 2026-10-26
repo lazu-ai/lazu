@@ -479,7 +479,7 @@ func setStructuredInputTokenEstimate(c *gin.Context, reqCtx *relayrouter.Request
 	case textgen.ProtocolGemini:
 		format = types.RelayFormatGemini
 	}
-	meta := textgen.TokenCountMeta(parsed.Semantic)
+	meta := parsed.TokenCountMeta()
 	meta.Files = nil
 	estimate, err := service.EstimateRequestTPMTokens(meta, &relaycommon.RelayInfo{
 		OriginModelName: modelName,
