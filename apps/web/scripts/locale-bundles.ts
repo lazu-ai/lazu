@@ -76,23 +76,43 @@ export function readLocale(
   };
 }
 
+const pluralSuffix = /_(?:ordinal_)?(?:zero|one|two|few|many|other)$/;
+const pluralFamily = (key: string) => key.replace(pluralSuffix, '');
+
 /** One language's resources with its fallbacks already applied: each key
  *  takes the most specific language that has a value for it. i18next treats
  *  null as missing (returnNull: false), so null falls through as well; an
- *  empty string is a value. Arrays are values, not trees. */
+ *  empty string is a value. Arrays are values, not trees.
+ *
+ *  Plural forms move as a family: i18next tries every form a language has
+ *  (count_zero, count_other, count …) before it falls back to the next
+ *  language, so when a more specific language has any form of a key, none of
+ *  the fallback's forms of that key may be added (a fallback count_zero would
+ *  otherwise win over the language's own count_other). */
 export function mergeLocaleChain(chain: Resource[]): Resource {
+  let merged: Resource = {};
+  for (const resource of chain) merged = mergeOver(merged, resource);
+  return merged;
+}
+
+function mergeOver(base: Resource, over: Resource): Resource {
+  const present = Object.entries(over).filter(
+    ([, value]) => value !== undefined && value !== null,
+  );
+  const families = new Set(
+    present
+      .filter(([, value]) => !record(value))
+      .map(([key]) => pluralFamily(key)),
+  );
   const merged: Resource = {};
-  for (const resource of chain) {
-    for (const [key, value] of Object.entries(resource)) {
-      if (value === undefined || value === null) continue;
-      const current = merged[key];
-      merged[key] =
-        record(value) && record(current)
-          ? mergeLocaleChain([current as Resource, value as Resource])
-          : record(value)
-            ? mergeLocaleChain([value as Resource])
-            : value;
-    }
+  for (const [key, value] of Object.entries(base)) {
+    if (record(value) || !families.has(pluralFamily(key))) merged[key] = value;
+  }
+  for (const [key, value] of present) {
+    const current = merged[key];
+    merged[key] = record(value)
+      ? mergeOver(record(current) ? current : {}, value)
+      : value;
   }
   return merged;
 }
