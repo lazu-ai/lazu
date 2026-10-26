@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -147,12 +146,6 @@ func Interface2String(inter interface{}) string {
 func IsIP(s string) bool {
 	ip := net.ParseIP(s)
 	return ip != nil
-}
-
-func GetUUID() string {
-	code := uuid.New().String()
-	code = strings.Replace(code, "-", "", -1)
-	return code
 }
 
 const keyChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Check that all shipped locale files expose the same usable key set."""
+"""Check the shipped locale files.
+
+--only i18n         every locale exposes the same usable key set.
+--only i18n-unused  every key is read somewhere: by a literal, a template
+                    with a known prefix (`page.x.${id}`, `${ns}.title` where
+                    `const ns = 'page.x'`), a plural form of a read key, or
+                    one of the lists below. Keys only an extension reads are
+                    listed in src/i18n/extension-keys.txt; keys unused when
+                    the check landed are listed in
+                    src/i18n/unused-keys-baseline.txt, which may only shrink.
+"""
 
 from __future__ import annotations
 
@@ -71,12 +81,96 @@ def audit() -> tuple[dict[str, Any], list[str]]:
     return details, failures
 
 
+SCAN_DIRS = ("src", "scripts", "tests", "index.html")
+SCAN_SUFFIXES = (".ts", ".tsx", ".mjs", ".js", ".html")
+EXTENSION_KEYS = ROOT / "src" / "i18n" / "extension-keys.txt"
+UNUSED_BASELINE = ROOT / "src" / "i18n" / "unused-keys-baseline.txt"
+CONST_RE = re.compile(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*['\"]([A-Za-z][A-Za-z0-9_.\-]*)['\"]")
+DYNAMIC_RE = re.compile(r"`([A-Za-z0-9_.\-]+\.)\$\{")
+TAIL_RE = re.compile(r"\}(\.[A-Za-z0-9_\-]+(?:\.[A-Za-z0-9_\-]+)*)(?=`|\$\{)")
+INFIX_RE = re.compile(r"\}(\.[A-Za-z0-9_\-]+(?:\.[A-Za-z0-9_\-]+)*\.)\$\{")
+PLURAL_RE = re.compile(r"_(zero|one|two|few|many|other)$")
+
+
+def source_corpus() -> str:
+    parts: list[str] = []
+    for entry in SCAN_DIRS:
+        path = ROOT / entry
+        files = [path] if path.is_file() else sorted(path.rglob("*"))
+        for file in files:
+            if not file.is_file() or file.suffix not in SCAN_SUFFIXES:
+                continue
+            if "locales" in file.parts or "node_modules" in file.parts:
+                continue
+            text = file.read_text(encoding="utf-8", errors="ignore")
+            # `${ns}.title` with `const ns = 'page.x'` in the same file reads
+            # page.x.title; resolve the constant so the key is seen literally.
+            for name, value in CONST_RE.findall(text):
+                text = text.replace("${" + name + "}", value)
+            parts.append(text)
+    return "\n".join(parts)
+
+
+def read_list(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    entries = set()
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            entries.add(line)
+    return entries
+
+
+def listed(key: str, entries: set[str]) -> bool:
+    return key in entries or any(e.endswith(".*") and key.startswith(e[:-1]) for e in entries)
+
+
+def unused_keys() -> tuple[list[str], list[str]]:
+    corpus = source_corpus()
+    dynamic = set(DYNAMIC_RE.findall(corpus))
+    tails = set(TAIL_RE.findall(corpus))
+    infixes = set(INFIX_RE.findall(corpus))
+
+    def read(key: str) -> bool:
+        if key in corpus or PLURAL_RE.sub("", key) in corpus:
+            return True
+        if any(key.startswith(prefix) for prefix in dynamic):
+            return True
+        if any(key.endswith(tail) and key != tail.lstrip(".") for tail in tails):
+            return True
+        return any(infix in key for infix in infixes)
+
+    extension, baseline = read_list(EXTENSION_KEYS), read_list(UNUSED_BASELINE)
+    keys = sorted(load_locale("en"))
+    unread = [key for key in keys if not read(key) and not listed(key, extension)]
+    new = [key for key in unread if key not in baseline]
+    gone = sorted(entry for entry in baseline if entry not in set(unread))
+    return new, gone
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--only", choices=["i18n"], default="i18n")
+    parser.add_argument("--only", choices=["i18n", "i18n-unused"], default="i18n")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
+
+    if args.only == "i18n-unused":
+        new, gone = unused_keys()
+        if gone:
+            print(f"{len(gone)} baseline key(s) are read or gone now; delete them from {UNUSED_BASELINE.name}:")
+            for key in gone:
+                print(f"  {key}")
+        if new:
+            print(f"{len(new)} translation key(s) nothing reads:")
+            for key in new:
+                print(f"  {key}")
+            print("Delete them from every locale. If an extension reads them, list them in "
+                  f"src/i18n/{EXTENSION_KEYS.name}.")
+            return 1 if args.check else 0
+        print("i18n unused-key check passed.")
+        return 0
 
     report, failures = audit()
     if args.json:

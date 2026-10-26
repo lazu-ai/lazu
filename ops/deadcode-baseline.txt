@@ -1,0 +1,8 @@
+# deadcode -test findings when the check landed (lazu f66c07a99), minus the
+# extension surface. May only shrink; never add lines. See ops/scripts/check_deadcode.py.
+internal/controller.containsJSONMessage
+internal/controller.setupStripeControllerTestDB
+internal/middleware.fakeRouter.Name
+internal/middleware.fakeRouter.Version
+internal/model.GetUserEmail
+internal/model.updateUserStatusCache
