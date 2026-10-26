@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"mime/multipart"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -143,23 +142,6 @@ func extractURLsFromJSON(raw map[string]json.RawMessage) []string {
 		result = append(result, decodeOSSValue(value)...)
 	}
 	return result
-}
-
-// ExtractOSSURLValuesFromForm returns all OSS_URL entries from a parsed multipart form.
-func ExtractOSSURLValuesFromForm(form *multipart.Form) []string {
-	if form == nil {
-		return nil
-	}
-	keys := []string{"OSS_URL", "oss_url", "OSS_URLS", "oss_urls", "ossUrl", "ossUrls"}
-	var urls []string
-	for _, key := range keys {
-		values := form.Value[key]
-		if len(values) == 0 {
-			continue
-		}
-		urls = append(urls, values...)
-	}
-	return normalizeOSSURLValues(urls)
 }
 
 func decodeOSSValue(raw json.RawMessage) []string {

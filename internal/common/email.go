@@ -28,10 +28,6 @@ type EmailAttachment struct {
 	Content  []byte
 }
 
-func SendEmail(subject string, receiver string, content string) error {
-	return SendEmailWithAttachment(subject, receiver, content, nil)
-}
-
 // Mail kinds recorded in the delivery archive (运营 › 邮件 › 发送记录).
 const (
 	MailKindWeeklyDigest  = "weekly_digest"
@@ -129,14 +125,6 @@ func EmailTransportConfigured() bool {
 	return strings.TrimSpace(SMTPServer) != "" &&
 		strings.TrimSpace(SMTPAccount) != "" &&
 		strings.TrimSpace(SMTPToken) != ""
-}
-
-func SendEmailWithAttachment(subject string, receiver string, content string, attachments []EmailAttachment) error {
-	providerID, err := sendEmail(subject, receiver, content, attachments, nil)
-	if recorder := MailRecorder; recorder != nil {
-		recorder(MailRecord{Meta: MailMeta{Kind: MailKindOther}, Subject: subject, Receiver: receiver, HTML: content, ProviderID: providerID, Err: err})
-	}
-	return err
 }
 
 func sendEmail(subject string, receiver string, content string, attachments []EmailAttachment, headers map[string]string) (string, error) {

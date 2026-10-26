@@ -201,6 +201,9 @@ func TestSnapshotForCustomAndXAIProtocolBoundaries(t *testing.T) {
 	if _, err := PlanForChannel(&textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolOpenAIResponses}, Semantic: request}, xai, "test-model"); err == nil {
 		t.Fatal("xAI Responses-to-Chat bridge must fail closed until its adaptor is plan-aware")
 	}
+	if _, err := PlanForChannel(&textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolGemini}, Semantic: request}, xai, "test-model"); err == nil {
+		t.Fatal("xAI Gemini-to-Chat bridge must fail closed until its adaptor is plan-aware")
+	}
 }
 
 func TestPrepareAttemptReplansFromOriginalRequestAcrossDialects(t *testing.T) {
@@ -475,6 +478,36 @@ func TestPrepareAttemptLeavesClaudeThinkingOutForAModelNotKnownToReason(t *testi
 	if err != nil || !native.Plan.Native || native.Request.Reasoning.Effort != "high" {
 		t.Fatalf("a native attempt keeps the client's thinking: %+v %v", native, err)
 	}
+	gemini, err := ParseGemini([]byte(`{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"thinkingConfig":{"thinkingBudget":1024,"includeThoughts":true}}}`), "fixture", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	geminiAttempt, err := PrepareAttempt(gemini, chat, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if geminiAttempt.Plan.Native || geminiAttempt.Plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIChat || geminiAttempt.Plan.ClientProtocol.Dialect != "gemini" {
+		t.Fatalf("expected a Gemini-to-Chat bridge, got %+v", geminiAttempt.Plan)
+	}
+	if geminiAttempt.Request.Reasoning != (textgen.ReasoningOptions{}) || !gemini.Semantic.Reasoning.Budget.Set || gemini.Semantic.Reasoning.Budget.Value != 1024 {
+		t.Fatalf("Gemini thinking must be left out on a clone: attempt %+v, parsed %+v", geminiAttempt.Request.Reasoning, gemini.Semantic.Reasoning)
+	}
+	geminiNative, err := PrepareAttempt(gemini, &model.Channel{Type: constant.ChannelTypeGemini}, "fixture")
+	if err != nil || !geminiNative.Plan.Native || !geminiNative.Request.Reasoning.Budget.Set {
+		t.Fatalf("a native Gemini attempt keeps the client's thinking: %+v %v", geminiNative, err)
+	}
+	geminiOff, err := ParseGemini([]byte(`{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"thinkingConfig":{"thinkingBudget":0}}}`), "o3", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reasoningChat := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_reasoning":true}}`}
+	geminiOffAttempt, err := PrepareAttempt(geminiOff, reasoningChat, "o3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if geminiOffAttempt.Request.Reasoning.Effort != "" || geminiOff.Semantic.Reasoning.Effort != "none" {
+		t.Fatalf("an unsupported thinking-off request must be omitted on a clone: attempt %+v, parsed %+v", geminiOffAttempt.Request.Reasoning, geminiOff.Semantic.Reasoning)
+	}
 
 	// a tool result's image, for a model not known to see images, becomes a
 	// note and a warning; the client's own request is untouched
@@ -687,5 +720,50 @@ func TestPrepareAttemptStandsInForJSONObjectOnAnthropic(t *testing.T) {
 	// the planner alone still refuses: degradation is the only way through
 	if _, err := textgen.PlanAttempt(parsed.Client, providercap.BuildSnapshot(providercap.SnapshotInput{APIType: constant.APITypeAnthropic}), parsed.Semantic, 1, "claude-haiku-5-5"); err == nil {
 		t.Fatal("without the stand-in the Messages bridge refuses json_object")
+	}
+}
+
+// A Claude client is served natively by an Anthropic channel, bridged to
+// Chat by an OpenAI channel and to generateContent by a Gemini one: the
+// legacy pairwise converters that used to serve it on those channels are
+// gone, so every such attempt must be planned.
+func TestClaudeClientIsPlannedOnEveryClaudeCapableChannel(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_claude_client?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed := &textgen.ParsedRequest{
+		Client: textgen.Protocol{Family: textgen.ProtocolAnthropic},
+		Semantic: &textgen.Request{Model: textgen.ModelRef{Canonical: "fixture"}, Conversation: []textgen.InputItem{{
+			Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "hello"}},
+		}}},
+	}
+	for _, tc := range []struct {
+		channelType int
+		native      bool
+		upstream    textgen.ProtocolFamily
+	}{
+		{constant.ChannelTypeAnthropic, true, textgen.ProtocolAnthropic},
+		{constant.ChannelTypeOpenAI, false, textgen.ProtocolOpenAIChat},
+		{constant.ChannelTypeGemini, false, textgen.ProtocolGemini},
+	} {
+		attempt, err := PrepareAttempt(parsed, &model.Channel{Type: tc.channelType}, "fixture")
+		if err != nil {
+			t.Fatalf("channel type %d: %v", tc.channelType, err)
+		}
+		if attempt.Plan.Native != tc.native || attempt.Plan.UpstreamProtocol.Family != tc.upstream {
+			t.Fatalf("channel type %d: native=%v upstream=%+v", tc.channelType, attempt.Plan.Native, attempt.Plan.UpstreamProtocol)
+		}
 	}
 }
