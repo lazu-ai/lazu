@@ -183,23 +183,6 @@ func ReadProjectLedgerSpend(projectID, actorID int, start, end int64) (billing.M
 	return amount, err
 }
 
-func ProjectAuxTokenScope(tx *gorm.DB, access ProjectLogAccess) *gorm.DB {
-	tokens := CoreDB().Unscoped().Model(&Token{}).Select("id").Where("project_id = ?", access.Project.ID)
-	if !access.Viewer.IsManager() {
-		tokens = tokens.Where("user_id = ?", access.Viewer.UserID)
-	}
-	if access.TokenID > 0 {
-		tokens = tokens.Where("id = ?", access.TokenID)
-	}
-	if access.ActorID != nil {
-		tokens = tokens.Where("user_id = ?", *access.ActorID)
-	}
-	return tx.Where("token_id IN (?)", tokens)
-}
-func BuildProjectDashboardUsage(access ProjectLogAccess, start, end int64) (DashboardUsage, error) {
-	return BuildProjectDashboardUsageContext(context.Background(), access, start, end)
-}
-
 // BuildProjectDashboardUsageContext answers every project-scoped usage page:
 // the wallet and each member's own usage. PostgreSQL reads hourly usage
 // slices; the busiest project's thirty days of logs took about 3 s on

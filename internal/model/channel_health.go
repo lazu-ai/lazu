@@ -286,14 +286,6 @@ func channelHealthBucketIndexExpr(column string) string {
 	return fmt.Sprintf("CAST(%s AS %s)", quotient, channelHealthIntegerCast())
 }
 
-// SQLite renders booleans as integers; Postgres and MySQL accept TRUE.
-func channelHealthTrueLiteral() string {
-	if common.UsingSQLite {
-		return "1"
-	}
-	return "TRUE"
-}
-
 func channelHealthIntegerCast() string {
 	if common.UsingPostgreSQL {
 		return "BIGINT"

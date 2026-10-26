@@ -1165,29 +1165,6 @@ func TokenModelScopeAllows(limits map[string]bool, vendors map[int]struct{}, mod
 	return ok
 }
 
-func DisableModelLimits(tokenId int) error {
-	token, err := GetTokenById(tokenId)
-	if err != nil {
-		return err
-	}
-	token.ModelLimitsEnabled = false
-	token.ModelLimits = ""
-	return token.Update()
-}
-
-func DeleteTokenById(id int, userId int) (err error) {
-	// Why we need userId here? In case user want to delete other's token.
-	if id == 0 || userId == 0 {
-		return types.Err(types.ErrorCodeInvalidRequest, types.D{"field": "id"})
-	}
-	token := Token{Id: id, UserId: userId}
-	err = excludeInternalTokens(CoreDB()).Where(token).First(&token).Error
-	if err != nil {
-		return err
-	}
-	return token.Delete()
-}
-
 // CountUsableUserTokens excludes hidden internal credentials as well as keys
 // that cannot authenticate a new public API request.
 func CountUsableUserTokens(userId int) (int64, error) {
@@ -1260,11 +1237,4 @@ func InvalidateUserTokensCache(userId int) error {
 		digests = append(digests, token.CacheDigest())
 	}
 	return cacheInvalidateTokenSnapshotsWithFence(digests)
-}
-
-func InvalidateTokenCache(key string) error {
-	if !common.RedisEnabled || key == "" {
-		return nil
-	}
-	return cacheInvalidateTokenSnapshotsWithFence([]string{TokenKeyDigest(key)})
 }

@@ -1128,24 +1128,6 @@ func GeneratedReleaseDeploymentForRange(previousCommitSHA, commitSHA string) (*R
 	return &deployment, &announcement, nil
 }
 
-func UpdateGeneratedAnnouncementDelivery(announcementID uint, delivery string) (*Announcement, error) {
-	if CoreDB() == nil || announcementID == 0 {
-		return nil, errors.New("announcement is required")
-	}
-	normalizedDelivery := normalizeAnnouncementDelivery(delivery)
-	if err := CoreDB().Model(&Announcement{}).Where("id = ?", announcementID).Updates(map[string]any{
-		"delivery":   normalizedDelivery,
-		"updated_at": time.Now().UTC(),
-	}).Error; err != nil {
-		return nil, err
-	}
-	var announcement Announcement
-	if err := CoreDB().First(&announcement, announcementID).Error; err != nil {
-		return nil, err
-	}
-	return &announcement, nil
-}
-
 func RecordReleaseDeploymentWithAnnouncement(deployment *ReleaseDeployment, announcementInput *AnnouncementUpsert) (*ReleaseDeployment, *Announcement, error) {
 	if CoreDB() == nil {
 		return nil, nil, errors.New("database is not initialized")
