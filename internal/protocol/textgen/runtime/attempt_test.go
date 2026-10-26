@@ -201,6 +201,9 @@ func TestSnapshotForCustomAndXAIProtocolBoundaries(t *testing.T) {
 	if _, err := PlanForChannel(&textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolOpenAIResponses}, Semantic: request}, xai, "test-model"); err == nil {
 		t.Fatal("xAI Responses-to-Chat bridge must fail closed until its adaptor is plan-aware")
 	}
+	if _, err := PlanForChannel(&textgen.ParsedRequest{Client: textgen.Protocol{Family: textgen.ProtocolGemini}, Semantic: request}, xai, "test-model"); err == nil {
+		t.Fatal("xAI Gemini-to-Chat bridge must fail closed until its adaptor is plan-aware")
+	}
 }
 
 func TestPrepareAttemptReplansFromOriginalRequestAcrossDialects(t *testing.T) {
@@ -474,6 +477,36 @@ func TestPrepareAttemptLeavesClaudeThinkingOutForAModelNotKnownToReason(t *testi
 	native, err := PrepareAttempt(parsed, anthropic, "fixture")
 	if err != nil || !native.Plan.Native || native.Request.Reasoning.Effort != "high" {
 		t.Fatalf("a native attempt keeps the client's thinking: %+v %v", native, err)
+	}
+	gemini, err := ParseGemini([]byte(`{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"thinkingConfig":{"thinkingBudget":1024,"includeThoughts":true}}}`), "fixture", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	geminiAttempt, err := PrepareAttempt(gemini, chat, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if geminiAttempt.Plan.Native || geminiAttempt.Plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIChat || geminiAttempt.Plan.ClientProtocol.Dialect != "gemini" {
+		t.Fatalf("expected a Gemini-to-Chat bridge, got %+v", geminiAttempt.Plan)
+	}
+	if geminiAttempt.Request.Reasoning != (textgen.ReasoningOptions{}) || !gemini.Semantic.Reasoning.Budget.Set || gemini.Semantic.Reasoning.Budget.Value != 1024 {
+		t.Fatalf("Gemini thinking must be left out on a clone: attempt %+v, parsed %+v", geminiAttempt.Request.Reasoning, gemini.Semantic.Reasoning)
+	}
+	geminiNative, err := PrepareAttempt(gemini, &model.Channel{Type: constant.ChannelTypeGemini}, "fixture")
+	if err != nil || !geminiNative.Plan.Native || !geminiNative.Request.Reasoning.Budget.Set {
+		t.Fatalf("a native Gemini attempt keeps the client's thinking: %+v %v", geminiNative, err)
+	}
+	geminiOff, err := ParseGemini([]byte(`{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"thinkingConfig":{"thinkingBudget":0}}}`), "o3", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reasoningChat := &model.Channel{Type: constant.ChannelTypeOpenAI, OtherSettings: `{"protocol_dialect":"openai_chat_compatible","capabilities":{"supports_reasoning":true}}`}
+	geminiOffAttempt, err := PrepareAttempt(geminiOff, reasoningChat, "o3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if geminiOffAttempt.Request.Reasoning.Effort != "" || geminiOff.Semantic.Reasoning.Effort != "none" {
+		t.Fatalf("an unsupported thinking-off request must be omitted on a clone: attempt %+v, parsed %+v", geminiOffAttempt.Request.Reasoning, geminiOff.Semantic.Reasoning)
 	}
 
 	// a tool result's image, for a model not known to see images, becomes a

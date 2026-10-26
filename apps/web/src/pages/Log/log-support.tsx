@@ -220,7 +220,7 @@ const logTypeLabel = (
 
 /** Amounts on the log read to four decimals ("$0.0213"); a sub-tenth-of-a-
  *  cent request keeps six so it never rounds up to a cost it did not have. */
-export const formatCost = (microusd: unknown) => {
+const formatCost = (microusd: unknown) => {
   const value = Number(microusd) || 0;
   if (value === 0) return '$0';
   if (Math.abs(value) < 1000) return renderQuota(asMicroUSD(value), 6);
@@ -362,11 +362,11 @@ const retryCount = (record: LogRecord) => {
   return Array.isArray(useChannel) ? Math.max(0, useChannel.length - 1) : 0;
 };
 
-export type LogLane = 'stable' | 'eco' | 'fallback';
+type LogLane = 'stable' | 'eco' | 'fallback';
 
 /** The lane a request ran on. The log's `group` is the lane slug; anything
  *  else (an old user-tier group, a top-up row) is not a lane and gets no tag. */
-export const logLane = (record: LogRecord | null): LogLane | null => {
+const logLane = (record: LogRecord | null): LogLane | null => {
   if (!record || ![2, 5].includes(Number(record.type))) return null;
   // A request refused before routing never reached a lane; its group is only
   // the default and would claim a lane it did not use.
@@ -390,7 +390,7 @@ export const logLane = (record: LogRecord | null): LogLane | null => {
   return requested && requested !== 'direct' ? 'fallback' : 'stable';
 };
 
-export function LaneChip({ lane, t }: { lane: LogLane; t: TFunction }) {
+function LaneChip({ lane, t }: { lane: LogLane; t: TFunction }) {
   if (lane === 'fallback') {
     return (
       <span
@@ -413,10 +413,10 @@ export function LaneChip({ lane, t }: { lane: LogLane; t: TFunction }) {
  *  record kinds keep their type name. */
 /** A video or image job not settled yet: its row is written at submission
  *  and completed in place when the job finishes. */
-export const isPendingMediaLog = (record: LogRecord | null) =>
+const isPendingMediaLog = (record: LogRecord | null) =>
   Number(record?.type) === 2 && record?.otherParsed?.pending === true;
 
-export function LogStatus({ record, t }: { record: LogRecord; t: TFunction }) {
+function LogStatus({ record, t }: { record: LogRecord; t: TFunction }) {
   const type = Number(record.type);
   if (isPendingMediaLog(record)) {
     return (
@@ -695,7 +695,7 @@ const parseQuoteBreakdown = (record: LogRecord): QuoteBreakdown | null => {
 };
 
 /** The long-context tier a consume record was billed at, if any. */
-export const logContextTier = (record: LogRecord | null) => {
+const logContextTier = (record: LogRecord | null) => {
   const tier = record ? parseQuoteBreakdown(record)?.context_tier : undefined;
   const threshold = Number(tier?.threshold) || 0;
   if (threshold <= 0) return null;
@@ -737,28 +737,6 @@ const lineItemLabel = (dimension: unknown, t: TFunction) => {
   };
   return labels[String(dimension)] || String(dimension || '-');
 };
-
-export function CardSection({
-  title,
-  action,
-  children,
-}: {
-  action?: ReactNode;
-  children?: ReactNode;
-  title: ReactNode;
-}) {
-  return (
-    <section className='overflow-hidden rounded-[var(--ui-radius-lg)] border border-[var(--ui-border)] bg-[var(--ui-bg-raised)]'>
-      <header className='flex items-center justify-between gap-3 border-b border-[var(--ui-border)] px-4 py-2.5'>
-        <span className='text-sm font-semibold text-[var(--ui-text)]'>
-          {title}
-        </span>
-        {action}
-      </header>
-      <div className='px-4 py-3'>{children}</div>
-    </section>
-  );
-}
 
 type LedgerTone =
   | 'input'

@@ -47,7 +47,7 @@ export function Tooltip({
   );
 }
 
-export const TooltipContent = React.forwardRef<
+const TooltipContent = React.forwardRef<
   HTMLDivElement,
   TooltipPrimitive.Popup.Props &
     Pick<TooltipPrimitive.Positioner.Props, 'align' | 'side' | 'sideOffset'>
@@ -67,17 +67,3 @@ export const TooltipContent = React.forwardRef<
 ));
 
 TooltipContent.displayName = 'TooltipContent';
-
-export const TooltipProvider = TooltipPrimitive.Provider;
-export const TooltipRoot = TooltipPrimitive.Root;
-
-type TooltipTriggerProps = Omit<
-  TooltipPrimitive.Trigger.Props,
-  'children' | 'render'
-> & {
-  children: React.ReactElement;
-};
-
-export function TooltipTrigger({ children, ...props }: TooltipTriggerProps) {
-  return <TooltipPrimitive.Trigger render={children} {...props} />;
-}

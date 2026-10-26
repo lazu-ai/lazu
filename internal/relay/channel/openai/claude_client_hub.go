@@ -11,6 +11,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	"github.com/lazu-ai/lazu/internal/relay/channel"
@@ -19,18 +20,22 @@ import (
 	"github.com/lazu-ai/lazu/internal/types"
 )
 
-// The hub for a Claude client served from an OpenAI-shaped upstream: the
-// upstream's reply (Chat Completions or Responses) is decoded once into
-// content events and written by the Anthropic emitter; a whole reply goes
-// through the collector and anthropic_messages.Render. The mirror of the
-// Messages hub in internal/relay/channel/claude/hub.go, with the same rules
-// for output already forwarded, retries and settlement.
+// The hub for a Claude or Gemini client served from an OpenAI-shaped
+// upstream: the upstream's reply (Chat Completions or Responses) is decoded
+// once into content events and written by the client's emitter; a whole
+// reply goes through the collector and the client's render. The mirror of
+// the Messages hub in internal/relay/channel/claude/hub.go, with the same
+// rules for output already forwarded, retries and settlement.
 
-// ServesClaudeClient says whether the attempt serves a Claude client from
-// Chat Completions or Responses.
-func ServesClaudeClient(info *relaycommon.RelayInfo) bool {
-	if info == nil || info.ProtocolPlan == nil || info.ProtocolPlan.Native ||
-		info.ProtocolPlan.ClientProtocol.Family != textgen.ProtocolAnthropic {
+// ServesBridgedClient says whether the attempt serves a Claude or Gemini
+// client from Chat Completions or Responses.
+func ServesBridgedClient(info *relaycommon.RelayInfo) bool {
+	if info == nil || info.ProtocolPlan == nil || info.ProtocolPlan.Native {
+		return false
+	}
+	switch info.ProtocolPlan.ClientProtocol.Family {
+	case textgen.ProtocolAnthropic, textgen.ProtocolGemini:
+	default:
 		return false
 	}
 	switch info.ProtocolPlan.UpstreamProtocol.Family {
@@ -92,9 +97,9 @@ func semanticErrorOf(upstream *types.OpenAIError) *textgen.SemanticError {
 	return semantic
 }
 
-// ClaudeClientStreamHandler serves a streamed Chat Completions or Responses
-// reply to a Claude client (channel.RunHubStream).
-func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
+// BridgedClientStreamHandler serves a streamed Chat Completions or Responses
+// reply to a Claude or Gemini client (channel.RunHubStream).
+func BridgedClientStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
 	decode, unreleased := decoderFor(info)
 	var observe func(*gin.Context, *relaycommon.RelayInfo, string, []textgen.Event)
 	if info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolOpenAIResponses {
@@ -112,9 +117,9 @@ func ClaudeClientStreamHandler(c *gin.Context, resp *http.Response, info *relayc
 	}, channel.HubClientFor(c, info))
 }
 
-// ClaudeClientHandler serves a whole Chat Completions or Responses reply to
-// a Claude client.
-func ClaudeClientHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
+// BridgedClientHandler serves a whole Chat Completions or Responses reply to
+// a Claude or Gemini client.
+func BridgedClientHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeReadResponseBodyFailed)
@@ -151,8 +156,10 @@ func ClaudeClientHandler(c *gin.Context, resp *http.Response, info *relaycommon.
 	}
 	usage := channel.SettleHubUsage(c, info, result)
 	result.Usage = usage
-	rendered, err := anthropic_messages.Render(result, info.UpstreamModelName)
-	if err != nil {
+	var rendered any
+	if info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolGemini {
+		rendered = geminicodec.Render(result)
+	} else if rendered, err = anthropic_messages.Render(result, info.UpstreamModelName); err != nil {
 		// arguments a Messages client cannot take as tool input: the
 		// upstream's reply is unusable, and nothing reached the client
 		return nil, types.NewError(err, types.ErrorCodeBadResponseBody)

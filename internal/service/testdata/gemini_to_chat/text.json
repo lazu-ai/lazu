@@ -1,0 +1,26 @@
+{
+  "max_tokens": 200,
+  "messages": [
+    {
+      "content": "Be terse.",
+      "role": "system"
+    },
+    {
+      "content": "Hi",
+      "role": "user"
+    },
+    {
+      "content": "Hello.",
+      "role": "assistant"
+    },
+    {
+      "content": "Again?",
+      "role": "user"
+    }
+  ],
+  "model": "m",
+  "n": 1,
+  "temperature": 0.3,
+  "top_k": 20,
+  "top_p": 0.9
+}

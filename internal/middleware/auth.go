@@ -364,10 +364,6 @@ func RootAuth() func(c *gin.Context) {
 	}
 }
 
-func WssAuth(c *gin.Context) {
-
-}
-
 func TokenAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		authTimer := common.StartHotPathStage(common.HotPathStageAuthAdmission)

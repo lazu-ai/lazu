@@ -1,5 +1,5 @@
 /* Shared Console layout and confirmation primitives, backed by Lazu UI. */
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,7 +16,7 @@ import './project-primitives.css';
 /* Three, and only three: a plain label, something the reader should act on,
    and something that has stopped working. A fourth tone always turns out to
    be decoration, which is how one page ended up with five chip looks. */
-export type Tone = 'neutral' | 'warn' | 'bad' | 'evi';
+type Tone = 'neutral' | 'warn' | 'bad' | 'evi';
 
 /* ---------------------------------------------------------------- layout */
 
@@ -64,7 +64,7 @@ export function SectionHead({
   );
 }
 
-export type LedgerItem = {
+type LedgerItem = {
   key: string;
   label: React.ReactNode;
   value: React.ReactNode;
@@ -184,7 +184,7 @@ export function FormRow({
 
 /* ---------------------------------------------------------------- people */
 
-export function Avatar({
+function Avatar({
   name,
   square = false,
   muted = false,
@@ -275,28 +275,6 @@ export function Meter({
   );
 }
 
-export function Bars({
-  values,
-  height = 56,
-}: {
-  values: number[];
-  height?: number;
-}) {
-  const max = Math.max(1, ...values);
-  const peak = values.indexOf(max);
-  return (
-    <div className='pj-bars' style={{ height }} aria-hidden='true'>
-      {values.map((value, index) => (
-        <i
-          key={index}
-          data-peak={index === peak || undefined}
-          style={{ height: `${Math.max(4, (value / max) * 100)}%` }}
-        />
-      ))}
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------- controls */
 
 export function SegControl<T extends string>({
@@ -328,16 +306,6 @@ export function SegControl<T extends string>({
           {option.label}
         </button>
       ))}
-    </span>
-  );
-}
-
-/** Quick chips + "custom" + "unlimited" in one row (S2, R2, R9, S6). */
-
-export function OkLine({ children }: { children: React.ReactNode }) {
-  return (
-    <span className='pj-okt' role='status'>
-      <Check aria-hidden='true' size={12} /> {children}
     </span>
   );
 }
@@ -614,46 +582,6 @@ export function ActionModal({
   );
 }
 
-export function SaveBar({
-  text,
-  dirtyCount,
-  busy,
-  onDiscard,
-  onSave,
-  saveLabel,
-  sticky = false,
-}: {
-  text?: React.ReactNode;
-  dirtyCount?: number;
-  busy?: boolean;
-  onDiscard: () => void;
-  onSave: () => void;
-  saveLabel?: React.ReactNode;
-  sticky?: boolean;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className='pj-savebar' data-sticky={sticky || undefined} role='status'>
-      <span>
-        {text ?? t('common.unsavedCount', { count: dirtyCount ?? 0 })}
-      </span>
-      <span className='pj-savebar__acts'>
-        <Button
-          disabled={busy}
-          onClick={onDiscard}
-          size='sm'
-          variant='secondary'
-        >
-          {t('common.discard', { defaultValue: 'Discard' })}
-        </Button>
-        <Button loading={busy} onClick={onSave} size='sm' variant='primary'>
-          {saveLabel ?? t('common.save', { defaultValue: '保存' })}
-        </Button>
-      </span>
-    </div>
-  );
-}
-
 export function Notice({
   tone,
   title,
@@ -723,21 +651,3 @@ export const SelectLike = React.forwardRef<
 ));
 
 SelectLike.displayName = 'SelectLike';
-
-/** Visual toggle used inside a trigger button (a real Switch would nest a
- *  button in a button). */
-export function ToggleGlyph({ on }: { on: boolean }) {
-  return (
-    <span aria-hidden='true' className='pj-tg' data-off={!on || undefined} />
-  );
-}
-
-export function MonoText({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <span className={cn('pj-mono', className)}>{children}</span>;
-}

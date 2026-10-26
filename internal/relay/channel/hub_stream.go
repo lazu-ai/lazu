@@ -13,6 +13,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
@@ -315,6 +316,8 @@ func HubClientFor(c *gin.Context, info *relaycommon.RelayInfo) HubClient {
 		return &responsesHubClient{emitter: openai_responses.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName, info.ProtocolRequest, openai_responses.RetainedOutputLimit(info.ProtocolRequest))}
 	case textgen.ProtocolAnthropic:
 		return &anthropicHubClient{emitter: anthropic_messages.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName)}
+	case textgen.ProtocolGemini:
+		return &geminiHubClient{emitter: geminicodec.NewStreamEmitter()}
 	}
 	return &chatHubClient{emitter: openai_chat.NewStreamEmitter(helper.GetResponseID(c), info.UpstreamModelName), includeUsage: info.ShouldIncludeUsage, thinkToContent: info.ChannelSetting.ThinkingToContent}
 }
@@ -461,4 +464,38 @@ func (w *anthropicHubClient) Finish(c *gin.Context, usage *dto.Usage) error {
 
 func (w *anthropicHubClient) Fail(c *gin.Context, frame types.OpenAIError, _ *dto.Usage) {
 	_ = w.write(c, w.emitter.FailWithSemanticError(&textgen.SemanticError{Type: types.ClaudeErrorType(frame.Type, http.StatusBadGateway), Message: frame.Message}))
+}
+
+// geminiHubClient writes streamGenerateContent chunks (alt=sse: one data
+// line per chunk, no end marker).
+type geminiHubClient struct {
+	emitter *geminicodec.StreamEmitter
+}
+
+func (w *geminiHubClient) write(c *gin.Context, chunks []*dto.GeminiChatResponse) error {
+	for _, chunk := range chunks {
+		if err := helper.ObjectData(c, chunk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *geminiHubClient) Emit(c *gin.Context, events []textgen.Event) (bool, error) {
+	chunks := w.emitter.Emit(events...)
+	return len(chunks) > 0, w.write(c, chunks)
+}
+
+func (w *geminiHubClient) Finish(c *gin.Context, usage *dto.Usage) error {
+	chunks, err := w.emitter.Finish(usage)
+	if err != nil {
+		return err
+	}
+	return w.write(c, chunks)
+}
+
+func (w *geminiHubClient) Fail(c *gin.Context, frame types.OpenAIError, _ *dto.Usage) {
+	if payload := w.emitter.Fail(&textgen.SemanticError{Type: frame.Type, Message: frame.Message}); payload != nil {
+		_ = helper.ObjectData(c, payload)
+	}
 }

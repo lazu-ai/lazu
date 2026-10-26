@@ -215,6 +215,8 @@ func bridgeOrder(client ProtocolFamily) []ProtocolFamily {
 		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolAnthropic, ProtocolGemini}
 	case ProtocolAnthropic:
 		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses, ProtocolGemini}
+	case ProtocolGemini:
+		return []ProtocolFamily{ProtocolOpenAIChat, ProtocolOpenAIResponses, ProtocolAnthropic}
 	}
 	return nil
 }
@@ -226,12 +228,19 @@ func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySna
 	if upstream == "" || upstream == client.Family || !snapshot.Features.Has(endpointOf(upstream)) {
 		return nil, &UnsupportedFeatureError{Feature: endpoint, Path: "", Reason: "channel has no native endpoint and no lossless bridge target"}
 	}
-	if client.Family == ProtocolOpenAIResponses && upstream == ProtocolOpenAIChat && !supportsOpenAIChatWireBridge(snapshot.Dialect) {
+	if client.Family != ProtocolOpenAIChat && upstream == ProtocolOpenAIChat && !supportsOpenAIChatWireBridge(snapshot.Dialect) {
 		return nil, &UnsupportedFeatureError{Feature: endpoint, Path: "", Reason: "channel transport is not an OpenAI-compatible chat wire dialect"}
+	}
+	if client.Family == ProtocolGemini && request.Sampling.N.Set && request.Sampling.N.Value > 1 {
+		return nil, &UnsupportedFeatureError{
+			Feature: FeatureN,
+			Path:    "generationConfig.candidateCount",
+			Reason:  "the Gemini bridge supports exactly one candidate",
+		}
 	}
 	// With reasoning off there is no reasoning state for Chat to lose, so the
 	// bridge stays lossless for tool calls.
-	if client.Family == ProtocolOpenAIChat && upstream == ProtocolOpenAIResponses && snapshot.Features.Has(FeatureReasoningEffort) &&
+	if (client.Family == ProtocolOpenAIChat || client.Family == ProtocolGemini) && upstream == ProtocolOpenAIResponses && snapshot.Features.Has(FeatureReasoningEffort) &&
 		request.Reasoning.Effort != "none" {
 		toolMode := request.ToolPolicy.Mode
 		if toolMode == "" {
@@ -241,7 +250,7 @@ func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySna
 			return nil, &UnsupportedFeatureError{
 				Feature: FeatureFunctionTools,
 				Path:    "tool_choice",
-				Reason:  "reasoning-capable Responses models require reasoning state that Chat cannot preserve across tool-call continuation",
+				Reason:  "reasoning-capable Responses models require reasoning state that the client protocol cannot preserve across tool-call continuation",
 			}
 		}
 		for index, item := range request.Conversation {
@@ -249,7 +258,7 @@ func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySna
 				return nil, &UnsupportedFeatureError{
 					Feature: FeatureFunctionTools,
 					Path:    fmt.Sprintf("input[%d]", index),
-					Reason:  "reasoning-capable Responses models require prior reasoning items for tool-call continuation",
+					Reason:  "reasoning-capable Responses models require prior reasoning items that the client protocol cannot preserve for tool-call continuation",
 				}
 			}
 		}
@@ -340,8 +349,13 @@ func requireFeatures(snapshot CapabilitySnapshot, required FeatureSet, uses []Fe
 }
 
 func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
+	if client == ProtocolGemini {
+		if issue := geminiCurrentTurnSignature(request); issue != nil {
+			return issue
+		}
+	}
 	if upstream == ProtocolAnthropic {
-		return messagesBridgeIssue(request, uses)
+		return messagesBridgeIssue(client, request, uses)
 	}
 	if upstream == ProtocolGemini {
 		return geminiBridgeIssue(client, request, uses)
@@ -366,10 +380,9 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 		return &Issue{Feature: FeatureAnthropicOptions, Path: path, Message: "Anthropic's speed tier has no equivalent outside the Messages API"}
 	}
 	for _, use := range uses {
-		if client == ProtocolAnthropic && use.Feature == FeatureOpaqueReasoningItem && use.Detail == "anthropic" {
-			// thinking Anthropic sealed means something to Anthropic alone;
-			// another vendor's model cannot use it, so leaving it out loses
-			// nothing (the OpenAI encoders skip it)
+		if discardableOpaqueReasoning(client, use) {
+			// A completed turn's vendor-bound reasoning state means nothing to
+			// another vendor and its encoder leaves it out.
 			continue
 		}
 		switch use.Feature {
@@ -396,7 +409,10 @@ func bridgeIssue(client, upstream ProtocolFamily, request *Request, uses []Featu
 				return &Issue{Feature: use.Feature, Path: use.Path, Message: "Responses has no lossless equivalent"}
 			}
 		case FeatureReasoningSummary:
-			if upstream == ProtocolOpenAIChat {
+			// a Gemini client's includeThoughts asks for the thoughts there
+			// are, which a Chat upstream returns as reasoning_content; a
+			// Responses summary is a different text Chat cannot ask for
+			if upstream == ProtocolOpenAIChat && client != ProtocolGemini {
 				return &Issue{Feature: use.Feature, Path: use.Path, Message: "Chat Completions has no lossless equivalent"}
 			}
 		}
@@ -443,8 +459,11 @@ func jsonObject(text string) bool {
 	return json.Unmarshal([]byte(text), &object) == nil && object != nil
 }
 
-func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
+func messagesBridgeIssue(client ProtocolFamily, request *Request, uses []FeatureUse) *Issue {
 	for _, use := range uses {
+		if discardableOpaqueReasoning(client, use) {
+			continue
+		}
 		switch use.Feature {
 		case FeatureUnknownField, FeaturePreviousResponse, FeatureConversation, FeaturePromptTemplate, FeatureIncludeEncryptedReasoning, FeatureIncludeUnsupported, FeatureHostedToolNativeOnly, FeatureOpaqueReasoningItem, FeatureInputReference, FeatureOpaqueInputItem:
 			return &Issue{Feature: use.Feature, Path: use.Path, Message: "feature cannot be preserved by the stateless protocol bridge"}
@@ -496,6 +515,11 @@ func messagesBridgeIssue(request *Request, uses []FeatureUse) *Issue {
 	return nil
 }
 
+func discardableOpaqueReasoning(client ProtocolFamily, use FeatureUse) bool {
+	return use.Feature == FeatureOpaqueReasoningItem &&
+		((client == ProtocolAnthropic && use.Detail == "anthropic") || (client == ProtocolGemini && use.Detail == "gemini"))
+}
+
 // geminiBridgeIssue is what keeps a request off the bridge to Gemini's
 // generateContent. A Gemini channel used to take Chat clients natively and
 // convert them itself, leaving out what Gemini has no field for (n, log
@@ -527,4 +551,34 @@ func geminiBridgeIssue(client ProtocolFamily, request *Request, uses []FeatureUs
 		return nil
 	}
 	return bridgeIssue(client, ProtocolOpenAIChat, request, uses)
+}
+
+// geminiCurrentTurnSignature refuses a Gemini client's request whose turn
+// is still running on Gemini's thoughts: a thought signature after the last
+// user prompt (a function result is not one). Gemini refuses the next call
+// of that turn without its signatures, so the turn stays on a Gemini
+// upstream; signatures of finished turns mean nothing elsewhere and are left
+// out.
+func geminiCurrentTurnSignature(request *Request) *Issue {
+	if request == nil {
+		return nil
+	}
+	start := 0
+	for index := len(request.Conversation) - 1; index >= 0; index-- {
+		item := request.Conversation[index]
+		if item.Kind == InputMessage && item.Role == "user" {
+			start = index + 1
+			break
+		}
+	}
+	for index := start; index < len(request.Conversation); index++ {
+		for _, opaque := range request.Conversation[index].Opaque {
+			// a thought part without a signature is sealed as an empty one
+			var signature string
+			if opaque.Dialect == "gemini" && json.Unmarshal(opaque.Value, &signature) == nil && signature != "" {
+				return &Issue{Feature: FeatureOpaqueReasoningItem, Path: "input[" + itoa(index) + "]", Message: "a Gemini thought signature in the running turn needs a Gemini upstream"}
+			}
+		}
+	}
+	return nil
 }

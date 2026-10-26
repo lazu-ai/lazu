@@ -113,7 +113,7 @@ type FormComponent = React.ForwardRefExoticComponent<
   TextArea: ConsoleComponent;
 };
 
-export const Form = React.forwardRef<FormApi, FormProps>(
+const Form = React.forwardRef<FormApi, FormProps>(
   (
     {
       children,
@@ -297,9 +297,9 @@ function TabsBase({
   );
 }
 
-export const TabPane: ConsoleComponent = () => null;
+const TabPane: ConsoleComponent = () => null;
 
-export const Tabs = TabsBase as typeof TabsBase & {
+const Tabs = TabsBase as typeof TabsBase & {
   TabPane: ConsoleComponent;
 };
 Tabs.TabPane = TabPane;
@@ -426,12 +426,7 @@ function CollapsePanel({
   );
 }
 
-export const Collapse = CollapseBase as typeof CollapseBase & {
+const Collapse = CollapseBase as typeof CollapseBase & {
   Panel: ConsoleComponent;
 };
 Collapse.Panel = CollapsePanel;
-
-export const Collapsible: ConsoleComponent = ({
-  children,
-  isOpen,
-}: ConsolePrimitiveProps) => (isOpen ? children : null);

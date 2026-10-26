@@ -8,7 +8,6 @@ build
 logs
 data/
 apps/web/dist
-apps/web/storybook-static
 **/bun.lockb
 mysql_data/
 redis_data/

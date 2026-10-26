@@ -170,24 +170,3 @@ func (m *ErrorRateMonitor) sendAlertEmail(errorCount int64, windowStart time.Tim
 		common.SysError("error rate alert: " + err.Error())
 	}
 }
-
-// GetStats 获取当前监控统计（用于调试/API）
-func (m *ErrorRateMonitor) GetStats() map[string]interface{} {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	now := time.Now()
-	windowRemaining := m.windowDuration - now.Sub(m.windowStart)
-	if windowRemaining < 0 {
-		windowRemaining = 0
-	}
-
-	return map[string]interface{}{
-		"error_count":      atomic.LoadInt64(&m.errorCount),
-		"window_duration":  m.windowDuration.String(),
-		"window_remaining": windowRemaining.String(),
-		"threshold":        m.threshold,
-		"cooldown":         m.cooldown.String(),
-		"last_alert":       m.lastAlertTime.Format(time.RFC3339),
-	}
-}

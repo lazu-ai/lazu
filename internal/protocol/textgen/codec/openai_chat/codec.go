@@ -705,8 +705,10 @@ func encodeMessages(request *textgen.Request, wire *dto.GeneralOpenAIRequest) er
 		switch item.Kind {
 		case textgen.InputReasoning:
 			if !item.PlainReasoning.Set {
-				if len(item.Opaque) > 0 && item.Opaque[0].Dialect == "anthropic" {
-					// sealed by Anthropic, meaningless to another vendor
+				if len(item.Opaque) > 0 && (item.Opaque[0].Dialect == "anthropic" || item.Opaque[0].Dialect == "gemini") {
+					// Sealed by another vendor, meaningless to this one. The
+					// planner keeps a Gemini signature from the running turn
+					// off this bridge; completed turns can safely leave it out.
 					continue
 				}
 				return fmt.Errorf("opaque reasoning cannot be encoded as chat")
