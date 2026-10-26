@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { CreditCard, Download, History, Search } from 'lucide-react';
+import { Download, History, Search } from 'lucide-react';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -396,10 +396,6 @@ const WalletPage = () => {
     user?.quota === undefined || user?.quota === null
       ? null
       : microUSDToUSD(asMicroUSD(user.quota));
-  const lifetimeSpend =
-    user?.used_quota === undefined || user?.used_quota === null
-      ? null
-      : microUSDToUSD(asMicroUSD(user.used_quota));
   const totals = usageQuery.data?.totals;
   const periodSpend = totals
     ? microUSDToUSD(asMicroUSD(toNumber(totals.amount_microusd)))

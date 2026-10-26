@@ -22,7 +22,7 @@ pre-commit:
     eslint-web:
       root: apps/web
       glob: "*.{ts,tsx,cts}"
-      run: bunx eslint --cache --max-warnings=198 {staged_files}
+      run: bunx eslint --cache --max-warnings=0 {staged_files}
     typecheck-web:
       root: apps/web
       glob: "*.{ts,tsx,cts}"

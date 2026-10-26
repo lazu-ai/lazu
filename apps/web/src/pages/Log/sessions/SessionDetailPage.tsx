@@ -9,7 +9,6 @@ import {
   SK,
   type SessionLane,
   clockSecondsText,
-  clockText,
   durationText,
   officialSaving,
   pct,

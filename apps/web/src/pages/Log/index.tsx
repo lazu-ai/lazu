@@ -274,19 +274,6 @@ const Token = () => {
   // the request view: same filters, same window, same stat tiles. Both live
   // in the URL so refresh and back keep them.
   const showingSessions = searchParams.get('view') === 'sessions';
-  const setSessionsView = useCallback(
-    (next: boolean) => {
-      const params = new URLSearchParams(searchParams);
-      if (next) {
-        params.set('view', 'sessions');
-        params.delete('request');
-      } else {
-        params.delete('view');
-      }
-      setSearchParams(params);
-    },
-    [searchParams, setSearchParams],
-  );
   const usersRequested = searchParams.get('view') === 'users';
   const showingUsers =
     usersRequested && viewMode === 'requests' && logs.isAdminUser;

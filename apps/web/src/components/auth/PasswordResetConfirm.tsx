@@ -1,4 +1,4 @@
-import { CheckCircle2, Mail, ShieldCheck } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';

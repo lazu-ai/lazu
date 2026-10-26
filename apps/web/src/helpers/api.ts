@@ -5,7 +5,6 @@ import {
   showError,
   formatMessageForAPI,
   isValidMessage,
-  safeJsonParse,
 } from './utils';
 import { MESSAGE_ROLES } from '../constants/chat.constants';
 import i18n from '../i18n/i18n';
@@ -44,20 +43,8 @@ type ApiErrorResponse = {
   statusText?: string;
 };
 
-type ApiResponseShape = {
-  data?: unknown;
-  message?: string;
-  success?: boolean;
-};
-
 // 模块级别的请求缓存Map，确保全局唯一
 const inFlightGetRequests = new Map<string, Promise<AxiosResponse<unknown>>>();
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object';
-
-const toApiResponseShape = (value: unknown): ApiResponseShape =>
-  isRecord(value) ? value : {};
 
 // 创建带有用户ID头的axios实例
 function createAPIInstance(): AxiosInstance {

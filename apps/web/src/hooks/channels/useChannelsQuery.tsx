@@ -6,10 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  DEFAULT_PROTOCOL_DIALECT,
-  inferProtocolDialect,
-} from './channelProtocolDialect';
+import { inferProtocolDialect } from './channelProtocolDialect';
 import {
   coerceItemsPayload,
   createSearchParams,

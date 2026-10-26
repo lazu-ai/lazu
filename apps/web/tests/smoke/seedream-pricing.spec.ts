@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { expect, test, type Request } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { expectRouteReady, setupMockedApp } from './helpers/mock-app';
 
 const imagePricing = {

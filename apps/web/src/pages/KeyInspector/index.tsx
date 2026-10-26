@@ -4,7 +4,6 @@ import {
   Activity,
   BarChart3,
   Coins,
-  KeyRound,
   PieChart,
   Search,
   TrendingUp,
@@ -29,9 +28,7 @@ import {
 } from './support';
 import VChart from '../../components/common/charts/VChart';
 import {
-  Badge,
   Button,
-  DataCard,
   DataSurface,
   DataTableShell,
   DateRangePicker,

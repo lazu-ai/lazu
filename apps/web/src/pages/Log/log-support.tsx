@@ -1135,7 +1135,6 @@ export function LogDetailPanel({
   const isFailed = type === 5;
   const isTokenLog = [0, 2, 5].includes(type);
   const lane = logLane(record);
-  const quote = parseQuoteBreakdown(record);
   const saving = officialSaving(record);
 
   const duration = recordedSeconds(record);

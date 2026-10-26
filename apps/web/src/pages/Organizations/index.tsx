@@ -16,7 +16,6 @@ import {
   initials,
   int,
   isFrozen,
-  isLowBalance,
   isZeroBalance,
   providerLabel,
   toAccount,

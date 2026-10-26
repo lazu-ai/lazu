@@ -16,7 +16,7 @@ import {
   SelectItem,
 } from '../../components/ui';
 import { API } from '../../helpers/api';
-import { showError, showSuccess } from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import {
   useModelInfoMutations,
   useModelInfoReviewsQuery,

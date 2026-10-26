@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { API } from '../../helpers/api';
 import { getUserIdFromLocalStorage } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
@@ -263,56 +263,6 @@ export const channelHealthQueryKey = (window: ChannelHealthWindow) =>
     window,
     accountId: getUserIdFromLocalStorage(),
   });
-
-/** Move one upstream between carrying a route, standing by, and inventory. */
-export function useChannelHealthRoleMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: {
-      channel_id: number;
-      lane: string;
-      model: string;
-      role: ChannelHealthRole;
-    }) => {
-      const response = await API.put('/api/channel_health/route_role', {
-        ...input,
-        channel_id: String(input.channel_id),
-      });
-      return unwrap<unknown>(response);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.console.table('channel-health', {}),
-        exact: false,
-      });
-    },
-  });
-}
-
-/** End a retreat now rather than waiting out its deadline, for when the
- *  operator has just fixed the thing the breaker was reacting to. */
-export function useChannelHealthRetreatMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: {
-      channel_id: number;
-      lane: string;
-      model: string;
-    }) => {
-      const response = await API.post(
-        '/api/channel_health/route_retreat/clear',
-        { ...input, channel_id: String(input.channel_id) },
-      );
-      return unwrap<unknown>(response);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.console.table('channel-health', {}),
-        exact: false,
-      });
-    },
-  });
-}
 
 export function channelHealthQueryOptions(window: ChannelHealthWindow = '24h') {
   return {

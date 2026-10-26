@@ -40,7 +40,7 @@ import {
 } from '../components/KeyDialogs';
 import { KeySecretCell } from '../components/KeySecretCell';
 import { ProjectKeyConnect } from '../components/ProjectKeyConnect';
-import { formatUSD, formatUSDShort, percentOf } from '../money';
+import { formatUSD, formatUSDShort } from '../money';
 import { useProject } from '../ProjectContext';
 import {
   useInvalidateProject,

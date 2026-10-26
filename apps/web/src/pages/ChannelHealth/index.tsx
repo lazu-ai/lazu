@@ -16,22 +16,13 @@ import {
 } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
 import { API } from '../../helpers/api';
-import {
-  getRelativeTime,
-  isRoot as isPlatformAdmin,
-  showError,
-  showSuccess,
-} from '../../helpers/utils';
+import { getRelativeTime, showError, showSuccess } from '../../helpers/utils';
 import {
   channelHealthQueryKey,
   useChannelHealthQuery,
-  useChannelHealthRetreatMutation,
-  useChannelHealthRoleMutation,
   type ChannelHealthBucket,
-  type ChannelHealthChannel,
   type ChannelHealthKind,
   type ChannelHealthKindSection,
-  type ChannelHealthRole,
   type ChannelHealthProvider,
   type ChannelHealthProviderLane,
   type ChannelHealthRow,
@@ -285,14 +276,8 @@ export function ChannelHealthPage() {
      bars and the availability are the week behind it, the span a status page
      reader expects. A day showed too little and asked the reader to choose. */
   const health = useChannelHealthQuery(HEALTH_WINDOW);
-  const roleMutation = useChannelHealthRoleMutation();
-  const retreatMutation = useChannelHealthRetreatMutation();
   const payload = health.data;
   const isAdmin = Boolean(payload?.is_admin);
-  // The page chrome must not wait for the payload, or an operator's title
-  // would flip from the customer wording once the request lands. The local
-  // role answers synchronously; the payload still governs the data views.
-  const operator = isPlatformAdmin();
   const providers = useMemo(() => payload?.providers ?? [], [payload]);
 
   // The by-upstream view is an admin-only operations lens. The locked health
@@ -344,14 +329,6 @@ export function ChannelHealthPage() {
     },
     [t],
   );
-
-  const roleLabel = (role?: ChannelHealthRole) => {
-    if (role === 'backup')
-      return t(`${ns}.role.backup`, { defaultValue: '备用' });
-    if (role === 'inventory')
-      return t(`${ns}.role.inventory`, { defaultValue: '库存' });
-    return t(`${ns}.role.primary`, { defaultValue: '主用' });
-  };
 
   const deferredSearch = useDeferredValue(search);
   const query = deferredSearch.trim().toLowerCase();
@@ -489,66 +466,6 @@ export function ChannelHealthPage() {
   /* Roles and retreats are the two things an operator changes from this page.
      Everything else here reports; these two act, so they live next to the
      evidence that prompts them rather than in a separate settings screen. */
-  /* Always the slug the server sent, never one derived from the display key:
-     `lane` shows two lanes to customers by collapsing every other one into
-     稳定, so reversing it would write to 直连 for a source that only serves an
-     operator-created lane. */
-  const routeLane = (row: ChannelHealthRow) =>
-    row.lane_slug || (row.lane === 'eco' ? 'cheap' : 'direct');
-
-  /* Abilities are stored under the routed name, which for an aliased variant
-     is not the catalog name the row is shown under. */
-  const routeModel = (row: ChannelHealthRow, source: ChannelHealthChannel) =>
-    source.ability_model || row.model_name;
-
-  const changeRole = async (
-    row: ChannelHealthRow,
-    source: ChannelHealthChannel,
-    role: ChannelHealthRole,
-  ) => {
-    if ((source.role || 'primary') === role) return;
-    try {
-      await roleMutation.mutateAsync({
-        channel_id: source.channel_id,
-        lane: routeLane(row),
-        model: routeModel(row, source),
-        role,
-      });
-      showSuccess(
-        t(`${ns}.panel.roleDone`, {
-          defaultValue: '{{name}} 在这条线路上改为{{role}}',
-          name: source.channel_name,
-          role: roleLabel(role),
-        }),
-      );
-      await refreshHealth();
-    } catch {
-      /* The request interceptor has reported the failure. */
-    }
-  };
-
-  const clearRetreat = async (
-    row: ChannelHealthRow,
-    source: ChannelHealthChannel,
-  ) => {
-    try {
-      await retreatMutation.mutateAsync({
-        channel_id: source.channel_id,
-        lane: routeLane(row),
-        model: routeModel(row, source),
-      });
-      showSuccess(
-        t(`${ns}.panel.restoreDone`, {
-          defaultValue: '{{name}} 已重新进入轮转',
-          name: source.channel_name,
-        }),
-      );
-      await refreshHealth();
-    } catch {
-      /* The request interceptor has reported the failure. */
-    }
-  };
-
   const runFloor = async () => {
     if (!floorTarget) return;
     const routes = liveLanes(floorTarget).map((lane) => ({

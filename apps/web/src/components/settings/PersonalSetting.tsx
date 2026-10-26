@@ -31,7 +31,6 @@ import {
   PendingBlock,
   PendingValue,
   Field,
-  FieldMessage,
   InlineNotice,
   Input,
   Label,

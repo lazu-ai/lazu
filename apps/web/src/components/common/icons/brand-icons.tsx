@@ -4,7 +4,7 @@
  * (CC0). Each component accepts the standard SVG props plus `size`
  * (defaults to `1em`) and `color` (defaults to `currentColor`). */
 
-import React, { type ReactNode, type SVGProps } from 'react';
+import { type ReactNode, type SVGProps } from 'react';
 
 type BrandIconProps = Omit<SVGProps<SVGSVGElement>, 'color'> & {
   children?: ReactNode;

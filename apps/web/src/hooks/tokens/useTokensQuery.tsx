@@ -650,34 +650,6 @@ async function fetchTokenDetail(id: TokenId): Promise<TokenFormValues> {
 
 const DEFAULT_TOKEN_QUOTA_USD = 50;
 
-/** Fields PUT /api/token/ copies onto a Key (see controller.UpdateToken). */
-const TOKEN_UPDATE_FIELDS = [
-  'name',
-  'product',
-  'metadata',
-  'expired_time',
-  'remain_quota',
-  'unlimited_quota',
-  'rate_limits_enabled',
-  'rpm_limit',
-  'tpm_limit',
-  'model_limits_enabled',
-  'model_limits',
-  'allow_ips',
-  'ip_whitelist_enabled',
-  'ip_blacklist',
-  'ip_blacklist_enabled',
-  'vendor_limits_enabled',
-  'vendor_limits',
-  'vendor_groups',
-  'model_lanes',
-  'search_limits_enabled',
-  'search_providers',
-  'search_domain_allowlist',
-  'reasoning_effort_cap',
-  'decision_question_generation',
-] as const;
-
 export function getDefaultTokenFormValues(): TokenFormValues {
   return {
     ...normalizeTokenDetail({

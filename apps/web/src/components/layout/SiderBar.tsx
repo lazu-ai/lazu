@@ -27,7 +27,6 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Skeleton,
 } from '../ui';
 /* The sidebar renders the `.pj-sidefoot` role row on every console page, but
    the project stylesheet used to arrive only with a project page's own imports

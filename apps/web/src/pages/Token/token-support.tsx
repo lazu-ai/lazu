@@ -1,12 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Check,
-  ChevronRight,
-  CircleAlert,
-  Copy,
-  Search,
-  X,
-} from 'lucide-react';
+import { Check, ChevronRight, CircleAlert, Copy, Search } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +12,6 @@ import {
   Checkbox,
   DatePicker,
   FieldMessage,
-  IconButton,
   Input,
   Modal,
   MultiSelect,
@@ -566,86 +558,6 @@ function RateLimitFields({
   );
 }
 
-function QuotaFields({
-  form,
-  t,
-  usedQuota,
-  values,
-}: {
-  form: TokenForm;
-  t: TFunction;
-  usedQuota: unknown;
-  values: TokenFormInput;
-}) {
-  const unlimited = Boolean(values.unlimited_quota);
-  const quota = buildQuotaDisplay({
-    remaining: usdToMicroUSD(Number(values.remain_quota) || 0),
-    unlimited,
-    used: asMicroUSD(usedQuota),
-  });
-  const usedText = renderQuota(quota.used);
-
-  return (
-    <div className='tokv2-f'>
-      <label className='tokv2-f__label' htmlFor='token-quota'>
-        {t('page.console.token.form.remainingQuota', {
-          defaultValue: '剩余额度',
-        })}
-      </label>
-      <div className='tokv2-row tokv2-row--nowrap'>
-        <div className='tokv2-row__grow relative'>
-          <span className='tokv2-quota-prefix'>$</span>
-          <Input
-            className='tokv2-quota-input'
-            disabled={unlimited}
-            id='token-quota'
-            min='0'
-            placeholder='0.00'
-            step='any'
-            type='number'
-            {...form.register('remain_quota')}
-          />
-        </div>
-        <Controller
-          control={form.control}
-          name='unlimited_quota'
-          render={({ field }) => (
-            <button
-              type='button'
-              aria-pressed={Boolean(field.value)}
-              className={cn('tokv2-chip', field.value && 'tokv2-chip--evi')}
-              onClick={() => field.onChange(!field.value)}
-            >
-              {t('legacy.i18n.unlimited_quota.b26f37b7f5')}
-            </button>
-          )}
-        />
-      </div>
-      {quota.mode === 'finite' ? (
-        <>
-          <div className='tokv2-meter'>
-            <span
-              className='tokv2-meter__fill'
-              style={{ width: `${quota.usedPercent}%` }}
-            />
-          </div>
-          <span className='tokv2-meter__line'>
-            {t('page.console.token.form.quotaMeter', {
-              defaultValue: '已用 {{used}} / 总额 {{total}}',
-              total: renderQuota(quota.total),
-              used: usedText,
-            })}
-          </span>
-        </>
-      ) : (
-        <span className='tokv2-meter__line'>
-          {t('page.console.token.quotaUsed', { value: usedText })}
-        </span>
-      )}
-    </div>
-  );
-}
-
 /** The example model a lane row names: that vendor's newest flagship, so the
  *  row illustrates itself rather than borrowing another vendor's model. */
 function laneSampleModel(facts: TokenModelFact[]): string {
@@ -656,43 +568,6 @@ function laneSampleModel(facts: TokenModelFact[]): string {
   });
   const flagship = ranked.find((fact) => classifyTier(fact) === 'flagship');
   return (flagship || ranked[0])?.model || '';
-}
-
-/** The catalog grouped the way the picker shows it: vendor first, then the
- *  models that vendor serves. */
-function useModelGroups(
-  options: Array<{ label: string; value: string }>,
-  facts: TokenModelFact[],
-  vendors: TokenVendorRecord[],
-  query: string,
-) {
-  return useMemo(() => {
-    const factByModel = new Map(facts.map((fact) => [fact.model, fact]));
-    const vendorName = new Map(
-      vendors.map((vendor) => [String(vendor.id), String(vendor.name || '')]),
-    );
-    const needle = query.trim().toLowerCase();
-    const groups = new Map<
-      string,
-      { label: string; models: Array<{ fact?: TokenModelFact; name: string }> }
-    >();
-    options.forEach((option) => {
-      const name = String(option.value);
-      if (needle && !name.toLowerCase().includes(needle)) return;
-      const fact = factByModel.get(name);
-      const family = modelFamily(name);
-      const key =
-        (fact?.vendorID && vendorName.get(fact.vendorID)) ||
-        (family ? family[0].toUpperCase() + family.slice(1) : '') ||
-        'Other';
-      const group = groups.get(key) || { label: key, models: [] };
-      group.models.push({ fact, name });
-      groups.set(key, group);
-    });
-    return [...groups.values()].sort(
-      (a, b) => b.models.length - a.models.length,
-    );
-  }, [facts, options, query, vendors]);
 }
 
 const perMtok = (fact?: TokenModelFact) => {
@@ -1109,125 +984,6 @@ const ADVANCED_FIELDS = new Set([
   'tpm_limit',
 ]);
 
-/** Rows the editor can show, or null when the stored value is not a flat
- *  object of strings. A number, a boolean or a nested object would come back
- *  from these text inputs as a string and quietly change type for whoever
- *  reads the metadata downstream, so those Keys keep the raw editor. */
-const parseTags = (raw: string): Array<[string, string]> | null => {
-  const text = String(raw || '').trim();
-  if (!text) return [];
-  try {
-    const parsed = JSON.parse(text);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return null;
-    }
-    const entries = Object.entries(parsed);
-    if (entries.some(([, value]) => typeof value !== 'string')) return null;
-    return entries as Array<[string, string]>;
-  } catch {
-    return null;
-  }
-};
-
-/** Tags are stored as the JSON object the API has always taken; the form
- *  edits them as key / value rows so nobody types braces. */
-function TagRowsField({ form, t }: { form: TokenForm; t: TFunction }) {
-  const raw = String(form.watch('metadata') || '');
-  const rows = parseTags(raw);
-  const write = (next: Array<[string, string]>) => {
-    const object = Object.fromEntries(
-      next
-        .filter(([key]) => key.trim())
-        .map(([key, value]) => [key.trim(), value]),
-    );
-    form.setValue(
-      'metadata',
-      Object.keys(object).length ? JSON.stringify(object) : '',
-      { shouldDirty: true },
-    );
-  };
-
-  if (rows === null) {
-    // A value that is not a JSON object predates this field's UI; keep it
-    // editable as text rather than dropping what someone stored.
-    return (
-      <div className='tokv2-f tokv2-f--full'>
-        <label className='tokv2-f__label' htmlFor='token-metadata'>
-          {t('page.console.token.tags.label', { defaultValue: '标签' })}
-        </label>
-        <Textarea id='token-metadata' rows={3} {...form.register('metadata')} />
-        <FieldMessage error>
-          {String(form.formState.errors.metadata?.message || '')}
-        </FieldMessage>
-      </div>
-    );
-  }
-
-  const draft: Array<[string, string]> = [...rows, ['', '']];
-  return (
-    <div className='tokv2-f tokv2-f--full'>
-      <span className='tokv2-f__label'>
-        {t('page.console.token.tags.label', { defaultValue: '标签' })}
-      </span>
-      <div className='tok-tags'>
-        {draft.map(([key, value], index) => (
-          <div className='tok-tags__row' key={index}>
-            <Input
-              aria-label={t('page.console.token.tags.key', {
-                defaultValue: '键',
-              })}
-              placeholder={t('page.console.token.tags.keyPlaceholder', {
-                defaultValue: '键，例如 team',
-              })}
-              value={key}
-              onChange={(event) => {
-                const next = [...draft];
-                next[index] = [event.target.value, value];
-                write(next);
-              }}
-            />
-            <Input
-              aria-label={t('page.console.token.tags.value', {
-                defaultValue: '值',
-              })}
-              placeholder={t('page.console.token.tags.valuePlaceholder', {
-                defaultValue: '值，例如 search',
-              })}
-              value={value}
-              onChange={(event) => {
-                const next = [...draft];
-                next[index] = [key, event.target.value];
-                write(next);
-              }}
-            />
-            <IconButton
-              aria-label={t('page.console.token.tags.remove', {
-                defaultValue: '删除这一行',
-              })}
-              disabled={index === draft.length - 1}
-              size='sm'
-              type='button'
-              variant='ghost'
-              onClick={() => write(draft.filter((_, item) => item !== index))}
-            >
-              <X size={14} />
-            </IconButton>
-          </div>
-        ))}
-      </div>
-      <span className='tokv2-hint'>
-        {t('page.console.token.tags.hint', {
-          defaultValue:
-            '给这把 Key 贴个标签，比如 team=search。它会跟着这把 Key 的每一条调用记录走，方便之后按团队或项目对账。留空也没关系。',
-        })}
-      </span>
-      <FieldMessage error>
-        {String(form.formState.errors.metadata?.message || '')}
-      </FieldMessage>
-    </div>
-  );
-}
-
 /** One question in 更多设置: a title, a sentence saying what it is for, and
  *  the switch that turns it on. Closed, it costs one line; open, it shows only
  *  its own fields. Nine of these stacked read as a menu rather than a form. */
@@ -1289,7 +1045,6 @@ export function TokenFormDrawer({
     resolver: zodResolver(tokenFormSchema),
   });
   const values = form.watch();
-  const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [expiryChoice, setExpiryChoice] = useState<
     'never' | '30' | '90' | 'custom'
@@ -1350,12 +1105,6 @@ export function TokenFormDrawer({
     form.setValue('expired_time', next);
   };
 
-  const vendorLimitOptions = tokens.vendorOptions.vendors.map(
-    (vendor: TokenVendorRecord) => ({
-      label: vendor.name,
-      value: String(vendor.id),
-    }),
-  );
   const tokenLaneVendors = useTokenLaneVendors(tokens.vendorOptions.vendors);
   const allowedLaneVendorIds = useMemo(
     () =>
@@ -1444,17 +1193,6 @@ export function TokenFormDrawer({
     form.setValue('vendor_groups', nextVendorGroups, { shouldDirty: true });
   };
 
-  const selectedModels = Array.isArray(values.model_limits)
-    ? values.model_limits.map(String)
-    : [];
-  const modelScopeEnabled = Boolean(values.model_limits_enabled);
-  const removeModel = (model: string) => {
-    form.setValue(
-      'model_limits',
-      selectedModels.filter((item) => item !== model),
-      { shouldDirty: true },
-    );
-  };
   const quotaDisplay = isEdit
     ? buildQuotaDisplay({
         remaining: usdToMicroUSD(Number(values.remain_quota) || 0),

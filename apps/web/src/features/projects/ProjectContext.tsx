@@ -2,7 +2,7 @@
  * the viewer's role in it, the contract client, and the unsaved-edit guard
  * that the switcher and the master-detail page consult before moving. */
 import { useQueryClient } from '@tanstack/react-query';
-import React, {
+import {
   createContext,
   useCallback,
   useContext,

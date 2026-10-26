@@ -40,7 +40,6 @@ import {
   User,
   X,
 } from 'lucide-react';
-import React from 'react';
 import type { LucideIcon, LucideProps } from 'lucide-react';
 
 type LegacyIconSize = LucideProps['size'] | 'small' | 'large';

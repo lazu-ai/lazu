@@ -20,7 +20,6 @@ import {
 } from './sellPrices';
 import type { ApiRecord } from './apiRecord';
 import type {
-  ModelOpsLane,
   ModelOpsPoolEntry,
   ModelOpsPools,
 } from '../../hooks/models/useModelOpsQuery';

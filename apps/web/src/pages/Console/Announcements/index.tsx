@@ -1,4 +1,4 @@
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import {
   lazy,

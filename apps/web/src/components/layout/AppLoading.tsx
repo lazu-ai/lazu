@@ -16,7 +16,6 @@
  * arrive inside that window and the best loading state is the one that never
  * appeared.
  */
-import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { normalizeShellPath } from './route-shell';
