@@ -65,7 +65,8 @@ migration, seed and metric contracts are described below.
 
 Private overrides: `LAZU_BENCH_PG_PORT`, `LAZU_BENCH_REDIS_PORT`,
 `LAZU_BENCH_UPSTREAM_PORT`, `LAZU_BENCH_GATEWAY_PORT`, `LAZU_BENCH_DURATION`
-(default 8s per case).
+(default 8s per case), `LAZU_BENCH_REDIS_POOL_SIZE` (the gateway's `REDIS_POOL_SIZE`;
+unset keeps its default of 10).
 `LAZU_BENCH_PG_RTT_MS=35` adds 35 ms propagation RTT to both database
 connections after migration/seeding, through a bounded loopback TCP fixture.
 `LAZU_BENCH_PG_DELAY_PORT` changes its listener port (default 15474).
