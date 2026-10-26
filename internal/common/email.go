@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"maps"
 	"net/smtp"
@@ -26,10 +27,6 @@ func generateMessageID(from string) (string, error) {
 type EmailAttachment struct {
 	Filename string
 	Content  []byte
-}
-
-func SendEmail(subject string, receiver string, content string) error {
-	return SendEmailWithAttachment(subject, receiver, content, nil)
 }
 
 // Mail kinds recorded in the delivery archive (运营 › 邮件 › 发送记录).
@@ -129,14 +126,6 @@ func EmailTransportConfigured() bool {
 	return strings.TrimSpace(SMTPServer) != "" &&
 		strings.TrimSpace(SMTPAccount) != "" &&
 		strings.TrimSpace(SMTPToken) != ""
-}
-
-func SendEmailWithAttachment(subject string, receiver string, content string, attachments []EmailAttachment) error {
-	providerID, err := sendEmail(subject, receiver, content, attachments, nil)
-	if recorder := MailRecorder; recorder != nil {
-		recorder(MailRecord{Meta: MailMeta{Kind: MailKindOther}, Subject: subject, Receiver: receiver, HTML: content, ProviderID: providerID, Err: err})
-	}
-	return err
 }
 
 func sendEmail(subject string, receiver string, content string, attachments []EmailAttachment, headers map[string]string) (string, error) {
@@ -353,4 +342,37 @@ func sendEmailViaSMTP(subject string, receiver string, content string, headers m
 		SysError(fmt.Sprintf("failed to send email to %s: %v", receiver, err))
 	}
 	return err
+}
+
+type outlookAuth struct {
+	username, password string
+}
+
+func LoginAuth(username, password string) smtp.Auth {
+	return &outlookAuth{username, password}
+}
+
+func (a *outlookAuth) Start(_ *smtp.ServerInfo) (string, []byte, error) {
+	return "LOGIN", []byte{}, nil
+}
+
+func (a *outlookAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		switch string(fromServer) {
+		case "Username:":
+			return []byte(a.username), nil
+		case "Password:":
+			return []byte(a.password), nil
+		default:
+			return nil, errors.New("unknown fromServer")
+		}
+	}
+	return nil, nil
+}
+
+func isOutlookServer(server string) bool {
+	// 兼容多地区的outlook邮箱和ofb邮箱
+	// 其实应该加一个Option来区分是否用LOGIN的方式登录
+	// 先临时兼容一下
+	return strings.Contains(server, "outlook") || strings.Contains(server, "onmicrosoft")
 }

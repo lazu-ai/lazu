@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -21,26 +22,33 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 	// every sampling field left out of the body, said once to the client at
 	// the end (relaycommon.WarnSamplingRefused)
 	var dropped []string
+	// Most lookups below ask for a top-level key the request does not carry,
+	// and gjson answers "absent" only after scanning the whole body. The index
+	// scans once per body version; every edit starts a new version.
+	index := newWireIndex(body)
+	get := func(path string) gjson.Result { return index.get(path) }
 	set := func(path string, value interface{}) {
 		if err != nil {
 			return
 		}
-		existing := gjson.GetBytes(body, path)
+		existing := get(path)
 		if existing.Exists() && existing.Value() == value {
 			return
 		}
 		body, err = sjson.SetBytes(body, path, value)
+		index.reset(body)
 	}
 	del := func(path string) {
-		for err == nil && gjson.GetBytes(body, path).Exists() {
+		for err == nil && get(path).Exists() {
 			body, err = sjson.DeleteBytes(body, path)
+			index.reset(body)
 		}
 	}
-	if info.UpstreamModelName != "" && gjson.GetBytes(body, "model").Str != info.UpstreamModelName {
+	if info.UpstreamModelName != "" && get("model").Str != info.UpstreamModelName {
 		set("model", info.UpstreamModelName)
 	}
 	del("metadata.lazu")
-	if metadata := gjson.GetBytes(body, "metadata"); metadata.IsObject() && len(metadata.Map()) == 0 {
+	if metadata := get("metadata"); metadata.IsObject() && len(metadata.Map()) == 0 {
 		del("metadata")
 	}
 	if !responses {
@@ -51,31 +59,31 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 		}
 		model := info.UpstreamModelName
 		if info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.UpstreamProtocol.Dialect == "openai" &&
-			common.ChatToolsNeedReasoningOff(model) && gjson.GetBytes(body, "reasoning_effort").Str == "" &&
-			!gjson.GetBytes(body, "reasoning").Exists() && gjson.GetBytes(body, "tools.#").Int() > 0 &&
-			gjson.GetBytes(body, "tool_choice").Str != "none" {
+			common.ChatToolsNeedReasoningOff(model) && get("reasoning_effort").Str == "" &&
+			!get("reasoning").Exists() && get("tools.#").Int() > 0 &&
+			get("tool_choice").Str != "none" {
 			set("reasoning_effort", "none")
 		}
 		if strings.HasPrefix(model, "o") || strings.HasPrefix(model, "gpt-5") {
-			if gjson.GetBytes(body, "max_completion_tokens").Uint() == 0 && gjson.GetBytes(body, "max_tokens").Uint() != 0 {
-				set("max_completion_tokens", gjson.GetBytes(body, "max_tokens").Value())
+			if get("max_completion_tokens").Uint() == 0 && get("max_tokens").Uint() != 0 {
+				set("max_completion_tokens", get("max_tokens").Value())
 				del("max_tokens")
 			}
 			if strings.HasPrefix(model, "o") || model != "gpt-5-chat-latest" {
-				if gjson.GetBytes(body, "temperature").Exists() {
+				if get("temperature").Exists() {
 					dropped = append(dropped, "temperature")
 				}
 				del("temperature")
 			}
-			if !strings.HasPrefix(model, "o1-mini") && !strings.HasPrefix(model, "o1-preview") && gjson.GetBytes(body, "messages.0.role").Str == "system" {
+			if !strings.HasPrefix(model, "o1-mini") && !strings.HasPrefix(model, "o1-preview") && get("messages.0.role").Str == "system" {
 				set("messages.0.role", "developer")
 			}
-			info.ReasoningEffort = gjson.GetBytes(body, "reasoning_effort").Str
+			info.ReasoningEffort = strings.Clone(get("reasoning_effort").Str)
 		}
 		// Thought signatures only belong on Gemini upstreams. Iterate just the
 		// tool-call container; the message content itself is never decoded again.
 		if bytes.Contains(body, []byte("extra_content")) {
-			for i, message := range gjson.GetBytes(body, "messages").Array() {
+			for i, message := range get("messages").Array() {
 				for j, call := range message.Get("tool_calls").Array() {
 					if call.Get("extra_content").Exists() {
 						del("messages." + strconv.Itoa(i) + ".tool_calls." + strconv.Itoa(j) + ".extra_content")
@@ -84,13 +92,13 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 			}
 		}
 	}
-	if gjson.GetBytes(body, "temperature").Exists() || gjson.GetBytes(body, "top_p").Exists() {
-		effort := gjson.GetBytes(body, "reasoning_effort").Str
+	if get("temperature").Exists() || get("top_p").Exists() {
+		effort := get("reasoning_effort").Str
 		if effort == "" {
-			effort = gjson.GetBytes(body, "reasoning.effort").Str
+			effort = get("reasoning.effort").Str
 		}
 		for _, field := range samplingRefusedWhileReasoning(info, effort) {
-			if gjson.GetBytes(body, field).Exists() {
+			if get(field).Exists() {
 				dropped = append(dropped, field)
 			}
 			del(field)
@@ -115,4 +123,51 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 	// wire dialect patch: vendor quirks on the compiled body, once per
 	// attempt, after ParamOverride (internal/relay/wirepatch).
 	return wirepatch.Apply(wirepatch.ResolveDialect(info), body), nil
+}
+
+// wireIndex answers gjson paths against a JSON object body from one scan of
+// its top-level keys. A path's first segment selects the field (the first
+// occurrence, as gjson.GetBytes would); the rest is looked up inside that
+// field's raw value only.
+type wireIndex struct {
+	body   []byte
+	fields map[string]gjson.Result
+	object bool
+}
+
+func newWireIndex(body []byte) *wireIndex { return &wireIndex{body: body} }
+
+func (x *wireIndex) reset(body []byte) {
+	x.body, x.fields = body, nil
+}
+
+func (x *wireIndex) get(path string) gjson.Result {
+	if x.fields == nil {
+		x.fields = map[string]gjson.Result{}
+		// A view, not a copy (gjson.ParseBytes copies): results are read only
+		// while this body version is current, and anything kept beyond that
+		// is cloned by the caller.
+		root := gjson.Parse(unsafe.String(unsafe.SliceData(x.body), len(x.body)))
+		x.object = root.IsObject()
+		if x.object {
+			root.ForEach(func(key, value gjson.Result) bool {
+				if _, seen := x.fields[key.Str]; !seen {
+					x.fields[key.Str] = value
+				}
+				return true
+			})
+		}
+	}
+	first, rest, nested := strings.Cut(path, ".")
+	if !x.object || strings.ContainsAny(first, `*?\|#@!`) {
+		return gjson.GetBytes(x.body, path)
+	}
+	field, ok := x.fields[first]
+	if !ok {
+		return gjson.Result{}
+	}
+	if !nested {
+		return field
+	}
+	return field.Get(rest)
 }

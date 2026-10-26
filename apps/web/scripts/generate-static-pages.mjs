@@ -30,6 +30,56 @@ if (!existsSync(indexPath)) {
 }
 
 const baseHtml = readFileSync(indexPath, 'utf8');
+
+// Marketing pages are lazy chunks (src/lib/marketing-pages.tsx). A
+// prerendered page links its page's stylesheets, so it is styled before any
+// script runs, and preloads its scripts, so hydration does not wait on a
+// second round trip. Keep this map aligned with marketing-pages.tsx.
+const MARKETING_PAGE_ENTRIES = {
+  '/': 'src/pages/Home/index.tsx',
+  '/faq': 'src/pages/FAQ/index.tsx',
+  '/about': 'src/pages/About/index.tsx',
+  '/privacy': 'src/pages/PrivacyPolicy/index.tsx',
+  '/terms': 'src/pages/UserAgreement/index.tsx',
+};
+const buildManifest = JSON.parse(
+  readFileSync(path.join(paths.distDir, '.vite', 'manifest.json'), 'utf8'),
+);
+const baseHtmlAssets = new Set(
+  [...baseHtml.matchAll(/(?:href|src)="\/([^"?]+)"/g)].map((match) => match[1]),
+);
+
+const marketingPageTags = (routePath) => {
+  const bare = routePath.replace(/^\/(zh-TW|zh|ja)(?=\/|$)/, '') || '/';
+  const key =
+    MARKETING_PAGE_ENTRIES[bare === '/' ? '/' : bare.replace(/\/$/, '')];
+  if (!key || !buildManifest[key]) {
+    throw new Error(
+      `no marketing page chunk for prerendered route ${routePath}`,
+    );
+  }
+  const css = new Set();
+  const scripts = new Set();
+  const visit = (manifestKey) => {
+    const item = buildManifest[manifestKey];
+    if (!item || item.isEntry) return;
+    if (scripts.has(item.file)) return;
+    scripts.add(item.file);
+    for (const file of item.css || []) css.add(file);
+    for (const imported of item.imports || []) visit(imported);
+  };
+  visit(key);
+  return [
+    ...[...css]
+      .filter((file) => !baseHtmlAssets.has(file))
+      .map((file) => `<link rel="stylesheet" crossorigin href="/${file}" />`),
+    ...[...scripts]
+      .filter((file) => !baseHtmlAssets.has(file))
+      .map(
+        (file) => `<link rel="modulepreload" crossorigin href="/${file}" />`,
+      ),
+  ].join('\n    ');
+};
 // Per-locale public copy: each prerendered variant draws its meta and
 // JSON-LD from its own language's content.
 const contentByLocale = Object.fromEntries(
@@ -342,7 +392,8 @@ const inject = async (route, renderMarketingRoute) => {
     .replace(/<html lang="[^"]*">/, `<html lang="${htmlEscape(route.locale)}">`)
     .replace(
       /<!-- Primary Meta Tags -->[\s\S]*?<!-- SSG Head Anchor -->/,
-      `${renderHead(route)}\n\n    <!-- SSG Head Anchor -->`,
+      () =>
+        `${renderHead(route)}\n    ${marketingPageTags(route.path)}\n\n    <!-- SSG Head Anchor -->`,
     )
     .replace(
       '<div id="root"></div>',
