@@ -1,16 +1,8 @@
-import {
-  Suspense,
-  lazy,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LazuLanding from './components/LazuLanding';
 import { usePrerender } from '../../context/Prerender';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
 import { API } from '../../helpers/api';
 import { splitMarketingPath } from '../../helpers/marketingLocale';
@@ -95,7 +87,7 @@ const HomeContent = ({ content }: HomeContentProps) => {
 const Home = () => {
   const { t, i18n } = useTranslation();
   const { route: prerenderRoute } = usePrerender();
-  const [statusState] = useContext(StatusContext);
+  const statusState = useStatus();
   const actualTheme = useActualTheme();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [homePageContentLoaded, setHomePageContentLoaded] = useState(

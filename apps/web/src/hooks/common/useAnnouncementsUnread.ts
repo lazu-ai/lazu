@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useContext, useEffect, useMemo } from 'react';
-import { UserContext } from '../../context/User';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useSession } from '../../context/User';
 import {
   ANNOUNCEMENTS_UPDATED_EVENT,
   type Announcement,
@@ -36,8 +36,8 @@ const UNSEEN_LIMIT = 20;
  * only contract between the reading surface and the entry points.
  */
 export const useAnnouncementsUnread = (enabled = true) => {
-  const [userState] = useContext(UserContext);
-  const userId = (userState.user as { id?: unknown } | undefined)?.id;
+  const userSession = useSession();
+  const userId = (userSession.user as { id?: unknown } | undefined)?.id;
   const active = enabled && userId !== undefined && userId !== null;
   const queryClient = useQueryClient();
   const queryKey = useMemo(

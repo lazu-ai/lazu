@@ -13,7 +13,7 @@ import {
 } from '../../features/projects/bus';
 import { readProjectsFlag } from '../../features/projects/flag';
 import { isAdminRole } from '../../helpers/roles';
-import { UserContext } from '../User';
+import { useSession } from '../User';
 import type {
   ProjectRole,
   ProjectSummary,
@@ -234,9 +234,9 @@ const readStoredScope = (storageKey: string, scopes: ConsoleScope[]) => {
 };
 
 export function ConsoleScopeProvider({ children }: { children: ReactNode }) {
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const storedUser = useMemo(() => readStoredUser(), []);
-  const user = (userState.user || storedUser) as SessionUser;
+  const user = (userSession.user || storedUser) as SessionUser;
   const projectsTick = useProjectsChangedTick();
   const projects = useMemo(
     () => (readProjectsFlag(user) ? readSessionProjects(user) : []),

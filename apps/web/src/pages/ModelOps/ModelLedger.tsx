@@ -16,8 +16,10 @@ import {
 } from './healthBars';
 import { infoSourceLabel } from './modelInfo';
 import { officialOf, pinnedSet } from './ratioPricing';
-import { Badge, Checkbox, Switch } from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Checkbox } from '../../components/ui/checkbox';
 import { ProviderLogo } from '../../components/ui/provider-icons';
+import { Switch } from '../../components/ui/switch';
 import {
   groupByMaker,
   makerBrand,

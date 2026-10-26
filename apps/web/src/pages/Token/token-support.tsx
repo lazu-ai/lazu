@@ -7,36 +7,32 @@ import { z } from 'zod';
 import { classifyTier } from './connect/modelPicker';
 import { modelFamily } from './connect/tools';
 import { isLegacyKey, shortKeyLabel } from './tokenKeyLabel';
-import {
-  Button,
-  Checkbox,
-  DatePicker,
-  FieldMessage,
-  Input,
-  Modal,
-  MultiSelect,
-  Select,
-  SelectItem,
-  Switch,
-  Textarea,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Checkbox } from '../../components/ui/checkbox';
+import { DatePicker } from '../../components/ui/date-picker';
 import {
   EFFORT_LEVELS,
   EffortCapControl,
   effortRank,
   lowerEffortCap,
 } from '../../components/ui/effort-cap';
+import { FieldMessage } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
 import { PendingBlock } from '../../components/ui/pending';
+import { MultiSelect, Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
 import { compactNumber, formatUnixTime } from '../../components/ui/table-tools';
+import { Textarea } from '../../components/ui/textarea';
 import {
   presetValues,
   RATE_LIMIT_PRESETS,
   type RateLimitCeiling,
 } from '../../constants/rate-limits';
 import { SEARCH_PROVIDERS } from '../../constants/search.constants';
-import { asMicroUSD } from '../../helpers/money';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
-import { renderQuota, usdToMicroUSD } from '../../helpers/render';
+import { usdToMicroUSD } from '../../helpers/render';
 import {
   getDefaultTokenFormValues,
   useTokenDetailQuery,
@@ -1552,7 +1548,7 @@ export function TokenFormDrawer({
             {isEdit && !team && quotaDisplay
               ? t('page.console.token.form.quotaUsedHint', {
                   defaultValue: '已用 {{used}} · 用完自动停用',
-                  used: renderQuota(quotaDisplay.used),
+                  used: formatMoney(quotaDisplay.used),
                 })
               : team
                 ? null

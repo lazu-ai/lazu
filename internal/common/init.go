@@ -247,6 +247,9 @@ func InitEnv() {
 	HotPathMetricsEnabled = GetEnvOrDefaultBool("HOT_PATH_METRICS_ENABLED", false)
 	RedisVerificationCodeEnabled = GetEnvOrDefaultBool("REDIS_VERIFICATION_CODE_ENABLED", false)
 	SettlementOutboxEnabled = GetEnvOrDefaultBool("SETTLEMENT_OUTBOX_ENABLED", false)
+	for _, notice := range deprecatedEnvNotices() {
+		SysLog("deprecated setting: " + notice)
+	}
 	MetricsEnabled = GetEnvOrDefaultBool("METRICS_ENABLED", false)
 	MetricsToken = GetEnvOrDefaultString("METRICS_TOKEN", "")
 	OIDCEnabled = GetEnvOrDefaultBool("OIDC_ENABLED", false)

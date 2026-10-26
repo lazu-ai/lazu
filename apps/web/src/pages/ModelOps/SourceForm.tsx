@@ -6,17 +6,12 @@ import { z } from 'zod';
 import { DecisionSourceFields } from './DecisionSourceFields';
 import { SOURCE_TYPES } from './formatters';
 import { sourceTypeLabel } from './SourceTypeBadge';
-import {
-  Button,
-  Field,
-  FieldMessage,
-  Input,
-  MultiSelect,
-  Select,
-  SelectItem,
-  Switch,
-  Textarea,
-} from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Field, FieldMessage } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { MultiSelect, Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
+import { Textarea } from '../../components/ui/textarea';
 import {
   CHANNEL_OPTIONS,
   getChannelOptionLabel,

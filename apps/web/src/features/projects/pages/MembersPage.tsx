@@ -7,14 +7,12 @@ import { Download, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Button,
-  EffortCapBadge,
-  InlineNotice,
-  Input,
-  RowActions,
-} from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
 import ConsolePage from '../../../components/ui/console-page';
+import { RowActions } from '../../../components/ui/data-table-shell';
+import { EffortCapBadge } from '../../../components/ui/effort-cap';
+import { InlineNotice } from '../../../components/ui/inline-notice';
+import { Input } from '../../../components/ui/input';
 import { PendingBlock } from '../../../components/ui/pending';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import { isLazuApiError } from '../../../lib/api-error';

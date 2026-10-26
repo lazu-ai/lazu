@@ -110,6 +110,9 @@ func GetPrometheusMetrics(c *gin.Context) {
 
 	writeRuntimeMetrics(&b)
 	writePoolMetrics(&b)
+	writeUpstreamConnMetrics(&b)
+	writeStreamBacklogMetrics(&b)
+	writeSQLStatementMetrics(&b)
 
 	c.Data(200, prometheusContentType, []byte(b.String()))
 }
@@ -190,6 +193,35 @@ func writePoolMetrics(b *strings.Builder) {
 	writePrometheusSample(b, "lazu_redis_pool_misses_total", nil, float64(redisStats.Misses))
 	writePrometheusHelpType(b, "lazu_redis_pool_timeouts_total", "Times waiting for a Redis connection timed out.", "counter")
 	writePrometheusSample(b, "lazu_redis_pool_timeouts_total", nil, float64(redisStats.Timeouts))
+}
+
+func writeUpstreamConnMetrics(b *strings.Builder) {
+	reused, opened := common.UpstreamConnCounts()
+	writePrometheusHelpType(b, "lazu_upstream_connections_total", "Upstream connections the relay client used, by whether an idle one was reused.", "counter")
+	writePrometheusSample(b, "lazu_upstream_connections_total", map[string]string{"reused": "true"}, float64(reused))
+	writePrometheusSample(b, "lazu_upstream_connections_total", map[string]string{"reused": "false"}, float64(opened))
+	writeDurationHistogram(b, "lazu_upstream_dial_seconds", "Time to dial a new upstream connection.", &common.UpstreamDialDurations)
+	writeDurationHistogram(b, "lazu_upstream_tls_handshake_seconds", "Time for the TLS handshake of a new upstream connection.", &common.UpstreamTLSHandshakeDurations)
+}
+
+func writeDurationHistogram(b *strings.Builder, name, help string, histogram *common.DurationHistogram) {
+	cumulative, sum := histogram.Snapshot()
+	writePrometheusHelpType(b, name, help, "histogram")
+	for i, bound := range common.UpstreamDurationBounds {
+		writePrometheusSample(b, name+"_bucket", map[string]string{"le": strconv.FormatFloat(bound, 'g', -1, 64)}, float64(cumulative[i]))
+	}
+	total := cumulative[len(cumulative)-1]
+	writePrometheusSample(b, name+"_bucket", map[string]string{"le": "+Inf"}, float64(total))
+	writePrometheusSample(b, name+"_sum", nil, sum)
+	writePrometheusSample(b, name+"_count", nil, float64(total))
+}
+
+func writeSQLStatementMetrics(b *strings.Builder) {
+	counts := model.SQLStatementCounts()
+	writePrometheusHelpType(b, "lazu_sql_statements_total", "SQL statements run through GORM, by callback chain.", "counter")
+	for i, op := range model.SQLStatementOps {
+		writePrometheusSample(b, "lazu_sql_statements_total", map[string]string{"op": op}, float64(counts[i]))
+	}
 }
 
 func writeProtocolMetrics(b *strings.Builder, hotPath common.HotPathMetricsSnapshot) {

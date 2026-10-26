@@ -25,9 +25,9 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  ProviderLogo,
-} from '../../../components/ui';
+} from '../../../components/ui/popover';
 import { resolveProviderBrand } from '../../../components/ui/provider-brands';
+import { ProviderLogo } from '../../../components/ui/provider-icons';
 import { cn } from '../../../lib/cn';
 import type { TFunction } from 'i18next';
 
