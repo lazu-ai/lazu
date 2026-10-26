@@ -62,7 +62,7 @@ var (
 	secretRevealPolicy = rateLimitPolicy{name: "secret_reveal", limit: 60, window: 10 * time.Minute}
 )
 
-var inMemoryRateLimiter common.InMemoryRateLimiter
+var inMemoryRateLimiter InMemoryRateLimiter
 
 var apiRateLimitBypassPaths = map[string]struct{}{
 	"/api/status":        {},

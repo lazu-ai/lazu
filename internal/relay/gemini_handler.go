@@ -10,7 +10,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
-	"github.com/lazu-ai/lazu/internal/relay/channel/gemini"
+	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
@@ -21,37 +21,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func isNoThinkingRequest(req *dto.GeminiChatRequest) bool {
-	if req.GenerationConfig.ThinkingConfig != nil && req.GenerationConfig.ThinkingConfig.ThinkingBudget != nil {
-		configBudget := req.GenerationConfig.ThinkingConfig.ThinkingBudget
-		if configBudget != nil && *configBudget == 0 {
-			// 如果思考预算为 0，则认为是非思考请求
-			return true
-		}
-	}
-	return false
-}
-
-func trimModelThinking(modelName string) string {
-	// 去除模型名称中的 -nothinking 后缀
-	if strings.HasSuffix(modelName, "-nothinking") {
-		return strings.TrimSuffix(modelName, "-nothinking")
-	}
-	// 去除模型名称中的 -thinking 后缀
-	if strings.HasSuffix(modelName, "-thinking") {
-		return strings.TrimSuffix(modelName, "-thinking")
-	}
-
-	// 去除模型名称中的 -thinking-number
-	if strings.Contains(modelName, "-thinking-") {
-		parts := strings.Split(modelName, "-thinking-")
-		if len(parts) > 1 {
-			return parts[0] + "-thinking"
-		}
-	}
-	return modelName
-}
-
 func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.LazuError) {
 	info.InitChannelMeta(c)
 
@@ -60,7 +29,7 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected *dto.GeminiChatRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	request, err := common.DeepCopy(geminiReq)
+	request, err := DeepCopy(geminiReq)
 	if err != nil {
 		return types.NewError(fmt.Errorf("failed to copy request to GeminiChatRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
@@ -71,33 +40,18 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
 	}
 
-	if model_setting.GetGeminiSettings().ThinkingAdapterEnabled {
-		if isNoThinkingRequest(request) {
-			// check is thinking
-			if !strings.Contains(info.OriginModelName, "-nothinking") {
-				// Try to use the no-thinking variant when it has an explicit sell price.
-				noThinkingModelName := info.OriginModelName + "-nothinking"
-				hasSellPrice := helper.HasExplicitSellPrice(noThinkingModelName)
-				if hasSellPrice {
-					info.OriginModelName = noThinkingModelName
-					info.UpstreamModelName = noThinkingModelName
-				}
-			}
-		}
-		if request.GenerationConfig.ThinkingConfig == nil {
-			gemini.ThinkingAdaptor(request, info)
-		}
-	}
-
 	adaptor := GetAdaptor(info.ApiType)
 	if adaptor == nil {
 		return types.NewError(fmt.Errorf("invalid api type: %d", info.ApiType), types.ErrorCodeInvalidApiType, types.ErrOptionWithSkipRetry())
 	}
 
 	adaptor.Init(info)
-	geminiConverter, lazuErr := requireGeminiRequestConverter(adaptor, info)
-	if lazuErr != nil {
-		return lazuErr
+	bridged := planBridges(info)
+	var geminiConverter channel.GeminiRequestConverter
+	if !bridged {
+		if geminiConverter, lazuErr = requireGeminiRequestConverter(adaptor, info); lazuErr != nil {
+			return lazuErr
+		}
 	}
 
 	// Clean up empty system instruction
@@ -115,7 +69,14 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 	}
 
 	var requestBody io.Reader
-	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
+	if bridged {
+		// hub: the IR encoded for the upstream the plan chose
+		body, _, bridgeErr := BridgeBody(c, info, adaptor)
+		if bridgeErr != nil {
+			return bridgeErr
+		}
+		requestBody = bytes.NewReader(body)
+	} else if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)

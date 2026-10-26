@@ -7,6 +7,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { inferProtocolDialect } from './channelProtocolDialect';
+import { compactOverride, overrideFormText } from './source-overrides';
 import {
   coerceItemsPayload,
   createSearchParams,
@@ -55,6 +56,9 @@ type ChannelFormValues = LooseRecord & {
   shared_max_rps?: number;
   shared_max_in_flight?: number;
   settings?: string;
+  param_override?: string;
+  header_override?: string;
+  status_code_mapping?: string;
   video_content_url_template?: string;
   video_envelope?: string;
   video_family?: string;
@@ -244,6 +248,9 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
       2,
     ),
     remark: data.remark || '',
+    param_override: overrideFormText(data.param_override),
+    header_override: overrideFormText(data.header_override),
+    status_code_mapping: overrideFormText(data.status_code_mapping),
     settings: JSON.stringify(settings),
     source_type: normalizeSourceType(data.source_type),
     status: data.status === undefined ? true : Number(data.status) === 1,
@@ -278,6 +285,11 @@ const normalizeChannelPayload = (
     name: String(values.name || '').trim(),
     priority: Number(values.priority || 0),
     remark: String(values.remark || '').trim(),
+    // Sent every time, so clearing a field clears it; an edit form shows the
+    // stored values, so saving unchanged keeps them.
+    param_override: compactOverride(values.param_override),
+    header_override: compactOverride(values.header_override),
+    status_code_mapping: compactOverride(values.status_code_mapping),
     source_type: normalizeSourceType(values.source_type),
     status: values.status ? 1 : 2,
     tag: String(values.tag || '').trim(),

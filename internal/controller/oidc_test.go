@@ -35,8 +35,8 @@ func (fn oidcRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, er
 
 func setupOIDCTestDB(t *testing.T) {
 	t.Helper()
-	common.ResetAttempts()
-	t.Cleanup(common.ResetAttempts)
+	ResetAttempts()
+	t.Cleanup(ResetAttempts)
 	name := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
 	db, err := gorm.Open(gormsqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", name)), &gorm.Config{})
 	if err != nil {

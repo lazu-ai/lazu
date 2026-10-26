@@ -151,12 +151,6 @@ func DigestRollupSince() int64 {
 	return since
 }
 
-// BackfillDigestRollup fills the rollup from whatever the logs still hold,
-// a day at a time, then records where complete data begins.
-func BackfillDigestRollup(now time.Time) error {
-	return backfillDigestRollup(now, UpdateOption)
-}
-
 func backfillDigestRollupForMigration(now time.Time) error {
 	return backfillDigestRollup(now, updateOptionForMigration)
 }

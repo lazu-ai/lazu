@@ -7,7 +7,7 @@
 > **Inherits:** `payment-emails.md`（墨头、事实四格、深色规则；付款邮件本身不改）、`logo-system.md`、
 > `paper-states.md`（眉行是英文机器语域）
 > **Implementation:** `internal/common/mail.go` + `internal/common/email_templates/mail.html`
-> （付款邮件仍是 `payment.html`）
+> （付款邮件仍是 `internal/model/email_templates/payment.html`）
 
 Lazu 发出的每一封邮件都属于三层之一。层由「这封信的新闻是什么」决定，不由发信的模块决定。
 

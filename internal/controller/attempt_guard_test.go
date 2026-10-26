@@ -6,12 +6,11 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lazu-ai/lazu/internal/common"
 )
 
 func TestLoginLocksAccountAfterRepeatedFailures(t *testing.T) {
-	common.ResetAttempts()
-	t.Cleanup(common.ResetAttempts)
+	ResetAttempts()
+	t.Cleanup(ResetAttempts)
 	gin.SetMode(gin.TestMode)
 
 	for i := 0; i < loginFailureLimit; i++ {
@@ -29,8 +28,8 @@ func TestLoginLocksAccountAfterRepeatedFailures(t *testing.T) {
 }
 
 func TestMailRecipientCapHoldsAcrossCallers(t *testing.T) {
-	common.ResetAttempts()
-	t.Cleanup(common.ResetAttempts)
+	ResetAttempts()
+	t.Cleanup(ResetAttempts)
 	gin.SetMode(gin.TestMode)
 
 	send := func() int {

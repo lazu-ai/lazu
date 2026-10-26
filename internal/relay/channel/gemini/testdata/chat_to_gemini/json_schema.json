@@ -1,0 +1,23 @@
+{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "A city"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "generationConfig": {
+    "responseMimeType": "application/json",
+    "responseSchema": {
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}
