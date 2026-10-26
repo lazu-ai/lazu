@@ -76,8 +76,9 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 	inputTokens := parsed.InputTokens
 	// A Claude client is never degraded: its native path sends the client's
 	// own bytes, and Messages has no json_object to stand in with; a denial
-	// stands as a pre-flight refusal.
-	if !hasNestedUnknownField(effective) && client.Family != textgen.ProtocolAnthropic {
+	// stands as a pre-flight refusal. A Gemini client's native path sends its
+	// own bytes too.
+	if !hasNestedUnknownField(effective) && client.Family != textgen.ProtocolAnthropic && client.Family != textgen.ProtocolGemini {
 		var degraded *textgen.Request
 		degraded, degradations = textgen.Degrade(snapshot, effective)
 		if len(degradations) > 0 {
@@ -94,9 +95,12 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 			effective = degraded
 		}
 	}
-	if client.Family == textgen.ProtocolAnthropic {
+	switch client.Family {
+	case textgen.ProtocolAnthropic:
 		client.Dialect = "anthropic"
-	} else {
+	case textgen.ProtocolGemini:
+		client.Dialect = "gemini"
+	default:
 		client.Dialect = "openai"
 	}
 	plan, err := textgen.PlanAttempt(client, snapshot, effective, channel.Id, modelName, inputTokens)
@@ -114,12 +118,12 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 			plan = replanned
 		}
 	}
-	if !plan.Native && client.Family == textgen.ProtocolAnthropic && !snapshot.Features.Has(textgen.FeatureReasoningEffort) && effective.Reasoning != (textgen.ReasoningOptions{}) {
-		// A Claude client asks for thinking on every request (Claude Code
-		// does). Another vendor's model takes it as reasoning_effort, which
-		// a model that does not reason refuses; the ask goes only to a model
-		// the catalog says reasons, as the legacy conversion never sent it
-		// at all.
+	if !plan.Native && (client.Family == textgen.ProtocolAnthropic || client.Family == textgen.ProtocolGemini) &&
+		!snapshot.Features.Has(textgen.FeatureReasoningEffort) && effective.Reasoning != (textgen.ReasoningOptions{}) {
+		// Claude and Gemini clients can ask for thinking on every request.
+		// Another vendor's model takes that as reasoning_effort, which a
+		// model that does not reason refuses; the ask goes only to a model
+		// the catalog says reasons. The legacy conversions did not send it.
 		if effective == parsed.Semantic {
 			effective = effective.Clone()
 		}
@@ -135,7 +139,8 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		}
 		effective.Reasoning = textgen.ReasoningOptions{Effort: "none"}
 	}
-	if !plan.Native && client.Family == textgen.ProtocolAnthropic && effective.Reasoning.Effort == "none" && !model.CanDisableReasoning(modelName) {
+	if !plan.Native && (client.Family == textgen.ProtocolAnthropic || client.Family == textgen.ProtocolGemini) &&
+		effective.Reasoning.Effort == "none" && !model.CanDisableReasoning(modelName) {
 		// thinking off, asked of a model that cannot stop reasoning: the
 		// ask is left out, as an upstream would refuse effort none
 		if effective == parsed.Semantic {
@@ -277,6 +282,12 @@ func OverrideIsUpstreamWire(client textgen.Protocol, snapshot textgen.Capability
 		// a Gemini channel's override names generateContent fields, as it
 		// did when the channel converted every request itself
 		return client.Family != textgen.ProtocolGemini
+	}
+	if client.Family == textgen.ProtocolGemini {
+		// a Gemini client on another vendor's channel: the override names
+		// that channel's fields, applied to the encoded body as it was to
+		// the converted one
+		return true
 	}
 	return (client.Family == textgen.ProtocolAnthropic) != snapshot.Features.Has(textgen.FeatureEndpointMessages)
 }

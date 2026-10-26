@@ -278,9 +278,13 @@ roadmap adds it, and until then the rule is a review rule.
    Chat→Gemini converter, the legacy Gemini Chat handlers and the Chat→Claude
    response converters went with that slice, and the converter's output is
    `channel/gemini/testdata/chat_to_gemini/`, held by
-   `TestBridgedChatToGeminiMatchesTheGoldenFiles`. The Gemini-client
-   converters in `service/convert.go` stay, held by two live differential
-   tests, until Gemini clients are parsed into the IR. Enforced by review.
+   `TestBridgedChatToGeminiMatchesTheGoldenFiles`. Gemini clients are parsed
+   into the IR and planned like the others since the following slice; the
+   Gemini-client converters in `service/convert.go` went with it, and their
+   output is `service/testdata/gemini_to_chat/` and
+   `service/testdata/chat_to_gemini_reply/`, held by
+   `TestGeminiToChatMatchesTheGoldenFiles` and
+   `TestChatReplyToGeminiMatchesTheGoldenFiles`. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
    Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
    (made by `go test -tags record` in `internal/relay/contracttest`, keys from

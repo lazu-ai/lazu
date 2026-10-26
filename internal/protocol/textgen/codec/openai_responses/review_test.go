@@ -157,6 +157,9 @@ func TestRenderEventsPreservesOutputItemOrderWithoutChatIntermediate(t *testing.
 	if len(output) != 3 || output[0]["type"] != "function_call" || output[1]["type"] != "reasoning" || output[2]["type"] != "message" {
 		t.Fatalf("output item order changed: %s", raw)
 	}
+	if response["id"] != "resp_gemini-response" || response["model"] != "gemini-3-flash" {
+		t.Fatalf("response envelope: %+v", response)
+	}
 }
 
 // A done-only call the provider did not finish is held for the terminal

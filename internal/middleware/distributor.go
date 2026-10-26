@@ -476,6 +476,8 @@ func setStructuredInputTokenEstimate(c *gin.Context, reqCtx *relayrouter.Request
 		format = types.RelayFormatOpenAIResponses
 	case textgen.ProtocolAnthropic:
 		format = types.RelayFormatClaude
+	case textgen.ProtocolGemini:
+		format = types.RelayFormatGemini
 	}
 	meta := textgen.TokenCountMeta(parsed.Semantic)
 	meta.Files = nil
@@ -1243,6 +1245,9 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		}
 	}
 	if parsed, ok := common.GetContextKeyType[*textgen.ParsedRequest](c, constant.ContextKeyTextgenParsed); ok && parsed != nil && parsed.Semantic != nil {
+		if parsed.Client.Family == textgen.ProtocolGemini {
+			c.Set("relay_mode", relayconstant.RelayModeGemini)
+		}
 		return &ModelRequest{Model: parsed.Semantic.Model.Canonical}, true, nil
 	}
 	if strings.HasPrefix(c.GetHeader("Content-Type"), "multipart/form-data") {

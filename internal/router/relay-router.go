@@ -158,6 +158,9 @@ func SetRelayRouter(router *gin.Engine) {
 	{
 		httpRouter := relayV1Router.Group("")
 		httpRouter.Use(middleware.ModelRequestRateLimit())
+		// /models/*path below: a Gemini client's generateContent is parsed
+		// and planned like the other text-generation clients
+		httpRouter.Use(middleware.GeminiClientParse())
 		httpRouter.Use(middleware.Distribute())
 
 		// chat related routes
@@ -224,6 +227,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relayGeminiRouter.Use(middleware.RelayRequestBodyLimit())
 	relayGeminiRouter.Use(middleware.TokenAuth())
 	relayGeminiRouter.Use(middleware.ModelRequestRateLimit())
+	relayGeminiRouter.Use(middleware.GeminiClientParse())
 	relayGeminiRouter.Use(middleware.Distribute())
 	{
 		// Gemini API 路径格式: /v1beta/models/{model_name}:{action}

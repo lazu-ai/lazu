@@ -81,6 +81,60 @@ func TestPlanAttemptRejectsReasoningToolHistoryOnChatToResponsesBridge(t *testin
 	}
 }
 
+func TestPlanAttemptRejectsGeminiToolsOnReasoningResponsesBridge(t *testing.T) {
+	client := Protocol{Family: ProtocolGemini, Dialect: "gemini"}
+	capabilities := snapshot("openai", FeatureEndpointResponses, FeatureFunctionTools, FeatureReasoningEffort)
+	request := minimalRequest()
+	request.Tools = []ToolDefinition{{Type: "function", Name: "lookup"}}
+	_, err := PlanAttempt(client, capabilities, request, 1, "reasoning-model")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureFunctionTools || unsupported.Path != "tool_choice" {
+		t.Fatalf("Gemini tools must fail before Responses can emit unreturnable reasoning state: %v", err)
+	}
+
+	request.ToolPolicy.Mode = "none"
+	if _, err := PlanAttempt(client, capabilities, request, 1, "reasoning-model"); err != nil {
+		t.Fatalf("disabled tools cannot create continuation state and should remain bridgeable: %v", err)
+	}
+
+	request.ToolPolicy.Mode = "required"
+	capabilities.Features &^= FeatureSet(1) << FeatureReasoningEffort
+	if _, err := PlanAttempt(client, capabilities, request, 1, "non-reasoning-model"); err != nil {
+		t.Fatalf("a non-reasoning Responses tool bridge should remain supported: %v", err)
+	}
+}
+
+func TestPlanAttemptRejectsMultipleGeminiCandidatesOnBridge(t *testing.T) {
+	request := minimalRequest()
+	request.Sampling.N = Some(2)
+	_, err := PlanAttempt(
+		Protocol{Family: ProtocolGemini, Dialect: "gemini"},
+		snapshot("openai_chat_compatible", FeatureEndpointChat, FeatureN),
+		request, 1, "upstream",
+	)
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureN || unsupported.Path != "generationConfig.candidateCount" {
+		t.Fatalf("multiple Gemini candidates must fail before a lossy bridge: %v", err)
+	}
+
+	request.Sampling.N = Some(1)
+	if _, err := PlanAttempt(Protocol{Family: ProtocolGemini, Dialect: "gemini"}, snapshot("openai_chat_compatible", FeatureEndpointChat, FeatureN), request, 1, "upstream"); err != nil {
+		t.Fatalf("one Gemini candidate should remain bridgeable: %v", err)
+	}
+}
+
+func TestPlanAttemptRejectsGeminiOnNonPlanAwareChatWire(t *testing.T) {
+	_, err := PlanAttempt(
+		Protocol{Family: ProtocolGemini, Dialect: "gemini"},
+		snapshot("xai", FeatureEndpointChat),
+		minimalRequest(), 1, "upstream",
+	)
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || !strings.Contains(unsupported.Reason, "not an OpenAI-compatible chat wire") {
+		t.Fatalf("non-plan-aware Chat transport must fail closed: %v", err)
+	}
+}
+
 // With reasoning off there is no reasoning state to lose, so a Chat request
 // with tools — first call or continuation — bridges to Responses.
 func TestPlanAttemptBridgesChatToolsWithReasoningOff(t *testing.T) {
@@ -639,5 +693,28 @@ func TestResponsesGeminiBridgeRefusesToolCallsThatLoseSignatures(t *testing.T) {
 	_, err = PlanAttempt(client, capabilities, continuation, 1, "gemini-2.5-pro")
 	if !errors.As(err, &unsupported) || unsupported.Path != "input[1]" {
 		t.Fatalf("a Responses tool continuation must fail closed, got %v", err)
+	}
+}
+
+func TestGeminiBridgeDropsOnlyCompletedTurnSignatures(t *testing.T) {
+	client := Protocol{Family: ProtocolGemini, Dialect: "gemini"}
+	signature := []OpaqueValue{{Dialect: "gemini", Value: json.RawMessage(`"signed"`)}}
+
+	history := minimalRequest()
+	history.Conversation = append(history.Conversation,
+		InputItem{Kind: InputMessage, Role: "assistant", Content: []ContentPart{{Kind: ContentText, Text: "done"}}},
+		InputItem{Kind: InputReasoning, Role: "assistant", Opaque: signature},
+		InputItem{Kind: InputMessage, Role: "user", Content: []ContentPart{{Kind: ContentText, Text: "new turn"}}},
+	)
+	if _, err := PlanAttempt(client, anthropicSnapshot(), history, 1, "claude-haiku-5-5"); err != nil {
+		t.Fatalf("a completed Gemini turn's signature should be discarded on a Messages bridge: %v", err)
+	}
+
+	running := minimalRequest()
+	running.Conversation = append(running.Conversation, InputItem{Kind: InputReasoning, Role: "assistant", Opaque: signature})
+	_, err := PlanAttempt(client, anthropicSnapshot(), running, 1, "claude-haiku-5-5")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Path != "input[1]" || unsupported.Feature != FeatureOpaqueReasoningItem {
+		t.Fatalf("the running turn must stay on Gemini, got %v", err)
 	}
 }
