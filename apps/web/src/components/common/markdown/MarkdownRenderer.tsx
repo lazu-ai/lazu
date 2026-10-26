@@ -7,6 +7,7 @@ import ReactMarkdown, {
 import RemarkBreaks from 'remark-breaks';
 import RemarkGfm from 'remark-gfm';
 import { useDebouncedCallback } from 'use-debounce';
+import { hasMath } from './has-math';
 import RehypeHighlightSubset from './rehype-highlight-subset';
 import { copy } from '../../../helpers/clipboard';
 import { rehypeSplitWordsIntoSpans } from '../../../helpers/rehype-streaming';
@@ -20,8 +21,8 @@ import './markdown.css';
 type MermaidRuntime = (typeof import('mermaid'))['default'];
 
 /* Formulas are rare, so remark-math and rehype-katex (KaTeX itself, ~77 KiB
-   gzip) load only for content that has a `$`; until they arrive it renders as
-   text. The stylesheet stays static: it is small, and a dynamic CSS import
+   gzip) load only for content that may hold one (hasMath: a `$` or a ```math
+   fence); until they arrive it renders as text. The stylesheet stays static: it is small, and a dynamic CSS import
    would pull the entry stylesheet into this chunk's CSS. */
 type MathPlugins = {
   remark: NonNullable<ReactMarkdownOptions['remarkPlugins']>[number];
@@ -40,7 +41,7 @@ function loadMathPlugins(): Promise<MathPlugins> {
   return mathPluginsPromise;
 }
 function useMathPlugins(content: string): MathPlugins | null {
-  const wanted = content.includes('$');
+  const wanted = hasMath(content);
   const [loaded, setLoaded] = useState(mathPlugins);
   useEffect(() => {
     if (!wanted || loaded) return;
