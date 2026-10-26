@@ -337,16 +337,6 @@ func formatUserLogs(logs []*Log) {
 	}
 }
 
-func GetLogByKey(key string) (logs []*Log, err error) {
-	var token Token
-	if err = CoreDB().Model(&Token{}).Where(commonKeyCol+" = ?", common.NormalizeAPIKey(key)).First(&token).Error; err != nil {
-		return nil, err
-	}
-	err = TelemetryDB().Model(&Log{}).Where("token_id = ? AND type <> ?", token.Id, LogTypeUnknown).Find(&logs).Error
-	formatUserLogs(logs)
-	return logs, err
-}
-
 // accountLog is a log about an account rather than a request: a top-up, an
 // administrator's change, a key being viewed. It carries no project; the
 // writer gives it the account's own (attributeEventsToOwnedProjects).
@@ -767,10 +757,6 @@ func handleRelayResultEvent(event relayResultEvent) error {
 	return persistRelayResultBatch([]relayResultEvent{event})
 }
 
-func handleRelayResultEventBatch(events []relayResultEvent) error {
-	return persistRelayResultBatch(events)
-}
-
 func createConsumeLogsBatch(logs []Log) error {
 	events := make([]relayResultEvent, 0, len(logs))
 	for i := range logs {
@@ -781,84 +767,6 @@ func createConsumeLogsBatch(logs []Log) error {
 	return persistRelayResultBatch(events)
 }
 
-func newConsumeLogsForInsert(logs []Log) ([]Log, error) {
-	publicIDs := make([]string, 0, len(logs))
-	seen := map[string]struct{}{}
-	candidates := make([]Log, 0, len(logs))
-	for _, row := range logs {
-		ensureConsumeLogPublicID(&row)
-		if row.PublicID != "" {
-			if _, ok := seen[row.PublicID]; ok {
-				continue
-			}
-			seen[row.PublicID] = struct{}{}
-			publicIDs = append(publicIDs, row.PublicID)
-		}
-		candidates = append(candidates, row)
-	}
-	existing := map[string]struct{}{}
-	if len(publicIDs) > 0 {
-		var rows []Log
-		if err := TelemetryDB().Select("public_id").Where("public_id IN ?", publicIDs).Find(&rows).Error; err != nil {
-			return nil, err
-		}
-		for _, row := range rows {
-			existing[row.PublicID] = struct{}{}
-		}
-	}
-	newLogs := make([]Log, 0, len(candidates))
-	for _, row := range candidates {
-		if row.PublicID != "" {
-			if _, ok := existing[row.PublicID]; ok {
-				continue
-			}
-		}
-		newLogs = append(newLogs, row)
-	}
-	return newLogs, nil
-}
-
-func createConsumeLogsIndividually(logs []Log) error {
-	for i := range logs {
-		inserted, err := createConsumeLogSync(&logs[i])
-		if err != nil {
-			return err
-		}
-		if inserted {
-			consumeLogSideEffects(&logs[i], false)
-			noteProjectBudgetRejections(logs[i : i+1])
-		}
-	}
-	return nil
-}
-
-func logDBSupportsReturning(db *gorm.DB) bool {
-	if db == nil || db.Dialector == nil {
-		return false
-	}
-	switch db.Dialector.Name() {
-	case "postgres", "sqlite":
-		return true
-	default:
-		return false
-	}
-}
-
-func recordRoutingOutcomesBatch(outcomes []RoutingOutcome) error {
-	if CoreDB() == nil || len(outcomes) == 0 {
-		return nil
-	}
-	return TelemetryDB().Clauses(routingOutcomeConflictClause()).CreateInBatches(outcomes, relayEventDBBatchSize()).Error
-}
-
-func relayEventDBBatchSize() int {
-	size := common.GetEnvOrDefault("RELAY_EVENT_DB_BATCH_SIZE", 500)
-	if size <= 0 {
-		return 500
-	}
-	return size
-}
-
 func ensureConsumeLogPublicID(log *Log) {
 	if log == nil || log.PublicID != "" || log.RequestID == "" {
 		return
@@ -867,40 +775,6 @@ func ensureConsumeLogPublicID(log *Log) {
 	if log.Type != LogTypeUnknown && log.Type != LogTypeConsume && log.Type != LogTypeError {
 		log.PublicID += fmt.Sprintf("_%d", log.Type)
 	}
-}
-
-func createConsumeLogSync(log *Log) (bool, error) {
-	if TelemetryDB() == nil || log == nil {
-		return false, nil
-	}
-	ensureConsumeLogPublicID(log)
-	if log.PublicID != "" {
-		var existing Log
-		if err := TelemetryDB().Select("id").Where("public_id = ?", log.PublicID).First(&existing).Error; err == nil {
-			return false, nil
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, err
-		}
-	}
-	err := TelemetryDB().Create(log).Error
-	if err != nil {
-		if isDuplicateConstraintError(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-func isDuplicateConstraintError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "duplicate") ||
-		strings.Contains(msg, "unique constraint") ||
-		strings.Contains(msg, "duplicated key") ||
-		strings.Contains(msg, "error 1062")
 }
 
 func consumeLogSideEffects(log *Log, async bool) {
@@ -993,10 +867,6 @@ func attachRoutingOutcomeUsageSnapshot(c *gin.Context, params RecordConsumeLogPa
 		snapshot.HasGrossMargin = true
 	}
 	common.SetContextKey(c, constant.ContextKeyRoutingOutcomeUsage, snapshot)
-}
-
-func resolveUpstreamCostUSD(params RecordConsumeLogParams, usageFact usagepkg.Fact) (float64, bool) {
-	return resolveUpstreamCostUSDAt(params, usageFact, time.Now())
 }
 
 func resolveUpstreamCostUSDAt(params RecordConsumeLogParams, usageFact usagepkg.Fact, at time.Time) (float64, bool) {
@@ -1101,17 +971,19 @@ func dimensionQuantity(fact usagepkg.Fact, name string) int {
 	return 0
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userID int, tokenName string, startIdx int, num int, channel int, group string) (logs []*Log, total int64, err error) {
+// GetAllLogs is one page of the administrator's log list. Its total is
+// exact up to LogCountExactLimit; atLeast says it stopped counting there.
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userID int, tokenName string, startIdx int, num int, channel int, group string) (logs []*Log, total int64, atLeast bool, err error) {
 	tx := allLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, userID, tokenName, channel, group)
-	err = tx.Count(&total).Error
+	total, atLeast, err = countLogsCapped(tx)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 	err = orderLogsNewestFirst(tx).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
-	return logs, total, resolveLogChannelNames(logs)
+	return logs, total, atLeast, resolveLogChannelNames(logs)
 }
 
 // allLogsQuery is the administrator's log list before its order and page.
@@ -1346,27 +1218,6 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	return stat
 }
 
-func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string) (token int) {
-	tx := TelemetryDB().Table("logs").Select("coalesce(sum(prompt_tokens),0) + coalesce(sum(completion_tokens),0)")
-	if username != "" {
-		tx = tx.Where("username = ?", username)
-	}
-	if tokenName != "" {
-		tx = tx.Where("token_name = ?", tokenName)
-	}
-	if startTimestamp != 0 {
-		tx = tx.Where("created_at >= ?", startTimestamp)
-	}
-	if endTimestamp != 0 {
-		tx = tx.Where("created_at <= ?", endTimestamp)
-	}
-	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
-	}
-	tx.Where("type = ?", LogTypeConsume).Scan(&token)
-	return token
-}
-
 // GetUserUsedModels returns a list of distinct model names that a user has used
 func GetUserUsedModels(userId int) ([]string, error) {
 	var models []string
@@ -1375,10 +1226,6 @@ func GetUserUsedModels(userId int) ([]string, error) {
 		Distinct("model_name").
 		Pluck("model_name", &models).Error
 	return models, err
-}
-
-func GetConsumeLogByRequestIDForToken(userID int, tokenID int, requestID string, principals ...ProjectPrincipal) (*Log, error) {
-	return GetConsumeLogByRequestIDForTokenContext(context.Background(), userID, tokenID, requestID, principals...)
 }
 
 func GetConsumeLogByRequestIDForTokenContext(ctx context.Context, userID int, tokenID int, requestID string, principals ...ProjectPrincipal) (*Log, error) {
@@ -1586,17 +1433,6 @@ func tokenConsumeLogsQuery(tokenID int, startTimestamp int64, endTimestamp int64
 	}
 
 	return tx
-}
-
-func GetTokenConsumeLogsByTokenID(tokenID int, startTimestamp int64, endTimestamp int64, startIdx int, num int) (logs []*Log, total int64, err error) {
-	return GetTokenConsumeLogsByTokenIDWithFilters(
-		tokenID,
-		startTimestamp,
-		endTimestamp,
-		startIdx,
-		num,
-		TokenConsumeLogFilter{},
-	)
 }
 
 func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64, error) {

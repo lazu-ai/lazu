@@ -169,7 +169,7 @@ func bridgesClaudeClient(info *relaycommon.RelayInfo) bool {
 		return false
 	}
 	switch info.ProtocolPlan.UpstreamProtocol.Family {
-	case textgen.ProtocolOpenAIChat, textgen.ProtocolOpenAIResponses:
+	case textgen.ProtocolOpenAIChat, textgen.ProtocolOpenAIResponses, textgen.ProtocolGemini:
 		return true
 	}
 	return false

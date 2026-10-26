@@ -132,12 +132,6 @@ func GetEnabledModels() []string {
 	return models
 }
 
-func GetAllEnableAbilities() []Ability {
-	var abilities []Ability
-	CoreDB().Find(&abilities, "enabled = ? and role <> ?", true, AbilityRoleInventory)
-	return abilities
-}
-
 // abilityEffectivePriorityExpr is EffectiveRoutingPriority expressed in SQL.
 // The database path has to rank routes exactly as the in-memory cache does, or
 // a deployment with the cache turned off would quietly route to backups.

@@ -211,7 +211,7 @@ func TestResolveUpstreamCostUsesChannelProviderCostPrice(t *testing.T) {
 		t.Fatalf("failed to create provider cost price: %v", err)
 	}
 
-	costUSD, ok := resolveUpstreamCostUSD(RecordConsumeLogParams{
+	costUSD, ok := resolveUpstreamCostUSDAt(RecordConsumeLogParams{
 		ChannelId: 42,
 		ModelName: "gpt-test",
 		Other:     map[string]interface{}{},
@@ -221,7 +221,7 @@ func TestResolveUpstreamCostUsesChannelProviderCostPrice(t *testing.T) {
 		CompletionTokens: 2000,
 		InputTokens:      1000,
 		OutputTokens:     2000,
-	})
+	}, time.Now())
 	if !ok {
 		t.Fatal("expected provider cost to be available")
 	}
@@ -245,13 +245,12 @@ func TestResolveUpstreamCostUsesTheSourcesLongContextTier(t *testing.T) {
 	}
 	cost := func(fresh, cached int) float64 {
 		t.Helper()
-		usd, ok := resolveUpstreamCostUSD(RecordConsumeLogParams{ChannelId: 42, ModelName: "gpt-test", Other: map[string]interface{}{}},
-			usagepkg.Fact{Version: usagepkg.FactVersion, PromptTokens: fresh + cached, CompletionTokens: 1000,
-				Dimensions: []usagepkg.DimensionUsage{
-					{Name: usagepkg.DimensionInput, Quantity: int64(fresh), Unit: usagepkg.UnitToken},
-					{Name: usagepkg.DimensionCacheRead, Quantity: int64(cached), Unit: usagepkg.UnitToken},
-					{Name: usagepkg.DimensionOutput, Quantity: 1000, Unit: usagepkg.UnitToken},
-				}})
+		usd, ok := resolveUpstreamCostUSDAt(RecordConsumeLogParams{ChannelId: 42, ModelName: "gpt-test", Other: map[string]interface{}{}}, usagepkg.Fact{Version: usagepkg.FactVersion, PromptTokens: fresh + cached, CompletionTokens: 1000,
+			Dimensions: []usagepkg.DimensionUsage{
+				{Name: usagepkg.DimensionInput, Quantity: int64(fresh), Unit: usagepkg.UnitToken},
+				{Name: usagepkg.DimensionCacheRead, Quantity: int64(cached), Unit: usagepkg.UnitToken},
+				{Name: usagepkg.DimensionOutput, Quantity: 1000, Unit: usagepkg.UnitToken},
+			}}, time.Now())
 		if !ok {
 			t.Fatal("expected provider cost to be available")
 		}
@@ -270,7 +269,7 @@ func TestResolveUpstreamCostUsesTheSourcesLongContextTier(t *testing.T) {
 
 func TestResolveUpstreamCostUsesExplicitProviderCost(t *testing.T) {
 	_ = withPricingTestDB(t, "provider_cost_explicit_for_outcome")
-	costUSD, ok := resolveUpstreamCostUSD(RecordConsumeLogParams{
+	costUSD, ok := resolveUpstreamCostUSDAt(RecordConsumeLogParams{
 		ChannelId: 99,
 		ModelName: "search-model",
 		Other: map[string]interface{}{
@@ -278,7 +277,7 @@ func TestResolveUpstreamCostUsesExplicitProviderCost(t *testing.T) {
 		},
 	}, usagepkg.Fact{
 		Version: usagepkg.FactVersion,
-	})
+	}, time.Now())
 	if !ok {
 		t.Fatal("expected explicit provider cost to be available")
 	}

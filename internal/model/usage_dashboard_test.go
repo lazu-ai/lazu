@@ -217,7 +217,7 @@ func TestBuildUserDashboardUsageFiltersByUser(t *testing.T) {
 	})
 	insertDashboardRoutingOutcome(t, 101, "req-user-b", 2, 12, 200, 0, 0, 30, 300, 0.0003, start+1200)
 
-	usage, err := BuildUserDashboardUsage(1, start, end)
+	usage, err := BuildUserDashboardUsageContext(context.Background(), 1, start, end)
 	if err != nil {
 		t.Fatalf("BuildUserDashboardUsage returned error: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestBuildAdminDashboardUsageAggregatesGlobalRankings(t *testing.T) {
 		ChannelId:      11,
 	})
 
-	usage, err := BuildAdminDashboardUsage(start, end)
+	usage, err := BuildAdminDashboardUsageContext(context.Background(), start, end)
 	if err != nil {
 		t.Fatalf("BuildAdminDashboardUsage returned error: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestBuildAdminDashboardUserRowsAppliesExactUsernameFilter(t *testing.T) {
 		AmountMicrousd: 200,
 	})
 
-	rows, err := BuildAdminDashboardUserRows(DashboardUsageLogFilters{Username: " alice "}, start, end)
+	rows, err := BuildAdminDashboardUserRowsContext(context.Background(), DashboardUsageLogFilters{Username: " alice "}, start, end)
 	if err != nil {
 		t.Fatalf("BuildAdminDashboardUserRows returned error: %v", err)
 	}
@@ -429,7 +429,7 @@ func TestBuildAdminDashboardUserRowsPrefersImmutableUserID(t *testing.T) {
 		insertDashboardUsageLog(t, fixture)
 	}
 
-	rows, err := BuildAdminDashboardUserRows(DashboardUsageLogFilters{UserID: 1, Username: "alice-new"}, start, end)
+	rows, err := BuildAdminDashboardUserRowsContext(context.Background(), DashboardUsageLogFilters{UserID: 1, Username: "alice-new"}, start, end)
 	if err != nil {
 		t.Fatalf("BuildAdminDashboardUserRows returned error: %v", err)
 	}
@@ -453,7 +453,7 @@ func TestBuildAdminDashboardUserRowsAppliesGroupAndChannelFilters(t *testing.T) 
 		insertDashboardUsageLog(t, fixture)
 	}
 
-	rows, err := BuildAdminDashboardUserRows(DashboardUsageLogFilters{Group: "direct", ChannelID: 7}, start, end)
+	rows, err := BuildAdminDashboardUserRowsContext(context.Background(), DashboardUsageLogFilters{Group: "direct", ChannelID: 7}, start, end)
 	if err != nil {
 		t.Fatalf("BuildAdminDashboardUserRows returned error: %v", err)
 	}
@@ -483,14 +483,14 @@ func TestBuildAdminDashboardModelRowsIncludesModelOutsideTopTwenty(t *testing.T)
 		})
 	}
 
-	dashboard, err := BuildAdminDashboardUsage(start, end)
+	dashboard, err := BuildAdminDashboardUsageContext(context.Background(), start, end)
 	if err != nil {
 		t.Fatalf("BuildAdminDashboardUsage returned error: %v", err)
 	}
 	if _, ok := findDashboardRow(dashboard.ByModel, "model-21"); ok {
 		t.Fatal("test fixture should place model-21 outside the top-20 dashboard")
 	}
-	rows, err := BuildAdminDashboardModelRows([]string{"model-21"}, start, end)
+	rows, err := BuildAdminDashboardModelRowsContext(context.Background(), []string{"model-21"}, start, end)
 	if err != nil {
 		t.Fatalf("BuildAdminDashboardModelRows returned error: %v", err)
 	}
@@ -545,7 +545,7 @@ func TestListDashboardUsageLogsAppliesVisibleTableFilters(t *testing.T) {
 		ChannelId:      12,
 	})
 
-	logs, err := ListDashboardUsageLogs(0, common.RoleRootUser, DashboardUsageWindow{
+	logs, err := ListDashboardUsageLogsContext(context.Background(), 0, common.RoleRootUser, DashboardUsageWindow{
 		StartTimestamp: start,
 		EndTimestamp:   end,
 	}, DashboardUsageLogFilters{
@@ -615,7 +615,7 @@ func TestBuildAdminDashboardUsageIncludesEveryChannelForIncidentDetection(t *tes
 		decisionID++
 	}
 
-	usage, err := BuildAdminDashboardUsage(start, end)
+	usage, err := BuildAdminDashboardUsageContext(context.Background(), start, end)
 	if err != nil {
 		t.Fatalf("BuildAdminDashboardUsage returned error: %v", err)
 	}
@@ -653,7 +653,7 @@ func TestBuildDashboardUsageFromRollupIncludesEveryAdminChannel(t *testing.T) {
 		}
 	}
 
-	usage, ok, err := BuildDashboardUsageFromRollupForRole(
+	usage, ok, err := BuildDashboardUsageFromRollupForRoleContext(context.Background(),
 		0,
 		common.RoleRootUser,
 		start,
@@ -689,7 +689,7 @@ func TestDashboardPartialHoursPreserveExactUsageWindow(t *testing.T) {
 		}
 	}
 	for _, role := range []int{common.RoleRootUser, common.RoleCommonUser} {
-		got, err := BuildDashboardUsageForRole(7, role, start+1800, start+5400)
+		got, err := BuildDashboardUsageForRoleContext(context.Background(), 7, role, start+1800, start+5400)
 		if err != nil || got.Totals.RequestCount != 3 || got.Totals.AmountMicrousd != 30 || got.Totals.ActiveKeys != 1 {
 			t.Fatalf("role=%d totals=%+v err=%v", role, got.Totals, err)
 		}
@@ -705,7 +705,7 @@ func TestDashboardPartialHoursPreserveExactUsageWindow(t *testing.T) {
 		}
 	}
 	// An end on the hour includes only that second, not the following hour.
-	if _, ok, err := BuildDashboardUsageFromRollupForRole(7, common.RoleRootUser, start, start+3600); err != nil || ok {
+	if _, ok, err := BuildDashboardUsageFromRollupForRoleContext(context.Background(), 7, common.RoleRootUser, start, start+3600); err != nil || ok {
 		t.Fatalf("inclusive hour boundary rounded up: served=%v err=%v", ok, err)
 	}
 }
@@ -752,7 +752,7 @@ func TestDashboardRollupBuildAdminUsageUsesHourlyTables(t *testing.T) {
 		t.Fatalf("RefreshDashboardUsageRollups returned error: %v", err)
 	}
 
-	usage, ok, err := BuildDashboardUsageFromRollupForRole(0, common.RoleRootUser, start, start+2*dashboardRollupHourSeconds-1)
+	usage, ok, err := BuildDashboardUsageFromRollupForRoleContext(context.Background(), 0, common.RoleRootUser, start, start+2*dashboardRollupHourSeconds-1)
 	if err != nil {
 		t.Fatalf("BuildDashboardUsageFromRollupForRole returned error: %v", err)
 	}
@@ -810,7 +810,7 @@ func TestDashboardRollupBuildAdminUsageUsesHourlyTables(t *testing.T) {
 		}
 	}
 
-	userUsage, ok, err := BuildDashboardUsageFromRollupForRole(1, common.RoleCommonUser, start, start+2*dashboardRollupHourSeconds-1)
+	userUsage, ok, err := BuildDashboardUsageFromRollupForRoleContext(context.Background(), 1, common.RoleCommonUser, start, start+2*dashboardRollupHourSeconds-1)
 	if err != nil || !ok {
 		t.Fatalf("BuildDashboardUsageFromRollupForRole user scope ok=%v err=%v", ok, err)
 	}
@@ -827,7 +827,7 @@ func TestDashboardRollupRequiresCompleteGlobalCoverage(t *testing.T) {
 	if err := RefreshDashboardUsageRollupHour(context.Background(), start); err != nil {
 		t.Fatalf("RefreshDashboardUsageRollupHour returned error: %v", err)
 	}
-	_, ok, err := BuildDashboardUsageFromRollupForRole(0, common.RoleRootUser, start, start+2*dashboardRollupHourSeconds-1)
+	_, ok, err := BuildDashboardUsageFromRollupForRoleContext(context.Background(), 0, common.RoleRootUser, start, start+2*dashboardRollupHourSeconds-1)
 	if err != nil {
 		t.Fatalf("BuildDashboardUsageFromRollupForRole returned error: %v", err)
 	}
@@ -848,20 +848,20 @@ func TestDashboardRollupQuietHoursKeepCoverage(t *testing.T) {
 		}
 	}
 	window := normalizeDashboardUsageWindow(start, start+4*dashboardRollupHourSeconds-1)
-	if ready, err := dashboardRollupCoverageReady(window); err != nil || ready {
+	if ready, err := dashboardRollupCoverageReadyContext(context.Background(), window); err != nil || ready {
 		t.Fatalf("quiet hours counted as covered before the fill: %v %v", ready, err)
 	}
 	if err := EnsureDashboardRollupHours(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if ready, err := dashboardRollupCoverageReady(window); err != nil || !ready {
+	if ready, err := dashboardRollupCoverageReadyContext(context.Background(), window); err != nil || !ready {
 		t.Fatalf("quiet hours still uncovered: %v %v", ready, err)
 	}
-	totals, err := dashboardRollupTotals(dashboardRollupScopeGlobal, start, start+4*dashboardRollupHourSeconds)
+	totals, err := dashboardRollupTotalsContext(context.Background(), dashboardRollupScopeGlobal, start, start+4*dashboardRollupHourSeconds)
 	if err != nil || totals.RequestCount != 2 || totals.P95TTFTMs != nil {
 		t.Fatalf("empty hours changed totals: %+v %v", totals, err)
 	}
-	if ready, err := dashboardRollupCoverageReady(normalizeDashboardUsageWindow(start-dashboardRollupHourSeconds, start+dashboardRollupHourSeconds-1)); err != nil || ready {
+	if ready, err := dashboardRollupCoverageReadyContext(context.Background(), normalizeDashboardUsageWindow(start-dashboardRollupHourSeconds, start+dashboardRollupHourSeconds-1)); err != nil || ready {
 		t.Fatalf("an hour before the rollup began was filled: %v %v", ready, err)
 	}
 	if err := EnsureDashboardRollupHours(context.Background(), time.Now()); err != nil {
@@ -872,7 +872,7 @@ func TestDashboardRollupQuietHoursKeepCoverage(t *testing.T) {
 	if err := TelemetryDB().Where("bucket_hour = ?", open).Delete(&DashboardUsageHourlyTotal{}).Error; err != nil {
 		t.Fatal(err)
 	}
-	if ready, err := dashboardRollupCoverageReady(normalizeDashboardUsageWindow(start, open+dashboardRollupHourSeconds-1)); err != nil || !ready {
+	if ready, err := dashboardRollupCoverageReadyContext(context.Background(), normalizeDashboardUsageWindow(start, open+dashboardRollupHourSeconds-1)); err != nil || !ready {
 		t.Fatalf("a window ending in the quiet open hour went raw: %v %v", ready, err)
 	}
 }
@@ -902,14 +902,14 @@ func TestDashboardTTFTExcludesUnmeasuredAndNonTextStreams(t *testing.T) {
 		}
 	}
 	var totals DashboardUsageTotals
-	if err := scanDashboardTTFTStats(0, common.RoleRootUser, normalizeDashboardUsageWindow(start, start+60), &totals); err != nil {
+	if err := scanDashboardTTFTStatsContext(context.Background(), 0, common.RoleRootUser, normalizeDashboardUsageWindow(start, start+60), &totals); err != nil {
 		t.Fatal(err)
 	}
 	if totals.TTFTSampleCount != 1 || totals.P95TTFTMs == nil || *totals.P95TTFTMs != 150 {
 		t.Fatalf("wrong text TTFT sample: %#v", totals)
 	}
 	var other DashboardUsageTotals
-	if err := scanDashboardTTFTStats(2, common.RoleCommonUser, normalizeDashboardUsageWindow(start, start+60), &other); err != nil {
+	if err := scanDashboardTTFTStatsContext(context.Background(), 2, common.RoleCommonUser, normalizeDashboardUsageWindow(start, start+60), &other); err != nil {
 		t.Fatal(err)
 	}
 	if other.TTFTSampleCount != 0 || other.P95TTFTMs != nil {
@@ -934,7 +934,7 @@ func TestDashboardTTFTPercentileInterpolatesInsteadOfUsingMaximum(t *testing.T) 
 		}
 	}
 	var totals DashboardUsageTotals
-	if err := scanDashboardTTFTStats(1, common.RoleCommonUser, normalizeDashboardUsageWindow(start, start+60), &totals); err != nil {
+	if err := scanDashboardTTFTStatsContext(context.Background(), 1, common.RoleCommonUser, normalizeDashboardUsageWindow(start, start+60), &totals); err != nil {
 		t.Fatal(err)
 	}
 	if totals.TTFTSampleCount != 20 || totals.P95TTFTMs == nil || *totals.P95TTFTMs != 1905 {

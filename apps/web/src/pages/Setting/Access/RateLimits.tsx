@@ -142,6 +142,7 @@ export default function RateLimits() {
       void queryClient.invalidateQueries({
         queryKey: [...queryKeys.console.root, 'settings'],
       });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.status });
     },
     onError: apiErrorHandler,
   });

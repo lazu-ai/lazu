@@ -180,36 +180,6 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 	return string(configBytes)
 }
 
-// CheckUserExistOrDeleted check if user exist or deleted, if not exist, return false, nil, if deleted or exist, return true, nil
-func CheckUserExistOrDeleted(username string, email string) (bool, error) {
-	var user User
-
-	// err := CoreDB().Unscoped().First(&user, "username = ? or email = ?", username, email).Error
-	// check email if empty
-	var err error
-	if email == "" {
-		err = CoreDB().Unscoped().First(&user, "username = ?", username).Error
-	} else {
-		err = CoreDB().Unscoped().First(&user, "username = ? or email = ?", username, email).Error
-	}
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// not exist, return false, nil
-			return false, nil
-		}
-		// other error, return false, err
-		return false, err
-	}
-	// exist, return true, nil
-	return true, nil
-}
-
-func GetMaxUserId() int {
-	var user User
-	CoreDB().Unscoped().Last(&user)
-	return user.Id
-}
-
 // UserListOptions carries the optional server-side filter/sort the admin
 // console asks for. The zero value reproduces the historical behaviour
 // (no status filter, newest first), so existing callers are unaffected.
@@ -482,10 +452,6 @@ func applyUserStatusFilter(query *gorm.DB, status string) *gorm.DB {
 	}
 }
 
-func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err error) {
-	return GetAllUsersFiltered(pageInfo, UserListOptions{})
-}
-
 func GetAllUsersFiltered(pageInfo *common.PageInfo, opts UserListOptions) (users []*User, total int64, err error) {
 	if isActiveUserFilter(opts.Filter) {
 		return getActiveUsersPage(pageInfo.GetStartIdx(), pageInfo.GetPageSize(), opts, func(query *gorm.DB) *gorm.DB { return query })
@@ -531,10 +497,6 @@ func GetAllUsersFiltered(pageInfo *common.PageInfo, opts UserListOptions) (users
 	}
 
 	return users, total, nil
-}
-
-func SearchUsers(keyword string, startIdx int, num int) ([]*User, int64, error) {
-	return SearchUsersFiltered(keyword, startIdx, num, UserListOptions{})
 }
 
 func applyUserSearch(query *gorm.DB, keyword string) *gorm.DB {
@@ -1011,14 +973,6 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 		err = CoreDB().Omit("password").First(&user, "id = ?", id).Error
 	}
 	return &user, userLookupErr(err)
-}
-
-func DeleteUserById(id int) (err error) {
-	if id == 0 {
-		return ErrUserNotFound
-	}
-	user := User{Id: id}
-	return user.Delete()
 }
 
 func HardDeleteUserById(id int) error {
@@ -1903,13 +1857,6 @@ func UpdateUserUsedQuota(id int, quota billing.MicroUSD) {
 		return
 	}
 	updateUserUsedQuota(id, quota)
-}
-
-func AdjustUserUsedQuota(id int, quotaDelta billing.MicroUSD) {
-	if quotaDelta == 0 {
-		return
-	}
-	updateUserUsedQuota(id, quotaDelta)
 }
 
 func updateUserUsedQuota(id int, quota billing.MicroUSD) {
