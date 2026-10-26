@@ -30,9 +30,9 @@ import {
   type RateLimitCeiling,
 } from '../../constants/rate-limits';
 import { SEARCH_PROVIDERS } from '../../constants/search.constants';
-import { asMicroUSD } from '../../helpers/money';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
-import { renderQuota, usdToMicroUSD } from '../../helpers/render';
+import { usdToMicroUSD } from '../../helpers/render';
 import {
   getDefaultTokenFormValues,
   useTokenDetailQuery,
@@ -1548,7 +1548,7 @@ export function TokenFormDrawer({
             {isEdit && !team && quotaDisplay
               ? t('page.console.token.form.quotaUsedHint', {
                   defaultValue: '已用 {{used}} · 用完自动停用',
-                  used: renderQuota(quotaDisplay.used),
+                  used: formatMoney(quotaDisplay.used),
                 })
               : team
                 ? null

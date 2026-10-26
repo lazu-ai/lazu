@@ -16,7 +16,7 @@ import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { asMicroUSD, type MicroUSD } from '../../helpers/money';
 import { microUSDToUSD, usdToMicroUSD } from '../../helpers/render';
-import { copy, showError, timestamp2string } from '../../helpers/utils';
+import { copy, showError } from '../../helpers/utils';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import { chatTemplateLeaksKey } from '../../pages/Token/chatTemplate';
@@ -1092,6 +1092,5 @@ export function useTokensQuery(
     tokens: pageData.items,
     total: pageData.total,
     vendorOptions,
-    timestamp2string,
   };
 }

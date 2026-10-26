@@ -5,11 +5,10 @@ import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { useSession } from '../../context/User';
 import { API } from '../../helpers/api';
-import { asMicroUSD } from '../../helpers/money';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
-import { renderQuota } from '../../helpers/render';
-import { timestamp2string } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
+import { formatTimestamp } from '../../lib/date';
 import './token-usage-panel.css';
 
 /** Per-Key totals use its immutable public ID and an owner-checked endpoint. */
@@ -55,7 +54,7 @@ const useTokenSpend = (tokenID: string, ownerID: string, days: number) =>
 const spendLabel = (stat: UsageStat | undefined, loading: boolean) => {
   if (loading) return '…';
   if (!stat || stat.amount_microusd == null) return '—';
-  return renderQuota(asMicroUSD(stat.amount_microusd));
+  return formatMoney(asMicroUSD(stat.amount_microusd));
 };
 
 export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
@@ -77,7 +76,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
   const expiryLabel =
     expired === -1
       ? t('page.console.token.usage.neverExpires', { defaultValue: '不过期' })
-      : timestamp2string(expired);
+      : formatTimestamp(expired);
   const daysLeft =
     expired === -1 ? null : dayjs.unix(expired).diff(dayjs(), 'day');
 
@@ -93,7 +92,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
     [
       t('secret.lastUsed'),
       record.last_used_at
-        ? timestamp2string(record.last_used_at)
+        ? formatTimestamp(record.last_used_at)
         : t('common.noData', { defaultValue: '无数据' }),
     ],
     [
@@ -118,7 +117,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
     [
       t('page.console.tables.create'),
       record.created_time
-        ? timestamp2string(record.created_time)
+        ? formatTimestamp(record.created_time)
         : t('common.noData', { defaultValue: '无数据' }),
     ],
   ];
@@ -132,7 +131,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
         {quota.mode === 'finite' ? (
           <>
             <strong className='tok-usage__value'>
-              {renderQuota(quota.remaining)}
+              {formatMoney(quota.remaining)}
             </strong>
             <div className='tok-usage__meter'>
               <span style={{ width: `${quota.usedPercent}%` }} />
@@ -140,8 +139,8 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
             <span className='tok-usage__meter-line'>
               {t('page.console.token.usage.quotaLine', {
                 percent: quota.usedPercent,
-                total: renderQuota(quota.total),
-                used: renderQuota(quota.used),
+                total: formatMoney(quota.total),
+                used: formatMoney(quota.used),
                 defaultValue: '已用 {{used}} / {{total}} · {{percent}}%',
               })}
             </span>
@@ -153,7 +152,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
             </strong>
             <span className='tok-usage__meter-line'>
               {t('page.console.token.quotaUsed', {
-                value: renderQuota(quota.used),
+                value: formatMoney(quota.used),
               })}
             </span>
           </>
