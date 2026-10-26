@@ -11,8 +11,6 @@ internal/controller.RegisterSurfaceWelcomeMail  # extension hook
 internal/controller.firstStringAtPaths  # reached only from an extension
 internal/controller.parseVideoProviderSubmission  # reached only from an extension
 internal/middleware.RegisterTokenResolver  # extension hook
-internal/model.CountUserTokens  # reached only from an extension
-internal/model.GetAllUserTokens  # reached only from an extension
 internal/model.RecordSignupAttribution  # reached only from an extension
 internal/model.RegisterCoreModels  # extension hook
 internal/model.RegisterFileDeletingHook  # extension hook
@@ -28,7 +26,6 @@ internal/model.RegisterTelemetryModels  # extension hook
 internal/model.RegisterTopUpReversedHook  # extension hook
 internal/model.RegisterUserDeletingHook  # extension hook
 internal/model.RescheduleMediaJobWithArtifactFile  # reached only from an extension
-internal/model.SearchUserTokens  # reached only from an extension
 internal/model.buildOverviewGrowth  # reached only from an extension
 internal/model.overviewChannels  # reached only from an extension
 internal/model.rewriteMediaJobCostSnapshotSource  # reached only from an extension

@@ -39,11 +39,6 @@ func init() {
 	config.GlobalConfig.Register("gemini", &geminiSettings)
 }
 
-// GetGeminiSettings 获取Gemini配置
-func GetGeminiSettings() *GeminiSettings {
-	return &geminiSettings
-}
-
 // GetGeminiSafetySetting 获取安全设置
 func GetGeminiSafetySetting(key string) string {
 	if value, ok := geminiSettings.SafetySettings[key]; ok {
