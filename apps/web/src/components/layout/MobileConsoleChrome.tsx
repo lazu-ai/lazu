@@ -7,7 +7,6 @@ import {
   Package,
   type LucideIcon,
 } from 'lucide-react';
-import { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -17,7 +16,7 @@ import {
 } from './routeMeta';
 import { preloadConsoleRoute } from './routePreload';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import VersionPlate from '../announcements/VersionPlate';
 import { StatusCenter } from '../ui/status-center';
@@ -95,7 +94,7 @@ const MobileConsoleChrome = ({
   drawerOpen,
 }: MobileConsoleChromeProps) => {
   const { t } = useTranslation();
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const { isModuleVisible } = useSidebar();
   const { availableScopes } = useConsoleScope();
   const platformUser = availableScopes.some(
@@ -148,8 +147,8 @@ const MobileConsoleChrome = ({
       ? t('console.scope.platformLabel', { defaultValue: 'Admin console' })
       : t(routeName.label, { defaultValue: routeName.fallback });
   const user =
-    userState?.user && typeof userState.user === 'object'
-      ? (userState.user as { display_name?: string; username?: string })
+    userSession.user && typeof userSession.user === 'object'
+      ? (userSession.user as { display_name?: string; username?: string })
       : undefined;
   const initial = (user?.display_name || user?.username || '?')
     .trim()

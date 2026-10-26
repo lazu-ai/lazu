@@ -16,16 +16,15 @@ import {
   type NeedItem,
 } from './overview-parts';
 import { relativeTime } from './PlatformOverview';
+import { AgentBadge } from '../../../components/ui/agent-badge';
+import { ComboChart } from '../../../components/ui/combo-chart';
 import {
-  AgentBadge,
   formatCount,
   formatMicroUsd,
   formatMicroUsdCompact,
   formatRatio,
-  PendingBlock,
-  PendingValue,
-} from '../../../components/ui';
-import { ComboChart } from '../../../components/ui/combo-chart';
+} from '../../../components/ui/metric-format';
+import { PendingBlock, PendingValue } from '../../../components/ui/pending';
 import { useAgentSessionsQuery } from '../../../hooks/usage-logs/useAgentSessions';
 import './overview.css';
 

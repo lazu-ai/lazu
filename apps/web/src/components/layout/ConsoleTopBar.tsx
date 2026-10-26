@@ -21,16 +21,16 @@ import {
   Sun,
   Wallet,
 } from 'lucide-react';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './console-topbar.css';
 import { resolveConsoleSection } from './routeMeta';
 import { preloadConsoleRoute } from './routePreload';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
 import { useProject } from '../../features/projects/ProjectContext';
 import { API } from '../../helpers/api';
@@ -46,13 +46,13 @@ import { useSidebar } from '../../hooks/common/useSidebar';
 import { formatVersionLabel } from '../announcements/versionLabel';
 import { openWhatsNewDialog } from '../announcements/whatsNewChannel';
 import { openReportProblem } from '../support/reportChannel';
+import { CompactConfirmation } from '../ui/compact-confirmation';
 import {
-  CompactConfirmation,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../ui';
+} from '../ui/dropdown-menu';
 import { notify } from '../ui/toast';
 
 const LANGUAGES = [
@@ -78,14 +78,14 @@ const ConsoleTopBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const project = useProject();
-  const [userState, userDispatch] = useContext(UserContext);
-  const [statusState] = useContext(StatusContext);
+  const userSession = useSession();
+  const statusState = useStatus();
   const { activeScope } = useConsoleScope();
   const actualTheme = useActualTheme();
   const rawSetTheme = useSetTheme();
   const setTheme =
     typeof rawSetTheme === 'function' ? rawSetTheme : () => undefined;
-  const user = userState.user;
+  const user = userSession.user;
   const { hasUnread } = useAnnouncementsUnread(Boolean(user));
   const { isModuleVisible } = useSidebar();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -164,10 +164,10 @@ const ConsoleTopBar = () => {
       // below is what actually signs this browser out.
     }
     notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
-    userDispatch({ type: 'logout' });
+    userSession.signOut();
     localStorage.removeItem('user');
     navigate('/login');
-  }, [navigate, t, userDispatch]);
+  }, [navigate, t, userSession]);
 
   const viewerName = project.viewerName || user?.username || '';
 

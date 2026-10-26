@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import './onboarding.css';
-import { Button } from '../ui';
+import { Button } from '../ui/button';
 import { notify } from '../ui/toast';
 import type { OnboardingState } from './useOnboarding';
 

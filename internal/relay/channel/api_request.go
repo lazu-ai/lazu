@@ -480,7 +480,7 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	timing := common2.EnsureRelayTiming(c)
 	// Pool/dial/TLS waits are gateway preparation. Start the provider interval
 	// only when the request headers have been written onto the transport.
-	req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{WroteHeaders: timing.StartUpstream, GotFirstResponseByte: timing.FirstUpstreamByte}))
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), common2.UpstreamClientTrace(timing)))
 	resp, err := client.Do(req)
 	if err == nil && !disarmStartDeadline() {
 		// The deadline fired between the headers arriving and the disarm:

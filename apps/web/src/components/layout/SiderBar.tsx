@@ -1,5 +1,5 @@
 import { ArrowUpRight, BookOpen, LogOut } from 'lucide-react';
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ChromeControls from './headerbar/ChromeControls';
@@ -8,9 +8,9 @@ import { preloadConsoleRoute } from './routePreload';
 import { shouldRenderSidebarSection } from './sidebarVisibility';
 import { BrandLogo } from '../../brand';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { StatusContext } from '../../context/Status';
+import { useStatus } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { extensionSidebarEntries } from '../../extensions';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
 import { useProject } from '../../features/projects/ProjectContext';
@@ -21,12 +21,8 @@ import { getLucideIcon } from '../../helpers/lucide';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { useSidebar } from '../../hooks/common/useSidebar';
-import {
-  CompactConfirmation,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '../ui';
+import { CompactConfirmation } from '../ui/compact-confirmation';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 /* The sidebar renders the `.pj-sidefoot` role row on every console page, but
    the project stylesheet used to arrive only with a project page's own imports
    — so on Usage, Keys and Models it rendered unstyled. The sidebar shows it,
@@ -135,8 +131,8 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
   const { t } = useTranslation();
   const location = useLocation();
   const actualTheme = useActualTheme();
-  const [userState, userDispatch] = useContext(UserContext);
-  const [statusState] = useContext(StatusContext);
+  const userSession = useSession();
+  const statusState = useStatus();
   // Operators can point documentation elsewhere at runtime
   // (general_setting.docs_link); the build-time default is the fallback,
   // same order the public header uses.
@@ -166,10 +162,10 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
       // actually signs this browser out.
     }
     notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
-    userDispatch({ type: 'logout' });
+    userSession.signOut();
     localStorage.removeItem('user');
     navigate('/login');
-  }, [navigate, t, userDispatch]);
+  }, [navigate, t, userSession]);
   const logoTone = actualTheme === 'dark' ? 'paper' : 'graphite';
   const { activeScope, availableScopes } = useConsoleScope();
   const platformUser = availableScopes.some(
@@ -349,7 +345,7 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
       projectSolo,
       status,
       t,
-      userState?.user?.role,
+      userSession.user?.role,
     ],
   );
 
