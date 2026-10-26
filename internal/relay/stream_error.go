@@ -9,30 +9,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/types"
 )
 
-// SafeStreamError emits an error response using the only format that is
-// still legal for the current response state. Before any byte has been
-// written, it returns normal JSON. After SSE has started, it can only
-// append SSE frames and close the stream.
-func SafeStreamError(c *gin.Context, code types.ErrorCode, details ...types.D) {
-	var d map[string]any
-	if len(details) > 0 {
-		d = details[0]
-	}
-	w := types.RenderWire(code, d, 0)
-	writeSafeStreamOpenAIError(c, types.RelayFormatOpenAI, w.Status, types.OpenAIError{
-		Message:   w.Message,
-		Type:      w.Type,
-		Code:      string(w.Code),
-		Lazu:      w.ID,
-		Docs:      w.Docs,
-		RequestID: c.GetString(common.RequestIdKey),
-	})
-}
-
-func SafeStreamLazuError(c *gin.Context, err *types.LazuError) {
-	SafeStreamLazuErrorForFormat(c, types.RelayFormatOpenAI, err)
-}
-
 // SafeStreamLazuErrorForFormat emits a terminal error in the frame shape the
 // client's protocol actually reads. A Responses stream names every event, so an
 // unnamed `data:` frame is delivered as a generic message and dropped — the

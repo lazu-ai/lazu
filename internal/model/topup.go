@@ -233,16 +233,6 @@ func topUpLedgerMetadata(topUp *TopUp) map[string]any {
 	}
 }
 
-func GetTopUpById(id int) *TopUp {
-	var topUp *TopUp
-	var err error
-	err = CoreDB().Where("id = ?", id).First(&topUp).Error
-	if err != nil {
-		return nil
-	}
-	return topUp
-}
-
 func GetTopUpByTradeNo(tradeNo string) *TopUp {
 	var topUp *TopUp
 	var err error

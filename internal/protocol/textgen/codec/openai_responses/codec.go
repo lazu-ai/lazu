@@ -627,8 +627,11 @@ func encodeInput(request *textgen.Request, wire *dto.OpenAIResponsesRequest) err
 		case textgen.InputFunctionResult:
 			items = append(items, map[string]any{"type": "function_call_output", "call_id": item.CallID, "output": functionOutput(item)})
 		case textgen.InputReasoning, textgen.InputReference, textgen.InputOpaque:
-			if item.Kind == textgen.InputReasoning && len(item.Opaque) > 0 && item.Opaque[0].Dialect == "anthropic" {
-				// sealed by Anthropic, meaningless to another vendor
+			if item.Kind == textgen.InputReasoning && len(item.Opaque) > 0 &&
+				(item.Opaque[0].Dialect == "anthropic" || item.Opaque[0].Dialect == "gemini") {
+				// Sealed by another vendor, meaningless to this one. The
+				// planner keeps a Gemini signature from the running turn
+				// off this bridge; completed turns can safely leave it out.
 				continue
 			}
 			if len(item.Opaque) == 0 || item.Opaque[0].Dialect != "openai" {

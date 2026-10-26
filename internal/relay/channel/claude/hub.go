@@ -11,6 +11,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
+	geminicodec "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/gemini"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	"github.com/lazu-ai/lazu/internal/relay/channel"
@@ -38,7 +39,7 @@ func UsesCompletionAPI(upstreamModel string) bool { return usesCompletionAPI(ups
 func BridgesToMessages(info *relaycommon.RelayInfo) bool {
 	return info != nil && info.ProtocolPlan != nil && !info.ProtocolPlan.Native &&
 		info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolAnthropic &&
-		(info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIChat || info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses) &&
+		(info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIChat || info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses || info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolGemini) &&
 		!usesCompletionAPI(info.UpstreamModelName)
 }
 
@@ -183,8 +184,8 @@ func observeServerTools(c *gin.Context, data string) {
 	}
 }
 
-// HubStreamHandler serves a streamed Messages reply to a Chat or Responses
-// client (channel.RunHubStream).
+// HubStreamHandler serves a streamed Messages reply to a Chat, Responses or
+// Gemini client (channel.RunHubStream).
 func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
 	decoder := &anthropic_messages.StreamDecoder{}
 	summarized := asksSummary(info)
@@ -200,7 +201,8 @@ func HubStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 	}, channel.HubClientFor(c, info))
 }
 
-// HubHandler serves a whole Messages reply to a Chat or Responses client.
+// HubHandler serves a whole Messages reply to a Chat, Responses or Gemini
+// client.
 func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.LazuError) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -223,7 +225,9 @@ func HubHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo
 	usage := channel.SettleHubUsage(c, info, result)
 	result.Usage = clientUsage(usage)
 	var payload any
-	if info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses {
+	if info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolGemini {
+		payload = geminicodec.Render(result)
+	} else if info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolOpenAIResponses {
 		// rendered from the events themselves, one hop, items in order
 		rendered, renderErr := renderResponses(c, info, events, result.Usage)
 		if renderErr != nil {

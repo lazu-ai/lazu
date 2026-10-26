@@ -197,11 +197,6 @@ func sessionCompleted(c *gin.Context, event stripe.Event) {
 	log.Printf("Payment received: %s, %.2f (%s)", referenceId, total/100, currency)
 }
 
-func GetChargedAmount(count float64, user model.User) float64 {
-	_ = user
-	return count
-}
-
 // getStripeMinTopup is the operator's minimum (option MinTopUpUSD) in whole
 // USD; getStripeMaxTopup the fixed ceiling. Both are what the console shows.
 func getStripeMinTopup() int64 {

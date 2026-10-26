@@ -174,11 +174,11 @@ func TestPostgresTelemetryRetentionPreservesIndependentPolicies(t *testing.T) {
 					t.Fatalf("retention altered protected %T count=%d err=%v", item.row, total, err)
 				}
 			}
-			listed, _, err := GetAllLogs(LogTypeUnknown, 0, 0, "", "", 0, "", 0, 100, 0, "")
+			listed, _, _, err := GetAllLogs(LogTypeUnknown, 0, 0, "", "", 0, "", 0, 100, 0, "")
 			if err != nil {
 				t.Fatal(err)
 			}
-			exported, err := ListDashboardUsageLogs(0, common.RoleRootUser, DashboardUsageWindow{}, DashboardUsageLogFilters{}, 100)
+			exported, err := ListDashboardUsageLogsContext(context.Background(), 0, common.RoleRootUser, DashboardUsageWindow{}, DashboardUsageLogFilters{}, 100)
 			if err != nil {
 				t.Fatal(err)
 			}
