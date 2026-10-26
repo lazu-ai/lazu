@@ -2505,3 +2505,9 @@ html.dark .with-pastel-balls::before {
     max-height: calc(100vh - 77px);
   }
 }
+
+/* Tailwind appends variant utilities (hover:, sm:, lg: …) to the end of the
+   stylesheet it compiles unless told where. Pinning them here keeps them at
+   the end of this file now that the entry sheets @import it into a longer
+   one, which is where they have always applied. */
+@tailwind variants;

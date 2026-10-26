@@ -1,0 +1,19 @@
+/* The console's global stylesheets, in cascade order.
+ *
+ * They are @imported from one file instead of imported one by one from
+ * index.tsx. Imported from JavaScript, every file the public-site entry also
+ * imported went into a chunk shared by both entries, and Vite links an
+ * entry's own CSS ahead of a shared chunk's. Which side of that line a file
+ * fell on decided whether its rules won, so removing an import from the
+ * public site could reorder the console. Inlined here, each entry compiles
+ * these into its own stylesheet and this order is the order they apply in.
+ *
+ * index.tsx imports this after every component stylesheet and after
+ * console-review.css, which is where these rules have always landed. */
+@import '../index.css';
+@import './brand.generated.css';
+@import './tokens.css';
+@import './ui.css';
+@import './shell.css';
+@import './atmosphere.css';
+@import './yunmu.css';

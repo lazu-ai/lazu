@@ -1,0 +1,21 @@
+/* Stylesheets for the API-rendered pages, in cascade order.
+ *
+ * They are @imported from one file, as the console's are in
+ * styles/console-entry.css, so that this order is the order the rules apply
+ * in. Imported one by one from JavaScript, each file the console also
+ * imported went into a chunk shared by both entries, and Vite links an
+ * entry's own CSS ahead of a shared chunk's. That is why public-site.css
+ * comes first: it is the order these pages have shipped with, and keeping it
+ * keeps them unchanged. */
+@import './public-site.css';
+@import '../components/marketing/public-footer.css';
+@import '../pages/Home/lazu-landing.css';
+@import '../styles/fonts.css';
+@import '../components/common/DocumentRenderer/legal-document.css';
+@import '../index.css';
+@import '../styles/brand.generated.css';
+@import '../styles/tokens.css';
+@import '../styles/ui.css';
+@import '../styles/shell.css';
+@import '../styles/atmosphere.css';
+@import '../styles/yunmu.css';

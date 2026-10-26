@@ -12,14 +12,8 @@ import { webExtensions } from './extensions';
 import { i18nReady } from './i18n/i18n';
 import { preloadNotFound } from './lib/not-found-preload';
 import { startPrerender } from './lib/prerender-startup';
-import './index.css';
-import './styles/brand.generated.css';
-import './styles/tokens.css';
-import './styles/ui.css';
-import './styles/shell.css';
-import './styles/atmosphere.css';
-import './styles/yunmu.css';
 import './styles/console-review.css';
+import './styles/console-entry.css';
 // initialization
 
 /* A page that opens on the door needs to know which ways in are open, and the
