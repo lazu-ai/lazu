@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
+import { chunkResourceFor } from './locale-bundle-codec';
 import { isMarketingStartupPath } from './marketing-startup';
 import { extensionI18n, surfaceLanguageKey } from '../extensions/i18n';
 import type { BackendModule, ReadCallback } from 'i18next';
@@ -185,7 +186,11 @@ const dynamicLocaleBackend: BackendModule = {
         const resources = toTranslationResource(module);
         callback(
           null,
-          (resources[normalized] || resources.en || {}) as TranslationResource,
+          chunkResourceFor(
+            resources as Record<string, TranslationResource | undefined>,
+            normalized,
+            bundleLanguage,
+          ),
         );
       })
       .catch((error: unknown) => {

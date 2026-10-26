@@ -40,3 +40,19 @@ export function unpackLocaleResources(
     ]),
   );
 }
+
+/** What the locale backend answers for `language` from a chunk built for
+ * `bundleLanguage`. A chunk carries only its own language, with fallbacks
+ * merged in at build time. A fallback language it does not carry gets no
+ * data: i18next then registers no bundle and loads that language's own
+ * chunk if the user switches to it. An empty object would be cached as a
+ * loaded, empty language and show raw keys after the switch. */
+export function chunkResourceFor(
+  resources: Record<string, Record<string, unknown> | undefined>,
+  language: string,
+  bundleLanguage: string,
+): Record<string, unknown> | null {
+  const own = resources[language];
+  if (own) return own;
+  return language === bundleLanguage ? {} : null;
+}
