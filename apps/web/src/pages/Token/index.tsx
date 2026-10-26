@@ -11,7 +11,7 @@ import {
   X,
   Copy,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { AccessAddressStrip } from './access-addresses';
 import { ConnectModal } from './connect/ConnectModal';
