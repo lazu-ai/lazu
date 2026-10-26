@@ -1,0 +1,13 @@
+{
+  "messages": [
+    {
+      "content": "Rules.",
+      "role": "system"
+    },
+    {
+      "content": "one\ntwo",
+      "role": "user"
+    }
+  ],
+  "model": "m"
+}

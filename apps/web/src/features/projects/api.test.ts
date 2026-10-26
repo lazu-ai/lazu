@@ -8,7 +8,7 @@ const http = vi.hoisted(() => ({
 vi.mock('../../helpers/api', () => ({ API: http }));
 import { collectPages, realProjectsClient } from './api';
 import { validateTopUpAmount } from './budget';
-import i18n from '../../i18n/i18n';
+import i18n, { loadErrorsNamespace } from '../../i18n/i18n';
 import { LazuApiError, errorMessage } from '../../lib/api-error';
 
 beforeEach(() => vi.clearAllMocks());
@@ -56,6 +56,9 @@ describe('project client review regressions', () => {
     'explains incomplete pagination in %s without returning a partial list',
     async (language, message) => {
       await i18n.changeLanguage(language);
+      // The failure copy loads after the first screen; readers that call
+      // errorMessage() synchronously run once it is in.
+      await loadErrorsNamespace();
       const fetchPage = vi.fn(async (page: number) => ({
         items: page === 1 ? [{ id: 'first' }] : [],
         total: 10,

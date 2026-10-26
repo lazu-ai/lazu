@@ -6,10 +6,13 @@ import {
   type ReportProblemDetail,
 } from './reportChannel';
 import { UserContext } from '../../context/User';
-import { API, showSuccess } from '../../helpers';
+import { API } from '../../helpers/api';
 import { getSupportEmail } from '../../helpers/brandUrls';
 import { apiErrorHandler, readApiError, unwrap } from '../../lib/api-error';
-import { Button, Modal, Textarea } from '../ui';
+import { Button } from '../ui/button';
+import { Modal } from '../ui/modal';
+import { Textarea } from '../ui/textarea';
+import { notify } from '../ui/toast';
 
 /* 报告问题: the reader's own words plus what the console already knows (the
  * error number and request id from the failure, the page). The server adds
@@ -66,7 +69,7 @@ export default function ReportProblemDialog() {
       ),
     onSuccess: () => {
       setOpen(false);
-      showSuccess(
+      notify.success(
         t(`${ns}.sent`, {
           defaultValue: '已发送。客服会回复到你的邮箱。',
         }),

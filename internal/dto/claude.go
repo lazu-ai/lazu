@@ -11,10 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ClaudeMetadata struct {
-	UserId string `json:"user_id"`
-}
-
 type ClaudeMediaMessage struct {
 	Type         string               `json:"type,omitempty"`
 	Text         *string              `json:"text,omitempty"`

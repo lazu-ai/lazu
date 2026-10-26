@@ -7,7 +7,7 @@ import {
   formatSliceWhen,
   type StatusBarSlice,
   type StatusBarTone,
-} from '../../components/ui';
+} from '../../components/ui/status-bars';
 import type {
   ModelOpsPoolEntry,
   ModelOpsProbeBucket,

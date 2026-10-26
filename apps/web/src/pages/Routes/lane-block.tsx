@@ -9,7 +9,6 @@ import {
   personalPricing,
   applyPersonalPeak,
   laneOfficialRatio,
-  listPriceOf,
   officialHeroPrice,
   planZheOf,
   lanePeakFactor,
@@ -18,17 +17,17 @@ import {
   type ContextTier,
   type Lane,
 } from './catalog';
+import { ImagePriceDetails } from '../../components/ui/image-price-details';
 import {
   StatusBars,
   StatusBarsLegend,
-  StatusDot,
   formatSliceRate,
   formatSliceWhen,
   formatUptime,
   type StatusBarSlice,
   type StatusBarTone,
-} from '../../components/ui';
-import { ImagePriceDetails } from '../../components/ui/image-price-details';
+} from '../../components/ui/status-bars';
+import { StatusDot } from '../../components/ui/status-dot';
 
 /* One lane of a model, drawn the way the health page draws a lane: its name,
    discount and availability on top, the price on its own line, the week's

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -29,10 +30,10 @@ func TestChannelHealthQueriesSurviveAConnectionThatWentAway(t *testing.T) {
 	if rows, err := QueryChannelHealthChannelPercentiles(since); err != nil || len(rows) != 0 {
 		t.Fatalf("channel percentiles: %v %d", err, len(rows))
 	}
-	if rows, err := QueryChannelHealthLastProbes(since); err != nil || len(rows) != 0 {
+	if rows, err := QueryChannelHealthLastProbesContext(context.Background(), since); err != nil || len(rows) != 0 {
 		t.Fatalf("last probes: %v %d", err, len(rows))
 	}
-	if rows, err := QueryChannelHealthLastOutcomes(since); err != nil || len(rows) != 0 {
+	if rows, err := QueryChannelHealthLastOutcomesContext(context.Background(), since); err != nil || len(rows) != 0 {
 		t.Fatalf("last outcomes: %v %d", err, len(rows))
 	}
 	if rows, err := QueryChannelHealthBuckets(since, 3600, 24); err != nil || len(rows) != 0 {

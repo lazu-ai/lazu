@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Input } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import type { ChannelLane } from '../../hooks/models/useModelOpsDimensions';
 import type { TFunction } from 'i18next';
 

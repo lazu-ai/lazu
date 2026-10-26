@@ -40,6 +40,8 @@ func TestPrometheusMetricsExposeRuntimePoolsAndStageHistogram(t *testing.T) {
 		`lazu_upstream_connections_total{reused="false"}`,
 		`lazu_upstream_dial_seconds_bucket{le="15"}`,
 		`lazu_upstream_tls_handshake_seconds_count`,
+		`lazu_sql_statements_total{op="query"}`,
+		`lazu_sql_statements_total{op="raw"}`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("metrics output lacks %q", want)

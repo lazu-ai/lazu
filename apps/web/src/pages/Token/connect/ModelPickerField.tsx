@@ -3,7 +3,7 @@
  *  catalog in catalog order, where the model a tool should open on was
  *  wherever the id happened to sort. */
 
-import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -25,9 +25,9 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  ProviderLogo,
-} from '../../../components/ui';
+} from '../../../components/ui/popover';
 import { resolveProviderBrand } from '../../../components/ui/provider-brands';
+import { ProviderLogo } from '../../../components/ui/provider-icons';
 import { cn } from '../../../lib/cn';
 import type { TFunction } from 'i18next';
 

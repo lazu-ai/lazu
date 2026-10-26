@@ -14,6 +14,7 @@ import (
 	openai_responses "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_responses"
 	"github.com/lazu-ai/lazu/internal/relay/channel"
 	claudechannel "github.com/lazu-ai/lazu/internal/relay/channel/claude"
+	geminichannel "github.com/lazu-ai/lazu/internal/relay/channel/gemini"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/types"
@@ -75,6 +76,12 @@ func BridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Bas
 		if err != nil {
 			return nil, true, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
+	case textgen.ProtocolGemini:
+		request, err := geminichannel.EncodeBridgedRequest(c, info, semantic)
+		if err != nil {
+			return nil, true, encodeFailed(err)
+		}
+		converted = request
 	case textgen.ProtocolOpenAIChat:
 		request, err := openai_chat.Encode(semantic)
 		if err != nil {
@@ -118,11 +125,19 @@ func BridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Bas
 	return wirepatch.Apply(wirepatch.ResolveDialect(info), jsonData), true, nil
 }
 
-// crossFamily says whether the bridge crosses between Anthropic's Messages
-// and the OpenAI protocols, where the channel's override is its upstream
-// wire's (textgenruntime.OverrideIsUpstreamWire).
+// crossFamily says whether the bridge crosses between protocol families
+// (Anthropic's Messages, Gemini's generateContent, the OpenAI protocols),
+// where the channel's override is its upstream wire's
+// (textgenruntime.OverrideIsUpstreamWire).
 func crossFamily(info *relaycommon.RelayInfo) bool {
-	return (info.ProtocolPlan.ClientProtocol.Family == textgen.ProtocolAnthropic) != (info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolAnthropic)
+	return familyGroup(info.ProtocolPlan.ClientProtocol.Family) != familyGroup(info.ProtocolPlan.UpstreamProtocol.Family)
+}
+
+func familyGroup(family textgen.ProtocolFamily) textgen.ProtocolFamily {
+	if family == textgen.ProtocolOpenAIResponses {
+		return textgen.ProtocolOpenAIChat
+	}
+	return family
 }
 
 // afterRawOverride holds what the plan decided against a channel's raw
@@ -131,6 +146,11 @@ func crossFamily(info *relaycommon.RelayInfo) bool {
 // Responses body stays stateless, with the hosted tools it now carries
 // known to billing.
 func afterRawOverride(info *relaycommon.RelayInfo, body []byte) ([]byte, *types.LazuError) {
+	if info.ProtocolPlan.UpstreamProtocol.Family == textgen.ProtocolGemini {
+		// generateContent has no stream field: the transport is the URL
+		// (streamGenerateContent), chosen by the client
+		return body, nil
+	}
 	if stream := gjson.GetBytes(body, "stream"); stream.Bool() != info.IsStream {
 		// changed or deleted: the encoder wrote it for a streaming client,
 		// and a non-streaming one stays without it

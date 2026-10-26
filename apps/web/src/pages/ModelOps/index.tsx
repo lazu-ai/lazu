@@ -15,19 +15,20 @@ import { buildModelViews, type ModelRecord, type ModelView } from './modelView';
 import { findSellPriceRow, normalizeLaneSlug } from './sellPrices';
 import SyncPreviewModal from './SyncPreviewModal';
 import ModelUpdates from './UpdatesPage';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
 import {
-  Button,
-  ConsolePage,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Input,
-  Modal,
-  Pagination,
-} from '../../components/ui';
+} from '../../components/ui/dropdown-menu';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import { isRoot, showError, showSuccess } from '../../helpers/utils';
+import { isRoot, showError } from '../../helpers/utils';
 import { useModelInfoReviewsQuery } from '../../hooks/models/useModelInfoQuery';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
 import {
@@ -323,7 +324,7 @@ export default function ModelOpsPage() {
         }),
       );
       queryClient.invalidateQueries({ queryKey: ['console'] });
-      showSuccess(t(`${ns}.models.saved`, { defaultValue: '已保存' }));
+      notify.success(t(`${ns}.models.saved`, { defaultValue: '已保存' }));
     } catch (error) {
       showError(error);
       throw error;

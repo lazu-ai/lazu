@@ -14,15 +14,12 @@ func SetDashboardRouter(router *gin.Engine) {
 	apiRouter.Use(middleware.TokenAuth())
 	apiRouter.Use(middleware.RejectEphemeralCredentialOutsideRelay())
 	{
-		apiRouter.GET("/dashboard/billing/subscription", func(c *gin.Context) {
-			markDeprecatedAlias(c, "/v1/dashboard/billing/subscription")
-			controller.GetSubscription(c)
-		})
-		apiRouter.GET("/v1/dashboard/billing/subscription", controller.GetSubscription)
-		apiRouter.GET("/dashboard/billing/usage", func(c *gin.Context) {
-			markDeprecatedAlias(c, "/v1/dashboard/billing/usage")
-			controller.GetUsage(c)
-		})
-		apiRouter.GET("/v1/dashboard/billing/usage", controller.GetUsage)
+		// The OpenAI-era balance endpoints, kept for third-party balance
+		// checkers; the console wallet replaces them.
+		billing := retiring(userSunset, "")
+		apiRouter.GET("/dashboard/billing/subscription", billing, controller.GetSubscription)
+		apiRouter.GET("/v1/dashboard/billing/subscription", billing, controller.GetSubscription)
+		apiRouter.GET("/dashboard/billing/usage", billing, controller.GetUsage)
+		apiRouter.GET("/v1/dashboard/billing/usage", billing, controller.GetUsage)
 	}
 }

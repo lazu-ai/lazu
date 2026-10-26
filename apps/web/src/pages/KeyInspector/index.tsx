@@ -4,7 +4,6 @@ import {
   Activity,
   BarChart3,
   Coins,
-  KeyRound,
   PieChart,
   Search,
   TrendingUp,
@@ -28,37 +27,31 @@ import {
   type UsageRow,
 } from './support';
 import VChart from '../../components/common/charts/VChart';
+import { Button } from '../../components/ui/button';
+import { DataSurface } from '../../components/ui/data-surface';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { DateRangePicker } from '../../components/ui/date-picker';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Field } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { KeyLookupHeading } from '../../components/ui/key-lookup';
+import { PageHeader } from '../../components/ui/page-header';
+import { Pagination } from '../../components/ui/pagination';
+import { Select, SelectItem } from '../../components/ui/select';
+import { compactNumber, formatUnixTime } from '../../components/ui/table-tools';
 import {
-  Badge,
-  Button,
-  DataCard,
-  DataSurface,
-  DataTableShell,
-  DateRangePicker,
-  EmptyState,
-  Field,
-  Input,
-  PageHeader,
-  Pagination,
-  Select,
-  SelectItem,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-  Tag,
-} from '../../components/ui';
-import { KeyLookupHeading } from '../../components/ui/key-lookup';
-import { compactNumber, formatUnixTime } from '../../components/ui/table-tools';
+} from '../../components/ui/tabs';
+import { Tag } from '../../components/ui/tag';
+import { notify } from '../../components/ui/toast';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { API } from '../../helpers/api';
 import { asMicroUSD } from '../../helpers/money';
 import { renderQuota } from '../../helpers/render';
-import {
-  getUserIdFromLocalStorage,
-  showError,
-  showWarning,
-} from '../../helpers/utils';
+import { getUserIdFromLocalStorage, showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
 import type { CellContext, ColumnDef } from '@tanstack/react-table';
 
@@ -148,7 +141,7 @@ const KeyInspectorPage = () => {
             total: filteredItems.length,
           },
         };
-        showWarning(
+        notify.warning(
           t(
             'legacy.i18n.your_backend_version_does_not_support_server_side_filters_yet_au.8586f138b1',
           ),

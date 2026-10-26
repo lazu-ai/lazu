@@ -157,14 +157,8 @@ func ExtractSemanticFeatures(ctx context.Context, req *RequestContext, request *
 	_ = ctx
 	f := &Features{PromptHash: sha256Hex([]byte(semanticFeatureHash(request)))}
 	if request != nil {
-		for _, item := range request.Conversation {
-			for _, part := range item.Content {
-				if part.Kind == textgen.ContentImage {
-					f.HasVision = true
-					f.VisionImageCount++
-				}
-			}
-		}
+		f.VisionImageCount = semanticImageCount(request)
+		f.HasVision = f.VisionImageCount > 0
 		body := decodeRoutingFields(request.Raw.TopLevel)
 		f.Hints = extractHints(body)
 		f.Provider = extractProviderPrefs(body)
@@ -174,6 +168,23 @@ func ExtractSemanticFeatures(ctx context.Context, req *RequestContext, request *
 		req.Features = f
 	}
 	return f
+}
+
+// semanticImageCount counts image parts in the conversation, the only
+// feature channel preference reads (preferredChannelIntentsFromContext).
+func semanticImageCount(request *textgen.Request) int {
+	if request == nil {
+		return 0
+	}
+	count := 0
+	for _, item := range request.Conversation {
+		for _, part := range item.Content {
+			if part.Kind == textgen.ContentImage {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 // semanticFeatureHash is the retry identity of a decoded request: its text,

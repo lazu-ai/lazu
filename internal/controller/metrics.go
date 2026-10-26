@@ -111,6 +111,8 @@ func GetPrometheusMetrics(c *gin.Context) {
 	writeRuntimeMetrics(&b)
 	writePoolMetrics(&b)
 	writeUpstreamConnMetrics(&b)
+	writeStreamBacklogMetrics(&b)
+	writeSQLStatementMetrics(&b)
 
 	c.Data(200, prometheusContentType, []byte(b.String()))
 }
@@ -212,6 +214,14 @@ func writeDurationHistogram(b *strings.Builder, name, help string, histogram *co
 	writePrometheusSample(b, name+"_bucket", map[string]string{"le": "+Inf"}, float64(total))
 	writePrometheusSample(b, name+"_sum", nil, sum)
 	writePrometheusSample(b, name+"_count", nil, float64(total))
+}
+
+func writeSQLStatementMetrics(b *strings.Builder) {
+	counts := model.SQLStatementCounts()
+	writePrometheusHelpType(b, "lazu_sql_statements_total", "SQL statements run through GORM, by callback chain.", "counter")
+	for i, op := range model.SQLStatementOps {
+		writePrometheusSample(b, "lazu_sql_statements_total", map[string]string{"op": op}, float64(counts[i]))
+	}
 }
 
 func writeProtocolMetrics(b *strings.Builder, hotPath common.HotPathMetricsSnapshot) {

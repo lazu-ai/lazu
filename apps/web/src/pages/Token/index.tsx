@@ -11,7 +11,7 @@ import {
   X,
   Copy,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { AccessAddressStrip } from './access-addresses';
 import { ConnectModal } from './connect/ConnectModal';
@@ -38,19 +38,16 @@ import {
   retainVisibleTokenIds,
 } from './tokenSelection';
 import { tokenStatusCode } from './tokenStatusCode';
-import {
-  Badge,
-  Button,
-  Checkbox,
-  DataTableShell,
-  EmptyState,
-  Input,
-  Modal,
-  Select,
-  SelectItem,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Checkbox } from '../../components/ui/checkbox';
 import { ControlAppearanceContext } from '../../components/ui/control-appearance';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
 import { PendingValue } from '../../components/ui/pending';
+import { Select, SelectItem } from '../../components/ui/select';
 import {
   ColumnVisibilityMenu,
   ConsoleTableFrame,
@@ -59,6 +56,7 @@ import {
   formatUnixTime,
   useColumnVisibility,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import {
   KeyAudienceModal,
   shouldAskKeyAudience,
@@ -253,7 +251,7 @@ const Token = () => {
       // was on screen, and otherwise show nothing.
       if (wasRevealed) revealNow(rotateTarget, key);
       else hideRevealed();
-      showSuccess(
+      notify.success(
         t('page.console.token.toast.rotated', {
           defaultValue: '已重新生成 {{name}}，旧值已失效',
           name: String(rotateTarget.name || ''),

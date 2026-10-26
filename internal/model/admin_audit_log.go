@@ -170,30 +170,3 @@ func isEmptyAuditValue(value any) bool {
 	}
 	return false
 }
-
-func ListAdminAuditLogs(query AdminAuditQuery) ([]AdminAuditLog, int64, error) {
-	if CoreDB() == nil {
-		return nil, 0, nil
-	}
-	db := CoreDB().Model(&AdminAuditLog{})
-	if query.Action != "" {
-		db = db.Where("action = ?", query.Action)
-	}
-	if query.TargetType != "" {
-		db = db.Where("target_type = ?", query.TargetType)
-	}
-	if query.ActorID > 0 {
-		db = db.Where("actor_id = ?", query.ActorID)
-	}
-	var total int64
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	limit := query.Limit
-	if limit <= 0 || limit > 500 {
-		limit = 100
-	}
-	var rows []AdminAuditLog
-	err := db.Order("created_at desc, id desc").Limit(limit).Offset(query.Offset).Find(&rows).Error
-	return rows, total, err
-}

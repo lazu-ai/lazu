@@ -1,6 +1,7 @@
 import { GripVertical } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Button, Modal } from '../../components/ui';
+import { Button } from '../../components/ui/button';
+import { Modal } from '../../components/ui/modal';
 import { ProviderLogo } from '../../components/ui/provider-icons';
 import {
   useModelInfoMutations,

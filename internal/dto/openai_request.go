@@ -83,21 +83,10 @@ type GeneralOpenAIRequest struct {
 	// OpenRouter Params
 	Usage     json.RawMessage `json:"usage,omitempty"`
 	Reasoning json.RawMessage `json:"reasoning,omitempty"`
-	// Ali Qwen Params
-	VlHighResolutionImages json.RawMessage `json:"vl_high_resolution_images,omitempty"`
-	EnableThinking         any             `json:"enable_thinking,omitempty"`
-	// ollama Params
-	Think json.RawMessage `json:"think,omitempty"`
-	// baidu v2
-	WebSearch json.RawMessage `json:"web_search,omitempty"`
-	// doubao,zhipu_v4
-	THINKING json.RawMessage `json:"thinking,omitempty"`
-	// pplx Params
-	SearchDomainFilter     json.RawMessage `json:"search_domain_filter,omitempty"`
-	SearchRecencyFilter    string          `json:"search_recency_filter,omitempty"`
-	ReturnImages           bool            `json:"return_images,omitempty"`
-	ReturnRelatedQuestions bool            `json:"return_related_questions,omitempty"`
-	SearchMode             string          `json:"search_mode,omitempty"`
+	// Vendor-specific top-level fields (Qwen's enable_thinking, Perplexity's
+	// search_mode and the like) are not declared here: the gateway never reads
+	// them, and the unknown-field merge carries them to the upstream unchanged
+	// (TestVendorTopLevelFieldsSurvive*).
 }
 
 func (r *GeneralOpenAIRequest) GetTokenCountMeta() *types.TokenCountMeta {

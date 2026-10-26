@@ -44,8 +44,3 @@ func NormalizeQuotaDisplayType(value string) string {
 func GetQuotaDisplayType() string {
 	return NormalizeQuotaDisplayType(generalSetting.QuotaDisplayType)
 }
-
-// IsCurrencyDisplay 是否以货币形式展示（USD；TOKENS 为非货币展示）
-func IsCurrencyDisplay() bool {
-	return GetQuotaDisplayType() != QuotaDisplayTypeTokens
-}

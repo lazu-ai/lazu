@@ -9,18 +9,15 @@ import {
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { EMPTY_CELL, UserIdentity, type LogBadgeVariant } from './log-support';
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Field,
-  Input,
-  Select,
-  SelectItem,
-  Switch,
-  Tag,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Field } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
 import { TextStack, compactNumber } from '../../components/ui/table-tools';
+import { Tag } from '../../components/ui/tag';
 import { asMicroUSD } from '../../helpers/money';
 import {
   microUSDToUSD,

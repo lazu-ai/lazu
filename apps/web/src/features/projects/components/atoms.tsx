@@ -1,7 +1,3 @@
-export type {
-  Tone,
-  LedgerItem,
-} from '../../../components/ui/project-primitives';
 export {
   Card,
   SectionHead,
@@ -9,29 +5,23 @@ export {
   Kvs,
   FormRows,
   FormRow,
-  Avatar,
   Who,
   PjBadge,
-  Meter,
-  Bars,
   SegControl,
-  OkLine,
   ErrLine,
   ConfirmPop,
   GateModal,
   ActionModal,
-  SaveBar,
   Notice,
   TableFoot,
   SelectLike,
-  ToggleGlyph,
-  MonoText,
 } from '../../../components/ui/project-primitives';
 /* Project budget and reason adapters over shared Console primitives. */
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Checkbox, Input } from '../../../components/ui';
+import { Checkbox } from '../../../components/ui/checkbox';
+import { Input } from '../../../components/ui/input';
 import { PjBadge, Meter } from '../../../components/ui/project-primitives';
 import { cn } from '../../../lib/cn';
 import {

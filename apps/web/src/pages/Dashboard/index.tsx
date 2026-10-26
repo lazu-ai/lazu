@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import React, { useContext, useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PlatformOverview from './overview/PlatformOverview';
 import WorkspaceOverview from './overview/WorkspaceOverview';
@@ -19,8 +19,9 @@ import {
 import { MyBudgetPage } from '../../features/projects/pages/ProjectWalletPage';
 import { useProject } from '../../features/projects/ProjectContext';
 import { useProjectDetail } from '../../features/projects/queries';
-import { API, showError } from '../../helpers';
+import { API } from '../../helpers/api';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
+import { showError } from '../../helpers/utils';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { readBlobDownloadError } from '../Log/log-support';
 import type { OverviewRange } from './overview/overview-api';
