@@ -62,6 +62,7 @@
     "size": "bun scripts/check-bundle-size.mjs",
     "analyze": "bun run build && open dist/stats.html",
     "i18n:check": "python3 scripts/audit_frontend_debt.py --only i18n --check",
+    "knip:check": "bunx knip@5.88.1 --no-progress --reporter json | python3 scripts/check_knip.py knip-allow.txt knip-baseline.txt",
     "i18n:unused": "python3 scripts/audit_frontend_debt.py --only i18n-unused --check",
     "i18n:extract": "bunx i18next-cli extract",
     "i18n:status": "bunx i18next-cli status",
@@ -85,6 +86,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@types/hast": "3.0.4",
     "@types/node": "^25.6.2",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",

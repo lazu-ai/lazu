@@ -33,7 +33,6 @@ function getPages(currentPage: number, pageCount: number): number[] {
   }
   return [...pages].sort((a, b) => a - b);
 }
-
 export function Pagination({
   className,
   currentPage = 1,
@@ -140,5 +139,3 @@ export function Pagination({
     </nav>
   );
 }
-
-export default Pagination;

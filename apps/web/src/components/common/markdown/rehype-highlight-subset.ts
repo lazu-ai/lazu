@@ -13,7 +13,7 @@ import yaml from 'highlight.js/lib/languages/yaml';
 import { createLowlight } from 'lowlight';
 import type { Element, ElementContent, Root, RootContent } from 'hast';
 
-export const HIGHLIGHT_LANGUAGES = {
+const HIGHLIGHT_LANGUAGES = {
   bash,
   http,
   javascript,
