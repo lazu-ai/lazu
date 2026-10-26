@@ -13,14 +13,8 @@ import { preloadMarketingPage } from './lib/marketing-pages';
 import { preloadNotFound } from './lib/not-found-preload';
 import { startPrerender } from './lib/prerender-startup';
 import { prefetchRoute } from './lib/route-prefetch';
-import './index.css';
-import './styles/brand.generated.css';
-import './styles/tokens.css';
-import './styles/ui.css';
-import './styles/shell.css';
-import './styles/atmosphere.css';
-import './styles/yunmu.css';
 import './styles/console-review.css';
+import './styles/console-entry.css';
 // initialization
 
 /* The router only asks for the opening page's chunk once the translations
