@@ -4,7 +4,7 @@
  * live only in this component's state; never in a query cache. */
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
 import { REVEAL_REMASK_SECONDS } from '../budget';
 import { useProject } from '../ProjectContext';
 import { errorReceipt, receipt } from '../receipt';

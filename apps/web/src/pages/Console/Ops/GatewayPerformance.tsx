@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Button, ErrorState, PendingBlock } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
 import {
   ComboChart,
   type ComboLineSeries,
 } from '../../../components/ui/combo-chart';
+import { ErrorState } from '../../../components/ui/error-state';
+import { PendingBlock } from '../../../components/ui/pending';
 import { API } from '../../../helpers/api';
 import { unwrap } from '../../../lib/api-error';
 

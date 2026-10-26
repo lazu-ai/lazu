@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Check } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
 import { PendingValue } from '../../../components/ui/pending';
 import {
   normalizeTokenPayload,

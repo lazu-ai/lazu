@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { formatLimit, useRateLimitOptionsQuery } from './rateLimitOptions';
-import { PendingValue } from '../../../components/ui';
+import { PendingValue } from '../../../components/ui/pending';
 
 /* What the limits say now, on the settings card; the page behind the link
    edits them. The rows use the page's own settings row, so their values line

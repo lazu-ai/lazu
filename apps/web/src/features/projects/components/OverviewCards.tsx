@@ -31,7 +31,8 @@ import {
 import { KeySecretCell } from './KeySecretCell';
 import { LeaveProjectAction } from './LeaveProjectAction';
 import { HandleBudgetRequestModal } from './MemberDialogs';
-import { Button, Textarea } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { Textarea } from '../../../components/ui/textarea';
 import { canRevealKey } from '../access';
 import { canManageInvite, canHandleBudgetRequest } from '../access';
 import { formatUSD, formatUSDShort, percentOf } from '../money';

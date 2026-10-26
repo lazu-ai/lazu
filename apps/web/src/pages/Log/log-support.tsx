@@ -7,17 +7,16 @@ import { Link } from 'react-router-dom';
 import { useDebouncedCallback } from 'use-debounce';
 import { z } from 'zod';
 import { SessionLogCell, SessionReceiptBlock } from './sessions/SessionReceipt';
+import { Button } from '../../components/ui/button';
+import { DateRangePicker } from '../../components/ui/date-picker';
+import { submitFilterFormFromSelect } from '../../components/ui/filter-bar';
+import { Input } from '../../components/ui/input';
 import {
-  Button,
-  DateRangePicker,
-  Input,
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Select,
-  SelectItem,
-  submitFilterFormFromSelect,
-} from '../../components/ui';
+} from '../../components/ui/popover';
+import { Select, SelectItem } from '../../components/ui/select';
 import { compactNumber } from '../../components/ui/table-tools';
 import { ReasonChip } from '../../features/projects/components/atoms';
 import {

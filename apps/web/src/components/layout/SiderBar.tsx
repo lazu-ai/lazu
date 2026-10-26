@@ -21,12 +21,8 @@ import { getLucideIcon } from '../../helpers/lucide';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { useSidebar } from '../../hooks/common/useSidebar';
-import {
-  CompactConfirmation,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '../ui';
+import { CompactConfirmation } from '../ui/compact-confirmation';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 /* The sidebar renders the `.pj-sidefoot` role row on every console page, but
    the project stylesheet used to arrive only with a project page's own imports
    — so on Usage, Keys and Models it rendered unstyled. The sidebar shows it,

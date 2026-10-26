@@ -2,22 +2,20 @@ import { useQuery } from '@tanstack/react-query';
 import { MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from './button';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Field,
-  InlineNotice,
-  Input,
-  Label,
-  Modal,
-  PendingBlock,
-} from './index';
+} from './dropdown-menu';
+import { Field, Label } from './field';
+import { InlineNotice } from './inline-notice';
+import { Input } from './input';
+import { Modal } from './modal';
+import { PendingBlock } from './pending';
 import { notify } from './toast';
-import { API } from '../../helpers/api';
-import { isRoot, showError } from '../../helpers/utils';
+import { API, isRoot, showError } from '../../helpers';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../lib/api-error';
 

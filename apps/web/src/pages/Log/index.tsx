@@ -30,19 +30,18 @@ import {
 } from './log-support';
 import { SK } from './sessions/session-format';
 import SessionsView from './sessions/SessionsView';
+import { Button } from '../../components/ui/button';
+import { DataTableShell } from '../../components/ui/data-table-shell';
 import {
-  Button,
-  DataTableShell,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  EmptyState,
-  Modal,
-  Pagination,
-  Pending,
-  PendingValue,
-} from '../../components/ui';
+} from '../../components/ui/dropdown-menu';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
+import { Pending, PendingValue } from '../../components/ui/pending';
 import {
   ColumnVisibilityMenu,
   ConsoleTableFrame,

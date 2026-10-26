@@ -7,12 +7,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import {
-  Button,
-  Input,
-  LoadingState,
-  StatusPage,
-} from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { LoadingState } from '../../../components/ui/loading-state';
+import { StatusPage } from '../../../components/ui/status-page';
 import { UserContext } from '../../../context/User';
 import { API } from '../../../helpers/api';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';

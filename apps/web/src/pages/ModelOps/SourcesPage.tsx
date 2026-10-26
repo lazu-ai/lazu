@@ -8,19 +8,13 @@ import { ObservationDialog } from './ObservationDialog';
 import SourceForm, { type SourceStep } from './SourceForm';
 import SourceLedger from './SourceLedger';
 import SourceTypeBadge from './SourceTypeBadge';
-import {
-  Badge,
-  Button,
-  ConsolePage,
-  IconButton,
-  Input,
-  Modal,
-  ModalFrame,
-  ModalTitle,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '../../components/ui';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { IconButton } from '../../components/ui/icon-button';
+import { Input } from '../../components/ui/input';
+import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useChannelsQuery } from '../../hooks/channels/useChannelsQuery';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
 import {

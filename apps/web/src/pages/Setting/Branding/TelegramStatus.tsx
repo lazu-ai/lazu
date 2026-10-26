@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellOff, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
 import { PendingValue } from '../../../components/ui/pending';
 import { notify } from '../../../components/ui/toast';
 import { API } from '../../../helpers/api';

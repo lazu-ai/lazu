@@ -1,6 +1,6 @@
 import { Copy } from 'lucide-react';
 import { useContext, useMemo } from 'react';
-import { Button } from '../../components/ui';
+import { Button } from '../../components/ui/button';
 import { notify } from '../../components/ui/toast';
 import { UserContext } from '../../context/User';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
