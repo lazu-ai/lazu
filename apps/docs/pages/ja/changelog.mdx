@@ -5,11 +5,12 @@ description: "Lazu API、モデルカタログ、ドキュメントの変更を�
 
 # 更新履歴
 
-## 2026-10-26 — セルフホスト向け設定 3 件を非推奨化
+## 2026-10-26 — セルフホスト向け設定 4 件を非推奨化
 
 - `LogConsumeEnabled=false` を非推奨にしました。2027-01-24 以降、消費ログは常に記録されます。保存量の調整には `LOG_RETENTION_DAYS` を使ってください。
 - Worker ダウンロードプロキシ（`WorkerUrl`、`WorkerValidKey`、`WorkerAllowHttpImageRequestEnabled`）を非推奨にしました。2027-01-24 以降、メディアのダウンロードと webhook は直接接続し、メディア取得ポリシーで宛先を確認します。
 - `general_setting.quota_display_type=TOKENS` を非推奨にしました。2027-01-24 以降、ログ本文の金額はコンソールと同じく常に米ドルで表示されます。
+- `SETTLEMENT_OUTBOX_ENABLED=true` を非推奨にしました。2027-01-24 以降、決済 outbox とその照合タスクは削除されます。失敗した決済は引き続き失敗照合タスクが回復します。
 - いずれかを設定しているデプロイでは、起動時に `deprecated setting:` で始まるログが出力されます。詳しくはデプロイガイドの「Deprecated settings」をご覧ください。
 
 ## 2026-09-30 — Agent セッション、明細と長文脈料金

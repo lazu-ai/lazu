@@ -5,11 +5,12 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 
 # 更新日志
 
-## 2026-10-26 — 弃用三项自部署设置
+## 2026-10-26 — 弃用四项自部署设置
 
 - `LogConsumeEnabled=false` 已弃用。2027-01-24 之后消费日志将始终写入；如需控制存储，请改用 `LOG_RETENTION_DAYS`。
 - Worker 下载代理（`WorkerUrl`、`WorkerValidKey`、`WorkerAllowHttpImageRequestEnabled`）已弃用。2027-01-24 之后媒体下载和 webhook 将直接连接，并按媒体抓取策略检查地址。
 - `general_setting.quota_display_type=TOKENS` 已弃用。2027-01-24 之后日志文本中的金额一律以美元显示，与控制台一致。
+- `SETTLEMENT_OUTBOX_ENABLED=true` 已弃用。2027-01-24 之后结算 outbox 及其对账任务将移除；结算失败仍由失败对账任务恢复。
 - 配置了其中任一项的部署，启动时会输出一行 `deprecated setting:` 提示。详见部署指南的“Deprecated settings”一节。
 
 ## 2026-09-30 — Agent 会话、请求回执与长上下文价格

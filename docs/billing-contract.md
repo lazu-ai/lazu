@@ -35,7 +35,7 @@ A terminal successful text response can have no generated text while still repor
 
 ## Recovery
 
-`apps/worker/main.go` registers both recovery tasks when the database is ready. The failure reconciler defaults to enabled (`SETTLEMENT_FAILURE_RECONCILER_ENABLED=true`, 30 seconds); durable outbox recording and its reconciler are optional (`SETTLEMENT_OUTBOX_ENABLED=false`, 15-second interval when enabled). Outbox being off does not mean failure recovery is absent.
+`apps/worker/main.go` registers both recovery tasks when the database is ready. The failure reconciler defaults to enabled (`SETTLEMENT_FAILURE_RECONCILER_ENABLED=true`, 30 seconds); durable outbox recording and its reconciler are optional (`SETTLEMENT_OUTBOX_ENABLED=false`, 15-second interval when enabled). Outbox being off does not mean failure recovery is absent. The outbox switch is deprecated and is removed after 2027-01-24 (DEPLOYMENT.md, Deprecated settings).
 
 Replays check the unique wallet event before charging, reopen stale claims, and refund the account even when its API key has been removed. An insufficient-balance recovery goes to manual review rather than overdrafting. Verify the actual worker, configuration, pending count and oldest pending record in the deployment before asserting operational recovery is healthy. Local replay tests do not establish production configuration or backlog state.
 

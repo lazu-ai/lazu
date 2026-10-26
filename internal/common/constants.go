@@ -121,6 +121,10 @@ var RelayEventGroup = "lazu-relay-event-workers"
 var RelayEventConsumer = ""
 var RelayEventConsumerEnabled = true
 var RedisVerificationCodeEnabled = false
+
+// Deprecated: delete after 2027-01-24, with the outbox reconciler (failed
+// settlements are recovered by the failure reconciler; see
+// env_deprecations.go and docs/DEPLOYMENT.md, Deprecated settings).
 var SettlementOutboxEnabled = false
 var MetricsEnabled = false
 var MetricsToken = ""
