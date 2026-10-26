@@ -205,6 +205,9 @@ jobs:
       - name: Check the docs error reference is current
         run: go run ./ops/tools/errdocs -check
 
+      - name: Check every route has a caller, a document or an allowlist entry
+        run: make test-route-coverage
+
   secrets:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest

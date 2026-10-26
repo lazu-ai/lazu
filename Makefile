@@ -24,6 +24,7 @@ help:
 	@echo "  make test-docs     # verify active docs use current path conventions"
 	@echo "  make test-secrets  # scan tracked files for committed secrets"
 	@echo "  make test-relay-safety # verify relay adaptor panic guards"
+	@echo "  make test-route-coverage # fail on routes nothing calls or documents"
 
 .PHONY: stack-up stack-build stack-down stack-logs stack-ps stack-clean
 stack-up:
@@ -67,7 +68,7 @@ build-migrate:
 clean-bin:
 	@rm -rf ./.runtime/bin
 
-.PHONY: test-go test-go-json test-docs test-secrets test-relay-safety
+.PHONY: test-go test-go-json test-docs test-secrets test-relay-safety test-route-coverage
 test-go:
 	@go test $(GO_TEST_PACKAGES)
 
@@ -83,3 +84,7 @@ test-secrets:
 
 test-relay-safety:
 	@./ops/scripts/verify-relay-panics.sh
+
+test-route-coverage:
+	@python3 -m unittest discover -s ops/scripts -p test_check_route_coverage.py -q
+	@go run ./ops/tools/routes | python3 ops/scripts/check_route_coverage.py

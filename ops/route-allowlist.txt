@@ -1,0 +1,125 @@
+# Routes the API serves that nothing in this repository calls or documents.
+# "METHOD /path  # kind: reason"; kinds: webhook, extension, external-api,
+# browser, scheduled-removal (with a date), pending. See ops/scripts/check_route_coverage.py.
+DELETE /api/prefill_group/:id  # pending: no caller in this repository; the route table decides
+DELETE /api/user/self/identities/:provider  # pending: no caller in this repository; the route table decides
+DELETE /api/vendors/:id  # pending: no caller in this repository; the route table decides
+GET /api/auth/email-preview/:template  # pending: no caller in this repository; the route table decides
+GET /api/auth/oauth/:provider/callback  # webhook: identity provider redirects the browser here
+GET /api/auth/oidc/callback  # webhook: identity provider redirects the browser here
+GET /api/channel/models_enabled  # pending: no caller in this repository; the route table decides
+GET /api/channel/tag/models  # pending: no caller in this repository; the route table decides
+GET /api/community/models  # pending: no caller in this repository; the route table decides
+GET /api/community/models/:id  # pending: no caller in this repository; the route table decides
+GET /api/community/stats  # pending: no caller in this repository; the route table decides
+GET /api/data/  # pending: no caller in this repository; the route table decides
+GET /api/data/self  # pending: no caller in this repository; the route table decides
+GET /api/log/self/in_flight  # pending: no caller in this repository; the route table decides
+GET /api/log/self/tasks/:id  # pending: no caller in this repository; the route table decides
+GET /api/log/token  # pending: no caller in this repository; the route table decides
+GET /api/mail/chart/:file  # webhook: links and images in sent email
+GET /api/mail/unsubscribe  # webhook: links and images in sent email
+GET /api/model_info/reviews/count  # pending: no caller in this repository; the route table decides
+GET /api/model_ops/spend  # pending: no caller in this repository; the route table decides
+GET /api/models/missing  # pending: no caller in this repository; the route table decides
+GET /api/models/rankings  # pending: no caller in this repository; the route table decides
+GET /api/ops/mail/digest/preview  # pending: no caller in this repository; the route table decides
+GET /api/performance/stats  # pending: no caller in this repository; the route table decides
+GET /api/pricing/wallet_reconciliation  # pending: no caller in this repository; the route table decides
+GET /api/status/test  # pending: no caller in this repository; the route table decides
+GET /api/upload/pending-files  # pending: no caller in this repository; the route table decides
+GET /api/uptime/status  # pending: no caller in this repository; the route table decides
+GET /api/usage/token/  # pending: no caller in this repository; the route table decides
+GET /api/user/models/classified  # pending: no caller in this repository; the route table decides
+GET /api/user/token  # pending: no caller in this repository; the route table decides
+GET /api/user/used-models  # pending: no caller in this repository; the route table decides
+GET /api/v1/models/info  # pending: no caller in this repository; the route table decides
+GET /api/vendors/:id  # pending: no caller in this repository; the route table decides
+GET /api/vendors/search  # pending: no caller in this repository; the route table decides
+GET /api/workers/status  # pending: no caller in this repository; the route table decides
+GET /api/workers/status/:name  # pending: no caller in this repository; the route table decides
+GET /dashboard/billing/subscription  # pending: deprecated OpenAI dashboard alias with no removal date yet
+GET /dashboard/billing/usage  # pending: deprecated OpenAI dashboard alias with no removal date yet
+GET /ja/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /ja/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /ja/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /ja/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /ja/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /ja/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /metrics  # external-api: scraped by Prometheus
+GET /models.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /v1/dashboard/billing/subscription  # pending: deprecated OpenAI dashboard alias with no removal date yet
+GET /v1/dashboard/billing/usage  # pending: deprecated OpenAI dashboard alias with no removal date yet
+GET /v1/fine-tunes  # external-api: OpenAI-compatible endpoint SDK clients call
+GET /v1/fine-tunes/:id  # external-api: OpenAI-compatible endpoint SDK clients call
+GET /v1/fine-tunes/:id/events  # external-api: OpenAI-compatible endpoint SDK clients call
+GET /v1/media/jobs  # external-api: OpenAI-compatible endpoint SDK clients call
+GET /v1/media/jobs/:id  # external-api: OpenAI-compatible endpoint SDK clients call
+GET /v1/realtime  # external-api: OpenAI-compatible endpoint SDK clients call
+GET /v1beta/openai/models  # external-api: OpenAI-compatible endpoint SDK clients call
+GET /zh-TW/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh-TW/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh-TW/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh-TW/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh-TW/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh-TW/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /ja/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /ja/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /ja/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /ja/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /ja/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /ja/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /models.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh-TW/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh-TW/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh-TW/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh-TW/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh-TW/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh-TW/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+POST /api/channel/:id/key  # pending: no caller in this repository; the route table decides
+POST /api/channel/batch  # pending: no caller in this repository; the route table decides
+POST /api/channel/batch/tag  # pending: no caller in this repository; the route table decides
+POST /api/channel/multi_key/manage  # pending: no caller in this repository; the route table decides
+POST /api/channel/tag/disabled  # pending: no caller in this repository; the route table decides
+POST /api/channel/tag/enabled  # pending: no caller in this repository; the route table decides
+POST /api/community/export  # pending: no caller in this repository; the route table decides
+POST /api/credentials/ephemeral  # pending: no caller in this repository; the route table decides
+POST /api/mail/unsubscribe  # webhook: links and images in sent email
+POST /api/models/rankings/recalculate  # pending: no caller in this repository; the route table decides
+POST /api/notification/email/announcement  # pending: no caller in this repository; the route table decides
+POST /api/notification/email/send  # pending: no caller in this repository; the route table decides
+POST /api/ops/mail/digest/copy  # pending: no caller in this repository; the route table decides
+POST /api/stripe/webhook  # webhook: called by the payment or chat provider
+POST /api/telegram/webhook  # webhook: called by the payment or chat provider
+POST /api/upload/run  # pending: no caller in this repository; the route table decides
+POST /api/upload/single  # pending: no caller in this repository; the route table decides
+POST /api/user/register  # pending: no caller in this repository; the route table decides
+POST /api/user/reset  # pending: no caller in this repository; the route table decides
+POST /api/user/self/stripe/pay  # pending: no caller in this repository; the route table decides
+POST /api/user/stripe/amount  # pending: no caller in this repository; the route table decides
+POST /api/workers/channel-test  # pending: no caller in this repository; the route table decides
+POST /v1/edits  # external-api: OpenAI-compatible endpoint SDK clients call
+POST /v1/engines/:model/embeddings  # external-api: OpenAI-compatible endpoint SDK clients call
+POST /v1/fine-tunes  # external-api: OpenAI-compatible endpoint SDK clients call
+POST /v1/fine-tunes/:id/cancel  # external-api: OpenAI-compatible endpoint SDK clients call
+POST /v1/images/variations  # external-api: OpenAI-compatible endpoint SDK clients call
+POST /v1/media/jobs  # external-api: OpenAI-compatible endpoint SDK clients call
+POST /v1/moderations  # external-api: OpenAI-compatible endpoint SDK clients call
+PUT /api/channel/tag  # pending: no caller in this repository; the route table decides
+PUT /api/user/:id/has_topped_up  # pending: no caller in this repository; the route table decides
