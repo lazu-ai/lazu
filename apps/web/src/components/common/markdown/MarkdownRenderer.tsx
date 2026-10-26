@@ -13,8 +13,10 @@ import { useDebouncedCallback } from 'use-debounce';
 import { copy } from '../../../helpers/clipboard';
 import { rehypeSplitWordsIntoSpans } from '../../../helpers/rehype-streaming';
 import { sanitizeMarkup } from '../../../helpers/sanitize';
-import { Button, Tooltip, Toast } from '@/components/ui/console-primitives';
+import { Button } from '@/components/ui/button';
 import { IconCopy } from '@/components/ui/icon-aliases';
+import { notify } from '@/components/ui/toast';
+import { Tooltip } from '@/components/ui/tooltip';
 import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/github.css';
 import './markdown.css';
@@ -198,9 +200,8 @@ export function PreCode({ children }: { children?: React.ReactNode }) {
         >
           <Tooltip content={t('legacy.i18n.copy_code.3b1fde4d23')}>
             <Button
-              size='small'
-              theme='borderless'
-              icon={<IconCopy />}
+              size='sm'
+              variant='ghost'
               onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -209,11 +210,11 @@ export function PreCode({ children }: { children?: React.ReactNode }) {
                   const code = codeElement?.textContent ?? '';
                   copy(code).then((success) => {
                     if (success) {
-                      Toast.success(
+                      notify.success(
                         t('legacy.i18n.code_copied_to_clipboard.f2755c6008'),
                       );
                     } else {
-                      Toast.error(
+                      notify.error(
                         t(
                           'legacy.i18n.copy_failed_please_copy_manually.2b1cae855e',
                         ),
@@ -230,7 +231,9 @@ export function PreCode({ children }: { children?: React.ReactNode }) {
                 border: '1px solid var(--ui-border)',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
               }}
-            />
+            >
+              <IconCopy />
+            </Button>
           </Tooltip>
         </div>
         {children}
@@ -323,7 +326,7 @@ function CustomCode({
             justifyContent: 'center',
           }}
         >
-          <Button size='small' onClick={toggleCollapsed} theme='solid'>
+          <Button size='sm' variant='secondary' onClick={toggleCollapsed}>
             {t('legacy.i18n.show_more.a2205b3878')}
           </Button>
         </div>

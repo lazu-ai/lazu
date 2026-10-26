@@ -11,19 +11,8 @@ import ScrollableContainer, {
   type ScrollableContainerProps,
 } from '../ScrollableContainer';
 import type { TFunction } from 'i18next';
-import type { CSSProperties, ComponentType, ReactNode } from 'react';
-import { Empty } from '@/components/ui/console-primitives';
-import {
-  IllustrationNoContent,
-  IllustrationNoContentDark,
-} from '@/components/ui/illustrations';
-
-type LegacyProps = {
-  children?: ReactNode;
-  [key: string]: unknown;
-};
-
-const LegacyEmpty = Empty as unknown as ComponentType<LegacyProps>;
+import type { CSSProperties, ReactNode } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
 
 type AnnouncementType = keyof typeof ANNOUNCEMENT_TYPE_CONFIG;
 type Translate = TFunction | ((key: string) => string);
@@ -52,19 +41,12 @@ export type AnnouncementTimelineProps = {
   emptyDescription?: ReactNode;
   className?: string;
   contentClassName?: string;
-  emptyIllustration?: ReactNode;
-  emptyIllustrationDark?: ReactNode;
   t?: Translate;
 };
 
 const MarkdownRenderer = lazy(
   () => import('../../common/markdown/MarkdownRenderer'),
 );
-
-const DEFAULT_EMPTY_ILLUSTRATION_STYLE: CSSProperties = {
-  width: 120,
-  height: 120,
-};
 
 const fallbackT: Translate = (key: string) => key;
 
@@ -202,12 +184,6 @@ const AnnouncementTimeline = ({
   emptyDescription,
   className = '',
   contentClassName = '',
-  emptyIllustration = (
-    <IllustrationNoContent style={DEFAULT_EMPTY_ILLUSTRATION_STYLE} />
-  ),
-  emptyIllustrationDark = (
-    <IllustrationNoContentDark style={DEFAULT_EMPTY_ILLUSTRATION_STYLE} />
-  ),
   t = fallbackT,
 }: AnnouncementTimelineProps) => {
   const items = useMemo(() => {
@@ -221,10 +197,8 @@ const AnnouncementTimeline = ({
   if (items.length === 0) {
     return (
       <div className='flex justify-center items-center py-10'>
-        <LegacyEmpty
-          image={emptyIllustration}
-          darkModeImage={emptyIllustrationDark}
-          title={emptyTitle}
+        <EmptyState
+          title={emptyTitle || 'No data'}
           description={emptyDescription}
         />
       </div>
