@@ -1,5 +1,4 @@
 import { Sun, Moon } from 'lucide-react';
-import React from 'react';
 import { useActualTheme } from '../../../context/Theme';
 
 type ThemeToggleProps = {

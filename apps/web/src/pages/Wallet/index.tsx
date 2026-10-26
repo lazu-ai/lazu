@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { CreditCard, Download, History, Search } from 'lucide-react';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { Download, History, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -11,47 +11,39 @@ import {
 } from './walletAmounts';
 import { buildDailyWalletLedger, type WalletLedgerDay } from './walletLedger';
 import VChart from '../../components/common/charts/VChart';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { DataTableShell } from '../../components/ui/data-table-shell';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Field, FieldMessage, Label } from '../../components/ui/field';
+import { InlineNotice } from '../../components/ui/inline-notice';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
+import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { notify } from '../../components/ui/toast';
 import {
-  Badge,
-  Button,
-  DataTableShell,
-  EmptyState,
-  Field,
-  FieldMessage,
-  Input,
-  InlineNotice,
-  Label,
-  Modal,
-  Pagination,
-  Tabs,
-  TabsList,
-  TabsTrigger,
   TOPUP_DEFAULT,
   TOPUP_MAX_DEFAULT,
   TOPUP_MIN_DEFAULT,
   TopupBar,
-  TopupRecord,
-} from '../../components/ui';
-import ConsolePage from '../../components/ui/console-page';
-import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
+} from '../../components/ui/topup-bar';
+import { TopupRecord } from '../../components/ui/topup-record';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { useStatus } from '../../context/Status';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { useTopUpOffer, webExtensions } from '../../extensions';
-import {
-  API,
-  asMicroUSD,
-  getMicroUSDPerUSD,
-  isRoot,
-  microUSDToUSD,
-  showError,
-  showSuccess,
-  timestamp2string,
-} from '../../helpers';
+import { API } from '../../helpers/api';
 import { getSupportEmail } from '../../helpers/brandUrls';
+import { asMicroUSD } from '../../helpers/money';
+import { getMicroUSDPerUSD, microUSDToUSD } from '../../helpers/render';
+import { isRoot, showError } from '../../helpers/utils';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
+import { formatTimestamp } from '../../lib/date';
 import { queryKeys } from '../../lib/query-keys';
 import './wallet.css';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -211,7 +203,7 @@ const WalletPage = () => {
     setSearchParams(next, { replace: true });
   };
   const queryClient = useQueryClient();
-  const [userState, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const statusState = useStatus();
   const [period, setPeriod] = useState<'current' | 'previous'>('current');
   const [selectedMethod, setSelectedMethod] = useState('stripe');
@@ -243,13 +235,13 @@ const WalletPage = () => {
   const startTimestamp = rangeFrom.unix();
   const endTimestamp = rangeTo.unix();
 
-  const userQuery = useSelfQuery(Boolean(userState?.user?.id));
+  const userQuery = useSelfQuery(Boolean(userSession.user?.id));
   useEffect(() => {
     const data = userQuery.data;
     if (data) {
-      userDispatch({ type: 'login', payload: data });
+      userSession.signIn(data);
     }
-  }, [userQuery.data, userDispatch]);
+  }, [userQuery.data, userSession.signIn]);
 
   const usageQuery = useQuery({
     queryKey: [
@@ -375,7 +367,7 @@ const WalletPage = () => {
       );
     },
     onSuccess: () => {
-      showSuccess(t(`${topupNs}.history.completeSuccess`));
+      notify.success(t(`${topupNs}.history.completeSuccess`));
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.user }),
         queryClient.invalidateQueries({
@@ -391,15 +383,11 @@ const WalletPage = () => {
 
   const info =
     topupInfoQuery.data || normalizeTopupInfo(statusState?.status, {});
-  const user = userQuery.data || userState?.user;
+  const user = userQuery.data || userSession.user;
   const walletBalance =
     user?.quota === undefined || user?.quota === null
       ? null
       : microUSDToUSD(asMicroUSD(user.quota));
-  const lifetimeSpend =
-    user?.used_quota === undefined || user?.used_quota === null
-      ? null
-      : microUSDToUSD(asMicroUSD(user.used_quota));
   const totals = usageQuery.data?.totals;
   const periodSpend = totals
     ? microUSDToUSD(asMicroUSD(toNumber(totals.amount_microusd)))
@@ -544,7 +532,7 @@ const WalletPage = () => {
         header: t(`${topupNs}.history.effective`),
         id: 'effective_time',
         cell: ({ row }) =>
-          timestamp2string(resolveTopupEffectiveTimestamp(row.original)),
+          formatTimestamp(resolveTopupEffectiveTimestamp(row.original)),
       },
     ];
     if (isRoot()) {

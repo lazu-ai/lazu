@@ -30,24 +30,22 @@ import {
   usePricePlanQuery,
   usePricingCatalogQuery,
 } from './usePricePlans';
+import { Button } from '../../components/ui/button';
+import ConsolePage from '../../components/ui/console-page';
+import { DatePicker } from '../../components/ui/date-picker';
+import { ErrorState } from '../../components/ui/error-state';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { PendingBlock, PendingValue } from '../../components/ui/pending';
 import {
-  Button,
-  ConsolePage,
-  DatePicker,
-  ErrorState,
-  Input,
-  Modal,
-  PendingBlock,
-  PendingValue,
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '../../components/ui';
+} from '../../components/ui/popover';
 import { coerceItemsPayload } from '../../components/ui/table-tools';
-import { API, showSuccess } from '../../helpers';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { notify } from '../../components/ui/toast';
+import { API } from '../../helpers';
 import { isRoot } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../lib/api-error';
@@ -347,7 +345,7 @@ export default function PricePlanEditorPage() {
       { id: planId, payload: payloadFromDraft(draft) },
       {
         onSuccess: (plan) => {
-          showSuccess(t('common.saved', { defaultValue: '已保存' }));
+          notify.success(t('common.saved', { defaultValue: '已保存' }));
           if (!planId) {
             navigate(`/console/price-plans/${plan.id}`, {
               replace: true,

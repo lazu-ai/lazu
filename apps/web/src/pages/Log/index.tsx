@@ -30,19 +30,18 @@ import {
 } from './log-support';
 import { SK } from './sessions/session-format';
 import SessionsView from './sessions/SessionsView';
+import { Button } from '../../components/ui/button';
+import { DataTableShell } from '../../components/ui/data-table-shell';
 import {
-  Button,
-  DataTableShell,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  EmptyState,
-  Modal,
-  Pagination,
-  Pending,
-  PendingValue,
-} from '../../components/ui';
+} from '../../components/ui/dropdown-menu';
+import { EmptyState } from '../../components/ui/empty-state';
+import { Modal } from '../../components/ui/modal';
+import { Pagination } from '../../components/ui/pagination';
+import { Pending, PendingValue } from '../../components/ui/pending';
 import {
   ColumnVisibilityMenu,
   ConsoleTableFrame,
@@ -55,8 +54,8 @@ import {
 } from '../../components/ui/table-tools';
 import { useConsoleScope } from '../../context/ConsoleScope';
 import { rejectionLabelKey } from '../../features/projects/rejections';
+import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
 import { showError } from '../../helpers/utils';
 import {
   LOG_COLUMN_KEYS,
@@ -274,19 +273,6 @@ const Token = () => {
   // the request view: same filters, same window, same stat tiles. Both live
   // in the URL so refresh and back keep them.
   const showingSessions = searchParams.get('view') === 'sessions';
-  const setSessionsView = useCallback(
-    (next: boolean) => {
-      const params = new URLSearchParams(searchParams);
-      if (next) {
-        params.set('view', 'sessions');
-        params.delete('request');
-      } else {
-        params.delete('view');
-      }
-      setSearchParams(params);
-    },
-    [searchParams, setSearchParams],
-  );
   const usersRequested = searchParams.get('view') === 'users';
   const showingUsers =
     usersRequested && viewMode === 'requests' && logs.isAdminUser;
@@ -916,7 +902,7 @@ const Token = () => {
                           ? 'page.console.log.footer.summaryAtLeast'
                           : 'page.console.log.footer.summary',
                         {
-                          cost: renderQuota(
+                          cost: formatMoney(
                             asMicroUSD(logs.stat.amount_microusd),
                             6,
                           ),
@@ -978,7 +964,7 @@ const Token = () => {
                           ? 'page.console.log.footer.summaryAtLeast'
                           : 'page.console.log.footer.summary',
                         {
-                          cost: renderQuota(
+                          cost: formatMoney(
                             asMicroUSD(logs.stat.amount_microusd),
                             6,
                           ),

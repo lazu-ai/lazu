@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -24,7 +23,7 @@ import SiderBar from './SiderBar';
 import App from '../../App';
 import { statusQueryOptions } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { surfaceForPath } from '../../extensions';
 import { surfaceLanguageKey } from '../../extensions/i18n';
 import { ProjectRemovedNotice } from '../../features/projects/components/ProjectRemovedNotice';
@@ -43,7 +42,7 @@ import ErrorBoundary from '../common/ErrorBoundary';
 import PublicFooter from '../marketing/PublicFooter';
 import PublicHeader from '../marketing/PublicHeader';
 import ReportProblemDialog from '../support/ReportProblemDialog';
-import { StatusCenter, recordStatusIssue } from '../ui';
+import { StatusCenter, recordStatusIssue } from '../ui/status-center';
 import type { UserPayload } from '../../context/User/reducer';
 import type { CSSProperties } from 'react';
 
@@ -91,7 +90,7 @@ const PageLayout = () => {
   // A hovered or focused link starts its destination's chunk, so the click
   // lands on a module that is already in memory instead of waiting for one.
   useRoutePrefetch();
-  const [, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const { removedNotice } = useProject();
   const location = useLocation();
   const pathname = normalizeShellPath(location.pathname);
@@ -314,11 +313,11 @@ const PageLayout = () => {
     const raw = localStorage.getItem('user');
     const data = safeJsonParse<UserPayload>(raw);
     if (data) {
-      userDispatch({ type: 'login', payload: data });
+      userSession.signIn(data);
     } else if (raw) {
       localStorage.removeItem('user');
     }
-  }, [userDispatch]);
+  }, [userSession.signIn]);
 
   const statusQuery = useQuery({
     ...statusQueryOptions(),
