@@ -31,10 +31,6 @@ func (t *RoutingQualityBackfillTask) Run(ctx context.Context) error {
 	return BackfillQualitySignalsContext(runCtx)
 }
 
-func BackfillQualitySignals() error {
-	return BackfillQualitySignalsContext(context.Background())
-}
-
 func BackfillQualitySignalsContext(ctx context.Context) error {
 	return BackfillQualitySignalsAtContext(ctx, time.Now().UTC())
 }

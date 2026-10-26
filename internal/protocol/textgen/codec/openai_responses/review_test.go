@@ -134,6 +134,34 @@ func TestDecodeResponseKeepsReasoning(t *testing.T) {
 	}
 }
 
+func TestRenderEventsPreservesOutputItemOrderWithoutChatIntermediate(t *testing.T) {
+	events := []textgen.Event{
+		{Kind: textgen.EventStart, ResponseID: "gemini-response", Model: "gemini-3-flash", CreatedAt: 123},
+		{Kind: textgen.EventToolStart, ToolIndex: 0, ToolCallID: "call_1", ToolName: "lookup"},
+		{Kind: textgen.EventToolDone, ToolIndex: 0, Text: `{"q":"x"}`},
+		{Kind: textgen.EventReasoningStart},
+		{Kind: textgen.EventReasoning, Text: "checked"},
+		{Kind: textgen.EventText, Text: "answer"},
+		{Kind: textgen.EventStop, Stop: textgen.StopTool},
+		{Kind: textgen.EventUsage, Usage: &dto.Usage{PromptTokens: 4, CompletionTokens: 3, TotalTokens: 7}},
+	}
+	response, err := Render(events, "", "fallback", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(response["output"])
+	var output []map[string]any
+	if err := json.Unmarshal(raw, &output); err != nil {
+		t.Fatal(err)
+	}
+	if len(output) != 3 || output[0]["type"] != "function_call" || output[1]["type"] != "reasoning" || output[2]["type"] != "message" {
+		t.Fatalf("output item order changed: %s", raw)
+	}
+	if response["id"] != "resp_gemini-response" || response["model"] != "gemini-3-flash" {
+		t.Fatalf("response envelope: %+v", response)
+	}
+}
+
 // A done-only call the provider did not finish is held for the terminal
 // event: kept when the reply hit its output cap, dropped otherwise.
 func TestDecoderHoldsUnfinishedCallsForTheTerminal(t *testing.T) {

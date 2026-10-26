@@ -35,26 +35,6 @@ type ThinkingContentInfo struct {
 	HasSentThinkingContent  bool
 }
 
-const (
-	LastMessageTypeNone     = "none"
-	LastMessageTypeText     = "text"
-	LastMessageTypeTools    = "tools"
-	LastMessageTypeThinking = "thinking"
-)
-
-type ClaudeConvertInfo struct {
-	LastMessagesType string
-	Index            int
-	Usage            *dto.Usage
-	FinishReason     string
-	Done             bool
-}
-
-type RerankerInfo struct {
-	Documents       []any
-	ReturnDocuments bool
-}
-
 type BuildInToolInfo struct {
 	ToolName          string
 	CallCount         int
@@ -68,14 +48,10 @@ type ResponsesUsageInfo struct {
 type ChannelMeta struct {
 	ChannelType          int
 	ChannelId            int
-	ChannelIsMultiKey    bool
-	ChannelMultiKeyIndex int
 	ChannelBaseUrl       string
 	ApiType              int
-	ApiVersion           string
 	ApiKey               string
 	Organization         string
-	ChannelCreateTime    int64
 	ParamOverride        map[string]interface{}
 	HeadersOverride      map[string]interface{}
 	ChannelSetting       dto.ChannelSettings
@@ -157,7 +133,6 @@ type RelayInfo struct {
 	OutputAudioFormat          string
 	RealtimeTools              []dto.RealTimeTool
 	IsFirstRequest             bool
-	AudioUsage                 bool
 	ReasoningEffort            string
 	UserSetting                dto.UserSetting
 	UserEmail                  string
@@ -176,8 +151,6 @@ type RelayInfo struct {
 	Request dto.Request
 
 	ThinkingContentInfo
-	*ClaudeConvertInfo
-	*RerankerInfo
 	*ResponsesUsageInfo
 	*ChannelMeta
 }
@@ -190,14 +163,10 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	channelMeta := &ChannelMeta{
 		ChannelType:          channelType,
 		ChannelId:            common.GetContextKeyInt(c, constant.ContextKeyChannelId),
-		ChannelIsMultiKey:    common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey),
-		ChannelMultiKeyIndex: common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex),
 		ChannelBaseUrl:       common.GetContextKeyString(c, constant.ContextKeyChannelBaseUrl),
 		ApiType:              apiType,
-		ApiVersion:           common.GetContextKeyString(c, constant.ContextKeyChannelAPIVersion),
 		ApiKey:               common.GetContextKeyString(c, constant.ContextKeyChannelKey),
-		Organization:         c.GetString("channel_organization"),
-		ChannelCreateTime:    c.GetInt64("channel_create_time"),
+		Organization:         common.GetContextKeyString(c, constant.ContextKeyChannelOrganization),
 		ParamOverride:        paramOverride,
 		HeadersOverride:      headerOverride,
 		UpstreamModelName:    common.GetContextKeyString(c, constant.ContextKeyOriginalModel),
@@ -273,9 +242,6 @@ func GenRelayInfoClaude(c *gin.Context, request dto.Request) *RelayInfo {
 	info := genBaseRelayInfo(c, request)
 	info.RelayFormat = types.RelayFormatClaude
 	info.ShouldIncludeUsage = false
-	info.ClaudeConvertInfo = &ClaudeConvertInfo{
-		LastMessagesType: LastMessageTypeNone,
-	}
 	if c.Query("beta") == "true" {
 		info.IsClaudeBetaQuery = true
 	}
@@ -286,10 +252,6 @@ func GenRelayInfoRerank(c *gin.Context, request *dto.RerankRequest) *RelayInfo {
 	info := genBaseRelayInfo(c, request)
 	info.RelayMode = relayconstant.RelayModeRerank
 	info.RelayFormat = types.RelayFormatRerank
-	info.RerankerInfo = &RerankerInfo{
-		Documents:       request.Documents,
-		ReturnDocuments: request.GetReturnDocuments(),
-	}
 	return info
 }
 

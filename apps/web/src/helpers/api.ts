@@ -1,13 +1,6 @@
 import axios from 'axios';
 import { buildAPIURL, getAPIBaseURL } from './apiUrl';
-import {
-  getUserIdFromLocalStorage,
-  showError,
-  formatMessageForAPI,
-  isValidMessage,
-  safeJsonParse,
-} from './utils';
-import { MESSAGE_ROLES } from '../constants/chat.constants';
+import { getUserIdFromLocalStorage, showError } from './utils';
 import i18n from '../i18n/i18n';
 import { LazuApiError, readApiError } from '../lib/api-error';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
@@ -17,47 +10,8 @@ type RequestConfig = AxiosRequestConfig & {
   skipErrorHandler?: boolean;
 };
 
-type ApiInputs = Record<string, unknown> & {
-  group?: unknown;
-  model?: unknown;
-  stream?: unknown;
-};
-
-type ApiPayload = Record<string, unknown> & {
-  group: unknown;
-  messages: unknown[];
-  model: unknown;
-  stream: unknown;
-};
-
-type ApiErrorInfo = {
-  details?: string;
-  error: string;
-  stack?: string;
-  status?: number;
-  statusText?: string;
-  timestamp: string;
-};
-
-type ApiErrorResponse = {
-  status?: number;
-  statusText?: string;
-};
-
-type ApiResponseShape = {
-  data?: unknown;
-  message?: string;
-  success?: boolean;
-};
-
 // 模块级别的请求缓存Map，确保全局唯一
 const inFlightGetRequests = new Map<string, Promise<AxiosResponse<unknown>>>();
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object';
-
-const toApiResponseShape = (value: unknown): ApiResponseShape =>
-  isRecord(value) ? value : {};
 
 // 创建带有用户ID头的axios实例
 function createAPIInstance(): AxiosInstance {
@@ -143,105 +97,6 @@ export function updateAPI() {
   writeSyncedTimezone('');
   syncAccountTimezone();
 }
-
-// playground
-
-// 构建API请求负载
-export const buildApiPayload = (
-  messages: unknown[],
-  systemPrompt: string,
-  inputs: ApiInputs,
-  parameterEnabled: Record<string, boolean>,
-): ApiPayload => {
-  const processedMessages = messages
-    .filter(isValidMessage)
-    .map(formatMessageForAPI)
-    .filter(Boolean);
-
-  // 如果有系统提示，插入到消息开头
-  if (systemPrompt && systemPrompt.trim()) {
-    processedMessages.unshift({
-      role: MESSAGE_ROLES.SYSTEM,
-      content: systemPrompt.trim(),
-    });
-  }
-
-  const payload: ApiPayload = {
-    model: inputs.model,
-    group: inputs.group,
-    messages: processedMessages,
-    stream: inputs.stream,
-  };
-
-  // 添加启用的参数
-  const parameterMappings = {
-    temperature: 'temperature',
-    top_p: 'top_p',
-    max_tokens: 'max_tokens',
-    frequency_penalty: 'frequency_penalty',
-    presence_penalty: 'presence_penalty',
-    seed: 'seed',
-  };
-
-  Object.entries(parameterMappings).forEach(([key, param]) => {
-    const enabled = parameterEnabled[key];
-    const value = inputs[param];
-    const hasValue = value !== undefined && value !== null;
-
-    if (enabled && hasValue) {
-      payload[param] = value;
-    }
-  });
-
-  return payload;
-};
-
-// 处理API错误响应
-export const handleApiError = (
-  error: unknown,
-  response: ApiErrorResponse | null = null,
-): ApiErrorInfo => {
-  const errorMessage =
-    error instanceof Error && error.message
-      ? error.message
-      : i18n.t('error.unknown');
-  const errorInfo: ApiErrorInfo = {
-    error: errorMessage,
-    timestamp: new Date().toISOString(),
-    stack: error instanceof Error ? error.stack : undefined,
-  };
-
-  if (response) {
-    errorInfo.status = response.status;
-    errorInfo.statusText = response.statusText;
-  }
-
-  if (errorMessage.includes('HTTP error')) {
-    errorInfo.details = i18n.t('error.httpStatus');
-  } else if (errorMessage.includes('Failed to fetch')) {
-    errorInfo.details = i18n.t('error.networkOrServer');
-  }
-
-  return errorInfo;
-};
-
-// 处理模型数据
-export const processModelsData = (data: string[], currentModel?: string) => {
-  const modelOptions = data.map((model) => ({
-    label: model,
-    value: model,
-  }));
-
-  const hasCurrentModel = modelOptions.some(
-    (option) => option.value === currentModel,
-  );
-  const selectedModel =
-    hasCurrentModel && modelOptions.length > 0
-      ? currentModel
-      : modelOptions[0]?.value;
-
-  return { modelOptions, selectedModel };
-};
 
 // 原来 components 中的 utility helper
 
@@ -386,7 +241,7 @@ function writeSyncedLanguage(language: string) {
   }
 }
 
-export function syncAccountLanguage(
+function syncAccountLanguage(
   language = i18n.resolvedLanguage || i18n.language,
 ) {
   if (!language || language === readSyncedLanguage()) return;
@@ -413,7 +268,7 @@ function writeSyncedTimezone(zone: string) {
   }
 }
 
-export function syncAccountTimezone() {
+function syncAccountTimezone() {
   let zone = '';
   try {
     zone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/store"
 	"gorm.io/gorm"
 )
@@ -17,7 +16,7 @@ func TelemetryStore() store.Telemetry {
 	}
 	return store.NewTelemetry(db)
 }
-func HotStore() store.Hot   { return store.NewHot(common.RDB) }
+
 func CoreDB() *gorm.DB      { return CoreStore().SQL() }
 func TelemetryDB() *gorm.DB { return TelemetryStore().SQL() }
 
