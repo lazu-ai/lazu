@@ -3,7 +3,8 @@ import { BellOff, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../../components/ui';
 import { PendingValue } from '../../../components/ui/pending';
-import { API, showSuccess } from '../../../helpers';
+import { notify } from '../../../components/ui/toast';
+import { API } from '../../../helpers';
 import { apiErrorHandlerWith, unwrap } from '../../../lib/api-error';
 import { queryKeys } from '../../../lib/query-keys';
 
@@ -40,7 +41,7 @@ export default function TelegramStatus() {
       unwrap(await API.post('/api/admin/telegram/test', {}));
     },
     onSuccess: () =>
-      showSuccess(
+      notify.success(
         t('page.console.settingV2.branding.telegramStatus.testSent', {
           defaultValue: '测试消息已发到告警群。',
         }),

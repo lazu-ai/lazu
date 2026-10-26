@@ -2,7 +2,8 @@ import { Copy } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '../../components/ui';
 import { useSession } from '../../context/User';
-import { copy, showSuccess } from '../../helpers';
+import { notify } from '../../components/ui/toast';
+import { copy } from '../../helpers';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
 import type { TFunction } from 'i18next';
 
@@ -112,7 +113,7 @@ export function AccessAddressStrip({ t }: { t: TFunction }) {
               })}
               onClick={async () => {
                 if (await copy(address.url)) {
-                  showSuccess(
+                  notify.success(
                     t('page.console.token.address.copied', {
                       defaultValue: '已复制 {{url}}',
                       url: address.url,
