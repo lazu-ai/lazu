@@ -117,7 +117,10 @@ func openWithSlowQueryCallbacks(db *gorm.DB, err error) (*gorm.DB, error) {
 	if err != nil {
 		return db, err
 	}
-	return db, registerSlowQueryCallbacks(db)
+	if err := registerSlowQueryCallbacks(db); err != nil {
+		return db, err
+	}
+	return db, registerSQLStatementCounters(db)
 }
 
 func gormLogger() gormlogger.Interface {

@@ -110,6 +110,7 @@ func GetPrometheusMetrics(c *gin.Context) {
 
 	writeRuntimeMetrics(&b)
 	writePoolMetrics(&b)
+	writeSQLStatementMetrics(&b)
 
 	c.Data(200, prometheusContentType, []byte(b.String()))
 }
@@ -190,6 +191,14 @@ func writePoolMetrics(b *strings.Builder) {
 	writePrometheusSample(b, "lazu_redis_pool_misses_total", nil, float64(redisStats.Misses))
 	writePrometheusHelpType(b, "lazu_redis_pool_timeouts_total", "Times waiting for a Redis connection timed out.", "counter")
 	writePrometheusSample(b, "lazu_redis_pool_timeouts_total", nil, float64(redisStats.Timeouts))
+}
+
+func writeSQLStatementMetrics(b *strings.Builder) {
+	counts := model.SQLStatementCounts()
+	writePrometheusHelpType(b, "lazu_sql_statements_total", "SQL statements run through GORM, by callback chain.", "counter")
+	for i, op := range model.SQLStatementOps {
+		writePrometheusSample(b, "lazu_sql_statements_total", map[string]string{"op": op}, float64(counts[i]))
+	}
 }
 
 func writeProtocolMetrics(b *strings.Builder, hotPath common.HotPathMetricsSnapshot) {
