@@ -1,6 +1,8 @@
 package gemini
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -85,11 +87,17 @@ func (d *StreamDecoder) part(part dto.GeminiPart) []textgen.Event {
 		index := d.tools
 		d.tools++
 		d.called = true
-		start := textgen.Event{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: part.FunctionCall.ID, ToolName: part.FunctionCall.FunctionName}
+		id := part.FunctionCall.ID
+		if id == "" {
+			// Gemini often names no id; a Chat or Responses client pairs
+			// the call with its result by one, and refuses a call without
+			id = syntheticCallID()
+		}
+		start := textgen.Event{Kind: textgen.EventToolStart, ToolIndex: index, ToolCallID: id, ToolName: part.FunctionCall.FunctionName}
 		if part.ThoughtSignature != "" {
 			start.Text, start.SealedBy = part.ThoughtSignature, SealedBy
 		}
-		events = append(events, start, textgen.Event{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: part.FunctionCall.ID, ToolName: part.FunctionCall.FunctionName, Text: argumentsOf(part.FunctionCall.Arguments)})
+		events = append(events, start, textgen.Event{Kind: textgen.EventToolDone, ToolIndex: index, ToolCallID: id, ToolName: part.FunctionCall.FunctionName, Text: argumentsOf(part.FunctionCall.Arguments)})
 	case part.Thought:
 		if !d.thinking {
 			d.thinking = true
@@ -186,4 +194,12 @@ func FinishReasonOf(stop textgen.StopReason) string {
 func DecodeResponse(body []byte) ([]textgen.Event, error) {
 	decoder := &StreamDecoder{}
 	return decoder.Decode(string(body))
+}
+
+// syntheticCallID is an id for a function call Gemini sent without one,
+// unique across turns as the client's history needs.
+func syntheticCallID() string {
+	var random [12]byte
+	_, _ = rand.Read(random[:])
+	return "call_" + hex.EncodeToString(random[:])
 }

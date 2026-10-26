@@ -270,14 +270,17 @@ roadmap adds it, and until then the rule is a review rule.
    `TestEncodeMatchesLegacyGoldens`). Legacy pairwise converters are deleted
    in the PR that lands their codec or the release after it, and gain no new
    features meanwhile: `relay-claude.go`'s Chat↔Messages pair went with the
-   Messages hub (2026-10-21). The Claude-client converters in
-   `service/convert.go` stay one release behind
-   `global.legacy_claude_client_conversion`, held to the hub by the live
-   differential test `TestClaudeToChatMatchesTheLegacyConverter`, and go
-   the release after. The Gemini codec landed without wiring (2026-10-21);
-   `relay-gemini.go` and the Gemini converters in `service/convert.go`
-   stay, held to it by three live differential tests, until the wiring
-   slice. Enforced by review.
+   Messages hub (2026-10-21). The Claude-client request converter and its
+   switch went in the following release; its output on the cases it got
+   right is `service/testdata/claude_bridge/`, held by
+   `TestClaudeToChatMatchesTheGoldenFiles`. Gemini channels serve Chat,
+   Responses and Claude clients through the Gemini codec (2026-10-26); the
+   Chat→Gemini converter, the legacy Gemini Chat handlers and the Chat→Claude
+   response converters went with that slice, and the converter's output is
+   `channel/gemini/testdata/chat_to_gemini/`, held by
+   `TestBridgedChatToGeminiMatchesTheGoldenFiles`. The Gemini-client
+   converters in `service/convert.go` stay, held by two live differential
+   tests, until Gemini clients are parsed into the IR. Enforced by review.
 8. **Stream tests use recorded upstream SSE, not hand-written ideal JSON.**
    Recordings live in `internal/protocol/textgen/testdata/upstream/<vendor>/`
    (made by `go test -tags record` in `internal/relay/contracttest`, keys from

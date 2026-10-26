@@ -1,11 +1,41 @@
 package openai_responses
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 )
+
+// Render writes a whole Responses object directly from response events. It
+// shares the stream emitter's item ordering and envelope rules instead of
+// flattening the reply through another protocol's DTO.
+func Render(events []textgen.Event, responseID, model string, request *textgen.Request, usage *dto.Usage) (map[string]any, error) {
+	// A whole reply is already materialized in memory. Give the reusable
+	// stream state machine room for exactly the material at hand instead of
+	// imposing its live-stream retention cap on this path.
+	retainedLimit := 1
+	for _, event := range events {
+		retainedLimit += len(event.Text) + len(event.Sealed)
+	}
+	emitter := NewStreamEmitter(responseID, model, request, retainedLimit)
+	if _, err := emitter.Emit(events...); err != nil {
+		return nil, err
+	}
+	terminal, err := emitter.Finish(usage)
+	if err != nil {
+		return nil, err
+	}
+	if len(terminal) == 0 {
+		return nil, fmt.Errorf("Responses renderer produced no terminal event")
+	}
+	response, ok := terminal[len(terminal)-1]["response"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("Responses renderer produced no response object")
+	}
+	return response, nil
+}
 
 // DecodeResponse is a whole Responses reply as content events, in output
 // order: start, turn, text and refusals, function calls, stop, usage. A

@@ -34,21 +34,6 @@ type ThinkingContentInfo struct {
 	HasSentThinkingContent  bool
 }
 
-const (
-	LastMessageTypeNone     = "none"
-	LastMessageTypeText     = "text"
-	LastMessageTypeTools    = "tools"
-	LastMessageTypeThinking = "thinking"
-)
-
-type ClaudeConvertInfo struct {
-	LastMessagesType string
-	Index            int
-	Usage            *dto.Usage
-	FinishReason     string
-	Done             bool
-}
-
 type BuildInToolInfo struct {
 	ToolName          string
 	CallCount         int
@@ -165,7 +150,6 @@ type RelayInfo struct {
 	Request dto.Request
 
 	ThinkingContentInfo
-	*ClaudeConvertInfo
 	*ResponsesUsageInfo
 	*ChannelMeta
 }
@@ -312,9 +296,6 @@ func GenRelayInfoClaude(c *gin.Context, request dto.Request) *RelayInfo {
 	info := genBaseRelayInfo(c, request)
 	info.RelayFormat = types.RelayFormatClaude
 	info.ShouldIncludeUsage = false
-	info.ClaudeConvertInfo = &ClaudeConvertInfo{
-		LastMessagesType: LastMessageTypeNone,
-	}
 	if c.Query("beta") == "true" {
 		info.IsClaudeBetaQuery = true
 	}

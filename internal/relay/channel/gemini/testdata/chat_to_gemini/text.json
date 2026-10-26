@@ -1,0 +1,41 @@
+{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "Hi"
+        }
+      ],
+      "role": "user"
+    },
+    {
+      "parts": [
+        {
+          "text": "Hello."
+        }
+      ],
+      "role": "model"
+    },
+    {
+      "parts": [
+        {
+          "text": "Again?"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "generationConfig": {
+    "maxOutputTokens": 200,
+    "seed": 7,
+    "temperature": 0.3,
+    "topP": 0.9
+  },
+  "systemInstruction": {
+    "parts": [
+      {
+        "text": "Be terse."
+      }
+    ]
+  }
+}
