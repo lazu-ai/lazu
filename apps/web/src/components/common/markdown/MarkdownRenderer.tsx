@@ -4,22 +4,56 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown, {
   type Options as ReactMarkdownOptions,
 } from 'react-markdown';
-import RehypeHighlight from 'rehype-highlight';
-import RehypeKatex from 'rehype-katex';
 import RemarkBreaks from 'remark-breaks';
 import RemarkGfm from 'remark-gfm';
-import RemarkMath from 'remark-math';
 import { useDebouncedCallback } from 'use-debounce';
+import RehypeHighlightSubset from './rehype-highlight-subset';
 import { copy } from '../../../helpers/clipboard';
 import { rehypeSplitWordsIntoSpans } from '../../../helpers/rehype-streaming';
 import { sanitizeMarkup } from '../../../helpers/sanitize';
 import { Button, Tooltip, Toast } from '@/components/ui/console-primitives';
 import { IconCopy } from '@/components/ui/icon-aliases';
-import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/github.css';
+import 'katex/dist/katex.min.css';
 import './markdown.css';
 
 type MermaidRuntime = (typeof import('mermaid'))['default'];
+
+/* Formulas are rare, so remark-math and rehype-katex (KaTeX itself, ~77 KiB
+   gzip) load only for content that has a `$`; until they arrive it renders as
+   text. The stylesheet stays static: it is small, and a dynamic CSS import
+   would pull the entry stylesheet into this chunk's CSS. */
+type MathPlugins = {
+  remark: NonNullable<ReactMarkdownOptions['remarkPlugins']>[number];
+  rehype: NonNullable<ReactMarkdownOptions['rehypePlugins']>[number];
+};
+let mathPlugins: MathPlugins | null = null;
+let mathPluginsPromise: Promise<MathPlugins> | null = null;
+function loadMathPlugins(): Promise<MathPlugins> {
+  mathPluginsPromise ??= Promise.all([
+    import('remark-math'),
+    import('rehype-katex'),
+  ]).then(([remark, rehype]) => {
+    mathPlugins = { remark: remark.default, rehype: rehype.default };
+    return mathPlugins;
+  });
+  return mathPluginsPromise;
+}
+function useMathPlugins(content: string): MathPlugins | null {
+  const wanted = content.includes('$');
+  const [loaded, setLoaded] = useState(mathPlugins);
+  useEffect(() => {
+    if (!wanted || loaded) return;
+    let active = true;
+    void loadMathPlugins().then((plugins) => {
+      if (active) setLoaded(plugins);
+    });
+    return () => {
+      active = false;
+    };
+  }, [wanted, loaded]);
+  return wanted ? loaded : null;
+}
 
 const CodeBlockContext = React.createContext(false);
 
@@ -415,26 +449,22 @@ function _MarkdownContent(props: MarkdownContentProps) {
   // 判断是否为用户消息
   const isUserMessage = className && className.includes('user-message');
 
+  const math = useMathPlugins(escapedContent);
+
   const rehypePluginsBase = useMemo(() => {
     const base: NonNullable<ReactMarkdownOptions['rehypePlugins']> = [
-      RehypeKatex,
-      [
-        RehypeHighlight,
-        {
-          detect: false,
-          ignoreMissing: true,
-        },
-      ],
+      ...(math ? [math.rehype] : []),
+      RehypeHighlightSubset,
     ];
     if (animated) {
       base.push([rehypeSplitWordsIntoSpans, { previousContentLength }]);
     }
     return base;
-  }, [animated, previousContentLength]);
+  }, [animated, math, previousContentLength]);
 
   return (
     <ReactMarkdown
-      remarkPlugins={[RemarkMath, RemarkGfm, RemarkBreaks]}
+      remarkPlugins={[...(math ? [math.remark] : []), RemarkGfm, RemarkBreaks]}
       rehypePlugins={rehypePluginsBase}
       components={{
         pre: PreCode,

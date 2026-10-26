@@ -264,6 +264,25 @@ test.describe('announcement workbench', () => {
     await app.expectNoUnexpectedErrors();
   });
 
+  test('preview highlights supported languages and loads formulas on demand', async ({
+    page,
+  }) => {
+    const app = await setupMockedApp(page, { payloadFor: adminRoutes() });
+    await gotoPage(page);
+    await page
+      .locator('.ann-md__input')
+      .fill(
+        '```json\n{"model": "luna"}\n```\n\n```rust\nfn main() {}\n```\n\n面积是 $x^2$。',
+      );
+    await page.locator('.ann-md__view', { hasText: '预览' }).click();
+    const blocks = page.locator('.ann-md__preview pre code');
+    await expect(blocks.nth(0).locator('.hljs-attr')).toHaveText('"model"');
+    await expect(blocks.nth(1)).toHaveText('fn main() {}');
+    await expect(blocks.nth(1).locator('span')).toHaveCount(0);
+    await expect(page.locator('.ann-md__preview .katex')).toHaveCount(1);
+    await app.expectNoUnexpectedErrors();
+  });
+
   test('saving Markdown preserves indentation inside fenced code blocks', async ({
     page,
   }) => {
