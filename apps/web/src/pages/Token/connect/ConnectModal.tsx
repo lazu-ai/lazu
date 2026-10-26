@@ -29,20 +29,22 @@ import {
   type ConnectTool,
   type ConnectToolId,
 } from './tools';
+import { Button } from '../../../components/ui/button';
+import { InlineNotice } from '../../../components/ui/inline-notice';
 import {
-  Button,
-  InlineNotice,
   ModalFrame,
   ModalTitle,
   ModalDescription,
-  Select,
-  SelectItem,
+} from '../../../components/ui/modal';
+import { Select, SelectItem } from '../../../components/ui/select';
+import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '../../../components/ui';
-import { copy, showError, showSuccess } from '../../../helpers/utils';
+} from '../../../components/ui/tabs';
+import { notify } from '../../../components/ui/toast';
+import { copy, showError } from '../../../helpers/utils';
 import { errorMessage } from '../../../lib/api-error';
 import { cn } from '../../../lib/cn';
 import { isLegacyKey, useTokenLaneVendors } from '../token-support';
@@ -785,7 +787,7 @@ export function ConnectModal({
     const ok = await copySnippet();
     if (!ok) return;
     if (!(await saveChanges())) return;
-    showSuccess(
+    notify.success(
       t('page.console.token.connect.copiedToast', {
         defaultValue: '已复制 {{tool}} 配置',
         tool: tool.name,

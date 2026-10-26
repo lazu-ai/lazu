@@ -14,19 +14,17 @@ import { z } from 'zod';
 import { useSettingsSaveGroup } from './headerActions';
 import { readSettingInvalid } from './settingInvalid';
 import { LegalDocumentPreview } from '../../components/common/DocumentRenderer/LegalDocument';
-import {
-  Button,
-  FieldMessage,
-  Input,
-  Label,
-  Modal,
-  Select,
-  SelectItem,
-  Switch,
-  Textarea,
-} from '../../components/ui';
-import { API, showSuccess, showWarning, toBoolean } from '../../helpers';
+import { Button } from '../../components/ui/button';
+import { FieldMessage, Label } from '../../components/ui/field';
+import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { Select, SelectItem } from '../../components/ui/select';
+import { Switch } from '../../components/ui/switch';
+import { Textarea } from '../../components/ui/textarea';
+import { notify } from '../../components/ui/toast';
+import { API, toBoolean } from '../../helpers';
 import { sanitizeMarkup } from '../../helpers/sanitize';
+import { showWarning } from '../../helpers/utils';
 import '../../components/common/DocumentRenderer/legal-document.css';
 import '../../styles/settings-surface.css';
 import { apiErrorHandlerWith, unwrap } from '../../lib/api-error';
@@ -1433,7 +1431,7 @@ export const SettingsGroupPage = ({
           serializeValue(previous[leaf.key]),
       );
       if (!changed.length) {
-        showWarning(t('page.console.settingV2.runtime.noChanges'));
+        notify.warning(t('page.console.settingV2.runtime.noChanges'));
         return [];
       }
       const submitted = changed.map((leaf) => ({
@@ -1494,7 +1492,7 @@ export const SettingsGroupPage = ({
       // /api/status publishes many of these options (name, logo, top-up
       // range, sign-in methods); let the console pick them up now.
       void queryClient.invalidateQueries({ queryKey: queryKeys.status });
-      showSuccess(
+      notify.success(
         t('page.console.settingV2.runtime.saveSuccess', {
           count: submitted.length,
         }),

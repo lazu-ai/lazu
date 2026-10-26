@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, InlineNotice, Modal } from '../../../components/ui';
+import { Button } from '../../../components/ui/button';
+import { InlineNotice } from '../../../components/ui/inline-notice';
+import { Modal } from '../../../components/ui/modal';
 import {
   fetchTokenVendorOptions,
   type TokenRecord,

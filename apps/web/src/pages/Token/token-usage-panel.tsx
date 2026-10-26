@@ -3,14 +3,14 @@ import dayjs from 'dayjs';
 import { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Button } from '../../components/ui';
+import { Button } from '../../components/ui/button';
 import { UserContext } from '../../context/User';
-import { API, asMicroUSD } from '../../helpers';
+import { API } from '../../helpers/api';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
-import { renderQuota } from '../../helpers/render';
 import { unwrap } from '../../lib/api-error';
-import './token-usage-panel.css';
 import { formatTimestamp } from '../../lib/date';
+import './token-usage-panel.css';
 
 /** Per-Key totals use its immutable public ID and an owner-checked endpoint. */
 
@@ -55,7 +55,7 @@ const useTokenSpend = (tokenID: string, ownerID: string, days: number) =>
 const spendLabel = (stat: UsageStat | undefined, loading: boolean) => {
   if (loading) return '…';
   if (!stat || stat.amount_microusd == null) return '—';
-  return renderQuota(asMicroUSD(stat.amount_microusd));
+  return formatMoney(asMicroUSD(stat.amount_microusd));
 };
 
 export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
@@ -132,7 +132,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
         {quota.mode === 'finite' ? (
           <>
             <strong className='tok-usage__value'>
-              {renderQuota(quota.remaining)}
+              {formatMoney(quota.remaining)}
             </strong>
             <div className='tok-usage__meter'>
               <span style={{ width: `${quota.usedPercent}%` }} />
@@ -140,8 +140,8 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
             <span className='tok-usage__meter-line'>
               {t('page.console.token.usage.quotaLine', {
                 percent: quota.usedPercent,
-                total: renderQuota(quota.total),
-                used: renderQuota(quota.used),
+                total: formatMoney(quota.total),
+                used: formatMoney(quota.used),
                 defaultValue: '已用 {{used}} / {{total}} · {{percent}}%',
               })}
             </span>
@@ -153,7 +153,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
             </strong>
             <span className='tok-usage__meter-line'>
               {t('page.console.token.quotaUsed', {
-                value: renderQuota(quota.used),
+                value: formatMoney(quota.used),
               })}
             </span>
           </>

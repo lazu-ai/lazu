@@ -11,13 +11,13 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { asMicroUSD, type MicroUSD } from '../../helpers/money';
 import { microUSDToUSD, usdToMicroUSD } from '../../helpers/render';
-import { copy, showError, showSuccess } from '../../helpers/utils';
+import { copy, showError } from '../../helpers/utils';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
-import { formatTimestamp } from '../../lib/date';
 import { queryKeys } from '../../lib/query-keys';
 import { chatTemplateLeaksKey } from '../../pages/Token/chatTemplate';
 import type { RateLimitCeiling } from '../../constants/rate-limits';
@@ -646,34 +646,6 @@ async function fetchTokenDetail(id: TokenId): Promise<TokenFormValues> {
 
 const DEFAULT_TOKEN_QUOTA_USD = 50;
 
-/** Fields PUT /api/token/ copies onto a Key (see controller.UpdateToken). */
-const TOKEN_UPDATE_FIELDS = [
-  'name',
-  'product',
-  'metadata',
-  'expired_time',
-  'remain_quota',
-  'unlimited_quota',
-  'rate_limits_enabled',
-  'rpm_limit',
-  'tpm_limit',
-  'model_limits_enabled',
-  'model_limits',
-  'allow_ips',
-  'ip_whitelist_enabled',
-  'ip_blacklist',
-  'ip_blacklist_enabled',
-  'vendor_limits_enabled',
-  'vendor_limits',
-  'vendor_groups',
-  'model_lanes',
-  'search_limits_enabled',
-  'search_providers',
-  'search_domain_allowlist',
-  'reasoning_effort_cap',
-  'decision_question_generation',
-] as const;
-
 export function getDefaultTokenFormValues(): TokenFormValues {
   return {
     ...normalizeTokenDetail({
@@ -767,7 +739,7 @@ export function useTokensQuery(
       return response.data as ApiEnvelope;
     },
     onSuccess: () => {
-      showSuccess(t('page.console.tables.actionSuccess'));
+      notify.success(t('page.console.tables.actionSuccess'));
       invalidate();
     },
     onError: apiErrorHandler,
@@ -822,7 +794,9 @@ export function useTokensQuery(
         // A created Key is announced by the banner that shows its value, so
         // only an edit needs a toast.
         if (variables.editingToken?.id) {
-          showSuccess(t('legacy.i18n.token_updated_successfully.0b51462075'));
+          notify.success(
+            t('legacy.i18n.token_updated_successfully.0b51462075'),
+          );
         }
         invalidate();
       },
@@ -872,7 +846,7 @@ export function useTokensQuery(
       return { success: true, data: results.length - failed.length };
     },
     onSuccess: (payload) => {
-      showSuccess(
+      notify.success(
         t('page.console.token.selection.disabled', {
           count: Number(payload?.data || 0),
         }),
@@ -897,7 +871,7 @@ export function useTokensQuery(
     },
     onSuccess: (payload) => {
       const count = Number(payload?.data || selectedRows.length);
-      showSuccess(t('legacy.i18n.deleted_tokens.0a91776377', { count }));
+      notify.success(t('legacy.i18n.deleted_tokens.0a91776377', { count }));
       setSelectedIds([]);
       invalidate();
     },
@@ -974,7 +948,7 @@ export function useTokensQuery(
 
   const copyText = async (text: string) => {
     if (await copy(text)) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
       return true;
     }
     showError(t('page.console.tables.copyFailed'));

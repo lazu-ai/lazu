@@ -68,6 +68,15 @@ export default [
           max: 1,
         },
       ],
+      // A wholesale re-export hides which module a name comes from and pulls
+      // every module of a barrel into whatever imports one name from it.
+      'no-restricted-syntax': [
+        'error',
+        {
+          message: 'Re-export names explicitly instead of `export *`.',
+          selector: 'ExportAllDeclaration',
+        },
+      ],
       'no-restricted-imports': [
         'error',
         {
@@ -90,6 +99,17 @@ export default [
           ],
         },
       ],
+    },
+  },
+  {
+    // The UI barrel still re-exports its modules wholesale; moving its
+    // importers to direct imports is its own change.
+    files: [
+      'src/components/ui/index.ts',
+      'src/components/ui/console-primitives.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
   {

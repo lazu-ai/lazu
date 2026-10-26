@@ -1,10 +1,12 @@
 import { toast } from 'sonner';
 import { translateMessage } from './message-i18n';
+import { formatDecimalValue } from './money';
 import { isAdminRole } from './roles';
 import { sanitizeMarkup } from './sanitize';
 import { openReportProblem } from '../components/support/reportChannel';
 import { recordStatusIssue } from '../components/ui/status-center';
-import { toastConstants } from '../constants';
+import { notify } from '../components/ui/toast';
+import { toastConstants } from '../constants/toast.constants';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import i18n, { errorsNamespaceReady, loadErrorsNamespace } from '../i18n/i18n';
 import {
@@ -90,23 +92,7 @@ export function getUserIdFromLocalStorage() {
     : String(userId);
 }
 
-export function formatDecimalValue(value: unknown, digits = 6) {
-  if (value === undefined || value === null || Number.isNaN(value)) {
-    return '0';
-  }
-  const fixed = Number(value).toFixed(digits);
-  if (!fixed.includes('.')) {
-    return fixed;
-  }
-  let trimmed = fixed.replace(/0+$/, '');
-  if (trimmed.endsWith('.')) {
-    trimmed = trimmed.slice(0, -1);
-  }
-  if (trimmed === '' || trimmed === '-0') {
-    return '0';
-  }
-  return trimmed;
-}
+export { formatDecimalValue };
 
 export { copy } from './clipboard';
 
@@ -116,15 +102,6 @@ type ToastOptions = NonNullable<Parameters<typeof toast.error>[1]>;
 
 let showErrorOptions: ToastOptions = {
   duration: toastConstants.ERROR_TIMEOUT,
-};
-let showWarningOptions: ToastOptions = {
-  duration: toastConstants.WARNING_TIMEOUT,
-};
-let showSuccessOptions: ToastOptions = {
-  duration: toastConstants.SUCCESS_TIMEOUT,
-};
-let showInfoOptions: ToastOptions = {
-  duration: toastConstants.INFO_TIMEOUT,
 };
 let showNoticeOptions: ToastOptions = { duration: Infinity };
 
@@ -140,13 +117,7 @@ const isMobileScreen =
 if (isMobileScreen) {
   // Narrow screens get a centered toast; every tone must be listed or that
   // tone silently keeps the desktop corner position.
-  for (const options of [
-    showErrorOptions,
-    showWarningOptions,
-    showSuccessOptions,
-    showInfoOptions,
-    showNoticeOptions,
-  ]) {
+  for (const options of [showErrorOptions, showNoticeOptions]) {
     options.position = 'bottom-center';
   }
 }
@@ -299,16 +270,19 @@ function reportError(error: unknown, fallback?: string) {
   });
 }
 
+// show* translate a message key or a known server message, then hand it to
+// notify (components/ui/toast), which owns durations and placement. Code
+// that already has a translated string calls notify directly.
 export function showWarning(message: unknown) {
-  toast.warning(translateMessage(message), showWarningOptions);
+  notify.warning(translateMessage(message));
 }
 
 export function showSuccess(message: unknown) {
-  toast.success(translateMessage(message), showSuccessOptions);
+  notify.success(translateMessage(message));
 }
 
 export function showInfo(message: unknown) {
-  toast.info(translateMessage(message), showInfoOptions);
+  notify.info(translateMessage(message));
 }
 
 export function showNotice(message: unknown, isHTML = false) {

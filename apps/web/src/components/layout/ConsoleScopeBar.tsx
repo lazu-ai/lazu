@@ -6,7 +6,7 @@ import {
   useConsoleScope,
 } from '../../context/ConsoleScope';
 import { useProject } from '../../features/projects/ProjectContext';
-import { Select, SelectItem } from '../ui';
+import { Select, SelectItem } from '../ui/select';
 
 const ConsoleScopeBar = () => {
   const { t } = useTranslation();

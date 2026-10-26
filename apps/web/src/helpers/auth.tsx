@@ -1,14 +1,15 @@
-import React, { useContext, useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { safeJsonParse } from './utils';
-import { Button, StatusPage, recordStatusIssue } from '../components/ui';
+import { Button } from '../components/ui/button';
+import { recordStatusIssue } from '../components/ui/status-center';
+import { StatusPage } from '../components/ui/status-page';
 import {
   canAccessConsoleScope,
   useConsoleScope,
   type ConsoleScopeKind,
 } from '../context/ConsoleScope';
-import { StatusContext } from '../context/Status';
 import { useSidebar } from '../hooks/common/useSidebar';
 
 type StoredUser = {

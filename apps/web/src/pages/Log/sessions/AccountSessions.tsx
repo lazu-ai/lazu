@@ -3,13 +3,12 @@
 import { Link } from 'react-router-dom';
 import { SK, sessionClient, whenText } from './session-format';
 import { sessionDetailHref, sessionStatus, sessionTitle } from './SessionsView';
+import { AgentBadge, agentName } from '../../../components/ui/agent-badge';
 import {
-  AgentBadge,
-  PendingValue,
-  agentName,
   formatCount,
   formatMicroUsd,
-} from '../../../components/ui';
+} from '../../../components/ui/metric-format';
+import { PendingValue } from '../../../components/ui/pending';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import { useAgentSessionsQuery } from '../../../hooks/usage-logs/useAgentSessions';
 import './sessions.css';

@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import './observation-dialog.css';
 import { longContextLabel, observationSuccessBar } from './observation';
+import { Button } from '../../components/ui/button';
+import { Checkbox } from '../../components/ui/checkbox';
 import {
-  Button,
-  Checkbox,
   ModalClose,
   ModalFrame,
   ModalTitle,
   Modal,
-  PendingBlock,
-  PendingValue,
+} from '../../components/ui/modal';
+import { PendingBlock, PendingValue } from '../../components/ui/pending';
+import {
   StatusBars,
   StatusBarsLegend,
   formatSliceWhen,
   type StatusBarSlice,
   type StatusBarTone,
-} from '../../components/ui';
+} from '../../components/ui/status-bars';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
 import {
   useModelOpsSourceObservationQuery,

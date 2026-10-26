@@ -24,12 +24,12 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { getLogOther } from '../../helpers/log';
-import { asMicroUSD } from '../../helpers/money';
-import { renderQuota } from '../../helpers/render';
-import { copy, showError, showSuccess } from '../../helpers/utils';
+import { asMicroUSD, formatMoney } from '../../helpers/money';
+import { copy, showError } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { formatTimestamp } from '../../lib/date';
 import { queryKeys } from '../../lib/query-keys';
@@ -423,18 +423,18 @@ const normalizeLogs = (
     const refundDisplay = otherString(normalized.otherParsed, 'refund_display');
     if (typeof refundAmount === 'number') {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(-Math.abs(refundAmount)), 6),
+        formatMoney(asMicroUSD(-Math.abs(refundAmount)), 6),
       );
     } else if (
       typeof normalized.amount_microusd === 'number' &&
       normalized.amount_microusd < 0
     ) {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(normalized.amount_microusd), 6),
+        formatMoney(asMicroUSD(normalized.amount_microusd), 6),
       );
     } else if (typeof taskAmount === 'number') {
       refundCostDisplay = String(
-        renderQuota(asMicroUSD(-Math.abs(taskAmount)), 6),
+        formatMoney(asMicroUSD(-Math.abs(taskAmount)), 6),
       );
     } else if (refundDisplay) {
       refundCostDisplay = refundDisplay;
@@ -760,7 +760,7 @@ export function useUsageLogsQuery() {
 
   const copyText = async (value: unknown) => {
     if (await copy(String(value ?? ''))) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }

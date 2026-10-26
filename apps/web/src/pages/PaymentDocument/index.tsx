@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { PendingBlock } from '../../components/ui';
+import { PendingBlock } from '../../components/ui/pending';
 import { loadProjectsClient } from '../../features/projects/client';
 import { projectKeys } from '../../features/projects/queryKeys';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';

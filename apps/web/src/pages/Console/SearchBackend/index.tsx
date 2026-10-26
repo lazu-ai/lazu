@@ -1,20 +1,16 @@
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import {
-  Badge,
-  Button,
-  DataCard,
-  Field,
-  Input,
-  InlineSecret,
-  Label,
-  Modal,
-  MultiSelect,
-  ConsolePage,
-  ErrorState,
-  Select,
-  Switch,
-} from '../../../components/ui';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import ConsolePage from '../../../components/ui/console-page';
+import { DataCard } from '../../../components/ui/data-card';
+import { ErrorState } from '../../../components/ui/error-state';
+import { Field, Label } from '../../../components/ui/field';
+import { InlineSecret } from '../../../components/ui/inline-secret';
+import { Input } from '../../../components/ui/input';
+import { Modal } from '../../../components/ui/modal';
+import { MultiSelect, Select } from '../../../components/ui/select';
+import { Switch } from '../../../components/ui/switch';
 import {
   SEARCH_CHANNEL_OPTIONS,
   type SearchCapability,

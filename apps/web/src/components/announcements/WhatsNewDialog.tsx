@@ -17,7 +17,8 @@ import { API } from '../../helpers/api';
 import { showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
 import AnnouncementTimeline from '../common/announcement/AnnouncementTimeline';
-import { Button, Modal } from '../ui';
+import { Button } from '../ui/button';
+import { Modal } from '../ui/modal';
 import './whats-new-dialog.css';
 
 type AnnouncementList = {

@@ -1,7 +1,6 @@
 /* 内容 › 邮件: the pieces the three mail views share — the sub-nav, the
  * labels for a mail's kind and status, and the time formats. */
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router-dom';
 import type { MailDelivery } from './mailApi';
 import type { TFunction } from 'i18next';
 
