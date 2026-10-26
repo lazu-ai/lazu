@@ -60,38 +60,6 @@ func (a *Adaptor) ConvertVideoRequest(_ *gin.Context, _ *relaycommon.RelayInfo, 
 	}, nil
 }
 
-func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.ClaudeRequest) (any, error) {
-	//if !strings.Contains(request.Model, "claude") {
-	//	return nil, fmt.Errorf("you are using openai channel type with path /v1/messages, only claude model supported convert, but got %s", request.Model)
-	//}
-	//if common.DebugEnabled {
-	//	bodyBytes := []byte(common.GetJsonString(request))
-	//	err := os.WriteFile(fmt.Sprintf("claude_request_%s.txt", c.GetString(common.RequestIdKey)), bodyBytes, 0644)
-	//	if err != nil {
-	//		println(fmt.Sprintf("failed to save request body to file: %v", err))
-	//	}
-	//}
-	aiRequest, err := service.ClaudeToOpenAIRequest(*request, info)
-	if err != nil {
-		return nil, err
-	}
-	//if common.DebugEnabled {
-	//	println(fmt.Sprintf("convert claude to openai request result: %s", common.GetJsonString(aiRequest)))
-	//	// Save request body to file for debugging
-	//	bodyBytes := []byte(common.GetJsonString(aiRequest))
-	//	err = os.WriteFile(fmt.Sprintf("claude_to_openai_request_%s.txt", c.GetString(common.RequestIdKey)), bodyBytes, 0644)
-	//	if err != nil {
-	//		println(fmt.Sprintf("failed to save request body to file: %v", err))
-	//	}
-	//}
-	if info.SupportStreamOptions && info.IsStream {
-		aiRequest.StreamOptions = &dto.StreamOptions{
-			IncludeUsage: true,
-		}
-	}
-	return a.ConvertOpenAIRequest(c, info, aiRequest)
-}
-
 func (a *Adaptor) Init(info *relaycommon.RelayInfo) {
 	a.ChannelType = info.ChannelType
 
@@ -124,8 +92,8 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		return url, nil
 	default:
 		// a planned attempt goes to the endpoint its plan chose, a bridged
-		// Claude client included; unplanned Claude and Gemini clients are
-		// converted to Chat by the legacy path
+		// Claude client included (Claude clients are always planned); an
+		// unplanned Gemini client is converted to Chat by the legacy path
 		if (info.RelayFormat == types.RelayFormatClaude || info.RelayFormat == types.RelayFormatGemini) && info.ProtocolPlan == nil {
 			return fmt.Sprintf("%s/v1/chat/completions", info.ChannelBaseUrl), nil
 		}

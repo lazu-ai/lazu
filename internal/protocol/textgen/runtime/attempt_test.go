@@ -689,3 +689,48 @@ func TestPrepareAttemptStandsInForJSONObjectOnAnthropic(t *testing.T) {
 		t.Fatal("without the stand-in the Messages bridge refuses json_object")
 	}
 }
+
+// A Claude client is served natively by an Anthropic channel and bridged to
+// Chat by OpenAI and Gemini channels: the legacy pairwise converters that
+// used to serve it on those channels are gone, so every such attempt must be
+// planned.
+func TestClaudeClientIsPlannedOnEveryClaudeCapableChannel(t *testing.T) {
+	previousDB := model.CoreDB()
+	db, err := gorm.Open(gormsqlite.Open("file:runtime_claude_client?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model.SetCoreDB(db)
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		_ = sqlDB.Close()
+		model.SetCoreDB(previousDB)
+	})
+	if err := db.AutoMigrate(&model.Channel{}, &model.Ability{}); err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	parsed := &textgen.ParsedRequest{
+		Client: textgen.Protocol{Family: textgen.ProtocolAnthropic},
+		Semantic: &textgen.Request{Model: textgen.ModelRef{Canonical: "fixture"}, Conversation: []textgen.InputItem{{
+			Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "hello"}},
+		}}},
+	}
+	for _, tc := range []struct {
+		channelType int
+		native      bool
+		upstream    textgen.ProtocolFamily
+	}{
+		{constant.ChannelTypeAnthropic, true, textgen.ProtocolAnthropic},
+		{constant.ChannelTypeOpenAI, false, textgen.ProtocolOpenAIChat},
+		{constant.ChannelTypeGemini, false, textgen.ProtocolOpenAIChat},
+	} {
+		attempt, err := PrepareAttempt(parsed, &model.Channel{Type: tc.channelType}, "fixture")
+		if err != nil {
+			t.Fatalf("channel type %d: %v", tc.channelType, err)
+		}
+		if attempt.Plan.Native != tc.native || attempt.Plan.UpstreamProtocol.Family != tc.upstream {
+			t.Fatalf("channel type %d: native=%v upstream=%+v", tc.channelType, attempt.Plan.Native, attempt.Plan.UpstreamProtocol)
+		}
+	}
+}
