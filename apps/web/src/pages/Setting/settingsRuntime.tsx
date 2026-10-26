@@ -1491,6 +1491,9 @@ export const SettingsGroupPage = ({
         [...queryKeys.console.detail('settings', title)],
         (current) => ({ ...(current || defaults), ...saved }),
       );
+      // /api/status publishes many of these options (name, logo, top-up
+      // range, sign-in methods); let the console pick them up now.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.status });
       showSuccess(
         t('page.console.settingV2.runtime.saveSuccess', {
           count: submitted.length,

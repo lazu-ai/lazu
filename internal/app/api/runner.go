@@ -292,8 +292,7 @@ func serveHTTP(ctx context.Context, server *http.Server, health *runtimeHealth) 
 }
 
 func InitResources() error {
-	// Initialize resources here if needed
-	// This is a placeholder function for future resource initialization
+	// Load a local .env when one is present.
 	err := godotenv.Load(".env")
 	if err != nil {
 		if common.DebugEnabled {

@@ -13,12 +13,14 @@ import { extensionOpsTabs, webExtensions } from './extensions';
 import { TokenGate, WalletGate } from './features/projects/gates';
 import { ProjectRoute, TeamRoute } from './features/projects/ProjectRoute';
 import { PrivateRoute, RootRoute, ModuleRoute } from './helpers/auth';
+import {
+  About,
+  FAQ,
+  Home,
+  PrivacyPolicy,
+  UserAgreement,
+} from './lib/marketing-pages';
 import { notFoundLoader } from './lib/not-found-preload';
-import About from './pages/About';
-import FAQ from './pages/FAQ';
-import Home from './pages/Home';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import UserAgreement from './pages/UserAgreement';
 
 const LoginForm = lazy(() => import('./components/auth/LoginForm'));
 const OIDCCallback = lazy(() => import('./components/auth/OIDCCallback'));

@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
+import { chunkResourceFor } from './locale-bundle-codec';
 import { isMarketingStartupPath } from './marketing-startup';
 import { extensionI18n, surfaceLanguageKey } from '../extensions/i18n';
 import type { BackendModule, ReadCallback } from 'i18next';
@@ -185,7 +186,11 @@ const dynamicLocaleBackend: BackendModule = {
         const resources = toTranslationResource(module);
         callback(
           null,
-          (resources[normalized] || resources.en || {}) as TranslationResource,
+          chunkResourceFor(
+            resources as Record<string, TranslationResource | undefined>,
+            normalized,
+            bundleLanguage,
+          ),
         );
       })
       .catch((error: unknown) => {
@@ -242,9 +247,11 @@ export const i18nReady = i18n
   .init({
     lng: pathAssertedLanguage() || surfaceLanguage(),
     load: 'currentOnly',
+    // `errors` (failure copy) is not needed to draw the first screen; it
+    // loads in the background once the first screen's namespaces are in
+    // (loadErrorsNamespace below).
     ns: [
       'translation',
-      'errors',
       ...(typeof window === 'undefined' ||
       isMarketingStartupPath(window.location.pathname)
         ? ['marketing']
@@ -288,6 +295,30 @@ const syncDocumentLanguage = (language?: string) => {
   }
 };
 i18n.on('languageChanged', syncDocumentLanguage);
+
+let errorsNamespace: Promise<void> | undefined;
+
+/** Whether the failure copy can be read synchronously right now. */
+export const errorsNamespaceReady = (): boolean =>
+  i18n.isInitialized && i18n.hasLoadedNamespace('errors');
+
+/** Loads the `errors` namespace once; later calls share the same promise.
+ *  A failed load (offline) resolves too, so callers fall back to their own
+ *  copy instead of waiting forever, and the next call tries again. */
+export const loadErrorsNamespace = (): Promise<void> => {
+  if (errorsNamespaceReady()) return Promise.resolve();
+  errorsNamespace ??= i18nReady
+    .then(() => i18n.loadNamespaces('errors'))
+    .catch(() => undefined)
+    .finally(() => {
+      errorsNamespace = undefined;
+    });
+  return errorsNamespace;
+};
+
+// Off the first screen's critical path, but early: most failures are shown
+// long after this resolves. API failures and showError() wait for it anyway.
+if (typeof window !== 'undefined') void loadErrorsNamespace();
 void i18nReady.then(() => syncDocumentLanguage(i18n.resolvedLanguage));
 
 export default i18n;

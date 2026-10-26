@@ -430,10 +430,6 @@ func LegacyFieldsUseSeparatedCacheInput(fields map[string]interface{}) bool {
 	return providerFamilyFromFields(fields) == ProviderFamilyAnthropic
 }
 
-func UsesProviderSeparatedCacheInput(modelName string, fields map[string]interface{}) bool {
-	return LegacyFieldsUseSeparatedCacheInput(fields)
-}
-
 func ProviderFamilyFromHint(hint ProviderHint) ProviderFamily {
 	switch hint.APIType {
 	case constant.APITypeAnthropic:

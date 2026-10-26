@@ -5,9 +5,7 @@ import i18next from 'i18next';
 import {
   AlertTriangle,
   Check,
-  ChevronDown,
   Circle,
-  Copy,
   Info,
   LoaderCircle,
   X,
@@ -17,7 +15,6 @@ import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { DatePicker as UiDatePicker, DateRangePicker } from './date-picker';
 import { EmptyState } from './empty-state';
-import { InlineNotice, type InlineNoticeTone } from './inline-notice';
 import { notify as uiToast } from './toast';
 import { Tooltip as UiTooltip } from './tooltip';
 import { toastConstants } from '../../constants/toast.constants';
@@ -440,119 +437,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
 Button.displayName = 'Button';
 
-export function Card({
-  bordered,
-  bodyStyle,
-  children,
-  className,
-  footer,
-  headerExtraContent,
-  headerLine,
-  style,
-  title,
-  ...props
-}: ConsolePrimitiveProps) {
-  return (
-    <section
-      {...asDomProps<HTMLElement>(props)}
-      className={cn('lazu-data-card lazu-card', className)}
-      style={style}
-    >
-      {title || headerExtraContent ? (
-        <div
-          className={cn(
-            'lazu-data-card__header',
-            headerLine === false && 'lazu-card__header--plain',
-          )}
-        >
-          <div className='lazu-data-card__title'>{title}</div>
-          {headerExtraContent}
-        </div>
-      ) : null}
-      <div className='lazu-data-card__body lazu-card__body' style={bodyStyle}>
-        {children}
-      </div>
-      {footer ? <div className='lazu-data-card__footer'>{footer}</div> : null}
-    </section>
-  );
-}
-
-export function Space({
-  align = 'center',
-  children,
-  className,
-  spacing = 8,
-  vertical = false,
-  wrap = true,
-  ...props
-}: ConsolePrimitiveProps) {
-  return (
-    <div
-      {...asDomProps<HTMLDivElement>(props)}
-      className={cn(
-        'lazu-space',
-        vertical && 'lazu-space--vertical',
-        className,
-      )}
-      style={{
-        alignItems: align,
-        display: 'flex',
-        flexDirection: vertical ? 'column' : 'row',
-        flexWrap: wrap ? 'wrap' : 'nowrap',
-        gap: Array.isArray(spacing) ? spacing.join('px ') : spacing,
-        ...props.style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-export function Row({
-  children,
-  className,
-  gutter,
-  ...props
-}: ConsolePrimitiveProps) {
-  const gap = Array.isArray(gutter) ? gutter[0] : gutter;
-  return (
-    <div
-      {...asDomProps<HTMLDivElement>(props)}
-      className={cn('lazu-row', className)}
-      style={{ gap, ...props.style }}
-    >
-      {children}
-    </div>
-  );
-}
-
-export function Col({
-  children,
-  className,
-  span,
-  xs,
-  sm,
-  md,
-  lg,
-  xl,
-  ...props
-}: ConsolePrimitiveProps) {
-  const activeSpan = span || xl || lg || md || sm || xs || 24;
-  return (
-    <div
-      {...asDomProps<HTMLDivElement>(props)}
-      className={cn('lazu-col', className)}
-      style={{
-        flex: `0 0 ${(Number(activeSpan) / 24) * 100}%`,
-        maxWidth: `${(Number(activeSpan) / 24) * 100}%`,
-        ...props.style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 export const Divider: ConsoleComponent = ({
   className,
   margin = 16,
@@ -613,58 +497,6 @@ export function Tag({
   );
 }
 
-export function Badge({
-  children,
-  count,
-  dot,
-  type = 'primary',
-  ...props
-}: ConsolePrimitiveProps) {
-  return (
-    <span {...asDomProps<HTMLSpanElement>(props)} className='lazu-badge-wrap'>
-      {children}
-      {dot ? (
-        <span className={`lazu-badge-dot lazu-badge-dot--${type}`} />
-      ) : null}
-      {count ? <span className='lazu-badge-count'>{count}</span> : null}
-    </span>
-  );
-}
-
-export function Avatar({
-  alt,
-  children,
-  className,
-  color,
-  size = 36,
-  src,
-  style,
-  ...props
-}: ConsolePrimitiveProps) {
-  const dimension =
-    typeof size === 'number'
-      ? size
-      : size === 'small'
-        ? 28
-        : size === 'large'
-          ? 44
-          : 36;
-  return (
-    <span
-      {...asDomProps<HTMLSpanElement>(props)}
-      className={cn('lazu-avatar', className)}
-      style={{
-        height: dimension,
-        width: dimension,
-        background: color,
-        ...style,
-      }}
-    >
-      {src ? <img src={src} alt={alt || ''} /> : children}
-    </span>
-  );
-}
-
 /**
  * Legacy alias for {@link EmptyState}. The product has one empty state — the
  * dashed slot — so this shim only drops the illustration props the old call
@@ -672,40 +504,6 @@ export function Avatar({
  */
 export function Empty({ description, title }: ConsolePrimitiveProps) {
   return <EmptyState description={description} title={title || 'No data'} />;
-}
-
-/**
- * Legacy alias for {@link InlineNotice}. The feedback system has one in-page
- * notice; this shim only maps the old `type` vocabulary onto it so existing
- * call sites keep working. New code should import InlineNotice directly.
- */
-export function Banner({
-  closeIcon,
-  description,
-  fullMode,
-  icon,
-  title,
-  type = 'info',
-  ...props
-}: ConsolePrimitiveProps) {
-  const tone: InlineNoticeTone =
-    type === 'error' || type === 'danger'
-      ? 'danger'
-      : type === 'warning' || type === 'success'
-        ? type
-        : 'info';
-
-  return (
-    <InlineNotice
-      {...asDomProps<HTMLDivElement>(props)}
-      actions={closeIcon}
-      className={cn(fullMode && 'lazu-banner--full')}
-      description={description}
-      icon={icon}
-      title={title}
-      tone={tone}
-    />
-  );
 }
 
 export function Progress({
@@ -753,45 +551,6 @@ export const Tooltip: ConsoleComponent = ({
     {children as React.ReactElement}
   </UiTooltip>
 );
-
-export function Popover({
-  children,
-  content,
-  trigger = 'click',
-}: ConsolePrimitiveProps) {
-  const [open, setOpen] = React.useState(false);
-  const eventProps =
-    trigger === 'hover'
-      ? {
-          onMouseEnter: () => setOpen(true),
-          onMouseLeave: () => setOpen(false),
-        }
-      : { onClick: () => setOpen((value) => !value) };
-  return (
-    <span className='lazu-popover' {...eventProps}>
-      {children}
-      {open ? <span className='lazu-popover__content'>{content}</span> : null}
-    </span>
-  );
-}
-
-export function Popconfirm({
-  children,
-  content,
-  onConfirm,
-  title,
-}: ConsolePrimitiveProps) {
-  const onlyChild = React.Children.only(children) as React.ReactElement<
-    React.HTMLAttributes<HTMLElement>
-  >;
-  return React.cloneElement(onlyChild, {
-    onClick: (event: React.MouseEvent<HTMLElement>) => {
-      onlyChild.props.onClick?.(event);
-      if (!window.confirm(String(content || title || ''))) return;
-      onConfirm?.(event);
-    },
-  });
-}
 
 function InputBase({
   className,
@@ -884,37 +643,6 @@ export function InputNumber({
     />
   );
 }
-
-export function TagInput({
-  className,
-  onChange,
-  value = [],
-  ...props
-}: ConsolePrimitiveProps) {
-  return (
-    <Input
-      className={className}
-      value={Array.isArray(value) ? value.join(', ') : value}
-      onChange={(nextValue: unknown, event: unknown) => {
-        onChange?.(
-          String(nextValue)
-            .split(',')
-            .map((item) => item.trim())
-            .filter(Boolean),
-          event,
-        );
-      }}
-      {...props}
-    />
-  );
-}
-
-export const InputGroup: ConsoleComponent = ({
-  children,
-  className,
-}: ConsolePrimitiveProps) => (
-  <div className={cn('lazu-input-group', className)}>{children}</div>
-);
 
 const optionLabelToText = (label: React.ReactNode): string => {
   if (label === undefined || label === null) return '';
@@ -1062,7 +790,7 @@ export function Switch({
   );
 }
 
-export function Radio({ children, value, ...props }: ConsolePrimitiveProps) {
+function Radio({ children, value, ...props }: ConsolePrimitiveProps) {
   const context = React.useContext(RadioContext);
   const checked = context?.value === value;
   return (
@@ -1096,7 +824,7 @@ export function RadioGroup({
 }
 
 Radio.Group = RadioGroup;
-export namespace Radio {
+namespace Radio {
   export declare const Group: typeof RadioGroup;
 }
 
@@ -1242,51 +970,6 @@ Modal.destroyAll = () => {
   modalRoots.clear();
 };
 
-export function SideSheet({
-  children,
-  onCancel,
-  title,
-  visible,
-  ...props
-}: ConsolePrimitiveProps) {
-  return (
-    <Modal visible={visible} onCancel={onCancel} title={title} {...props}>
-      {children}
-    </Modal>
-  );
-}
-
-export function Image({ alt = '', src, ...props }: ConsolePrimitiveProps) {
-  return (
-    <img
-      {...(props as React.ImgHTMLAttributes<HTMLImageElement>)}
-      alt={alt}
-      src={src}
-    />
-  );
-}
-
-export function ImagePreview({
-  src,
-  visible,
-  onVisibleChange,
-}: ConsolePrimitiveProps) {
-  return (
-    <Modal
-      visible={visible}
-      aria-label={i18next.t('legacy.i18n.preview.de61aa8e1c')}
-      onCancel={() => onVisibleChange?.(false)}
-      footer={null}
-    >
-      <img src={src} alt='' className='lazu-image-preview' />
-    </Modal>
-  );
-}
-
-export const LocaleProvider: ConsoleComponent = ({
-  children,
-}: ConsolePrimitiveProps) => children;
-
 type ToastApi = Record<
   ToastMethod,
   (input: NotificationInput, options?: ExternalToast) => string | number
@@ -1297,80 +980,6 @@ export const Toast: ToastApi = {
   info: (input, options) => notify('info', input, options),
   success: (input, options) => notify('success', input, options),
   warning: (input, options) => notify('warning', input, options),
-};
-
-export const Notification = Toast;
-
-export const Typography: Record<string, ConsoleComponent> = {
-  Text: ({
-    children,
-    className,
-    strong,
-    type,
-    ...props
-  }: ConsolePrimitiveProps) => (
-    <span
-      {...asDomProps<HTMLSpanElement>(props)}
-      className={cn(
-        'lazu-typography-text',
-        strong && 'font-semibold',
-        type && `lazu-text--${type}`,
-        className,
-      )}
-    >
-      {children}
-    </span>
-  ),
-  Paragraph: ({
-    children,
-    className,
-    copyable,
-    ...props
-  }: ConsolePrimitiveProps) => (
-    <p
-      {...asDomProps<HTMLParagraphElement>(props)}
-      className={cn('lazu-typography-paragraph', className)}
-    >
-      {children}
-      {copyable ? (
-        <Button
-          size='small'
-          theme='light'
-          aria-label='Copy'
-          onClick={() =>
-            navigator.clipboard?.writeText(
-              (typeof copyable === 'object' ? copyable.content : undefined) ||
-                String(children),
-            )
-          }
-        >
-          <Copy size={13} />
-        </Button>
-      ) : null}
-    </p>
-  ),
-  Title: ({
-    children,
-    className,
-    heading = 4,
-    ...props
-  }: ConsolePrimitiveProps) => {
-    const TagName = `h${Math.min(6, Math.max(1, Number(heading)))}` as
-      | 'h1'
-      | 'h2'
-      | 'h3'
-      | 'h4'
-      | 'h5'
-      | 'h6';
-    return (
-      <TagName
-        {...asDomProps<HTMLHeadingElement>(props)}
-        className={cn('lazu-typography-title', className)}
-      >
-        {children}
-      </TagName>
-    );
-  },
 };
 
 type DescriptionItem = {
@@ -1409,7 +1018,7 @@ function DescriptionsBase({ children, data, row }: ConsolePrimitiveProps) {
   );
 }
 
-export const Descriptions = DescriptionsBase as typeof DescriptionsBase & {
+const Descriptions = DescriptionsBase as typeof DescriptionsBase & {
   Item: ConsoleComponent;
 };
 
@@ -1438,7 +1047,7 @@ function StepsBase({ children, current = 0 }: ConsolePrimitiveProps) {
   );
 }
 
-export const Steps = StepsBase as typeof StepsBase & {
+const Steps = StepsBase as typeof StepsBase & {
   Step: ConsoleComponent;
 };
 
@@ -1491,7 +1100,7 @@ function SkeletonBase({
   );
 }
 
-export const Skeleton = SkeletonBase as typeof SkeletonBase & {
+const Skeleton = SkeletonBase as typeof SkeletonBase & {
   Avatar: ConsoleComponent;
   Button: ConsoleComponent;
   Paragraph: ConsoleComponent;
@@ -1551,32 +1160,3 @@ Skeleton.Title = function SkeletonTitle({
     <SkeletonBox className={cn('lazu-skeleton--title', className)} {...props} />
   );
 };
-
-export function Icon({ svg }: ConsolePrimitiveProps) {
-  return <span className='lazu-icon'>{svg}</span>;
-}
-
-export function Highlight({
-  sourceString = '',
-  searchWords = [],
-}: ConsolePrimitiveProps) {
-  const words = Array.isArray(searchWords)
-    ? searchWords.filter(Boolean)
-    : [searchWords].filter(Boolean);
-  if (!words.length) return sourceString;
-  const pattern = new RegExp(
-    `(${words.map((word) => String(word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
-    'gi',
-  );
-  return String(sourceString)
-    .split(pattern)
-    .map((part, index) =>
-      words.some(
-        (word) => String(word).toLowerCase() === part.toLowerCase(),
-      ) ? (
-        <mark key={`${part}-${index}`}>{part}</mark>
-      ) : (
-        part
-      ),
-    );
-}
