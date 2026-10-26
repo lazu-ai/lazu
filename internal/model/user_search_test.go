@@ -49,7 +49,7 @@ func TestSearchUsersMatchesPublicID(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	users, total, err := SearchUsers(user.PublicID, 0, 10)
+	users, total, err := SearchUsersFiltered(user.PublicID, 0, 10, UserListOptions{})
 	if err != nil {
 		t.Fatalf("SearchUsers returned error: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestSearchUsersMatchesPublicID(t *testing.T) {
 		t.Fatalf("expected public ID match, got total=%d users=%#v", total, users)
 	}
 
-	users, total, err = SearchUsers("#"+strconv.Itoa(user.Id), 0, 10)
+	users, total, err = SearchUsersFiltered("#"+strconv.Itoa(user.Id), 0, 10, UserListOptions{})
 	if err != nil {
 		t.Fatalf("SearchUsers by displayed ID returned error: %v", err)
 	}

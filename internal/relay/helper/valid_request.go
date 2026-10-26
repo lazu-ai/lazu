@@ -42,6 +42,16 @@ func GetAndValidateRequest(c *gin.Context, format types.RelayFormat) (request dt
 			}
 			return validateResponsesRequest(wire)
 		}
+		if format == types.RelayFormatGemini && parsed.Client.Family == textgen.ProtocolGemini {
+			wire, valid := parsed.Wire.(*dto.GeminiChatRequest)
+			if !valid {
+				return nil, errors.New("parsed Gemini request has an invalid wire type")
+			}
+			if len(wire.Contents) == 0 && len(wire.Requests) == 0 {
+				return nil, errors.New("contents is required")
+			}
+			return wire, nil
+		}
 	}
 	relayMode := relayconstant.Path2RelayMode(c.Request.URL.Path)
 
@@ -370,7 +380,7 @@ func validateTextRequest(c *gin.Context, textRequest *dto.GeneralOpenAIRequest, 
 		}
 	case relayconstant.RelayModeChatCompletions:
 		// For FIM (Fill-in-the-middle) requests with prefix/suffix, messages is optional
-		// It will be filled by provider-specific adaptors if needed (e.g., SiliconFlow)。Or it is allowed by model vendor(s) (e.g., DeepSeek)
+		// (an upstream may accept FIM without messages, e.g. DeepSeek).
 		if len(textRequest.Messages) == 0 && textRequest.Prefix == nil && textRequest.Suffix == nil {
 			return nil, errors.New("field messages is required")
 		}

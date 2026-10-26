@@ -1,5 +1,4 @@
 dist/
-storybook-static/
 test-results/
 .local-results/
 src/styles/brand.generated.css
