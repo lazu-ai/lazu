@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
-	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/httperr"
 	"github.com/lazu-ai/lazu/internal/model"
 
@@ -222,22 +221,6 @@ type pricePlanRuleView struct {
 	VendorName string  `json:"vendor_name,omitempty"`
 	ModelName  string  `json:"model_name,omitempty"`
 	Pct        float64 `json:"pct"`
-}
-
-func currentPricePlanView(c *gin.Context) *pricePlanView {
-	planID := common.GetContextKeyInt(c, constant.ContextKeyUserPricePlanID)
-	if planID <= 0 {
-		userID := c.GetInt("id")
-		if userID <= 0 {
-			return nil
-		}
-		user, err := model.GetUserCache(userID)
-		if err != nil || user == nil {
-			return nil
-		}
-		planID = user.PricePlanID
-	}
-	return pricePlanViewFor(planID)
 }
 
 func pricePlanViewFor(planID int) *pricePlanView {

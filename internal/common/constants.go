@@ -149,13 +149,8 @@ const DefaultRelayTimeoutSeconds = 600
 
 var RelayTimeout int // unit is second
 
-var GeminiSafetySetting string
-
 var LogRetentionDays int
 var LogRetentionIntervalHours int
-
-// https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT
-var CohereSafetySetting string
 
 const (
 	RequestIdKey = "X-Lazu-Request-Id"

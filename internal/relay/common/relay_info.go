@@ -34,11 +34,6 @@ type ThinkingContentInfo struct {
 	HasSentThinkingContent  bool
 }
 
-type RerankerInfo struct {
-	Documents       []any
-	ReturnDocuments bool
-}
-
 type BuildInToolInfo struct {
 	ToolName          string
 	CallCount         int
@@ -52,14 +47,10 @@ type ResponsesUsageInfo struct {
 type ChannelMeta struct {
 	ChannelType          int
 	ChannelId            int
-	ChannelIsMultiKey    bool
-	ChannelMultiKeyIndex int
 	ChannelBaseUrl       string
 	ApiType              int
-	ApiVersion           string
 	ApiKey               string
 	Organization         string
-	ChannelCreateTime    int64
 	ParamOverride        map[string]interface{}
 	HeadersOverride      map[string]interface{}
 	ChannelSetting       dto.ChannelSettings
@@ -141,7 +132,6 @@ type RelayInfo struct {
 	OutputAudioFormat          string
 	RealtimeTools              []dto.RealTimeTool
 	IsFirstRequest             bool
-	AudioUsage                 bool
 	ReasoningEffort            string
 	UserSetting                dto.UserSetting
 	UserEmail                  string
@@ -160,7 +150,6 @@ type RelayInfo struct {
 	Request dto.Request
 
 	ThinkingContentInfo
-	*RerankerInfo
 	*ResponsesUsageInfo
 	*ChannelMeta
 }
@@ -173,14 +162,10 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	channelMeta := &ChannelMeta{
 		ChannelType:          channelType,
 		ChannelId:            common.GetContextKeyInt(c, constant.ContextKeyChannelId),
-		ChannelIsMultiKey:    common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey),
-		ChannelMultiKeyIndex: common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex),
 		ChannelBaseUrl:       common.GetContextKeyString(c, constant.ContextKeyChannelBaseUrl),
 		ApiType:              apiType,
-		ApiVersion:           common.GetContextKeyString(c, constant.ContextKeyChannelAPIVersion),
 		ApiKey:               common.GetContextKeyString(c, constant.ContextKeyChannelKey),
-		Organization:         c.GetString("channel_organization"),
-		ChannelCreateTime:    c.GetInt64("channel_create_time"),
+		Organization:         common.GetContextKeyString(c, constant.ContextKeyChannelOrganization),
 		ParamOverride:        paramOverride,
 		HeadersOverride:      headerOverride,
 		UpstreamModelName:    common.GetContextKeyString(c, constant.ContextKeyOriginalModel),
@@ -245,9 +230,9 @@ func (info *RelayInfo) ToString() string {
 		info.StartTime.Format(time.RFC3339Nano), info.FirstResponseTime.Format(time.RFC3339Nano), latencyMs)
 
 	// Audio / realtime
-	if info.InputAudioFormat != "" || info.OutputAudioFormat != "" || len(info.RealtimeTools) > 0 || info.AudioUsage {
-		fmt.Fprintf(b, "Realtime{ AudioUsage: %t, InFmt: %q, OutFmt: %q, Tools: %d }, ",
-			info.AudioUsage, info.InputAudioFormat, info.OutputAudioFormat, len(info.RealtimeTools))
+	if info.InputAudioFormat != "" || info.OutputAudioFormat != "" || len(info.RealtimeTools) > 0 {
+		fmt.Fprintf(b, "Realtime{ InFmt: %q, OutFmt: %q, Tools: %d }, ",
+			info.InputAudioFormat, info.OutputAudioFormat, len(info.RealtimeTools))
 	}
 
 	// Reasoning
@@ -263,8 +248,8 @@ func (info *RelayInfo) ToString() string {
 	// Channel metadata (mask ApiKey)
 	if info.ChannelMeta != nil {
 		cm := info.ChannelMeta
-		fmt.Fprintf(b, "ChannelMeta{ Type: %d, Id: %d, IsMultiKey: %t, MultiKeyIndex: %d, BaseURL: %q, ApiType: %d, ApiVersion: %q, Organization: %q, CreateTime: %d, UpstreamModelName: %q, IsModelMapped: %t, SupportStreamOptions: %t, ApiKey: ***masked*** }, ",
-			cm.ChannelType, cm.ChannelId, cm.ChannelIsMultiKey, cm.ChannelMultiKeyIndex, cm.ChannelBaseUrl, cm.ApiType, cm.ApiVersion, cm.Organization, cm.ChannelCreateTime, cm.UpstreamModelName, cm.IsModelMapped, cm.SupportStreamOptions)
+		fmt.Fprintf(b, "ChannelMeta{ Type: %d, Id: %d, BaseURL: %q, ApiType: %d, Organization: %q, UpstreamModelName: %q, IsModelMapped: %t, SupportStreamOptions: %t, ApiKey: ***masked*** }, ",
+			cm.ChannelType, cm.ChannelId, cm.ChannelBaseUrl, cm.ApiType, cm.Organization, cm.UpstreamModelName, cm.IsModelMapped, cm.SupportStreamOptions)
 	}
 
 	// Responses usage info (non-sensitive)
@@ -321,10 +306,6 @@ func GenRelayInfoRerank(c *gin.Context, request *dto.RerankRequest) *RelayInfo {
 	info := genBaseRelayInfo(c, request)
 	info.RelayMode = relayconstant.RelayModeRerank
 	info.RelayFormat = types.RelayFormatRerank
-	info.RerankerInfo = &RerankerInfo{
-		Documents:       request.Documents,
-		ReturnDocuments: request.GetReturnDocuments(),
-	}
 	return info
 }
 

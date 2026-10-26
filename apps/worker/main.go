@@ -149,7 +149,7 @@ func buildWorkerTasks(resources *workerResources, oneShot bool) []worker.Task {
 			worker.NewProjectAutoReloadTask(), // charges saved cards for wallets under their reload line
 			dashboardRollup,
 			worker.NewMediaJobPollerTask(),
-			worker.NewRoutingQualityBackfillTask(), // runs worker.BackfillQualitySignals
+			worker.NewRoutingQualityBackfillTask(), // runs worker.BackfillQualitySignalsContext
 			worker.NewRoutingRetentionTask(),       // runs worker.PurgeOldRoutingData
 			worker.NewChannelProbeTask(),           // fills health gaps real traffic leaves
 			worker.NewVideoCanaryTask(),            // a daily smallest clip on idle video routes
