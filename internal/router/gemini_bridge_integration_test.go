@@ -212,6 +212,14 @@ func TestGeminiChannelServesBridgedClientsThroughTheCodec(t *testing.T) {
 		}
 	})
 
+	t.Run("chat n asks one candidate", func(t *testing.T) {
+		chat("gem-text", `,"n":2`, true)
+		config, _ := lastHit().body["generationConfig"].(map[string]any)
+		if _, ok := config["candidateCount"]; ok {
+			t.Fatalf("the reply carries one candidate, so one is asked for: %v", config)
+		}
+	})
+
 	t.Run("chat stream image output", func(t *testing.T) {
 		if got := chat("gem-image", "", true); !strings.Contains(got, "data:image/jpeg;base64,") {
 			t.Fatalf("image stream: %s", got)

@@ -37,7 +37,8 @@ func BridgesToGemini(info *relaycommon.RelayInfo) bool {
 // EncodeBridgedRequest is the generateContent request for a bridged attempt:
 // the IR encoded by the Gemini codec, then what is the channel's to decide
 // (AGENTS.md, Protocol Layer): media fetched inline, the image count limit,
-// response modalities, thinking for the model, and safety settings.
+// one candidate, response modalities, thinking for the model, and safety
+// settings.
 func EncodeBridgedRequest(c *gin.Context, info *relaycommon.RelayInfo, request *textgen.Request) (*dto.GeminiChatRequest, error) {
 	out, err := geminicodec.Encode(request, geminicodec.EncodeOptions{
 		InlineImage: func(url string) (string, string, error) { return inlineMediaFromURL(c, url) },
@@ -48,6 +49,10 @@ func EncodeBridgedRequest(c *gin.Context, info *relaycommon.RelayInfo, request *
 	if err := checkImageCount(out); err != nil {
 		return nil, err
 	}
+	// one candidate: the reply is decoded from the first, so asking for more
+	// would bill output the client never sees (the Chat conversion did not
+	// forward n either)
+	out.GenerationConfig.CandidateCount = 0
 	if model_setting.IsGeminiModelSupportImagine(info.UpstreamModelName) {
 		out.GenerationConfig.ResponseModalities = []string{"TEXT", "IMAGE"}
 	}
