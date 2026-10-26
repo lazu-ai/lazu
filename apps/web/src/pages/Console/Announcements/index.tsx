@@ -1,4 +1,4 @@
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import {
   lazy,
@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
   Select,
 } from '../../../components/ui';
+import { notify } from '../../../components/ui/toast';
 import {
   ANNOUNCEMENTS_UPDATED_EVENT,
   type Announcement,
@@ -442,7 +443,7 @@ const AnnouncementsPage = ({
     async (item: AdminAnnouncement) => {
       try {
         unwrap(await API.post(`/api/admin/announcements/${item.id}/unpublish`));
-        showSuccess(
+        notify.success(
           t('page.console.announcements.unpublished', {
             defaultValue: '公告已下架',
           }),

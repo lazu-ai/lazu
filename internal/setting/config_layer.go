@@ -106,18 +106,6 @@ func ApplyCredentialConfig() {
 	LogCredentialConfigStatus()
 }
 
-func CredentialStatus() map[string]string {
-	status := map[string]string{}
-	for _, def := range credentialDefinitions() {
-		if GetCredential(def.Key) != "" {
-			status[def.Label] = "***set***"
-		} else {
-			status[def.Label] = "***unset***"
-		}
-	}
-	return status
-}
-
 func LogCredentialConfigStatus() {
 	setCount := 0
 	unsetCount := 0

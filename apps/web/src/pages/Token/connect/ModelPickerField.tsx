@@ -3,7 +3,7 @@
  *  catalog in catalog order, where the model a tool should open on was
  *  wherever the id happened to sort. */
 
-import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search } from 'lucide-react';
 import {
   useEffect,
   useMemo,

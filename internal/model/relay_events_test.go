@@ -487,10 +487,10 @@ func TestHandleRelayResultEventBatchIsIdempotent(t *testing.T) {
 		})
 	}
 
-	if err := handleRelayResultEventBatch(events); err != nil {
+	if err := persistRelayResultBatch(events); err != nil {
 		t.Fatalf("failed to handle relay result batch: %v", err)
 	}
-	if err := handleRelayResultEventBatch(events); err != nil {
+	if err := persistRelayResultBatch(events); err != nil {
 		t.Fatalf("failed to replay relay result batch: %v", err)
 	}
 

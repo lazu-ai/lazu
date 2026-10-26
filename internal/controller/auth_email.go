@@ -344,11 +344,6 @@ func WaitForAuthEmailDeliveries(ctx context.Context) error {
 	}
 }
 
-// waitForAuthEmailDeliveries keeps test cleanup concise.
-func waitForAuthEmailDeliveries() {
-	_ = WaitForAuthEmailDeliveries(context.Background())
-}
-
 // SendWelcomeEmail notifies a freshly created account. providerLabel is empty
 // for password registration and names the provider for social sign-up.
 // surface is the product the browser signed up through; the welcome mail is

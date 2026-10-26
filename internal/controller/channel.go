@@ -144,7 +144,14 @@ func getResponseBodyWithoutChannel(method, endpoint string, headers http.Header)
 	for k := range headers {
 		req.Header.Add(k, headers.Get(k))
 	}
-	resp, err := http.DefaultClient.Do(req)
+	// The same client a saved channel's model list uses (GetResponseBody):
+	// the relay timeout and redirect policy, not http.DefaultClient, which
+	// waits forever on an upstream that never answers.
+	client, err := service.NewProxyHttpClient("")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -130,7 +130,7 @@ func Run() {
 		common.SafeGo("pprof-server", func() {
 			log.Println(http.ListenAndServe("127.0.0.1:8005", nil))
 		})
-		common.SafeGo("runtime-monitor", common.Monitor)
+		common.SafeGo("runtime-monitor", Monitor)
 		common.SysLog("pprof enabled")
 	}
 
@@ -292,8 +292,7 @@ func serveHTTP(ctx context.Context, server *http.Server, health *runtimeHealth) 
 }
 
 func InitResources() error {
-	// Initialize resources here if needed
-	// This is a placeholder function for future resource initialization
+	// Load a local .env when one is present.
 	err := godotenv.Load(".env")
 	if err != nil {
 		if common.DebugEnabled {
