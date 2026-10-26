@@ -37,6 +37,26 @@ func TestResponsesIRRoundTripPreservesExplicitFalseToolStrict(t *testing.T) {
 	}
 }
 
+func TestEncodeDropsCompletedGeminiReasoning(t *testing.T) {
+	request := &textgen.Request{Conversation: []textgen.InputItem{
+		{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "first"}}},
+		{Kind: textgen.InputReasoning, Role: "assistant", Opaque: []textgen.OpaqueValue{{Dialect: "gemini", Value: json.RawMessage(`"signature"`)}}},
+		{Kind: textgen.InputMessage, Role: "assistant", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "answer"}}},
+		{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "next"}}},
+	}}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input []map[string]any
+	if err := json.Unmarshal(wire.Input, &input); err != nil {
+		t.Fatal(err)
+	}
+	if len(input) != 3 {
+		t.Fatalf("completed Gemini reasoning should be omitted, got %+v", input)
+	}
+}
+
 func TestDecodeMarksExtendedInstructionBlocksNativeOnly(t *testing.T) {
 	request, _, err := Decode([]byte(`{"model":"m","instructions":[{"type":"input_text","text":"Be concise","cache_control":{"type":"ephemeral"}},{"type":"future_instruction","text":"Keep citations"}],"input":"hello"}`))
 	if err != nil {

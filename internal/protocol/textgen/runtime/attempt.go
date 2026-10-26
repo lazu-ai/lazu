@@ -115,12 +115,12 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 			plan = replanned
 		}
 	}
-	if !plan.Native && client.Family == textgen.ProtocolAnthropic && !snapshot.Features.Has(textgen.FeatureReasoningEffort) && effective.Reasoning != (textgen.ReasoningOptions{}) {
-		// A Claude client asks for thinking on every request (Claude Code
-		// does). Another vendor's model takes it as reasoning_effort, which
-		// a model that does not reason refuses; the ask goes only to a model
-		// the catalog says reasons, as the legacy conversion never sent it
-		// at all.
+	if !plan.Native && (client.Family == textgen.ProtocolAnthropic || client.Family == textgen.ProtocolGemini) &&
+		!snapshot.Features.Has(textgen.FeatureReasoningEffort) && effective.Reasoning != (textgen.ReasoningOptions{}) {
+		// Claude and Gemini clients can ask for thinking on every request.
+		// Another vendor's model takes that as reasoning_effort, which a
+		// model that does not reason refuses; the ask goes only to a model
+		// the catalog says reasons. The legacy conversions did not send it.
 		if effective == parsed.Semantic {
 			effective = effective.Clone()
 		}
