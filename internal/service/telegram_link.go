@@ -294,7 +294,7 @@ func telegramAccountContext(ctx context.Context, telegramUserID int64) string {
 		return b.String()
 	}
 	since := time.Now().Add(-telegramRecentErrorDays * 24 * time.Hour).Unix()
-	logs, _, err := model.GetAllLogs(model.LogTypeError, since, 0, "", "", user.Id, "", 0, telegramRecentErrorCount, 0, "")
+	logs, _, _, err := model.GetAllLogs(model.LogTypeError, since, 0, "", "", user.Id, "", 0, telegramRecentErrorCount, 0, "")
 	if err != nil {
 		// Not knowing is not the same as none.
 		b.WriteString("Recent failed requests could not be read just now.\n")

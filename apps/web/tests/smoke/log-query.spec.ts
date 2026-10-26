@@ -366,3 +366,45 @@ test('deep links carry their scope into the request the log page sends', async (
 
   await app.expectNoUnexpectedErrors();
 });
+
+test('a log list that stopped counting shows its total as a lower bound', async ({
+  page,
+}) => {
+  const now = Math.floor(Date.now() / 1000);
+  const row = {
+    id: 1,
+    type: 2,
+    created_at: now - 60,
+    model_name: 'gpt-5.4',
+    token_name: 'prod',
+    request_id: 'req_capped_count',
+    amount_microusd: 1200,
+    prompt_tokens: 10,
+    completion_tokens: 5,
+    content: '',
+    other: '{}',
+  };
+  const app = await setupMockedApp(page, {
+    user: { id: 7, username: 'member', display_name: 'Member', role: 1 },
+    payloadFor: (url) => {
+      if (new URL(url).pathname !== '/api/log/self/') return undefined;
+      return {
+        data: {
+          items: [row],
+          page: 1,
+          page_size: 10,
+          total: 10000,
+          total_at_least: true,
+        },
+        message: '',
+        success: true,
+      };
+    },
+  });
+  await expectRouteReady(page, '/console/usage?tab=logs');
+  await expect(page.locator('.logv2-summary')).toContainText('10,000+');
+  await expect(
+    page.locator('.logv2-desktop-master .logv2-foot').first(),
+  ).toContainText('超过');
+  await app.expectNoUnexpectedErrors();
+});

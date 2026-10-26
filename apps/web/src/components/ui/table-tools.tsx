@@ -36,6 +36,8 @@ type ItemsPayload<T> = {
   page: number;
   pageSize: number;
   total: number;
+  /** The list stopped counting at `total`; more rows match. */
+  totalAtLeast: boolean;
 };
 
 type PaginationConfig = {
@@ -73,6 +75,7 @@ export function coerceItemsPayload<T = unknown>(
       dataRecord.page_size || dataRecord.pageSize || fallbackSize,
     ),
     total: Number(dataRecord.total ?? items.length),
+    totalAtLeast: dataRecord.total_at_least === true,
     meta: data,
   };
 }

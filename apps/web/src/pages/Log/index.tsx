@@ -632,7 +632,22 @@ const Token = () => {
                 <span>{t('page.console.log.summary.requests')}</span>
                 <b>
                   <Pending chars={4} pending={logs.isLoading}>
-                    {logs.total.toLocaleString()}
+                    {logs.totalAtLeast ? (
+                      <span
+                        title={t(
+                          'page.console.log.summary.requestsAtLeastHint',
+                          {
+                            total: logs.total.toLocaleString(),
+                          },
+                        )}
+                      >
+                        {t('page.console.log.summary.requestsAtLeast', {
+                          total: logs.total.toLocaleString(),
+                        })}
+                      </span>
+                    ) : (
+                      logs.total.toLocaleString()
+                    )}
                   </Pending>
                 </b>
               </div>
@@ -896,14 +911,19 @@ const Token = () => {
                     {logs.isLoading ? (
                       <PendingValue chars={18} />
                     ) : (
-                      t('page.console.log.footer.summary', {
-                        cost: renderQuota(
-                          asMicroUSD(logs.stat.amount_microusd),
-                          6,
-                        ),
-                        defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
-                        total: compactNumber(logs.total),
-                      })
+                      t(
+                        logs.totalAtLeast
+                          ? 'page.console.log.footer.summaryAtLeast'
+                          : 'page.console.log.footer.summary',
+                        {
+                          cost: renderQuota(
+                            asMicroUSD(logs.stat.amount_microusd),
+                            6,
+                          ),
+                          defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
+                          total: compactNumber(logs.total),
+                        },
+                      )
                     )}
                   </span>
                   <Pagination
@@ -953,14 +973,19 @@ const Token = () => {
                     {logs.isLoading ? (
                       <PendingValue chars={18} />
                     ) : (
-                      t('page.console.log.footer.summary', {
-                        cost: renderQuota(
-                          asMicroUSD(logs.stat.amount_microusd),
-                          6,
-                        ),
-                        defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
-                        total: compactNumber(logs.total),
-                      })
+                      t(
+                        logs.totalAtLeast
+                          ? 'page.console.log.footer.summaryAtLeast'
+                          : 'page.console.log.footer.summary',
+                        {
+                          cost: renderQuota(
+                            asMicroUSD(logs.stat.amount_microusd),
+                            6,
+                          ),
+                          defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
+                          total: compactNumber(logs.total),
+                        },
+                      )
                     )}
                   </span>
                   <Pagination

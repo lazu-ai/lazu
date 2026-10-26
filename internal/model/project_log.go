@@ -96,6 +96,17 @@ func ListProjectLogsContext(ctx context.Context, access ProjectLogAccess, filter
 	return logs, total, err
 }
 
+// ListProjectLogsCappedContext is the console's log page: its total is
+// exact up to LogCountExactLimit, and atLeast says it stopped counting there.
+func ListProjectLogsCappedContext(ctx context.Context, access ProjectLogAccess, filter ProjectLogFilter, offset, limit int) ([]*Log, int64, bool, error) {
+	total, atLeast, err := countLogsCapped(ProjectLogsQuery(access, filter).WithContext(ctx))
+	if err != nil {
+		return nil, 0, false, err
+	}
+	logs, err := ListProjectLogPageContext(ctx, access, filter, offset, limit)
+	return logs, total, atLeast, err
+}
+
 func ListProjectLogPageContext(ctx context.Context, access ProjectLogAccess, filter ProjectLogFilter, offset, limit int) ([]*Log, error) {
 	query := ProjectLogsQuery(access, filter).WithContext(ctx)
 	var logs []*Log

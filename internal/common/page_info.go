@@ -11,7 +11,10 @@ type PageInfo struct {
 	PageSize int `json:"page_size"` // page size 页大小
 
 	Total int `json:"total"` // 总条数，后设置
-	Items any `json:"items"` // 数据，后设置
+	// TotalAtLeast says Total is a lower bound: the list stopped counting
+	// there. Absent on lists that always count exactly.
+	TotalAtLeast bool `json:"total_at_least,omitempty"`
+	Items        any  `json:"items"` // 数据，后设置
 }
 
 func (p *PageInfo) GetStartIdx() int {

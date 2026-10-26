@@ -174,7 +174,7 @@ func TestPostgresTelemetryRetentionPreservesIndependentPolicies(t *testing.T) {
 					t.Fatalf("retention altered protected %T count=%d err=%v", item.row, total, err)
 				}
 			}
-			listed, _, err := GetAllLogs(LogTypeUnknown, 0, 0, "", "", 0, "", 0, 100, 0, "")
+			listed, _, _, err := GetAllLogs(LogTypeUnknown, 0, 0, "", "", 0, "", 0, 100, 0, "")
 			if err != nil {
 				t.Fatal(err)
 			}
