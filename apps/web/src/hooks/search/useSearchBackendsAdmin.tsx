@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { showSuccess } from '../../helpers';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
@@ -85,7 +85,7 @@ export function useSearchBackendsAdmin() {
       );
     },
     onSuccess: () => {
-      showSuccess(t('page.console.searchBackend.saved'));
+      notify.success(t('page.console.searchBackend.saved'));
       invalidate();
     },
     onError: apiErrorHandler,
@@ -99,7 +99,7 @@ export function useSearchBackendsAdmin() {
         }),
       ),
     onSuccess: () => {
-      showSuccess(t('page.console.searchBackend.deleted'));
+      notify.success(t('page.console.searchBackend.deleted'));
       invalidate();
     },
     onError: apiErrorHandler,

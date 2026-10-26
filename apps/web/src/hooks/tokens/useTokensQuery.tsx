@@ -11,16 +11,12 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { asMicroUSD, type MicroUSD } from '../../helpers/money';
 import { microUSDToUSD, usdToMicroUSD } from '../../helpers/render';
-import {
-  copy,
-  showError,
-  showSuccess,
-  timestamp2string,
-} from '../../helpers/utils';
+import { copy, showError, timestamp2string } from '../../helpers/utils';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import { chatTemplateLeaksKey } from '../../pages/Token/chatTemplate';
@@ -771,7 +767,7 @@ export function useTokensQuery(
       return response.data as ApiEnvelope;
     },
     onSuccess: () => {
-      showSuccess(t('page.console.tables.actionSuccess'));
+      notify.success(t('page.console.tables.actionSuccess'));
       invalidate();
     },
     onError: apiErrorHandler,
@@ -826,7 +822,9 @@ export function useTokensQuery(
         // A created Key is announced by the banner that shows its value, so
         // only an edit needs a toast.
         if (variables.editingToken?.id) {
-          showSuccess(t('legacy.i18n.token_updated_successfully.0b51462075'));
+          notify.success(
+            t('legacy.i18n.token_updated_successfully.0b51462075'),
+          );
         }
         invalidate();
       },
@@ -876,7 +874,7 @@ export function useTokensQuery(
       return { success: true, data: results.length - failed.length };
     },
     onSuccess: (payload) => {
-      showSuccess(
+      notify.success(
         t('page.console.token.selection.disabled', {
           count: Number(payload?.data || 0),
         }),
@@ -901,7 +899,7 @@ export function useTokensQuery(
     },
     onSuccess: (payload) => {
       const count = Number(payload?.data || selectedRows.length);
-      showSuccess(t('legacy.i18n.deleted_tokens.0a91776377', { count }));
+      notify.success(t('legacy.i18n.deleted_tokens.0a91776377', { count }));
       setSelectedIds([]);
       invalidate();
     },
@@ -978,7 +976,7 @@ export function useTokensQuery(
 
   const copyText = async (text: string) => {
     if (await copy(text)) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
       return true;
     }
     showError(t('page.console.tables.copyFailed'));

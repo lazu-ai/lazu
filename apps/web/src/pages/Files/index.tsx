@@ -28,8 +28,9 @@ import {
   truncateMiddle,
   useColumnVisibility,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import { showError, showSuccess } from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import { apiErrorHandler } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
@@ -139,7 +140,7 @@ const Files = () => {
       await API.delete(`/api/files/${file.id}`, { skipErrorHandler: true });
     },
     onSuccess: () => {
-      showSuccess(t('page.console.files.toast.deleteSuccess'));
+      notify.success(t('page.console.files.toast.deleteSuccess'));
       setDeleteTarget(null);
       invalidate();
     },

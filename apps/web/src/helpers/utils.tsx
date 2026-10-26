@@ -6,6 +6,7 @@ import { sanitizeMarkup } from './sanitize';
 import { openReportProblem } from '../components/support/reportChannel';
 import Pagination from '../components/ui/pagination';
 import { recordStatusIssue } from '../components/ui/status-center';
+import { notify } from '../components/ui/toast';
 import { toastConstants } from '../constants';
 import { THINK_TAG_REGEX, MESSAGE_ROLES } from '../constants/chat.constants';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
@@ -193,15 +194,6 @@ type ToastOptions = NonNullable<Parameters<typeof toast.error>[1]>;
 let showErrorOptions: ToastOptions = {
   duration: toastConstants.ERROR_TIMEOUT,
 };
-let showWarningOptions: ToastOptions = {
-  duration: toastConstants.WARNING_TIMEOUT,
-};
-let showSuccessOptions: ToastOptions = {
-  duration: toastConstants.SUCCESS_TIMEOUT,
-};
-let showInfoOptions: ToastOptions = {
-  duration: toastConstants.INFO_TIMEOUT,
-};
 let showNoticeOptions: ToastOptions = { duration: Infinity };
 
 const ERROR_DEDUP_WINDOW_MS = 4000;
@@ -216,13 +208,7 @@ const isMobileScreen =
 if (isMobileScreen) {
   // Narrow screens get a centered toast; every tone must be listed or that
   // tone silently keeps the desktop corner position.
-  for (const options of [
-    showErrorOptions,
-    showWarningOptions,
-    showSuccessOptions,
-    showInfoOptions,
-    showNoticeOptions,
-  ]) {
+  for (const options of [showErrorOptions, showNoticeOptions]) {
     options.position = 'bottom-center';
   }
 }
@@ -365,16 +351,19 @@ export function showError(error: unknown, fallback?: string) {
   });
 }
 
+// show* translate a message key or a known server message, then hand it to
+// notify (components/ui/toast), which owns durations and placement. Code
+// that already has a translated string calls notify directly.
 export function showWarning(message: unknown) {
-  toast.warning(translateMessage(message), showWarningOptions);
+  notify.warning(translateMessage(message));
 }
 
 export function showSuccess(message: unknown) {
-  toast.success(translateMessage(message), showSuccessOptions);
+  notify.success(translateMessage(message));
 }
 
 export function showInfo(message: unknown) {
-  toast.info(translateMessage(message), showInfoOptions);
+  notify.info(translateMessage(message));
 }
 
 export function showNotice(message: unknown, isHTML = false) {

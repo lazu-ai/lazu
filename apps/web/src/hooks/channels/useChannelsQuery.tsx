@@ -14,9 +14,10 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
-import { copy, showError, showInfo, showSuccess } from '../../helpers/utils';
+import { copy, showError, showSuccess } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
@@ -501,13 +502,13 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
     },
     onSuccess: (payload, variables) => {
       if (variables.action === 'test') {
-        showInfo(
+        notify.info(
           t('page.console.channel.testStarted', {
             name: variables.record?.name || variables.id,
           }),
         );
       } else {
-        showSuccess(t('page.console.tables.actionSuccess'));
+        notify.success(t('page.console.tables.actionSuccess'));
       }
       invalidate();
     },
@@ -557,7 +558,7 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
       return splitListValue(unwrap<unknown>(response));
     },
     onSuccess: (models) => {
-      showSuccess(
+      notify.success(
         t('page.console.channel.form.fetchModelsSuccess', {
           count: models.length,
         }),
@@ -582,7 +583,7 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
       return response ? unwrap<unknown>(response) : undefined;
     },
     onSuccess: () => {
-      showSuccess(t('page.console.tables.actionSuccess'));
+      notify.success(t('page.console.tables.actionSuccess'));
       invalidate();
     },
     onError: apiErrorHandler,
@@ -593,7 +594,7 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
       .filter(Boolean)
       .join(' ');
     if (await copy(text)) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }

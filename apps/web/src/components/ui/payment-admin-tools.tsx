@@ -15,7 +15,8 @@ import {
   Modal,
   PendingBlock,
 } from './index';
-import { API, isRoot, showError, showSuccess } from '../../helpers';
+import { notify } from './toast';
+import { API, isRoot, showError } from '../../helpers';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../lib/api-error';
 
@@ -70,7 +71,7 @@ export function PaymentAdminTools() {
           { skipErrorHandler: true } as never,
         ),
       );
-      showSuccess(t(`${ns}.disputeResolved`));
+      notify.success(t(`${ns}.disputeResolved`));
       if (outcome === 'lost') setPendingLoss(null);
       await disputes.refetch();
     } catch (error) {
@@ -92,7 +93,7 @@ export function PaymentAdminTools() {
           { skipErrorHandler: true } as never,
         ),
       );
-      showSuccess(t(`${ns}.reconciled`));
+      notify.success(t(`${ns}.reconciled`));
       setReconcileOpen(false);
       setReconcileTopupId('');
     } catch (error) {

@@ -42,7 +42,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '../../../components/ui';
-import { copy, showError, showSuccess } from '../../../helpers/utils';
+import { notify } from '../../../components/ui/toast';
+import { copy, showError } from '../../../helpers/utils';
 import { errorMessage } from '../../../lib/api-error';
 import { cn } from '../../../lib/cn';
 import { isLegacyKey, useTokenLaneVendors } from '../token-support';
@@ -785,7 +786,7 @@ export function ConnectModal({
     const ok = await copySnippet();
     if (!ok) return;
     if (!(await saveChanges())) return;
-    showSuccess(
+    notify.success(
       t('page.console.token.connect.copiedToast', {
         defaultValue: '已复制 {{tool}} 配置',
         tool: tool.name,

@@ -47,7 +47,8 @@ import {
   TabsTrigger,
 } from '../../components/ui';
 import { coerceItemsPayload } from '../../components/ui/table-tools';
-import { API, showSuccess } from '../../helpers';
+import { notify } from '../../components/ui/toast';
+import { API } from '../../helpers';
 import { isRoot } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../lib/api-error';
@@ -347,7 +348,7 @@ export default function PricePlanEditorPage() {
       { id: planId, payload: payloadFromDraft(draft) },
       {
         onSuccess: (plan) => {
-          showSuccess(t('common.saved', { defaultValue: '已保存' }));
+          notify.success(t('common.saved', { defaultValue: '已保存' }));
           if (!planId) {
             navigate(`/console/price-plans/${plan.id}`, {
               replace: true,

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import { showError, showSuccess } from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import type { AxiosResponse } from 'axios';
@@ -166,7 +167,7 @@ export function useModelInfoMutations(t: TFunction) {
       return readData<{ applied: number }>(response, { applied: 0 });
     },
     onSuccess: (data) => {
-      showSuccess(
+      notify.success(
         t(`${ns}.firstRunApplied`, {
           count: data.applied,
           defaultValue: '已采用 {{count}} 个发布日期',
@@ -186,7 +187,9 @@ export function useModelInfoMutations(t: TFunction) {
       assertSuccess(response);
     },
     onSuccess: () => {
-      showSuccess(t(`${ns}.synced`, { defaultValue: '已从 models.dev 同步' }));
+      notify.success(
+        t(`${ns}.synced`, { defaultValue: '已从 models.dev 同步' }),
+      );
       invalidate();
     },
     onError: (error) => {
@@ -201,7 +204,7 @@ export function useModelInfoMutations(t: TFunction) {
       assertSuccess(response);
     },
     onSuccess: () => {
-      showSuccess(
+      notify.success(
         t('page.console.modelOps.makers.saved', {
           defaultValue: '厂商顺序已保存',
         }),

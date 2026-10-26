@@ -1,8 +1,9 @@
 import { Settings } from 'lucide-react';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { notify } from '../../../components/ui/toast';
 import { StatusContext } from '../../../context/Status';
-import { API, showSuccess, showError } from '../../../helpers';
+import { API, showError } from '../../../helpers';
 import {
   buildSidebarSectionConfigs,
   filterSidebarModulesConfig,
@@ -145,7 +146,7 @@ export default function SettingsSidebarModulesUser({
 
   function resetSidebarModules() {
     setSidebarModulesUser(defaultConfig);
-    showSuccess(t('legacy.i18n.reset_to_default_configuration.5b31c4e459'));
+    notify.success(t('legacy.i18n.reset_to_default_configuration.5b31c4e459'));
   }
 
   async function onSubmit() {
@@ -156,7 +157,7 @@ export default function SettingsSidebarModulesUser({
           sidebar_modules: JSON.stringify(sidebarModulesUser),
         }),
       );
-      showSuccess(t('legacy.i18n.saved_successfully.7e68eb622d'));
+      notify.success(t('legacy.i18n.saved_successfully.7e68eb622d'));
       await refreshUserConfig();
     } catch (error) {
       showError(

@@ -26,8 +26,9 @@ import {
   Modal,
   Pagination,
 } from '../../components/ui';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import { isRoot, showError, showSuccess } from '../../helpers/utils';
+import { isRoot, showError } from '../../helpers/utils';
 import { useModelInfoReviewsQuery } from '../../hooks/models/useModelInfoQuery';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
 import {
@@ -323,7 +324,7 @@ export default function ModelOpsPage() {
         }),
       );
       queryClient.invalidateQueries({ queryKey: ['console'] });
-      showSuccess(t(`${ns}.models.saved`, { defaultValue: '已保存' }));
+      notify.success(t(`${ns}.models.saved`, { defaultValue: '已保存' }));
     } catch (error) {
       showError(error);
       throw error;

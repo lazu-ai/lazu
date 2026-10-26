@@ -4,6 +4,7 @@ import {
   copy,
   showSuccess,
 } from './utils';
+import { notify } from '../components/ui/toast';
 import {
   STORAGE_KEYS,
   DEFAULT_TIME_INTERVALS,
@@ -213,7 +214,7 @@ export const createFormField = (
 // ========== 操作处理函数 ==========
 export const handleCopyUrl = async (url: string, t: Translate) => {
   if (await copy(url)) {
-    showSuccess(t('legacy.i18n.copy_successful.c1ef062e06'));
+    notify.success(t('legacy.i18n.copy_successful.c1ef062e06'));
   }
 };
 

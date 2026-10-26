@@ -18,7 +18,6 @@ import { API } from '../../helpers/api';
 import { getDocsBaseURL } from '../../helpers/brandUrls';
 import { resolveGatewayHref } from '../../helpers/gatewayNavigation';
 import { getLucideIcon } from '../../helpers/lucide';
-import { showSuccess } from '../../helpers/utils';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { useSidebar } from '../../hooks/common/useSidebar';
@@ -34,6 +33,7 @@ import {
    — so on Usage, Keys and Models it rendered unstyled. The sidebar shows it,
    so the sidebar imports its styles. */
 import '../../features/projects/projects.css';
+import { notify } from '../ui/toast';
 
 const ROUTER_MAP = {
   token: '/console/token',
@@ -166,7 +166,7 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
       // The session may already be gone server-side; the cleanup below is what
       // actually signs this browser out.
     }
-    showSuccess(t('legacy.i18n.logout_successful.ea3f16cb50'));
+    notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
     userDispatch({ type: 'logout' });
     localStorage.removeItem('user');
     navigate('/login');

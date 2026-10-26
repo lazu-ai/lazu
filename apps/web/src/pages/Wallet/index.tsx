@@ -34,6 +34,7 @@ import {
 } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
 import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
+import { notify } from '../../components/ui/toast';
 import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { StatusContext } from '../../context/Status';
 import { UserContext } from '../../context/User';
@@ -45,7 +46,6 @@ import {
   isRoot,
   microUSDToUSD,
   showError,
-  showSuccess,
   timestamp2string,
 } from '../../helpers';
 import { getSupportEmail } from '../../helpers/brandUrls';
@@ -375,7 +375,7 @@ const WalletPage = () => {
       );
     },
     onSuccess: () => {
-      showSuccess(t(`${topupNs}.history.completeSuccess`));
+      notify.success(t(`${topupNs}.history.completeSuccess`));
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.user }),
         queryClient.invalidateQueries({

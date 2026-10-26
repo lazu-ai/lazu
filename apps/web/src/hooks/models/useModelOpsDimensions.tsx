@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import { showSuccess } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import type { TFunction } from 'i18next';
@@ -78,7 +78,7 @@ export function useModelOpsDimensionMutations(t: TFunction) {
       return unwrap<ChannelLane>(response);
     },
     onSuccess: () => {
-      showSuccess(t('common.saved'));
+      notify.success(t('common.saved'));
       // A new ratio reprices every model that follows it.
       void queryClient.invalidateQueries({ queryKey: ['console'] });
     },

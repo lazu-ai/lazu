@@ -3,9 +3,10 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { createSearchParams } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
 import { copy } from '../../helpers/clipboard';
-import { showError, showSuccess } from '../../helpers/utils';
+import { showError } from '../../helpers/utils';
 import { getUsageProjectScope } from '../../hooks/usage-logs/usageProjectScope';
 import { useUsageScope } from '../../hooks/usage-logs/useUsageScope';
 import { unwrap } from '../../lib/api-error';
@@ -192,7 +193,7 @@ function TaskDetail({
   const url = task.artifact?.url;
   const mime = task.artifact?.mime_type || '';
   const copyValue = async (value: string) => {
-    if (await copy(value)) showSuccess(t('page.console.tables.copied'));
+    if (await copy(value)) notify.success(t('page.console.tables.copied'));
     else showError(t('page.console.tables.copyFailed'));
   };
   const timeline: { at?: number; label: string; tone?: string }[] = [
