@@ -8,7 +8,7 @@ import {
   type WhatsNewOpenDetail,
 } from './whatsNewChannel';
 import { StatusContext } from '../../context/Status';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import {
   ANNOUNCEMENTS_UPDATED_EVENT,
   type Announcement,
@@ -34,7 +34,7 @@ const WhatsNewDialog = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
   const [statusState] = useContext(StatusContext);
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const [items, setItems] = useState<Announcement[]>([]);
   const [pinnedAnnouncement, setPinnedAnnouncement] =
     useState<Announcement | null>(null);
@@ -43,7 +43,7 @@ const WhatsNewDialog = () => {
   const [markingRead, setMarkingRead] = useState(false);
 
   const isConsoleRoute = location.pathname.startsWith('/console');
-  const user = userState.user;
+  const user = userSession.user;
   const announcementLocale = i18n.resolvedLanguage || i18n.language;
 
   const loadAnnouncements = useCallback(

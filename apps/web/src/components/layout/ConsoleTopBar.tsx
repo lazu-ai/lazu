@@ -30,7 +30,7 @@ import { preloadConsoleRoute } from './routePreload';
 import { useConsoleScope } from '../../context/ConsoleScope';
 import { StatusContext } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
 import { useProject } from '../../features/projects/ProjectContext';
 import { API } from '../../helpers/api';
@@ -78,14 +78,14 @@ const ConsoleTopBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const project = useProject();
-  const [userState, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const [statusState] = useContext(StatusContext);
   const { activeScope } = useConsoleScope();
   const actualTheme = useActualTheme();
   const rawSetTheme = useSetTheme();
   const setTheme =
     typeof rawSetTheme === 'function' ? rawSetTheme : () => undefined;
-  const user = userState.user;
+  const user = userSession.user;
   const { hasUnread } = useAnnouncementsUnread(Boolean(user));
   const { isModuleVisible } = useSidebar();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -164,10 +164,10 @@ const ConsoleTopBar = () => {
       // below is what actually signs this browser out.
     }
     showSuccess(t('legacy.i18n.logout_successful.ea3f16cb50'));
-    userDispatch({ type: 'logout' });
+    userSession.signOut();
     localStorage.removeItem('user');
     navigate('/login');
-  }, [navigate, t, userDispatch]);
+  }, [navigate, t, userSession.signOut]);
 
   const viewerName = project.viewerName || user?.username || '';
 

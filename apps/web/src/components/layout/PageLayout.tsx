@@ -23,7 +23,7 @@ import SiderBar from './SiderBar';
 import App from '../../App';
 import { StatusContext } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { surfaceForPath } from '../../extensions';
 import { surfaceLanguageKey } from '../../extensions/i18n';
 import { ProjectRemovedNotice } from '../../features/projects/components/ProjectRemovedNotice';
@@ -96,7 +96,7 @@ const PageLayout = () => {
   // A hovered or focused link starts its destination's chunk, so the click
   // lands on a module that is already in memory instead of waiting for one.
   useRoutePrefetch();
-  const [, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const [, statusDispatch] = useContext(StatusContext);
   const { removedNotice } = useProject();
   const location = useLocation();
@@ -320,11 +320,11 @@ const PageLayout = () => {
     const raw = localStorage.getItem('user');
     const data = safeJsonParse<UserPayload>(raw);
     if (data) {
-      userDispatch({ type: 'login', payload: data });
+      userSession.signIn(data);
     } else if (raw) {
       localStorage.removeItem('user');
     }
-  }, [userDispatch]);
+  }, [userSession.signIn]);
 
   const loadStatus = useCallback(async () => {
     try {

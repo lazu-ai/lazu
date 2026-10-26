@@ -24,7 +24,7 @@
  * and the version and timestamp the server records on the account.
  */
 import { Lock, Mail, User, Users } from 'lucide-react';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Link,
@@ -48,7 +48,7 @@ import { EMAIL_VALID_MINUTES, RESEND_SECONDS, canSendTo } from './resend';
 import SsoButton from './SsoButton';
 import TermsNotice from './TermsNotice';
 import useAuthStatus from './useAuthStatus';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { API, updateAPI } from '../../helpers/api';
 import { buildAPIURL } from '../../helpers/apiUrl';
 import {
@@ -142,7 +142,7 @@ const LoginForm = () => {
   const location = useLocation();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const [, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const { ready, status: authStatus } = useAuthStatus();
   // A stored user is only a hint: the backend's cookie session decides
   // whether this visitor is already signed in.
@@ -215,7 +215,7 @@ const LoginForm = () => {
         }
         if (result.kind === 'authenticated') {
           const user = result.user;
-          userDispatch({ type: 'login', payload: user });
+          userSession.signIn(user);
           setUserData(user);
           updateAPI();
           cancelled = true;
@@ -226,7 +226,7 @@ const LoginForm = () => {
         }
         if (result.kind === 'unauthorized') {
           localStorage.removeItem('user');
-          userDispatch({ type: 'logout' });
+          userSession.signOut();
           updateAPI();
         }
         // HTTP 200 success=false and transport failures do not prove the
@@ -244,7 +244,8 @@ const LoginForm = () => {
     navigate,
     requestedDestination,
     sessionProbe,
-    userDispatch,
+    userSession.signIn,
+    userSession.signOut,
   ]);
 
   useEffect(() => {
@@ -292,7 +293,7 @@ const LoginForm = () => {
   const isPasswordMode = activeCredential === 'password';
 
   const completeLogin = (data: Record<string, unknown>) => {
-    userDispatch({ type: 'login', payload: data });
+    userSession.signIn(data);
     localStorage.setItem('user', JSON.stringify(data));
     setUserData(data);
     updateAPI();

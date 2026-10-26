@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { API, asMicroUSD, timestamp2string } from '../../helpers';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
 import { renderQuota } from '../../helpers/render';
@@ -60,8 +59,8 @@ const spendLabel = (stat: UsageStat | undefined, loading: boolean) => {
 export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
   const { t } = useTranslation();
   const tokenName = String(record.name || '');
-  const [userState] = useContext(UserContext);
-  const ownerID = String(userState?.user?.id ?? '');
+  const userSession = useSession();
+  const ownerID = String(userSession.user?.id ?? '');
   const tokenID = String(record.id ?? '');
   const week = useTokenSpend(tokenID, ownerID, 7);
   const today = useTokenSpend(tokenID, ownerID, 0);

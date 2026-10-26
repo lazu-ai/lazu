@@ -1,8 +1,8 @@
-import { useContext, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthPanel, AuthShell } from './AuthLayout';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { API, updateAPI } from '../../helpers/api';
 import {
   safeInternalAuthPath,
@@ -14,7 +14,7 @@ import { LoadingState } from '../ui';
 
 export default function OIDCCallback() {
   const { t } = useTranslation();
-  const [, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -31,7 +31,7 @@ export default function OIDCCallback() {
         if (cancelled) return;
         if (res.data?.success && res.data?.data) {
           const user = res.data.data;
-          userDispatch({ type: 'login', payload: user });
+          userSession.signIn(user);
           setUserData(user);
           updateAPI();
           navigate(postLoginDestination(next, user.role), { replace: true });
@@ -51,7 +51,7 @@ export default function OIDCCallback() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, searchParams, userDispatch]);
+  }, [navigate, searchParams, userSession.signIn]);
 
   return (
     <AuthShell>

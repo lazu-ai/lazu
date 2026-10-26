@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   REPORT_PROBLEM_OPEN_EVENT,
   type ReportProblemDetail,
 } from './reportChannel';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { API, showSuccess } from '../../helpers';
 import { getSupportEmail } from '../../helpers/brandUrls';
 import { apiErrorHandler, readApiError, unwrap } from '../../lib/api-error';
@@ -24,7 +24,7 @@ const mailtoHref = (subject: string, body: string) =>
 
 export default function ReportProblemDialog() {
   const { t } = useTranslation();
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<ReportProblemDetail>({});
   const [message, setMessage] = useState('');
@@ -32,7 +32,7 @@ export default function ReportProblemDialog() {
 
   useEffect(() => {
     const handleOpen = (event: Event) => {
-      if (!userState?.user) return;
+      if (!userSession.user) return;
       const next = (event as CustomEvent<ReportProblemDetail>).detail || {};
       setDetail(next);
       setMessage(next.message ? `${next.message}\n\n` : '');
@@ -42,7 +42,7 @@ export default function ReportProblemDialog() {
     window.addEventListener(REPORT_PROBLEM_OPEN_EVENT, handleOpen);
     return () =>
       window.removeEventListener(REPORT_PROBLEM_OPEN_EVENT, handleOpen);
-  }, [userState?.user]);
+  }, [userSession.user]);
 
   const facts = [
     detail.error

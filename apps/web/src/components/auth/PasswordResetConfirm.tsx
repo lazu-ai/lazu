@@ -1,11 +1,11 @@
 import { CheckCircle2, Mail, ShieldCheck } from 'lucide-react';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { AuthPanel, AuthShell, AuthTextField } from './AuthLayout';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { API, updateAPI } from '../../helpers/api';
 import { setUserData } from '../../helpers/data';
 import { showError, showNotice } from '../../helpers/utils';
@@ -31,7 +31,7 @@ const passwordByteCount = (value: string) =>
 const PasswordResetConfirm = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -167,7 +167,7 @@ const PasswordResetConfirm = () => {
       showNotice(t('page.public.auth.passwordResetComplete'));
       if (data && typeof data === 'object' && !Array.isArray(data)) {
         const user = data as Record<string, unknown>;
-        userDispatch({ type: 'login', payload: user });
+        userSession.signIn(user);
         localStorage.setItem('user', JSON.stringify(user));
         setUserData(user);
         updateAPI();

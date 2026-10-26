@@ -1,6 +1,5 @@
 import { Activity, CheckCircle2, X } from 'lucide-react';
 import {
-  useContext,
   useEffect,
   useLayoutEffect,
   useState,
@@ -11,7 +10,7 @@ import { Button } from './button';
 import { IconButton } from './icon-button';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { useConsoleScope } from '../../context/ConsoleScope';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { cn } from '../../lib/cn';
 import type { TFunction } from 'i18next';
 
@@ -225,12 +224,12 @@ export function StatusCenter({
   const inline = placement === 'inline';
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const { activeScope } = useConsoleScope();
   const storedUser = readStoredUser();
   const user =
-    userState.user && typeof userState.user === 'object'
-      ? (userState.user as Record<string, unknown>)
+    userSession.user && typeof userSession.user === 'object'
+      ? (userSession.user as Record<string, unknown>)
       : storedUser;
   const statusScope = `${accountIdentity(user)}:${activeScope.id}`;
 

@@ -9,7 +9,7 @@ import useOnboarding from '../../components/onboarding/useOnboarding';
 import ConsolePage from '../../components/ui/console-page';
 import { useConsoleScope } from '../../context/ConsoleScope';
 import { StatusContext } from '../../context/Status';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { extensionSidebarEntries, webExtensions } from '../../extensions';
 import { LeaveProjectAction } from '../../features/projects/components/LeaveProjectAction';
 import {
@@ -49,7 +49,7 @@ const Dashboard = () => {
   const { t } = useTranslation(['translation', 'projects'], {
     nsMode: 'fallback',
   });
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const [statusState] = useContext(StatusContext);
   const { availableScopes } = useConsoleScope();
   const project = useProject();
@@ -68,7 +68,7 @@ const Dashboard = () => {
   const platformScope = availableScopes.some(
     (scope) => scope.plane === 'platform',
   );
-  const user = userState?.user;
+  const user = userSession.user;
 
   const { dismiss: dismissOnboarding, state: onboardingState } =
     useOnboarding();

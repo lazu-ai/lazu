@@ -26,7 +26,7 @@ import {
   useConsoleScope,
   type ConsoleScopeProject,
 } from '../../context/ConsoleScope';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import {
   refreshSelf,
   readSelf,
@@ -105,7 +105,7 @@ const text = (value: unknown) =>
   typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const [userState, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const { activeScope, availableScopes, setActiveScope } = useConsoleScope();
   const queryClient = useQueryClient();
   const [refreshedUserId, setRefreshedUserId] = useState('');
@@ -128,7 +128,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       return false;
     }
   });
-  const user = userState.user;
+  const user = userSession.user;
   const enabled = readProjectsFlag(user);
 
   useEffect(() => {
@@ -190,9 +190,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     (data: SelfRecord | null) => {
       if (!data) return;
       if (JSON.stringify(data) === JSON.stringify(userRef.current)) return;
-      userDispatch({ type: 'login', payload: data as never });
+      userSession.signIn(data as never);
     },
-    [userDispatch],
+    [userSession.signIn],
   );
 
   const refreshProjects = useCallback(async () => {

@@ -4,7 +4,7 @@
  * again). Signing in from here comes back with `autoAccept`, so the person
  * who just proved the address is not asked a second time. */
 import { useQuery } from '@tanstack/react-query';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -13,7 +13,7 @@ import {
   LoadingState,
   StatusPage,
 } from '../../../components/ui';
-import { UserContext } from '../../../context/User';
+import { useSession } from '../../../context/User';
 import { API } from '../../../helpers/api';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import { isLazuApiError, unwrap } from '../../../lib/api-error';
@@ -62,8 +62,10 @@ export default function InviteAcceptPage() {
     null,
   );
   const [openError, setOpenError] = useState('');
-  const [userState, userDispatch] = useContext(UserContext);
-  const signedIn = Boolean(userState.user?.id || localStorage.getItem('user'));
+  const userSession = useSession();
+  const signedIn = Boolean(
+    userSession.user?.id || localStorage.getItem('user'),
+  );
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<
     | { kind: 'ok'; projectId: string }
@@ -147,7 +149,7 @@ export default function InviteAcceptPage() {
       } as never);
       if (!response.data?.success || !response.data.data)
         throw new Error(t('projects.acceptPage.openFailed'));
-      userDispatch({ type: 'login', payload: response.data.data });
+      userSession.signIn(response.data.data);
       announceProjectsChanged();
       setOpening('switching');
     } catch {
@@ -227,7 +229,7 @@ export default function InviteAcceptPage() {
     } catch {
       // The session may already be gone; the local cleanup signs this browser out.
     }
-    userDispatch({ type: 'logout' });
+    userSession.signOut();
     localStorage.removeItem('user');
     setBusy(false);
     continueWithInvite();

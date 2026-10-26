@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { Check, ChevronDown, Copy, Plus, Search, X } from 'lucide-react';
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -49,7 +49,7 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { copy, showError, showSuccess } from '../../helpers';
 import { API } from '../../helpers/api';
 import { getUserFromLocalStorage, isRoot } from '../../helpers/utils';
@@ -262,7 +262,7 @@ function FilterChip({
 export default function OrganizationsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
   const { status: authStatus } = useAuthStatus();
   const configuredProviderIDs = new Set(
@@ -270,10 +270,10 @@ export default function OrganizationsPage() {
   );
 
   const callerRole =
-    Number(userState?.user?.role) ||
+    Number(userSession.user?.role) ||
     Number(getUserFromLocalStorage()?.role) ||
     0;
-  const callerId = userState?.user?.id ?? getUserFromLocalStorage()?.id;
+  const callerId = userSession.user?.id ?? getUserFromLocalStorage()?.id;
 
   const [filters, setFilters] = useState<AccountFilters>(() => ({
     ...emptyFilters,

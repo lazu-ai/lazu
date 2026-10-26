@@ -10,7 +10,7 @@ import { BrandLogo } from '../../brand';
 import { useConsoleScope } from '../../context/ConsoleScope';
 import { StatusContext } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { extensionSidebarEntries } from '../../extensions';
 import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitcher';
 import { useProject } from '../../features/projects/ProjectContext';
@@ -136,7 +136,7 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
   const { t } = useTranslation();
   const location = useLocation();
   const actualTheme = useActualTheme();
-  const [userState, userDispatch] = useContext(UserContext);
+  const userSession = useSession();
   const [statusState] = useContext(StatusContext);
   // Operators can point documentation elsewhere at runtime
   // (general_setting.docs_link); the build-time default is the fallback,
@@ -167,10 +167,10 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
       // actually signs this browser out.
     }
     showSuccess(t('legacy.i18n.logout_successful.ea3f16cb50'));
-    userDispatch({ type: 'logout' });
+    userSession.signOut();
     localStorage.removeItem('user');
     navigate('/login');
-  }, [navigate, t, userDispatch]);
+  }, [navigate, t, userSession.signOut]);
   const logoTone = actualTheme === 'dark' ? 'paper' : 'graphite';
   const { activeScope, availableScopes } = useConsoleScope();
   const platformUser = availableScopes.some(
@@ -350,7 +350,7 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
       projectSolo,
       status,
       t,
-      userState?.user?.role,
+      userSession.user?.role,
     ],
   );
 

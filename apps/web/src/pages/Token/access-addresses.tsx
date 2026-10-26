@@ -1,7 +1,7 @@
 import { Copy } from 'lucide-react';
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Button } from '../../components/ui';
-import { UserContext } from '../../context/User';
+import { useSession } from '../../context/User';
 import { copy, showSuccess } from '../../helpers';
 import { getExternalAPIBaseURL } from '../../helpers/apiUrl';
 import type { TFunction } from 'i18next';
@@ -55,10 +55,10 @@ const kindNote = (kind: AccessAddressKind, t: TFunction) =>
  * default address is already in every snippet the connect dialog writes.
  */
 export function AccessAddressStrip({ t }: { t: TFunction }) {
-  const [userState] = useContext(UserContext);
+  const userSession = useSession();
   const extras = useMemo(
-    () => readAccessAddresses(userState.user),
-    [userState.user],
+    () => readAccessAddresses(userSession.user),
+    [userSession.user],
   );
   const addresses = useMemo(() => {
     const fallback = getExternalAPIBaseURL(
