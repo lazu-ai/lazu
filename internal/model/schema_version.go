@@ -78,7 +78,7 @@ const (
 // shipped; schemaUpgradeFloor then rises to the oldest version still handled,
 // and a deployment below it upgrades through schemaUpgradeGateRelease first.
 // The oldest version, 1, shipped on 2026-07-13, so nothing is refused yet;
-// v15 and earlier (the new-api era cleanup) may go from 2027-03-30.
+// v15 and earlier (the inherited-schema cleanup) may go from 2027-03-30.
 var (
 	schemaUpgradeFloor       = 0
 	schemaUpgradeGateRelease = ""

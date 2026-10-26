@@ -417,7 +417,7 @@ naming the release to upgrade to first, then to the current one.
 
 Today every schema version is inside the window: version 1 shipped with v0.1.0
 on 2026-07-13, so any lazu release upgrades directly. Version 1's code may go
-from 2027-01-13; the new-api era cleanup as a whole (schema versions 1–15, up
+from 2027-01-13; the inherited-schema cleanup as a whole (schema versions 1–15, up
 to v0.7.108, 2026-09-30) from 2027-03-30.
 
 ## Changing Credentials
