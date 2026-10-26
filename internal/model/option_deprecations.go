@@ -26,6 +26,13 @@ var deprecatedOptions = []struct {
 			"under the media fetch policy (docs/DEPLOYMENT.md, Deprecated settings).",
 	},
 	{
+		key:    "DataExportEnabled",
+		active: func(value string) bool { return strings.TrimSpace(value) == "true" },
+		notice: "DataExportEnabled is deprecated and will be removed after 2027-02-01, with DataExportInterval, " +
+			"the usage_data table and GET /api/data; the dashboard and usage pages do not read it. " +
+			"Export the table first if you keep it (docs/DEPLOYMENT.md, Deprecated settings).",
+	},
+	{
 		key:    "general_setting.quota_display_type",
 		active: func(value string) bool { return strings.TrimSpace(value) == "TOKENS" },
 		notice: "general_setting.quota_display_type=TOKENS is deprecated and will be removed after 2027-01-24; " +

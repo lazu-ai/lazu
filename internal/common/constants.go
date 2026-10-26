@@ -17,6 +17,10 @@ var Footer = ""
 var Logo = ""
 
 var DisplayTokenStatEnabled = true
+
+// Deprecated: delete after 2027-02-01, with DataExportInterval and the
+// usage_data table (model/option_deprecations.go; docs/DEPLOYMENT.md,
+// Deprecated settings).
 var DataExportEnabled = true
 var DataExportInterval = 5         // unit: minute
 var DataExportDefaultTime = "hour" // unit: minute
