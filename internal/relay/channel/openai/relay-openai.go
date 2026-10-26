@@ -145,6 +145,8 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 		if strings.TrimSpace(data) == "" {
 			return true
 		}
+		timer := common.StartHotPathStage(common.HotPathStageChatStreamEvent)
+		defer func() { timer.FinishFailed(upstreamStreamError != nil) }()
 		var chunk dto.ChatCompletionsStreamResponse
 		if err := common.UnmarshalJsonStr(data, &chunk); err != nil {
 			upstreamStreamError = types.NewError(err, types.ErrorCodeBadResponseBody, types.ErrOptionWithSkipRetry())
