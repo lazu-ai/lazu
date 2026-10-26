@@ -15,8 +15,8 @@ import {
   Modal,
   PendingBlock,
 } from './index';
-import { API } from '../../helpers/api';
 import { notify } from './toast';
+import { API } from '../../helpers/api';
 import { isRoot, showError } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { unwrap } from '../../lib/api-error';
