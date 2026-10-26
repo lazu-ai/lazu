@@ -63,6 +63,22 @@ func TestDecodePreservesPresenceAndMarksUnmodeledFieldsUnknown(t *testing.T) {
 	}
 }
 
+func TestEncodeDropsCompletedGeminiReasoning(t *testing.T) {
+	request := &textgen.Request{Conversation: []textgen.InputItem{
+		{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "first"}}},
+		{Kind: textgen.InputReasoning, Role: "assistant", Opaque: []textgen.OpaqueValue{{Dialect: "gemini", Value: json.RawMessage(`"signature"`)}}},
+		{Kind: textgen.InputMessage, Role: "assistant", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "answer"}}},
+		{Kind: textgen.InputMessage, Role: "user", Content: []textgen.ContentPart{{Kind: textgen.ContentText, Text: "next"}}},
+	}}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wire.Messages) != 3 {
+		t.Fatalf("completed Gemini reasoning should be omitted, got %+v", wire.Messages)
+	}
+}
+
 func TestDecodeTreatsNullableOptionsAsOmitted(t *testing.T) {
 	request, _, err := Decode([]byte(`{"model":"m","messages":[{"role":"user","content":"hello"}],"temperature":null,"top_p":null,"top_k":null,"seed":null,"stop":null,"n":null,"logprobs":null,"top_logprobs":null,"max_completion_tokens":null,"store":null}`))
 	if err != nil {

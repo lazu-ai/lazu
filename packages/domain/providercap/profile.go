@@ -48,8 +48,10 @@ type Profile struct {
 
 var profiles = map[int]Profile{
 	constant.APITypeOpenAI: {
-		Family:            ProtocolFamilyOpenAI,
-		SupportsGemini:    true,
+		Family: ProtocolFamilyOpenAI,
+		// a Gemini client's text generation is planned and bridged to Chat or
+		// Responses; its other actions (embedContent, ...) have no OpenAI path
+		SupportsGemini:    false,
 		SupportsClaude:    true,
 		SupportsResponses: true,
 		SupportsRealtime:  true,

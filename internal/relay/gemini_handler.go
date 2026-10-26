@@ -10,6 +10,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
+	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
@@ -45,9 +46,12 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 	}
 
 	adaptor.Init(info)
-	geminiConverter, lazuErr := requireGeminiRequestConverter(adaptor, info)
-	if lazuErr != nil {
-		return lazuErr
+	bridged := planBridges(info)
+	var geminiConverter channel.GeminiRequestConverter
+	if !bridged {
+		if geminiConverter, lazuErr = requireGeminiRequestConverter(adaptor, info); lazuErr != nil {
+			return lazuErr
+		}
 	}
 
 	// Clean up empty system instruction
@@ -65,7 +69,14 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 	}
 
 	var requestBody io.Reader
-	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
+	if bridged {
+		// hub: the IR encoded for the upstream the plan chose
+		body, _, bridgeErr := BridgeBody(c, info, adaptor)
+		if bridgeErr != nil {
+			return bridgeErr
+		}
+		requestBody = bytes.NewReader(body)
+	} else if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
 		body, err := common.GetRequestBody(c)
 		if err != nil {
 			return types.NewRequestBodyError(err)
