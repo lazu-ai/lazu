@@ -30,6 +30,10 @@ const (
 	DefaultStreamingTimeout  = time.Duration(constant.DefaultStreamingTimeoutSeconds) * time.Second
 )
 
+// streamWriteTimeout bounds each callback and each held-back flush; work that
+// takes longer ends the stream. A variable so tests can shorten it.
+var streamWriteTimeout = 10 * time.Second
+
 // Only the fixed initial allocation is retained. Scanner growth up to the
 // existing event limit remains request-owned and is collected normally.
 var streamScannerBuffers = sync.Pool{
@@ -270,22 +274,6 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	wg.Add(1)
 	common.RelayCtxGo(ctx, func() {
 		defer wg.Done()
-		// flushPending writes out held-back output once the next line has to
-		// come from the network. TryLock: a callback that timed out may still
-		// hold the lock, and that stream is ending anyway.
-		flushPending := func() {
-			if moreBuffered || !writeMutex.TryLock() {
-				return
-			}
-			defer writeMutex.Unlock()
-			if flushes.pending {
-				_ = FlushWriter(c)
-			}
-		}
-		defer func() {
-			moreBuffered = false
-			flushPending()
-		}()
 		buffer := streamScannerBuffers.Get().(*[InitialScannerBufferSize]byte)
 		scanner.Buffer(buffer[:], MaxScannerBufferSize)
 		defer func() {
@@ -295,25 +283,86 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			streamScannerBuffers.Put(buffer)
 		}()
 		// One goroutine runs every callback of this stream, one at a time, so
-		// an event costs a channel hand-off rather than a pool task. A callback
-		// that does not answer within 10s ends this scanner, so its eventual
-		// result cannot be mistaken for a later event's; closing events lets
-		// the handler goroutine exit once that callback returns.
+		// an event costs a channel hand-off rather than a pool task. It also
+		// runs the flushes held back for buffered events, so every client
+		// write stays under the same 10s bound. Work that does not answer in
+		// time ends this scanner, so its eventual result cannot be mistaken
+		// for a later one's; closing events lets the handler goroutine exit
+		// once that work returns.
+		type streamWork struct {
+			data       string
+			deferFlush bool // more events are buffered behind this one
+			flushOnly  bool // write out what earlier events held back
+		}
 		handlerDone := make(chan bool, 1)
-		events := make(chan string)
+		events := make(chan streamWork)
 		defer close(events)
 		common.SafeCtxGo(ctx, "stream-scanner-data-handler", func() {
-			for data := range events {
+			for work := range events {
 				handlerDone <- func() bool {
 					writeMutex.Lock()
 					defer writeMutex.Unlock()
-					return dataHandler(data)
+					if work.flushOnly {
+						if flushes.pending {
+							_ = FlushWriter(c)
+						}
+						return true
+					}
+					flushes.deferring = work.deferFlush
+					defer func() { flushes.deferring = false }()
+					return dataHandler(work.data)
 				}()
 			}
 		})
-		handlerTimeout := time.NewTimer(10 * time.Second)
+		handlerTimeout := time.NewTimer(streamWriteTimeout)
 		handlerTimeout.Stop()
 		defer handlerTimeout.Stop()
+		// runTimed hands one unit of work to the handler goroutine and waits
+		// for its result. ok is false when the scanner has to stop.
+		runTimed := func(work streamWork) (result, ok bool) {
+			handlerTimeout.Reset(streamWriteTimeout)
+			select {
+			case events <- work:
+			case <-handlerTimeout.C:
+				logger.LogError(c, "data handler timeout")
+				state.fail(context.DeadlineExceeded)
+				return false, false
+			case <-ctx.Done():
+				return false, false
+			case <-stopChan:
+				return false, false
+			}
+			select {
+			case result = <-handlerDone:
+				if !handlerTimeout.Stop() {
+					select {
+					case <-handlerTimeout.C:
+					default:
+					}
+				}
+				return result, true
+			case <-handlerTimeout.C:
+				logger.LogError(c, "data handler timeout")
+				state.fail(context.DeadlineExceeded)
+				return false, false
+			case <-ctx.Done():
+				return false, false
+			case <-stopChan:
+				return false, false
+			}
+		}
+		// flushOwed: an event was handled while more were buffered, so its
+		// output may still be held back. flushPending writes it out once the
+		// next line has to come from the network; false means stop.
+		flushOwed := false
+		flushPending := func() bool {
+			if moreBuffered || !flushOwed {
+				return true
+			}
+			flushOwed = false
+			_, ok := runTimed(streamWork{flushOnly: true})
+			return ok
+		}
 		defer func() {
 			if r := recover(); r != nil {
 				logger.LogError(c, fmt.Sprintf("scanner goroutine panic: %v", r))
@@ -344,11 +393,15 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			}
 
 			if len(data) < 6 {
-				flushPending()
+				if !flushPending() {
+					return
+				}
 				continue
 			}
 			if data[:5] != "data:" && data[:6] != "[DONE]" {
-				flushPending()
+				if !flushPending() {
+					return
+				}
 				continue
 			}
 			startTimer.Stop()
@@ -367,58 +420,38 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 				// 使用超时机制防止写操作阻塞
 				// The first event always goes out at once: time to first
 				// token must not wait on the rest of a batch.
-				writeMutex.Lock()
-				flushes.deferring = moreBuffered && firstEventSent
-				writeMutex.Unlock()
+				deferFlush := moreBuffered && firstEventSent
 				firstEventSent = true
-				handlerTimeout.Reset(10 * time.Second)
-				select {
-				case events <- data:
-				case <-handlerTimeout.C:
-					logger.LogError(c, "data handler timeout")
-					state.fail(context.DeadlineExceeded)
-					return
-				case <-ctx.Done():
-					return
-				case <-stopChan:
+				success, ok := runTimed(streamWork{data: data, deferFlush: deferFlush})
+				if !ok {
 					return
 				}
-
-				select {
-				case success := <-handlerDone:
-					if !handlerTimeout.Stop() {
-						select {
-						case <-handlerTimeout.C:
-						default:
-						}
-					}
-					writeMutex.Lock()
-					flushes.deferring = false
-					writeMutex.Unlock()
-					flushPending()
-					if !success {
-						if terminal != nil && terminal() {
-							state.Lock()
-							if err := c.Request.Context().Err(); err != nil {
-								state.result.Err = err
-								state.result.Done = false
-							} else {
-								state.result.Done = true
-							}
-							state.Unlock()
-						}
+				flushOwed = flushOwed || deferFlush
+				if !success {
+					moreBuffered = false
+					if !flushPending() {
 						return
 					}
-				case <-handlerTimeout.C:
-					logger.LogError(c, "data handler timeout")
-					state.fail(context.DeadlineExceeded)
+					if terminal != nil && terminal() {
+						state.Lock()
+						if err := c.Request.Context().Err(); err != nil {
+							state.result.Err = err
+							state.result.Done = false
+						} else {
+							state.result.Done = true
+						}
+						state.Unlock()
+					}
 					return
-				case <-ctx.Done():
-					return
-				case <-stopChan:
+				}
+				if !flushPending() {
 					return
 				}
 			} else {
+				moreBuffered = false
+				if !flushPending() {
+					return
+				}
 				state.Lock()
 				state.result.Done = true
 				state.Unlock()
@@ -430,6 +463,8 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			}
 		}
 
+		moreBuffered = false
+		flushPending()
 		if err := scanner.Err(); err != nil {
 			if err != io.EOF {
 				logger.LogError(c, "scanner error: "+err.Error())

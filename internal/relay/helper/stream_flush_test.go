@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -139,5 +141,47 @@ func TestStreamScannerFlushesBeforeWaitingOnTheNetwork(t *testing.T) {
 	}
 	if got := strings.Count(writer.flushedBody(), "data: {"); got != 4 {
 		t.Fatalf("flushed %d events in the end, want 4", got)
+	}
+}
+
+// stallingFlushWriter lets its first flush through and blocks every later
+// one until released, like a client that stopped reading.
+type stallingFlushWriter struct {
+	*httptest.ResponseRecorder
+	flushes atomic.Int32
+	release chan struct{}
+}
+
+func (w *stallingFlushWriter) Flush() {
+	if w.flushes.Add(1) > 1 {
+		<-w.release
+	}
+}
+
+// A held-back flush runs under the same write timeout as a callback: a client
+// that stops reading mid-burst ends the stream instead of pinning the scanner
+// until the idle timeout.
+func TestStreamScannerBoundsHeldBackFlush(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := streamWriteTimeout
+	streamWriteTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { streamWriteTimeout = previous })
+	writer := &stallingFlushWriter{ResponseRecorder: httptest.NewRecorder(), release: make(chan struct{})}
+	t.Cleanup(func() { close(writer.release) })
+	c, _ := gin.CreateTestContext(writer)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	done := make(chan StreamScanResult, 1)
+	go func() {
+		done <- StreamScannerHandler(c, &http.Response{Body: io.NopCloser(strings.NewReader(streamEvents(3)))}, &relaycommon.RelayInfo{}, func(data string) bool {
+			return StringData(c, data) == nil
+		})
+	}()
+	select {
+	case result := <-done:
+		if !errors.Is(result.Err, context.DeadlineExceeded) {
+			t.Fatalf("result = %+v, want a write timeout", result)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("scanner stayed blocked on a held-back flush")
 	}
 }
