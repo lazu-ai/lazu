@@ -17,7 +17,7 @@ import BrandLogo from '../../../brand/BrandLogo';
 import Reveal from '../../../components/marketing/Reveal';
 import { useStatus } from '../../../context/Status';
 import { useActualTheme } from '../../../context/Theme';
-import { getDocsBaseURL } from '../../../helpers/brandUrls';
+import { getDocsBaseURL, getSourceURL } from '../../../helpers/brandUrls';
 import '../../../styles/fonts.css';
 import '../lazu-landing.css';
 
@@ -254,6 +254,7 @@ const LazuLanding = () => {
       getDocsBaseURL(),
     [statusState],
   );
+  const sourceLink = getSourceURL(statusState?.status?.source_url);
 
   const barWidth = (pct: number) => (ready ? `${pct}%` : '0%');
   const balance = useCountUp(1240, 2, ready);
@@ -689,6 +690,12 @@ const LazuLanding = () => {
                   target='_blank'
                 >
                   {t('landing.final.ctaSecondary')}
+                </a>
+              </Reveal>
+              <Reveal as='p' className='lazu-landing__final-oss'>
+                {t('landing.final.openSource')}{' '}
+                <a href={sourceLink} rel='noopener noreferrer' target='_blank'>
+                  {t('landing.final.openSourceLink')}
                 </a>
               </Reveal>
             </div>

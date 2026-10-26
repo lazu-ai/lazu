@@ -2,11 +2,13 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import './public-footer.css';
 import ThemedBrandLogo from './ThemedBrandLogo';
+import { useStatus } from '../../context/Status';
 import { webExtensions } from '../../extensions';
 import {
   getCommunityURL,
   getDocsHomeURL,
   getDocsURL,
+  getSourceURL,
   getSupportEmail,
 } from '../../helpers/brandUrls';
 import {
@@ -43,6 +45,7 @@ type PublicFooterProps = {
 const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   const { t, i18n } = useTranslation('marketing');
   const location = useLocation();
+  const statusState = useStatus();
   const split = splitMarketingPath(pathnameOverride ?? location.pathname);
   const { barePath } = split;
   // Marketing pages and the API-rendered sections carry their language in
@@ -56,6 +59,7 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   const at = (bare: string) => localizedMarketingPath(bare, locale);
   const supportEmail = getSupportEmail();
   const communityURL = getCommunityURL();
+  const sourceURL = getSourceURL(statusState?.status?.source_url);
 
   const columns: { key: string; title: string; items: FooterItem[] }[] = [
     {
@@ -74,6 +78,7 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
         { href: getDocsHomeURL(locale), label: t('footer.docs') },
         { href: getDocsURL('api-reference'), label: t('footer.apiReference') },
         { href: getDocsURL('changelog'), label: t('footer.changelog') },
+        { href: sourceURL, label: t('landing.nav.github') },
         { href: '/llms.txt', label: 'llms.txt', mono: true },
         { href: '/models.json', label: '/models.json', mono: true },
       ],

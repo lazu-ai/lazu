@@ -356,6 +356,12 @@ body[theme-mode='dark'] .lazu-landing__hero .lazu-landing__eyebrow {
   transform: scale(0.95);
 }
 
+/* The repository link wears the icon-button look; as an anchor it drops the
+   link defaults. */
+a.lazu-landing__github {
+  text-decoration: none;
+}
+
 /* ============== Reveal ============== */
 .lazu-landing__reveal {
   opacity: 0;
@@ -696,6 +702,22 @@ body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
 
 .lazu-landing__final .lazu-landing__cta-row {
   margin-top: 28px;
+}
+
+/* One quiet line under the closing CTAs: the licence and the repository. */
+.lazu-landing__final .lazu-landing__final-oss {
+  font-size: 13.5px;
+  margin-top: 22px;
+}
+
+.lazu-landing__final-oss a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lazu-landing__final-oss a:hover {
+  color: var(--accent);
 }
 
 .lazu-landing__free {
@@ -1395,6 +1417,13 @@ body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
 }
 
 @media (max-width: 600px) {
+  /* Below this width the account actions no longer have room beside a
+     fourth control (the Chinese and Japanese sign-in labels wrap first), so
+     the repository link lives in the sheet menu only. */
+  .lazu-landing__nav-actions > .lazu-landing__github {
+    display: none;
+  }
+
   .lazu-landing__stats {
     grid-template-columns: 1fr 1fr;
   }

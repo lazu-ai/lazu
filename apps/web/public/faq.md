@@ -4,7 +4,7 @@
 
 ## Can I self-host Lazu?
 
-Lazu is offered as a hosted service at lazu.ai. If you need a dedicated or on-premise deployment, contact us and we will walk through the options.
+Yes. Lazu is open source under AGPL-3.0: the gateway, the console and the docs site are on GitHub (github.com/lazu-ai/lazu) with a Docker Compose quick start. lazu.ai is the hosted service run by the same team; for a managed dedicated deployment, contact us.
 
 ## How many models are supported?
 

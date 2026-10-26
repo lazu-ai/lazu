@@ -44,3 +44,25 @@ export const getCommunityURL = (): string | null => {
   const raw = String(import.meta.env.VITE_BRAND_COMMUNITY_URL || '').trim();
   return /^https?:\/\/\S+$/.test(raw) ? raw : null;
 };
+
+/* The repository behind the GitHub entry on the public pages. Same order as
+ * the docs URL: a build may point at a fork (VITE_BRAND_SOURCE_URL), the
+ * running deployment may name where its own source is published
+ * (`site.source_url`, the AGPL link the console also shows), and the upstream
+ * project is the floor, so the prerendered pages always carry an entry. */
+const DEFAULT_SOURCE_URL = 'https://github.com/lazu-ai/lazu';
+
+export const getSourceURL = (deploymentSourceURL?: string | null): string => {
+  const candidates = [
+    import.meta.env.VITE_BRAND_SOURCE_URL,
+    deploymentSourceURL,
+    DEFAULT_SOURCE_URL,
+  ];
+  for (const raw of candidates) {
+    const value = String(raw || '')
+      .trim()
+      .replace(/\/+$/, '');
+    if (/^https?:\/\/\S+$/.test(value)) return value;
+  }
+  return DEFAULT_SOURCE_URL;
+};

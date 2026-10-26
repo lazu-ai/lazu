@@ -167,6 +167,7 @@
           [docsPath("/", locale), t.docs],
           [withBase("/api-reference"), t.apiReference],
           [withBase("/changelog"), t.changelog],
+          ["https://github.com/lazu-ai/lazu", "GitHub"],
           ["/llms.txt", "llms.txt", true],
           ["/api/pricing", "/api/pricing", true],
         ],

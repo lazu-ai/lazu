@@ -3,6 +3,7 @@ import {
   getCommunityURL,
   getDocsBaseURL,
   getDocsURL,
+  getSourceURL,
   getSupportEmail,
 } from './brandUrls';
 
@@ -36,5 +37,18 @@ describe('brand URLs', () => {
     expect(getCommunityURL()).toBeNull();
     vi.stubEnv('VITE_BRAND_COMMUNITY_URL', 'https://t.me/example_group');
     expect(getCommunityURL()).toBe('https://t.me/example_group');
+  });
+
+  it('points the GitHub entry at the build, the deployment, then upstream', () => {
+    vi.stubEnv('VITE_BRAND_SOURCE_URL', '');
+    expect(getSourceURL()).toBe('https://github.com/lazu-ai/lazu');
+    expect(getSourceURL('https://github.com/example/fork/')).toBe(
+      'https://github.com/example/fork',
+    );
+    expect(getSourceURL('not a url')).toBe('https://github.com/lazu-ai/lazu');
+    vi.stubEnv('VITE_BRAND_SOURCE_URL', 'https://codeberg.org/example/lazu');
+    expect(getSourceURL('https://github.com/example/fork')).toBe(
+      'https://codeberg.org/example/lazu',
+    );
   });
 });

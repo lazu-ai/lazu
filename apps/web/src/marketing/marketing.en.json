@@ -194,7 +194,9 @@
       "title": "Hand out this month's quota",
       "body": "Two minutes to sign up, 10% extra on your first top-up.",
       "ctaPrimary": "Sign up free",
-      "ctaSecondary": "Read the docs"
+      "ctaSecondary": "Read the docs",
+      "openSource": "Lazu is open source under AGPL-3.0.",
+      "openSourceLink": "Star it on GitHub"
     }
   },
   "about": {
@@ -276,7 +278,7 @@
     "items": [
       {
         "q": "Can I self-host Lazu?",
-        "a": "Lazu is offered as a hosted service at lazu.ai. If you need a dedicated or on-premise deployment, contact us and we will walk through the options."
+        "a": "Yes. Lazu is open source under AGPL-3.0: the gateway, the console and the docs site are on GitHub (github.com/lazu-ai/lazu) with a Docker Compose quick start. lazu.ai is the hosted service run by the same team; for a managed dedicated deployment, contact us."
       },
       {
         "q": "How many models are supported?",
