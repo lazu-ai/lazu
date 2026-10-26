@@ -20,6 +20,10 @@ files in the core packages that register from `init()`, and web files under
 | `internal/worker`, `apps/worker` | Worker tasks (`RegisterTasks`), worker subcommands |
 | `internal/common` | Config sections (`RegisterConfigSection`), background loops of the API process, client User-Agent patterns |
 
+A build without extensions sees these hooks as functions nothing calls.
+`make test-deadcode` fails on such functions unless `ops/extension-surface.txt`
+lists them, so a change that adds a hook adds its line there too.
+
 ## Web app
 
 `src/extensions/index.ts` finds `src/extensions/<name>/extension.tsx`

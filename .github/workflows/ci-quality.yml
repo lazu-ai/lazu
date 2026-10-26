@@ -205,6 +205,9 @@ jobs:
       - name: Check the docs error reference is current
         run: go run ./ops/tools/errdocs -check
 
+      - name: Check for Go functions nothing calls
+        run: make test-deadcode
+
   secrets:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest

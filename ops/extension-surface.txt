@@ -1,0 +1,46 @@
+# Functions only an extension calls (docs/EXTENSIONS.md). A build without
+# extensions reports them as unreachable. One per line: "<package>.<function>  # <reason>".
+# Add a line in the same change that adds a hook.
+apps/worker.registerCommand  # extension hook
+internal/common.DecodeJson  # reached only from an extension
+internal/common.RegisterClientPattern  # extension hook
+internal/common.RegisterConfigSection  # extension hook
+internal/controller.RegisterPublicPageCachePolicy  # extension hook
+internal/controller.RegisterStatusFields  # extension hook
+internal/controller.RegisterSurfaceWelcomeMail  # extension hook
+internal/controller.firstStringAtPaths  # reached only from an extension
+internal/controller.parseVideoProviderSubmission  # reached only from an extension
+internal/middleware.RegisterTokenResolver  # extension hook
+internal/model.CountUserTokens  # reached only from an extension
+internal/model.GetAllUserTokens  # reached only from an extension
+internal/model.RecordSignupAttribution  # reached only from an extension
+internal/model.RegisterCoreModels  # extension hook
+internal/model.RegisterFileDeletingHook  # extension hook
+internal/model.RegisterMediaJobArtifactRetry  # extension hook
+internal/model.RegisterMediaJobChargedHook  # extension hook
+internal/model.RegisterMediaJobFailedHook  # extension hook
+internal/model.RegisterMediaJobSucceededHook  # extension hook
+internal/model.RegisterMigration  # extension hook
+internal/model.RegisterOptionDefaults  # extension hook
+internal/model.RegisterRetentionPurge  # extension hook
+internal/model.RegisterSignupVisitsCounter  # extension hook
+internal/model.RegisterTelemetryModels  # extension hook
+internal/model.RegisterTopUpReversedHook  # extension hook
+internal/model.RegisterUserDeletingHook  # extension hook
+internal/model.RescheduleMediaJobWithArtifactFile  # reached only from an extension
+internal/model.SearchUserTokens  # reached only from an extension
+internal/model.buildOverviewGrowth  # reached only from an extension
+internal/model.overviewChannels  # reached only from an extension
+internal/model.rewriteMediaJobCostSnapshotSource  # reached only from an extension
+internal/publicsite.Placeholders  # reached only from an extension
+internal/publicsite.PlainText  # reached only from an extension
+internal/publicsite.ReadingMinutes  # reached only from an extension
+internal/publicsite.RegisterBaseTemplates  # extension hook
+internal/publicsite.RegisterModelAction  # extension hook
+internal/router.RegisterAPIRoutes  # extension hook
+internal/router.RegisterBrowserRouteTargets  # extension hook
+internal/router.RegisterLocalePages  # extension hook
+internal/router.RegisterPublicSiteRoutes  # extension hook
+internal/router.RegisterRootRoutes  # extension hook
+internal/service.ResetUserFileStorageClient  # reached only from an extension
+internal/worker.RegisterTasks  # extension hook
