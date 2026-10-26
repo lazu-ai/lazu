@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"strings"
 	"time"
+	"unsafe"
+
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -34,26 +36,6 @@ type ThinkingContentInfo struct {
 	HasSentThinkingContent  bool
 }
 
-const (
-	LastMessageTypeNone     = "none"
-	LastMessageTypeText     = "text"
-	LastMessageTypeTools    = "tools"
-	LastMessageTypeThinking = "thinking"
-)
-
-type ClaudeConvertInfo struct {
-	LastMessagesType string
-	Index            int
-	Usage            *dto.Usage
-	FinishReason     string
-	Done             bool
-}
-
-type RerankerInfo struct {
-	Documents       []any
-	ReturnDocuments bool
-}
-
 type BuildInToolInfo struct {
 	ToolName          string
 	CallCount         int
@@ -67,14 +49,10 @@ type ResponsesUsageInfo struct {
 type ChannelMeta struct {
 	ChannelType          int
 	ChannelId            int
-	ChannelIsMultiKey    bool
-	ChannelMultiKeyIndex int
 	ChannelBaseUrl       string
 	ApiType              int
-	ApiVersion           string
 	ApiKey               string
 	Organization         string
-	ChannelCreateTime    int64
 	ParamOverride        map[string]interface{}
 	HeadersOverride      map[string]interface{}
 	ChannelSetting       dto.ChannelSettings
@@ -156,7 +134,6 @@ type RelayInfo struct {
 	OutputAudioFormat          string
 	RealtimeTools              []dto.RealTimeTool
 	IsFirstRequest             bool
-	AudioUsage                 bool
 	ReasoningEffort            string
 	UserSetting                dto.UserSetting
 	UserEmail                  string
@@ -175,8 +152,6 @@ type RelayInfo struct {
 	Request dto.Request
 
 	ThinkingContentInfo
-	*ClaudeConvertInfo
-	*RerankerInfo
 	*ResponsesUsageInfo
 	*ChannelMeta
 }
@@ -189,14 +164,10 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	channelMeta := &ChannelMeta{
 		ChannelType:          channelType,
 		ChannelId:            common.GetContextKeyInt(c, constant.ContextKeyChannelId),
-		ChannelIsMultiKey:    common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey),
-		ChannelMultiKeyIndex: common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex),
 		ChannelBaseUrl:       common.GetContextKeyString(c, constant.ContextKeyChannelBaseUrl),
 		ApiType:              apiType,
-		ApiVersion:           common.GetContextKeyString(c, constant.ContextKeyChannelAPIVersion),
 		ApiKey:               common.GetContextKeyString(c, constant.ContextKeyChannelKey),
-		Organization:         c.GetString("channel_organization"),
-		ChannelCreateTime:    c.GetInt64("channel_create_time"),
+		Organization:         common.GetContextKeyString(c, constant.ContextKeyChannelOrganization),
 		ParamOverride:        paramOverride,
 		HeadersOverride:      headerOverride,
 		UpstreamModelName:    common.GetContextKeyString(c, constant.ContextKeyOriginalModel),
@@ -227,81 +198,26 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	}
 }
 
+// ToString is a short debug line built from an allowlist: identifiers,
+// protocol and model names. It never prints keys, emails, base URLs or
+// organizations, and must not be replaced by %+v, which would.
 func (info *RelayInfo) ToString() string {
 	if info == nil {
 		return "RelayInfo<nil>"
 	}
-
-	// Basic info
 	b := &strings.Builder{}
-	fmt.Fprintf(b, "RelayInfo{ ")
-	fmt.Fprintf(b, "RelayFormat: %s, ", info.RelayFormat)
-	fmt.Fprintf(b, "RelayMode: %d, ", info.RelayMode)
-	if info.ProtocolPlan != nil {
-		fmt.Fprintf(b, "ProtocolPlan: %s->%s native=%t rev=%s, ", info.ProtocolPlan.ClientProtocol.Family, info.ProtocolPlan.UpstreamProtocol.Family, info.ProtocolPlan.Native, info.ProtocolPlan.CapabilityRev)
+	fmt.Fprintf(b, "RelayInfo{format=%s mode=%d", info.RelayFormat, info.RelayMode)
+	if plan := info.ProtocolPlan; plan != nil {
+		fmt.Fprintf(b, " plan=%s->%s native=%t", plan.ClientProtocol.Family, plan.UpstreamProtocol.Family, plan.Native)
 	}
-	fmt.Fprintf(b, "IsStream: %t, ", info.IsStream)
-	fmt.Fprintf(b, "IsPlayground: %t, ", info.IsPlayground)
-	fmt.Fprintf(b, "RequestURLPath: %q, ", info.RequestURLPath)
-	fmt.Fprintf(b, "OriginModelName: %q, ", info.OriginModelName)
-	fmt.Fprintf(b, "PromptTokens: %d, ", info.PromptTokens)
-	fmt.Fprintf(b, "ShouldIncludeUsage: %t, ", info.ShouldIncludeUsage)
-	fmt.Fprintf(b, "DisablePing: %t, ", info.DisablePing)
-	fmt.Fprintf(b, "SendResponseCount: %d, ", info.SendResponseCount)
-	fmt.Fprintf(b, "FinalPreConsumedQuota: %d, ", info.FinalPreConsumedQuota)
-
-	// User & token info (mask secrets)
-	fmt.Fprintf(b, "User{ Id: %d, Email: %q, PricePlan: %d, UsingGroup: %q, Quota: %d }, ",
-		info.UserId, common.MaskEmail(info.UserEmail), info.PricePlanID, info.UsingGroup, info.UserQuota)
-	fmt.Fprintf(b, "Token{ Id: %d, Unlimited: %t, Key: ***masked*** }, ", info.TokenId, info.TokenUnlimited)
-
-	// Time info
-	latencyMs := info.FirstResponseTime.Sub(info.StartTime).Milliseconds()
-	fmt.Fprintf(b, "Timing{ Start: %s, FirstResponse: %s, LatencyMs: %d }, ",
-		info.StartTime.Format(time.RFC3339Nano), info.FirstResponseTime.Format(time.RFC3339Nano), latencyMs)
-
-	// Audio / realtime
-	if info.InputAudioFormat != "" || info.OutputAudioFormat != "" || len(info.RealtimeTools) > 0 || info.AudioUsage {
-		fmt.Fprintf(b, "Realtime{ AudioUsage: %t, InFmt: %q, OutFmt: %q, Tools: %d }, ",
-			info.AudioUsage, info.InputAudioFormat, info.OutputAudioFormat, len(info.RealtimeTools))
+	fmt.Fprintf(b, " stream=%t model=%q user=%d token=%d", info.IsStream, info.OriginModelName, info.UserId, info.TokenId)
+	if cm := info.ChannelMeta; cm != nil {
+		fmt.Fprintf(b, " channel=%d type=%d upstream_model=%q mapped=%t", cm.ChannelId, cm.ChannelType, cm.UpstreamModelName, cm.IsModelMapped)
 	}
-
-	// Reasoning
-	if info.ReasoningEffort != "" {
-		fmt.Fprintf(b, "ReasoningEffort: %q, ", info.ReasoningEffort)
+	if info.RequestID != "" {
+		fmt.Fprintf(b, " request=%s", info.RequestID)
 	}
-
-	// Price data (non-sensitive)
-	if info.PriceData.UsePrice {
-		fmt.Fprintf(b, "PriceData{ %s }, ", info.PriceData.ToSetting())
-	}
-
-	// Channel metadata (mask ApiKey)
-	if info.ChannelMeta != nil {
-		cm := info.ChannelMeta
-		fmt.Fprintf(b, "ChannelMeta{ Type: %d, Id: %d, IsMultiKey: %t, MultiKeyIndex: %d, BaseURL: %q, ApiType: %d, ApiVersion: %q, Organization: %q, CreateTime: %d, UpstreamModelName: %q, IsModelMapped: %t, SupportStreamOptions: %t, ApiKey: ***masked*** }, ",
-			cm.ChannelType, cm.ChannelId, cm.ChannelIsMultiKey, cm.ChannelMultiKeyIndex, cm.ChannelBaseUrl, cm.ApiType, cm.ApiVersion, cm.Organization, cm.ChannelCreateTime, cm.UpstreamModelName, cm.IsModelMapped, cm.SupportStreamOptions)
-	}
-
-	// Responses usage info (non-sensitive)
-	if info.ResponsesUsageInfo != nil && len(info.ResponsesUsageInfo.BuiltInTools) > 0 {
-		fmt.Fprintf(b, "ResponsesTools{ ")
-		first := true
-		for name, tool := range info.ResponsesUsageInfo.BuiltInTools {
-			if !first {
-				fmt.Fprintf(b, ", ")
-			}
-			first = false
-			if tool != nil {
-				fmt.Fprintf(b, "%s: calls=%d", name, tool.CallCount)
-			} else {
-				fmt.Fprintf(b, "%s: calls=0", name)
-			}
-		}
-		fmt.Fprintf(b, " }, ")
-	}
-
-	fmt.Fprintf(b, "}")
+	b.WriteString("}")
 	return b.String()
 }
 
@@ -327,9 +243,6 @@ func GenRelayInfoClaude(c *gin.Context, request dto.Request) *RelayInfo {
 	info := genBaseRelayInfo(c, request)
 	info.RelayFormat = types.RelayFormatClaude
 	info.ShouldIncludeUsage = false
-	info.ClaudeConvertInfo = &ClaudeConvertInfo{
-		LastMessagesType: LastMessageTypeNone,
-	}
 	if c.Query("beta") == "true" {
 		info.IsClaudeBetaQuery = true
 	}
@@ -340,10 +253,6 @@ func GenRelayInfoRerank(c *gin.Context, request *dto.RerankRequest) *RelayInfo {
 	info := genBaseRelayInfo(c, request)
 	info.RelayMode = relayconstant.RelayModeRerank
 	info.RelayFormat = types.RelayFormatRerank
-	info.RerankerInfo = &RerankerInfo{
-		Documents:       request.Documents,
-		ReturnDocuments: request.GetReturnDocuments(),
-	}
 	return info
 }
 
@@ -639,8 +548,12 @@ func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOther
 		{"safety_identifier", !channelOtherSettings.AllowSafetyIdentifier},
 		{"stream_options.include_obfuscation", !channelOtherSettings.AllowIncludeObfuscation},
 	}
+	// One scan for the top-level keys: each GetBytes below would otherwise
+	// scan the whole body just to learn its key is absent.
+	present := topLevelKeys(jsonData)
 	for _, field := range fields {
-		if !field.remove || !gjson.GetBytes(jsonData, field.path).Exists() {
+		top, _, _ := strings.Cut(field.path, ".")
+		if !field.remove || (present != nil && !present[top]) || !gjson.GetBytes(jsonData, field.path).Exists() {
 			continue
 		}
 		var err error
@@ -649,10 +562,28 @@ func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOther
 			return nil, err
 		}
 	}
+	if present != nil && !present["stream_options"] {
+		return jsonData, nil
+	}
 	if options := gjson.GetBytes(jsonData, "stream_options"); options.IsObject() && len(options.Map()) == 0 {
 		return sjson.DeleteBytes(jsonData, "stream_options")
 	}
 	return jsonData, nil
+}
+
+// topLevelKeys returns the keys of a JSON object body, or nil when the body
+// is not an object (callers then fall back to full lookups).
+func topLevelKeys(body []byte) map[string]bool {
+	root := gjson.Parse(unsafe.String(unsafe.SliceData(body), len(body)))
+	if !root.IsObject() {
+		return nil
+	}
+	keys := map[string]bool{}
+	root.ForEach(func(key, _ gjson.Result) bool {
+		keys[strings.Clone(key.Str)] = true
+		return true
+	})
+	return keys
 }
 
 // BillingUserID is separate from request identity. Legacy callers without a

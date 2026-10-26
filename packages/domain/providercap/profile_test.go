@@ -167,8 +167,10 @@ func TestIsSupported_GeminiGuard(t *testing.T) {
 	if ok, _ := IsSupported(constant.APITypeGemini, types.RelayFormatGemini); !ok {
 		t.Fatalf("gemini should support gemini profile")
 	}
-	if ok, _ := IsSupported(constant.APITypeOpenAI, types.RelayFormatGemini); !ok {
-		t.Fatalf("openai should support gemini compatibility conversion")
+	// a Gemini client's text generation reaches OpenAI channels planned, past
+	// this guard; nothing unplanned in the Gemini format has an OpenAI path
+	if ok, _ := IsSupported(constant.APITypeOpenAI, types.RelayFormatGemini); ok {
+		t.Fatalf("openai should be blocked for unplanned gemini requests")
 	}
 	if ok, _ := IsSupported(constant.APITypeAnthropic, types.RelayFormatGemini); ok {
 		t.Fatalf("anthropic should be blocked for gemini profile")

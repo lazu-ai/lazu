@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func TestPostgresOverviewReadsTelemetryInsteadOfStaleCoreRollups(t *testing.T) {
 			DashboardUsageHourlyTotal{ScopeUserID: scope, BucketHour: start - 3600, RequestCount: 2})
 	}
 	for _, platform := range []bool{false, true} {
-		out, err := BuildOverview(OverviewRequest{ScopeUserID: 7, Platform: platform, Start: start, End: start + 3600, Bucket: OverviewBucketHour})
+		out, err := BuildOverviewContext(context.Background(), OverviewRequest{ScopeUserID: 7, Platform: platform, Start: start, End: start + 3600, Bucket: OverviewBucketHour})
 		if err != nil || out.Totals.RequestCount != 3 || out.Previous.RequestCount != 2 || len(out.Series) != 1 || out.Series[0].RequestCount != 3 {
 			t.Fatalf("platform=%v totals=%+v previous=%+v series=%+v err=%v", platform, out.Totals, out.Previous, out.Series, err)
 		}
@@ -102,7 +103,7 @@ func TestBuildOverviewDayBucketsFollowTimezoneAndStripOperatorColumns(t *testing
 		DashboardUsageHourlyTotal{ScopeUserID: 0, BucketHour: start + 3600, RequestCount: 99},
 	)
 
-	out, err := BuildOverview(OverviewRequest{ScopeUserID: self, Start: start, End: end, Bucket: OverviewBucketDay,
+	out, err := BuildOverviewContext(context.Background(), OverviewRequest{ScopeUserID: self, Start: start, End: end, Bucket: OverviewBucketDay,
 		TZOffset: 8 * 3600, Now: start + 30*3600})
 	if err != nil {
 		t.Fatalf("BuildOverview: %v", err)
@@ -138,7 +139,7 @@ func TestBuildOverviewHourAndWeekBuckets(t *testing.T) {
 		DashboardUsageHourlyTotal{ScopeUserID: self, BucketHour: hourStart, RequestCount: 1},
 		DashboardUsageHourlyTotal{ScopeUserID: self, BucketHour: hourStart + 2*3600, RequestCount: 4},
 	)
-	hourly, err := BuildOverview(OverviewRequest{ScopeUserID: self, Start: hourStart, End: hourStart + 3*3600,
+	hourly, err := BuildOverviewContext(context.Background(), OverviewRequest{ScopeUserID: self, Start: hourStart, End: hourStart + 3*3600,
 		Bucket: OverviewBucketHour, TZOffset: 8 * 3600, Now: hourStart + 10*3600})
 	if err != nil {
 		t.Fatalf("hourly overview: %v", err)
@@ -162,7 +163,7 @@ func TestBuildOverviewHourAndWeekBuckets(t *testing.T) {
 		DashboardUsageHourlyTotal{ScopeUserID: weekUser, BucketHour: start + 3600, RequestCount: 2},
 		DashboardUsageHourlyTotal{ScopeUserID: weekUser, BucketHour: mon + 7*86400 + 5*3600, RequestCount: 3},
 	)
-	weekly, err := BuildOverview(OverviewRequest{ScopeUserID: weekUser, Start: start, End: end,
+	weekly, err := BuildOverviewContext(context.Background(), OverviewRequest{ScopeUserID: weekUser, Start: start, End: end,
 		Bucket: OverviewBucketWeek, TZOffset: 8 * 3600, Now: end + 86400})
 	if err != nil {
 		t.Fatalf("weekly overview: %v", err)
@@ -205,7 +206,7 @@ func TestBuildOverviewPlatformGrowthCountsOnlyReliableRegistrations(t *testing.T
 		DashboardUsageHourlyTotal{ScopeUserID: users[5].Id, BucketHour: start - 3600, RequestCount: 1},
 	)
 
-	out, err := BuildOverview(OverviewRequest{Platform: true, Start: start, End: end, Bucket: OverviewBucketDay, Now: end + 3600})
+	out, err := BuildOverviewContext(context.Background(), OverviewRequest{Platform: true, Start: start, End: end, Bucket: OverviewBucketDay, Now: end + 3600})
 	if err != nil {
 		t.Fatalf("BuildOverview: %v", err)
 	}
@@ -229,7 +230,7 @@ func TestSignupAttributionBreakdownsShareTheSameCohort(t *testing.T) {
 	if err := db.Create(&rows).Error; err != nil {
 		t.Fatal(err)
 	}
-	groups, err := overviewSignupSources(map[int]overviewNewcomer{1: {activated: true}, 2: {activated: true, paid: true}})
+	groups, err := overviewSignupSourcesContext(context.Background(), map[int]overviewNewcomer{1: {activated: true}, 2: {activated: true, paid: true}})
 	if err != nil {
 		t.Fatal(err)
 	}

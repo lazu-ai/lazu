@@ -437,10 +437,6 @@ func siteAPIHost() string {
 	return ""
 }
 
-func projectTopUpDetailsURL(returnBase, projectID, topUpID string) string {
-	return strings.TrimRight(returnBase, "/") + "/payment/success?project_id=" + url.QueryEscape(projectID) + "&top_up_id=" + url.QueryEscape(topUpID)
-}
-
 func paymentEmailLogo(returnBase string) string {
 	if frontend := strings.TrimSpace(os.Getenv("FRONTEND_BASE_URL")); frontend != "" {
 		returnBase = frontend

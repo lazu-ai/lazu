@@ -32,7 +32,7 @@ type SidebarCopy = {
   ];
 };
 
-export const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
+const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
   en: {
     groups: [
       "Get started",
@@ -153,7 +153,7 @@ export const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
   },
 };
 
-export function createSidebar(prefix: string, copy: SidebarCopy) {
+function createSidebar(prefix: string, copy: SidebarCopy) {
   const link = (route: string) => `${prefix}${route}` || "/";
   const [start, models, endpoints, , billing, reference] = copy.groups;
   const p = copy.pages;
