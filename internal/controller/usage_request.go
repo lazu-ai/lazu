@@ -307,28 +307,6 @@ func (b *usageDimensionBuilder) dimensions() []dto.UsageDimension {
 	return b.ordered
 }
 
-func unitForUsageDimension(dimension string) string {
-	switch dimension {
-	case usagepkg.DimensionRequest:
-		return usagepkg.UnitRequest
-	case usagepkg.DimensionSecond:
-		return usagepkg.UnitSecond
-	default:
-		return usagepkg.UnitToken
-	}
-}
-
-func parseUsageFallbackChain(raw string) []string {
-	if strings.TrimSpace(raw) == "" || strings.TrimSpace(raw) == "null" {
-		return nil
-	}
-	var values []string
-	if err := json.Unmarshal([]byte(raw), &values); err == nil {
-		return values
-	}
-	return []string{raw}
-}
-
 func stringFromMap(values map[string]interface{}, key string) string {
 	if values == nil {
 		return ""

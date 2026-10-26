@@ -25,7 +25,10 @@ const budgets = {
   // reader who opens something written in Markdown — 137.03 → 184.11 KiB — and
   // that reader is still 28 KiB better off than before. The ceiling moves to
   // cover the relocation and no more.
-  markdownJavaScript: 190 * 1024,
+  // Highlighting now registers only the languages announcements use, and
+  // KaTeX loads only for content with a formula: 175.05 → 64.45 KiB. The
+  // ceiling follows with ~15 KiB of headroom.
+  markdownJavaScript: 80 * 1024,
   markdownCss: 12 * 1024,
   vchartRuntime: 350 * 1024,
   // Whole locale graphs, including errors and every fallback language. The
@@ -113,9 +116,13 @@ addBudget(
     .filter((file) => typeof file === 'string' && file.endsWith('.js')),
   budgets.markdownJavaScript,
 );
+// Vite lists the entry stylesheet on chunks that share modules with the
+// entry; the browser already has it, so only the Markdown graph's own CSS
+// counts against this budget.
+const initialCssFiles = new Set(initialCss);
 const markdownCss = [
   ...new Set([...markdownKeys].flatMap((key) => manifest[key]?.css ?? [])),
-];
+].filter((file) => !initialCssFiles.has(file));
 addBudget('Markdown renderer CSS', markdownCss, budgets.markdownCss);
 
 const addEntryGraphBudget = (name, entryKey, limit) => {
@@ -126,7 +133,7 @@ const addEntryGraphBudget = (name, entryKey, limit) => {
   addBudget(name, [...new Set(files)], limit);
 };
 
-// ConsoleRoot and MarketingLayout are now statically imported by AppRoot/App,
+// PageLayout and MarketingLayout are statically imported by AppRoot/App,
 // so their shell payload is already covered by the Initial JavaScript budget.
 // Keep route-level budgets on the current lazy equivalents to catch growth in
 // the heaviest authenticated route and the public marketing locale chunks.
@@ -184,6 +191,9 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     `virtual:lazu-locale/errors/${locale}`,
   ];
   const localeGraph = new Set();
+  // `errors` loads after the first screen (i18n loadErrorsNamespace), so it
+  // counts toward the locale budget but not the cold startup one.
+  const startupLocaleGraph = new Set();
   for (const key of localeKeys) {
     const localeEntry = manifest[key];
     if (!localeEntry?.isDynamicEntry) {
@@ -191,6 +201,9 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     }
     for (const dependency of collectNonStaticGraph(key)) {
       localeGraph.add(dependency);
+      if (!key.startsWith('virtual:lazu-locale/errors/')) {
+        startupLocaleGraph.add(dependency);
+      }
     }
   }
   addBudget(
@@ -208,7 +221,7 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     [
       ...new Set([
         ...initialJavaScript,
-        ...[...localeGraph]
+        ...[...startupLocaleGraph]
           .map((key) => manifest[key]?.file)
           .filter((file) => typeof file === 'string' && file.endsWith('.js')),
       ]),

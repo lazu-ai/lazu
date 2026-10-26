@@ -105,7 +105,11 @@ func invokeConvertGeminiRequest(converter interface {
 	return err
 }
 
-func TestProviderCap_DeclaredClaudeSupportHasUsableConverter(t *testing.T) {
+// A provider that declares Claude client support serves it one of two ways: a
+// Claude-family provider converts the request itself (natively, or with the
+// identity converter); any other is bridged by the protocol hub to Chat, so
+// it must accept an OpenAI Chat request.
+func TestProviderCap_DeclaredClaudeSupportHasAPath(t *testing.T) {
 	t.Parallel()
 
 	apiTypes := make([]int, 0, len(adaptorFactories))
@@ -131,14 +135,18 @@ func TestProviderCap_DeclaredClaudeSupportHasUsableConverter(t *testing.T) {
 			info := newTestRelayInfo(apiType)
 			adaptor.Init(info)
 
-			converter, lazuErr := requireClaudeRequestConverter(adaptor, info)
-			if lazuErr != nil {
-				t.Fatalf("declared claude support but converter assertion failed: %v", lazuErr)
+			if providercap.ProtocolFamilyOf(apiType) == providercap.ProtocolFamilyClaude {
+				converter, lazuErr := requireClaudeRequestConverter(adaptor, info)
+				if lazuErr != nil {
+					t.Fatalf("declared claude support but converter assertion failed: %v", lazuErr)
+				}
+				if err := invokeConvertClaudeRequest(converter, newTestGinContext(), info); isCapabilityStubError(err) {
+					t.Fatalf("declared claude support but converter is stub-like: %v", err)
+				}
+				return
 			}
-
-			err := invokeConvertClaudeRequest(converter, newTestGinContext(), info)
-			if isCapabilityStubError(err) {
-				t.Fatalf("declared claude support but converter is stub-like: %v", err)
+			if _, lazuErr := requireOpenAIRequestConverter(adaptor, info); lazuErr != nil {
+				t.Fatalf("declared claude support is bridged through Chat, but the adaptor takes no Chat request: %v", lazuErr)
 			}
 		})
 	}

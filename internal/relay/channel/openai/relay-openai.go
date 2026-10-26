@@ -541,20 +541,6 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 		} else {
 			break
 		}
-	case types.RelayFormatClaude:
-		claudeResp := service.ResponseOpenAI2Claude(&simpleResponse, info)
-		claudeRespStr, err := common.Marshal(claudeResp)
-		if err != nil {
-			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
-		}
-		responseBody = claudeRespStr
-	case types.RelayFormatGemini:
-		geminiResp := service.ResponseOpenAI2Gemini(&simpleResponse, info)
-		geminiRespStr, err := common.Marshal(geminiResp)
-		if err != nil {
-			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
-		}
-		responseBody = geminiRespStr
 	case types.RelayFormatOpenAIResponses:
 		if bridgesChatToResponses(info) {
 			responsesBody, marshalErr := common.Marshal(openai_responses.ChatResponseToResponses(&simpleResponse, info.UpstreamModelName, info.ProtocolRequest))

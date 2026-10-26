@@ -199,17 +199,17 @@ func TestGetConsumeLogByRequestIDForTokenScopesByUserAndToken(t *testing.T) {
 		t.Fatalf("failed to seed logs: %v", err)
 	}
 
-	got, err := GetConsumeLogByRequestIDForToken(1, 10, "req-shared")
+	got, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), 1, 10, "req-shared")
 	if err != nil {
 		t.Fatalf("query failed: %v", err)
 	}
 	if got.TokenId != 10 || got.ModelName != "deepseek-chat" {
 		t.Fatalf("expected token 10 deepseek log, got token=%d model=%s", got.TokenId, got.ModelName)
 	}
-	if _, err := GetConsumeLogByRequestIDForToken(2, 10, "req-shared"); err == nil {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), 2, 10, "req-shared"); err == nil {
 		t.Fatalf("expected wrong user to be denied")
 	}
-	if _, err := GetConsumeLogByRequestIDForToken(1, 12, "req-shared"); err == nil {
+	if _, err := GetConsumeLogByRequestIDForTokenContext(context.Background(), 1, 12, "req-shared"); err == nil {
 		t.Fatalf("expected wrong token to be denied")
 	}
 }

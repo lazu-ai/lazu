@@ -26,10 +26,6 @@ func init() {
 	performanceSetting.Sync()
 }
 
-func GetPerformanceSetting() *PerformanceSetting {
-	return &performanceSetting
-}
-
 // Sync 将配置同步到运行态公共配置。
 func (s *PerformanceSetting) Sync() {
 	if s == nil {

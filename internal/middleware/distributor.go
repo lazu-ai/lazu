@@ -476,6 +476,8 @@ func setStructuredInputTokenEstimate(c *gin.Context, reqCtx *relayrouter.Request
 		format = types.RelayFormatOpenAIResponses
 	case textgen.ProtocolAnthropic:
 		format = types.RelayFormatClaude
+	case textgen.ProtocolGemini:
+		format = types.RelayFormatGemini
 	}
 	meta := textgen.TokenCountMeta(parsed.Semantic)
 	meta.Files = nil
@@ -1243,6 +1245,9 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		}
 	}
 	if parsed, ok := common.GetContextKeyType[*textgen.ParsedRequest](c, constant.ContextKeyTextgenParsed); ok && parsed != nil && parsed.Semantic != nil {
+		if parsed.Client.Family == textgen.ProtocolGemini {
+			c.Set("relay_mode", relayconstant.RelayModeGemini)
+		}
 		return &ModelRequest{Model: parsed.Semantic.Model.Canonical}, true, nil
 	}
 	if strings.HasPrefix(c.GetHeader("Content-Type"), "multipart/form-data") {
@@ -1322,7 +1327,6 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	common.SetContextKey(c, constant.ContextKeyChannelId, channel.Id)
 	common.SetContextKey(c, constant.ContextKeyChannelName, channel.Name)
 	common.SetContextKey(c, constant.ContextKeyChannelType, channel.Type)
-	common.SetContextKey(c, constant.ContextKeyChannelCreateTime, channel.CreatedTime)
 	common.SetContextKey(c, constant.ContextKeyChannelSetting, channel.GetSetting())
 	common.SetContextKey(c, constant.ContextKeyChannelOtherSetting, channel.GetOtherSettings())
 	common.SetContextKey(c, constant.ContextKeyChannelParamOverride, channel.GetParamOverride())
@@ -1349,10 +1353,6 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	common.SetContextKey(c, constant.ContextKeyChannelKey, key)
 	common.SetContextKey(c, constant.ContextKeyChannelBaseUrl, channel.GetBaseURL())
 
-	switch channel.Type {
-	case constant.ChannelTypeGemini:
-		common.SetContextKey(c, constant.ContextKeyChannelAPIVersion, channel.Other)
-	}
 	return nil
 }
 
