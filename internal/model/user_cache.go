@@ -235,18 +235,6 @@ func userCacheHasNeedsPasswordField(fields map[string]string) bool {
 	return ok
 }
 
-// Add atomic quota operations using hash fields
-func cacheIncrUserQuota(userId int, delta int64) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	return common.RedisHIncrBy(getUserCacheKey(userId), "Quota", delta)
-}
-
-func cacheDecrUserQuota(userId int, delta int64) error {
-	return cacheIncrUserQuota(userId, -delta)
-}
-
 func captureUserQuotaCacheSnapshot(userId int) *userQuotaCacheSnapshot {
 	if GatewayLedgerEnabled() || !common.RedisEnabled || common.RDB == nil {
 		return nil
@@ -274,14 +262,6 @@ func getUserQuotaCache(userId int) (billing.MicroUSD, error) {
 	return cache.Quota, nil
 }
 
-func getUserStatusCache(userId int) (int, error) {
-	cache, err := GetUserCache(userId)
-	if err != nil {
-		return 0, err
-	}
-	return cache.Status, nil
-}
-
 func getUserNameCache(userId int) (string, error) {
 	cache, err := GetUserCache(userId)
 	if err != nil {
@@ -296,18 +276,6 @@ func getUserSettingCache(userId int) (dto.UserSetting, error) {
 		return dto.UserSetting{}, err
 	}
 	return cache.GetSetting(), nil
-}
-
-// New functions for individual field updates
-func updateUserStatusCache(userId int, status bool) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	statusInt := common.UserStatusEnabled
-	if !status {
-		statusInt = common.UserStatusDisabled
-	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Status", fmt.Sprintf("%d", statusInt))
 }
 
 func updateUserQuotaCache(userId int, quota billing.MicroUSD) error {

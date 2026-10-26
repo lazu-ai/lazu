@@ -50,7 +50,7 @@ type emailAuthVerifyRequest struct {
 // anything is sent, and its failures are the only ones the start path reports —
 // they are properties of the submitted address, not of our user table.
 func validateEmailForAuth(email string) error {
-	if err := common.Validate.Var(email, "required,email"); err != nil {
+	if err := Validate.Var(email, "required,email"); err != nil {
 		return errEmailInvalid
 	}
 	parts := strings.Split(email, "@")

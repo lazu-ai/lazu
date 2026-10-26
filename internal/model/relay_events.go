@@ -480,16 +480,6 @@ func ackRelayEventMessageBatch(ctx context.Context, messages []redis.XMessage) e
 	return err
 }
 
-func processRelayResultEventMessages(ctx context.Context, messages []redis.XMessage) (bool, error) {
-	for _, message := range messages {
-		kind, _ := redisReplyString(message.Values["type"])
-		if kind != RelayEventTypeRelayResult {
-			return false, nil
-		}
-	}
-	return true, processRelayEventMessages(ctx, messages)
-}
-
 func relayEventMaxLength() int64 {
 	size := common.GetEnvOrDefault("TELEMETRY_STREAM_MAX_LENGTH", 100000)
 	if size < 1 {
@@ -534,12 +524,6 @@ func readRelayEventBatchLimit(ctx context.Context, consumer string, id string, b
 		Count:    count,
 		Block:    block,
 	}).Result()
-}
-
-func handleRelayEventMessage(message redis.XMessage) error {
-	eventType, _ := message.Values["type"].(string)
-	payload, _ := message.Values["payload"].(string)
-	return handleRelayEvent(eventType, []byte(payload))
 }
 
 func handleRelayEvent(eventType string, payload []byte) error {
