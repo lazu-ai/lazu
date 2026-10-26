@@ -3,6 +3,7 @@ package helper
 import (
 	"math"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -43,5 +44,23 @@ func TestParsedTextgenRequestsStillRunLegacyTokenValidation(t *testing.T) {
 				t.Fatal("oversized parsed request should fail validation")
 			}
 		})
+	}
+}
+
+func TestParsedGeminiRequestReusesWireWithoutReadingBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1beta/models/gemini-test:generateContent", strings.NewReader("not JSON"))
+	wire := &dto.GeminiChatRequest{Contents: []dto.GeminiChatContent{{Role: "user"}}}
+	common.SetContextKey(c, constant.ContextKeyTextgenParsed, &textgen.ParsedRequest{
+		Client: textgen.Protocol{Family: textgen.ProtocolGemini},
+		Wire:   wire,
+	})
+	got, err := GetAndValidateRequest(c, types.RelayFormatGemini)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != wire {
+		t.Fatalf("parsed Gemini wire was not reused: got %p want %p", got, wire)
 	}
 }

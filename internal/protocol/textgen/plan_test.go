@@ -81,6 +81,29 @@ func TestPlanAttemptRejectsReasoningToolHistoryOnChatToResponsesBridge(t *testin
 	}
 }
 
+func TestPlanAttemptRejectsGeminiToolsOnReasoningResponsesBridge(t *testing.T) {
+	client := Protocol{Family: ProtocolGemini, Dialect: "gemini"}
+	capabilities := snapshot("openai", FeatureEndpointResponses, FeatureFunctionTools, FeatureReasoningEffort)
+	request := minimalRequest()
+	request.Tools = []ToolDefinition{{Type: "function", Name: "lookup"}}
+	_, err := PlanAttempt(client, capabilities, request, 1, "reasoning-model")
+	var unsupported *UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Feature != FeatureFunctionTools || unsupported.Path != "tool_choice" {
+		t.Fatalf("Gemini tools must fail before Responses can emit unreturnable reasoning state: %v", err)
+	}
+
+	request.ToolPolicy.Mode = "none"
+	if _, err := PlanAttempt(client, capabilities, request, 1, "reasoning-model"); err != nil {
+		t.Fatalf("disabled tools cannot create continuation state and should remain bridgeable: %v", err)
+	}
+
+	request.ToolPolicy.Mode = "required"
+	capabilities.Features &^= FeatureSet(1) << FeatureReasoningEffort
+	if _, err := PlanAttempt(client, capabilities, request, 1, "non-reasoning-model"); err != nil {
+		t.Fatalf("a non-reasoning Responses tool bridge should remain supported: %v", err)
+	}
+}
+
 // With reasoning off there is no reasoning state to lose, so a Chat request
 // with tools — first call or continuation — bridges to Responses.
 func TestPlanAttemptBridgesChatToolsWithReasoningOff(t *testing.T) {

@@ -95,9 +95,12 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 			effective = degraded
 		}
 	}
-	if client.Family == textgen.ProtocolAnthropic {
+	switch client.Family {
+	case textgen.ProtocolAnthropic:
 		client.Dialect = "anthropic"
-	} else {
+	case textgen.ProtocolGemini:
+		client.Dialect = "gemini"
+	default:
 		client.Dialect = "openai"
 	}
 	plan, err := textgen.PlanAttempt(client, snapshot, effective, channel.Id, modelName, inputTokens)
@@ -136,7 +139,8 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		}
 		effective.Reasoning = textgen.ReasoningOptions{Effort: "none"}
 	}
-	if !plan.Native && client.Family == textgen.ProtocolAnthropic && effective.Reasoning.Effort == "none" && !model.CanDisableReasoning(modelName) {
+	if !plan.Native && (client.Family == textgen.ProtocolAnthropic || client.Family == textgen.ProtocolGemini) &&
+		effective.Reasoning.Effort == "none" && !model.CanDisableReasoning(modelName) {
 		// thinking off, asked of a model that cannot stop reasoning: the
 		// ask is left out, as an upstream would refuse effort none
 		if effective == parsed.Semantic {

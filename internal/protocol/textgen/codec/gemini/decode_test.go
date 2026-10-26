@@ -89,6 +89,20 @@ func TestDecodeMatchesFunctionResponsesByID(t *testing.T) {
 	}
 }
 
+func TestDecodePreservesLiteralBackslashesInFunctionArguments(t *testing.T) {
+	request, _, err := Decode([]byte(`{"contents":[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"functionCall":{"name":"read","args":{"path":"C:\\temp\\new","trailing":"C:\\tmp\\"}}}]}]}`), "gemini-3-flash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var arguments map[string]string
+	if err := json.Unmarshal([]byte(request.Conversation[1].Arguments), &arguments); err != nil {
+		t.Fatal(err)
+	}
+	if arguments["path"] != `C:\temp\new` || arguments["trailing"] != `C:\tmp\` {
+		t.Fatalf("literal backslashes changed: %#v", arguments)
+	}
+}
+
 // Explicit zeros are values; includeThoughts asks for a summary; a Gemini
 // Schema becomes JSON Schema.
 func TestDecodeGenerationConfigPresenceThoughtsAndSchema(t *testing.T) {

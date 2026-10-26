@@ -233,7 +233,7 @@ func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySna
 	}
 	// With reasoning off there is no reasoning state for Chat to lose, so the
 	// bridge stays lossless for tool calls.
-	if client.Family == ProtocolOpenAIChat && upstream == ProtocolOpenAIResponses && snapshot.Features.Has(FeatureReasoningEffort) &&
+	if (client.Family == ProtocolOpenAIChat || client.Family == ProtocolGemini) && upstream == ProtocolOpenAIResponses && snapshot.Features.Has(FeatureReasoningEffort) &&
 		request.Reasoning.Effort != "none" {
 		toolMode := request.ToolPolicy.Mode
 		if toolMode == "" {
@@ -243,7 +243,7 @@ func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySna
 			return nil, &UnsupportedFeatureError{
 				Feature: FeatureFunctionTools,
 				Path:    "tool_choice",
-				Reason:  "reasoning-capable Responses models require reasoning state that Chat cannot preserve across tool-call continuation",
+				Reason:  "reasoning-capable Responses models require reasoning state that the client protocol cannot preserve across tool-call continuation",
 			}
 		}
 		for index, item := range request.Conversation {
@@ -251,7 +251,7 @@ func planBridge(client Protocol, upstream ProtocolFamily, snapshot CapabilitySna
 				return nil, &UnsupportedFeatureError{
 					Feature: FeatureFunctionTools,
 					Path:    fmt.Sprintf("input[%d]", index),
-					Reason:  "reasoning-capable Responses models require prior reasoning items for tool-call continuation",
+					Reason:  "reasoning-capable Responses models require prior reasoning items that the client protocol cannot preserve for tool-call continuation",
 				}
 			}
 		}
