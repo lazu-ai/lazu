@@ -212,7 +212,7 @@ export const formatTokenWindow = (value?: number) => {
   return String(value);
 };
 
-export const listPriceOf = (pricing?: CatalogPricing) => ({
+const listPriceOf = (pricing?: CatalogPricing) => ({
   input: pricing?.input_per_million ?? pricing?.input,
   output: pricing?.output_per_million ?? pricing?.output,
   perCall: pricing?.request ?? pricing?.request_price,

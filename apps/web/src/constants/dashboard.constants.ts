@@ -1,14 +1,6 @@
 // ========== UI 配置常量 ==========
 export const CHART_CONFIG = { mode: 'desktop-browser' };
 
-export const ILLUSTRATION_SIZE = { width: 96, height: 96 };
-
-export const DEFAULT_TIME_INTERVALS = {
-  hour: { seconds: 3600, minutes: 60 },
-  day: { seconds: 86400, minutes: 1440 },
-  week: { seconds: 604800, minutes: 10080 },
-};
-
 // ========== 公告类型配置 ==========
 // `tone` is the Yunmu-facing axis: it selects a token pair in
 // announcement-timeline.css. `dotColor` is retained for legacy legend
@@ -77,17 +69,4 @@ export const ANNOUNCEMENT_TYPE_CONFIG = {
     labelKey: 'common.status.error',
     tone: 'danger',
   },
-};
-
-// ========== 本地存储键名 ==========
-export const STORAGE_KEYS = {
-  DATA_EXPORT_DEFAULT_TIME: 'data_export_default_time',
-};
-
-// ========== 默认值 ==========
-export const DEFAULTS = {
-  PAGE_SIZE: 20,
-  CHART_HEIGHT: 96,
-  MODEL_TABLE_PAGE_SIZE: 10,
-  MAX_TREND_POINTS: 7,
 };

@@ -136,11 +136,6 @@ func defaultOutputReservation(info *relaycommon.RelayInfo) int {
 	}
 }
 
-func HasExplicitSellPrice(modelName string) bool {
-	_, ok := model.GetActiveModelSellPrice(modelName, model.ChannelLaneDirect)
-	return ok
-}
-
 func isPerCallSellPrice(price model.ModelSellPrice) bool {
 	return (price.ImagePricing != nil || price.RequestUSD != nil || price.SecondUSD != nil) &&
 		price.InputPerMtok == nil &&

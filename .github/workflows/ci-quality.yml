@@ -187,6 +187,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # TestNoExpiredDeprecations compares "Deprecated: delete after vX"
+          # comments against the newest release tag.
+          LAZU_CHECK_VERSION="$(git ls-remote --tags --refs origin 'v*' | sed 's|.*refs/tags/||' | sort -V | tail -n 1)"
+          test -n "$LAZU_CHECK_VERSION"
+          export LAZU_CHECK_VERSION
           go test -p 1 -count=1 -json ./... | tee "$RUNNER_TEMP/lazu-go-tests.jsonl"
           python3 ops/scripts/check-native-test-coverage.py "$RUNNER_TEMP/lazu-go-tests.jsonl"
 
@@ -204,6 +209,9 @@ jobs:
 
       - name: Check every route has a caller, a document or an allowlist entry
         run: make test-route-coverage
+
+      - name: Check for Go functions nothing calls
+        run: make test-deadcode
 
   secrets:
     if: github.event_name != 'schedule'
@@ -265,6 +273,12 @@ jobs:
 
       - name: Check web i18n coverage
         run: bun run i18n:check
+
+      - name: Check unused web files, dependencies and exports
+        run: bun run knip:check
+
+      - name: Check no translation key goes unread
+        run: bun run i18n:unused
 
       - name: Audit web dependencies
         if: needs.changes.outputs.web_dependencies == 'true'

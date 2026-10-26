@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/public-site/entry.ts",
+    "src/entry-prerender.tsx",
+    "src/components/ui/index.ts",
+    "src/context/Status/index.tsx",
+    "src/context/User/index.tsx",
+    "src/extensions/index.ts",
+    "src/helpers/index.ts",
+    "scripts/*.{mjs,ts}",
+    "src/**/*.type-test.ts",
+    "i18next.config.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{mjs,mts,ts}",
+    "tests/**/*.ts"
+  ],
+  "ignore": ["vendor/**"],
+  "ignoreBinaries": ["python3", "open"]
+}

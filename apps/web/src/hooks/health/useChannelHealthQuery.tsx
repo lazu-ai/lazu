@@ -49,7 +49,7 @@ export type ChannelHealthTone = 'ok' | 'warn' | 'bad' | 'blocked' | 'none';
 
 /** What an upstream is FOR on one route, which is a different question from
  *  how much of the load it takes. */
-export type ChannelHealthRole = 'primary' | 'backup' | 'inventory';
+type ChannelHealthRole = 'primary' | 'backup' | 'inventory';
 
 export type ChannelHealthBucket = {
   index: number;

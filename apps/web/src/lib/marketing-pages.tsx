@@ -43,7 +43,7 @@ const pages: Record<string, { preload: () => Promise<void> }> = {
 };
 
 /** The marketing page a public path renders, without its locale prefix. */
-export function marketingPageFor(path: string) {
+function marketingPageFor(path: string) {
   const bare = path.replace(/^\/(zh-TW|zh|ja)(?=\/|$)/, '') || '/';
   return pages[bare.length > 1 ? bare.replace(/\/$/, '') : bare];
 }
