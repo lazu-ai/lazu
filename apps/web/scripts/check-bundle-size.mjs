@@ -25,7 +25,10 @@ const budgets = {
   // reader who opens something written in Markdown — 137.03 → 184.11 KiB — and
   // that reader is still 28 KiB better off than before. The ceiling moves to
   // cover the relocation and no more.
-  markdownJavaScript: 190 * 1024,
+  // Highlighting now registers only the languages announcements use, and
+  // KaTeX loads only for content with a formula: 175.05 → 64.45 KiB. The
+  // ceiling follows with ~15 KiB of headroom.
+  markdownJavaScript: 80 * 1024,
   markdownCss: 12 * 1024,
   vchartRuntime: 350 * 1024,
   // Whole locale graphs, including errors and every fallback language. The
@@ -113,9 +116,13 @@ addBudget(
     .filter((file) => typeof file === 'string' && file.endsWith('.js')),
   budgets.markdownJavaScript,
 );
+// Vite lists the entry stylesheet on chunks that share modules with the
+// entry; the browser already has it, so only the Markdown graph's own CSS
+// counts against this budget.
+const initialCssFiles = new Set(initialCss);
 const markdownCss = [
   ...new Set([...markdownKeys].flatMap((key) => manifest[key]?.css ?? [])),
-];
+].filter((file) => !initialCssFiles.has(file));
 addBudget('Markdown renderer CSS', markdownCss, budgets.markdownCss);
 
 const addEntryGraphBudget = (name, entryKey, limit) => {

@@ -1,0 +1,25 @@
+{
+  "messages": [
+    {
+      "content": "Be terse.",
+      "role": "system"
+    },
+    {
+      "content": "Hi",
+      "role": "user"
+    },
+    {
+      "content": "Hello.",
+      "role": "assistant"
+    },
+    {
+      "content": "Again?",
+      "role": "user"
+    }
+  ],
+  "model": "m",
+  "stop": [
+    "END",
+    "STOP"
+  ]
+}
