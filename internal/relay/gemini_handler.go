@@ -20,26 +20,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func trimModelThinking(modelName string) string {
-	// 去除模型名称中的 -nothinking 后缀
-	if strings.HasSuffix(modelName, "-nothinking") {
-		return strings.TrimSuffix(modelName, "-nothinking")
-	}
-	// 去除模型名称中的 -thinking 后缀
-	if strings.HasSuffix(modelName, "-thinking") {
-		return strings.TrimSuffix(modelName, "-thinking")
-	}
-
-	// 去除模型名称中的 -thinking-number
-	if strings.Contains(modelName, "-thinking-") {
-		parts := strings.Split(modelName, "-thinking-")
-		if len(parts) > 1 {
-			return parts[0] + "-thinking"
-		}
-	}
-	return modelName
-}
-
 func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.LazuError) {
 	info.InitChannelMeta(c)
 
