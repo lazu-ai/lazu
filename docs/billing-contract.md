@@ -56,3 +56,10 @@ total = subtotal - discount
 ## Operational Notes
 
 The relay path may pre-consume quota before the upstream call finishes. On non-billable failures the post-call handler must refund the pre-consumed amount. Consumption logs should include `amount_microusd`, token counts, pricing version, and line items so billing can be audited without reconstructing provider responses.
+
+## Account tiers
+
+Account tiers are not in use. `users.group` is the tier field and is no longer
+a customer-selectable routing group; the tier thresholds and automatic
+adjustment that once lived alongside it are not active, and enabling them
+needs a separate product decision.

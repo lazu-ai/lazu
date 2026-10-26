@@ -2,23 +2,23 @@ package service
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	anthropic_messages "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/anthropic_messages"
 	openai_chat "github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
-	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 )
 
 // The protocol hub's Claude-to-Chat path (anthropic_messages.Decode, then
-// openai_chat.Encode) is held to the legacy converter (ClaudeToOpenAIRequest)
-// on the requests the legacy converter got right, until the legacy converter
-// is deleted; then these cases become golden files (AGENTS.md, Protocol
-// Layer 7). Where the two differ on purpose the hub's own test says what it
-// does: tool_choice and thinking carried, images in tool results kept as
-// images, is_error said, and an assistant's text beside its tool call kept
-// (TestHubKeepsTextBesideAToolCall).
+// openai_chat.Encode) is held to golden files under testdata/claude_bridge:
+// the legacy converter's output on the requests it got right, saved before it
+// was deleted (AGENTS.md, Protocol Layer 7). Where the two differ on purpose
+// the hub's own test says what it does: tool_choice and thinking carried,
+// images in tool results kept as images, is_error said, and an assistant's
+// text beside its tool call kept (TestHubKeepsTextBesideAToolCall).
 var claudeDifferentialCases = map[string]string{
 	"text":         `{"model":"m","max_tokens":200,"temperature":0.3,"top_p":0.9,"messages":[{"role":"user","content":"Say hi."}]}`,
 	"system":       `{"model":"m","system":"Be terse.","messages":[{"role":"user","content":"Hi"},{"role":"assistant","content":"Hello."},{"role":"user","content":"Again?"}],"stop_sequences":["END","STOP"]}`,
@@ -27,17 +27,9 @@ var claudeDifferentialCases = map[string]string{
 	"image":        `{"model":"m","messages":[{"role":"user","content":[{"type":"text","text":"What is this?"},{"type":"image","source":{"type":"base64","media_type":"image/png","data":"iVBORw0KGgo="}}]}]}`,
 }
 
-func TestClaudeToChatMatchesTheLegacyConverter(t *testing.T) {
+func TestClaudeToChatMatchesTheGoldenFiles(t *testing.T) {
 	for name, body := range claudeDifferentialCases {
 		t.Run(name, func(t *testing.T) {
-			var wire dto.ClaudeRequest
-			if err := json.Unmarshal([]byte(body), &wire); err != nil {
-				t.Fatal(err)
-			}
-			legacy, err := ClaudeToOpenAIRequest(wire, &relaycommon.RelayInfo{OriginModelName: "m"})
-			if err != nil {
-				t.Fatal(err)
-			}
 			request, _, err := anthropic_messages.Decode([]byte(body))
 			if err != nil {
 				t.Fatal(err)
@@ -47,11 +39,17 @@ func TestClaudeToChatMatchesTheLegacyConverter(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, want := normaliseChat(t, hub), normaliseChat(t, legacy)
-			if !reflect.DeepEqual(got, want) {
+			raw, err := os.ReadFile(filepath.Join("testdata", "claude_bridge", name+".json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want map[string]any
+			if err := json.Unmarshal(raw, &want); err != nil {
+				t.Fatal(err)
+			}
+			if got := normaliseChat(t, hub); !reflect.DeepEqual(got, want) {
 				g, _ := json.MarshalIndent(got, "", "  ")
-				w, _ := json.MarshalIndent(want, "", "  ")
-				t.Fatalf("hub differs from the legacy converter\n got: %s\nwant: %s", g, w)
+				t.Fatalf("hub differs from %s.json\n got: %s\nwant: %s", name, g, raw)
 			}
 		})
 	}

@@ -299,17 +299,6 @@ func dropRetreatingAbilities(abilities []cachedAbility) []cachedAbility {
 	return kept
 }
 
-// CacheGetAllSatisfiedChannels returns every enabled channel that serves
-// (group, model) — across all priority tiers — so callers can do their
-// own filtering and ranking instead of accepting the priority+weight
-// random pick that getRandomSatisfiedChannel does.
-//
-// Used by the composite router; CacheGetRandomSatisfiedChannel remains
-// the entry point for legacy / baseline routing.
-func CacheGetAllSatisfiedChannels(c *gin.Context, group string, modelName string) ([]*Channel, string, error) {
-	return filterClientChannels(c, getAllSatisfiedChannels(group, modelName)), group, nil
-}
-
 // CacheGetRoutingCandidates returns every enabled candidate together with the
 // effective priority and weight for this exact (group, model) ability, tagged
 // with the group it came from.
@@ -473,18 +462,6 @@ func CacheUpdateChannelStatus(id int, status int) {
 			}
 		}
 	}
-}
-
-func CacheUpdateChannel(channel *Channel) {
-	if !common.MemoryCacheEnabled {
-		return
-	}
-	channelSyncLock.Lock()
-	defer channelSyncLock.Unlock()
-	if channel == nil {
-		return
-	}
-	channelsIDM[channel.Id] = channel
 }
 
 // LaneServiceability answers the two questions a lane picker has to ask

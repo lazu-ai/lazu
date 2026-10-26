@@ -196,11 +196,6 @@ type overviewUserHour struct {
 	BucketHour int64 `gorm:"column:bucket_hour"`
 }
 
-// BuildOverview answers the console overview for one scope and range.
-func BuildOverview(req OverviewRequest) (Overview, error) {
-	return BuildOverviewContext(context.Background(), req)
-}
-
 func BuildOverviewContext(ctx context.Context, req OverviewRequest) (Overview, error) {
 	if req.Now <= 0 {
 		req.Now = time.Now().Unix()
@@ -311,12 +306,6 @@ func BuildOverviewContext(ctx context.Context, req OverviewRequest) (Overview, e
 		out.Models = []DashboardUsageDimensionRow{}
 	}
 	return out, nil
-}
-
-// buildOverviewTopups sums completed top-ups in the range and lists the
-// latest few with the payer's name.
-func buildOverviewTopups(req OverviewRequest) (*OverviewTopups, error) {
-	return buildOverviewTopupsContext(context.Background(), req)
 }
 
 func buildOverviewTopupsContext(ctx context.Context, req OverviewRequest) (*OverviewTopups, error) {
@@ -591,13 +580,6 @@ func overviewChannelsContext(ctx context.Context, signups []OverviewSignupSource
 	return out, nil
 }
 
-// overviewSignupSources groups new users by where they came from: the utm
-// source when the link carried one, else the referring site, else "invite"
-// for an invite code, else "" for a direct visit.
-func overviewSignupSources(newcomers map[int]overviewNewcomer) (map[string][]OverviewSignupSource, error) {
-	return overviewSignupSourcesContext(context.Background(), newcomers)
-}
-
 func overviewSignupSourcesContext(ctx context.Context, newcomers map[int]overviewNewcomer) (map[string][]OverviewSignupSource, error) {
 	if len(newcomers) == 0 {
 		return nil, nil
@@ -670,14 +652,6 @@ func overviewSignupSourcesContext(ctx context.Context, newcomers map[int]overvie
 	return out, nil
 }
 
-// buildOverviewClients splits the range's traffic by the agent or SDK that
-// sent it. It reads hourly usage slices (raw logs for a partial first or last
-// hour); grouping ninety days of logs took 1 s on 2026-10-16. Embedded
-// installs read the log, which covers only its retention.
-func buildOverviewClients(req OverviewRequest) ([]OverviewClient, error) {
-	return buildOverviewClientsContext(context.Background(), req)
-}
-
 type overviewClientRow struct {
 	Client string
 	Users  int64
@@ -723,12 +697,6 @@ func buildOverviewClientsContext(ctx context.Context, req OverviewRequest) ([]Ov
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].RequestCount > out[j].RequestCount })
 	return out, nil
-}
-
-// buildOverviewSessionStats summarises real agent sessions (not the per-Key
-// fallback) that were active in the range.
-func buildOverviewSessionStats(req OverviewRequest) (*OverviewSessionStats, error) {
-	return buildOverviewSessionStatsContext(context.Background(), req)
 }
 
 func buildOverviewSessionStatsContext(ctx context.Context, req OverviewRequest) (*OverviewSessionStats, error) {

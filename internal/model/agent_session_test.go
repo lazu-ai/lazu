@@ -92,7 +92,7 @@ func TestRecordSessionActivityFoldsRequestsThreadsAndErrorsIntoOneSession(t *tes
 		t.Fatalf("another account saw this session: total=%d err=%v", otherTotal, err)
 	}
 
-	detail, err := GetAgentSessionDetail(owner.Id, s.PublicID)
+	detail, err := GetAgentSessionDetailPage(owner.Id, s.PublicID, 0, 0)
 	if err != nil {
 		t.Fatalf("GetAgentSessionDetail: %v", err)
 	}
@@ -112,10 +112,10 @@ func TestRecordSessionActivityFoldsRequestsThreadsAndErrorsIntoOneSession(t *tes
 	if r := detail.Requests[2]; r.RequestID != "req-err" || !r.Failed || r.Error != "upstream overloaded" {
 		t.Fatalf("failed request: %+v", r)
 	}
-	if _, err := GetAgentSessionDetail(owner.Id+1, s.PublicID); err == nil {
+	if _, err := GetAgentSessionDetailPage(owner.Id+1, s.PublicID, 0, 0); err == nil {
 		t.Fatal("another account opened this session")
 	}
-	adminView, err := GetAgentSessionDetail(0, s.PublicID)
+	adminView, err := GetAgentSessionDetailPage(0, s.PublicID, 0, 0)
 	if err != nil || adminView.Username != owner.Username {
 		t.Fatalf("admin read: %+v %v", adminView, err)
 	}
@@ -264,7 +264,7 @@ func TestAgentSessionOfficialLanesAndStatus(t *testing.T) {
 		t.Fatalf("only-failed matched a session that recovered")
 	}
 
-	detail, err := GetAgentSessionDetail(7, s.PublicID)
+	detail, err := GetAgentSessionDetailPage(7, s.PublicID, 0, 0)
 	if err != nil {
 		t.Fatalf("detail: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestAgentSessionRequestPaginationAndRetentionCoverage(t *testing.T) {
 	if err := db.Create(&foreign).Error; err != nil {
 		t.Fatal(err)
 	}
-	first, err := GetAgentSessionDetail(42, session.PublicID)
+	first, err := GetAgentSessionDetailPage(42, session.PublicID, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestAgentSessionRequestPaginationAndRetentionCoverage(t *testing.T) {
 	if err := db.Delete(&Log{}, logs[0].Id).Error; err != nil {
 		t.Fatal(err)
 	}
-	partial, err := GetAgentSessionDetail(42, session.PublicID)
+	partial, err := GetAgentSessionDetailPage(42, session.PublicID, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

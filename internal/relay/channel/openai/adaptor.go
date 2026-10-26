@@ -21,7 +21,6 @@ import (
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/common_handler"
 	relayconstant "github.com/lazu-ai/lazu/internal/relay/constant"
-	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/types"
 	"github.com/lazu-ai/lazu/packages/domain/providercap"
 
@@ -32,19 +31,6 @@ import (
 type Adaptor struct {
 	ChannelType    int
 	ResponseFormat string
-}
-
-func (a *Adaptor) ConvertGeminiRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.GeminiChatRequest) (any, error) {
-	if request.HasCurrentTurnThoughtSignature() {
-		return nil, errors.New("Gemini thoughtSignature after the latest user turn requires a Gemini-protocol upstream; OpenAI-compatible upstreams cannot faithfully relay native Gemini tool-call history")
-	}
-
-	// 使用 service.GeminiToOpenAIRequest 转换请求格式
-	openaiRequest, err := service.GeminiToOpenAIRequest(request, info)
-	if err != nil {
-		return nil, err
-	}
-	return a.ConvertOpenAIRequest(c, info, openaiRequest)
 }
 
 func (a *Adaptor) ConvertVideoRequest(_ *gin.Context, _ *relaycommon.RelayInfo, request dto.VideoRequest) (any, error) {
@@ -58,38 +44,6 @@ func (a *Adaptor) ConvertVideoRequest(_ *gin.Context, _ *relaycommon.RelayInfo, 
 		ResponseFormat: request.ResponseFormat,
 		User:           request.User,
 	}, nil
-}
-
-func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.ClaudeRequest) (any, error) {
-	//if !strings.Contains(request.Model, "claude") {
-	//	return nil, fmt.Errorf("you are using openai channel type with path /v1/messages, only claude model supported convert, but got %s", request.Model)
-	//}
-	//if common.DebugEnabled {
-	//	bodyBytes := []byte(common.GetJsonString(request))
-	//	err := os.WriteFile(fmt.Sprintf("claude_request_%s.txt", c.GetString(common.RequestIdKey)), bodyBytes, 0644)
-	//	if err != nil {
-	//		println(fmt.Sprintf("failed to save request body to file: %v", err))
-	//	}
-	//}
-	aiRequest, err := service.ClaudeToOpenAIRequest(*request, info)
-	if err != nil {
-		return nil, err
-	}
-	//if common.DebugEnabled {
-	//	println(fmt.Sprintf("convert claude to openai request result: %s", common.GetJsonString(aiRequest)))
-	//	// Save request body to file for debugging
-	//	bodyBytes := []byte(common.GetJsonString(aiRequest))
-	//	err = os.WriteFile(fmt.Sprintf("claude_to_openai_request_%s.txt", c.GetString(common.RequestIdKey)), bodyBytes, 0644)
-	//	if err != nil {
-	//		println(fmt.Sprintf("failed to save request body to file: %v", err))
-	//	}
-	//}
-	if info.SupportStreamOptions && info.IsStream {
-		aiRequest.StreamOptions = &dto.StreamOptions{
-			IncludeUsage: true,
-		}
-	}
-	return a.ConvertOpenAIRequest(c, info, aiRequest)
 }
 
 func (a *Adaptor) Init(info *relaycommon.RelayInfo) {
@@ -124,11 +78,7 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		return url, nil
 	default:
 		// a planned attempt goes to the endpoint its plan chose, a bridged
-		// Claude client included; unplanned Claude and Gemini clients are
-		// converted to Chat by the legacy path
-		if (info.RelayFormat == types.RelayFormatClaude || info.RelayFormat == types.RelayFormatGemini) && info.ProtocolPlan == nil {
-			return fmt.Sprintf("%s/v1/chat/completions", info.ChannelBaseUrl), nil
-		}
+		// Claude or Gemini client included (both are always planned)
 		requestPath := info.RequestURLPath
 		if info.ProtocolPlan != nil {
 			switch info.ProtocolPlan.UpstreamProtocol.Family {
@@ -572,11 +522,11 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.LazuError) {
-	if ServesClaudeClient(info) {
+	if ServesBridgedClient(info) {
 		if info.IsStream {
-			return ClaudeClientStreamHandler(c, resp, info)
+			return BridgedClientStreamHandler(c, resp, info)
 		}
-		return ClaudeClientHandler(c, resp, info)
+		return BridgedClientHandler(c, resp, info)
 	}
 	if info.ProtocolPlan != nil {
 		switch info.ProtocolPlan.UpstreamProtocol.Family {

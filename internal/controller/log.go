@@ -29,12 +29,13 @@ func GetAllLogs(c *gin.Context) {
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Query("group")
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, userID, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group)
+	logs, total, atLeast, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, userID, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group)
 	if err != nil {
 		logFailure(c, err)
 		return
 	}
 	pageInfo.SetTotal(int(total))
+	pageInfo.TotalAtLeast = atLeast
 	pageInfo.SetItems(logs)
 	common.ApiSuccess(c, pageInfo)
 	return
@@ -46,7 +47,7 @@ func GetUserLogs(c *gin.Context) {
 		return
 	}
 	page := common.GetPageQuery(c)
-	logs, total, err := model.ListProjectLogsContext(c.Request.Context(), access, projectLogFilter(c), page.GetStartIdx(), page.GetPageSize())
+	logs, total, atLeast, err := model.ListProjectLogsCappedContext(c.Request.Context(), access, projectLogFilter(c), page.GetStartIdx(), page.GetPageSize())
 	if err != nil {
 		logFailure(c, err)
 		return
@@ -57,6 +58,7 @@ func GetUserLogs(c *gin.Context) {
 		return
 	}
 	page.SetTotal(int(total))
+	page.TotalAtLeast = atLeast
 	page.SetItems(items)
 	common.ApiSuccess(c, page)
 }
