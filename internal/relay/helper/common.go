@@ -14,9 +14,30 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// streamFlushCoalescerKey holds the *streamFlushCoalescer of the stream
+// scanner serving this request, if any.
+const streamFlushCoalescerKey = "lazu_stream_flush_coalescer"
+
+// streamFlushCoalescer lets the stream scanner hold back flushes while more
+// upstream events are already buffered: those are written straight after, so
+// one flush can carry them all. Accessed only under the scanner's write lock.
+type streamFlushCoalescer struct {
+	deferring bool // the event being handled has more buffered behind it
+	pending   bool // a write is waiting for a flush
+}
+
 func FlushWriter(c *gin.Context) error {
 	if c.Writer == nil {
 		return nil
+	}
+	if value, ok := c.Get(streamFlushCoalescerKey); ok {
+		if coalescer, _ := value.(*streamFlushCoalescer); coalescer != nil {
+			if coalescer.deferring {
+				coalescer.pending = true
+				return nil
+			}
+			coalescer.pending = false
+		}
 	}
 	if flusher, ok := c.Writer.(http.Flusher); ok {
 		flusher.Flush()

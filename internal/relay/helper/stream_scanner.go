@@ -2,6 +2,7 @@ package helper
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -180,7 +181,23 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	}
 	defer startTimer.Stop()
 
-	scanner.Split(bufio.ScanLines)
+	// moreBuffered says whether another complete line is already in the
+	// scanner's buffer after the current one, so the next Scan will not wait
+	// on the network. While it holds, flushes are held back and the writes
+	// they cover go out with the next one.
+	moreBuffered := false
+	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		advance, token, err := bufio.ScanLines(data, atEOF)
+		if token != nil {
+			moreBuffered = advance < len(data) && bytes.IndexByte(data[advance:], '\n') >= 0
+		}
+		return advance, token, err
+	})
+	flushes := &streamFlushCoalescer{}
+	firstEventSent := false
+	c.Set(streamFlushCoalescerKey, flushes)
+	// Writes after the scanner returns (final usage, [DONE]) flush as usual.
+	defer c.Set(streamFlushCoalescerKey, (*streamFlushCoalescer)(nil))
 	SetEventStreamHeaders(c)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -253,6 +270,22 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	wg.Add(1)
 	common.RelayCtxGo(ctx, func() {
 		defer wg.Done()
+		// flushPending writes out held-back output once the next line has to
+		// come from the network. TryLock: a callback that timed out may still
+		// hold the lock, and that stream is ending anyway.
+		flushPending := func() {
+			if moreBuffered || !writeMutex.TryLock() {
+				return
+			}
+			defer writeMutex.Unlock()
+			if flushes.pending {
+				_ = FlushWriter(c)
+			}
+		}
+		defer func() {
+			moreBuffered = false
+			flushPending()
+		}()
 		buffer := streamScannerBuffers.Get().(*[InitialScannerBufferSize]byte)
 		scanner.Buffer(buffer[:], MaxScannerBufferSize)
 		defer func() {
@@ -311,9 +344,11 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			}
 
 			if len(data) < 6 {
+				flushPending()
 				continue
 			}
 			if data[:5] != "data:" && data[:6] != "[DONE]" {
+				flushPending()
 				continue
 			}
 			startTimer.Stop()
@@ -330,6 +365,12 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 				}
 
 				// 使用超时机制防止写操作阻塞
+				// The first event always goes out at once: time to first
+				// token must not wait on the rest of a batch.
+				writeMutex.Lock()
+				flushes.deferring = moreBuffered && firstEventSent
+				writeMutex.Unlock()
+				firstEventSent = true
 				handlerTimeout.Reset(10 * time.Second)
 				select {
 				case events <- data:
@@ -351,6 +392,10 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 						default:
 						}
 					}
+					writeMutex.Lock()
+					flushes.deferring = false
+					writeMutex.Unlock()
+					flushPending()
 					if !success {
 						if terminal != nil && terminal() {
 							state.Lock()
