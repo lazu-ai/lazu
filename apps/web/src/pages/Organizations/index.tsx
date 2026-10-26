@@ -49,8 +49,9 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { UserContext } from '../../context/User';
-import { copy, showError, showSuccess } from '../../helpers';
+import { copy, showError } from '../../helpers';
 import { API } from '../../helpers/api';
 import { getUserFromLocalStorage, isRoot } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
@@ -532,7 +533,7 @@ export default function OrganizationsPage() {
       );
     },
     onSuccess: () => {
-      showSuccess(
+      notify.success(
         t('page.console.orgs.created', { defaultValue: '客户账户已创建' }),
       );
       setCreating(false);
@@ -547,7 +548,9 @@ export default function OrganizationsPage() {
       unwrap(await API.delete(`/api/user/${account.id}`));
     },
     onSuccess: () => {
-      showSuccess(t('page.console.orgs.deleted', { defaultValue: '已删除' }));
+      notify.success(
+        t('page.console.orgs.deleted', { defaultValue: '已删除' }),
+      );
       setDeleting(null);
       closeAccount();
       invalidate();
@@ -611,7 +614,7 @@ export default function OrganizationsPage() {
 
   const copyAccountId = async (value: string) => {
     if (await copy(value)) {
-      showSuccess(
+      notify.success(
         t('page.console.orgs.copyIdSuccess', { defaultValue: 'ID 已复制' }),
       );
     }

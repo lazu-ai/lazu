@@ -1,14 +1,26 @@
 import { toast as sonnerToast } from 'sonner';
 import { recordStatusIssue } from './status-center';
 import { toastConstants } from '../../constants/toast.constants';
+import { MOBILE_BREAKPOINT } from '../../hooks/common/useIsMobile';
 import type { ExternalToast } from 'sonner';
 
 type ToastMessage = Parameters<typeof sonnerToast.success>[0];
 
+// Narrow screens get a centred toast for every tone, matching the console's
+// feedback rules; a caller can still pass its own position.
+const narrowScreen =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`).matches;
+
 const withDuration = (
   duration: number,
   options?: ExternalToast,
-): ExternalToast => ({ duration, ...options });
+): ExternalToast => ({
+  duration,
+  ...(narrowScreen ? { position: 'bottom-center' as const } : {}),
+  ...options,
+});
 
 type TaskToastOptions = {
   error?: ToastMessage;
