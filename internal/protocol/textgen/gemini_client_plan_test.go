@@ -31,6 +31,10 @@ func TestGeminiClientKeepsARunningSignedTurnOnGemini(t *testing.T) {
 			{"role":"user","parts":[{"text":"北京的天气怎么样，现在几点了？"}]},
 			{"role":"model","parts":[{"functionCall":{"id":"call_1","name":"get_weather","args":{"city":"北京"}}},{"functionCall":{"id":"call_2","name":"get_time","args":{}}}]},
 			{"role":"user","parts":[{"functionResponse":{"name":"get_weather","response":{"result":{"temperature":26}}}},{"functionResponse":{"name":"get_time","response":{"result":{"time":"10:00"}}}}]}]}`},
+		"unsigned thought in the running turn": {body: `{"contents":[
+			{"role":"user","parts":[{"text":"北京的天气怎么样？"}]},
+			{"role":"model","parts":[{"thought":true,"text":"先查天气。"},{"functionCall":{"id":"call_1","name":"get_weather","args":{"city":"北京"}}}]},
+			{"role":"user","parts":[{"functionResponse":{"name":"get_weather","response":{"result":{"temperature":26}}}}]}]}`},
 		"signed call in a finished turn": {body: `{"contents":[
 			{"role":"user","parts":[{"text":"北京的天气怎么样？"}]},
 			{"role":"model","parts":[{"functionCall":{"id":"call_1","name":"get_weather","args":{"city":"北京"}},"thoughtSignature":"sig-123"}]},

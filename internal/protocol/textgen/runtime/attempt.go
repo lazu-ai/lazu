@@ -279,6 +279,12 @@ func OverrideIsUpstreamWire(client textgen.Protocol, snapshot textgen.Capability
 		// did when the channel converted every request itself
 		return client.Family != textgen.ProtocolGemini
 	}
+	if client.Family == textgen.ProtocolGemini {
+		// a Gemini client on another vendor's channel: the override names
+		// that channel's fields, applied to the encoded body as it was to
+		// the converted one
+		return true
+	}
 	return (client.Family == textgen.ProtocolAnthropic) != snapshot.Features.Has(textgen.FeatureEndpointMessages)
 }
 

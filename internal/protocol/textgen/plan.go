@@ -554,7 +554,9 @@ func geminiCurrentTurnSignature(request *Request) *Issue {
 	}
 	for index := start; index < len(request.Conversation); index++ {
 		for _, opaque := range request.Conversation[index].Opaque {
-			if opaque.Dialect == "gemini" {
+			// a thought part without a signature is sealed as an empty one
+			var signature string
+			if opaque.Dialect == "gemini" && json.Unmarshal(opaque.Value, &signature) == nil && signature != "" {
 				return &Issue{Feature: FeatureOpaqueReasoningItem, Path: "input[" + itoa(index) + "]", Message: "a Gemini thought signature in the running turn needs a Gemini upstream"}
 			}
 		}
