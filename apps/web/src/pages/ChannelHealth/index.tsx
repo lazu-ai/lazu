@@ -15,8 +15,9 @@ import {
   Select,
 } from '../../components/ui';
 import ConsolePage from '../../components/ui/console-page';
+import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
-import { getRelativeTime, showError, showSuccess } from '../../helpers/utils';
+import { getRelativeTime, showError } from '../../helpers/utils';
 import {
   channelHealthQueryKey,
   useChannelHealthQuery,
@@ -485,7 +486,7 @@ export function ChannelHealthPage() {
           routes,
         }),
       );
-      showSuccess(
+      notify.success(
         t(`${ns}.floor.done`, {
           count: routes.length,
           defaultValue: '已把 {{count}} 条通道上的权重降到 0',
@@ -510,7 +511,7 @@ export function ChannelHealthPage() {
           reason: 'paused from the channel health ledger',
         }),
       );
-      showSuccess(
+      notify.success(
         t(`${ns}.pause.done`, {
           defaultValue: '已停用 {{name}}',
           name: pauseTarget.channel_name,
@@ -554,7 +555,7 @@ export function ChannelHealthPage() {
             lane: lane.lane === 'eco' ? 'cheap' : 'direct',
           }),
         );
-        showSuccess(
+        notify.success(
           t(`${ns}.test.done`, {
             defaultValue: '{{name}} 测试通过',
             name: provider.channel_name,

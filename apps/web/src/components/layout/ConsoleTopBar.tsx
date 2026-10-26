@@ -41,7 +41,6 @@ import {
 } from '../../helpers/brandUrls';
 import { githubNewIssueURL } from '../../helpers/sourceLinks';
 import { UPSTREAM_NOTICE, UPSTREAM_URL } from '../../helpers/upstream';
-import { showSuccess } from '../../helpers/utils';
 import { useAnnouncementsUnread } from '../../hooks/common/useAnnouncementsUnread';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { formatVersionLabel } from '../announcements/versionLabel';
@@ -54,6 +53,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui';
+import { notify } from '../ui/toast';
 
 const LANGUAGES = [
   { label: 'English', shortLabel: 'EN', value: 'en' },
@@ -163,7 +163,7 @@ const ConsoleTopBar = () => {
       // The session may already be gone server-side; the client-side cleanup
       // below is what actually signs this browser out.
     }
-    showSuccess(t('legacy.i18n.logout_successful.ea3f16cb50'));
+    notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
     userDispatch({ type: 'logout' });
     localStorage.removeItem('user');
     navigate('/login');
