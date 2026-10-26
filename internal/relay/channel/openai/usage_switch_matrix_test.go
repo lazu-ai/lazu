@@ -11,10 +11,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen/fixtures"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	relayconstant "github.com/lazu-ai/lazu/internal/relay/constant"
 	"github.com/lazu-ai/lazu/internal/types"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 // 执行清单 丁11: FORCE_STREAM_OPTION, GET_MEDIA_TOKEN and
@@ -101,13 +103,39 @@ func describe(usage *dto.Usage) usageCell {
 	return usageCell{prompt: usage.PromptTokens, source: usage.Measurement().Input}
 }
 
+// recordedChatStreams are a recorded OpenAI-compatible Chat stream that
+// reports usage (DeepSeek, include_usage on) and the same stream with every
+// usage object nulled out, as an upstream that ignores include_usage sends
+// it. It also returns the recording's prompt_tokens.
+func recordedChatStreams(t *testing.T) (withUsage, withoutUsage string, prompt int) {
+	t.Helper()
+	withUsage = fixtures.Raw(t, "deepseek/chat_text.sse")
+	lines := strings.Split(withUsage, "\n")
+	for i, line := range lines {
+		payload, ok := strings.CutPrefix(line, "data: ")
+		if !ok || !gjson.Valid(payload) {
+			continue
+		}
+		if usage := gjson.Get(payload, "usage.prompt_tokens"); usage.Exists() {
+			prompt = int(usage.Int())
+		}
+		nulled, err := sjson.SetRaw(payload, "usage", "null")
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines[i] = "data: " + nulled
+	}
+	if prompt == 0 {
+		t.Fatal("recording reports no prompt_tokens")
+	}
+	return withUsage, strings.Join(lines, "\n"), prompt
+}
+
 // Streaming: upstream usage wins whatever the switches say; without it the
 // prompt comes from the local estimate when GET_MEDIA_TOKEN is on, and is
 // zero when it is off.
 func TestStreamUsageSourceMatrix(t *testing.T) {
-	const withUsage = "data: {\"id\":\"c\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hello\"}}]}\n\n" +
-		"data: {\"id\":\"c\",\"choices\":[],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":3,\"total_tokens\":11}}\n\ndata: [DONE]\n\n"
-	const withoutUsage = "data: {\"id\":\"c\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hello\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+	withUsage, withoutUsage, recordedPrompt := recordedChatStreams(t)
 	for _, mediaToken := range []bool{true, false} {
 		for name, stream := range map[string]string{"upstream reports usage": withUsage, "upstream omits usage": withoutUsage} {
 			t.Run(fmt.Sprintf("GET_MEDIA_TOKEN=%t/%s", mediaToken, name), func(t *testing.T) {
@@ -121,8 +149,8 @@ func TestStreamUsageSourceMatrix(t *testing.T) {
 				got := describe(usage)
 				switch {
 				case name == "upstream reports usage":
-					if got.prompt != 8 || got.source != dto.UsageSourceProvider {
-						t.Fatalf("got %+v, want the provider's 8", got)
+					if got.prompt != recordedPrompt || got.source != dto.UsageSourceProvider {
+						t.Fatalf("got %+v, want the provider's %d", got, recordedPrompt)
 					}
 				case mediaToken:
 					if got.prompt <= 0 || got.source != dto.UsageSourceLocalEstimate {
