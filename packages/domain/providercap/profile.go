@@ -48,8 +48,10 @@ type Profile struct {
 
 var profiles = map[int]Profile{
 	constant.APITypeOpenAI: {
-		Family:            ProtocolFamilyOpenAI,
-		SupportsGemini:    true,
+		Family: ProtocolFamilyOpenAI,
+		// a Gemini client's text generation is planned and bridged to Chat or
+		// Responses; its other actions (embedContent, ...) have no OpenAI path
+		SupportsGemini:    false,
 		SupportsClaude:    true,
 		SupportsResponses: true,
 		SupportsRealtime:  true,
@@ -151,11 +153,17 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 		textgen.FeatureTopP, textgen.FeatureTopK, textgen.FeatureSeed, textgen.FeatureStop,
 		textgen.FeatureN, textgen.FeatureLogProbs, textgen.FeatureMaxOutput,
 		textgen.FeatureStream, textgen.FeatureStreamUsage)
-	if dialect == DialectAnthropic {
+	switch dialect {
+	case DialectAnthropic:
 		// Anthropic serves the Messages API; a Chat or Responses client
 		// reaches it through the planner's bridge (textgen.messagesBridgeIssue).
 		add(textgen.FeatureEndpointMessages)
-	} else {
+	case DialectGemini:
+		// Gemini serves generateContent; every other client reaches it
+		// through the planner's bridge, encoded by the Gemini codec
+		// (textgen.geminiBridgeIssue).
+		add(textgen.FeatureEndpointGemini)
+	default:
 		add(textgen.FeatureEndpointChat)
 	}
 	if dialect == DialectOpenAI || dialect == DialectAzureOpenAI || dialect == DialectOpenRouter {
@@ -243,7 +251,7 @@ func BuildSnapshot(input SnapshotInput) textgen.CapabilitySnapshot {
 	gaps := endpointGaps(dialect)
 	revisionParts := append([]string{dialect, strings.TrimSpace(input.ModelFamily)}, features.Names()...)
 	revisionParts = append(revisionParts, "denied:"+strings.Join(denied.Names(), ","))
-	for _, endpoint := range []textgen.FeatureID{textgen.FeatureEndpointChat, textgen.FeatureEndpointResponses, textgen.FeatureEndpointMessages} {
+	for _, endpoint := range []textgen.FeatureID{textgen.FeatureEndpointChat, textgen.FeatureEndpointResponses, textgen.FeatureEndpointMessages, textgen.FeatureEndpointGemini} {
 		if gap := gaps[endpoint]; gap != 0 {
 			revisionParts = append(revisionParts, "gap:"+endpoint.String()+":"+strings.Join(gap.Names(), ","))
 		}

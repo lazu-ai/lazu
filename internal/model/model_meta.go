@@ -381,10 +381,6 @@ func GetBoundChannelsByModelsMap(modelNames []string) (map[string][]BoundChannel
 	return result, nil
 }
 
-func SearchModels(keyword string, vendor string, offset int, limit int, sortBy string) ([]*Model, int64, error) {
-	return SearchModelsWithFilters(keyword, vendor, "", "", offset, limit, sortBy)
-}
-
 func SearchModelsWithFilters(keyword string, vendor string, status string, tier string, offset int, limit int, sortBy string) ([]*Model, int64, error) {
 	var models []*Model
 	db := CoreDB().Model(&Model{})

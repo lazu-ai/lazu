@@ -25,8 +25,6 @@ Every interactive primitive must cover default, hover, focus-visible, active/sel
 
 ## Verification surfaces
 
-- `brand/foundations/component-contracts.card.html` is the compact Brand specimen.
-- `apps/web/src/components/ui/lazu-ui.stories.tsx` is the runnable production specimen.
 - `apps/web/src/components/ui/lazu-ui.contract.test.tsx` protects semantic state behavior.
 - `apps/web/scripts/check-brand-contract.mjs` prevents legacy token/font dependencies from returning.
 

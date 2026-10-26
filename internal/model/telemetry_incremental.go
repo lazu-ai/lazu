@@ -406,44 +406,6 @@ func claimTelemetryEventsTx(tx *gorm.DB, events []relayResultEvent) ([]relayResu
 	return result, nil
 }
 
-func recordDigestUsageTx(tx *gorm.DB, log *Log) error {
-	if log == nil || (log.Type != LogTypeConsume && log.Type != LogTypeError) {
-		return nil
-	}
-	if err := validateTelemetryLogNumbers(log); err != nil {
-		return err
-	}
-	payer := log.PayerUserID
-	if payer <= 0 {
-		payer = log.UserId
-	}
-	if payer <= 0 {
-		return nil
-	}
-	at := log.CreatedAt
-	row := DigestUsageHour{PayerUserID: payer, HourStart: at - at%3600, ModelName: truncateString(log.ModelName, 128), Source: DigestSourceKey(log.ClientFramework)}
-	if log.Type == LogTypeError {
-		row.Errors = 1
-	} else {
-		row.Requests = 1
-		row.Spend = log.AmountMicrousd.Int64()
-		var err error
-		row.Tokens, err = checkedTelemetryTokenTotal(log.PromptTokens, log.CompletionTokens)
-		if err != nil {
-			return err
-		}
-		if price, ok := sessionOfficialPrice(log.LineItems, log.AmountMicrousd.Int64()); ok {
-			row.Official = price
-			row.Compared = log.AmountMicrousd.Int64()
-		}
-	}
-	updates := make(map[string]interface{})
-	for _, field := range []string{"spend", "requests", "errors", "tokens", "cache", "official", "compared"} {
-		updates[field] = gorm.Expr("digest_usage_hours." + field + " + excluded." + field)
-	}
-	return tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "payer_user_id"}, {Name: "hour_start"}, {Name: "model_name"}, {Name: "source"}}, DoUpdates: clause.Assignments(updates)}).Create(&row).Error
-}
-
 func recordHourlyBatchTx(tx *gorm.DB, logs []Log, events []relayResultEvent) error {
 	outcomes := map[string]*RoutingOutcome{}
 	for _, event := range events {

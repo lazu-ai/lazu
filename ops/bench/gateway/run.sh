@@ -99,6 +99,8 @@ session_secret=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
 metrics_token=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
 printf '{}\n' > "$out/config.yaml"
 base_env=(env -i "PATH=$PATH" "GOCACHE=$GOCACHE" "APP_CONFIG_FILE=$out/config.yaml" "DATABASE_URL=postgres://lazu:example-local-bench-password@127.0.0.1:$pg_port/lazu?sslmode=disable" "TELEMETRY_DATABASE_URL=postgres://lazu:example-local-bench-password@127.0.0.1:$pg_port/telemetry?sslmode=disable" "REDIS_CONN_STRING=redis://127.0.0.1:$redis_port/0" "ROOT_USERNAME=benchroot" "ROOT_PASSWORD=$root_password" "SESSION_SECRET=$session_secret" "SQL_MAX_OPEN_CONNS=6" "SQL_MAX_IDLE_CONNS=6" "LOG_SQL_MAX_OPEN_CONNS=6" "LOG_SQL_MAX_IDLE_CONNS=6" "GOGC=50" "GOMEMLIMIT=384MiB" "MEMORY_CACHE_ENABLED=true" "PRICING_SNAPSHOT_ENABLED=true" "MODEL_LOG_ENABLED=true" "MODEL_LOG_PATH=$out/model-responses.jsonl" "LEDGER_SPOOL_DIR=$out/spool" "DATA_EXPORT_ENABLED=false" "NODE_NAME=local-bench" "LAZU_BIND_HOST=127.0.0.1" "SHUTDOWN_DRAIN_DELAY_SECONDS=0")
+# Redis pool size under test (experiments); default is the gateway's own.
+if [ -n "${LAZU_BENCH_REDIS_POOL_SIZE:-}" ]; then base_env+=("REDIS_POOL_SIZE=$LAZU_BENCH_REDIS_POOL_SIZE"); fi
 cd "$out"
 base_env+=("HOT_PATH_METRICS_ENABLED=true" "METRICS_ENABLED=true" "METRICS_TOKEN=$metrics_token" "LEDGER_SPOOL_DIR=$spool_dir")
 "${base_env[@]}" "$out/migrate" -command schema > "$out/migrate.log" 2>&1
