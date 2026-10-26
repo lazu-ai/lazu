@@ -266,6 +266,9 @@ jobs:
       - name: Check web i18n coverage
         run: bun run i18n:check
 
+      - name: Check no translation key goes unread
+        run: bun run i18n:unused
+
       - name: Audit web dependencies
         if: needs.changes.outputs.web_dependencies == 'true'
         run: bun audit --audit-level=high

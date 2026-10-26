@@ -1,0 +1,22 @@
+# Translation keys only an extension reads (docs/EXTENSIONS.md). A build without
+# extensions never reads them. One key per line, or a prefix ending in ".*".
+# An extension may add its own lines to this file.
+page.console.ops.category.comparison
+page.console.ops.category.model-launch
+page.console.ops.category.tool-guide
+page.console.ops.cover.style.diff
+page.console.ops.cover.style.ids
+page.console.ops.cover.style.ledger
+page.console.ops.cover.style.masthead
+page.console.ops.cover.style.seal
+page.console.ops.item.blog
+page.console.ops.item.model_page
+page.console.ops.item.notice
+page.console.ops.item.poster
+page.console.ops.item.search
+page.console.ops.item.share
+page.console.settingV2.access.option.auto
+page.console.settingV2.access.option.disabled
+page.console.settingV2.access.option.enabled
+page.console.settingV2.access.option.publicGallery
+page.system.studioOff.title

@@ -64,6 +64,7 @@
     "size": "bun scripts/check-bundle-size.mjs",
     "analyze": "bun run build && open dist/stats.html",
     "i18n:check": "python3 scripts/audit_frontend_debt.py --only i18n --check",
+    "i18n:unused": "python3 scripts/audit_frontend_debt.py --only i18n-unused --check",
     "i18n:extract": "bunx i18next-cli extract",
     "i18n:status": "bunx i18next-cli status",
     "i18n:sync": "bunx i18next-cli sync",
