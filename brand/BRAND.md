@@ -126,8 +126,13 @@
 
 `01 Kumo Native / Warm Utility` was selected on 2026-07-11 and its palette
 was superseded by Yunmu on 2026-08-20. The old warm-orange action and chart
-rules are historical, not current constraints. The retained baseline is
-[documented here](foundations/kumo-native.md).
+rules are historical, not current constraints. What it established and Yunmu
+kept: semantic surfaces and hairlines, with shadows only for real elevation;
+readable page hierarchy, task headers and efficient resource lists; icons at
+about 1.5px, readable at 16px; direct 120–180ms motion without bounce,
+respecting reduced motion; state carried by text and shape as well as color;
+copy that states the fact, the impact and one action. Its colour tables and
+superseded recipes remain in Git history.
 
 Current shared rules:
 
