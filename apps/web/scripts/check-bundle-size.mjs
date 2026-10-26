@@ -19,22 +19,33 @@ const budgets = {
   // import at a time — and keeps ~15 KiB of headroom.
   initialJavaScript: 280 * 1024,
   initialCss: 65 * 1024,
+  // The stylesheet the API-rendered public pages (/models, legal pages) load
+  // through the public-site entry. Leaving out the console's ui.css and
+  // shell.css took it from 41.98 to 27.10 KiB gzip (2026-10).
+  publicSiteCss: 30 * 1024,
   // The Markdown graph absorbed what the entry gave up: micromark, remark and
   // the mdast utilities are ~47 KiB gzip and used to be paid by every visitor
   // to every page, including the landing page. They are now paid once, by the
   // reader who opens something written in Markdown — 137.03 → 184.11 KiB — and
   // that reader is still 28 KiB better off than before. The ceiling moves to
   // cover the relocation and no more.
-  markdownJavaScript: 190 * 1024,
+  // Highlighting now registers only the languages announcements use, and
+  // KaTeX loads only for content with a formula: 175.05 → 64.45 KiB. The
+  // ceiling follows with ~15 KiB of headroom.
+  markdownJavaScript: 80 * 1024,
   markdownCss: 12 * 1024,
   vchartRuntime: 350 * 1024,
-  // Whole locale graphs, including errors and every fallback language. The
-  // blocking cold-start budgets below also include the application entry.
+  // Whole locale graphs, including errors. Since 2026-10 each language's
+  // chunk carries only that language, its fallbacks resolved at build time
+  // (scripts/locale-bundles.ts), not every fallback language: zh 129.61 ->
+  // 80.62, zh-TW 169.17 -> 81.32, ja 133.26 -> 86.05 KiB gzip. The ceilings
+  // drop with it. The blocking cold-start budgets below also include the
+  // application entry.
   locale: {
     default: 76 * 1024,
-    zh: 130 * 1024,
-    'zh-TW': 170 * 1024,
-    ja: 135 * 1024,
+    zh: 90 * 1024,
+    'zh-TW': 90 * 1024,
+    ja: 95 * 1024,
   },
   consoleRouteJavaScript: 175 * 1024,
   marketingRouteJavaScript: 20 * 1024,
@@ -79,6 +90,16 @@ addBudget(
 );
 addBudget('Initial CSS', [...new Set(initialCss)], budgets.initialCss);
 
+const publicSiteEntry = manifest['src/public-site/entry.ts'];
+if (!publicSiteEntry) {
+  throw new Error('Vite manifest is missing the public-site entry');
+}
+const publicSiteCss = new Set(publicSiteEntry.css || []);
+for (const key of publicSiteEntry.imports || []) {
+  for (const file of manifest[key]?.css || []) publicSiteCss.add(file);
+}
+addBudget('Public site CSS', [...publicSiteCss], budgets.publicSiteCss);
+
 const findEntryKey = (predicate, label) => {
   const entryKey = Object.entries(manifest).find(([, item]) =>
     predicate(item),
@@ -113,9 +134,13 @@ addBudget(
     .filter((file) => typeof file === 'string' && file.endsWith('.js')),
   budgets.markdownJavaScript,
 );
+// Vite lists the entry stylesheet on chunks that share modules with the
+// entry; the browser already has it, so only the Markdown graph's own CSS
+// counts against this budget.
+const initialCssFiles = new Set(initialCss);
 const markdownCss = [
   ...new Set([...markdownKeys].flatMap((key) => manifest[key]?.css ?? [])),
-];
+].filter((file) => !initialCssFiles.has(file));
 addBudget('Markdown renderer CSS', markdownCss, budgets.markdownCss);
 
 const addEntryGraphBudget = (name, entryKey, limit) => {
@@ -126,7 +151,7 @@ const addEntryGraphBudget = (name, entryKey, limit) => {
   addBudget(name, [...new Set(files)], limit);
 };
 
-// ConsoleRoot and MarketingLayout are now statically imported by AppRoot/App,
+// PageLayout and MarketingLayout are statically imported by AppRoot/App,
 // so their shell payload is already covered by the Initial JavaScript budget.
 // Keep route-level budgets on the current lazy equivalents to catch growth in
 // the heaviest authenticated route and the public marketing locale chunks.
@@ -184,6 +209,9 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     `virtual:lazu-locale/errors/${locale}`,
   ];
   const localeGraph = new Set();
+  // `errors` loads after the first screen (i18n loadErrorsNamespace), so it
+  // counts toward the locale budget but not the cold startup one.
+  const startupLocaleGraph = new Set();
   for (const key of localeKeys) {
     const localeEntry = manifest[key];
     if (!localeEntry?.isDynamicEntry) {
@@ -191,6 +219,9 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     }
     for (const dependency of collectNonStaticGraph(key)) {
       localeGraph.add(dependency);
+      if (!key.startsWith('virtual:lazu-locale/errors/')) {
+        startupLocaleGraph.add(dependency);
+      }
     }
   }
   addBudget(
@@ -208,7 +239,7 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
     [
       ...new Set([
         ...initialJavaScript,
-        ...[...localeGraph]
+        ...[...startupLocaleGraph]
           .map((key) => manifest[key]?.file)
           .filter((file) => typeof file === 'string' && file.endsWith('.js')),
       ]),
@@ -217,13 +248,31 @@ for (const locale of ['en', 'zh', 'zh-TW', 'ja']) {
   );
 }
 
-const html = readFileSync(path.join(dist, 'index.html'), 'utf8');
-const preloadedFiles = [
-  ...html.matchAll(/rel="modulepreload"[^>]+href="\/([^"?]+)"/g),
-].map((match) => match[1]);
-const allowedPreloads = new Set(initialJavaScript.slice(1));
-for (const file of preloadedFiles) {
-  if (!allowedPreloads.has(file)) {
+const preloadsIn = (file) =>
+  [
+    ...readFileSync(path.join(dist, file), 'utf8').matchAll(
+      /rel="modulepreload"[^>]+href="\/([^"?]+)"/g,
+    ),
+  ].map((match) => match[1]);
+const staticPreloads = new Set(initialJavaScript.slice(1));
+// The console boots from app.html: it preloads nothing beyond the entry.
+for (const file of preloadsIn('app.html')) {
+  if (!staticPreloads.has(file)) {
+    failures.push(`app.html eagerly preloads non-static chunk: ${file}`);
+  }
+}
+// index.html is the prerendered home page: it may also preload the Home
+// page chunk it hydrates (generate-static-pages.mjs), and nothing else.
+const homeGraph = new Set();
+const visitHome = (key) => {
+  const item = manifest[key];
+  if (!item || item.isEntry || homeGraph.has(item.file)) return;
+  homeGraph.add(item.file);
+  for (const imported of item.imports || []) visitHome(imported);
+};
+visitHome('src/pages/Home/index.tsx');
+for (const file of preloadsIn('index.html')) {
+  if (!staticPreloads.has(file) && !homeGraph.has(file)) {
     failures.push(`index.html eagerly preloads non-static chunk: ${file}`);
   }
 }

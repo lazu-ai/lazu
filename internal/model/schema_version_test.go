@@ -152,3 +152,48 @@ func TestPR380DefaultMigrationInitializesFreshDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRunSchemaMigrationsRefusesSchemaBelowUpgradeFloor(t *testing.T) {
+	db := withSchemaVersionTestDB(t)
+	previousFloor, previousGate := schemaUpgradeFloor, schemaUpgradeGateRelease
+	schemaUpgradeFloor, schemaUpgradeGateRelease = 16, "v0.7.113"
+	t.Cleanup(func() { schemaUpgradeFloor, schemaUpgradeGateRelease = previousFloor, previousGate })
+	if err := db.AutoMigrate(&SchemaVersion{}); err != nil {
+		t.Fatalf("create schema version table: %v", err)
+	}
+	if err := db.Create(&SchemaVersion{Scope: schemaVersionPrimary, Version: 15}).Error; err != nil {
+		t.Fatalf("insert old schema version: %v", err)
+	}
+	migrationRan := false
+	err := runSchemaMigrations(db, schemaVersionPrimary, func() error {
+		migrationRan = true
+		return nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "upgrade to lazu v0.7.113 first") || !strings.Contains(err.Error(), "version 15") {
+		t.Fatalf("expected the upgrade floor refusal, got %v", err)
+	}
+	if migrationRan {
+		t.Fatal("migration callback ran below the upgrade floor")
+	}
+}
+
+func TestRunSchemaMigrationsAllowsFreshDatabaseAndFloor(t *testing.T) {
+	previousFloor, previousGate := schemaUpgradeFloor, schemaUpgradeGateRelease
+	schemaUpgradeFloor, schemaUpgradeGateRelease = 16, "v0.7.113"
+	t.Cleanup(func() { schemaUpgradeFloor, schemaUpgradeGateRelease = previousFloor, previousGate })
+	// A fresh database has no version row: nothing to upgrade from.
+	fresh := withSchemaVersionTestDB(t)
+	if err := runSchemaMigrations(fresh, schemaVersionPrimary, func() error { return nil }); err != nil {
+		t.Fatalf("fresh database: %v", err)
+	}
+	if err := checkSchemaUpgradeFloor(schemaVersionPrimary, 16); err != nil {
+		t.Fatalf("a schema at the floor upgrades: %v", err)
+	}
+}
+
+func TestSchemaUpgradeFloorRefusesNothingToday(t *testing.T) {
+	// Every shipped version is younger than six months (version 1: 2026-07-13).
+	if err := checkSchemaUpgradeFloor(schemaVersionPrimary, 1); err != nil {
+		t.Fatalf("version 1 is still inside the support window: %v", err)
+	}
+}

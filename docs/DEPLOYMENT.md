@@ -9,6 +9,8 @@ This page covers running Lazu with Docker Compose: the bundled stack in
 - Redis 6+
 - Docker and Docker Compose
 
+SQLite is used by the test suite only; deployments run PostgreSQL.
+
 ## Prebuilt images
 
 The bundled stack builds from source. To run published images instead, use
@@ -187,6 +189,23 @@ redirect hop by policy, but cannot pin the address the proxy connects to.
 When a Cloudflare worker (`WorkerUrl`) does the fetching, the policy is
 checked before the URL is handed over, and the worker follows redirects on
 its own.
+
+### Outbound connections
+
+The gateway makes two kinds of outbound request, with different rules:
+
+- **URLs that arrive in a request** (images and files by URL, generated media)
+  go through the media fetch policy above.
+- **Addresses an operator configures** may be private and are not checked
+  against that policy. These are channel base URLs, the Uptime Kuma address,
+  the Telegram `api_base` and knowledge URLs, the answerer and release-note
+  model endpoints, search backends, object storage, notification webhooks
+  and the model metadata sources. Each has its own timeout.
+
+The clients for these addresses honour `HTTP_PROXY`, `HTTPS_PROXY` and
+`NO_PROXY`. New
+code builds a client with an explicit timeout rather than using net/http's
+default client, which has none; a test enforces this.
 
 ### Cloudflare edge caching of public pages
 
@@ -407,6 +426,19 @@ callback `/user/reset` and the canonical wallet callbacks `/console/wallet`
 and `/console/usage` redirect to the matching SPA routes while API paths and
 unknown paths continue to return their normal responses.
 
+## Upgrade path
+
+A release upgrades a deployment in one step from any schema version released in
+the last six months; it runs every migration in between on start (or through
+`lazu-migrate`). Migration code for older schema versions may be removed, and a
+release that removes it refuses to start on such a database with a message
+naming the release to upgrade to first, then to the current one.
+
+Today every schema version is inside the window: version 1 shipped with v0.1.0
+on 2026-07-13, so any lazu release upgrades directly. Version 1's code may go
+from 2027-01-13; the inherited-schema cleanup as a whole (schema versions 1–15, up
+to v0.7.108, 2026-09-30) from 2027-03-30.
+
 ## Changing Credentials
 
 1. Edit `.env` or `config/backend/config.yaml`.
@@ -419,6 +451,33 @@ unknown paths continue to return their normal responses.
 
 3. Verify that the recreated service is healthy at `/readyz`; test retained
    payment and email integrations from their normal operational workflows.
+
+## Environment variables kept from earlier releases
+
+These variables keep the names they had before Lazu. They stay as they are,
+because renaming them would break existing deployments. Each takes effect at
+startup.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `REDIS_CONN_STRING` | unset | Redis URL. Unset, Redis is off. |
+| `SYNC_FREQUENCY` | `60` | Seconds between reloads of options, channels, route health and the catalog from the database into memory. |
+| `MEMORY_CACHE_ENABLED` | `false` | Keeps channels in memory. Redis or PostgreSQL turns it on regardless. |
+| `CHANNEL_UPDATE_FREQUENCY` | unset | Minutes between automatic channel balance refreshes. Unset, they do not run. |
+| `CHANNEL_TEST_FREQUENCY` | unset | Minutes between automatic channel tests. A positive value overrides the console's monitor setting and turns the tests on. |
+| `RELAY_TIMEOUT` | `600` | Seconds an outbound relay or webhook request may take. `0` or less means the default. |
+| `STREAMING_TIMEOUT` | `900` | Seconds a stream may go without a line from the upstream before it is ended. |
+| `FORCE_STREAM_OPTION` | `true` | Adds `stream_options.include_usage` to streamed Chat requests on channels that support it, so the upstream reports usage. |
+| `GET_MEDIA_TOKEN` | `true` | Estimates prompt tokens locally when a streamed response carries no usage. Off, such a response bills no prompt tokens. |
+| `GET_MEDIA_TOKEN_NOT_STREAM` | `true` | The same estimate for non-streamed responses. It applies only while `GET_MEDIA_TOKEN` is on. |
+| `GENERATE_DEFAULT_TOKEN` | `false` | Creates an API key for each new user. |
+| `NOTIFY_LIMIT_COUNT` | `2` | Notifications of one kind a user can receive per window. |
+| `NOTIFICATION_LIMIT_DURATION_MINUTE` | `10` | Length of that window, in minutes. |
+| `ERROR_LOG_ENABLED` | `false` | Writes relay errors to `ERROR_LOG_PATH`, or to `errors.jsonl` in the export directory. |
+| `MAX_FILE_DOWNLOAD_MB` | `20` | Largest file or image the gateway fetches from a URL in a request. |
+| `MAX_VIDEO_DOWNLOAD_MB` | `200` | Largest generated video fetched from a provider. |
+| `SQLITE_PATH` | `lazu.db?_busy_timeout=30000` | SQLite file for local runs and tests. Deployments use `DATABASE_URL`. |
+| `ENABLE_PPROF` | `false` | Serves Go pprof on `127.0.0.1:8005`, reachable from inside the container only. |
 
 ## Changing Operational Params
 

@@ -57,10 +57,6 @@ type RerankResponseResult struct {
 	RelevanceScore float64 `json:"relevance_score"`
 }
 
-type RerankDocument struct {
-	Text any `json:"text"`
-}
-
 type RerankResponse struct {
 	Results []RerankResponseResult `json:"results"`
 	Usage   Usage                  `json:"usage"`

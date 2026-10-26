@@ -11,6 +11,7 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { API, postSSE } from '../../helpers/api';
 import {
   getUserIdFromLocalStorage,
@@ -445,7 +446,7 @@ export function useModelsQuery(loadEditorOptions = true) {
       return unwrap<unknown>(response);
     },
     onSuccess: () => {
-      showSuccess(t('page.console.tables.actionSuccess'));
+      notify.success(t('page.console.tables.actionSuccess'));
       invalidate();
     },
     onError: apiErrorHandler,
@@ -457,7 +458,7 @@ export function useModelsQuery(loadEditorOptions = true) {
       return unwrap<LooseRecord | null>(response) || {};
     },
     onSuccess: (data) => {
-      showSuccess(
+      notify.success(
         t('page.console.models.syncComplete', {
           createdModels: data.created_models || 0,
           createdVendors: data.created_vendors || 0,
@@ -472,7 +473,7 @@ export function useModelsQuery(loadEditorOptions = true) {
   const syncLiteLLMMutation = useMutation({
     mutationFn: () => postSSE<LooseRecord>('/api/models/sync_litellm', {}),
     onSuccess: (data) => {
-      showSuccess(
+      notify.success(
         t('page.console.models.syncLiteLLMComplete', {
           matched: data.matched || 0,
           updatedPricing: data.updated_pricing || 0,
@@ -489,7 +490,7 @@ export function useModelsQuery(loadEditorOptions = true) {
   const syncOpenRouterMutation = useMutation({
     mutationFn: () => postSSE<LooseRecord>('/api/models/sync_openrouter', {}),
     onSuccess: (data) => {
-      showSuccess(
+      notify.success(
         t('page.console.models.syncOpenRouterComplete', {
           matched: data.matched || 0,
           updatedDescEn: data.updated_desc_en || 0,
@@ -513,7 +514,7 @@ export function useModelsQuery(loadEditorOptions = true) {
       return ids.length;
     },
     onSuccess: (count) => {
-      showSuccess(t('page.console.models.batchDeleted', { count }));
+      notify.success(t('page.console.models.batchDeleted', { count }));
       setSelectedModels([]);
       invalidate();
     },
@@ -544,7 +545,7 @@ export function useModelsQuery(loadEditorOptions = true) {
 
   const copyModel = async (modelName: unknown) => {
     if (await copy(modelName)) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }

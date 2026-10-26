@@ -75,7 +75,7 @@ func TestClaudeClientHubServesRecordedDeepSeekStreams(t *testing.T) {
 		t.Run(tc.fixture, func(t *testing.T) {
 			c, recorder := claudeClientContext()
 			info := claudeClientInfo(tc.upstream, true)
-			usage, err := ClaudeClientStreamHandler(c, upstreamBody(fixtures.Raw(t, tc.fixture)), info)
+			usage, err := BridgedClientStreamHandler(c, upstreamBody(fixtures.Raw(t, tc.fixture)), info)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -115,7 +115,7 @@ func TestClaudeClientHubRetryRules(t *testing.T) {
 	service.InitTokenEncoders()
 	c, recorder := claudeClientContext()
 	failing := "data: {\"error\":{\"message\":\"Overloaded\",\"type\":\"server_error\"}}\n\n"
-	if _, err := ClaudeClientStreamHandler(c, upstreamBody(failing), claudeClientInfo(textgen.ProtocolOpenAIChat, true)); err == nil || types.IsSkipRetryError(err) {
+	if _, err := BridgedClientStreamHandler(c, upstreamBody(failing), claudeClientInfo(textgen.ProtocolOpenAIChat, true)); err == nil || types.IsSkipRetryError(err) {
 		t.Fatalf("a failure before output must be retryable: %v", err)
 	}
 	if recorder.Body.Len() != 0 {
@@ -124,7 +124,7 @@ func TestClaudeClientHubRetryRules(t *testing.T) {
 
 	c, recorder = claudeClientContext()
 	cut := "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"partial\"}}]}\n\n"
-	if _, err := ClaudeClientStreamHandler(c, upstreamBody(cut), claudeClientInfo(textgen.ProtocolOpenAIChat, true)); err == nil || !types.IsSkipRetryError(err) {
+	if _, err := BridgedClientStreamHandler(c, upstreamBody(cut), claudeClientInfo(textgen.ProtocolOpenAIChat, true)); err == nil || !types.IsSkipRetryError(err) {
 		t.Fatalf("a cut-off stream after output must not be replayed: %v", err)
 	}
 	frames := sseFrames(recorder.Body.String())
@@ -144,7 +144,7 @@ func TestClaudeClientHubServesWholeReplies(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c, recorder := claudeClientContext()
 			info := claudeClientInfo(tc.upstream, false)
-			usage, err := ClaudeClientHandler(c, upstreamBody(tc.body), info)
+			usage, err := BridgedClientHandler(c, upstreamBody(tc.body), info)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -177,7 +177,7 @@ func TestClaudeClientHubServesAnEmptyReply(t *testing.T) {
 	stream := "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"}}]}\n\n" +
 		"data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":0,\"total_tokens\":5}}\n\n" +
 		"data: [DONE]\n\n"
-	if _, err := ClaudeClientStreamHandler(c, upstreamBody(stream), claudeClientInfo(textgen.ProtocolOpenAIChat, true)); err != nil {
+	if _, err := BridgedClientStreamHandler(c, upstreamBody(stream), claudeClientInfo(textgen.ProtocolOpenAIChat, true)); err != nil {
 		t.Fatal(err)
 	}
 	frames := sseFrames(recorder.Body.String())
@@ -199,7 +199,7 @@ func TestClaudeClientHubReadsTheChatUsageChunk(t *testing.T) {
 		"data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
 		"data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"model\":\"deepseek-flash\",\"choices\":[],\"usage\":{\"prompt_tokens\":21,\"completion_tokens\":42,\"total_tokens\":63}}\n\n" +
 		"data: [DONE]\n\n"
-	usage, err := ClaudeClientStreamHandler(c, upstreamBody(stream), claudeClientInfo(textgen.ProtocolOpenAIChat, true))
+	usage, err := BridgedClientStreamHandler(c, upstreamBody(stream), claudeClientInfo(textgen.ProtocolOpenAIChat, true))
 	if err != nil {
 		t.Fatal(err)
 	}

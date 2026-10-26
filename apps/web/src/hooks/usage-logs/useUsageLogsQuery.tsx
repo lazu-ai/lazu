@@ -24,17 +24,13 @@ import {
   coerceItemsPayload,
   createSearchParams,
 } from '../../components/ui/table-tools';
+import { notify } from '../../components/ui/toast';
 import { ITEMS_PER_PAGE } from '../../constants/common.constant';
 import { API } from '../../helpers/api';
 import { getLogOther } from '../../helpers/log';
 import { asMicroUSD } from '../../helpers/money';
 import { renderQuota } from '../../helpers/render';
-import {
-  copy,
-  showError,
-  showSuccess,
-  timestamp2string,
-} from '../../helpers/utils';
+import { copy, showError, timestamp2string } from '../../helpers/utils';
 import { apiErrorHandler, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
@@ -120,6 +116,7 @@ type ItemsPayload<T> = {
   page: number;
   pageSize: number;
   total: number;
+  totalAtLeast?: boolean;
 };
 
 type FetchUsageLogsParams = {
@@ -763,7 +760,7 @@ export function useUsageLogsQuery() {
 
   const copyText = async (value: unknown) => {
     if (await copy(String(value ?? ''))) {
-      showSuccess(t('page.console.tables.copied'));
+      notify.success(t('page.console.tables.copied'));
     } else {
       showError(t('page.console.tables.copyFailed'));
     }
@@ -784,6 +781,7 @@ export function useUsageLogsQuery() {
     page,
     pageSize,
     total: 0,
+    totalAtLeast: false,
   };
 
   return {
@@ -813,6 +811,8 @@ export function useUsageLogsQuery() {
     submitFilters,
     t,
     total: pageData.total,
+    // The server stopped counting at `total`; show it as a lower bound.
+    totalAtLeast: pageData.totalAtLeast === true,
     userInfo,
     userInfoLoading: userInfoMutation.isPending,
     usageLogs: pageData.items,
