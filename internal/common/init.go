@@ -275,6 +275,9 @@ func InitEnv() {
 	GitHubOAuthClientID = GetEnvOrDefaultString("GITHUB_OAUTH_CLIENT_ID", "")
 	GitHubOAuthClientSecret = GetEnvOrDefaultString("GITHUB_OAUTH_CLIENT_SECRET", "")
 	GitHubOAuthRedirectURL = GetEnvOrDefaultString("GITHUB_OAUTH_REDIRECT_URL", "")
+	GitHubStarClientID = GetEnvOrDefaultString("GITHUB_STAR_CLIENT_ID", "")
+	GitHubStarClientSecret = GetEnvOrDefaultString("GITHUB_STAR_CLIENT_SECRET", "")
+	GitHubStarRedirectURL = GetEnvOrDefaultString("GITHUB_STAR_REDIRECT_URL", "")
 	TrustedProxyCIDRs = GetEnvOrDefaultString("TRUSTED_PROXY_CIDRS", TrustedProxyCIDRs)
 	RelayTimeout = RelayTimeoutFromEnv()
 

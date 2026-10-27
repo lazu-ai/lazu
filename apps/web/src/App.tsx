@@ -24,6 +24,9 @@ import { notFoundLoader } from './lib/not-found-preload';
 
 const LoginForm = lazy(() => import('./components/auth/LoginForm'));
 const OIDCCallback = lazy(() => import('./components/auth/OIDCCallback'));
+const SourceStarCallback = lazy(
+  () => import('./components/auth/SourceStarCallback'),
+);
 const Forbidden = lazy(() => import('./pages/Forbidden'));
 const Setting = lazy(() => import('./pages/Setting'));
 const PasswordResetForm = lazy(
@@ -323,6 +326,14 @@ function App() {
           element={
             <Suspense fallback={<Loading></Loading>} key={location.pathname}>
               <OIDCCallback />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/auth/source-star'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <SourceStarCallback />
             </Suspense>
           }
         />

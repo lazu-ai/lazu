@@ -190,7 +190,11 @@
       "ctaPrimary": "免费注册",
       "ctaSecondary": "看文档",
       "openSource": "Lazu 以 AGPL-3.0 开源。",
-      "openSourceLink": "到 GitHub 点个 Star"
+      "openSourceLink": "到 GitHub 点个 Star",
+      "starPending": "等待 GitHub 授权…",
+      "starDone": "已点 Star，谢谢！",
+      "starAlready": "你已经点过 Star，谢谢！",
+      "starFailed": "没能点上，去 GitHub 看看"
     }
   },
   "about": {

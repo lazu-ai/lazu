@@ -68,6 +68,11 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/auth/email/verify", middleware.LoginRateLimit(), controller.VerifyEmailAuth)
 		apiRouter.GET("/auth/oauth/:provider/login", middleware.LoginRateLimit(), controller.SocialOAuthLogin)
 		apiRouter.GET("/auth/oauth/:provider/callback", middleware.LoginRateLimit(), controller.SocialOAuthCallback)
+		// Starring the published source from the site: one GitHub authorization,
+		// then the server stars on the visitor's behalf and keeps no token.
+		apiRouter.GET("/source/star", controller.SourceStarStatus)
+		apiRouter.GET("/source/star/start", middleware.LoginRateLimit(), controller.SourceStarStart)
+		apiRouter.GET("/source/star/callback", middleware.LoginRateLimit(), controller.SourceStarCallback)
 
 		// A personal wallet remains available when shared projects are disabled.
 		// The resolver and document handler enforce membership and payer access.

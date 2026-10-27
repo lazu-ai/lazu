@@ -720,6 +720,41 @@ body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
   color: var(--accent);
 }
 
+/* The same line as a button when the deployment can star for the visitor:
+   set like the link, with the star for the action it is. */
+.lazu-landing__final-oss .lazu-source-star {
+  background: none;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lazu-landing__final-oss .lazu-source-star:hover {
+  color: var(--accent);
+}
+
+.lazu-landing__final-oss .lazu-source-star[aria-busy='true'] {
+  color: var(--mute);
+  cursor: progress;
+}
+
+.lazu-landing__final-oss .lazu-source-star--done {
+  color: var(--mute);
+  cursor: default;
+  text-decoration: none;
+}
+
+.lazu-landing__final-oss .lazu-source-star--done svg {
+  fill: currentColor;
+}
+
 .lazu-landing__free {
   font-size: 12.5px;
   color: var(--mute-2);

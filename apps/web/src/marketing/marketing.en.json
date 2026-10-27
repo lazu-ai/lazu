@@ -196,7 +196,11 @@
       "ctaPrimary": "Sign up free",
       "ctaSecondary": "Read the docs",
       "openSource": "Lazu is open source under AGPL-3.0.",
-      "openSourceLink": "Star it on GitHub"
+      "openSourceLink": "Star it on GitHub",
+      "starPending": "Waiting for GitHub…",
+      "starDone": "Starred. Thank you!",
+      "starAlready": "Already starred. Thank you!",
+      "starFailed": "Could not star. Open GitHub"
     }
   },
   "about": {

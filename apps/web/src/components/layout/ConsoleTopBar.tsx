@@ -40,7 +40,13 @@ import {
   getSupportEmail,
 } from '../../helpers/brandUrls';
 import { githubNewIssueURL } from '../../helpers/sourceLinks';
+import {
+  starSource,
+  takeSourceStarResultFromLocation,
+  type SourceStarOutcome,
+} from '../../helpers/sourceStar';
 import { UPSTREAM_NOTICE, UPSTREAM_URL } from '../../helpers/upstream';
+import { showError, showSuccess } from '../../helpers/utils';
 import { useAnnouncementsUnread } from '../../hooks/common/useAnnouncementsUnread';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { formatVersionLabel } from '../announcements/versionLabel';
@@ -114,6 +120,38 @@ const ConsoleTopBar = () => {
   /* Issues have a known address only on a GitHub repository; a source link on
      any other host keeps its own menu entry and offers no issue shortcut. */
   const issueHref = githubNewIssueURL(sourceHref);
+  /* A deployment with a star-only GitHub App can star its repository for the
+     person after one authorization; the outcome arrives as a toast. */
+  const canStar = Boolean(statusState?.status?.source_star);
+  const reportStar = useCallback(
+    (outcome: SourceStarOutcome) => {
+      if (outcome === 'starred') {
+        showSuccess(
+          t('console.topbar.starDone', { defaultValue: '已点 Star，谢谢！' }),
+        );
+      } else if (outcome === 'already') {
+        showSuccess(
+          t('console.topbar.starAlready', {
+            defaultValue: '你已经点过 Star，谢谢！',
+          }),
+        );
+      } else if (outcome === 'failed') {
+        showError(
+          t('console.topbar.starFailed', {
+            defaultValue: '没能在 GitHub 点上 Star。',
+          }),
+        );
+      }
+    },
+    [t],
+  );
+  const starRepository = async () => reportStar(await starSource());
+  /* A blocked popup sends the whole page on the trip; it comes back here
+     with the outcome in the address. */
+  useEffect(() => {
+    const returned = takeSourceStarResultFromLocation();
+    if (returned) reportStar(returned);
+  }, [reportStar]);
   /* The community link exists only when the build names one; support mail
      always has an address (the brand default when the build sets none). */
   const communityHref = getCommunityURL();
@@ -351,6 +389,18 @@ const ConsoleTopBar = () => {
               >
                 <span>
                   {t('console.topbar.source', { defaultValue: '源代码' })}
+                </span>
+              </DropdownMenuItem>
+            ) : null}
+            {canStar ? (
+              <DropdownMenuItem
+                className='console-topbar__item console-topbar__item--quiet'
+                onSelect={() => void starRepository()}
+              >
+                <span>
+                  {t('console.topbar.star', {
+                    defaultValue: '到 GitHub 点个 Star',
+                  })}
                 </span>
               </DropdownMenuItem>
             ) : null}

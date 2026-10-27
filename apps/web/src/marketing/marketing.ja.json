@@ -196,7 +196,11 @@
       "ctaPrimary": "無料で登録",
       "ctaSecondary": "ドキュメントを見る",
       "openSource": "Lazu は AGPL-3.0 のオープンソースです。",
-      "openSourceLink": "GitHub でスターを付ける"
+      "openSourceLink": "GitHub でスターを付ける",
+      "starPending": "GitHub の認可を待っています…",
+      "starDone": "スターを付けました。ありがとうございます！",
+      "starAlready": "すでにスター済みです。ありがとうございます！",
+      "starFailed": "スターを付けられませんでした。GitHub で開く"
     }
   },
   "about": {

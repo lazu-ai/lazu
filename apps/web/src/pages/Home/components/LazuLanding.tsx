@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom';
 import { useLandingFacts } from './useLandingFacts';
 import BrandLogo from '../../../brand/BrandLogo';
 import Reveal from '../../../components/marketing/Reveal';
+import SourceStarButton from '../../../components/marketing/SourceStarButton';
 import { useStatus } from '../../../context/Status';
 import { useActualTheme } from '../../../context/Theme';
 import { getDocsBaseURL, getSourceURL } from '../../../helpers/brandUrls';
@@ -694,9 +695,10 @@ const LazuLanding = () => {
               </Reveal>
               <Reveal as='p' className='lazu-landing__final-oss'>
                 {t('landing.final.openSource')}{' '}
-                <a href={sourceLink} rel='noopener noreferrer' target='_blank'>
-                  {t('landing.final.openSourceLink')}
-                </a>
+                <SourceStarButton
+                  enabled={statusState?.status?.source_star}
+                  sourceURL={sourceLink}
+                />
               </Reveal>
             </div>
           </section>

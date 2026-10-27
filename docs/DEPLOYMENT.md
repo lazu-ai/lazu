@@ -337,6 +337,35 @@ user id as the external subject, and links an existing Lazu account only when
 GitHub returns a verified email address. Google sign-in verifies the signed
 OIDC ID token and nonce before using its subject and verified email.
 
+### Starring the published source from the site
+
+With `site.source_url` pointing at a GitHub repository, the landing page and
+the console's Help menu can star it for a visitor without leaving the site.
+A web page cannot star on its own: the visitor authorizes a GitHub App once,
+in a popup, and the backend stars the repository with the token it is handed.
+The token is used for that one request and never stored. This is a separate
+App from GitHub sign-in on purpose, so sign-in keeps asking for `user:email`
+and nothing else.
+
+Register a GitHub App (Settings → Developer settings → GitHub Apps) with:
+
+- **Account permissions → Starring: Read and write**, and no other permission;
+- **Request user authorization (OAuth) during installation** checked;
+- Callback URL `https://<console-domain>/api/source/star/callback`;
+- Webhook unchecked (the App receives no events).
+
+Then set:
+
+```bash
+GITHUB_STAR_CLIENT_ID=<client-id>
+GITHUB_STAR_CLIENT_SECRET=<client-secret>
+GITHUB_STAR_REDIRECT_URL=https://<console-domain>/api/source/star/callback
+```
+
+The button appears once both the id and the secret are set and
+`site.source_url` is a `https://github.com/<owner>/<repository>` link. The
+authorization page GitHub shows names only the App's Starring permission.
+
 Also set `FRONTEND_BASE_URL=https://<console-domain>` so browser-facing links
 and completed callbacks return to the console. If a redirect URL is omitted,
 Lazu derives it only for localhost or requests received through a trusted

@@ -20,6 +20,7 @@ GET /api/models/missing  # pending: no caller in this repository; the route tabl
 GET /api/ops/mail/digest/preview  # pending: no caller in this repository; the route table decides
 GET /api/performance/stats  # pending: no caller in this repository; the route table decides
 GET /api/pricing/wallet_reconciliation  # pending: no caller in this repository; the route table decides
+GET /api/source/star/callback  # webhook: GitHub redirects the browser here after the star authorization
 GET /api/status/test  # pending: no caller in this repository; the route table decides
 GET /api/token/options  # external-api: compatibility clients request compact enabled-Key choices
 GET /api/upload/pending-files  # pending: no caller in this repository; the route table decides
