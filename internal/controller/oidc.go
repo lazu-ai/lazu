@@ -96,18 +96,25 @@ func OIDCStatus(c *gin.Context) {
 	if oidcConfigured() {
 		providers = append(providers, authProviderStatus{ID: "oidc", Provider: oidcProvider()})
 	}
+	data := gin.H{
+		// Keep the legacy field scoped to the legacy OIDC route. New clients
+		// use providers, which can contain Google, GitHub, and OIDC together.
+		"enabled":         oidcConfigured(),
+		"password_login":  common.PasswordLoginEnabled,
+		"email_code_auth": common.EmailCodeAuthEnabled && common.EmailTransportConfigured(),
+		"break_glass":     common.OIDCBreakGlassPasswordEnabled,
+		"provider":        oidcProvider(),
+		"providers":       providers,
+	}
+	// The Google client ID is public (Google's script needs it in the page);
+	// it is sent only when One Tap is switched on, which is the page's cue to
+	// offer it.
+	if common.GoogleOneTapAvailable() {
+		data["google_one_tap_client_id"] = strings.TrimSpace(common.GoogleOAuthClientID)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{
-			// Keep the legacy field scoped to the legacy OIDC route. New clients
-			// use providers, which can contain Google, GitHub, and OIDC together.
-			"enabled":         oidcConfigured(),
-			"password_login":  common.PasswordLoginEnabled,
-			"email_code_auth": common.EmailCodeAuthEnabled && common.EmailTransportConfigured(),
-			"break_glass":     common.OIDCBreakGlassPasswordEnabled,
-			"provider":        oidcProvider(),
-			"providers":       providers,
-		},
+		"data":    data,
 	})
 }
 

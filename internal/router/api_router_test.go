@@ -102,6 +102,8 @@ func TestSetApiRouter_RegistersCriticalRoutes(t *testing.T) {
 		{method: "GET", path: "/api/status"},
 		{method: "GET", path: "/api/auth/oauth/:provider/login"},
 		{method: "GET", path: "/api/auth/oauth/:provider/callback"},
+		{method: "GET", path: "/api/auth/google/one-tap"},
+		{method: "POST", path: "/api/auth/google/one-tap"},
 		{method: "POST", path: "/api/user/reset"},
 		{method: "POST", path: "/api/user/reset/v2"},
 		{method: "GET", path: "/api/user/email/bind"},

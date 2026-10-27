@@ -42,6 +42,7 @@ import {
   AuthTextField,
 } from './AuthLayout';
 import DoorSkeleton, { endDoorEntry, useDoorReveal } from './DoorSkeleton';
+import GoogleOneTap from './GoogleOneTap';
 import { readStoredSessionHint, startLoginSessionProbe } from './loginSession';
 import OtpInput from './OtpInput';
 import { EMAIL_VALID_MINUTES, RESEND_SECONDS, canSendTo } from './resend';
@@ -702,6 +703,11 @@ const LoginForm = () => {
      when the answer lands the column fills in rather than changing its mind. */
   return (
     <AuthShell>
+      {/* An invitation finishes through the door's own sign-in, which
+          carries it; One Tap would drop it. */}
+      {ready && !checkingSession && !invite ? (
+        <GoogleOneTap next={requestedDestination} />
+      ) : null}
       {ready && !checkingSession ? (
         step === 'door' ? (
           renderDoor()
