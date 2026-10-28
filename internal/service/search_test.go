@@ -161,3 +161,36 @@ func TestSearchErrorIsCallerFaultOnlyForValidation(t *testing.T) {
 		}
 	}
 }
+
+// A search backend is an operator-configured address and may be private
+// (a self-hosted engine on the LAN). The media fetch policy that refuses
+// private addresses in request URLs must not refuse it.
+func TestSearchBackendReachesPrivateAddressUnderFetchPolicy(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"organic":[{"title":"LAN","link":"https://example.com","position":1}]}`))
+	}))
+	defer upstream.Close()
+	fetchSetting := system_setting.GetFetchSetting()
+	previous := *fetchSetting
+	fetchSetting.EnableSSRFProtection = true
+	fetchSetting.AllowPrivateIp = false
+	fetchSetting.AllowedPorts = []string{"80", "443"}
+	t.Cleanup(func() { *fetchSetting = previous })
+
+	baseURL := upstream.URL
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/search", nil)
+	result, err := callSerperSearch(c, dto.SearchRequest{Query: "lan", Type: "web", MaxResults: 1}, searchCandidate{
+		Provider: "serper",
+		Channel:  &model.Channel{Type: constant.ChannelTypeSerper, Key: "k", BaseURL: &baseURL},
+		Config:   dto.SearchBackendConfig{Provider: "serper", MaxResults: 1, TimeoutMs: 5000},
+	})
+	if err != nil {
+		t.Fatalf("private search backend refused: %v", err)
+	}
+	if len(result.Results) != 1 || result.Results[0].Title != "LAN" {
+		t.Fatalf("unexpected results: %+v", result.Results)
+	}
+}

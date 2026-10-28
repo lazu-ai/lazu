@@ -70,8 +70,63 @@ func encodeBridgedRequest(info *relaycommon.RelayInfo, request *textgen.Request,
 		return nil, err
 	}
 	out.GenerationConfig.ThinkingConfig = thinking
+	if enforcesCallSignatures(info.UpstreamModelName) {
+		fillMissingCallSignatures(out)
+	}
 	out.SafetySettings = safetySettings()
 	return out, nil
+}
+
+// skipSignatureValidator is the value Google documents for a function call
+// whose thought signature did not come from this model: history from another
+// model, or a client whose protocol has no field to carry it. A Claude client
+// is one; Gemini's signature cannot ride on a tool_use block.
+const skipSignatureValidator = "skip_thought_signature_validator"
+
+// fillMissingCallSignatures gives the first function call of each model step
+// in the running turn the documented placeholder when it has no signature.
+// From Gemini 3 on, the API refuses a request whose running turn has a call
+// without one, so a client that cannot carry signatures would fail on its
+// second tool step. Earlier turns are not checked and stay as they are; a
+// real signature is never replaced.
+func fillMissingCallSignatures(out *dto.GeminiChatRequest) {
+	start := 0
+	for index := len(out.Contents) - 1; index >= 0; index-- {
+		if isPromptTurn(out.Contents[index]) {
+			start = index + 1
+			break
+		}
+	}
+	for index := start; index < len(out.Contents); index++ {
+		content := &out.Contents[index]
+		if content.Role != "model" {
+			continue
+		}
+		for partIndex := range content.Parts {
+			part := &content.Parts[partIndex]
+			if part.FunctionCall == nil {
+				continue
+			}
+			if part.ThoughtSignature == "" {
+				part.ThoughtSignature = skipSignatureValidator
+			}
+			break // only a step's first call carries the signature
+		}
+	}
+}
+
+// isPromptTurn says whether a content is a user prompt, which starts a turn.
+// A user content that answers function calls continues the running turn.
+func isPromptTurn(content dto.GeminiChatContent) bool {
+	if content.Role != "user" {
+		return false
+	}
+	for _, part := range content.Parts {
+		if part.FunctionResponse != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // checkInputImageCount rejects an oversized semantic turn before the encoder
@@ -189,9 +244,10 @@ func safetySettings() []dto.GeminiChatSafetySettings {
 // bridgedThinking is the thinking config for a bridged request. A client's
 // own Gemini config in extra_body.google.thinking_config is taken as before.
 // Otherwise the request's reasoning is mapped: an effort the catalog lists
-// for the model becomes Gemini's thinking level, a budget its thinking
-// budget, and the thoughts are returned so the client sees the reasoning.
-// With neither, the model's default stands.
+// for the model becomes Gemini's thinking level (a thinking budget on
+// models before Gemini 3), a budget its thinking budget, and the thoughts
+// are returned so the client sees the reasoning. With neither, the model's
+// default stands.
 func bridgedThinking(request *textgen.Request, info *relaycommon.RelayInfo) (*dto.GeminiThinkingConfig, error) {
 	if config, ok, err := extraBodyThinking(request); err != nil || ok {
 		return config, err
@@ -200,12 +256,44 @@ func bridgedThinking(request *textgen.Request, info *relaycommon.RelayInfo) (*dt
 	efforts := model.ReasoningPolicy(info.UpstreamModelName, info.OriginModelName).Efforts
 	switch {
 	case effort != "" && slices.Contains(efforts, effort):
-		return &dto.GeminiThinkingConfig{ThinkingLevel: effort, IncludeThoughts: true}, nil
+		return effortThinking(info.UpstreamModelName, effort), nil
 	case request.Reasoning.Budget.Set:
 		budget := request.Reasoning.Budget.Value
 		return &dto.GeminiThinkingConfig{ThinkingBudget: &budget, IncludeThoughts: budget > 0}, nil
 	}
 	return nil, nil
+}
+
+// effortThinking is the thinking config for an effort the catalog lists.
+// thinkingLevel exists from Gemini 3 on; Gemini 2.x refuses it and takes a
+// token budget instead, the one the effort clamp uses for the same rung.
+func effortThinking(upstreamModel, effort string) *dto.GeminiThinkingConfig {
+	if geminiBefore3(upstreamModel) {
+		budget := model.EffortBudgetTokens(effort)
+		return &dto.GeminiThinkingConfig{ThinkingBudget: &budget, IncludeThoughts: budget > 0}
+	}
+	return &dto.GeminiThinkingConfig{ThinkingLevel: effort, IncludeThoughts: true}
+}
+
+// geminiBefore3 says whether a model is from before Gemini 3, which brought
+// thinking levels and enforced thought signatures on function calls.
+func geminiBefore3(upstreamModel string) bool {
+	name := strings.ToLower(upstreamModel)
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	return strings.HasPrefix(name, "gemini-2") || strings.HasPrefix(name, "gemini-1")
+}
+
+// enforcesCallSignatures says whether a model refuses a running turn's
+// function call that has no thought signature: Gemini from 3 on. Other
+// models a Gemini channel serves (Gemma) never see the placeholder.
+func enforcesCallSignatures(upstreamModel string) bool {
+	name := strings.ToLower(upstreamModel)
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	return strings.HasPrefix(name, "gemini-") && !geminiBefore3(name)
 }
 
 // extraBodyThinking reads extra_body.google.thinking_config, with the

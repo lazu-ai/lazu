@@ -43,12 +43,14 @@ describe('rehypeHighlightSubset', () => {
     }
   });
 
-  it('leaves other languages, plain blocks and no-highlight alone', () => {
-    for (const className of [
-      ['language-rust'],
-      undefined,
-      ['language-json', 'no-highlight'],
-    ]) {
+  it('styles a block in another language without coloring it', () => {
+    const node = run(block(['language-rust'], 'fn main() {}'));
+    expect(node.properties.className).toEqual(['hljs', 'language-rust']);
+    expect(node.children).toEqual([{ type: 'text', value: 'fn main() {}' }]);
+  });
+
+  it('leaves plain blocks and no-highlight alone', () => {
+    for (const className of [undefined, ['language-json', 'no-highlight']]) {
       const tree = block(className, 'fn main() {}');
       const node = run(tree);
       expect(node.properties.className ?? []).not.toContain('hljs');

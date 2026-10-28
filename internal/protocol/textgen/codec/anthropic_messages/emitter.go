@@ -208,6 +208,17 @@ func (e *StreamEmitter) Emit(events ...textgen.Event) []Frame {
 	if e == nil || e.terminal {
 		return nil
 	}
+	if !e.started {
+		// Some upstreams (Gemini) report usage after the content of the
+		// same chunk. message_start goes out with that chunk's first
+		// content, so it takes the batch's usage first; adding it again in
+		// order below changes nothing, since a later report replaces.
+		for _, event := range events {
+			if event.Kind == textgen.EventUsage {
+				e.col.Add(event)
+			}
+		}
+	}
 	var out []Frame
 	for _, event := range events {
 		if event.Kind == textgen.EventStart && !e.started {

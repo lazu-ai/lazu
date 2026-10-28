@@ -9,6 +9,10 @@ import type { UserAction, UserPayload, UserState } from './reducer';
  * as the server sees it now is useSelfQuery's job. */
 export const SESSION_QUERY_KEY = ['session', 'user'] as const;
 
+/* What survives a sign-out: the deployment's public settings, and the session
+ * entry itself, which signOut sets to null right after. */
+const keepAcrossSessions = [queryKeys.status, SESSION_QUERY_KEY] as const;
+
 export type Session = {
   user: UserPayload;
   signIn: (user: UserPayload) => void;
@@ -32,10 +36,16 @@ export function useSession(): Session {
     [queryClient],
   );
   const signOut = useCallback(() => {
-    // A new session must not reuse the old session's memberships or flags,
-    // even when the same account signs in within the freshness window.
-    // Removal also cancels an in-flight self read before it can refill cache.
-    queryClient.removeQueries({ queryKey: [...queryKeys.user, 'self'] });
+    // A new session must not reuse anything the old one read: memberships,
+    // flags, balances, keys, logs. Every cached answer is dropped except the
+    // deployment's public settings, which are the same for every visitor;
+    // otherwise another account signing in on this tab within a query's
+    // freshness window would first see the previous account's data. Removal
+    // also cancels in-flight reads before they can refill the cache.
+    queryClient.removeQueries({
+      predicate: (query) =>
+        !keepAcrossSessions.some((key) => query.queryKey[0] === key[0]),
+    });
     queryClient.setQueryData(SESSION_QUERY_KEY, null);
   }, [queryClient]);
   return useMemo(

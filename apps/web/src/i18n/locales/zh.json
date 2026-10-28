@@ -569,6 +569,8 @@
     "page.console.channel.form.action.nextModels": "下一步：模型",
     "page.console.channel.form.action.nextRouting": "下一步：线路与权重",
     "page.console.channel.form.action.submit": "保存来源",
+    "page.console.channel.form.detailError.title": "没能读到这个来源的已存设置",
+    "page.console.channel.form.detailError.description": "现在保存会用空值覆盖它们，所以读到之前不能保存。",
     "page.console.channel.form.description": "管理上游凭证、模型路由、可用分组和运行状态。",
     "page.console.channel.form.empty.options": "暂无选项",
     "page.console.channel.form.error.groups.required": "请至少选择一个分组。",

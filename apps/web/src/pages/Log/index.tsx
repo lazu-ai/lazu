@@ -916,6 +916,8 @@ const Token = () => {
                     currentPage={logs.page}
                     pageSize={logs.pageSize}
                     total={logs.total}
+                    totalAtLeast={logs.totalAtLeast}
+                    hasNextPage={logs.usageLogs.length >= logs.pageSize}
                     showTotal={false}
                     showSizeChanger
                     pageSizeOpts={DEFAULT_PAGE_SIZE_OPTIONS}
@@ -978,6 +980,8 @@ const Token = () => {
                     currentPage={logs.page}
                     pageSize={logs.pageSize}
                     total={logs.total}
+                    totalAtLeast={logs.totalAtLeast}
+                    hasNextPage={logs.usageLogs.length >= logs.pageSize}
                     showTotal={false}
                     onPageChange={logs.setPage}
                   />

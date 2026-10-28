@@ -34,6 +34,15 @@ const (
 // takes longer ends the stream. A variable so tests can shorten it.
 var streamWriteTimeout = 10 * time.Second
 
+// abortClientWrite ends a client write that is still blocked when the
+// scanner gives up on it (a client that stopped reading). Without it the
+// handler goroutine, its lock and the connection stay held until the kernel
+// gives up on the socket, which can take minutes. The stream is over by then,
+// so failing every later write on this response is what we want.
+func abortClientWrite(c *gin.Context) {
+	_ = http.NewResponseController(c.Writer).SetWriteDeadline(time.Now())
+}
+
 // Only the fixed initial allocation is retained. Scanner growth up to the
 // existing event limit remains request-owned and is collected normally.
 var streamScannerBuffers = sync.Pool{
@@ -326,6 +335,7 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			case <-handlerTimeout.C:
 				logger.LogError(c, "data handler timeout")
 				state.fail(context.DeadlineExceeded)
+				abortClientWrite(c)
 				return false, false
 			case <-ctx.Done():
 				return false, false
@@ -344,6 +354,7 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			case <-handlerTimeout.C:
 				logger.LogError(c, "data handler timeout")
 				state.fail(context.DeadlineExceeded)
+				abortClientWrite(c)
 				return false, false
 			case <-ctx.Done():
 				return false, false

@@ -195,12 +195,14 @@ its own.
 The gateway makes two kinds of outbound request, with different rules:
 
 - **URLs that arrive in a request** (images and files by URL, generated media)
-  go through the media fetch policy above.
+  and **addresses a user sets** (their notification webhook and Bark URL) go
+  through the media fetch policy above.
 - **Addresses an operator configures** may be private and are not checked
-  against that policy. These are channel base URLs, the Uptime Kuma address,
-  the Telegram `api_base` and knowledge URLs, the answerer and release-note
-  model endpoints, search backends, object storage, notification webhooks
-  and the model metadata sources. Each has its own timeout.
+  against that policy. These are channel base URLs (search backends among
+  them), the OpenID Connect provider, the Uptime Kuma address, the Telegram
+  `api_base` and knowledge URLs, the answerer and release-note model
+  endpoints, object storage, the operator alert webhook and the model
+  metadata sources. Each has its own timeout.
 
 The clients for these addresses honour `HTTP_PROXY`, `HTTPS_PROXY` and
 `NO_PROXY`. New

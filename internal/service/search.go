@@ -41,11 +41,6 @@ type searchProviderResult struct {
 	ProviderCostUSD float64
 }
 
-// searchFallbackClient serves search backends before the shared client is
-// set up (tests, tools). Backends are operator-configured and may be private,
-// so it is not the SSRF-checked client; the request context bounds each call.
-var searchFallbackClient = &http.Client{Timeout: 60 * time.Second}
-
 func ExecuteSearch(c *gin.Context, req dto.SearchRequest) (dto.SearchResponse, *types.LazuError) {
 	started := time.Now()
 	if lazuErr := normalizeSearchRequest(&req); lazuErr != nil {
@@ -686,11 +681,12 @@ func doSearch(c *gin.Context, method string, endpoint string, timeoutMs int, hea
 			request.Header.Add(key, value)
 		}
 	}
-	client := GetHttpClient()
-	if client == nil {
-		client = searchFallbackClient
-	}
-	resp, err := client.Do(request)
+	// A search backend is a channel's base URL: an operator-configured
+	// address that may be private, like any other channel's. It goes through
+	// the relay client, not the SSRF-checked one meant for URLs that arrive
+	// in requests (docs/DEPLOYMENT.md, Outbound connections). The context
+	// above bounds the call.
+	resp, err := GetRelayHttpClient().Do(request)
 	if err != nil {
 		return nil, err
 	}
