@@ -99,3 +99,67 @@ func TestWriteDeadlineInterruptsABlockedClientWrite(t *testing.T) {
 		t.Fatal("the write deadline did not interrupt a blocked write")
 	}
 }
+
+// When the scanner gives up on a write to a client that stopped reading, the
+// write itself must end too, so the handler goroutine and the connection are
+// released instead of waiting for the kernel to give up on the socket.
+func TestStreamScannerTimeoutReleasesTheBlockedWrite(t *testing.T) {
+	previous := streamWriteTimeout
+	streamWriteTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { streamWriteTimeout = previous })
+
+	chunk := "data: " + strings.Repeat("x", 64<<10) + "\n\n"
+	var upstream strings.Builder
+	for i := 0; i < 400; i++ {
+		upstream.WriteString("data: {}\n\n")
+	}
+	scannerDone := make(chan StreamScanResult, 1)
+	writeEnded := make(chan error, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, _ := gin.CreateTestContext(w)
+		c.Request = r
+		c.Writer.Header().Set("Content-Type", "text/event-stream")
+		result := StreamScannerHandler(c, &http.Response{Body: io.NopCloser(strings.NewReader(upstream.String()))}, &relaycommon.RelayInfo{}, func(string) bool {
+			if _, err := c.Writer.Write([]byte(chunk)); err != nil {
+				select {
+				case writeEnded <- err:
+				default:
+				}
+				return false
+			}
+			c.Writer.Flush()
+			return true
+		})
+		scannerDone <- result
+	}))
+	defer server.Close()
+
+	// A client that sends the request and never reads the response.
+	conn, err := net.Dial("tcp", strings.TrimPrefix(server.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		_ = tcp.SetReadBuffer(4 << 10)
+	}
+	_, _ = conn.Write([]byte("GET / HTTP/1.1\r\nHost: test\r\n\r\n"))
+
+	select {
+	case result := <-scannerDone:
+		if !errors.Is(result.Err, context.DeadlineExceeded) {
+			t.Fatalf("scanner result %+v, want DeadlineExceeded", result)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the scanner did not give up on the blocked write")
+	}
+	select {
+	case err := <-writeEnded:
+		var netErr net.Error
+		if !errors.As(err, &netErr) || !netErr.Timeout() {
+			t.Fatalf("blocked write ended with %v, want a timeout", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the blocked write was left blocked after the scanner gave up")
+	}
+}
