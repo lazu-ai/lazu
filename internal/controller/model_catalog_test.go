@@ -263,6 +263,47 @@ func TestTextgenEndpointModesScopesPinnedTokenToSpecificChannel(t *testing.T) {
 	}
 }
 
+// A vector model keeps /v1/embeddings as its only endpoint even when the
+// channel serving it would plan a chat request for it: the catalog must not
+// list, or default to, a request shape the model rejects.
+func TestProjectProtocolEndpointsLeavesEmbeddingModelsWithoutChat(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cleanup := setupUserModelsClassifiedTestDB(t)
+	defer cleanup()
+	previousMemoryCache := common.MemoryCacheEnabled
+	common.MemoryCacheEnabled = false
+	defer func() { common.MemoryCacheEnabled = previousMemoryCache }()
+	channel := model.Channel{Id: 33, Type: constant.ChannelTypeOpenAI, Key: "openai", Status: common.ChannelStatusEnabled, Name: "vectors-and-chat", Models: "BAAI/bge-m3,chat-model", Group: model.ChannelLaneDirect, OtherSettings: `{"protocol_dialect":"openai"}`}
+	if err := model.CoreDB().Create(&channel).Error; err != nil {
+		t.Fatalf("seed channel: %v", err)
+	}
+	if err := model.CoreDB().Create(&[]model.Ability{
+		{Group: model.ChannelLaneDirect, Model: "BAAI/bge-m3", ChannelId: 33, Enabled: true},
+		{Group: model.ChannelLaneDirect, Model: "chat-model", ChannelId: 33, Enabled: true},
+	}).Error; err != nil {
+		t.Fatalf("seed abilities: %v", err)
+	}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Set(string(constant.ContextKeyTokenSpecificChannelId), "33")
+	items := []dto.ModelCatalogItem{
+		{ID: "BAAI/bge-m3", SupportedEndpointTypes: []constant.EndpointType{constant.EndpointTypeEmbeddings}},
+		{ID: "chat-model", SupportedEndpointTypes: []constant.EndpointType{constant.EndpointTypeOpenAI}},
+	}
+	projectProtocolEndpoints(c, items, []string{model.ChannelLaneDirect})
+
+	embedding := items[0]
+	if len(embedding.SupportedEndpointTypes) != 1 || embedding.DefaultEndpointType != constant.EndpointTypeEmbeddings {
+		t.Fatalf("embedding model endpoints = %v default %q, want embeddings only", embedding.SupportedEndpointTypes, embedding.DefaultEndpointType)
+	}
+	if !strings.Contains(embedding.Example.Curl, "/v1/embeddings") {
+		t.Fatalf("embedding model example is not an embeddings call: %s", embedding.Example.Curl)
+	}
+	chat := items[1]
+	if chat.DefaultEndpointType != constant.EndpointTypeOpenAI || !endpointTypesContain(chat.SupportedEndpointTypes, constant.EndpointTypeOpenAIResponse) {
+		t.Fatalf("chat model on the same channel lost its projected endpoints: %v", chat.SupportedEndpointTypes)
+	}
+}
+
 func TestTextgenEndpointModesUsesFirstRoutableLaneBeforeDirectFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cleanup := setupUserModelsClassifiedTestDB(t)

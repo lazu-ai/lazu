@@ -196,7 +196,7 @@ func channelHealthKindOf(kinds map[string]string, modelName string) string {
 		return channelHealthKindVideo
 	case strings.Contains(name, "rerank"):
 		return channelHealthKindRerank
-	case looksLikeEmbeddingModel(modelName):
+	case common.IsEmbeddingModel(modelName):
 		return channelHealthKindEmbedding
 	case isAudioOnlyProbeModel(modelName):
 		return channelHealthKindAudio

@@ -153,10 +153,7 @@ func testChannelForLaneWithRequest(
 	} else {
 		// 如果没有指定端点类型，使用原有的自动检测逻辑
 		// 先判断是否为 Embedding 模型
-		if strings.Contains(strings.ToLower(testModel), "embedding") ||
-			strings.HasPrefix(testModel, "m3e") || // m3e 系列模型
-			strings.Contains(testModel, "bge-") || // bge 系列模型
-			strings.Contains(testModel, "embed") {
+		if common.IsEmbeddingModel(testModel) {
 			requestPath = "/v1/embeddings" // 修改请求路径
 		}
 		if common.IsVideoGenerationModel(testModel) {
@@ -845,9 +842,7 @@ func buildTestRequest(model string, endpointType string) dto.Request {
 
 	// 自动检测逻辑（保持原有行为）
 	// 先判断是否为 Embedding 模型
-	if strings.Contains(strings.ToLower(model), "embedding") ||
-		strings.HasPrefix(model, "m3e") ||
-		strings.Contains(model, "bge-") {
+	if common.IsEmbeddingModel(model) {
 		// 返回 EmbeddingRequest
 		return &dto.EmbeddingRequest{
 			Model: model,

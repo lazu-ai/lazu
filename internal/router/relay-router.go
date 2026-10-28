@@ -179,8 +179,12 @@ func SetRelayRouter(router *gin.Engine) {
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
 
-		// embedding related routes
+		// embedding related routes; the engines form is the pre-2023 OpenAI
+		// path older SDKs still send, with the model in the path
 		httpRouter.POST("/embeddings", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatEmbedding)
+		})
+		httpRouter.POST("/engines/:model/embeddings", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatEmbedding)
 		})
 
@@ -201,9 +205,6 @@ func SetRelayRouter(router *gin.Engine) {
 		})
 
 		// gemini relay routes
-		httpRouter.POST("/engines/:model/embeddings", func(c *gin.Context) {
-			controller.Relay(c, types.RelayFormatGemini)
-		})
 		httpRouter.POST("/models/*path", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
 		})
