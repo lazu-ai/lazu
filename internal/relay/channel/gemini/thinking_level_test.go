@@ -53,6 +53,27 @@ func TestConvertOpenAIExtraBodyRejectsInvalidGeminiThinkingLevel(t *testing.T) {
 	}
 }
 
+func TestEffortThinkingUsesBudgetBeforeGemini3(t *testing.T) {
+	for _, upstream := range []string{"gemini-2.5-pro", "models/gemini-2.5-flash", "Gemini-2.5-Flash-Lite"} {
+		config := effortThinking(upstream, "high")
+		if config.ThinkingLevel != "" {
+			t.Fatalf("%s: thinkingLevel %q sent to a model that refuses it", upstream, config.ThinkingLevel)
+		}
+		if config.ThinkingBudget == nil || *config.ThinkingBudget != 16384 || !config.IncludeThoughts {
+			t.Fatalf("%s: expected a 16384-token budget with thoughts, got %#v", upstream, config)
+		}
+	}
+}
+
+func TestEffortThinkingUsesLevelFromGemini3(t *testing.T) {
+	for _, upstream := range []string{"gemini-3.1-pro-preview", "gemini-3.5-flash", "models/gemini-3-pro-preview"} {
+		config := effortThinking(upstream, "low")
+		if config.ThinkingLevel != "low" || config.ThinkingBudget != nil || !config.IncludeThoughts {
+			t.Fatalf("%s: expected thinkingLevel low, got %#v", upstream, config)
+		}
+	}
+}
+
 // convertChatRequest encodes a Chat request for Gemini the way the adaptor
 // does: decoded into the IR, then EncodeBridgedRequest.
 func convertChatRequest(t *testing.T, request dto.GeneralOpenAIRequest, info *relaycommon.RelayInfo) (*dto.GeminiChatRequest, error) {
