@@ -22,6 +22,13 @@ type PaginationProps = {
     | string
     | ((total: number, range: [number, number]) => React.ReactNode);
   total?: number;
+  /** The server stopped counting at `total`; more rows match. The last page
+   *  is then unknown, so the page count stays open past what `total` covers
+   *  and moving forward is decided by `hasNextPage` instead. */
+  totalAtLeast?: boolean;
+  /** With `totalAtLeast`: whether the current page came back full, so a
+   *  page after it may hold rows. */
+  hasNextPage?: boolean;
 };
 
 function getPages(currentPage: number, pageCount: number): number[] {
@@ -44,9 +51,16 @@ export function Pagination({
   showSizeChanger = false,
   showTotal,
   total = 0,
+  totalAtLeast = false,
+  hasNextPage = false,
 }: PaginationProps) {
   const { t } = useTranslation();
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const countedPages = Math.max(1, Math.ceil(total / pageSize));
+  // A lower-bound total covers only the first pages. Past them, the reachable
+  // pages are the current one and, when it came back full, the next.
+  const pageCount = totalAtLeast
+    ? Math.max(countedPages, currentPage + (hasNextPage ? 1 : 0))
+    : countedPages;
   const pages = useMemo(
     () => getPages(currentPage, pageCount),
     [currentPage, pageCount],
@@ -127,6 +141,10 @@ export function Pagination({
           </React.Fragment>
         );
       })}
+      {/* The highest page offered is not the last one; more may follow. */}
+      {totalAtLeast && hasNextPage ? (
+        <span className='lazu-pagination__ellipsis'>...</span>
+      ) : null}
       <button
         type='button'
         className='lazu-pagination-button'
