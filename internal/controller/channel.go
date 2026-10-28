@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -98,6 +100,11 @@ func upstreamModelListURLs(baseURL string, channelType int, key string) []string
 	return urls
 }
 
+// upstreamModelListTimeout bounds one model-list request. The relay client
+// it goes through allows RELAY_TIMEOUT (up to ten minutes) for generation; a
+// model list answers in seconds, and an admin waits on it in the form.
+var upstreamModelListTimeout = 20 * time.Second // a variable so tests can lower it
+
 func fetchUpstreamModelIDs(baseURL string, channelType int, key string, channel *model.Channel) ([]string, error) {
 	key = strings.TrimSpace(strings.Split(key, "\n")[0])
 	var lastErr error
@@ -109,13 +116,15 @@ func fetchUpstreamModelIDs(baseURL string, channelType int, key string, channel 
 		if channelType == constant.ChannelTypeGemini && strings.Contains(endpoint, "?key=") {
 			headers = http.Header{}
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), upstreamModelListTimeout)
 		var body []byte
 		var err error
 		if channel != nil {
-			body, err = GetResponseBody(http.MethodGet, endpoint, channel, headers)
+			body, err = getResponseBodyContext(ctx, http.MethodGet, endpoint, channel, headers)
 		} else {
-			body, err = getResponseBodyWithoutChannel(http.MethodGet, endpoint, headers)
+			body, err = getResponseBodyWithoutChannel(ctx, http.MethodGet, endpoint, headers)
 		}
+		cancel()
 		if err != nil {
 			lastErr = err
 			continue
@@ -136,8 +145,8 @@ func fetchUpstreamModelIDs(baseURL string, channelType int, key string, channel 
 	return []string{}, nil
 }
 
-func getResponseBodyWithoutChannel(method, endpoint string, headers http.Header) ([]byte, error) {
-	req, err := http.NewRequest(method, endpoint, nil)
+func getResponseBodyWithoutChannel(ctx context.Context, method, endpoint string, headers http.Header) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
