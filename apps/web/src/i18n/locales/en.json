@@ -569,6 +569,8 @@
     "page.console.channel.form.action.nextModels": "Next: models",
     "page.console.channel.form.action.nextRouting": "Next: tier and weight",
     "page.console.channel.form.action.submit": "Save channel",
+    "page.console.channel.form.detailError.title": "This source's saved settings could not be loaded",
+    "page.console.channel.form.detailError.description": "Saving now would overwrite them with blank values, so saving is off until they load.",
     "page.console.channel.form.description": "Manage upstream credentials, model routing, groups, and operating status.",
     "page.console.channel.form.empty.options": "No options",
     "page.console.channel.form.error.groups.required": "Select at least one group.",

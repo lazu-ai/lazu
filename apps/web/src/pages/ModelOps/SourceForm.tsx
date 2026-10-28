@@ -8,6 +8,7 @@ import { SOURCE_TYPES } from './formatters';
 import { sourceTypeLabel } from './SourceTypeBadge';
 import { Button } from '../../components/ui/button';
 import { Field, FieldMessage } from '../../components/ui/field';
+import { InlineNotice } from '../../components/ui/inline-notice';
 import { Input } from '../../components/ui/input';
 import { MultiSelect, Select, SelectItem } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
@@ -303,6 +304,10 @@ export default function SourceForm({
     channels.saveChannelMutation.isPending ||
     channels.fetchUpstreamModelsMutation.isPending ||
     detailQuery.isFetching;
+  /* Editing saves the whole record, so a form that never received the saved
+     one must not be saved: it would write the defaults over every field the
+     admin did not retype, the overrides among them. */
+  const detailMissing = isEdit && !detailQuery.data;
 
   useEffect(() => {
     setCustomModels('');
@@ -363,6 +368,7 @@ export default function SourceForm({
   };
 
   const submit = form.handleSubmit(async (formValues) => {
+    if (detailMissing) return;
     try {
       await channels.saveChannelMutation.mutateAsync({
         editingChannel,
@@ -411,6 +417,24 @@ export default function SourceForm({
   return (
     <>
       <div className='mo-dialog__body'>
+        {isEdit && detailQuery.isError && !detailQuery.data ? (
+          <InlineNotice
+            tone='danger'
+            title={t(`${ns}.detailError.title`)}
+            description={t(`${ns}.detailError.description`)}
+            actions={
+              <Button
+                size='sm'
+                type='button'
+                variant='secondary'
+                loading={detailQuery.isFetching}
+                onClick={() => void detailQuery.refetch()}
+              >
+                {t('common.retry')}
+              </Button>
+            }
+          />
+        ) : null}
         <form className='mo-form' id='source-form' onSubmit={handleFormSubmit}>
           {showStep('credential') ? (
             <>
@@ -1185,6 +1209,7 @@ export default function SourceForm({
             </Button>
           ) : (
             <Button
+              disabled={loading || detailMissing}
               form='source-form'
               loading={channels.saveChannelMutation.isPending}
               size='sm'

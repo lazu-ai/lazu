@@ -569,6 +569,8 @@
     "page.console.channel.form.action.nextModels": "次へ：モデル",
     "page.console.channel.form.action.nextRouting": "次へ：ティアと重み",
     "page.console.channel.form.action.submit": "チャネルを保存",
+    "page.console.channel.form.detailError.title": "このソースの保存済み設定を読み込めませんでした",
+    "page.console.channel.form.detailError.description": "今保存すると空の値で上書きされるため、読み込めるまで保存できません。",
     "page.console.channel.form.description": "アップストリームの認証情報、モデルルーティング、利用可能なグループ、および実行ステータスを管理します。",
     "page.console.channel.form.empty.options": "オプションなし",
     "page.console.channel.form.error.groups.required": "少なくとも1つのグループを選択してください。",
