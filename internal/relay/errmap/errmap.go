@@ -91,7 +91,8 @@ func MapDefault(status int, body []byte) (types.ErrorCode, []any) {
 	case strings.Contains(bodyText, "context length") ||
 		strings.Contains(bodyText, "context window") ||
 		strings.Contains(bodyText, "maximum context") ||
-		strings.Contains(bodyText, "prompt is too long"):
+		strings.Contains(bodyText, "prompt is too long") ||
+		strings.Contains(bodyText, "sequence too long"):
 		return types.ErrorCodeContextLengthExceeded, nil
 	default:
 		return GuessFromStatus(status), nil

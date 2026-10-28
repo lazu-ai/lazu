@@ -59,6 +59,8 @@ var knownModelMakers = []ModelMaker{
 		namePattern: regexp.MustCompile(`(?i)^step-`), vendorPattern: regexp.MustCompile(`(?i)stepfun`)},
 	{Key: "cohere", Label: "Cohere", ModelsDevProviders: []string{"cohere"},
 		namePattern: regexp.MustCompile(`(?i)^(command|embed-|rerank-)`), vendorPattern: regexp.MustCompile(`(?i)cohere`)},
+	{Key: "baai", Label: "BAAI",
+		namePattern: regexp.MustCompile(`(?i)^(baai/|bge-)`), vendorPattern: regexp.MustCompile(`(?i)^baai$`)},
 }
 
 // defaultModelMakerOrder is the order the product ships with: the three

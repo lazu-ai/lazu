@@ -8,6 +8,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
+	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -68,7 +69,7 @@ func ClaudeData(c *gin.Context, resp dto.ClaudeResponse) error {
 		common.SysError("error marshalling stream response: " + err.Error())
 	} else {
 		c.Render(-1, CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
-		c.Render(-1, CustomEvent{Data: "data: " + string(jsonData)})
+		c.Render(-1, CustomEvent{Data: "data: " + string(service.RestorePublicModel(c, jsonData))})
 	}
 	_ = FlushWriter(c)
 	return nil
@@ -76,14 +77,14 @@ func ClaudeData(c *gin.Context, resp dto.ClaudeResponse) error {
 
 func ResponseChunkData(c *gin.Context, resp dto.ResponsesStreamResponse, data string) {
 	c.Render(-1, CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
-	c.Render(-1, CustomEvent{Data: fmt.Sprintf("data: %s", data)})
+	c.Render(-1, CustomEvent{Data: fmt.Sprintf("data: %s", service.RestorePublicModelString(c, data))})
 	_ = FlushWriter(c)
 }
 
 func StringData(c *gin.Context, str string) error {
 	//str = strings.TrimPrefix(str, "data: ")
 	//str = strings.TrimSuffix(str, "\r")
-	c.Render(-1, CustomEvent{Data: "data: " + str})
+	c.Render(-1, CustomEvent{Data: "data: " + service.RestorePublicModelString(c, str)})
 	_ = FlushWriter(c)
 	return nil
 }

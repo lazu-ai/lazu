@@ -153,6 +153,7 @@ func (c Catalog) Find(id string) (Model, bool) {
 var makerNames = map[string]string{
 	"alibaba":   "Qwen",
 	"anthropic": "Anthropic",
+	"baai":      "BAAI",
 	"bytedance": "ByteDance · Seed",
 	"cohere":    "Cohere",
 	"deepseek":  "DeepSeek",
@@ -169,8 +170,8 @@ var makerNames = map[string]string{
 }
 
 var makerNamesLocal = map[string]map[string]string{
-	"zh":    {"zhipu": "智谱", "bytedance": "字节 · Seed", "xiaomi": "小米", "stepfun": "阶跃星辰"},
-	"zh-TW": {"zhipu": "智譜", "bytedance": "字節 · Seed", "xiaomi": "小米", "stepfun": "階躍星辰"},
+	"zh":    {"zhipu": "智谱", "bytedance": "字节 · Seed", "xiaomi": "小米", "stepfun": "阶跃星辰", "baai": "智源 BAAI"},
+	"zh-TW": {"zhipu": "智譜", "bytedance": "字節 · Seed", "xiaomi": "小米", "stepfun": "階躍星辰", "baai": "智源 BAAI"},
 }
 
 // Same order as apps/web/src/lib/model-makers.ts DEFAULT_MAKER_ORDER.

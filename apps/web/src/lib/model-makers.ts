@@ -35,6 +35,7 @@ const MAKER_BRAND_HINT: Record<string, string> = {
 const MAKER_LABEL: Record<string, string> = {
   alibaba: 'Qwen',
   anthropic: 'Anthropic',
+  baai: 'BAAI',
   bytedance: 'Seed',
   cohere: 'Cohere',
   deepseek: 'DeepSeek',

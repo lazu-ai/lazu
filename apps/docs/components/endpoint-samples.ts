@@ -387,14 +387,14 @@ const detail = await r.json();`,
   embeddings: {
     method: "POST",
     path: "/v1/embeddings",
-    tryBody: `{\n  "model": "text-embedding-3-small",\n  "input": ["hello world"]\n}`,
+    tryBody: `{\n  "model": "BAAI/bge-m3",\n  "input": ["hello world"]\n}`,
     samples: {
       curl: `curl https://api.lazu.ai/v1/embeddings \\
   -H "Authorization: Bearer $LAZU_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "text-embedding-3-small",
-    "input": ["doc one", "doc two"]
+    "model": "BAAI/bge-m3",
+    "input": ["How do I reset my password?", "如何重置密码？"]
   }'`,
       python: `from openai import OpenAI
 
@@ -404,11 +404,12 @@ client = OpenAI(
 )
 
 resp = client.embeddings.create(
-    model="text-embedding-3-small",
-    input=["doc one", "doc two"],
+    model="BAAI/bge-m3",
+    input=["How do I reset my password?", "如何重置密码？"],
 )
 for item in resp.data:
-    print(item.embedding[:5])`,
+    print(item.index, len(item.embedding))
+print(resp.usage.prompt_tokens)`,
       ts: `import OpenAI from "openai";
 
 const client = new OpenAI({
@@ -417,17 +418,19 @@ const client = new OpenAI({
 });
 
 const resp = await client.embeddings.create({
-  model: "text-embedding-3-small",
-  input: ["doc one", "doc two"],
-});`,
+  model: "BAAI/bge-m3",
+  input: ["How do I reset my password?", "如何重置密码？"],
+});
+console.log(resp.data.length, resp.usage.prompt_tokens);`,
     },
     response: `{
   "object": "list",
   "data": [
-    { "object": "embedding", "index": 0, "embedding": [0.0021, -0.013] }
+    { "object": "embedding", "index": 0, "embedding": [-0.0338, 0.0174, -0.0461] },
+    { "object": "embedding", "index": 1, "embedding": [-0.0412, 0.0209, -0.0397] }
   ],
-  "model": "text-embedding-3-small",
-  "usage": { "prompt_tokens": 6, "total_tokens": 6 }
+  "model": "BAAI/bge-m3",
+  "usage": { "prompt_tokens": 14, "total_tokens": 14, "cost": 0.000001 }
 }`,
   },
 };
