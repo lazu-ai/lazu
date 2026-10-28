@@ -113,7 +113,7 @@ func OIDCStatus(c *gin.Context) {
 
 func OIDCLogin(c *gin.Context) {
 	next := sanitizedOIDCNext(c.Query("next"))
-	oauthConfig, _, err := oidcOAuthConfig(c.Request.Context(), c)
+	oauthConfig, _, err := oidcOAuthConfig(oidcContext(c.Request.Context()), c)
 	if err != nil {
 		common.SysLog(fmt.Sprintf("oidc login rejected: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthProviderNotConfigured, next)
@@ -162,13 +162,14 @@ func OIDCCallback(c *gin.Context) {
 	}
 	// Consume state/nonce/PKCE material before the one-time code exchange.
 	clearOIDCTransaction(c)
-	oauthConfig, verifier, err := oidcOAuthConfig(c.Request.Context(), c)
+	ctx := oidcContext(c.Request.Context())
+	oauthConfig, verifier, err := oidcOAuthConfig(ctx, c)
 	if err != nil {
 		common.SysLog(fmt.Sprintf("oidc callback rejected: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthProviderNotConfigured, tx.Next)
 		return
 	}
-	token, err := oauthConfig.Exchange(c.Request.Context(), c.Query("code"), oauth2.VerifierOption(tx.CodeVerifier))
+	token, err := oauthConfig.Exchange(ctx, c.Query("code"), oauth2.VerifierOption(tx.CodeVerifier))
 	if err != nil {
 		common.SysLog(fmt.Sprintf("oidc token exchange failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthExchangeFailed, tx.Next)
@@ -180,7 +181,7 @@ func OIDCCallback(c *gin.Context) {
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthIdentityInvalid, tx.Next)
 		return
 	}
-	idToken, err := verifier.Verify(c.Request.Context(), rawIDToken)
+	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		common.SysLog(fmt.Sprintf("oidc id_token verification failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthIdentityInvalid, tx.Next)
@@ -247,6 +248,23 @@ func OIDCBootstrap(c *gin.Context) {
 		"message": "",
 		"data":    cleanUserForLogin(user),
 	})
+}
+
+// oidcHTTPClient talks to the configured identity provider (discovery, keys,
+// token exchange). The provider is an operator-configured address and may be
+// private, so it is not the fetch-policy client; without a client in the
+// context, go-oidc and oauth2 fall back to net/http's default client, which
+// has no timeout, and a provider that stops answering would hold the login
+// request open.
+var oidcHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
+// oidcContext carries oidcHTTPClient to every go-oidc and oauth2 call made
+// with it, unless the context already names a client (tests do).
+func oidcContext(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(oauth2.HTTPClient).(*http.Client); ok {
+		return ctx
+	}
+	return oidc.ClientContext(ctx, oidcHTTPClient)
 }
 
 func oidcOAuthConfig(ctx context.Context, c *gin.Context) (*oauth2.Config, *oidc.IDTokenVerifier, error) {
