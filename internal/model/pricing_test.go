@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -447,6 +448,9 @@ func TestRefreshPricing_VideoModelsAdvertiseOnlyTheVideoEndpoint(t *testing.T) {
 	for _, meta := range []*Model{
 		{Id: 1, ModelName: "seedance-test", VendorID: 1, Status: 1, VideoCapabilities: &dto.VideoCapabilities{MinSeconds: 4, MaxSeconds: 30}},
 		{Id: 2, ModelName: "chat-test", VendorID: 1, Status: 1},
+		// A vector model whose name does not say so, filed by its operator.
+		{Id: 3, ModelName: "vec-test", VendorID: 1, Status: 1, Endpoints: `{"embeddings": "/v1/embeddings"}`},
+		{Id: 4, ModelName: "BAAI/bge-m3", VendorID: 1, Status: 1},
 	} {
 		if err := meta.Insert(); err != nil {
 			t.Fatalf("failed to insert model metadata: %v", err)
@@ -455,10 +459,11 @@ func TestRefreshPricing_VideoModelsAdvertiseOnlyTheVideoEndpoint(t *testing.T) {
 	if err := (&Vendor{Id: 1, Name: "Test Vendor", Status: 1}).Insert(); err != nil {
 		t.Fatalf("failed to insert vendor: %v", err)
 	}
-	if err := coreDB.Create(&Channel{Id: 21, Type: constant.ChannelTypeOpenAI, Key: "k", Status: common.ChannelStatusEnabled, Name: "aggregator", Models: "seedance-test,chat-test", Group: "direct"}).Error; err != nil {
+	models := []string{"seedance-test", "chat-test", "vec-test", "BAAI/bge-m3"}
+	if err := coreDB.Create(&Channel{Id: 21, Type: constant.ChannelTypeOpenAI, Key: "k", Status: common.ChannelStatusEnabled, Name: "aggregator", Models: strings.Join(models, ","), Group: "direct"}).Error; err != nil {
 		t.Fatalf("failed to insert channel: %v", err)
 	}
-	for _, name := range []string{"seedance-test", "chat-test"} {
+	for _, name := range models {
 		if err := coreDB.Create(&Ability{Group: "direct", Model: name, ChannelId: 21, Enabled: true}).Error; err != nil {
 			t.Fatalf("failed to insert ability: %v", err)
 		}
@@ -471,5 +476,13 @@ func TestRefreshPricing_VideoModelsAdvertiseOnlyTheVideoEndpoint(t *testing.T) {
 	}
 	if got := GetModelSupportEndpointTypes("chat-test"); len(got) == 0 || got[0] != constant.EndpointTypeOpenAI {
 		t.Fatalf("a chat model on the same channel keeps its chat endpoints, got %v", got)
+	}
+	// Embedding models, declared by the operator or by their name, are served
+	// by /v1/embeddings only: the chat endpoints the channel type implies
+	// would be the catalog's default example and the probe's request shape.
+	for _, name := range []string{"vec-test", "BAAI/bge-m3"} {
+		if got := GetModelSupportEndpointTypes(name); len(got) != 1 || got[0] != constant.EndpointTypeEmbeddings {
+			t.Fatalf("%s: an embedding model is served by /v1/embeddings only, got %v", name, got)
+		}
 	}
 }

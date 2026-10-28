@@ -17,6 +17,13 @@ func GetEndpointTypesByChannelType(channelType int, modelName string) []constant
 	if IsDecisionModel(modelName) {
 		return []constant.EndpointType{constant.EndpointTypeDecisions}
 	}
+	// An embedding model answers /v1/embeddings on every channel family (the
+	// Gemini adaptor converts to batchEmbedContents) and cannot chat, so the
+	// chat endpoints its channel type implies are not advertised: they would
+	// be the catalog's default example and the probe's request shape.
+	if IsEmbeddingModel(modelName) {
+		return []constant.EndpointType{constant.EndpointTypeEmbeddings}
+	}
 	var endpointTypes []constant.EndpointType
 	switch channelType {
 	case constant.ChannelTypeAnthropic:

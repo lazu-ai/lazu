@@ -8,17 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// EmbeddingRequest is the OpenAI /v1/embeddings body. Input is kept as sent
+// (a string, a list of strings, or token arrays) and forwarded unchanged to
+// OpenAI-compatible upstreams; ParseInput reads the text out of it for the
+// local token estimate and for the Gemini conversion.
 type EmbeddingRequest struct {
-	Model            string   `json:"model"`
-	Input            any      `json:"input"`
-	EncodingFormat   string   `json:"encoding_format,omitempty"`
-	Dimensions       int      `json:"dimensions,omitempty"`
-	User             string   `json:"user,omitempty"`
-	Seed             float64  `json:"seed,omitempty"`
-	Temperature      *float64 `json:"temperature,omitempty"`
-	TopP             float64  `json:"top_p,omitempty"`
-	FrequencyPenalty float64  `json:"frequency_penalty,omitempty"`
-	PresencePenalty  float64  `json:"presence_penalty,omitempty"`
+	Model          string `json:"model"`
+	Input          any    `json:"input"`
+	EncodingFormat string `json:"encoding_format,omitempty"`
+	Dimensions     int    `json:"dimensions,omitempty"`
+	User           string `json:"user,omitempty"`
 }
 
 func (r *EmbeddingRequest) GetTokenCountMeta() *types.TokenCountMeta {

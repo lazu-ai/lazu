@@ -993,14 +993,9 @@ func selectProbeEndpointType(modelName string, endpointTypes []constant.Endpoint
 	if available[string(constant.EndpointTypeJinaRerank)] {
 		return string(constant.EndpointTypeJinaRerank), true
 	}
-	// Generic OpenAI-compatible channels advertise only their broad chat and
-	// Responses capabilities even for embedding-only abilities. Infer the
-	// narrower request shape from the model identity before endpoint priority;
-	// requiring embeddings to be advertised here would simply select chat again.
-	openAICompatible := available[string(constant.EndpointTypeOpenAI)] ||
-		available[string(constant.EndpointTypeOpenAIResponse)] ||
-		available[string(constant.EndpointTypeEmbeddings)]
-	if looksLikeEmbeddingModel(modelName) && openAICompatible {
+	// A vector model is probed with an embedding payload, whether the catalog
+	// files it under /v1/embeddings or only its name says what it is.
+	if available[string(constant.EndpointTypeEmbeddings)] || common.IsEmbeddingModel(modelName) {
 		return string(constant.EndpointTypeEmbeddings), true
 	}
 	for _, candidate := range []constant.EndpointType{
@@ -1018,14 +1013,6 @@ func selectProbeEndpointType(modelName string, endpointTypes []constant.Endpoint
 	// meaningful request for. Falling back to autodetection would guess wrong
 	// and report a false outage, so skip it.
 	return "", false
-}
-
-func looksLikeEmbeddingModel(modelName string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(modelName))
-	return strings.Contains(normalized, "embedding") ||
-		strings.Contains(normalized, "embed") ||
-		strings.HasPrefix(normalized, "m3e") ||
-		strings.Contains(normalized, "bge-")
 }
 
 // estimateProbeCostUSD prices one probe from the selected channel's provider

@@ -315,7 +315,13 @@ func projectProtocolEndpoints(c *gin.Context, items []dto.ModelCatalogItem, grou
 		if item.DecisionCapabilities != nil {
 			continue
 		}
-		modes := textgenEndpointModes(c, groups, item.ID)
+		// A model served by /v1/embeddings or /v1/videos alone cannot chat,
+		// however its channel would plan one; projecting the chat endpoints
+		// onto it would list a request shape it rejects.
+		modes := map[constant.EndpointType]string{}
+		if catalogEndpointsGenerateText(item.SupportedEndpointTypes) {
+			modes = textgenEndpointModes(c, groups, item.ID)
+		}
 		types := make([]constant.EndpointType, 0, len(item.SupportedEndpointTypes)+2)
 		for _, endpointType := range item.SupportedEndpointTypes {
 			if endpointType != constant.EndpointTypeOpenAI && endpointType != constant.EndpointTypeOpenAIResponse {
@@ -338,6 +344,23 @@ func projectProtocolEndpoints(c *gin.Context, items []dto.ModelCatalogItem, grou
 		item.Parameters = buildCatalogParameters(item.ID, item.DefaultEndpointType, item.MaxOutputTokens, model.GetModelParamsSchema(item.ID))
 		item.Example = dto.ModelCatalogExample{Curl: buildCatalogCurlExample(item.ID, item.DefaultEndpointType, item.SupportedEndpoints, item.Modality)}
 	}
+}
+
+// catalogEndpointsGenerateText reports whether any advertised endpoint
+// answers a text-generation request. An empty list says nothing yet, so it
+// counts as text: the projection is then what fills it in.
+func catalogEndpointsGenerateText(endpointTypes []constant.EndpointType) bool {
+	if len(endpointTypes) == 0 {
+		return true
+	}
+	for _, endpointType := range endpointTypes {
+		switch endpointType {
+		case constant.EndpointTypeOpenAI, constant.EndpointTypeOpenAIResponse,
+			constant.EndpointTypeAnthropic, constant.EndpointTypeGemini:
+			return true
+		}
+	}
+	return false
 }
 
 func uniqueCatalogGroups(groups []string) []string {

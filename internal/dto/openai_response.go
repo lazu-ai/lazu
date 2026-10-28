@@ -58,6 +58,14 @@ type OpenAIEmbeddingResponse struct {
 	Usage  `json:"usage"`
 }
 
+// EmbeddingUsage is the usage object a /v1/embeddings reply carries: input
+// tokens only, as OpenAI reports it, plus the gateway's cost when quoted.
+type EmbeddingUsage struct {
+	PromptTokens int `json:"prompt_tokens"`
+	TotalTokens  int `json:"total_tokens"`
+	Cost         any `json:"cost,omitempty"`
+}
+
 type ChatCompletionsStreamResponseChoice struct {
 	Delta        ChatCompletionsStreamResponseChoiceDelta `json:"delta,omitempty"`
 	Logprobs     *any                                     `json:"logprobs"`

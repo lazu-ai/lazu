@@ -49,6 +49,21 @@ func ChatToolsNeedReasoningOff(modelName string) bool {
 	return strings.HasPrefix(name, "gpt-6") && !strings.Contains(name, "astra")
 }
 
+// IsEmbeddingModel reports whether a model's name says it produces vectors:
+// the text-embedding-*, *-embed*, m3e and BGE lines. A reranker from the same
+// family (bge-reranker-*) is not one. The catalog decides where a model is
+// served; this is the fallback for a row the operator has not described, and
+// the one place the gateway spells the heuristic out.
+func IsEmbeddingModel(modelName string) bool {
+	name := strings.ToLower(strings.TrimSpace(modelName))
+	if name == "" || strings.Contains(name, "rerank") {
+		return false
+	}
+	return strings.Contains(name, "embed") ||
+		strings.HasPrefix(name, "m3e") ||
+		strings.Contains(name, "bge-")
+}
+
 // IsClaudeModel 判断模型名称是否为 Claude 系列模型。
 func IsClaudeModel(modelName string) bool {
 	return strings.Contains(strings.ToLower(modelName), "claude")
