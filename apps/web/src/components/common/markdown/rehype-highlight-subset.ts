@@ -2,7 +2,8 @@
    languages. rehype-highlight registers lowlight's 37 "common" grammars even
    when given a subset, so this is its transform (MIT, rehypejs/rehype-
    highlight 7.0.2) over createLowlight with only the languages announcements
-   and docs use. A fenced block in any other language is left unhighlighted. */
+   and docs use. A fenced block in any other language keeps the block styling
+   but gets no token colors. */
 import bash from 'highlight.js/lib/languages/bash';
 import http from 'highlight.js/lib/languages/http';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -57,12 +58,16 @@ function highlight(node: Element) {
     if (child.type !== 'element') continue;
     if (child.tagName === 'code' && node.tagName === 'pre') {
       const lang = languageOf(child);
-      if (!lang || !lowlight.registered(lang)) continue;
+      if (!lang) continue;
+      // Like rehype-highlight, a block that names a language gets the block
+      // styling (.hljs: scrolling, text color) even when its grammar is not
+      // in the subset; only the token colors are skipped then.
       const classes = Array.isArray(child.properties.className)
         ? child.properties.className
         : [];
       if (!classes.includes('hljs')) classes.unshift('hljs');
       child.properties.className = classes;
+      if (!lowlight.registered(lang)) continue;
       const result = lowlight.highlight(lang, textOf(child));
       if (result.children.length > 0) {
         child.children = result.children as ElementContent[];
