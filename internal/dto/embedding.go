@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/types"
@@ -29,8 +30,43 @@ func (r *EmbeddingRequest) GetTokenCountMeta() *types.TokenCountMeta {
 	}
 
 	return &types.TokenCountMeta{
-		CombineText: strings.Join(texts, "\n"),
+		CombineText:  strings.Join(texts, "\n"),
+		TokenIDCount: r.countTokenIDs(),
 	}
+}
+
+// countTokenIDs counts the input sent as token ids: one array of ids, or a
+// list of them. Each id is one token, so an upstream that reports no usage
+// still bills them instead of reading them as empty text.
+func (r *EmbeddingRequest) countTokenIDs() int {
+	items, ok := r.Input.([]any)
+	if !ok {
+		return 0
+	}
+	count := 0
+	for _, item := range items {
+		switch value := item.(type) {
+		case []any:
+			for _, id := range value {
+				if isTokenID(id) {
+					count++
+				}
+			}
+		default:
+			if isTokenID(value) {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func isTokenID(value any) bool {
+	switch value.(type) {
+	case float64, int, int64, json.Number:
+		return true
+	}
+	return false
 }
 
 func (r *EmbeddingRequest) IsStream(c *gin.Context) bool {

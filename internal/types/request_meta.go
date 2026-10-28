@@ -26,6 +26,7 @@ type TokenCountMeta struct {
 	Files           []*FileMeta `json:"files,omitempty"`            // List of files, each with type and content
 	MaxTokens       int         `json:"max_tokens,omitempty"`       // Maximum tokens allowed in the request
 	CompletionCount int         `json:"completion_count,omitempty"` // Requested number of generated choices
+	TokenIDCount    int         `json:"token_id_count,omitempty"`   // Input already sent as token ids (embedding token arrays), one token each
 
 	ImagePriceAdjustmentFactor float64 `json:"image_price_adjustment_factor,omitempty"` // Price adjustment for image size/count, if applicable
 	//IsStreaming   bool        `json:"is_streaming,omitempty"`   // Indicates if the request is streaming

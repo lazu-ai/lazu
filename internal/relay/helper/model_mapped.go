@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/relay/common"
 )
@@ -51,6 +52,13 @@ func ModelMappedHelper(c *gin.Context, info *common.RelayInfo, request dto.Reque
 			info.UpstreamModelName = currentModel
 		}
 	}
+	// Set on every attempt: a retry on a channel without the mapping must
+	// not keep rewriting the previous channel's name.
+	publicModel := ""
+	if info.IsModelMapped && info.UpstreamModelName != info.OriginModelName {
+		publicModel = info.OriginModelName
+	}
+	c.Set(string(constant.ContextKeyPublicModel), publicModel)
 	if request != nil {
 		request.SetModelName(info.UpstreamModelName)
 	}

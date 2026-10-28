@@ -113,6 +113,7 @@ func countRequestTokens(c *gin.Context, meta *types.TokenCountMeta, info *relayc
 	} else {
 		tkm += CountTextToken(meta.CombineText, model)
 	}
+	tkm += meta.TokenIDCount
 
 	if info.RelayFormat == types.RelayFormatOpenAI {
 		tkm += meta.ToolsCount * 8
@@ -160,6 +161,7 @@ func EstimateRequestTPMTokens(meta *types.TokenCountMeta, info *relaycommon.Rela
 	if meta.TokenType == types.TokenTypeTextNumber {
 		tokens = utf8.RuneCountInString(meta.CombineText)
 	}
+	tokens += meta.TokenIDCount
 	if info != nil && info.RelayFormat == types.RelayFormatOpenAI {
 		tokens += meta.ToolsCount * 8
 		tokens += meta.MessagesCount * 3

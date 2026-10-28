@@ -134,3 +134,17 @@ func TestEmbeddingHandlerSurfacesUpstreamError(t *testing.T) {
 		t.Fatal("an upstream error body must be returned as an error, not served as a reply")
 	}
 }
+
+// A channel that maps the public name to its own id answers with that id;
+// the caller sees the name it asked for.
+func TestEmbeddingHandlerRestoresThePublicModelName(t *testing.T) {
+	c, recorder := embeddingContext()
+	c.Set(string(constant.ContextKeyPublicModel), "BAAI/bge-m3")
+	body := strings.Replace(strings.Replace(embeddingReply, "%s", "", 1), `"model":"BAAI/bge-m3"`, `"model":"@cf/baai/bge-m3"`, 1)
+	if _, err := EmbeddingHandler(c, embeddingInfo(false), upstreamReply(body)); err != nil {
+		t.Fatal(err)
+	}
+	if got := gjson.Get(recorder.Body.String(), "model").Str; got != "BAAI/bge-m3" {
+		t.Fatalf("model = %q, want the public name", got)
+	}
+}
