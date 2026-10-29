@@ -15,8 +15,8 @@ import {
   splitMarketingPath,
   type MarketingLocale,
 } from '../../helpers/marketingLocale';
-import { usePublishedSource } from '../../hooks/common/usePublishedSource';
 import { UPSTREAM_NOTICE, UPSTREAM_URL } from '../../helpers/upstream';
+import { usePublishedSource } from '../../hooks/common/usePublishedSource';
 
 type FooterItem = {
   href: string;
