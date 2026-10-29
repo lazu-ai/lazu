@@ -29,6 +29,8 @@ export type AuthStatus = {
   password_login: boolean;
   provider?: string;
   providers: AuthProvider[];
+  /** Present only when the deployment offers Google One Tap. */
+  google_one_tap_client_id?: string;
 };
 
 export type AuthStatusSnapshot = {
@@ -103,6 +105,11 @@ const parseStatus = (value: unknown): AuthStatus | null => {
     password_login: Boolean(raw.password_login),
     provider: typeof raw.provider === 'string' ? raw.provider : undefined,
     providers,
+    google_one_tap_client_id:
+      typeof raw.google_one_tap_client_id === 'string' &&
+      raw.google_one_tap_client_id.length > 0
+        ? raw.google_one_tap_client_id
+        : undefined,
   };
 };
 
@@ -138,6 +145,7 @@ const sameStatus = (a: AuthStatus | null, b: AuthStatus) =>
   a.enabled === b.enabled &&
   a.password_login === b.password_login &&
   a.provider === b.provider &&
+  a.google_one_tap_client_id === b.google_one_tap_client_id &&
   a.providers.length === b.providers.length &&
   a.providers.every(
     (provider, index) =>

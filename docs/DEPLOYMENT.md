@@ -320,6 +320,37 @@ GOOGLE_OAUTH_CLIENT_SECRET=<client-secret>
 GOOGLE_OAUTH_REDIRECT_URL=https://<console-domain>/api/auth/oauth/google/callback
 ```
 
+### Google One Tap
+
+With the Google client above in place, the home page and the sign-in and
+registration pages can also offer Google One Tap: a visitor already signed in
+to Google picks an account in a prompt and is signed in without leaving the
+page. It reuses the same client ID and secret and follows the same account
+rules (a new verified address signs up, an existing one signs in, closed
+registration still refuses). It is off by default.
+
+1. On the same OAuth client, add every origin that serves those pages under
+   **Authorized JavaScript origins**, for example `https://<console-domain>`.
+   For local development add both `http://localhost` and
+   `http://localhost:<port>`.
+2. On the OAuth consent screen, set the privacy policy and terms of service
+   links and publish the app. The One Tap prompt shows them; it is the notice
+   a person sees before an account is created.
+3. Set:
+
+```bash
+GOOGLE_ONE_TAP_ENABLED=true
+```
+
+`GET /api/auth/oidc/status` then reports `google_one_tap_client_id`, which the
+pages read to load Google's script. The browser first takes a nonce from
+`GET /api/auth/google/one-tap`, which also sets a short-lived, signed, HttpOnly
+cookie, and then posts the ID token Google returns to
+`POST /api/auth/google/one-tap`. A token is accepted only with the nonce from
+that same browser's cookie. If you serve a Content-Security-Policy, allow
+`https://accounts.google.com` for scripts, frames and connections. Visitors who
+cannot reach Google, or who are not signed in to it, simply see no prompt.
+
 For GitHub, create an OAuth App and set its Authorization callback URL to:
 
 ```text

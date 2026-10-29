@@ -149,6 +149,11 @@ var OIDCBreakGlassPasswordEnabled = true
 var GoogleOAuthClientID = ""
 var GoogleOAuthClientSecret = ""
 var GoogleOAuthRedirectURL = ""
+
+// GoogleOneTapEnabled offers Google One Tap on the public pages and sign-in
+// doors. It needs the Google client above plus the site origin registered as
+// an authorized JavaScript origin on that client, so it is off unless asked.
+var GoogleOneTapEnabled = false
 var GitHubOAuthClientID = ""
 var GitHubOAuthClientSecret = ""
 var GitHubOAuthRedirectURL = ""

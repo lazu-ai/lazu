@@ -272,6 +272,7 @@ func InitEnv() {
 	GoogleOAuthClientID = GetEnvOrDefaultString("GOOGLE_OAUTH_CLIENT_ID", "")
 	GoogleOAuthClientSecret = GetEnvOrDefaultString("GOOGLE_OAUTH_CLIENT_SECRET", "")
 	GoogleOAuthRedirectURL = GetEnvOrDefaultString("GOOGLE_OAUTH_REDIRECT_URL", "")
+	GoogleOneTapEnabled = GetEnvOrDefaultBool("GOOGLE_ONE_TAP_ENABLED", false)
 	GitHubOAuthClientID = GetEnvOrDefaultString("GITHUB_OAUTH_CLIENT_ID", "")
 	GitHubOAuthClientSecret = GetEnvOrDefaultString("GITHUB_OAUTH_CLIENT_SECRET", "")
 	GitHubOAuthRedirectURL = GetEnvOrDefaultString("GITHUB_OAUTH_REDIRECT_URL", "")

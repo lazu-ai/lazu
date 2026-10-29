@@ -68,6 +68,12 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/auth/email/verify", middleware.LoginRateLimit(), controller.VerifyEmailAuth)
 		apiRouter.GET("/auth/oauth/:provider/login", middleware.LoginRateLimit(), controller.SocialOAuthLogin)
 		apiRouter.GET("/auth/oauth/:provider/callback", middleware.LoginRateLimit(), controller.SocialOAuthCallback)
+		// Google One Tap: a server-issued nonce, then the ID token Google gave
+		// the page for it. The nonce is asked for on page views, checks no
+		// credential and creates nothing, so it stays on the anonymous API
+		// floor instead of spending the sign-in budget a password needs.
+		apiRouter.GET("/auth/google/one-tap", controller.GoogleOneTapNonce)
+		apiRouter.POST("/auth/google/one-tap", middleware.LoginRateLimit(), controller.GoogleOneTapLogin)
 
 		// A personal wallet remains available when shared projects are disabled.
 		// The resolver and document handler enforce membership and payer access.
