@@ -43,23 +43,26 @@ func ParseClientRequest(h ClientHeaders) ClientInfo {
 	originator := strings.ToLower(strings.TrimSpace(h.Originator))
 	xApp := strings.ToLower(strings.TrimSpace(h.XApp))
 
+	// A client named by a header below reports no version of its own: the one
+	// the User-Agent carried belongs to the SDK, runtime or Electron shell
+	// underneath, so it is dropped rather than shown as the client's.
+	//
 	// Codex names itself in `originator` on every request; anything else
 	// that sets `originator` (Roo Code, pi, OpenClaw, Hermes on a Codex
 	// host) is also telling us who it is.
 	if originator != "" && !IsNamedClient(info.Framework) {
 		if framework := originatorFramework(originator); framework != "" {
-			info.Framework = framework
-			info.Language = clientLanguage(framework)
+			info.Framework, info.Language, info.Version = framework, clientLanguage(framework), ""
 		}
 	}
 	// Claude Code sends `x-app: cli` (`cli-bg` for background work); its own
 	// User-Agent normally wins above, so this only catches a stripped one.
 	if info.Framework == "" && (xApp == "cli" || xApp == "cli-bg") {
-		info.Framework, info.Language = "claude-code", "node"
+		info.Framework, info.Language, info.Version = "claude-code", "node", ""
 	}
 	// Qwen Code impersonates Claude Code on every host but Anthropic's own,
 	// with its own version number: real Claude Code has been 1.x and 2.x since
-	// it shipped, Qwen Code is 0.x.
+	// it shipped, Qwen Code is 0.x. That version is Qwen Code's, so it stays.
 	if info.Framework == "claude-code" && xApp == "cli" && strings.HasPrefix(info.Version, "0.") {
 		info.Framework = "qwen-code"
 	}
@@ -67,7 +70,7 @@ func ParseClientRequest(h ClientHeaders) ClientInfo {
 	// send it to every provider.
 	if !IsNamedClient(info.Framework) {
 		if framework := titleFramework(h.XTitle); framework != "" {
-			info.Framework, info.Language = framework, clientLanguage(framework)
+			info.Framework, info.Language, info.Version = framework, clientLanguage(framework), ""
 		}
 	}
 	return info
