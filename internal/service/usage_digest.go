@@ -256,30 +256,10 @@ func groupInt(n int64) string {
 }
 
 func digestSourceName(key, lang string) string {
-	switch key {
-	case "claude-code":
-		return "Claude Code"
-	case "codex":
-		return "Codex"
-	case "opencode":
-		return "OpenCode"
-	case "gemini-cli":
-		return "Gemini CLI"
-	case "qwen-code":
-		return "Qwen Code"
-	case "kilo-code":
-		return "Kilo Code"
-	case "roo-code":
-		return "Roo Code"
-	case "crush":
-		return "Crush"
-	case "openclaw":
-		return "OpenClaw"
+	if key == "" || key == "api" {
+		return common.MailText(lang, "直接调用 API", "Direct API")
 	}
-	if name, ok := common.ExtensionClientName(key); ok {
-		return name
-	}
-	return common.MailText(lang, "直接调用 API", "Direct API")
+	return common.ClientDisplayName(key)
 }
 
 func digestTZName(lang string, loc string) string {

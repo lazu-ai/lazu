@@ -129,3 +129,35 @@ func TestSessionContentRespectsCaptureSwitch(t *testing.T) {
 		}
 	}
 }
+
+// An agent that leaves the SDK's User-Agent in place (or sends none, as Goose
+// does) is still named by its own session header; a client the User-Agent
+// already names is never renamed by a shared header.
+func TestApplyAgentSessionBackfillsClientFromSource(t *testing.T) {
+	cases := []struct {
+		name    string
+		headers map[string]string
+		client  string
+		version string
+	}{
+		{"goose without user-agent", map[string]string{"agent-session-id": "20261029_1"}, "goose", ""},
+		{"kilo task header over sdk ua", map[string]string{"User-Agent": "Anthropic/JS 0.60.0", "X-KILOCODE-TASKID": "task-1"}, "kilo-code", "0.60.0"},
+		{"codex headers over sdk ua", map[string]string{"User-Agent": "OpenAI/JS 7.39.0", "session-id": "0199f3", "thread-id": "0199f3"}, "codex", "7.39.0"},
+		{"claude code session header over bare sdk ua", map[string]string{"User-Agent": "Anthropic/JS 0.60.0", "X-Claude-Code-Session-Id": "s-1"}, "claude-code", "0.60.0"},
+		{"named ua is kept on a shared session header", map[string]string{"User-Agent": "RooCode/3.53.0", "X-Session-Id": "ses_abc"}, "roo-code", "3.53.0"},
+		{"library ua stays when the source is shared", map[string]string{"User-Agent": "OpenAI/JS 7.39.0", "X-Session-Id": "ses_abc"}, "openai-node", "7.39.0"},
+		{"x-title names an app", map[string]string{"User-Agent": "python-requests/2.32.0", "X-Title": "Open WebUI"}, "open-webui", "2.32.0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := sessionContext(tc.headers)
+			applyAgentSession(c, nil, 1)
+			if got := common.GetContextKeyString(c, constant.ContextKeyClientFramework); got != tc.client {
+				t.Errorf("client: got %q want %q", got, tc.client)
+			}
+			if got := common.GetContextKeyString(c, constant.ContextKeyClientVersion); got != tc.version {
+				t.Errorf("version: got %q want %q", got, tc.version)
+			}
+		})
+	}
+}
