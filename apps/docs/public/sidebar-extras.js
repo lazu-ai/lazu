@@ -86,11 +86,39 @@
   // link the main site's header carries.
   var SOURCE_URL = "https://github.com/lazu-ai/lazu";
 
+  // The community the deployment names at build time
+  // (VITE_BRAND_COMMUNITY_URL), handed over in a <meta> by vocs.config.ts.
+  // No meta, no entry: a build without a community shows none.
+  var COMMUNITY_URL = (function () {
+    var meta = document.querySelector('meta[name="lazu-community-url"]');
+    var url = meta && meta.getAttribute("content");
+    return url && /^https:\/\/\S+$/.test(url) ? url : "";
+  })();
+
+  // Labelled with the chat app the link opens when its host says which,
+  // like the console's entry; any other host is a generic "Community".
+  var COMMUNITY_NAME = (function () {
+    if (!COMMUNITY_URL) return "";
+    var host = new URL(COMMUNITY_URL).hostname.replace(/^www\./, "");
+    if (["t.me", "telegram.me", "telegram.dog"].indexOf(host) >= 0)
+      return "Telegram";
+    if (["discord.gg", "discord.com"].indexOf(host) >= 0) return "Discord";
+    return "Community";
+  })();
+
+  function escapeAttr(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
+  }
+
   var ICONS = {
     github:
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>',
     sun: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
     moon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    send: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>',
     globe:
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M21.54 15H17a2 2 0 0 0-2 2v4.54"/><path d="M7 3.34V5a3 3 0 0 0 3 3a2 2 0 0 1 2 2c0 1.1.9 2 2 2a2 2 0 0 0 2-2c0-1.1.9-2 2-2h3.17"/><path d="M11 21.95V18a2 2 0 0 0-2-2a2 2 0 0 1-2-2v-1a2 2 0 0 0-2-2H2.05"/></svg>',
     check:
@@ -309,6 +337,17 @@
         '" aria-label="GitHub" title="GitHub" target="_blank" rel="noopener noreferrer">',
       ICONS.github,
       "</a>",
+      COMMUNITY_URL
+        ? '<a class="dub-sidebar-extras__community" href="' +
+          escapeAttr(COMMUNITY_URL) +
+          '" aria-label="' +
+          COMMUNITY_NAME +
+          '" title="' +
+          COMMUNITY_NAME +
+          '" target="_blank" rel="noopener noreferrer">' +
+          ICONS.send +
+          "</a>"
+        : "",
       '<div class="dub-sidebar-extras__lang-wrapper">',
       '  <button type="button" class="dub-sidebar-extras__lang" aria-haspopup="menu" aria-expanded="false">',
       "    " + ICONS.globe,
