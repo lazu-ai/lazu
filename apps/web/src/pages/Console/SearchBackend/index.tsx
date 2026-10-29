@@ -184,7 +184,7 @@ const SearchBackendPage = () => {
                 <tr>
                   <th>{t('page.console.searchBackend.column.name')}</th>
                   <th>{t('page.console.searchBackend.column.provider')}</th>
-                  <th>API Key</th>
+                  <th>{t('page.console.searchBackend.column.apiKey')}</th>
                   <th>{t('secret.lastUsed', { defaultValue: '最近使用' })}</th>
                   <th>{t('page.console.searchBackend.column.capabilities')}</th>
                   <th>{t('page.console.searchBackend.column.priority')}</th>

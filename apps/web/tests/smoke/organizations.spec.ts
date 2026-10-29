@@ -249,3 +249,24 @@ test('organization balance adjustments submit an atomic signed delta', async ({
 
   await app.expectNoUnexpectedErrors();
 });
+
+test('an account opens from the keyboard, not only by clicking its row', async ({
+  page,
+}) => {
+  const app = await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: orgPayloadFor([]),
+  });
+  await expectRouteReady(page, '/console/organizations');
+
+  const open = page.locator('.orgs__who-open').first();
+  await open.focus();
+  await page.keyboard.press('Enter');
+  const drawer = page.locator('.lazu-drawer-content');
+  await expect(drawer).toBeVisible();
+  await expect(drawer.locator('.lazu-drawer-close')).toHaveAttribute(
+    'aria-label',
+    '关闭',
+  );
+  await app.expectNoUnexpectedErrors();
+});

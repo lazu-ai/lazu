@@ -864,7 +864,18 @@ export default function OrganizationsPage() {
                 className='orgs__who-name'
                 data-frozen={frozen || undefined}
               >
-                <strong>{account.name}</strong>
+                {/* The row opens the account on click; this button is the
+                    same action for keyboard and screen-reader users. */}
+                <button
+                  className='orgs__who-open'
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openAccount(account);
+                  }}
+                  type='button'
+                >
+                  <strong>{account.name}</strong>
+                </button>
                 {frozen ? (
                   <Badge variant='danger'>
                     {t('page.console.orgs.status.frozen', {

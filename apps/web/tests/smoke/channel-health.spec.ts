@@ -635,11 +635,11 @@ test('an operator reads the same page as everyone else', async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByLabel('线路', { exact: true })).toBeVisible();
 
-  // The by-upstream lens is the operator's, and only it carries the old word.
+  // The by-upstream lens is the operator's; its title names the lens.
   await expect(page.getByRole('tab', { name: '按供应商' })).toBeVisible();
   await page.getByRole('tab', { name: '按供应商' }).click();
   await expect(
-    page.getByRole('heading', { name: '通道健康', exact: true }),
+    page.getByRole('heading', { name: '模型状态 · 按供应商', exact: true }),
   ).toBeVisible();
 
   await app.expectNoUnexpectedErrors();

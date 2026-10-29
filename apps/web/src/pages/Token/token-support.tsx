@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, ChevronRight, CircleAlert, Copy, Search } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -1508,8 +1508,17 @@ export function TokenFormDrawer({
             'legacy.i18n.when_creating_in_batches_a_random_suffix_will_be_automatically_a.97f8747f02',
           )}
         >
-          <Input min='1' type='number' {...form.register('tokenCount')} />
-          <FieldMessage error>
+          <Input
+            aria-describedby={
+              form.formState.errors.tokenCount ? 'token-count-error' : undefined
+            }
+            aria-label={t('legacy.i18n.new_quantity.0859dc5a65')}
+            error={Boolean(form.formState.errors.tokenCount)}
+            min='1'
+            type='number'
+            {...form.register('tokenCount')}
+          />
+          <FieldMessage error id='token-count-error'>
             {String(form.formState.errors.tokenCount?.message || '')}
           </FieldMessage>
         </MoreSection>
@@ -1542,6 +1551,27 @@ export function TokenFormDrawer({
     (name) => name !== 'root',
   ).length;
   const loadingDetails = isEdit && !team && !editValues;
+  /* An edit opens on its loading line, where the dialog finds no field to
+     focus. Once the settings arrive, the name takes focus, unless the reader
+     is already in a field or on a touch screen, where it would raise the
+     keyboard. */
+  const wasLoading = useRef(loadingDetails);
+  useEffect(() => {
+    const was = wasLoading.current;
+    wasLoading.current = loadingDetails;
+    if (!open || !was || loadingDetails) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    // Without a field the dialog focused itself or its first button.
+    const active = document.activeElement;
+    if (
+      active &&
+      active !== document.body &&
+      (!active.closest('.lazu-modal-content') ||
+        active.matches('input, select, textarea, [contenteditable="true"]'))
+    )
+      return;
+    document.getElementById('token-name')?.focus();
+  }, [loadingDetails, open]);
 
   const formBody = (
     <form className='tok-create' id='token-form' onSubmit={submit}>
@@ -1558,6 +1588,10 @@ export function TokenFormDrawer({
           {changedTag('name')}
         </label>
         <Input
+          aria-describedby={
+            form.formState.errors.name ? 'token-name-error' : undefined
+          }
+          error={Boolean(form.formState.errors.name)}
           id='token-name'
           maxLength={30}
           placeholder={
@@ -1569,7 +1603,7 @@ export function TokenFormDrawer({
           }
           {...form.register('name')}
         />
-        <FieldMessage error>
+        <FieldMessage error id='token-name-error'>
           {form.formState.errors.name
             ? t('legacy.i18n.please_enter_a_name.c2afb255a5')
             : ''}

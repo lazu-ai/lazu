@@ -686,7 +686,9 @@ export default function SessionsView({ admin, t }: Props) {
           </span>
         </div>
         <div className='sv-kpi'>
-          <span className='sv-kpi__label'>Tokens</span>
+          <span className='sv-kpi__label'>
+            {t(`${SK}.kpi.tokens`, { defaultValue: 'Token 数' })}
+          </span>
           <strong className='sv-kpi__value'>
             {kpiValue(5, () => formatCount(summary?.tokens))}
           </strong>
@@ -825,9 +827,9 @@ export default function SessionsView({ admin, t }: Props) {
             <span>
               {admin
                 ? t(`${SK}.list.col.userKey`, { defaultValue: '用户 · Key' })
-                : 'Key'}
+                : t(`${SK}.list.col.key`, { defaultValue: 'Key' })}
             </span>
-            <span>Agent</span>
+            <span>{t(`${SK}.list.col.agent`, { defaultValue: 'Agent' })}</span>
             <span
               title={t(`${SK}.list.col.sessionHint`, {
                 defaultValue: '取这个会话的第一条消息',
