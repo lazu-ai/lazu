@@ -382,3 +382,20 @@ func TestSourceStarCountServesAStaleCountWhileRefreshing(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+func TestSourceStarCallbackCountsTheNewStar(t *testing.T) {
+	for _, starred := range []bool{false, true} {
+		t.Run(map[bool]string{false: "new", true: "existing"}[starred], func(t *testing.T) {
+			setupSourceStarTest(t)
+			fakeGitHub(t, starred)
+			if body := sourceStarStatusBody(t); !strings.Contains(body, `"stars":1284`) {
+				t.Fatalf("expected the fetched count first, got %s", body)
+			}
+			startThenCallback(t, func(state string) string { return "code=one-time&state=" + url.QueryEscape(state) })
+			want := map[bool]string{false: `"stars":1285`, true: `"stars":1284`}[starred]
+			if body := sourceStarStatusBody(t); !strings.Contains(body, want) {
+				t.Fatalf("expected %s after the callback, got %s", want, body)
+			}
+		})
+	}
+}

@@ -1,3 +1,4 @@
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, Star } from 'lucide-react';
 import { useEffect, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +9,10 @@ import {
   takeSourceStarResultFromLocation,
   type SourceStarOutcome,
 } from '../../helpers/sourceStar';
-import { usePublishedSource } from '../../hooks/common/usePublishedSource';
+import {
+  countNewSourceStar,
+  usePublishedSource,
+} from '../../hooks/common/usePublishedSource';
 
 type Props = {
   className?: string;
@@ -44,11 +48,18 @@ const readPhase = () => currentPhase;
 /* The prerender and the first client render agree on the idle button. */
 const readServerPhase = (): Phase => 'idle';
 
-const settleFromBrowser = () => {
+/* A star made on this visit puts the count up at once and asks for the
+   server's count, which includes it, so a reload shows the same number. */
+const finish = (outcome: SourceStarOutcome, queryClient: QueryClient) => {
+  setPhase(phaseFor(outcome));
+  if (outcome === 'starred') void countNewSourceStar(queryClient);
+};
+
+const settleFromBrowser = (queryClient: QueryClient) => {
   if (settled) return;
   settled = true;
   const returned = takeSourceStarResultFromLocation();
-  if (returned) setPhase(phaseFor(returned));
+  if (returned) finish(returned, queryClient);
   else if (hasSourceStarred()) setPhase('already');
 };
 
@@ -74,13 +85,11 @@ export default function SourceStarButton({
   const { t } = useTranslation('marketing');
   const { canStar, url: sourceURL, stars } = usePublishedSource();
   const phase = useSyncExternalStore(subscribe, readPhase, readServerPhase);
+  const queryClient = useQueryClient();
 
-  useEffect(settleFromBrowser, []);
+  useEffect(() => settleFromBrowser(queryClient), [queryClient]);
 
   const done = phase === 'starred' || phase === 'already';
-  /* A star made on this visit is not in the cached count yet. */
-  const shownStars =
-    stars === null ? null : phase === 'starred' ? stars + 1 : stars;
   const actionLabel =
     size === 'sm' ? t('landing.star.short') : t('landing.star.long');
   const doneLabel = t('landing.star.starred');
@@ -94,10 +103,10 @@ export default function SourceStarButton({
     .filter(Boolean)
     .join(' ');
   const ariaLabel =
-    shownStars === null
+    stars === null
       ? t(done ? 'landing.star.ariaDone' : 'landing.star.aria')
       : t(done ? 'landing.star.ariaDoneCount' : 'landing.star.ariaCount', {
-          stars: formatStarCount(shownStars),
+          stars: formatStarCount(stars),
         });
   const body = (
     <>
@@ -112,8 +121,8 @@ export default function SourceStarButton({
           <ArrowUpRight aria-hidden='true' size={iconSize - 1} />
         ) : null}
       </span>
-      {shownStars === null ? null : (
-        <span className='lazu-star__count'>{formatStarCount(shownStars)}</span>
+      {stars === null ? null : (
+        <span className='lazu-star__count'>{formatStarCount(stars)}</span>
       )}
     </>
   );
@@ -136,7 +145,7 @@ export default function SourceStarButton({
   const onClick = async () => {
     if (phase === 'pending' || done) return;
     setPhase('pending');
-    setPhase(phaseFor(await starSource()));
+    finish(await starSource(), queryClient);
   };
 
   return (

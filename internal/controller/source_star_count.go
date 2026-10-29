@@ -75,6 +75,22 @@ func sourceStarCount(ctx context.Context) (int, bool) {
 	return cache.value, cache.known
 }
 
+// countSourceStar adds a star this server just made to the cached count, so
+// the next answer includes it without waiting for the cache to expire. The
+// next refresh replaces it with GitHub's own number.
+func countSourceStar() {
+	owner, repo, ok := sourceStarRepository()
+	if !ok {
+		return
+	}
+	cache := sourceStarCounts
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if cache.known && cache.repository == owner+"/"+repo {
+		cache.value++
+	}
+}
+
 func (cache *sourceStarCountCache) refresh(ctx context.Context, owner string, repo string) {
 	ctx, cancel := context.WithTimeout(ctx, sourceStarCountTimeout)
 	defer cancel()

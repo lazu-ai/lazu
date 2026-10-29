@@ -215,6 +215,9 @@ func SourceStarCallback(c *gin.Context) {
 		sourceStarFinish(c, sourceStarResultFailed, tx.Return, tx.Popup)
 		return
 	}
+	if result == sourceStarResultStarred {
+		countSourceStar()
+	}
 	sourceStarFinish(c, result, tx.Return, tx.Popup)
 }
 
