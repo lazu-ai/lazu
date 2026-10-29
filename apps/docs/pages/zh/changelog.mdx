@@ -5,6 +5,12 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 
 # 更新日志
 
+## 2026-10-29 — 弃用搜索接口
+
+- `POST /v1/search` 及检索后端管理接口（`/api/search/backends*`）已弃用，2026-11-01 之后的第一个版本将移除。这些接口的响应现在带有 `Deprecation`、`Sunset` 头。api.lazu.ai 上没有客户调用过该接口，所以窗口比通常的 90 天短。
+- 一并移除：控制台的“检索后端”页、状态页中的搜索行，以及 API 密钥的 `search_limits_enabled`、`search_providers`、`search_domain_allowlist` 字段。
+- 不受影响：模型自带的联网搜索工具（`/v1/responses` 和 Chat 上的 `web_search`、`/v1/messages` 上的 Claude 联网搜索）照常可用，计费不变。依赖 `/v1/search` 的自部署用户可以直接调用搜索服务商。
+
 ## 2026-10-26 — 弃用五项自部署设置
 
 - `LogConsumeEnabled=false` 已弃用。2027-01-24 之后消费日志将始终写入；如需控制存储，请改用 `LOG_RETENTION_DAYS`。

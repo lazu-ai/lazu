@@ -148,6 +148,74 @@ func TestRetiringRoutesAnnounceDeprecationAndSunset(t *testing.T) {
 	}
 }
 
+// The search endpoint and its backend admin routes retire on their own,
+// shorter window.
+func TestSearchRoutesAnnounceTheirOwnRetirement(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cleanup := setupModelCatalogRouteTestDB(t)
+	defer cleanup()
+
+	accessToken := "retire0search0token0fixture00001"
+	root := &model.User{
+		Id: 2102, Username: "retire_search_root", Password: "password123", DisplayName: "retire_search_root",
+		Role: common.RoleRootUser, Status: common.UserStatusEnabled, AccessToken: &accessToken,
+	}
+	if err := model.CoreDB().Create(root).Error; err != nil {
+		t.Fatalf("insert root: %v", err)
+	}
+	if err := (&model.Token{
+		Id: 3102, UserId: root.Id, Key: "retiresearchtoken", Status: common.TokenStatusEnabled,
+		ExpiredTime: -1, RemainQuota: 100,
+	}).Insert(); err != nil {
+		t.Fatalf("insert token: %v", err)
+	}
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("retire-session", cookie.NewStore([]byte("retire-cookie-fixture"))))
+	SetApiRouter(engine)
+	SetRelayRouter(engine)
+
+	wantDeprecation := fmt.Sprintf("@%d", searchRetirementNotice.Unix())
+	const wantSunset = "Sun, 01 Nov 2026 00:00:00 GMT"
+	cases := []struct {
+		method, path, body string
+		apiKey             bool
+	}{
+		{"POST", "/v1/search", `{"query":"retire"}`, true},
+		{"GET", "/api/search/backends", "", false},
+		{"POST", "/api/search/backends", `{}`, false},
+		{"PUT", "/api/search/backends/1", `{}`, false},
+		{"DELETE", "/api/search/backends/1", "", false},
+		{"POST", "/api/search/backends/1/reveal", `{}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			var body io.Reader
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			req := httptest.NewRequest(tc.method, tc.path, body)
+			if tc.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			if tc.apiKey {
+				req.Header.Set("Authorization", "Bearer sk-retiresearchtoken")
+			} else {
+				req.Header.Set("Authorization", accessToken)
+				req.Header.Set("X-Lazu-User", strconv.Itoa(root.Id))
+			}
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+			if got := w.Header().Get("Deprecation"); got != wantDeprecation {
+				t.Fatalf("Deprecation = %q, want %q (status %d, body %s)", got, wantDeprecation, w.Code, w.Body.String())
+			}
+			if got := w.Header().Get("Sunset"); got != wantSunset {
+				t.Fatalf("Sunset = %q, want %q", got, wantSunset)
+			}
+		})
+	}
+}
+
 // A route that is not retiring carries none of the headers.
 func TestCurrentRouteHasNoRetirementHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)

@@ -4,6 +4,7 @@ description: configured Lazu search backends を通じた provider-neutral POST 
 ---
 
 import {
+  Callout,
   CodeSample,
   EndpointGrid,
   EndpointPage,
@@ -19,7 +20,7 @@ import {
   method="POST"
   path="/v1/search"
   title="Search"
-  description="Lazu 経由で provider-neutral な web/news search を実行します。Hosted api.lazu.ai では現在 Tavily、Serper、Jina が有効です。self-hosted の operator は同じ Search Backend 仕組みで Exa や Brave も追加できます。"
+  description="非推奨：Lazu 経由の provider-neutral な web/news search。レスポンスには Deprecation と Sunset ヘッダーが付き、2026-11-01 以降の最初のリリースで削除されます。"
   aside={
     <EndpointRail
       endpoint="search"
@@ -32,6 +33,10 @@ import {
     />
   }
 >
+
+<Callout type="warning">
+  `POST /v1/search` と検索バックエンドの管理ルートは非推奨で、2026-11-01 以降の最初のリリースで削除されます。検索プロバイダーを直接呼び出すか、`/v1/responses` や `/v1/messages` でモデル組み込みの Web 検索ツールを使ってください。詳しくは[更新履歴](/ja/changelog)をご覧ください。
+</Callout>
 
 ## What it returns
 
@@ -57,7 +62,7 @@ import {
 | ----------- | ------------- | ----------------------------------- | ---------------------------------------------------------------------- |
 | Tavily      | Enabled       | `web_search`, `web_fetch`, `answer` | `include_answer` と `search_depth` を support。`advanced` は 2 units。 |
 | Serper      | Enabled       | `web_search`                        | `country` / `region`、`language`、`time_range` を mapping します。     |
-| Jina        | Enabled       | `web_search`, `web_fetch`           | `https://s.jina.ai` を使い、retrieval 形式の snippet に向いています。  |
+| Jina        | Disabled      | `web_search`, `web_fetch`           | `https://s.jina.ai` を使い、retrieval 形式の snippet に向いています。  |
 | Exa / Brave | Supported     | operator 設定後に `web_search` 対応 | self-hosted または admin-configured deployment 向けです。              |
 
 Hosted backends は現在 default policy を使っています。1 request あたり最大

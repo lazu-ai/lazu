@@ -29,10 +29,29 @@ var (
 	userSunset = time.Date(2027, time.February, 1, 0, 0, 0, 0, time.UTC)
 )
 
+// The provider-neutral search endpoint and its backend admin routes retire on
+// a shorter window: production showed no caller outside operator tests, so
+// they go with the first release after searchSunset rather than waiting out
+// the 90-day public window.
+var (
+	searchRetirementNotice = time.Date(2026, time.October, 29, 0, 0, 0, 0, time.UTC)
+	// Deprecated: delete after 2026-11-01 (search routes marked with retiringSearch).
+	searchSunset = time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC)
+)
+
 // retiring marks every response of a route that is on its way out. successor
 // is the path that replaces it, or "" when nothing does.
 func retiring(sunset time.Time, successor string) gin.HandlerFunc {
-	deprecation := fmt.Sprintf("@%d", retirementNotice.Unix())
+	return retiringSince(retirementNotice, sunset, successor)
+}
+
+// retiringSearch marks the search routes, which have their own notice date.
+func retiringSearch() gin.HandlerFunc {
+	return retiringSince(searchRetirementNotice, searchSunset, "")
+}
+
+func retiringSince(notice, sunset time.Time, successor string) gin.HandlerFunc {
+	deprecation := fmt.Sprintf("@%d", notice.Unix())
 	sunsetHeader := sunset.UTC().Format(http.TimeFormat)
 	link := ""
 	if successor != "" {

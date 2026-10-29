@@ -5,6 +5,12 @@ description: "Lazu API、モデルカタログ、ドキュメントの変更を�
 
 # 更新履歴
 
+## 2026-10-29 — 検索エンドポイントを非推奨化
+
+- `POST /v1/search` と検索バックエンドの管理ルート（`/api/search/backends*`）を非推奨にしました。2026-11-01 以降の最初のリリースで削除します。これらのレスポンスには `Deprecation` と `Sunset` ヘッダーが付きます。api.lazu.ai ではこのエンドポイントを呼び出した顧客がいないため、通常の 90 日より短い期間にしています。
+- 同時に削除するもの：コンソールの「検索バックエンド」ページ、ステータスページの検索行、API キーの `search_limits_enabled`・`search_providers`・`search_domain_allowlist` フィールド。
+- 変更なし：モデル組み込みの Web 検索ツール（`/v1/responses` と Chat の `web_search`、`/v1/messages` の Claude Web 検索）は引き続き使え、課金も変わりません。`/v1/search` に依存するセルフホスト環境は、検索プロバイダーを直接呼び出してください。
+
 ## 2026-10-26 — セルフホスト向け設定 5 件を非推奨化
 
 - `LogConsumeEnabled=false` を非推奨にしました。2027-01-24 以降、消費ログは常に記録されます。保存量の調整には `LOG_RETENTION_DAYS` を使ってください。

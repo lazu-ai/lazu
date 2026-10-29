@@ -4,6 +4,7 @@ description: 透過 Lazu search backends 呼叫 provider-neutral 的 POST /v1/se
 ---
 
 import {
+  Callout,
   CodeSample,
   EndpointGrid,
   EndpointPage,
@@ -19,7 +20,7 @@ import {
   method="POST"
   path="/v1/search"
   title="Search"
-  description="透過 Lazu 統一呼叫 Web 或 News 搜尋。託管版 api.lazu.ai 目前啟用了 Tavily、Serper 和 Jina；自部署管理員也可以透過同一套 Search Backend 系統接入 Exa 或 Brave。"
+  description="已棄用：透過 Lazu 統一呼叫 Web 或 News 搜尋。回應帶有 Deprecation 與 Sunset 標頭，2026-11-01 之後的第一個版本將移除此介面。"
   aside={
     <EndpointRail
       endpoint="search"
@@ -33,6 +34,10 @@ import {
     />
   }
 >
+
+<Callout type="warning">
+  `POST /v1/search` 及檢索後端管理介面已棄用，2026-11-01 之後的第一個版本將移除。請直接呼叫搜尋服務商，或透過 `/v1/responses`、`/v1/messages` 使用模型內建的聯網搜尋工具。詳見[更新日誌](/zh-TW/changelog)。
+</Callout>
 
 ## 返回什麼
 
@@ -56,7 +61,7 @@ import {
 | ----------- | ---------- | ----------------------------------- | --------------------------------------------------------------------- |
 | Tavily      | 已啟用     | `web_search`、`web_fetch`、`answer` | 支援 `include_answer` 和 `search_depth`；`advanced` 按 2 units 計算。 |
 | Serper      | 已啟用     | `web_search`                        | 會映射 `country` / `region`、`language` 和 `time_range`。             |
-| Jina        | 已啟用     | `web_search`、`web_fetch`           | 使用 `https://s.jina.ai`，較適合 retrieval 風格的 snippet。           |
+| Jina        | 已停用     | `web_search`、`web_fetch`           | 使用 `https://s.jina.ai`，較適合 retrieval 風格的 snippet。           |
 | Exa / Brave | 程式支援   | 管理員設定後支援 `web_search`       | 適用於自部署或管理員後續設定的託管環境。                              |
 
 目前託管版 backend 使用預設策略：每次請求最多返回 10 筆結果，上游 timeout 為
