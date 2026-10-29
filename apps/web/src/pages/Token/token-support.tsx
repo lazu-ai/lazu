@@ -1008,6 +1008,14 @@ function MoreSection({
   );
 }
 
+/** Fields that answer one question count as one unsaved change. */
+const DIRTY_GROUPS: Record<string, string> = {
+  expired_time: 'expiry',
+  expires_never: 'expiry',
+  remain_quota: 'quota',
+  unlimited_quota: 'quota',
+};
+
 export function TokenFormDrawer({
   editingToken,
   onOpenChange,
@@ -1042,6 +1050,9 @@ export function TokenFormDrawer({
   });
   const values = form.watch();
   const [moreOpen, setMoreOpen] = useState(false);
+  /* Closing with unsaved changes — 取消, 关闭, Escape, a tap outside or a
+     swipe down — turns the footer into 「有 N 处修改还没保存」 instead. */
+  const [discardAsk, setDiscardAsk] = useState(false);
   const [expiryChoice, setExpiryChoice] = useState<
     'never' | '30' | '90' | 'custom'
   >('never');
@@ -1056,7 +1067,7 @@ export function TokenFormDrawer({
     if (choice === 'never') {
       setExpiryOffset(null);
     } else if (choice === 'custom') {
-      form.setValue('expires_never', false);
+      form.setValue('expires_never', false, { shouldDirty: true });
     } else {
       setExpiryOffset(Number(choice));
     }
@@ -1072,6 +1083,7 @@ export function TokenFormDrawer({
 
   useEffect(() => {
     if (!open) {
+      setDiscardAsk(false);
       return;
     }
     if (isEdit && editValues) {
@@ -1091,14 +1103,14 @@ export function TokenFormDrawer({
 
   const setExpiryOffset = (days: number | null) => {
     if (days === null) {
-      form.setValue('expires_never', true);
-      form.setValue('expired_time', null);
+      form.setValue('expires_never', true, { shouldDirty: true });
+      form.setValue('expired_time', null, { shouldDirty: true });
       return;
     }
     const next = new Date();
     next.setDate(next.getDate() + days);
-    form.setValue('expires_never', false);
-    form.setValue('expired_time', next);
+    form.setValue('expires_never', false, { shouldDirty: true });
+    form.setValue('expired_time', next, { shouldDirty: true });
   };
 
   const tokenLaneVendors = useTokenLaneVendors(tokens.vendorOptions.vendors);
@@ -1505,12 +1517,45 @@ export function TokenFormDrawer({
     </div>
   );
 
+  /* What the reader changed, one entry per question (额度 is two fields). */
+  const dirty = new Set(
+    Object.keys(form.formState.dirtyFields).map(
+      (name) => DIRTY_GROUPS[name] ?? name,
+    ),
+  );
+  const changedTag = (group: string) =>
+    isEdit && dirty.has(group) ? (
+      <span className='tok-create__changed'>
+        {t('page.console.token.form.changed')}
+      </span>
+    ) : null;
+  const requestClose = () => {
+    if (dirty.size && !tokens.saveTokenMutation.isPending) {
+      setDiscardAsk(true);
+      return;
+    }
+    onOpenChange(false);
+  };
+  /* After a failed submit, one line at the top says how many fields need
+     work; the form has already scrolled to and focused the first. */
+  const errorCount = Object.keys(form.formState.errors).filter(
+    (name) => name !== 'root',
+  ).length;
+  const loadingDetails = isEdit && !team && !editValues;
+
   const formBody = (
     <form className='tok-create' id='token-form' onSubmit={submit}>
       {team?.content}
+      {form.formState.submitCount > 0 && errorCount > 0 ? (
+        <div className='tok-create__errors' role='alert'>
+          <CircleAlert aria-hidden='true' size={15} />
+          {t('page.console.token.form.errorSummary', { count: errorCount })}
+        </div>
+      ) : null}
       <div className='tok-create__field'>
         <label className='tok-create__label' htmlFor='token-name'>
           {t('legacy.i18n.name.1be7ae4fc2')}
+          {changedTag('name')}
         </label>
         <Input
           id='token-name'
@@ -1543,6 +1588,7 @@ export function TokenFormDrawer({
                 : t('page.console.token.create.quota', {
                     defaultValue: '额度',
                   })}
+            {changedTag('quota')}
           </label>
           <span className='tok-create__hint'>
             {isEdit && !team && quotaDisplay
@@ -1728,6 +1774,7 @@ export function TokenFormDrawer({
       <div className='tok-create__field'>
         <span className='tok-create__label' id='token-expiry-label'>
           {t('page.console.token.create.expiry', { defaultValue: '到期' })}
+          {changedTag('expiry')}
         </span>
         <div
           className='tokv2-seg tok-create__seg'
@@ -1937,7 +1984,15 @@ export function TokenFormDrawer({
     <Modal
       busy={tokens.saveTokenMutation.isPending}
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next, details) => {
+        if (!next && dirty.size && !discardAsk) {
+          details.cancel();
+          setDiscardAsk(true);
+          return;
+        }
+        onOpenChange(next);
+      }}
+      sheet='full'
       className={cn(
         'tok-create-modal',
         isEdit && 'tok-create-modal--edit',
@@ -1991,58 +2046,89 @@ export function TokenFormDrawer({
             {team.content}
             <PendingBlock height={420} />
           </>
+        ) : loadingDetails ? (
+          <p className='tok-create__loading' role='status'>
+            {t('page.console.token.form.loadingDetails')}
+          </p>
         ) : (
           formBody
         )
       }
       footer={
-        <div className='tok-modal-foot'>
-          {isEdit ? null : (
-            <span className='tok-modal-foot__hint'>
-              {team
-                ? team.countLabel
-                : t('page.console.token.create.footHint', {
-                    defaultValue: '创建后直接打开接入窗口，可在里面选工具',
-                  })}
+        discardAsk ? (
+          <div className='tok-modal-foot tok-modal-foot--discard'>
+            <span className='tok-modal-foot__hint' role='status'>
+              {t('page.console.token.form.unsaved', { count: dirty.size })}
             </span>
-          )}
-          <Button
-            type='button'
-            variant='secondary'
-            disabled={tokens.saveTokenMutation.isPending}
-            onClick={() => {
-              if (team && !isEdit) {
-                form.reset(defaultValues as TokenFormInput);
-                setMoreOpen(false);
-                setExpiryChoice('never');
-              } else onOpenChange(false);
-            }}
-          >
-            {team && !isEdit
-              ? t('projects.key.form.reset')
-              : t('common.cancel', { defaultValue: '取消' })}
-          </Button>
-          <Button
-            disabled={team?.disabled}
-            form='token-form'
-            variant='primary'
-            loading={
-              tokens.saveTokenMutation.isPending ||
-              (isEdit && detailQuery.isFetching)
-            }
-            type='submit'
-          >
-            {isEdit
-              ? t('page.console.token.form.save', { defaultValue: '保存修改' })
-              : team
-                ? t('page.console.token.form.createTitle', {
-                    defaultValue: '创建密钥',
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => setDiscardAsk(false)}
+            >
+              {t('page.console.token.form.keepEditing')}
+            </Button>
+            <Button
+              type='button'
+              variant='danger'
+              onClick={() => {
+                setDiscardAsk(false);
+                onOpenChange(false);
+              }}
+            >
+              {t('page.console.token.form.discard')}
+            </Button>
+          </div>
+        ) : (
+          <div className='tok-modal-foot'>
+            {isEdit ? null : (
+              <span className='tok-modal-foot__hint'>
+                {team
+                  ? team.countLabel
+                  : t('page.console.token.create.footHint', {
+                      defaultValue: '创建后直接打开接入窗口，可在里面选工具',
+                    })}
+              </span>
+            )}
+            <Button
+              type='button'
+              variant='secondary'
+              disabled={tokens.saveTokenMutation.isPending}
+              onClick={() => {
+                if (team && !isEdit) {
+                  form.reset(defaultValues as TokenFormInput);
+                  setMoreOpen(false);
+                  setExpiryChoice('never');
+                } else requestClose();
+              }}
+            >
+              {team && !isEdit
+                ? t('projects.key.form.reset')
+                : t('common.cancel', { defaultValue: '取消' })}
+            </Button>
+            <Button
+              disabled={team?.disabled || loadingDetails}
+              form='token-form'
+              variant='primary'
+              loading={
+                tokens.saveTokenMutation.isPending ||
+                (isEdit && detailQuery.isFetching)
+              }
+              type='submit'
+            >
+              {isEdit
+                ? t('page.console.token.form.save', {
+                    defaultValue: '保存修改',
                   })
-                : t('page.console.token.create.submit', {
-                    defaultValue: '创建并接入',
-                  })}
-          </Button>
-        </div>
+                : team
+                  ? t('page.console.token.form.createTitle', {
+                      defaultValue: '创建密钥',
+                    })
+                  : t('page.console.token.create.submit', {
+                      defaultValue: '创建并接入',
+                    })}
+            </Button>
+          </div>
+        )
       }
     />
   );
