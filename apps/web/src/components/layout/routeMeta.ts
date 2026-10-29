@@ -29,11 +29,6 @@ export const consoleRouteLabelKeys = (
 // identity, route announcements, and nested-route active state.
 export const CONSOLE_ROUTE_META: readonly ConsoleRouteMeta[] = [
   {
-    match: '/console/search-backend',
-    icon: 'search_backend',
-    label: 'nav.searchBackend',
-  },
-  {
     match: '/console/project/members',
     icon: 'project_members',
     label: 'projects.nav.members',
@@ -108,7 +103,6 @@ const SECTION_BY_PREFIX: ReadonlyArray<[string, ConsoleSectionKey]> = [
   ['/console/organizations', 'admin'],
   ['/console/price-plans', 'admin'],
   ['/console/model-ops', 'admin'],
-  ['/console/search-backend', 'admin'],
   ['/console/ops', 'admin'],
   ['/console/setting', 'admin'],
 ];

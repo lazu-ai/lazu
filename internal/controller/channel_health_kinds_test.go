@@ -9,15 +9,9 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
-	"github.com/lazu-ai/lazu/internal/common"
-	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/types"
 )
@@ -46,54 +40,6 @@ func TestChannelHealthKindOfFilesModelsByOutput(t *testing.T) {
 	}
 	if got := channelHealthKindFromOutputs([]string{"text", "image"}); got != channelHealthKindImage {
 		t.Errorf("text+image output = %q, want image", got)
-	}
-}
-
-func TestSearchProbeRunsAfterCostlierModelExhaustsItsReservation(t *testing.T) {
-	db := setupModelOpsControllerTestDB(t)
-	if err := db.AutoMigrate(&model.SearchHealthSample{}); err != nil {
-		t.Fatalf("migrate search samples: %v", err)
-	}
-	if err := db.Create(&model.Channel{
-		Id: 72, Name: "search-without-key", Type: constant.ChannelTypeSerper,
-		Status: common.ChannelStatusEnabled,
-	}).Error; err != nil {
-		t.Fatalf("seed search channel: %v", err)
-	}
-	result := ChannelProbeSweepResult{BudgetHit: true} // A more expensive model probe did not fit.
-	if err := runSearchProbeSweep(context.Background(), time.Now().UTC(), 1, &result); err != nil {
-		t.Fatalf("search sweep: %v", err)
-	}
-	if result.Probed != 0 || result.Skipped != 1 {
-		t.Fatalf("search sweep = %+v, want the cheaper backend considered and locally skipped", result)
-	}
-	var ledger model.ChannelProbeBudget
-	if err := db.First(&ledger).Error; err != nil || ledger.ReservedUSD != 0 {
-		t.Fatalf("unused search reservation = %+v, err=%v", ledger, err)
-	}
-	var samples int64
-	if err := db.Model(&model.SearchHealthSample{}).Count(&samples).Error; err != nil || samples != 0 {
-		t.Fatalf("local setup failure recorded %d provider samples, err=%v", samples, err)
-	}
-}
-
-func TestSearchProbeClaimDatabaseFailureIsReturned(t *testing.T) {
-	db := setupModelOpsControllerTestDB(t)
-	if err := db.AutoMigrate(&model.SearchHealthSample{}); err != nil {
-		t.Fatalf("migrate search samples: %v", err)
-	}
-	if err := db.Create(&model.Channel{
-		Id: 73, Name: "claim-error", Type: constant.ChannelTypeSerper,
-		Status: common.ChannelStatusEnabled,
-	}).Error; err != nil {
-		t.Fatalf("seed search channel: %v", err)
-	}
-	if err := db.Migrator().DropTable(&model.ChannelProbeClaim{}); err != nil {
-		t.Fatalf("drop claim table: %v", err)
-	}
-	result := ChannelProbeSweepResult{}
-	if err := runSearchProbeSweep(context.Background(), time.Now().UTC(), 1, &result); err == nil {
-		t.Fatal("claim table failure was silently counted as contention")
 	}
 }
 
@@ -134,59 +80,6 @@ func TestFoldChannelHealthDrawsImageLanesInCoarseSlices(t *testing.T) {
 	if len(views) != 2 || views[0].Kind != channelHealthKindLLM || views[1].Kind != channelHealthKindImage ||
 		views[1].BucketSeconds != 3*3600 || views[1].BucketCount != (channelHealthBucketCount/channelHealthCoarseFactor) {
 		t.Fatalf("kind views = %+v, want llm then a three-hour image section", views)
-	}
-}
-
-// Search backends become one row per provider, with a status read from the
-// run of failures leading up to the newest sample.
-func TestFoldSearchHealthReadsStatusFromTheNewestSamples(t *testing.T) {
-	now := time.Now().UTC()
-	since := now.Add(-24 * time.Hour)
-	backends := []searchHealthBackend{
-		{channelID: 55, name: "Tavily", provider: "tavily"},
-		{channelID: 56, name: "Serper", provider: "serper"},
-	}
-	sample := func(channelID int, ago time.Duration, ok bool, latency int, kind string) model.SearchHealthSample {
-		return model.SearchHealthSample{
-			ChannelId: channelID, Kind: kind, Success: ok, LatencyMs: latency,
-			SampledAt: now.Add(-ago),
-		}
-	}
-	samples := []model.SearchHealthSample{
-		sample(55, 3*time.Hour, true, 2000, model.SearchHealthKindProbe),
-		sample(55, 2*time.Hour, true, 1800, model.SearchHealthKindTraffic),
-		sample(55, time.Hour, true, 7900, model.SearchHealthKindProbe),
-		sample(56, 4*time.Hour, true, 1700, model.SearchHealthKindProbe),
-		sample(56, 3*time.Hour, false, 0, model.SearchHealthKindProbe),
-		sample(56, 2*time.Hour, false, 0, model.SearchHealthKindProbe),
-		sample(56, time.Hour, false, 0, model.SearchHealthKindProbe),
-	}
-	rows := foldSearchHealth(backends, samples, since, 3600, channelHealthBucketCount)
-	if len(rows) != 2 {
-		t.Fatalf("rows = %+v, want one per provider", rows)
-	}
-	byName := map[string]channelHealthLaneView{}
-	for _, row := range rows {
-		byName[row.ModelName] = row
-	}
-	tavily := byName["Tavily"]
-	if tavily.Kind != channelHealthKindSearch || tavily.Status != publicStatusOperational ||
-		tavily.RequestCount != 1 || tavily.ProbeCount != 2 {
-		t.Fatalf("tavily = %+v", tavily)
-	}
-	if tavily.LatencyP50Ms == nil || *tavily.LatencyP50Ms != 2000 ||
-		tavily.LatencyP95Ms == nil || *tavily.LatencyP95Ms != 7900 {
-		t.Fatalf("tavily latency = %v/%v, want 2000/7900", tavily.LatencyP50Ms, tavily.LatencyP95Ms)
-	}
-	serper := byName["Serper"]
-	if serper.Status != publicStatusOutage || serper.SuccessRate == nil || *serper.SuccessRate != 0.25 {
-		t.Fatalf("serper = status %s rate %v, want outage after three failures in a row at 25%%",
-			serper.Status, serper.SuccessRate)
-	}
-	// Hourly slices hold one sample each here: a lone failure is amber, not
-	// down. Status above is what says the backend is out.
-	if last := serper.Buckets[len(serper.Buckets)-1]; last.Tone != "warn" {
-		t.Fatalf("serper newest bucket = %+v, want warn", last)
 	}
 }
 
@@ -355,106 +248,5 @@ func TestProbeRerankAndInterruptedStreams(t *testing.T) {
 			lazuErr: types.NewError(errors.New("stream reset"), types.ErrorCodeBadResponse)})
 	if outcome.Success || outcome.TTFTMs != 700 {
 		t.Fatalf("broken stream = %+v, want a failure that keeps its first-token time", outcome)
-	}
-}
-
-// A key restricted to some search providers sees only those providers' rows;
-// a key with search switched off sees none.
-func TestProjectChannelHealthRowsFollowsTokenSearchPolicy(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	setupModelOpsControllerTestDB(t)
-	rows := []channelHealthLaneView{
-		{ModelName: "Tavily", Provider: "tavily", Kind: channelHealthKindSearch, Source: channelHealthSourceProbe},
-		{ModelName: "Serper", Provider: "serper", Kind: channelHealthKindSearch, Source: channelHealthSourceProbe},
-	}
-	project := func(enabled bool, providers []string) []string {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Request = httptest.NewRequest(http.MethodGet, "/api/channel_health", nil)
-		common.SetContextKey(c, constant.ContextKeyTokenSearchLimitEnabled, enabled)
-		common.SetContextKey(c, constant.ContextKeyTokenSearchProviders, providers)
-		projected, err := projectChannelHealthRows(c, rows, false)
-		if err != nil {
-			t.Fatalf("project: %v", err)
-		}
-		names := []string{}
-		for _, row := range projected {
-			names = append(names, row.ModelName)
-		}
-		return names
-	}
-	if got := project(false, nil); len(got) != 2 {
-		t.Fatalf("unrestricted = %v, want both", got)
-	}
-	if got := project(true, []string{"tavily"}); len(got) != 1 || got[0] != "Tavily" {
-		t.Fatalf("tavily-only key = %v, want Tavily", got)
-	}
-	if got := project(true, nil); len(got) != 0 {
-		t.Fatalf("search-disabled key = %v, want none", got)
-	}
-}
-
-func TestSearchStatusOverlayRefreshesWithoutRewritingHistory(t *testing.T) {
-	db := setupModelOpsControllerTestDB(t)
-	if err := db.AutoMigrate(&model.SearchHealthSample{}); err != nil {
-		t.Fatal(err)
-	}
-	now := time.Now().UTC()
-	for _, id := range []int{81, 82} {
-		if err := db.Create(&model.Channel{Id: id, Name: "search", Type: constant.ChannelTypeSerper, Status: common.ChannelStatusEnabled}).Error; err != nil {
-			t.Fatal(err)
-		}
-	}
-	snapshot := channelHealthSnapshot{windowSeconds: 604800, bucketSeconds: 7200, bucketCount: 84, since: now.Add(-7 * 24 * time.Hour), rows: []channelHealthLaneView{{
-		Kind: channelHealthKindSearch, Provider: "serper", ModelName: "Serper", Status: publicStatusOperational, RequestCount: 100,
-	}}}
-	// Equal timestamps exercise the ID tie-break. The latest three failures
-	// must outweigh the older success on each backend independently.
-	for _, id := range []int{81, 82} {
-		for i := 0; i < 4; i++ {
-			if err := model.RecordSearchHealthSample(model.SearchHealthSample{ChannelId: id, Provider: "serper", Success: i == 0, SampledAt: now.Add(-time.Minute)}); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	got, err := overlayChannelHealthSearch(snapshot, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got.rows) != 1 || got.rows[0].Status != publicStatusOutage {
-		t.Fatalf("status = %+v", got.rows)
-	}
-	if got.rows[0].RequestCount != 100 || snapshot.rows[0].Status != publicStatusOperational {
-		t.Fatal("overlay mutated history or cached status")
-	}
-	for i, id := range []int{81, 82} {
-		if err := model.RecordSearchHealthSample(model.SearchHealthSample{ChannelId: id, Provider: "serper", Success: true, SampledAt: now}); err != nil {
-			t.Fatal(err)
-		}
-		got, err = overlayChannelHealthSearch(snapshot, now)
-		if err != nil {
-			t.Fatal(err)
-		}
-		want := publicStatusDegraded
-		if i == 1 {
-			want = publicStatusOperational
-		}
-		if got.rows[0].Status != want {
-			t.Fatalf("recovery status = %s want %s", got.rows[0].Status, want)
-		}
-	}
-	// A provider absent from the old snapshot gains a current verdict, but
-	// must not turn the three-sample read into a purported week's statistics.
-	empty := snapshot
-	empty.rows = nil
-	added, err := overlayChannelHealthSearch(empty, now)
-	if err != nil || len(added.rows) != 1 || !channelHealthRowHasSamples(added.rows[0]) || added.rows[0].SuccessRate != nil || len(added.rows[0].Buckets) != 84 {
-		t.Fatalf("new backend projection: %+v, %v", added.rows, err)
-	}
-	if err := db.Model(&model.Channel{}).Where("id IN ?", []int{81, 82}).Update("status", common.ChannelStatusManuallyDisabled).Error; err != nil {
-		t.Fatal(err)
-	}
-	got, err = overlayChannelHealthSearch(snapshot, now)
-	if err != nil || len(got.rows) != 0 {
-		t.Fatalf("disabled backends still visible: %+v, %v", got.rows, err)
 	}
 }

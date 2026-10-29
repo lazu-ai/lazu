@@ -46,12 +46,6 @@ export function resolveGatewayHref({
           },
           {
             section: 'admin',
-            module: 'search_backend',
-            href: '/console/search-backend',
-            allowed: canAdmin,
-          },
-          {
-            section: 'admin',
             module: 'setting',
             href: '/console/setting',
             allowed: canAdmin,

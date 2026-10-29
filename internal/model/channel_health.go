@@ -739,6 +739,12 @@ func LoadChannelHealthGridContext(ctx context.Context) ([]ChannelHealthLaneCell,
 	}
 	result := []ChannelHealthLaneCell{}
 	if !channelHealthHasTable(db, &Ability{}) || !channelHealthHasTable(db, &Channel{}) {
+		// The table check cannot tell a missing table from a database it
+		// cannot reach. An unreachable one must fail the read rather than
+		// pass as an empty grid that reports every lane as having no data.
+		if err := db.Exec("SELECT 1").Error; err != nil {
+			return result, err
+		}
 		return result, ctx.Err()
 	}
 	var rows []ChannelHealthLaneCell

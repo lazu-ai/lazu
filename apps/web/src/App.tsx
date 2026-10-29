@@ -45,7 +45,6 @@ const SessionDetail = lazy(
 );
 const KeyInspector = lazy(() => import('./pages/KeyInspector'));
 const OpsPage = lazy(() => import('./pages/Console/Ops'));
-const SearchBackend = lazy(() => import('./pages/Console/SearchBackend'));
 const ModelRoutesPage = lazy(() => import('./pages/Routes'));
 const ChannelHealthPage = lazy(() => import('./pages/ChannelHealth'));
 const OrganizationsPage = lazy(() => import('./pages/Organizations'));
@@ -285,16 +284,6 @@ function App() {
         <Route
           path='/console/channel'
           element={<Navigate to='/console/model-ops/sources' replace />}
-        />
-        <Route
-          path='/console/search-backend'
-          element={
-            <RootRoute>
-              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
-                <SearchBackend />
-              </Suspense>
-            </RootRoute>
-          }
         />
         <Route
           path='/console/token'

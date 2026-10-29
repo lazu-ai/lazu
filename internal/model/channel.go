@@ -958,7 +958,7 @@ func EditChannelByTag(tag string, newTag *string, modelMapping *string, models *
 
 func DeleteDisabledChannel() (int64, error) {
 	result := CoreDB().
-		Where("(status = ? OR status = ?) AND type NOT IN ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled, constant.SearchChannelTypes()).
+		Where("status = ? OR status = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled).
 		Delete(&Channel{})
 	return result.RowsAffected, result.Error
 }

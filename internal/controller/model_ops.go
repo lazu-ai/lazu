@@ -146,7 +146,6 @@ func GetModelOpsSources(c *gin.Context) {
 
 	var channels []*model.Channel
 	query := model.CoreDB().Model(&model.Channel{}).
-		Where("type NOT IN ?", constant.SearchChannelTypes()).
 		Order("priority desc, id desc").
 		Omit("key")
 	if modelName != "" {
@@ -324,9 +323,6 @@ func GetModelOpsPools(c *gin.Context) {
 		}
 		channel := channelsByID[ability.ChannelId]
 		if channel == nil {
-			continue
-		}
-		if constant.IsSearchChannelType(channel.Type) {
 			continue
 		}
 		priority := int64(0)
@@ -840,9 +836,6 @@ func modelOpsModelsWithoutLanePool(names []string, lane string) ([]string, error
 		Where("abilities.enabled = ?", true).
 		Where("abilities."+modelOpsAbilityGroupColumn()+" = ?", lane).
 		Where("channels.status = ?", common.ChannelStatusEnabled)
-	if searchTypes := constant.SearchChannelTypes(); len(searchTypes) > 0 {
-		query = query.Where("channels.type NOT IN ?", searchTypes)
-	}
 	if err := query.Pluck("abilities.model", &routable).Error; err != nil {
 		return nil, err
 	}

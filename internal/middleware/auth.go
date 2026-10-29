@@ -696,9 +696,6 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	if token.VendorLimitsEnabled && len(token.VendorLimits) > 0 {
 		common.SetContextKey(c, constant.ContextKeyTokenVendorLimits, token.VendorLimits)
 	}
-	common.SetContextKey(c, constant.ContextKeyTokenSearchLimitEnabled, token.SearchLimitsEnabled)
-	common.SetContextKey(c, constant.ContextKeyTokenSearchProviders, token.SearchProviders)
-	common.SetContextKey(c, constant.ContextKeyTokenSearchDomainAllow, token.SearchDomainAllowlist)
 	if len(parts) > 1 {
 		if model.IsAdmin(c.GetInt("id")) {
 			c.Set("specific_channel_id", parts[1])

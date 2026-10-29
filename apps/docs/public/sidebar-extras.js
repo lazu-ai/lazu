@@ -145,7 +145,6 @@
     "/endpoints/files": true,
     "/endpoints/models": true,
     "/endpoints/responses": true,
-    "/endpoints/search": true,
     "/endpoints/usage-requests": true,
     "/errors": true,
     "/examples": true,

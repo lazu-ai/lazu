@@ -18,8 +18,6 @@
   "video_artifact_missing": "影片已生成結束，但沒有可下載的檔案。請重新生成。",
   "video_not_ready": "這部影片還沒有可下載的檔案。等狀態變成 succeeded 後再下載。",
   "invalid_wait": "wait 必須是 0 到 60 之間的整數秒。",
-  "search_backend_not_found": "找不到這個搜尋後端。請重新整理列表。",
-  "search_backend_provider_invalid": "不支援這個搜尋服務商，或它與渠道類型不一致。請從列表中選擇服務商。",
   "upload_file_not_found": "伺服器上找不到這個資料檔案。請檢查檔案路徑。",
   "upload_key_not_allowed": "這個路徑不能上傳。目錄和設定檔不在上傳範圍內，請選擇一般資料檔案。",
   "upload_failed": "物件儲存沒有接受這次上傳。請檢查儲存設定後再試。"

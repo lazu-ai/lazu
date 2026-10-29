@@ -39,7 +39,7 @@ func TestGenerateDefaultSidebarConfigForRoleUsesSaasPreset(t *testing.T) {
 	if !config["account"]["personal"] || !config["account"]["enabled"] {
 		t.Fatalf("expected core account modules to be enabled: %#v", config["account"])
 	}
-	if !config["admin"]["search_backend"] || !config["admin"]["models"] {
+	if !config["admin"]["channel"] || !config["admin"]["models"] {
 		t.Fatalf("expected core admin modules enabled: %#v", config["admin"])
 	}
 }

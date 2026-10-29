@@ -89,11 +89,6 @@ export const SIDEBAR_SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         description: 'sidebar.module.models.description',
       },
       {
-        key: 'search_backend',
-        title: 'sidebar.module.searchBackend.title',
-        description: 'sidebar.module.searchBackend.description',
-      },
-      {
         key: 'user',
         title: 'sidebar.module.user.title',
         description: 'sidebar.module.user.description',
@@ -135,7 +130,6 @@ const SAAS_SIDEBAR_ADMIN_CONFIG: SidebarModulesConfig = {
   admin: {
     enabled: true,
     model_ops: true,
-    search_backend: true,
     user: true,
     setting: true,
     announcements: true,

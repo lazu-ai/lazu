@@ -220,59 +220,6 @@ func TestReturnPreConsumedQuotaSurvivesCanceledRequestContext(t *testing.T) {
 	}
 }
 
-func TestReturnSearchPreConsumedQuotaReleasesTrustedSpendBudgetReservation(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	db := setupSpendBudgetServiceTestDB(t)
-	if err := db.Create(&model.User{Id: 1, Username: "search-budget-user", Quota: billing.MicroUSD(10_000)}).Error; err != nil {
-		t.Fatalf("failed to create user: %v", err)
-	}
-	if err := db.Create(&model.Token{Id: 2, UserId: 1, Key: "token-key", RemainQuota: billing.MicroUSD(10_000)}).Error; err != nil {
-		t.Fatalf("failed to create token: %v", err)
-	}
-	if err := db.Create(&model.SpendBudget{
-		Scope:               model.SpendBudgetScopeToken,
-		TokenID:             2,
-		Period:              model.SpendBudgetPeriodMonth,
-		LimitMicrousd:       billing.MicroUSD(1_000),
-		WarningThresholdPct: 80,
-		Enforcement:         model.SpendBudgetEnforcementBlock,
-		Enabled:             true,
-	}).Error; err != nil {
-		t.Fatalf("failed to create budget: %v", err)
-	}
-
-	relayInfo := &relaycommon.RelayInfo{
-		RequestID:       "req-search-trusted-release",
-		UserId:          1,
-		TokenId:         2,
-		TokenKey:        "token-key",
-		SessionID:       "sess-search-trusted-release",
-		AgentID:         "codex",
-		OriginModelName: "web_search",
-		UsingGroup:      model.ChannelLaneDirect,
-	}
-	if err := model.CheckSpendBudgetBeforeCharge(spendBudgetChargeInputFromRelay(relayInfo, billing.MicroUSD(400))); err != nil {
-		t.Fatalf("failed to reserve spend budget: %v", err)
-	}
-
-	var count int64
-	if err := db.Model(&model.SpendBudgetReservation{}).Where("request_id = ?", relayInfo.RequestID).Count(&count).Error; err != nil {
-		t.Fatalf("failed to count reservation: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("expected one spend budget reservation, got %d", count)
-	}
-
-	returnSearchPreConsumedQuota(relayInfo)
-
-	if err := db.Model(&model.SpendBudgetReservation{}).Where("request_id = ?", relayInfo.RequestID).Count(&count).Error; err != nil {
-		t.Fatalf("failed to count reservation after search return: %v", err)
-	}
-	if count != 0 {
-		t.Fatalf("expected trusted search reservation to be released, got %d", count)
-	}
-}
-
 func TestPostConsumeQuotaRecordsFullPreConsumedSpendBudgetCharge(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := setupSpendBudgetServiceTestDB(t)

@@ -161,12 +161,11 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 	// 管理员区域 - 只有管理员可见，普通用户不包含 admin 区域
 	if userRole >= common.RoleRootUser {
 		defaultConfig["admin"] = map[string]interface{}{
-			"enabled":        true,
-			"channel":        true,
-			"search_backend": true,
-			"models":         true,
-			"user":           true,
-			"setting":        true,
+			"enabled": true,
+			"channel": true,
+			"models":  true,
+			"user":    true,
+			"setting": true,
 		}
 	}
 

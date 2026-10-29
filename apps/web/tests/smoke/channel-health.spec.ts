@@ -175,7 +175,7 @@ test('the board opens on a banner and a week of bars per lane', async ({
   const banner = page.locator('.chealth-banner');
   await expect(banner).toHaveClass(/chealth-banner--warn/);
   await expect(banner).toHaveText(
-    'claude-sonnet-5 Agent 专线降级 · 1 暂无数据 · 4 正常',
+    'claude-sonnet-5 Agent 专线降级 · 1 暂无数据 · 3 正常',
   );
 
   const row = laneRow(page, 'claude-sonnet-5', '稳定');
@@ -301,7 +301,7 @@ test('every measured bar is drawn the same way, whatever took the sample', async
 });
 
 /* Each kind of model is measured by its own yardstick, in its own section:
- * an image model has no first token and a search backend no throughput. */
+ * an image model has no first token. */
 test('models are shown in one section per kind, each with its own figures', async ({
   page,
 }) => {
@@ -312,10 +312,9 @@ test('models are shown in one section per kind, each with its own figures', asyn
   await openModelView(page);
 
   const sections = page.locator('.chealth-bsection');
-  await expect(sections).toHaveCount(3);
+  await expect(sections).toHaveCount(2);
   await expect(sections.nth(0)).toContainText('大模型');
   await expect(sections.nth(1)).toContainText('图片生成');
-  await expect(sections.nth(2)).toContainText('搜索工具');
 
   const llm = page.locator('.chealth-bsection[data-kind="llm"]');
   await expect(llm.locator('.chealth-bsection__count')).toHaveText(
@@ -334,20 +333,12 @@ test('models are shown in one section per kind, each with its own figures', asyn
     '生成 p50 8.30s · p95 10.30s',
   );
 
-  // Search: one row per provider, no lane, response time.
-  const search = page.locator('.chealth-bsection[data-kind="search"]');
-  const tavily = search.locator('.chealth-mcard', { hasText: 'Tavily' });
-  await expect(tavily.locator('.chealth-lane__label')).toHaveCount(0);
-  await expect(tavily.locator('.chealth-lane__figures')).toContainText(
-    '响应 p50 2.00s · p95 7.90s',
-  );
-
   // The kind switch narrows the page to one section.
   await page.getByRole('tab', { name: '图片生成' }).click();
   await expect(sections).toHaveCount(1);
   await expect(page).toHaveURL(/kind=image/);
   await page.getByRole('tab', { name: '全部' }).click();
-  await expect(sections).toHaveCount(3);
+  await expect(sections).toHaveCount(2);
 
   await app.expectNoUnexpectedErrors();
 });
@@ -408,7 +399,7 @@ test('the lane filter narrows the large-model section only', async ({
   await expectRouteReady(page, '/console/health');
   await openModelView(page);
 
-  // Four large-model lanes, one image model, one search source.
+  // Four large-model lanes and one image model.
   const llmCount = page.locator(
     '.chealth-bsection[data-kind="llm"] .chealth-bsection__count',
   );
@@ -419,7 +410,7 @@ test('the lane filter narrows the large-model section only', async ({
   await page.getByRole('combobox', { name: '线路', exact: true }).click();
   await page.getByRole('option', { name: '仅 Agent 专线' }).click();
   await expect(llmCount).toHaveText('2 个模型 · 2 条线路');
-  await expect(page.locator('.chealth-bsection')).toHaveCount(3);
+  await expect(page.locator('.chealth-bsection')).toHaveCount(2);
 
   // The banner speaks for every lane, whatever the filters show.
   await expect(page.locator('.chealth-banner')).toContainText('降级');

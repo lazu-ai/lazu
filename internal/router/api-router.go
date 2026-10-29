@@ -282,15 +282,6 @@ func SetApiRouter(router *gin.Engine) {
 			channelHealthRoute.PUT("/route_role", middleware.RootAuth(), controller.UpdateChannelHealthRouteRole)
 			channelHealthRoute.POST("/route_retreat/clear", middleware.RootAuth(), controller.ClearChannelHealthRouteRetreat)
 		}
-		searchBackendRoute := apiRouter.Group("/search/backends")
-		searchBackendRoute.Use(retiringSearch(), middleware.RootAuth())
-		{
-			searchBackendRoute.GET("", controller.ListSearchBackends)
-			searchBackendRoute.POST("/:id/reveal", middleware.SecretRevealRateLimit(), controller.RevealSearchBackendKey)
-			searchBackendRoute.POST("", controller.CreateSearchBackend)
-			searchBackendRoute.PUT("/:id", controller.UpdateSearchBackend)
-			searchBackendRoute.DELETE("/:id", controller.DeleteSearchBackend)
-		}
 		notificationRoute := apiRouter.Group("/notification")
 		notificationRoute.Use(retiring(adminSunset, "/api/admin/announcements"), middleware.RootAuth())
 		{

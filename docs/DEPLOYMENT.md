@@ -198,8 +198,8 @@ The gateway makes two kinds of outbound request, with different rules:
   and **addresses a user sets** (their notification webhook and Bark URL) go
   through the media fetch policy above.
 - **Addresses an operator configures** may be private and are not checked
-  against that policy. These are channel base URLs (search backends among
-  them), the OpenID Connect provider, the Uptime Kuma address, the Telegram
+  against that policy. These are channel base URLs, the OpenID Connect
+  provider, the Uptime Kuma address, the Telegram
   `api_base` and knowledge URLs, the answerer and release-note model
   endpoints, object storage, the operator alert webhook and the model
   metadata sources. Each has its own timeout.

@@ -107,7 +107,6 @@ type ChannelOtherSettings struct {
 	VideoStatusURLTemplate  string               `json:"video_status_url_template,omitempty"`
 	VideoContentURLTemplate string               `json:"video_content_url_template,omitempty"`
 	Capabilities            *ChannelCapabilities `json:"capabilities,omitempty"` // 路由能力声明，nil = 视为全能；详见 ChannelCapabilities
-	SearchBackend           *SearchBackendConfig `json:"search_backend,omitempty"`
 }
 
 var claudeCompatModelID = regexp.MustCompile(`^claude-[a-zA-Z0-9][a-zA-Z0-9._:-]*$`)
@@ -155,16 +154,6 @@ func (s ChannelOtherSettings) ValidateClaudeCompatibility() error {
 		}
 	}
 	return nil
-}
-
-type SearchBackendConfig struct {
-	Provider        string   `json:"provider,omitempty"`
-	Capabilities    []string `json:"capabilities,omitempty"`
-	MaxResults      int      `json:"max_results,omitempty"`
-	TimeoutMs       int      `json:"timeout_ms,omitempty"`
-	SearchPrice     float64  `json:"search_price,omitempty"`
-	FetchPrice      float64  `json:"fetch_price,omitempty"`
-	UseProviderCost bool     `json:"use_provider_cost,omitempty"`
 }
 
 // ChannelCapabilities is the structured declaration of what a channel can

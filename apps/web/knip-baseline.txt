@@ -28,11 +28,6 @@ exports src/components/ui/table-tools.tsx TagList
 exports src/components/ui/table-tools.tsx parseTagList
 exports src/components/ui/table-tools.tsx statusBadgeVariant
 exports src/constants/channel.constants.ts MODEL_TABLE_PAGE_SIZE
-exports src/constants/search.constants.ts SEARCH_AUTO_BACKEND
-exports src/constants/search.constants.ts SEARCH_CAPABILITY_LABEL
-exports src/constants/search.constants.ts SEARCH_CHANNEL_TYPES
-exports src/constants/search.constants.ts SEARCH_DEPTH_OPTIONS
-exports src/constants/search.constants.ts getSearchProviderByChannelType
 exports src/context/ConsoleScope/index.tsx CONSOLE_WORKSPACE_FALLBACK
 exports src/features/projects/ProjectContext.tsx useDirtyGuard
 exports src/features/projects/budget.ts DEFAULT_MEMBER_BUDGET_MICRO
@@ -137,8 +132,6 @@ types src/components/ui/combo-chart.tsx ComboChartProps
 types src/components/ui/combo-chart.tsx ComboTooltipRow
 types src/components/ui/provider-brands.ts ProviderBrandInput
 types src/constants/channel.constants.ts ChannelOption
-types src/constants/search.constants.ts SearchDepth
-types src/constants/search.constants.ts SearchProvider
 types src/context/ConsoleScope/index.tsx ConsoleScope
 types src/context/ConsoleScope/index.tsx ConsoleScopeCopy
 types src/context/Theme/index.tsx ActualThemeMode

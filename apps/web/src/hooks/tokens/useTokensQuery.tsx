@@ -131,9 +131,6 @@ export type TokenFormValues = ApiRecord & {
   vendor_groups?: Record<string, 'direct' | 'cheap'>;
   vendor_limits?: Array<number | string>;
   vendor_limits_enabled?: boolean;
-  search_limits_enabled?: boolean;
-  search_providers?: string[];
-  search_domain_allowlist?: string;
   /** Vendors the Key is scoped to wholesale, beside the individually named
    *  models in model_limits. */
   model_scope_vendors?: Array<number | string>;
@@ -307,11 +304,6 @@ export const normalizeTokenDetail = (
       Array.isArray(data.vendor_limits) &&
       data.vendor_limits.length,
     ),
-    search_limits_enabled: Boolean(data.search_limits_enabled),
-    search_providers: Array.isArray(data.search_providers)
-      ? data.search_providers.map(String)
-      : [],
-    search_domain_allowlist: String(data.search_domain_allowlist || ''),
     model_scope_vendors: Array.isArray(data.model_scope_vendors)
       ? data.model_scope_vendors.map(String)
       : [],
@@ -415,16 +407,6 @@ export const normalizeTokenPayload = (values: TokenFormValues): ApiRecord => {
   payload.vendor_limits = payload.vendor_limits_enabled ? vendorLimits : [];
   payload.vendor_groups = normalizeVendorGroups(values.vendor_groups);
   payload.model_lanes = normalizeVendorGroups(values.model_lanes);
-  const searchProviders = (values.search_providers || [])
-    .map((id) => String(id).trim())
-    .filter(Boolean);
-  payload.search_limits_enabled = Boolean(values.search_limits_enabled);
-  payload.search_providers = payload.search_limits_enabled
-    ? searchProviders
-    : [];
-  payload.search_domain_allowlist = String(
-    values.search_domain_allowlist || '',
-  ).trim();
   payload.product = String(values.product || '').trim();
   payload.metadata = parseTokenMetadata(values.metadata);
 

@@ -2,7 +2,7 @@ package types
 
 import "net/http"
 
-// Media and video jobs, the Files API, search backends and admin uploads.
+// Media and video jobs, the Files API and admin uploads.
 // Numbers: LZ-7800–7899.
 //
 // Media job terminal codes (artifact_too_large, video_artifact_missing, ...)
@@ -33,12 +33,10 @@ const (
 	ErrorCodeVideoNotReady             ErrorCode = "video_not_ready"
 	ErrorCodeInvalidWait               ErrorCode = "invalid_wait"
 
-	// Operator pages: search backends, data uploads, repairs.
-	ErrorCodeSearchBackendNotFound        ErrorCode = "search_backend_not_found"
-	ErrorCodeSearchBackendProviderInvalid ErrorCode = "search_backend_provider_invalid"
-	ErrorCodeUploadFileNotFound           ErrorCode = "upload_file_not_found"
-	ErrorCodeUploadKeyNotAllowed          ErrorCode = "upload_key_not_allowed"
-	ErrorCodeUploadFailed                 ErrorCode = "upload_failed"
+	// Operator pages: data uploads, repairs.
+	ErrorCodeUploadFileNotFound  ErrorCode = "upload_file_not_found"
+	ErrorCodeUploadKeyNotAllowed ErrorCode = "upload_key_not_allowed"
+	ErrorCodeUploadFailed        ErrorCode = "upload_failed"
 )
 
 func init() {
@@ -122,14 +120,6 @@ func init() {
 			Template: "wait must be a whole number of seconds from 0 to {max|60}.",
 		},
 		// ── LZ-786x · operator pages ──────────────────────────────────
-		ErrorCodeSearchBackendNotFound: {
-			ID: "LZ-7861", HTTPStatus: http.StatusNotFound, Type: ErrorTypeNotFound, Audience: AudienceOperator,
-			Template: "The search backend was not found.",
-		},
-		ErrorCodeSearchBackendProviderInvalid: {
-			ID: "LZ-7862", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceOperator,
-			Template: "Search provider '{provider|requested}' is not supported or does not match the channel type.",
-		},
 		ErrorCodeUploadFileNotFound: {
 			ID: "LZ-7864", HTTPStatus: http.StatusNotFound, Type: ErrorTypeNotFound, Audience: AudienceOperator,
 			Template: "Data file {key|requested} was not found.",

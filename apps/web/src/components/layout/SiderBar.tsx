@@ -33,7 +33,6 @@ const ROUTER_MAP = {
   user: '/console/organizations',
   usage: '/console/usage',
   key_inspector: '/console/key',
-  search_backend: '/console/search-backend',
   setting: '/console/setting',
   announcements: '/console/ops',
   detail: '/console',
@@ -305,11 +304,6 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
               // 模型管理 + 定价运营 + 渠道 are one decision, so they are one page.
               text: t('nav.modelOps', { defaultValue: '模型运营' }),
               itemKey: 'model_ops',
-              allowed: platformUser,
-            },
-            {
-              text: t('nav.searchBackend', { defaultValue: '搜索后端' }),
-              itemKey: 'search_backend',
               allowed: platformUser,
             },
             {
