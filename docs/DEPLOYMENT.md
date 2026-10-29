@@ -61,14 +61,15 @@ editable in the console under **系统设置 › 计费 › 余额不足时**:
 - The runway check (`runway_days`, default 3) runs hourly in the jobs process
   (or in the API when it runs all-in-one). It averages each account's spend
   over the trailing 7 days and, when the balance covers fewer days than
-  this or has reached zero, sends the account the low-balance mail with the
-  estimated days left and posts one line to the operator by mail and
-  `TELEGRAM_OPS_CHAT`: account, balance, daily spend, days left. Each
-  account gets at most one runway alert per 24 hours, recorded in the mail
-  archive so restarts and several instances do not repeat it. Accounts with
-  under a day of spend history are left to the fixed threshold. `0` turns
-  the runway check off; the operator line still goes out when low-balance
-  mail to users is switched off.
+  this, sends the account the low-balance mail with the estimated days left
+  and posts one line to the operator by mail and `TELEGRAM_OPS_CHAT`:
+  account, balance, daily spend, days left. An account already at zero or
+  below gets the operator line only; its own mail is the fixed threshold's
+  reminder schedule. Each account gets at most one runway alert per 24
+  hours, recorded in the mail archive so restarts and several instances do
+  not repeat it. Accounts with under a day of spend history are left to the
+  fixed threshold. `0` turns the runway check off; the operator line still
+  goes out when low-balance mail to users is switched off.
 
 ## Optional integration settings
 

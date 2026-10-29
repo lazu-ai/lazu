@@ -77,11 +77,14 @@ func TestBalanceRunwayAlertDueFallsBackToTheFixedThreshold(t *testing.T) {
 		{"under the line", known(200, 2.9), 3, true},
 		{"on the line", known(300, 3), 3, false},
 		{"plenty", known(5000, 40), 3, false},
-		{"zero balance", known(0, 0), 3, true},
+		{"zero balance with history", known(0, 0), 3, true},
 		{"negative balance without an estimate", BalanceRunway{Balance: billing.USD(-1)}, 3, true},
 		// Little history and money left: the per-request fixed threshold
 		// is the one that warns this account.
 		{"no estimate, money left", BalanceRunway{Balance: billing.USD(5)}, 3, false},
+		// A trial account that spent its first cents to zero within a day
+		// is the fixed threshold's too, not the operator's.
+		{"no estimate, zero balance", BalanceRunway{Balance: 0}, 3, false},
 		{"runway check off", known(200, 0.5), 0, false},
 	}
 	for _, tc := range cases {
@@ -223,8 +226,11 @@ func TestRunBalanceRunwayAlertsOncePerDayPerAccount(t *testing.T) {
 	if len(rows) != 2 || rows[0].UserID != 11 || rows[1].UserID != 15 {
 		t.Fatalf("first run archived %+v", rows)
 	}
-	if rows[0].Kind != common.MailKindBalance || rows[0].Status != model.MailStatusFailed || rows[0].Receiver != "heavy@example.test" {
+	if rows[0].Kind != common.MailKindBalance || rows[0].Status != model.MailStatusFailed || rows[0].Receiver != "heavy@example.test" || !rows[0].HasBody {
 		t.Fatalf("heavy account's row = %+v", rows[0])
+	}
+	if html, err := rows[0].HTML(); err != nil || !strings.Contains(html, "2.0 days") {
+		t.Fatalf("archived body: %v", err)
 	}
 	if rows[1].Status != model.MailStatusSkipped || rows[1].Error != "no_email" {
 		t.Fatalf("payer without an address = %+v", rows[1])
@@ -285,12 +291,14 @@ func TestRunBalanceRunwayAlertsOncePerDayPerAccount(t *testing.T) {
 	}
 }
 
-func TestRunBalanceRunwayAlertsTellsTheOperatorWhenUserMailIsOff(t *testing.T) {
+// An exhausted account is already on the fixed path's reminder schedule, so
+// the runway check sends it no second mail; the operator still hears.
+func TestRunBalanceRunwayAlertsLeavesExhaustedAccountMailToTheFixedPath(t *testing.T) {
 	db := setupBalanceRunwayTestDB(t)
 	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
 	cfg := email_setting.GetEmailSetting()
 	oldRunway, oldEnabled, oldAdmin := cfg.LowBalanceRunwayDays, cfg.LowBalanceEnabled, cfg.AdminEmail
-	cfg.LowBalanceRunwayDays, cfg.LowBalanceEnabled, cfg.AdminEmail = 3, false, "ops@example.test"
+	cfg.LowBalanceRunwayDays, cfg.LowBalanceEnabled, cfg.AdminEmail = 3, true, "ops@example.test"
 	oldSecret, oldResend, oldSMTP := common.CryptoSecret, common.AppConfig.Resend.APIKey, common.SMTPServer
 	common.CryptoSecret, common.AppConfig.Resend.APIKey, common.SMTPServer = "runway-test", "", ""
 	t.Cleanup(func() {
@@ -316,10 +324,24 @@ func TestRunBalanceRunwayAlertsTellsTheOperatorWhenUserMailIsOff(t *testing.T) {
 	if err := db.Where("template = ? AND user_id = ?", balanceRunwayTemplate, 21).First(&row).Error; err != nil {
 		t.Fatal(err)
 	}
-	if row.Status != model.MailStatusSkipped || row.Error != "low_balance_mail_disabled" {
+	if row.Status != model.MailStatusSkipped || row.Error != "exhausted_fixed_mail_owns_it" {
 		t.Fatalf("row = %+v", row)
 	}
-	if len(alerts) != 1 || !strings.HasPrefix(alerts[0].Subject, "[Lazu ops] 余额已用完：dry (#21)") || !strings.Contains(alerts[0].Text, "low_balance_mail_disabled") {
+	if len(alerts) != 1 || !strings.HasPrefix(alerts[0].Subject, "[Lazu ops] 余额已用完：dry (#21)") || !strings.Contains(alerts[0].Text, "exhausted_fixed_mail_owns_it") {
 		t.Fatalf("alerts = %+v", alerts)
+	}
+
+	// The same account two hours into its life, before it has a day of
+	// spend: not the operator's business yet.
+	db.Where("1 = 1").Delete(&model.MailDelivery{})
+	db.Where("1 = 1").Delete(&model.Log{})
+	db.Create(&model.Log{UserId: 21, Type: model.LogTypeConsume, AmountMicrousd: billing.USD(1), CreatedAt: now.Add(-2 * time.Hour).Unix(), ModelName: "m"})
+	if err := RunBalanceRunwayAlerts(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	db.Model(&model.MailDelivery{}).Where("template = ?", balanceRunwayTemplate).Count(&count)
+	if count != 0 || len(alerts) != 1 {
+		t.Fatalf("young exhausted account alerted: rows %d alerts %d", count, len(alerts))
 	}
 }

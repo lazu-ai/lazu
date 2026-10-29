@@ -75,14 +75,17 @@ func EstimateBalanceRunway(balance, windowSpend billing.MicroUSD, firstSpend, no
 	return r
 }
 
-// BalanceRunwayAlertDue says whether an account needs the alert: its balance
-// is gone, or its estimated runway is under runwayDays. An account without
-// an estimate and with money left is the fixed threshold's to warn.
+// BalanceRunwayAlertDue says whether an account needs the alert: its
+// estimated runway is under runwayDays (a balance at zero with a day of
+// spend behind it has a runway of zero), or its balance is negative. An
+// account without an estimate and with money left is the fixed threshold's
+// to warn, and so is a trial account that spent its first cents to zero
+// within a day: neither is the operator's business yet.
 func BalanceRunwayAlertDue(r BalanceRunway, runwayDays int) bool {
 	if runwayDays <= 0 {
 		return false
 	}
-	if r.Balance <= 0 {
+	if r.Balance < 0 {
 		return true
 	}
 	return r.Known && r.DaysLeft < float64(runwayDays)
@@ -161,6 +164,11 @@ func sendBalanceRunwayAlert(user *model.User, runway BalanceRunway, runwayDays i
 
 	mailed, reason := false, ""
 	switch {
+	case runway.Balance <= 0:
+		// An exhausted account is already on the fixed path's reminder
+		// schedule; a second daily mail saying the same would only pile up.
+		// The runway alert's job here is the operator line.
+		reason = "exhausted_fixed_mail_owns_it"
 	case !email_setting.GetEmailSetting().LowBalanceEnabled:
 		reason = "low_balance_mail_disabled"
 	case email == "":
@@ -170,6 +178,9 @@ func sendBalanceRunwayAlert(user *model.User, runway BalanceRunway, runwayDays i
 		if renderErr != nil {
 			reason = "render_failed"
 			break
+		}
+		if err := model.SaveMailDeliveryContent(row.ID, subject, body, ""); err != nil {
+			common.SysError(fmt.Sprintf("archive balance runway email for user %d: %v", user.Id, err))
 		}
 		meta := common.MailMeta{Kind: common.MailKindBalance, UserID: user.Id, DeliveryID: row.ID, Template: balanceRunwayTemplate, Lang: lang}
 		if sendErr := common.SendMail(meta, subject, email, body); sendErr != nil {
