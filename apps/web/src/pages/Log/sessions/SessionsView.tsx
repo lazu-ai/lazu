@@ -1,11 +1,10 @@
 /* 用量与日志 · Agent 会话: one row per task an agent ran, with the range's
  * totals above it. Requests that carried no session id are not agent
  * sessions; they live only in the API 调用 tab. */
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  SESSION_RANGES,
   SK,
   type SessionLane,
   durationText,
@@ -20,6 +19,7 @@ import {
   spanTextCompact,
 } from './session-format';
 import { AgentBadge, agentName } from '../../../components/ui/agent-badge';
+import { Button } from '../../../components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,15 +32,28 @@ import {
   formatCount,
   formatMicroUsd,
 } from '../../../components/ui/metric-format';
+import { Modal } from '../../../components/ui/modal';
 import { Pagination } from '../../../components/ui/pagination';
 import { PendingValue } from '../../../components/ui/pending';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '../../../components/ui/popover';
+import { Select, SelectItem } from '../../../components/ui/select';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
+import { useIsMobile } from '../../../hooks/common/useIsMobile';
+import { useUsageRange } from '../../../hooks/usage-logs/usageRange';
 import {
   type AgentSessionListItem,
   type AgentSessionListSummary,
   type AgentSessionRange,
   useAgentSessionsQuery,
 } from '../../../hooks/usage-logs/useAgentSessions';
+import {
+  UsageRangeCalendarRow,
+  UsageRangeSeg,
+} from '../../Usage/UsageRangeSeg';
 import '../log-table.css';
 import './sessions.css';
 import type { TFunction } from 'i18next';
@@ -377,7 +390,17 @@ function FilterMenu({
 }
 
 export default function SessionsView({ admin, t }: Props) {
-  const [range, setRange] = useState<AgentSessionRange>('24h');
+  /* The range is the one the usage tabs share; a preset goes to the server
+     by name so its window matches the summary's own. */
+  const { range: shared } = useUsageRange();
+  const range: AgentSessionRange =
+    shared.preset === 'custom' ? '30d' : shared.preset;
+  const windowParams =
+    shared.preset === 'custom'
+      ? { endTimestamp: shared.end, startTimestamp: shared.start }
+      : {};
+  const narrow = useIsMobile();
+  const [moreOpen, setMoreOpen] = useState(false);
   const [client, setClient] = useState('');
   const [tokenName, setTokenName] = useState('');
   const [userId, setUserId] = useState('');
@@ -393,7 +416,16 @@ export default function SessionsView({ admin, t }: Props) {
 
   useEffect(() => {
     setPage(1);
-  }, [range, client, tokenName, userId, failed, keyword, admin]);
+  }, [
+    shared.start,
+    shared.end,
+    client,
+    tokenName,
+    userId,
+    failed,
+    keyword,
+    admin,
+  ]);
 
   const list = useAgentSessionsQuery({
     admin,
@@ -403,6 +435,7 @@ export default function SessionsView({ admin, t }: Props) {
     page,
     pageSize: PAGE_SIZE,
     range,
+    ...windowParams,
     tokenName,
     userId: admin && userId ? userId : undefined,
   });
@@ -413,6 +446,7 @@ export default function SessionsView({ admin, t }: Props) {
     page: 1,
     pageSize: 100,
     range,
+    ...windowParams,
   });
   const optionItems = options.data?.items;
   const clientOptions = useMemo(() => {
@@ -453,6 +487,162 @@ export default function SessionsView({ admin, t }: Props) {
   const hit = summary
     ? ratio(summary.cached_tokens, summary.prompt_tokens)
     : null;
+
+  /* Agent is the main dimension and keeps its menu; Key, 只看失败 and the
+     operator's user filter sit behind 筛选 and show as chips once set. On a
+     phone the row only has room for the range and 筛选, so Agent joins the
+     sheet and shows as a chip too. */
+  const allValue = '__all';
+  const userLabel =
+    userOptions.find((option) => option.value === userId)?.label ||
+    `#${userId}`;
+  const chips: Array<{ clear: () => void; key: string; label: string }> = [];
+  if (narrow && client)
+    chips.push({
+      clear: () => setClient(''),
+      key: 'client',
+      label: agentName(client),
+    });
+  if (tokenName)
+    chips.push({
+      clear: () => setTokenName(''),
+      key: 'token',
+      label: t('page.console.log.filter.chipKey', { value: tokenName }),
+    });
+  if (failed)
+    chips.push({
+      clear: () => setFailed(false),
+      key: 'failed',
+      label: t(`${SK}.list.onlyFailed`, { defaultValue: '只看失败' }),
+    });
+  if (admin && userId)
+    chips.push({
+      clear: () => setUserId(''),
+      key: 'user',
+      label: t('page.console.log.filter.userChip', { name: userLabel }),
+    });
+  const clearConditions = () => {
+    setTokenName('');
+    setFailed(false);
+    setUserId('');
+    if (narrow) setClient('');
+  };
+  const choice = (
+    value: string,
+    options: { label: string; value: string }[],
+    allLabel: string,
+    onPick: (value: string) => void,
+  ) =>
+    narrow ? (
+      <div className='logv2-sheet__options' role='radiogroup'>
+        {[{ label: allLabel, value: '' }, ...options].map((option) => (
+          <button
+            aria-checked={value === option.value}
+            data-owns-chrome
+            className='logv2-sheet__option'
+            key={option.value || allValue}
+            onClick={() => onPick(option.value)}
+            role='radio'
+            type='button'
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ) : (
+      <Select
+        onValueChange={(next) =>
+          onPick(String(next) === allValue ? '' : String(next))
+        }
+        value={value || allValue}
+      >
+        <SelectItem value={allValue}>{allLabel}</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </Select>
+    );
+  const moreFields = (
+    <>
+      {narrow ? (
+        <div className='logv2-filter-pop__field'>
+          <span className='logv2-filter-pop__label'>Agent</span>
+          <div className='logv2-sheet__chips' role='radiogroup'>
+            {[
+              {
+                label: t(`${SK}.list.allClients`, {
+                  defaultValue: '全部 Agent',
+                }),
+                value: '',
+              },
+              ...clientOptions,
+            ].map((option) => (
+              <button
+                aria-checked={client === option.value}
+                className='logv2-sheet__chip'
+                data-owns-chrome
+                key={option.value || allValue}
+                onClick={() => setClient(option.value)}
+                role='radio'
+                type='button'
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {admin ? (
+        <div className='logv2-filter-pop__field'>
+          <span className='logv2-filter-pop__label'>
+            {t('page.console.log.column.user')}
+          </span>
+          {choice(
+            userId,
+            userOptions,
+            t(`${SK}.list.allUsers`, { defaultValue: '全部用户' }),
+            setUserId,
+          )}
+        </div>
+      ) : null}
+      <div className='logv2-filter-pop__field'>
+        <span className='logv2-filter-pop__label'>Key</span>
+        {choice(
+          tokenName,
+          keyOptions,
+          t(`${SK}.list.allKeys`, { defaultValue: '全部 Key' }),
+          setTokenName,
+        )}
+        <span className='logv2-filter-pop__hint'>
+          {t('page.console.log.filter.keysInRange')}
+        </span>
+      </div>
+      <label className='logv2-filter-pop__check'>
+        <input
+          checked={failed}
+          onChange={(event) => setFailed(event.target.checked)}
+          type='checkbox'
+        />
+        {t(`${SK}.list.onlyFailed`, { defaultValue: '只看失败' })}
+      </label>
+    </>
+  );
+  const moreButton = (
+    <Button
+      onClick={narrow ? () => setMoreOpen(true) : undefined}
+      size='sm'
+      type='button'
+      variant='secondary'
+    >
+      <SlidersHorizontal aria-hidden='true' size={14} />
+      {t('page.console.log.filter.more', { defaultValue: '筛选' })}
+      {chips.length ? (
+        <span className='logv2-filter-count'>{chips.length}</span>
+      ) : null}
+    </Button>
+  );
 
   const kpiValue = (chars: number, value: () => string) =>
     pending || !summary ? <PendingValue chars={chars} /> : value();
@@ -514,54 +704,39 @@ export default function SessionsView({ admin, t }: Props) {
       </div>
 
       <div className='ses-filters'>
-        <div className='ses-seg' role='group'>
-          {SESSION_RANGES.map((value) => (
-            <button
-              data-owns-chrome
-              aria-pressed={range === value}
-              key={value}
-              onClick={() => setRange(value)}
-              type='button'
-            >
-              {rangeLabel(value, t)}
-            </button>
-          ))}
-        </div>
-        <FilterMenu
-          allLabel={t(`${SK}.list.allClients`, { defaultValue: '全部 Agent' })}
-          label={agentName(client)}
-          onPick={setClient}
-          options={clientOptions}
-          value={client}
-        />
-        {admin ? (
+        <UsageRangeSeg />
+        {narrow ? null : (
           <FilterMenu
-            allLabel={t(`${SK}.list.allUsers`, { defaultValue: '全部用户' })}
-            label={
-              userOptions.find((option) => option.value === userId)?.label ||
-              `#${userId}`
-            }
-            onPick={setUserId}
-            options={userOptions}
-            value={userId}
+            allLabel={t(`${SK}.list.allClients`, {
+              defaultValue: '全部 Agent',
+            })}
+            label={agentName(client)}
+            onPick={setClient}
+            options={clientOptions}
+            value={client}
           />
-        ) : null}
-        <FilterMenu
-          allLabel={t(`${SK}.list.allKeys`, { defaultValue: '全部 Key' })}
-          label={tokenName}
-          onPick={setTokenName}
-          options={keyOptions}
-          value={tokenName}
-        />
-        <button
-          data-owns-chrome
-          aria-pressed={failed}
-          className='ses-btn'
-          onClick={() => setFailed((value) => !value)}
-          type='button'
-        >
-          {t(`${SK}.list.onlyFailed`, { defaultValue: '只看失败' })}
-        </button>
+        )}
+        {narrow ? (
+          moreButton
+        ) : (
+          <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+            <PopoverTrigger>{moreButton}</PopoverTrigger>
+            <PopoverContent align='start' className='logv2-filter-pop'>
+              {moreFields}
+              <div className='logv2-filter-pop__foot'>
+                <span className='logv2-filter-pop__hint' />
+                <Button
+                  onClick={clearConditions}
+                  size='sm'
+                  type='button'
+                  variant='ghost'
+                >
+                  {t('page.console.log.filter.resetAll')}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
         <label className='ses-search'>
           <SearchIcon />
           <input
@@ -577,6 +752,69 @@ export default function SessionsView({ admin, t }: Props) {
           />
         </label>
       </div>
+      {chips.length ? (
+        <div className='logv2-filter-chips ses-chips'>
+          {chips.map((chip) => (
+            <span className='logv2-filter-chip' key={chip.key}>
+              {chip.label}
+              <button
+                aria-label={t('page.console.log.filter.removeChip', {
+                  defaultValue: '移除 {{label}}',
+                  label: chip.label,
+                })}
+                onClick={chip.clear}
+                type='button'
+              >
+                <X aria-hidden='true' size={12} />
+              </button>
+            </span>
+          ))}
+          <button
+            className='logv2-filter-clear'
+            onClick={clearConditions}
+            type='button'
+          >
+            {t('page.console.log.filter.clearAll', {
+              defaultValue: '清除全部',
+            })}
+          </button>
+        </div>
+      ) : null}
+      {narrow ? (
+        <Modal
+          body={
+            <div className='logv2-sheet'>
+              <section className='logv2-sheet__section'>
+                <h3 className='logv2-filter-pop__label'>
+                  {t('page.console.usage.range.title')}
+                </h3>
+                <UsageRangeSeg calendar={false} />
+                <UsageRangeCalendarRow />
+              </section>
+              {moreFields}
+            </div>
+          }
+          closeLabel={t('common.close')}
+          footer={
+            <>
+              <Button onClick={clearConditions} type='button' variant='ghost'>
+                {t('page.console.log.filter.resetAll')}
+              </Button>
+              <Button
+                onClick={() => setMoreOpen(false)}
+                type='button'
+                variant='primary'
+              >
+                {t('page.console.log.filter.showCount', { count: total })}
+              </Button>
+            </>
+          }
+          onOpenChange={setMoreOpen}
+          open={moreOpen}
+          sheet
+          title={t('page.console.log.filter.more', { defaultValue: '筛选' })}
+        />
+      ) : null}
 
       <div className='sv-table'>
         <div className='sv-scroll'>
@@ -658,7 +896,10 @@ export default function SessionsView({ admin, t }: Props) {
             ) : (
               t(`${SK}.list.footer`, {
                 defaultValue: '最近 {{range}} · {{sessions}} 个会话',
-                range: rangeLabel(range, t),
+                range:
+                  shared.preset === 'custom'
+                    ? shared.label
+                    : rangeLabel(range, t),
                 sessions: summary.sessions,
               })
             )}
