@@ -161,3 +161,33 @@ func TestApplyAgentSessionBackfillsClientFromSource(t *testing.T) {
 		})
 	}
 }
+
+// Cline v4 and OpenHands send only an SDK's User-Agent to a custom base URL;
+// the opening of their built-in system prompt names them.
+func TestApplyAgentSessionNamesClientFromSystemPrompt(t *testing.T) {
+	const cline = "You are Cline, an AI coding agent. Your primary goal is to assist users."
+	cases := []struct {
+		name   string
+		ua     string
+		body   string
+		client string
+	}{
+		{"chat system message", "ai-sdk-openai-compatible/3.0.4 ai-sdk-provider-utils/5.0.2 node.js/22", `{"messages":[{"role":"system","content":"` + cline + `"},{"role":"user","content":"hi"}]}`, "cline"},
+		{"chat system parts", "ai-sdk-openai-compatible/3.0.4", `{"messages":[{"role":"system","content":[{"type":"text","text":"` + cline + `"}]}]}`, "cline"},
+		{"anthropic system blocks", "ai-sdk-anthropic/3.0.4", `{"system":[{"type":"text","text":"` + cline + `"}],"messages":[]}`, "cline"},
+		{"responses instructions", "OpenAI/Python 2.37.0", `{"instructions":"You are OpenHands agent, a helpful AI assistant","input":"hi"}`, "openhands"},
+		{"responses developer item", "OpenAI/Python 2.37.0", `{"input":[{"role":"developer","content":[{"type":"input_text","text":"` + cline + `"}]}]}`, "cline"},
+		{"a named ua is never renamed", "RooCode/3.53.0", `{"messages":[{"role":"system","content":"` + cline + `"}]}`, "roo-code"},
+		{"prompt elsewhere is ignored", "OpenAI/JS 6.10.0", `{"messages":[{"role":"user","content":"` + cline + `"}]}`, "openai-node"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := sessionContext(map[string]string{"Content-Type": "application/json", "User-Agent": tc.ua})
+			c.Request.Body = io.NopCloser(strings.NewReader(tc.body))
+			applyAgentSession(c, nil, 1)
+			if got := common.GetContextKeyString(c, constant.ContextKeyClientFramework); got != tc.client {
+				t.Errorf("client: got %q want %q", got, tc.client)
+			}
+		})
+	}
+}

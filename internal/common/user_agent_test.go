@@ -48,6 +48,9 @@ func TestParseClient(t *testing.T) {
 		{"copilot byok", "GitHubCopilotChat/0.73.0", "github-copilot", "0.73.0", "node"},
 		{"jan agent", "Jan-Agent/0.7.2 (macos; aarch64)", "jan", "0.7.2", "rust"},
 		{"cline v3", "Cline/3.89.2", "cline", "3.89.2", "node"},
+		{"kode", "kode/2.2.0 (external)", "kode", "2.2.0", "node"},
+		{"codebuff", "ai-sdk/openai-compatible/1.0.25/codebuff ai-sdk/provider-utils/3.0.9 runtime/node.js/22", "codebuff", "", "node"},
+		{"freebuff with own key", "ai-sdk/openai-compatible/1.0.25/freebuff-byok", "codebuff", "", "node"},
 		{"zed", "Zed/0.219.4+stable.119.abc1234 (macos; aarch64)", "zed", "0.219.4", "rust"},
 		{"continue clawrouter", "Continue/IDE", "continue", "", "node"},
 		{"cc switch", "cc-switch/4.0.21", "cc-switch", "4.0.21", "rust"},
@@ -160,6 +163,12 @@ func TestParseClientRequestHeaders(t *testing.T) {
 		{"x-title too short is ignored", ClientHeaders{UserAgent: "curl/8.4.0", XTitle: "x"}, "curl"},
 		{"x-title spelling variants", ClientHeaders{UserAgent: "curl/8.4.0", XTitle: "  cherry_studio "}, "cherry-studio"},
 		{"x-title outside the allowlist is ignored", ClientHeaders{UserAgent: "curl/8.4.0", XTitle: "My App"}, "curl"},
+		{"kode is not claude code despite x-app", ClientHeaders{UserAgent: "kode/2.2.0 (external)", XApp: "cli"}, "kode"},
+		{"openhands x-title over the openai sdk", ClientHeaders{UserAgent: "OpenAI/Python 2.37.0", XTitle: "OpenHands"}, "openhands"},
+		{"n8n platform header", ClientHeaders{UserAgent: "OpenAI/JS 6.10.0", OpenAIPlatform: "org-qkmJQuJ2WnvoIKMr2UJwIJkZ"}, "n8n"},
+		{"another openai-platform value is ignored", ClientHeaders{UserAgent: "OpenAI/JS 6.10.0", OpenAIPlatform: "org-other"}, "openai-node"},
+		{"open webui forwarded user header", ClientHeaders{UserAgent: "Python/3.12 aiohttp/3.11.0", OpenWebUI: "a1b2"}, "open-webui"},
+		{"open webui header never overrides a named ua", ClientHeaders{UserAgent: "RooCode/3.53.0", OpenWebUI: "a1b2"}, "roo-code"},
 		{"originator outside the allowlist is ignored", ClientHeaders{UserAgent: "curl/8.4.0", Originator: "my-agent"}, "curl"},
 		{"nothing", ClientHeaders{UserAgent: "MyCustomClient/1.0"}, ""},
 	}
@@ -225,5 +234,24 @@ func TestClientClassification(t *testing.T) {
 	}
 	if got := ClientDisplayName("my-app"); got != "my-app" {
 		t.Errorf("unknown tags display as themselves, got %q", got)
+	}
+}
+
+func TestClientFromSystemPrompt(t *testing.T) {
+	cases := []struct {
+		prompt    string
+		framework string
+	}{
+		{"You are Cline, an AI coding agent. Your primary goal is to assist users", "cline"},
+		{"\n  You are Cline, a careful and helpful coding agent that works in the background.", "cline"},
+		{"You are OpenHands agent, a helpful AI assistant that can interact with a computer", "openhands"},
+		{"You are a helpful assistant. Mention Cline if asked.", ""},
+		{"you are cline, lowercase is someone else's prompt", ""},
+		{"", ""},
+	}
+	for _, tc := range cases {
+		if got := ClientFromSystemPrompt(tc.prompt); got != tc.framework {
+			t.Errorf("%q: got %q want %q", tc.prompt, got, tc.framework)
+		}
 	}
 }

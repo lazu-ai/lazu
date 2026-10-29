@@ -39,6 +39,10 @@ const AGENTS: Record<string, { mark: string; name: string }> = {
   void: { mark: 'VD', name: 'Void' },
   'openai-agents': { mark: 'AG', name: 'OpenAI Agents SDK' },
   mastra: { mark: 'MA', name: 'Mastra' },
+  kode: { mark: 'KD', name: 'Kode' },
+  codebuff: { mark: 'CD', name: 'Codebuff' },
+  openhands: { mark: 'OH', name: 'OpenHands' },
+  n8n: { mark: 'n8', name: 'n8n' },
   ...Object.assign(
     {},
     ...extensionI18n.map((extension) => extension.clientBadges ?? {}),
