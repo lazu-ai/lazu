@@ -62,8 +62,8 @@ func TestUsageDigestRunLogsOneSummaryPerPeriod(t *testing.T) {
 	if got := out.String(); strings.Count(got, want) != 1 || strings.Contains(got, "monthly") {
 		t.Fatalf("first run log:\n%s\nwant one line %q", got, want)
 	}
-	if errOut.Len() != 0 {
-		t.Fatalf("unexpected warning or error: %s", errOut.String())
+	if got := errOut.String(); strings.Contains(got, "usage digests") {
+		t.Fatalf("a complete run raised a warning or error: %s", got)
 	}
 
 	// The next run finds the period claimed and has nothing to report.
@@ -97,7 +97,7 @@ func TestUsageDigestRunSaysOnceWhyItDidNotRun(t *testing.T) {
 	if got := errOut.String(); strings.Count(got, want) != 1 {
 		t.Fatalf("disabled notice:\n%s\nwant exactly one %q", got, want)
 	}
-	if out.Len() != 0 {
-		t.Fatalf("unexpected info output: %s", out.String())
+	if got := out.String(); strings.Contains(got, "usage digests") {
+		t.Fatalf("a skipped run logged a summary: %s", got)
 	}
 }

@@ -1077,8 +1077,9 @@ func RunUsageDigests(ctx context.Context, now time.Time) error {
 	return nil
 }
 
-// runOneDigest sends, skips or fails one due digest. It returns nil when the
-// period was already claimed (by an earlier run or another instance).
+// runOneDigest sends, skips or fails one due digest. It returns an outcome
+// only for a claimed row: nil when the period was already claimed (by an
+// earlier run or another instance) or when it failed before the claim.
 func runOneDigest(c model.DigestCandidate, setting dto.UserSetting, d dueDigest, monthlyToday bool, now time.Time) (*digestOutcome, error) {
 	_, _, period := DigestPeriods(d.Kind, d.SendDay)
 	key := digestRefKey(d.Kind, c.Id, period)
@@ -1103,7 +1104,9 @@ func runOneDigest(c model.DigestCandidate, setting dto.UserSetting, d dueDigest,
 	}
 	snap, err := BuildDigestSnapshot(c.Id, setting, d.Kind, d.SendDay)
 	if err != nil {
-		return &digestOutcome{Failed: true}, err
+		// Nothing was claimed, so the next run tries again; the caller logs
+		// the error and the summary leaves it out.
+		return nil, err
 	}
 	if snap.Usage.CurrentMissing {
 		return skip(digestSkipIncomplete)
