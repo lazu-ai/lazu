@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   formatStarCount,
   hasSourceStarred,
+  shownStarCount,
   starSource,
   takeSourceStarResultFromLocation,
   type SourceStarOutcome,
@@ -83,7 +84,8 @@ export default function SourceStarButton({
   size = 'md',
 }: Props) {
   const { t } = useTranslation('marketing');
-  const { canStar, url: sourceURL, stars } = usePublishedSource();
+  const { canStar, url: sourceURL, stars: count } = usePublishedSource();
+  const stars = shownStarCount(count);
   const phase = useSyncExternalStore(subscribe, readPhase, readServerPhase);
   const queryClient = useQueryClient();
 

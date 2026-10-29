@@ -403,7 +403,8 @@ names only the App's Starring permission.
 
 The star count beside the button is the repository's public
 `stargazers_count`, read from the GitHub API without credentials and cached
-for ten minutes; a star made through the site is counted at once. The
+for ten minutes; a star made through the site is counted at once. Under
+ten stars the button shows the action alone. The
 backend needs outbound access to `api.github.com` for it.
 Without it the button simply shows no count.
 

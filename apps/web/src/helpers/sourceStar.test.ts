@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   formatStarCount,
   hasSourceStarred,
+  shownStarCount,
   isSourceStarred,
   parseSourceStarResult,
   takeSourceStarResultFromLocation,
@@ -102,5 +103,15 @@ describe('formatStarCount', () => {
     expect(formatStarCount(10_000)).toBe('10k');
     expect(formatStarCount(12_345)).toBe('12.3k');
     expect(formatStarCount(12_399)).toBe('12.3k');
+  });
+});
+
+describe('shownStarCount', () => {
+  it('shows the count only from ten stars up', () => {
+    expect(shownStarCount(null)).toBeNull();
+    expect(shownStarCount(0)).toBeNull();
+    expect(shownStarCount(9)).toBeNull();
+    expect(shownStarCount(10)).toBe(10);
+    expect(shownStarCount(1284)).toBe(1284);
   });
 });
