@@ -17,6 +17,7 @@ import {
   Globe2,
   LogOut,
   Moon,
+  Send,
   Settings,
   Sun,
   Wallet,
@@ -35,6 +36,7 @@ import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitc
 import { useProject } from '../../features/projects/ProjectContext';
 import { API } from '../../helpers/api';
 import {
+  getCommunityPlatform,
   getCommunityURL,
   getDocsBaseURL,
   getSupportEmail,
@@ -148,6 +150,18 @@ const ConsoleTopBar = () => {
   /* The community link exists only when the build names one; support mail
      always has an address (the brand default when the build sets none). */
   const communityHref = getCommunityURL();
+  /* Named after the app it opens when the host says which ("Telegram"), so
+     the reader knows where the click goes; any other link is 社区. */
+  const communityName = getCommunityPlatform(communityHref);
+  const communityLabel =
+    communityName ??
+    t('console.topbar.communityShort', { defaultValue: '社区' });
+  const communityHint = communityName
+    ? t('console.topbar.communityHint', {
+        defaultValue: '加入 {{name}} 交流群',
+        name: communityName,
+      })
+    : t('console.topbar.community', { defaultValue: '加入社区' });
   const supportEmail = getSupportEmail();
   /* An API-key pass has no wallet of its own, and a deployment can switch the
      page off entirely; /console/wallet refuses both. The sidebar and the
@@ -287,6 +301,24 @@ const ConsoleTopBar = () => {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* The community sits in the bar itself, not only in Help: people
+            who want to ask other people rarely think to open a menu called
+            帮助 for it. Absent when the build names no community. */}
+        {communityHref ? (
+          <a
+            aria-label={communityHint}
+            className='console-topbar__tool console-topbar__tool--labelled'
+            data-owns-chrome=''
+            href={communityHref}
+            rel='noopener noreferrer'
+            target='_blank'
+            title={communityHint}
+          >
+            <Send aria-hidden='true' size={15} />
+            <span>{communityLabel}</span>
+          </a>
+        ) : null}
+
         {/* Help is also where the build number lives. A gateway's version
             matters when something is wrong, which is exactly when someone
             opens this menu — it does not need a permanent plate of its own. */}
@@ -329,7 +361,12 @@ const ConsoleTopBar = () => {
                 }
               >
                 <span>
-                  {t('console.topbar.community', { defaultValue: '加入社群' })}
+                  {communityName
+                    ? t('console.topbar.communityNamed', {
+                        defaultValue: '{{name}} 交流群',
+                        name: communityName,
+                      })
+                    : communityHint}
                 </span>
               </DropdownMenuItem>
             ) : null}

@@ -42,3 +42,29 @@ test('报告问题 in the Help menu sends the reader’s words and the page', as
   await expect(page.getByText('已发送。客服会回复到你的邮箱。')).toBeVisible();
   await app.expectNoUnexpectedErrors();
 });
+
+test('a phone reaches 报告问题 through the Help sheet in its top bar', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const app = await setupMockedApp(page);
+
+  await expectRouteReady(page, '/console/personal');
+  await page
+    .locator('.mobile-console-topbar')
+    .getByRole('button', { name: '帮助与支持' })
+    .click();
+
+  const sheet = page.getByRole('dialog', { name: '帮助与支持' });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole('link', { name: /联系支持/ })).toHaveAttribute(
+    'href',
+    /^mailto:/,
+  );
+  await sheet.getByRole('button', { name: '报告问题' }).click();
+
+  await expect(sheet).toBeHidden();
+  const report = page.getByRole('dialog', { name: '报告问题' });
+  await expect(report).toBeVisible();
+  await app.expectNoUnexpectedErrors();
+});

@@ -2250,6 +2250,7 @@ html.dark .vocs_Pre span[style*="--shiki-dark"] {
 }
 
 .dub-sidebar-extras__github,
+.dub-sidebar-extras__community,
 .dub-sidebar-extras__theme,
 .dub-sidebar-extras__lang {
   height: 30px;
@@ -2267,18 +2268,21 @@ html.dark .vocs_Pre span[style*="--shiki-dark"] {
 }
 
 .dub-sidebar-extras__github svg,
+.dub-sidebar-extras__community svg,
 .dub-sidebar-extras__theme svg,
 .dub-sidebar-extras__lang svg {
   width: 15px;
   height: 15px;
 }
 
-/* An anchor in the button row: no link underline. */
-.dub-sidebar-extras__github {
+/* Anchors in the button row: no link underline. */
+.dub-sidebar-extras__github,
+.dub-sidebar-extras__community {
   text-decoration: none;
 }
 
 .dub-sidebar-extras__github:hover,
+.dub-sidebar-extras__community:hover,
 .dub-sidebar-extras__theme:hover,
 .dub-sidebar-extras__lang:hover,
 .dub-sidebar-extras__lang[aria-expanded="true"] {
