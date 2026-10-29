@@ -37,6 +37,10 @@ type sourceStarCountCache struct {
 
 var sourceStarCounts = &sourceStarCountCache{}
 
+// sourceStarCountHTTPClient bounds the GitHub call on its own, as the
+// outbound-connection rule asks, beside the per-refresh context deadline.
+var sourceStarCountHTTPClient = &http.Client{Timeout: sourceStarCountTimeout}
+
 // sourceStarCount is the cached count for the published source, and false
 // when it is unknown: the source is not on GitHub, or GitHub has not
 // answered yet. A stale count is served while one request refreshes it; with
@@ -117,7 +121,7 @@ func fetchGitHubStarCount(ctx context.Context, owner string, repo string) (int, 
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "Lazu")
-	res, err := http.DefaultClient.Do(req)
+	res, err := sourceStarCountHTTPClient.Do(req)
 	if err != nil {
 		return 0, errors.New("github api request failed")
 	}
