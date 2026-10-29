@@ -1,9 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePrerender } from '../../context/Prerender';
-import { API } from '../../helpers/api';
 import {
   hasSourceStarred,
   isSourceStarred,
@@ -11,35 +8,9 @@ import {
   takeSourceStarResultFromLocation,
   type SourceStarOutcome,
 } from '../../helpers/sourceStar';
+import { usePublishedSource } from '../../hooks/common/usePublishedSource';
 
-type Props = {
-  /** The repository, for the plain link and the fallback after a failure. */
-  sourceURL: string;
-  /** Whether the deployment can star on the visitor's behalf, when the page
-   *  already knows (the console's /api/status says); otherwise asked. */
-  enabled?: boolean;
-  className?: string;
-};
-
-/* Public pages do not load the console's status, so they ask the one
-   question they have. The answer is cacheable and absent while prerendering,
-   when the page carries the plain link. */
-const useSourceStarEnabled = (known: boolean | undefined) => {
-  const { route: prerenderRoute } = usePrerender();
-  const probe = useQuery({
-    enabled: known === undefined && !prerenderRoute,
-    queryKey: ['source-star'],
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const response = await API.get('/api/source/star', {
-        skipErrorHandler: true,
-      } as never);
-      return response.data?.data?.enabled === true;
-    },
-  });
-  return known ?? probe.data === true;
-};
+type Props = { className?: string };
 
 type Phase = 'idle' | 'pending' | 'starred' | 'already' | 'failed';
 
@@ -55,13 +26,9 @@ const phaseFor = (outcome: SourceStarOutcome | null): Phase => {
  * can star for the visitor, then a button that asks GitHub once and reports
  * back without leaving the page. The prerendered page carries the link.
  */
-export default function SourceStarButton({
-  sourceURL,
-  enabled: known,
-  className = '',
-}: Props) {
+export default function SourceStarButton({ className = '' }: Props) {
   const { t } = useTranslation('marketing');
-  const enabled = useSourceStarEnabled(known);
+  const { canStar: enabled, url: sourceURL } = usePublishedSource();
   const [phase, setPhase] = useState<Phase>('idle');
 
   /* After mount only: the prerender and the first client render agree on

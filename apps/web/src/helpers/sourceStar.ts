@@ -6,6 +6,8 @@
 // the outcome back here and closes. When the popup is blocked the whole
 // page makes the trip instead and comes back with ?star=<result>.
 
+import { buildAPIURL } from './apiUrl';
+
 const SOURCE_STAR_START_PATH = '/api/source/star/start';
 export const SOURCE_STAR_MESSAGE_TYPE = 'lazu:source-star';
 
@@ -51,10 +53,15 @@ export const hasSourceStarred = () => {
 /** The page's own path, where the flow returns when it has no popup. */
 const currentPagePath = () => window.location.pathname + window.location.search;
 
+/* The start route lives on the API, which a deployment may serve from
+   another origin than the pages (VITE_REACT_APP_SERVER_URL); the return
+   path stays on this site, where the API sends the browser back. */
 const sourceStarStartURL = (popup: boolean) =>
-  `${SOURCE_STAR_START_PATH}?return=${encodeURIComponent(currentPagePath())}${
-    popup ? '&popup=1' : ''
-  }`;
+  buildAPIURL(
+    `${SOURCE_STAR_START_PATH}?return=${encodeURIComponent(currentPagePath())}${
+      popup ? '&popup=1' : ''
+    }`,
+  );
 
 const POPUP_WIDTH = 600;
 const POPUP_HEIGHT = 720;

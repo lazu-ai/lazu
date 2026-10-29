@@ -18,7 +18,7 @@ import Reveal from '../../../components/marketing/Reveal';
 import SourceStarButton from '../../../components/marketing/SourceStarButton';
 import { useStatus } from '../../../context/Status';
 import { useActualTheme } from '../../../context/Theme';
-import { getDocsBaseURL, getSourceURL } from '../../../helpers/brandUrls';
+import { getDocsBaseURL } from '../../../helpers/brandUrls';
 import '../../../styles/fonts.css';
 import '../lazu-landing.css';
 
@@ -255,7 +255,6 @@ const LazuLanding = () => {
       getDocsBaseURL(),
     [statusState],
   );
-  const sourceLink = getSourceURL(statusState?.status?.source_url);
 
   const barWidth = (pct: number) => (ready ? `${pct}%` : '0%');
   const balance = useCountUp(1240, 2, ready);
@@ -694,11 +693,7 @@ const LazuLanding = () => {
                 </a>
               </Reveal>
               <Reveal as='p' className='lazu-landing__final-oss'>
-                {t('landing.final.openSource')}{' '}
-                <SourceStarButton
-                  enabled={statusState?.status?.source_star}
-                  sourceURL={sourceLink}
-                />
+                {t('landing.final.openSource')} <SourceStarButton />
               </Reveal>
             </div>
           </section>

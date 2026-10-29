@@ -283,5 +283,8 @@ func TestSourceStarStatusIsPublicAndCacheable(t *testing.T) {
 		if !strings.Contains(recorder.Body.String(), want) {
 			t.Fatalf("expected %s in %s", want, recorder.Body.String())
 		}
+		if !strings.Contains(recorder.Body.String(), `"source_url":"https://github.com/example-org/example"`) {
+			t.Fatalf("expected the published source in %s", recorder.Body.String())
+		}
 	}
 }

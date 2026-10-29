@@ -8,13 +8,14 @@ import { useStatus } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
 import { useSession } from '../../context/User';
 import { webExtensions } from '../../extensions';
-import { getDocsHomeURL, getSourceURL } from '../../helpers/brandUrls';
+import { getDocsHomeURL } from '../../helpers/brandUrls';
 import {
   isMarketingBarePath,
   localizedMarketingPath,
   splitMarketingPath,
   type MarketingLocale,
 } from '../../helpers/marketingLocale';
+import { usePublishedSource } from '../../hooks/common/usePublishedSource';
 // Reuse the existing landing nav styles so visual parity is preserved
 // across every public route without forking a
 // copy of the CSS. The `.lazu-public-header` override below this
@@ -83,7 +84,7 @@ const PublicHeader = ({ pathnameOverride }: PublicHeaderProps = {}) => {
   );
   // The repository: a low-frequency global control beside language and
   // theme (public-web-system #10), and a row of the sheet menu on phones.
-  const sourceLink = getSourceURL(statusState?.status?.source_url);
+  const sourceLink = usePublishedSource().url;
   // /models (and pages extensions add) are rendered by the API, not by this
   // SPA, so they are plain document links. The section they own is marked
   // for the neutral active fill.

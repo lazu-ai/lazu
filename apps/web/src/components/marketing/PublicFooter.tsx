@@ -2,13 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import './public-footer.css';
 import ThemedBrandLogo from './ThemedBrandLogo';
-import { useStatus } from '../../context/Status';
 import { webExtensions } from '../../extensions';
 import {
   getCommunityURL,
   getDocsHomeURL,
   getDocsURL,
-  getSourceURL,
   getSupportEmail,
 } from '../../helpers/brandUrls';
 import {
@@ -17,6 +15,7 @@ import {
   splitMarketingPath,
   type MarketingLocale,
 } from '../../helpers/marketingLocale';
+import { usePublishedSource } from '../../hooks/common/usePublishedSource';
 import { UPSTREAM_NOTICE, UPSTREAM_URL } from '../../helpers/upstream';
 
 type FooterItem = {
@@ -45,7 +44,6 @@ type PublicFooterProps = {
 const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   const { t, i18n } = useTranslation('marketing');
   const location = useLocation();
-  const statusState = useStatus();
   const split = splitMarketingPath(pathnameOverride ?? location.pathname);
   const { barePath } = split;
   // Marketing pages and the API-rendered sections carry their language in
@@ -59,7 +57,7 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   const at = (bare: string) => localizedMarketingPath(bare, locale);
   const supportEmail = getSupportEmail();
   const communityURL = getCommunityURL();
-  const sourceURL = getSourceURL(statusState?.status?.source_url);
+  const sourceURL = usePublishedSource().url;
 
   const columns: { key: string; title: string; items: FooterItem[] }[] = [
     {
