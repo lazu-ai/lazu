@@ -17,6 +17,7 @@ const APP_PATTERNS = [
   '/keyusage',
   '/user/reset',
   '/auth/oidc/callback',
+  '/auth/source-star',
   '/payment/success',
   '/payment/fail',
   '/forbidden',

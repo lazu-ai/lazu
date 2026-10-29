@@ -78,7 +78,8 @@ export const postLoginDestination = (
   if (
     within('/login') ||
     within('/forbidden') ||
-    within('/auth/oidc/callback')
+    within('/auth/oidc/callback') ||
+    within('/auth/source-star')
   ) {
     return DEFAULT_AUTH_DESTINATION;
   }

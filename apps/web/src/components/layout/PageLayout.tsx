@@ -73,6 +73,7 @@ const AUTH_SHELL_ROUTES = [
   '/reset',
   '/user/reset',
   '/auth/oidc/callback',
+  '/auth/source-star',
 ];
 
 const AUTH_SHELL_OWNED_CONTROLS_ROUTES = [
@@ -82,6 +83,7 @@ const AUTH_SHELL_OWNED_CONTROLS_ROUTES = [
   '/reset',
   '/user/reset',
   '/auth/oidc/callback',
+  '/auth/source-star',
 ];
 
 const PUBLIC_NO_FOOTER_ROUTES = ['/', '/quickstart'];

@@ -10,6 +10,7 @@ type QueryKeyPart =
 
 export const queryKeys = {
   status: ['status'] as const,
+  publishedSource: ['published-source'] as const,
   user: ['user'] as const,
   dashboard: {
     root: ['dashboard'] as const,

@@ -141,6 +141,8 @@ email_notifications:
 #   # AGPL-3.0 asks a network service to offer its source to its users; the
 #   # console's Help menu links here.
 #   source_url: "https://github.com/your-org/your-fork"
+#   # A GitHub repository here can also be starred from the site: see
+#   # GITHUB_STAR_CLIENT_ID in docs/DEPLOYMENT.md.
 
 # -----------------------------------------------------------
 # Telegram (optional)

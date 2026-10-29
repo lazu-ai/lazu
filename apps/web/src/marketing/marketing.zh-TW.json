@@ -188,7 +188,13 @@
       "title": "先把這個月的額度分出去",
       "body": "兩分鐘註冊,首次儲值送 10%。",
       "ctaPrimary": "免費註冊",
-      "ctaSecondary": "看文件"
+      "ctaSecondary": "看文件",
+      "openSource": "Lazu 以 AGPL-3.0 開源。",
+      "openSourceLink": "到 GitHub 點個 Star",
+      "starPending": "等待 GitHub 授權…",
+      "starDone": "已點 Star，謝謝！",
+      "starAlready": "你已經點過 Star，謝謝！",
+      "starFailed": "沒能點上，去 GitHub 看看"
     }
   },
   "about": {
@@ -270,7 +276,7 @@
     "items": [
       {
         "q": "可以自行部署 Lazu 嗎?",
-        "a": "Lazu 目前以 lazu.ai 託管服務的形式提供。如果你需要獨立部署或私有化部署,請聯絡我們,我們會與你討論可行方案。"
+        "a": "可以。Lazu 以 AGPL-3.0 開源,閘道、主控台和文件站的程式碼都在 GitHub (github.com/lazu-ai/lazu),附 Docker Compose 快速啟動。lazu.ai 是同一團隊營運的託管服務;需要託管式的獨立部署,請聯絡我們。"
       },
       {
         "q": "支援多少個模型？",

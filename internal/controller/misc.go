@@ -55,6 +55,7 @@ func GetStatus(c *gin.Context) {
 		"server_address":           system_setting.ServerAddress,
 		"docs_link":                operation_setting.GetGeneralSetting().DocsLink,
 		"source_url":               common.SiteSourceURL(),
+		"source_star":              sourceStarEnabled(),
 		"micro_usd_per_usd":        billing.MicroUSDPerUSD,
 		"quota_display_type":       operation_setting.GetQuotaDisplayType(),
 		"enable_batch_update":      false,

@@ -17,11 +17,11 @@ The bundled stack builds from source. To run published images instead, use
 `ghcr.io/lazu-ai/lazu/api`, `ghcr.io/lazu-ai/lazu/frontend` and
 `ghcr.io/lazu-ai/lazu/docs` (linux/amd64, public):
 
-| Tag | Points at |
-| --- | --- |
-| `vX.Y.Z` | A release. The API reports this version in `/api/status`. |
-| `latest` | The newest stable release. |
-| `main` | The newest build of each image from the main branch. |
+| Tag            | Points at                                                                  |
+| -------------- | -------------------------------------------------------------------------- |
+| `vX.Y.Z`       | A release. The API reports this version in `/api/status`.                  |
+| `latest`       | The newest stable release.                                                 |
+| `main`         | The newest build of each image from the main branch.                       |
 | `<commit sha>` | That main-branch commit; unchanged images are aliases of their last build. |
 
 `api` also serves the background worker (`/worker`) and the schema tool
@@ -33,14 +33,14 @@ deliberately: a release can raise the database schema version.
 A deployment other people use needs these set, in `.env` or your secret
 store, with the integrations you enable:
 
-| Purpose | Required variables |
-| --- | --- |
-| Database and Redis | `DATABASE_URL`, `REDIS_PASSWORD`, `POSTGRES_PASSWORD` |
-| Runtime secrets | `SESSION_SECRET`, `CRYPTO_SECRET` |
-| Root account | `ROOT_USERNAME`, `ROOT_PASSWORD` |
-| Administrative email | `ADMIN_EMAIL`, `RESEND_API_KEY` |
-| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` |
-| Object storage | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` |
+| Purpose              | Required variables                                                     |
+| -------------------- | ---------------------------------------------------------------------- |
+| Database and Redis   | `DATABASE_URL`, `REDIS_PASSWORD`, `POSTGRES_PASSWORD`                  |
+| Runtime secrets      | `SESSION_SECRET`, `CRYPTO_SECRET`                                      |
+| Root account         | `ROOT_USERNAME`, `ROOT_PASSWORD`                                       |
+| Administrative email | `ADMIN_EMAIL`, `RESEND_API_KEY`                                        |
+| Stripe               | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`        |
+| Object storage       | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` |
 
 Keep runtime secrets strong and stable when restarting or moving the database.
 Root credentials bootstrap a new root account and sync configured values at
@@ -52,12 +52,12 @@ them empty and the feature stays off.
 
 ## Optional integration settings
 
-| Capability | Configuration |
-| --- | --- |
-| SMTP transport | `SMTP_ACCOUNT`, `SMTP_TOKEN` and host settings for the selected mail transport |
-| Telegram alerts, business events and answer bot | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`, `TELEGRAM_EVENTS_CHAT`, `TELEGRAM_EVENTS_TIMEZONE`, `TELEGRAM_UPDATES`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ANSWER_MODEL`, `TELEGRAM_ANSWER_API_KEY`, `TELEGRAM_ANSWER_CHATS`; see [Telegram](#telegram) |
-| Separate browser origins | `FRONTEND_BASE_URL`, and exact `CORS_ALLOW_ORIGINS` where needed; see the sign-in guidance below |
-| Cloudflare edge purge on deploy | `CF_API_TOKEN` (a token scoped to Zone → Cache Purge for the site's zone) and `CF_ZONE_ID`; see below |
+| Capability                                          | Configuration                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SMTP transport                                      | `SMTP_ACCOUNT`, `SMTP_TOKEN` and host settings for the selected mail transport                                                                                                                                                                                                        |
+| Telegram alerts, business events and answer bot     | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`, `TELEGRAM_EVENTS_CHAT`, `TELEGRAM_EVENTS_TIMEZONE`, `TELEGRAM_UPDATES`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ANSWER_MODEL`, `TELEGRAM_ANSWER_API_KEY`, `TELEGRAM_ANSWER_CHATS`; see [Telegram](#telegram)                                  |
+| Separate browser origins                            | `FRONTEND_BASE_URL`, and exact `CORS_ALLOW_ORIGINS` where needed; see the sign-in guidance below                                                                                                                                                                                      |
+| Cloudflare edge purge on deploy                     | `CF_API_TOKEN` (a token scoped to Zone → Cache Purge for the site's zone) and `CF_ZONE_ID`; see below                                                                                                                                                                                 |
 | Support address and community link on the web pages | `VITE_BRAND_SUPPORT_EMAIL`, `VITE_BRAND_COMMUNITY_URL`: build arguments of the frontend image (`apps/web/Dockerfile`), because the public pages are prerendered. The community link appears in the public footer, the console Help menu and the Organization schema; empty shows none |
 
 Starting containers does not verify payment, email or object storage workflows.
@@ -157,14 +157,14 @@ only accepts bytes, the gateway downloads the file itself. That download is
 governed by the `fetch_setting.*` options (stored in the `option` table and
 applied without a restart):
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `fetch_setting.enable_ssrf_protection` | `true` | Apply the policy below. Switching it off is a deliberate choice to dial anything. |
-| `fetch_setting.allowed_ports` | `["80","443","8080","8443"]` | Ports the gateway fetches from. |
-| `fetch_setting.allow_private_ip` | `false` | Allow every private address. Prefer `private_allow_list`. |
-| `fetch_setting.private_allow_list` | `[]` | Private sources fetched on purpose: hostnames (`minio.internal`, `*.lan.example`), single IPs or CIDRs (`10.0.5.0/24`), as a JSON array. |
-| `fetch_setting.domain_list`, `domain_filter_mode` | `[]`, deny-list | Optional host allow/deny list. |
-| `fetch_setting.ip_list`, `ip_filter_mode`, `apply_ip_filter_for_domain` | `[]`, deny-list, `false` | Optional address allow/deny list. |
+| Option                                                                  | Default                      | Meaning                                                                                                                                  |
+| ----------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `fetch_setting.enable_ssrf_protection`                                  | `true`                       | Apply the policy below. Switching it off is a deliberate choice to dial anything.                                                        |
+| `fetch_setting.allowed_ports`                                           | `["80","443","8080","8443"]` | Ports the gateway fetches from.                                                                                                          |
+| `fetch_setting.allow_private_ip`                                        | `false`                      | Allow every private address. Prefer `private_allow_list`.                                                                                |
+| `fetch_setting.private_allow_list`                                      | `[]`                         | Private sources fetched on purpose: hostnames (`minio.internal`, `*.lan.example`), single IPs or CIDRs (`10.0.5.0/24`), as a JSON array. |
+| `fetch_setting.domain_list`, `domain_filter_mode`                       | `[]`, deny-list              | Optional host allow/deny list.                                                                                                           |
+| `fetch_setting.ip_list`, `ip_filter_mode`, `apply_ip_filter_for_domain` | `[]`, deny-list, `false`     | Optional address allow/deny list.                                                                                                        |
 
 With the policy on, a URL is refused before any connection when its scheme
 is not http or https, its port is not allowed, or its host is, or resolves
@@ -225,7 +225,7 @@ every time. Console, sign-in, payment and API routes are never cached.
    (`/`, `/faq`, `/about`, `/privacy`, `/terms`, `/llms.txt`, anything under
    `/zh/`, `/zh-TW/`, `/ja/`, `/models`, `/blog` or `/docs`, and `.md`
    files). Set it to **Eligible for cache**, with **Edge TTL** set to
-   *Use cache-control header if present, bypass cache if not*.
+   _Use cache-control header if present, bypass cache if not_.
 
 Enable the rule only after step 1, or a deploy can leave old pages at the
 edge for up to five minutes.
@@ -264,11 +264,11 @@ compatible dataset provider, such as the
 [model metadata dataset](https://github.com/basellm/llm-metadata), and use its
 published model and vendor JSON endpoints.
 
-| Variable | Required for | Value |
-| --- | --- | --- |
-| `MODEL_METADATA_MODELS_URL` | Default preview and sync | Complete model JSON endpoint URL |
-| `MODEL_METADATA_VENDORS_URL` | Default preview and sync | Complete vendor JSON endpoint URL |
-| `MODEL_METADATA_I18N_MODELS_URL_TEMPLATE` | Localized preview and sync | Model URL template containing `{locale}` |
+| Variable                                   | Required for               | Value                                     |
+| ------------------------------------------ | -------------------------- | ----------------------------------------- |
+| `MODEL_METADATA_MODELS_URL`                | Default preview and sync   | Complete model JSON endpoint URL          |
+| `MODEL_METADATA_VENDORS_URL`               | Default preview and sync   | Complete vendor JSON endpoint URL         |
+| `MODEL_METADATA_I18N_MODELS_URL_TEMPLATE`  | Localized preview and sync | Model URL template containing `{locale}`  |
 | `MODEL_METADATA_I18N_VENDORS_URL_TEMPLATE` | Localized preview and sync | Vendor URL template containing `{locale}` |
 
 The URLs must use HTTP or HTTPS. Localized sync supports `en`, `zh` and `ja`;
@@ -370,6 +370,35 @@ user id as the external subject, and links an existing Lazu account only when
 GitHub returns a verified email address. Google sign-in verifies the signed
 OIDC ID token and nonce before using its subject and verified email.
 
+### Starring the published source from the site
+
+With `site.source_url` pointing at a GitHub repository, the landing page and
+the console's Help menu can star it for a visitor without leaving the site.
+A web page cannot star on its own: the visitor authorizes a GitHub App once,
+in a popup, and the backend stars the repository with the token it is handed.
+The token is used for that one request and never stored. This is a separate
+App from GitHub sign-in on purpose, so sign-in keeps asking for `user:email`
+and nothing else.
+
+Register a GitHub App (Settings → Developer settings → GitHub Apps) with:
+
+- **Account permissions → Starring: Read and write**, and no other permission;
+- **Request user authorization (OAuth) during installation** checked;
+- Callback URL `https://<console-domain>/api/source/star/callback`;
+- Webhook unchecked (the App receives no events).
+
+Then set:
+
+```bash
+GITHUB_STAR_CLIENT_ID=<client-id>
+GITHUB_STAR_CLIENT_SECRET=<client-secret>
+GITHUB_STAR_REDIRECT_URL=https://<console-domain>/api/source/star/callback
+```
+
+The button appears once both the id and the secret are set and
+`site.source_url` is a `https://github.com/<owner>/<repository>` link. The
+authorization page GitHub shows names only the App's Starring permission.
+
 Also set `FRONTEND_BASE_URL=https://<console-domain>` so browser-facing links
 and completed callbacks return to the console. If a redirect URL is omitted,
 Lazu derives it only for localhost or requests received through a trusted
@@ -380,9 +409,13 @@ registrable site instead of using the console's `/api` proxy, build the web app
 with `VITE_REACT_APP_SERVER_URL` set to that API origin and configure
 `SESSION_COOKIE_SAME_SITE=none` together with `SESSION_COOKIE_SECURE=true`.
 Set `CORS_ALLOW_ORIGINS=https://<console-domain>` so the API allows that exact
-console origin with credentials. Do not use this mode merely for subdomains;
-the console-origin callback above is simpler and keeps the default
-`SameSite=Strict` protection.
+console origin with credentials. In that mode the star callback moves with
+the API too: register `https://<api-origin>/api/source/star/callback` on the
+GitHub App and in `GITHUB_STAR_REDIRECT_URL`, because the start route sets
+its state cookie on the API origin and the callback must read it back there;
+the popup still returns to `FRONTEND_BASE_URL` afterwards. Do not use this
+mode merely for subdomains; the console-origin callback above is simpler and
+keeps the default `SameSite=Strict` protection.
 
 The hosted production Compose file defaults this allowlist to
 `https://lazu.ai`, which covers the console and the docs workbench (served at
@@ -491,26 +524,26 @@ These variables keep the names they had before Lazu. They stay as they are,
 because renaming them would break existing deployments. Each takes effect at
 startup.
 
-| Variable | Default | Effect |
-| --- | --- | --- |
-| `REDIS_CONN_STRING` | unset | Redis URL. Unset, Redis is off. |
-| `SYNC_FREQUENCY` | `60` | Seconds between reloads of options, channels, route health and the catalog from the database into memory. |
-| `MEMORY_CACHE_ENABLED` | `false` | Keeps channels in memory. Redis or PostgreSQL turns it on regardless. |
-| `CHANNEL_UPDATE_FREQUENCY` | unset | Minutes between automatic channel balance refreshes. Unset, they do not run. |
-| `CHANNEL_TEST_FREQUENCY` | unset | Minutes between automatic channel tests. A positive value overrides the console's monitor setting and turns the tests on. |
-| `RELAY_TIMEOUT` | `600` | Seconds an outbound relay or webhook request may take. `0` or less means the default. |
-| `STREAMING_TIMEOUT` | `900` | Seconds a stream may go without a line from the upstream before it is ended. |
-| `FORCE_STREAM_OPTION` | `true` | Adds `stream_options.include_usage` to streamed Chat requests on channels that support it, so the upstream reports usage. |
-| `GET_MEDIA_TOKEN` | `true` | Estimates prompt tokens locally when a streamed response carries no usage. Off, such a response bills no prompt tokens. |
-| `GET_MEDIA_TOKEN_NOT_STREAM` | `true` | The same estimate for non-streamed responses. It applies only while `GET_MEDIA_TOKEN` is on. |
-| `GENERATE_DEFAULT_TOKEN` | `false` | Creates an API key for each new user. |
-| `NOTIFY_LIMIT_COUNT` | `2` | Notifications of one kind a user can receive per window. |
-| `NOTIFICATION_LIMIT_DURATION_MINUTE` | `10` | Length of that window, in minutes. |
-| `ERROR_LOG_ENABLED` | `false` | Writes relay errors to `ERROR_LOG_PATH`, or to `errors.jsonl` in the export directory. |
-| `MAX_FILE_DOWNLOAD_MB` | `20` | Largest file or image the gateway fetches from a URL in a request. |
-| `MAX_VIDEO_DOWNLOAD_MB` | `200` | Largest generated video fetched from a provider. |
-| `SQLITE_PATH` | `lazu.db?_busy_timeout=30000` | SQLite file for local runs and tests. Deployments use `DATABASE_URL`. |
-| `ENABLE_PPROF` | `false` | Serves Go pprof on `127.0.0.1:8005`, reachable from inside the container only. |
+| Variable                             | Default                       | Effect                                                                                                                    |
+| ------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `REDIS_CONN_STRING`                  | unset                         | Redis URL. Unset, Redis is off.                                                                                           |
+| `SYNC_FREQUENCY`                     | `60`                          | Seconds between reloads of options, channels, route health and the catalog from the database into memory.                 |
+| `MEMORY_CACHE_ENABLED`               | `false`                       | Keeps channels in memory. Redis or PostgreSQL turns it on regardless.                                                     |
+| `CHANNEL_UPDATE_FREQUENCY`           | unset                         | Minutes between automatic channel balance refreshes. Unset, they do not run.                                              |
+| `CHANNEL_TEST_FREQUENCY`             | unset                         | Minutes between automatic channel tests. A positive value overrides the console's monitor setting and turns the tests on. |
+| `RELAY_TIMEOUT`                      | `600`                         | Seconds an outbound relay or webhook request may take. `0` or less means the default.                                     |
+| `STREAMING_TIMEOUT`                  | `900`                         | Seconds a stream may go without a line from the upstream before it is ended.                                              |
+| `FORCE_STREAM_OPTION`                | `true`                        | Adds `stream_options.include_usage` to streamed Chat requests on channels that support it, so the upstream reports usage. |
+| `GET_MEDIA_TOKEN`                    | `true`                        | Estimates prompt tokens locally when a streamed response carries no usage. Off, such a response bills no prompt tokens.   |
+| `GET_MEDIA_TOKEN_NOT_STREAM`         | `true`                        | The same estimate for non-streamed responses. It applies only while `GET_MEDIA_TOKEN` is on.                              |
+| `GENERATE_DEFAULT_TOKEN`             | `false`                       | Creates an API key for each new user.                                                                                     |
+| `NOTIFY_LIMIT_COUNT`                 | `2`                           | Notifications of one kind a user can receive per window.                                                                  |
+| `NOTIFICATION_LIMIT_DURATION_MINUTE` | `10`                          | Length of that window, in minutes.                                                                                        |
+| `ERROR_LOG_ENABLED`                  | `false`                       | Writes relay errors to `ERROR_LOG_PATH`, or to `errors.jsonl` in the export directory.                                    |
+| `MAX_FILE_DOWNLOAD_MB`               | `20`                          | Largest file or image the gateway fetches from a URL in a request.                                                        |
+| `MAX_VIDEO_DOWNLOAD_MB`              | `200`                         | Largest generated video fetched from a provider.                                                                          |
+| `SQLITE_PATH`                        | `lazu.db?_busy_timeout=30000` | SQLite file for local runs and tests. Deployments use `DATABASE_URL`.                                                     |
+| `ENABLE_PPROF`                       | `false`                       | Serves Go pprof on `127.0.0.1:8005`, reachable from inside the container only.                                            |
 
 ## Changing Operational Params
 
@@ -524,13 +557,13 @@ configured away from its default, `lazu-backend` logs a line starting with
 date. In code the setting carries `// Deprecated: delete after <date>`; CI
 fails once that date has passed, so the removal is not forgotten.
 
-| Setting | Configured as | After removal | Replacement | Removed after |
-| --- | --- | --- | --- | --- |
-| `LogConsumeEnabled` | `false` | Consume logs are always written. The usage pages, usage digests and route health read them. | Bound storage with `LOG_RETENTION_DAYS` (Retention And Disk Maintenance). | 2027-01-24 |
-| `WorkerUrl`, `WorkerValidKey`, `WorkerAllowHttpImageRequestEnabled` | `WorkerUrl` set | Media downloads and webhooks connect directly. | The media fetch policy (Fetching client-supplied media URLs) checks each address. | 2027-01-24 |
-| `general_setting.quota_display_type` | `TOKENS` | Amounts in log text read in USD, as the console already shows them. | None needed. | 2027-01-24 |
-| `DataExportEnabled`, `DataExportInterval` | `DataExportEnabled` on | The hourly `usage_data` table stops being written, then goes, with `GET /api/data/` and `GET /api/data/self`. The dashboard and usage pages do not read it. | Export the table first if you keep it: `pg_dump --table=usage_data`. | 2027-02-01 |
-| `SETTLEMENT_OUTBOX_ENABLED` (environment) | `true` | The settlement outbox and its reconciler are gone. Failed settlements are still recovered by the failure reconciler (`SETTLEMENT_FAILURE_RECONCILER_ENABLED`). | Keep it on until the outbox holds no unresolved rows, then unset it. | 2027-01-24 |
+| Setting                                                             | Configured as          | After removal                                                                                                                                                  | Replacement                                                                       | Removed after |
+| ------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------- |
+| `LogConsumeEnabled`                                                 | `false`                | Consume logs are always written. The usage pages, usage digests and route health read them.                                                                    | Bound storage with `LOG_RETENTION_DAYS` (Retention And Disk Maintenance).         | 2027-01-24    |
+| `WorkerUrl`, `WorkerValidKey`, `WorkerAllowHttpImageRequestEnabled` | `WorkerUrl` set        | Media downloads and webhooks connect directly.                                                                                                                 | The media fetch policy (Fetching client-supplied media URLs) checks each address. | 2027-01-24    |
+| `general_setting.quota_display_type`                                | `TOKENS`               | Amounts in log text read in USD, as the console already shows them.                                                                                            | None needed.                                                                      | 2027-01-24    |
+| `DataExportEnabled`, `DataExportInterval`                           | `DataExportEnabled` on | The hourly `usage_data` table stops being written, then goes, with `GET /api/data/` and `GET /api/data/self`. The dashboard and usage pages do not read it.    | Export the table first if you keep it: `pg_dump --table=usage_data`.              | 2027-02-01    |
+| `SETTLEMENT_OUTBOX_ENABLED` (environment)                           | `true`                 | The settlement outbox and its reconciler are gone. Failed settlements are still recovered by the failure reconciler (`SETTLEMENT_FAILURE_RECONCILER_ENABLED`). | Keep it on until the outbox holds no unresolved rows, then unset it.              | 2027-01-24    |
 
 If you rely on one of these, open an issue before the removal date with what
 it does for you.

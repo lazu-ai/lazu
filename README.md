@@ -1,10 +1,15 @@
 # Lazu
 
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/lazu-ai/lazu?style=social)](https://github.com/lazu-ai/lazu/stargazers)
+
 **Where agents get their models.** One key for the text, image and video models your agents call: Claude, GPT, Gemini and DeepSeek for code, GPT Image for images, Seedance for video.
 
 > **👤 Looking to use Lazu?** → **[lazu.ai/docs](https://lazu.ai/docs)** for the user-facing API documentation (Quickstart, Pricing, Endpoints, Examples).
 >
 > **🛠 Working on Lazu itself?** → keep reading, you're in the right place.
+>
+> **⭐ Found it useful?** A star on this repository helps other teams find it.
 
 ---
 

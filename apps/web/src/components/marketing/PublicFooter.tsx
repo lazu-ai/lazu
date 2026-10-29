@@ -16,6 +16,7 @@ import {
   type MarketingLocale,
 } from '../../helpers/marketingLocale';
 import { UPSTREAM_NOTICE, UPSTREAM_URL } from '../../helpers/upstream';
+import { usePublishedSource } from '../../hooks/common/usePublishedSource';
 
 type FooterItem = {
   href: string;
@@ -56,6 +57,7 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   const at = (bare: string) => localizedMarketingPath(bare, locale);
   const supportEmail = getSupportEmail();
   const communityURL = getCommunityURL();
+  const sourceURL = usePublishedSource().url;
 
   const columns: { key: string; title: string; items: FooterItem[] }[] = [
     {
@@ -74,6 +76,7 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
         { href: getDocsHomeURL(locale), label: t('footer.docs') },
         { href: getDocsURL('api-reference'), label: t('footer.apiReference') },
         { href: getDocsURL('changelog'), label: t('footer.changelog') },
+        { href: sourceURL, label: t('landing.nav.github') },
         { href: '/llms.txt', label: 'llms.txt', mono: true },
         { href: '/models.json', label: '/models.json', mono: true },
       ],

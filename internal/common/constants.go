@@ -158,6 +158,14 @@ var GitHubOAuthClientID = ""
 var GitHubOAuthClientSecret = ""
 var GitHubOAuthRedirectURL = ""
 
+// A GitHub App whose only user permission is Starring (write); set, it lets a
+// visitor star the published source (site.source_url) from the site after one
+// authorization. Separate from GitHub sign-in so sign-in keeps asking for
+// nothing beyond user:email.
+var GitHubStarClientID = ""
+var GitHubStarClientSecret = ""
+var GitHubStarRedirectURL = ""
+
 var TrustedProxyCIDRs = "127.0.0.1/8,::1/128"
 
 const DefaultRelayTimeoutSeconds = 600

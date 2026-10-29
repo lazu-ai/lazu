@@ -10,6 +10,7 @@ services:
       args:
         VITE_BRAND_SUPPORT_EMAIL: ${VITE_BRAND_SUPPORT_EMAIL:-}
         VITE_BRAND_COMMUNITY_URL: ${VITE_BRAND_COMMUNITY_URL:-}
+        VITE_BRAND_SOURCE_URL: ${VITE_BRAND_SOURCE_URL:-}
     image: lazu-frontend:local
     container_name: lazu-frontend
     restart: always

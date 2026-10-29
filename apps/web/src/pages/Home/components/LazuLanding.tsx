@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom';
 import { useLandingFacts } from './useLandingFacts';
 import BrandLogo from '../../../brand/BrandLogo';
 import Reveal from '../../../components/marketing/Reveal';
+import SourceStarButton from '../../../components/marketing/SourceStarButton';
 import { useStatus } from '../../../context/Status';
 import { useActualTheme } from '../../../context/Theme';
 import { getDocsBaseURL } from '../../../helpers/brandUrls';
@@ -690,6 +691,9 @@ const LazuLanding = () => {
                 >
                   {t('landing.final.ctaSecondary')}
                 </a>
+              </Reveal>
+              <Reveal as='p' className='lazu-landing__final-oss'>
+                {t('landing.final.openSource')} <SourceStarButton />
               </Reveal>
             </div>
           </section>

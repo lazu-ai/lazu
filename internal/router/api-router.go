@@ -68,6 +68,12 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/auth/email/verify", middleware.LoginRateLimit(), controller.VerifyEmailAuth)
 		apiRouter.GET("/auth/oauth/:provider/login", middleware.LoginRateLimit(), controller.SocialOAuthLogin)
 		apiRouter.GET("/auth/oauth/:provider/callback", middleware.LoginRateLimit(), controller.SocialOAuthCallback)
+		// Starring the published source from the site: one GitHub authorization,
+		// then the server stars on the visitor's behalf and keeps no token.
+		apiRouter.GET("/source/star", controller.SourceStarStatus)
+		apiRouter.GET("/source/star/start", middleware.LoginRateLimit(), controller.SourceStarStart)
+		apiRouter.GET("/source/star/callback", middleware.LoginRateLimit(), controller.SourceStarCallback)
+
 		// Google One Tap: a server-issued nonce, then the ID token Google gave
 		// the page for it. The nonce is asked for on page views, checks no
 		// credential and creates nothing, so it stays on the anonymous API

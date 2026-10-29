@@ -11,6 +11,7 @@ export type StatusPayload =
       privacy_link?: string;
       privacy_policy_enabled?: boolean;
       server_address?: string;
+      source_star?: boolean;
       source_url?: string;
       stripe_max_topup?: number;
       stripe_min_topup?: number;
