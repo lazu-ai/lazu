@@ -28,13 +28,23 @@ type ClientInfo struct {
 // User-Agent. Agents built on a vendor SDK often leave the SDK's User-Agent
 // in place and name themselves elsewhere: Codex and Roo Code send
 // `originator`, Claude Code sends `x-app: cli`, and desktop apps such as
-// Cherry Studio send the OpenRouter-style `X-Title`.
+// Cherry Studio send the OpenRouter-style `X-Title`. n8n and Open WebUI
+// are known by headers of their own.
 type ClientHeaders struct {
 	UserAgent  string
 	Originator string
 	XApp       string
 	XTitle     string
+	// OpenAIPlatform is the `openai-platform` header.
+	OpenAIPlatform string
+	// OpenWebUI is any of the `X-OpenWebUI-*` headers Open WebUI forwards
+	// when its operator turns that on; only its presence counts.
+	OpenWebUI string
 }
+
+// n8nPlatform is the `openai-platform` value n8n's OpenAI chat model sends
+// to every base URL (packages/@n8n/config ai.config.ts openAiDefaultHeaders).
+const n8nPlatform = "org-qkmJQuJ2WnvoIKMr2UJwIJkZ"
 
 // ParseClientRequest is ParseClient plus the headers agents use to name
 // themselves when the User-Agent belongs to an SDK or a runtime.
@@ -66,12 +76,18 @@ func ParseClientRequest(h ClientHeaders) ClientInfo {
 	if info.Framework == "claude-code" && xApp == "cli" && strings.HasPrefix(info.Version, "0.") {
 		info.Framework = "qwen-code"
 	}
-	// X-Title names the app in OpenRouter's convention; a few desktop apps
-	// send it to every provider.
+	// X-Title names the app in OpenRouter's convention; a few apps send it
+	// to every provider.
 	if !IsNamedClient(info.Framework) {
 		if framework := titleFramework(h.XTitle); framework != "" {
 			info.Framework, info.Language, info.Version = framework, clientLanguage(framework), ""
 		}
+	}
+	if !IsNamedClient(info.Framework) && strings.TrimSpace(h.OpenAIPlatform) == n8nPlatform {
+		info.Framework, info.Language, info.Version = "n8n", "node", ""
+	}
+	if !IsNamedClient(info.Framework) && strings.TrimSpace(h.OpenWebUI) != "" {
+		info.Framework, info.Language, info.Version = "open-webui", clientLanguage("open-webui"), ""
 	}
 	return info
 }
@@ -103,6 +119,9 @@ var headerClients = map[string]string{
 	"crush":         "crush",
 	"qwen-code":     "qwen-code",
 	"void":          "void",
+	// OpenHands sends `X-Title: OpenHands` to every provider by default.
+	"openhands": "openhands",
+	"n8n":       "n8n",
 }
 
 // originatorFramework maps an `originator` header to a client tag. Codex
@@ -177,7 +196,7 @@ type clientPattern struct {
 // SDK that do not name themselves (Goose sends no User-Agent at all; Cline
 // v4, Continue, Kimi CLI, OpenClaw and Aider send the SDK's) can only be
 // recognised by their headers, in ParseClientRequest and the session
-// middleware.
+// middleware, or by their system prompt (ClientFromSystemPrompt).
 var clientPatterns = []clientPattern{
 	// Claude Code: `claude-cli/<ver> (external, cli|sdk-cli|sdk-ts|sdk-py)`.
 	// The `claude-code/` form is its sign-in client and Hermes' impersonation
@@ -226,6 +245,13 @@ var clientPatterns = []clientPattern{
 	{re: regexp.MustCompile(`(?i)^Aider/([\d.]+)`), framework: "aider", language: "python"},
 	{re: regexp.MustCompile(`(?i)^goose(?:[-_][\w-]+)?(?:/([\d.]+))?(?:\s|$)`), framework: "goose", language: "rust"},
 	{re: regexp.MustCompile(`(?i)^cc-switch/([\d.]+)`), framework: "cc-switch", language: "rust"},
+	// Kode: `kode/<ver> (<user type>)`. It also sends `x-app: cli`, so it
+	// must be named here before that header reads as Claude Code.
+	{re: regexp.MustCompile(`(?i)^kode/([\d.]+)`), framework: "kode", language: "node"},
+	// Codebuff and Freebuff replace the AI SDK's own string with
+	// `ai-sdk/openai-compatible/<sdk ver>/codebuff` (`/freebuff-byok` with
+	// the user's own key); the version is the SDK's, so none is taken.
+	{re: regexp.MustCompile(`(?i)^ai-sdk/openai-compatible/[\d.]+/(?:codebuff|freebuff)`), framework: "codebuff", language: "node"},
 
 	// Desktop and web apps that name themselves.
 	{re: regexp.MustCompile(`(?i)^AnythingLLM/([\w.]+)`), framework: "anythingllm", language: "node"},
@@ -395,6 +421,10 @@ var clientDisplayNames = map[string]string{
 	"sillytavern":          "SillyTavern",
 	"librechat":            "LibreChat",
 	"void":                 "Void",
+	"kode":                 "Kode",
+	"codebuff":             "Codebuff",
+	"openhands":            "OpenHands",
+	"n8n":                  "n8n",
 	"openai-agents":        "OpenAI Agents SDK",
 	"mastra":               "Mastra",
 	"openai-python":        "OpenAI SDK (Python)",
@@ -434,4 +464,30 @@ func ClientDisplayName(framework string) string {
 		return name
 	}
 	return framework
+}
+
+// systemPromptClients are the opening words of agents' built-in system
+// prompts, for agents that name themselves nowhere else when they call a
+// custom base URL. Cline v4 sends only the AI SDK's User-Agent there.
+var systemPromptClients = []struct {
+	prefix    string
+	framework string
+}{
+	// Cline: "You are Cline, an AI coding agent." (act mode) and "You are
+	// Cline, a careful and helpful coding agent…" (yolo mode).
+	{"You are Cline, ", "cline"},
+	// OpenHands: "You are OpenHands agent, a helpful AI assistant…".
+	{"You are OpenHands agent, ", "openhands"},
+}
+
+// ClientFromSystemPrompt names the agent whose built-in system prompt the
+// request opens with, or returns "".
+func ClientFromSystemPrompt(prompt string) string {
+	prompt = strings.TrimSpace(prompt)
+	for _, c := range systemPromptClients {
+		if strings.HasPrefix(prompt, c.prefix) {
+			return c.framework
+		}
+	}
+	return ""
 }

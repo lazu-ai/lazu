@@ -368,10 +368,12 @@ func applyAgentSession(c *gin.Context, features *relayrouter.Features, tokenID i
 		return agentSession{ID: existing, Source: common.GetContextKeyString(c, constant.ContextKeySessionSource)}
 	}
 	clientInfo := common.ParseClientRequest(common.ClientHeaders{
-		UserAgent:  c.GetHeader("User-Agent"),
-		Originator: c.GetHeader("originator"),
-		XApp:       c.GetHeader("x-app"),
-		XTitle:     c.GetHeader("X-Title"),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Originator:     c.GetHeader("originator"),
+		XApp:           c.GetHeader("x-app"),
+		XTitle:         c.GetHeader("X-Title"),
+		OpenAIPlatform: c.GetHeader("openai-platform"),
+		OpenWebUI:      headerValue(c, "X-OpenWebUI-User-Id", "X-OpenWebUI-Chat-Id", "X-OpenWebUI-User-Jwt"),
 	})
 	if clientInfo.Raw != "" {
 		common.SetContextKey(c, constant.ContextKeyClientUserAgent, clientInfo.Raw)
@@ -387,6 +389,12 @@ func applyAgentSession(c *gin.Context, features *relayrouter.Features, tokenID i
 	// The User-Agent's version belonged to the library, so it goes too.
 	if framework := sessionSourceClient(session.Source); framework != "" && !common.IsNamedClient(clientInfo.Framework) {
 		clientInfo.Framework, clientInfo.Version = framework, ""
+	}
+	// Last, an agent that names itself nowhere but in its system prompt.
+	if !common.IsNamedClient(clientInfo.Framework) && len(body) > 0 {
+		if framework := common.ClientFromSystemPrompt(systemPromptFromContext(c, body)); framework != "" {
+			clientInfo.Framework, clientInfo.Version = framework, ""
+		}
 	}
 	if clientInfo.Framework != "" {
 		common.SetContextKey(c, constant.ContextKeyClientFramework, clientInfo.Framework)
@@ -447,4 +455,49 @@ func firstUserMessageFromContext(c *gin.Context, body []byte) string {
 		return ""
 	}
 	return firstUserMessage(body)
+}
+
+// systemPromptFromContext returns the request's first system or developer
+// instruction: Chat's leading system message, Anthropic's `system`, or the
+// Responses `instructions`.
+func systemPromptFromContext(c *gin.Context, body []byte) string {
+	if parsed, ok := common.GetContextKeyType[*textgen.ParsedRequest](c, constant.ContextKeyTextgenParsed); ok && parsed != nil && parsed.Semantic != nil {
+		if len(parsed.Semantic.Instructions) > 0 {
+			return parsed.Semantic.Instructions[0].Text
+		}
+		if len(parsed.Semantic.Conversation) == 0 {
+			return ""
+		}
+		if item := parsed.Semantic.Conversation[0]; item.Kind == textgen.InputMessage && (item.Role == "system" || item.Role == "developer") {
+			for _, part := range item.Content {
+				if part.Kind == textgen.ContentText {
+					return part.Text
+				}
+			}
+		}
+		return ""
+	}
+	return systemPrompt(body)
+}
+
+func systemPrompt(body []byte) string {
+	first := func(content gjson.Result) string {
+		if content.Type == gjson.String {
+			return content.String()
+		}
+		return content.Get("0.text").String()
+	}
+	if system := gjson.GetBytes(body, "system"); system.Exists() {
+		return first(system)
+	}
+	if instructions := gjson.GetBytes(body, "instructions"); instructions.Type == gjson.String {
+		return instructions.String()
+	}
+	for _, path := range []string{"messages.0", "input.0"} {
+		item := gjson.GetBytes(body, path)
+		if role := item.Get("role").String(); role == "system" || role == "developer" {
+			return first(item.Get("content"))
+		}
+	}
+	return ""
 }
