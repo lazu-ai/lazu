@@ -18,6 +18,7 @@ import {
   getUsageProjectScope,
   type UsageProjectScope,
 } from './usageProjectScope';
+import { useUsageRange } from './usageRange';
 import { useUsageScope } from './useUsageScope';
 import { trimFilterValues } from '../../components/ui/filter-bar';
 import {
@@ -667,9 +668,26 @@ export function useUsageLogsQuery() {
   const keyParam = scopeParams.key;
   const modelParam = scopeParams.model;
   const logTypeParam = scopeParams.logType;
-  const [filters, setFilters] = useState<UsageLogFilters>(() =>
+  const [chosenFilters, setFilters] = useState<UsageLogFilters>(() =>
     getInitialUsageLogFilters(searchParams.toString()),
   );
+  /* The window comes from the range the usage tabs share in the address
+     bar, not from the form. */
+  const { range } = useUsageRange();
+  const filters = useMemo<UsageLogFilters>(
+    () => ({
+      ...chosenFilters,
+      dateRange: {
+        exact: true,
+        from: new Date(range.start * 1000),
+        to: new Date(range.end * 1000),
+      },
+    }),
+    [chosenFilters, range.end, range.start],
+  );
+  useEffect(() => {
+    setPage(1);
+  }, [range.end, range.start]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => {
     return Number(localStorage.getItem('page-size')) || ITEMS_PER_PAGE;

@@ -1,6 +1,6 @@
 /* Shared Console layout and confirmation primitives, backed by Lazu UI. */
-import { ChevronDown } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './button';
 import { Checkbox } from './checkbox';
@@ -384,7 +384,12 @@ export function ConfirmPop({
 }
 
 /** Centered modal with a checkbox or typed-name gate (S5, S10, S11). Escape
- *  and outside click cancel; while busy the dialog cannot close. */
+ *  and outside click cancel; while busy the dialog cannot close.
+ *
+ *  The typed gate opens with focus in its field and enables the button only
+ *  on an exact match after trimming spaces, when a check mark appears. A
+ *  failed attempt is written above the buttons (`error`); the field keeps
+ *  what was typed and the button reads 再试一次. */
 export function GateModal({
   open,
   onOpenChange,
@@ -400,6 +405,9 @@ export function GateModal({
   onConfirm,
   extraFooter,
   body,
+  error,
+  retryLabel,
+  className,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -413,6 +421,7 @@ export function GateModal({
         expected: string;
         label: React.ReactNode;
         placeholder?: string;
+        inputId?: string;
       };
   confirmLabel: React.ReactNode;
   busyLabel?: React.ReactNode;
@@ -422,25 +431,40 @@ export function GateModal({
   onConfirm: () => void | Promise<void>;
   extraFooter?: React.ReactNode;
   body?: React.ReactNode;
+  /** The last attempt failed: what is now true, written above the buttons. */
+  error?: React.ReactNode;
+  retryLabel?: React.ReactNode;
+  className?: string;
 }) {
   const { t } = useTranslation();
   const [checked, setChecked] = useState(false);
   const [typed, setTyped] = useState('');
+  const fallbackId = useId();
   useEffect(() => {
     if (!open) {
       setChecked(false);
       setTyped('');
     }
   }, [open]);
+  /* Focus moves to the field one frame after it mounts: late enough that the
+     dialog has recorded the button that opened it (focus goes back there on
+     close), early enough that its own initial focus, queued after this, sees
+     focus already inside and leaves it there. */
+  const focusOnMount = useCallback((node: HTMLInputElement | null) => {
+    if (node) requestAnimationFrame(() => node.focus());
+  }, []);
+  const expected = gate?.type === 'typed' ? gate.expected.trim() : '';
   const satisfied = !gate
     ? true
     : gate.type === 'checkbox'
       ? checked
-      : typed.trim().toLowerCase() === gate.expected.trim().toLowerCase();
+      : expected !== '' && typed.trim() === expected;
+  const inputId =
+    gate?.type === 'typed' ? (gate.inputId ?? fallbackId) : fallbackId;
   return (
     <Modal
       busy={busy}
-      className='pj-modal'
+      className={cn('pj-modal', className)}
       closeLabel={t('common.close', { defaultValue: '关闭' })}
       description={description}
       onOpenChange={onOpenChange}
@@ -466,18 +490,31 @@ export function GateModal({
             </Checkbox>
           ) : null}
           {gate?.type === 'typed' ? (
-            <FormRows labelWidth={110}>
-              <FormRow label={gate.label}>
+            <div className='pj-gate'>
+              <label className='pj-gate__label' htmlFor={inputId}>
+                {gate.label}
+              </label>
+              <div className='pj-gate__field'>
                 <Input
                   autoComplete='off'
                   disabled={busy}
+                  id={inputId}
                   onChange={(event) => setTyped(event.target.value)}
                   placeholder={gate.placeholder ?? gate.expected}
-                  style={{ width: 220 }}
+                  ref={focusOnMount}
+                  spellCheck={false}
                   value={typed}
                 />
-              </FormRow>
-            </FormRows>
+                {satisfied ? (
+                  <Check aria-hidden='true' className='pj-gate__check' />
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {error ? (
+            <p className='pj-gate__error' role='alert'>
+              {error}
+            </p>
           ) : null}
         </div>
       }
@@ -501,7 +538,7 @@ export function GateModal({
             onClick={() => void onConfirm()}
             variant={danger ? 'danger' : 'primary'}
           >
-            {confirmLabel}
+            {error ? (retryLabel ?? t('common.tryAgain')) : confirmLabel}
           </Button>
         </div>
       }

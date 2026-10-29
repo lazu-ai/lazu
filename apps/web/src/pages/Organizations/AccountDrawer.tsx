@@ -29,6 +29,7 @@ import { Input } from '../../components/ui/input';
 import { Modal } from '../../components/ui/modal';
 import { PendingValue } from '../../components/ui/pending';
 import { Select } from '../../components/ui/select';
+import { notify } from '../../components/ui/toast';
 import { Tooltip } from '../../components/ui/tooltip';
 import { API } from '../../helpers/api';
 import { usdToMicroUSD } from '../../helpers/render';
@@ -138,7 +139,7 @@ export default function AccountDrawer({
   const [planTouched, setPlanTouched] = useState(false);
   const [limitsTouched, setLimitsTouched] = useState(false);
   const [confirmAction, setConfirmAction] = useState<
-    'disable' | 'enable' | 'promote' | 'demote' | null
+    'promote' | 'demote' | null
   >(null);
 
   const id = account?.id;
@@ -324,13 +325,45 @@ export default function AccountDrawer({
     onError: apiErrorHandler,
   });
 
+  /* Freezing and unfreezing run at once: each takes the other back, so the
+     receipt carries the opposite action instead of a dialog asking first.
+     The target travels with the call, so a receipt clicked after another
+     account opened still acts on the one it names. */
   const setRoleOrStatus = useMutation({
-    mutationFn: async (action: 'disable' | 'enable' | 'promote' | 'demote') => {
-      unwrap(await API.post('/api/user/manage', { id, action }));
+    mutationFn: async ({
+      action,
+      target,
+    }: {
+      action: 'disable' | 'enable' | 'promote' | 'demote';
+      target: { id: number | string; name: string };
+    }) => {
+      unwrap(await API.post('/api/user/manage', { id: target.id, action }));
     },
-    onSuccess: async () => {
-      showSuccess(d('success.action', '已操作'));
-      setConfirmAction(null);
+    onSuccess: async (_, { action, target }) => {
+      if (action === 'disable' || action === 'enable') {
+        const reverse = action === 'disable' ? 'enable' : 'disable';
+        notify.success(
+          t(
+            action === 'disable'
+              ? 'page.console.orgs.drawer.receipt.frozen'
+              : 'page.console.orgs.drawer.receipt.unfrozen',
+            { name: target.name },
+          ),
+          {
+            action: {
+              label:
+                reverse === 'enable'
+                  ? d('actions.enable', '解冻')
+                  : d('actions.disable', '冻结'),
+              onClick: () =>
+                setRoleOrStatus.mutate({ action: reverse, target }),
+            },
+          },
+        );
+      } else {
+        showSuccess(d('success.action', '已操作'));
+        setConfirmAction(null);
+      }
       await summary.refetch();
       onChanged();
     },
@@ -640,22 +673,6 @@ export default function AccountDrawer({
 
   const confirmation = confirmAction
     ? {
-        disable: {
-          title: d('confirm.disable.title', '确认冻结账户？'),
-          description: d(
-            'confirm.disable.description',
-            '冻结后将禁用登录与全部 API Keys，可随时恢复。',
-          ),
-          confirm: d('confirm.disable.action', '冻结账户'),
-        },
-        enable: {
-          title: d('confirm.enable.title', '确认解冻账户？'),
-          description: d(
-            'confirm.enable.description',
-            '解冻后登录与仍有效的 API Keys 将恢复使用。',
-          ),
-          confirm: d('confirm.enable.action', '解冻账户'),
-        },
         promote: {
           title: d('confirm.promote.title', '确认设为管理员？'),
           description: d(
@@ -1348,9 +1365,15 @@ export default function AccountDrawer({
                           variant='ghost'
                           disabled={setRoleOrStatus.isPending}
                           onClick={() =>
-                            setConfirmAction(
-                              isFrozen(currentAccount) ? 'enable' : 'disable',
-                            )
+                            setRoleOrStatus.mutate({
+                              action: isFrozen(currentAccount)
+                                ? 'enable'
+                                : 'disable',
+                              target: {
+                                id: account.id,
+                                name: currentAccount.name,
+                              },
+                            })
                           }
                         >
                           {isFrozen(currentAccount)
@@ -1375,7 +1398,12 @@ export default function AccountDrawer({
                           <Button
                             size='sm'
                             variant='soft-danger'
-                            onClick={() => onRequestDelete(account)}
+                            onClick={() =>
+                              onRequestDelete({
+                                ...currentAccount,
+                                username: detail?.username || account.username,
+                              })
+                            }
                           >
                             {d('actions.delete', '删除')}
                           </Button>
@@ -1411,7 +1439,11 @@ export default function AccountDrawer({
               variant='soft-danger'
               loading={setRoleOrStatus.isPending}
               onClick={() =>
-                confirmAction && setRoleOrStatus.mutate(confirmAction)
+                confirmAction &&
+                setRoleOrStatus.mutate({
+                  action: confirmAction,
+                  target: { id: account.id, name: currentAccount.name },
+                })
               }
             >
               {confirmation?.confirm}

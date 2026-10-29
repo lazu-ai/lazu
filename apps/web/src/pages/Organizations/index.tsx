@@ -40,6 +40,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '../../components/ui/popover';
+import { GateModal } from '../../components/ui/project-primitives';
 import { Select } from '../../components/ui/select';
 import {
   DEFAULT_PAGE_SIZE_OPTIONS,
@@ -51,7 +52,12 @@ import { useSession } from '../../context/User';
 import { API } from '../../helpers/api';
 import { copy, showError } from '../../helpers/utils';
 import { getUserFromLocalStorage, isRoot } from '../../helpers/utils';
-import { apiErrorHandler, unwrap } from '../../lib/api-error';
+import {
+  apiErrorHandler,
+  errorMessage,
+  isRefusal,
+  unwrap,
+} from '../../lib/api-error';
 import { usePricePlansQuery } from '../ModelOps/usePricePlans';
 import type { TFunction } from 'i18next';
 import './organizations.css';
@@ -540,9 +546,15 @@ export default function OrganizationsPage() {
     onError: apiErrorHandler,
   });
 
+  // A failure stays in the gate, written above its buttons, instead of a
+  // toast from the request interceptor.
   const remove = useMutation({
     mutationFn: async (account: Account) => {
-      unwrap(await API.delete(`/api/user/${account.id}`));
+      unwrap(
+        await API.delete(`/api/user/${account.id}`, {
+          skipErrorHandler: true,
+        }),
+      );
     },
     onSuccess: () => {
       notify.success(
@@ -552,8 +564,20 @@ export default function OrganizationsPage() {
       closeAccount();
       invalidate();
     },
-    onError: apiErrorHandler,
   });
+  const closeDeleting = () => {
+    setDeleting(null);
+    remove.reset();
+  };
+  // The hard delete is one transaction: a refusal changed nothing. A lost
+  // answer or a server failure leaves the outcome unknown, and says so.
+  const deleteError = remove.error
+    ? isRefusal(remove.error)
+      ? t('page.console.orgs.deleteFailed', {
+          reason: errorMessage(remove.error),
+        })
+      : errorMessage(remove.error)
+    : undefined;
 
   const planOptions = useMemo(
     () =>
@@ -1448,42 +1472,33 @@ export default function OrganizationsPage() {
         }
       />
 
-      <Modal
-        open={Boolean(deleting)}
-        title={
-          deleting
-            ? t('page.console.orgs.deleteTitle', {
-                defaultValue: '删除账户 · {{name}}',
-                name: deleting.name,
-              })
-            : ''
-        }
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
+      <GateModal
+        busy={remove.isPending}
+        confirmLabel={t('page.console.orgs.deleteAction')}
+        error={deleteError}
+        gate={{
+          type: 'typed',
+          expected: deleting?.username || '',
+          label: t('page.console.orgs.deleteTypeUsername', {
+            username: deleting?.username || '',
+          }),
         }}
-        footer={
-          <>
-            <Button
-              variant='danger'
-              disabled={remove.isPending}
-              onClick={() => deleting && remove.mutate(deleting)}
-            >
-              {t('page.console.orgs.deleteConfirm', {
-                defaultValue: '确认删除',
-              })}
-            </Button>
-            <Button variant='ghost' onClick={() => setDeleting(null)}>
-              {t('page.console.orgs.cancel', { defaultValue: '取消' })}
-            </Button>
-          </>
-        }
+        onConfirm={() => {
+          if (deleting) remove.mutate(deleting);
+        }}
+        onOpenChange={(open) => {
+          if (!open) closeDeleting();
+        }}
+        open={Boolean(deleting)}
+        title={t('page.console.orgs.deleteQuestion', {
+          name: deleting?.name ?? '',
+        })}
         body={
-          <p className='orgs__hint'>
-            {t('page.console.orgs.deleteHint', {
-              defaultValue:
-                '账号与登录凭据会被永久删除，其全部 API key 立即失效。此操作不可撤销。',
-            })}
-          </p>
+          <div className='pj-gate__lines'>
+            <p>{t('page.console.orgs.deleteWhat')}</p>
+            <p>{t('page.console.orgs.deleteSessions')}</p>
+            <p>{t('page.console.orgs.deleteFinal')}</p>
+          </div>
         }
       />
     </ConsolePage>

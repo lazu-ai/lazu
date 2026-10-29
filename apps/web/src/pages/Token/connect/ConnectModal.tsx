@@ -806,6 +806,7 @@ export function ConnectModal({
       busy={saving}
       closeLabel={t('legacy.i18n.close.6c14bd7f6f')}
       className='lazu-modal-content--xwide tok-connect'
+      sheet='full'
     >
       <div className='tok-connect__grid'>
         <nav

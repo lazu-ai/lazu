@@ -909,6 +909,18 @@
   }
 
   /* ---- filter row ---------------------------------------------------- */
+  /* On a phone: range, Agent and 筛选 on the first line, search below. */
+  @media (max-width: 767px) {
+    .ses-filters .ses-search {
+      flex-basis: 100%;
+      order: 1;
+    }
+
+    .ses-filters > .lazu-button {
+      margin-left: auto;
+    }
+  }
+
   .ses-filters {
     align-items: center;
     display: flex;

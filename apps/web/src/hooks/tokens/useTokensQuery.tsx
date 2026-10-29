@@ -857,27 +857,6 @@ export function useTokensQuery(
     onError: apiErrorHandler,
   });
 
-  const batchDeleteMutation = useMutation<ApiEnvelope, Error, void>({
-    mutationFn: async () => {
-      const ids = selectedRows.map((token) => token.id);
-      if (!ids.length) {
-        throw new Error(
-          t('legacy.i18n.please_select_the_token_to_be_deleted.f401dbca8b'),
-        );
-      }
-      const response = await API.post('/api/token/batch', { ids });
-      unwrap(response);
-      return response.data as ApiEnvelope;
-    },
-    onSuccess: (payload) => {
-      const count = Number(payload?.data || selectedRows.length);
-      notify.success(t('legacy.i18n.deleted_tokens.0a91776377', { count }));
-      setSelectedIds([]);
-      invalidate();
-    },
-    onError: apiErrorHandler,
-  });
-
   /** Reads a Key's full value. The value stays with the caller; nothing is
    *  cached in the query client. */
   const revealKey = async (id: TokenId): Promise<string> => {
@@ -1056,7 +1035,6 @@ export function useTokensQuery(
   const vendorOptions = vendorOptionsQuery.data || { models: [], vendors: [] };
 
   return {
-    batchDeleteMutation,
     batchDisableMutation,
     copySelected,
     copyText,

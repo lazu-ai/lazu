@@ -428,3 +428,15 @@
   display: inline-flex;
   gap: 8px;
 }
+
+/* Phone: range and status share the first lines, search takes a full row. */
+@media (max-width: 720px) {
+  .tasks-search {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .tasks-search input {
+    width: 100%;
+  }
+}

@@ -147,7 +147,8 @@ export type AgentSessionListParams = {
   page: number;
   pageSize: number;
   range: AgentSessionRange;
-  /** Explicit window start (unix s); wins over range. */
+  /** Explicit window (unix s); wins over range. */
+  endTimestamp?: number;
   startTimestamp?: number;
   tokenName?: string;
   /** Operator only: narrow to one account (internal id). */
@@ -184,6 +185,7 @@ async function fetchAgentSessions(
     keyword: params.keyword,
     p: params.page,
     page_size: params.pageSize,
+    end_timestamp: params.endTimestamp,
     range: params.range,
     start_timestamp: params.startTimestamp,
     token_name: params.tokenName,

@@ -11,6 +11,10 @@ const openKeyEditor = async (page) => {
   await page.getByRole('button', { name: '编辑', exact: true }).first().click();
   const modal = page.locator('.lazu-modal-content');
   await expect(modal).toBeVisible();
+  // On a phone the editor slides up as a sheet; measure once it has landed.
+  await modal.evaluate((node) =>
+    Promise.all(node.getAnimations().map((animation) => animation.finished)),
+  );
   return modal;
 };
 

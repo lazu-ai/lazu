@@ -2,16 +2,19 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { useDebouncedCallback } from 'use-debounce';
 import { createSearchParams } from '../../components/ui/table-tools';
 import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
 import { copy } from '../../helpers/clipboard';
 import { showError } from '../../helpers/utils';
 import { getUsageProjectScope } from '../../hooks/usage-logs/usageProjectScope';
+import { useUsageRange } from '../../hooks/usage-logs/usageRange';
 import { useUsageScope } from '../../hooks/usage-logs/useUsageScope';
 import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import { UserIdentity } from '../Log/log-support';
+import { UsageRangeSeg } from '../Usage/UsageRangeSeg';
 import '../Log/log-table.css';
 import './tasks.css';
 import type { TFunction } from 'i18next';
@@ -80,7 +83,6 @@ const PAGE_SIZE = 20;
 const ACTIVE_POLL_MS = 10_000;
 const DAY = 86_400;
 const STATUSES = ['', 'active', 'succeeded', 'failed'] as const;
-const RANGES = [1, 7, 30] as const;
 
 /** "$0.4115": the log's cost format. */
 export const formatTaskCost = (microusd: number) => {
@@ -426,7 +428,6 @@ export default function TasksPage() {
   const columns = admin ? 10 : 9;
   const [searchParams, setSearchParams] = useSearchParams();
   const status = searchParams.get('status') || '';
-  const days = Number(searchParams.get('days')) || 7;
   const openId = searchParams.get('task') || '';
   const [page, setPage] = useState(1);
   const [draft, setDraft] = useState(searchParams.get('q') || '');
@@ -441,13 +442,13 @@ export default function TasksPage() {
     () => getUsageProjectScope(searchParams.toString(), activeProjectId),
     [activeProjectId, searchParams],
   );
-  // The window's start is fixed when the range is chosen, so polling keeps
-  // one query key instead of refetching a moving one every second.
-  const start = useMemo(
-    () => Math.floor(Date.now() / 1000) - days * DAY,
-    [days],
-  );
-  const params = { admin, status, start, q, page, project };
+  /* The range the usage tabs share. A preset leaves the end open so tasks
+     still running keep showing; a custom range closes it. */
+  const { range } = useUsageRange();
+  const start = range.start;
+  const end = range.preset === 'custom' ? range.end : undefined;
+  useEffect(() => setPage(1), [start, end]);
+  const params = { admin, status, start, end, q, page, project };
 
   const query = useQuery({
     queryKey: queryKeys.console.table('tasks', params),
@@ -456,6 +457,7 @@ export default function TasksPage() {
         p: page,
         page_size: PAGE_SIZE,
         project_id: project.project_id,
+        end_timestamp: end,
         q: q || undefined,
         start_timestamp: start,
         status: status || undefined,
@@ -493,6 +495,11 @@ export default function TasksPage() {
     setSearchParams(next, { replace: true });
     if (key !== 'task') setPage(1);
   };
+
+  const applySearch = useDebouncedCallback(
+    (value: string) => setParam('q', value.trim()),
+    400,
+  );
 
   const statusLabel = (value: (typeof STATUSES)[number]) =>
     value === ''
@@ -537,23 +544,7 @@ export default function TasksPage() {
       </div>
 
       <div className='tasks-filters'>
-        <div
-          aria-label={t('page.console.tasks.filter.range')}
-          className='tasks-seg'
-          role='group'
-        >
-          {RANGES.map((value) => (
-            <button
-              aria-pressed={days === value}
-              className='tasks-seg__button'
-              key={value}
-              type='button'
-              onClick={() => setParam('days', value === 7 ? '' : String(value))}
-            >
-              {t(`page.console.tasks.range.d${value}`)}
-            </button>
-          ))}
-        </div>
+        <UsageRangeSeg />
         <div
           aria-label={t('page.console.tasks.filter.status')}
           className='tasks-seg'
@@ -571,12 +562,14 @@ export default function TasksPage() {
             </button>
           ))}
         </div>
+        {/* Searches as you type, like the other usage tabs. There are no
+            further conditions yet, so no 筛选 button. */}
         <form
           className='tasks-search'
           role='search'
           onSubmit={(event) => {
             event.preventDefault();
-            setParam('q', draft.trim());
+            applySearch.flush();
           }}
         >
           <label className='sr-only' htmlFor='tasks-q'>
@@ -587,7 +580,10 @@ export default function TasksPage() {
             placeholder={t('page.console.tasks.filter.search')}
             type='search'
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              applySearch(event.target.value);
+            }}
           />
         </form>
       </div>

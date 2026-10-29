@@ -8,9 +8,9 @@ import { useDebouncedCallback } from 'use-debounce';
 import { z } from 'zod';
 import { SessionLogCell, SessionReceiptBlock } from './sessions/SessionReceipt';
 import { Button } from '../../components/ui/button';
-import { DateRangePicker } from '../../components/ui/date-picker';
 import { submitFilterFormFromSelect } from '../../components/ui/filter-bar';
 import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
 import {
   Popover,
   PopoverContent,
@@ -27,13 +27,16 @@ import {
 import { API } from '../../helpers/api';
 import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
+import { useIsMobile } from '../../hooks/common/useIsMobile';
+import { useUsageRange } from '../../hooks/usage-logs/usageRange';
 import {
   LOG_COLUMN_KEYS,
-  getDefaultUsageLogFilters,
   usageDashboardScopeParam,
   useUsageLogsQuery,
 } from '../../hooks/usage-logs/useUsageLogsQuery';
 import { LazuApiError, readApiError } from '../../lib/api-error';
+import { useOverviewQuery } from '../Dashboard/overview/overview-api';
+import { UsageRangeCalendarRow, UsageRangeSeg } from '../Usage/UsageRangeSeg';
 import './log-table.css';
 import type { UsageLogFilters } from '../../hooks/usage-logs/useUsageLogsQuery';
 import type { TFunction } from 'i18next';
@@ -90,11 +93,6 @@ const isDateRangeRecord = (value: unknown): value is DateRangeRecord =>
 
 const isUnknownRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const toDateRangePickerValue = (
-  value: UsageLogFilters['dateRange'],
-): [Date | number | string | undefined, Date | number | string | undefined] =>
-  Array.isArray(value) ? value : [value.from, value.to];
 
 export const requestIdentity = (value: unknown) => {
   if (!value || typeof value !== 'object') return '';
@@ -1454,6 +1452,10 @@ export function UsageLogFilters({
   scopeChip?: ReactNode;
 }) {
   const { t } = logs;
+  /* On phones the lane switch and every condition move into one bottom
+     sheet behind 筛选, and each change there applies at once so its
+     「显示 N 条」 is the real count. */
+  const narrow = useIsMobile();
   const [moreOpen, setMoreOpen] = useState(false);
   const form = useForm({
     defaultValues: logs.filters,
@@ -1482,10 +1484,31 @@ export function UsageLogFilters({
     logs.submitFilters({ ...logs.filters, ...patch });
   };
 
-  const reset = () => {
-    const next = getDefaultUsageLogFilters();
+  /* 清除全部 and 全部重置 take the conditions away; the time range and the
+     lane stay as they are. */
+  const conditionDefaults = {
+    channel: '',
+    logType: '0',
+    model_name: '',
+    token_name: '',
+  };
+  const clearConditions = () => {
+    const next = {
+      ...logs.filters,
+      ...conditionDefaults,
+      user_id: '',
+      username: '',
+    };
     form.reset(next);
-    logs.resetFilters();
+    logs.submitFilters(next);
+  };
+  const resetPopover = () => {
+    for (const [key, value] of Object.entries(conditionDefaults)) {
+      // The customer's search box owns the model name.
+      if (key === 'model_name' && !logs.isAdminUser) continue;
+      form.setValue(key as keyof typeof conditionDefaults, value);
+    }
+    if (narrow) void submit();
   };
 
   // The log's group is the lane, filtered by the 线路 switch; the customer's
@@ -1497,26 +1520,57 @@ export function UsageLogFilters({
   const searchValue = values[searchField];
 
   /* Search as you type: the box applies itself a beat after the last key, so
-     there is no separate 搜索 button to find. */
+     there is no separate 搜索 button to find. In the phone sheet the text
+     fields behave the same way. */
   const searchDebounced = useDebouncedCallback(() => void submit(), 400);
   useEffect(() => {
     if ((searchValue ?? '') === (logs.filters[searchField] ?? '')) return;
     searchDebounced();
   }, [logs.filters, searchDebounced, searchField, searchValue]);
+  const sheetText = (name: 'channel' | 'model_name' | 'token_name') =>
+    form.register(name, {
+      onChange: () => {
+        if (narrow) searchDebounced();
+      },
+    });
 
-  const logTypeLabels: Record<string, string> = {
-    '0': t('legacy.i18n.all.778fc8f994'),
-    '1': t('legacy.i18n.top_up.fa03c46253'),
-    '2': t('legacy.i18n.consume.71d6df4130'),
-    '3': t('legacy.i18n.manage.4989b5cf94'),
-    '4': t('legacy.i18n.system.1a1f6dff78'),
-    '5': t('legacy.i18n.error.b859c7be75'),
+  // Most-read first: 全部 消费 错误 充值 管理 系统.
+  const logTypeOptions: Array<[string, string]> = [
+    ['0', t('legacy.i18n.all.778fc8f994')],
+    ['2', t('legacy.i18n.consume.71d6df4130')],
+    ['5', t('legacy.i18n.error.b859c7be75')],
+    ['1', t('legacy.i18n.top_up.fa03c46253')],
+    ['3', t('legacy.i18n.manage.4989b5cf94')],
+    ['4', t('legacy.i18n.system.1a1f6dff78')],
+  ];
+  const logTypeLabels = Object.fromEntries(logTypeOptions);
+
+  const laneOptions: Array<{ label: string; value: string }> = [
+    { label: t('page.console.log.lane.all'), value: '' },
+    { label: t('page.console.log.lane.stable'), value: 'direct' },
+    { label: t('page.console.log.lane.eco'), value: 'cheap' },
+  ];
+  const pickLane = (value: string) => {
+    form.setValue('group', value);
+    void submit();
   };
 
   /* What the 筛选 button counts and the chip row names: the filters that live
-     behind the popover and are set to something other than their default. */
+     behind the popover and are set to something other than their default.
+     On phones the lane is one of them. */
   const applied = logs.filters;
   const chips: Array<{ key: string; label: string; clear: () => void }> = [];
+  if (narrow && applied.group) {
+    chips.push({
+      key: 'lane',
+      label: t('page.console.log.filter.chipLane', {
+        value:
+          laneOptions.find((option) => option.value === applied.group)?.label ??
+          applied.group,
+      }),
+      clear: () => applyFilters({ group: '' }),
+    });
+  }
   if (applied.logType && applied.logType !== '0') {
     chips.push({
       key: 'logType',
@@ -1567,21 +1621,199 @@ export function UsageLogFilters({
       clear: () => applyFilters({ user_id: '', username: '' }),
     });
   }
+  // The username comes from the search box, so it is named but not counted.
   const moreCount = chips.filter((chip) => chip.key !== 'user').length;
   const popoverDirty = () =>
     (['logType', 'model_name', 'token_name', 'channel'] as const).some(
       (key) => (values[key] ?? '') !== (logs.filters[key] ?? ''),
     );
 
-  const laneOptions: Array<{ label: string; value: string }> = [
-    { label: t('page.console.log.lane.all'), value: '' },
-    { label: t('page.console.log.lane.stable'), value: 'direct' },
-    { label: t('page.console.log.lane.eco'), value: 'cheap' },
-  ];
-  const pickLane = (value: string) => {
-    form.setValue('group', value);
-    void submit();
+  /* A customer picks a Key from the ones that sent requests in this range;
+     the overview already counts them per Key. */
+  const { range } = useUsageRange();
+  const keysInRange = useOverviewQuery(
+    'self',
+    { preset: 'custom', start: range.start, end: range.end },
+    moreOpen && !logs.isAdminUser,
+  );
+  const keyOptions = useMemo(() => {
+    const names = (keysInRange.data?.keys ?? [])
+      .filter((key) => key.request_count > 0)
+      .map((key) => key.name);
+    if (applied.token_name && !names.includes(applied.token_name)) {
+      names.unshift(applied.token_name);
+    }
+    return names;
+  }, [applied.token_name, keysInRange.data?.keys]);
+  const allKeys = '__all';
+  const pickKey = (value: string) => {
+    form.setValue('token_name', value === allKeys ? '' : value);
+    if (narrow) void submit();
   };
+
+  const keyField = logs.isAdminUser ? (
+    <div className='logv2-filter-pop__field'>
+      <label className='logv2-filter-pop__label' htmlFor='log-token-name'>
+        {t('legacy.i18n.token_name.25a130fc5b')}
+      </label>
+      <Input
+        id='log-token-name'
+        placeholder={t('legacy.i18n.all.778fc8f994')}
+        {...sheetText('token_name')}
+      />
+    </div>
+  ) : (
+    <div className='logv2-filter-pop__field'>
+      <span className='logv2-filter-pop__label'>Key</span>
+      {narrow ? (
+        <div className='logv2-sheet__options' role='radiogroup'>
+          {['', ...keyOptions].map((name) => (
+            <button
+              aria-checked={(values.token_name ?? '') === name}
+              data-owns-chrome
+              className='logv2-sheet__option'
+              key={name || allKeys}
+              onClick={() => pickKey(name || allKeys)}
+              role='radio'
+              type='button'
+            >
+              {name || t('page.console.log.filter.allKeys')}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <Select
+          value={values.token_name || allKeys}
+          onValueChange={(value) => pickKey(String(value))}
+        >
+          <SelectItem value={allKeys}>
+            {t('page.console.log.filter.allKeys')}
+          </SelectItem>
+          {keyOptions.map((name) => (
+            <SelectItem key={name} value={name}>
+              {name}
+            </SelectItem>
+          ))}
+        </Select>
+      )}
+      <span className='logv2-filter-pop__hint'>
+        {t('page.console.log.filter.keysInRange')}
+      </span>
+    </div>
+  );
+
+  const logTypeField = (
+    <div className='logv2-filter-pop__field'>
+      <span className='logv2-filter-pop__label'>
+        {t('legacy.i18n.log_type.693090ce10')}
+      </span>
+      {narrow ? (
+        <div className='logv2-sheet__chips' role='radiogroup'>
+          {logTypeOptions.map(([value, label]) => (
+            <button
+              aria-checked={values.logType === value}
+              data-owns-chrome
+              className='logv2-sheet__chip'
+              key={value}
+              onClick={() => {
+                form.setValue('logType', value);
+                void submit();
+              }}
+              role='radio'
+              type='button'
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <Controller
+          control={form.control}
+          name='logType'
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              {logTypeOptions.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </Select>
+          )}
+        />
+      )}
+    </div>
+  );
+
+  const adminFields = logs.isAdminUser ? (
+    <>
+      <div className='logv2-filter-pop__field'>
+        <label className='logv2-filter-pop__label' htmlFor='log-model-name'>
+          {t('legacy.i18n.model_name.38719c9968')}
+        </label>
+        <Input
+          id='log-model-name'
+          placeholder={t('legacy.i18n.all.778fc8f994')}
+          {...sheetText('model_name')}
+        />
+      </div>
+    </>
+  ) : null;
+  const channelField = logs.isAdminUser ? (
+    <div className='logv2-filter-pop__field'>
+      <label className='logv2-filter-pop__label' htmlFor='log-channel'>
+        {t('legacy.i18n.channel_id.8a01559567')}
+      </label>
+      <Input
+        id='log-channel'
+        placeholder={t('legacy.i18n.channel_id.8a01559567')}
+        {...sheetText('channel')}
+      />
+    </div>
+  ) : null;
+  const scopeField = scope ? (
+    <div className='logv2-filter-pop__field'>
+      <span className='logv2-filter-pop__label'>
+        {t('page.console.log.scope.label', { defaultValue: '范围' })}
+      </span>
+      {scope}
+    </div>
+  ) : null;
+
+  const laneSwitch = (
+    <span
+      className='logv2-seg'
+      role='group'
+      aria-label={t('page.console.log.lane.label')}
+    >
+      {laneOptions.map((option) => (
+        <button
+          type='button'
+          key={option.value || 'all'}
+          aria-pressed={values.group === option.value}
+          className='logv2-seg__button'
+          data-active={values.group === option.value ? 'true' : undefined}
+          onClick={() => pickLane(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </span>
+  );
+
+  const moreButton = (
+    <Button
+      type='button'
+      size='sm'
+      variant='secondary'
+      onClick={narrow ? () => setMoreOpen(true) : undefined}
+    >
+      <SlidersHorizontal aria-hidden='true' size={14} />
+      {t('page.console.log.filter.more', { defaultValue: '筛选' })}
+      {moreCount > 0 ? (
+        <span className='logv2-filter-count'>{moreCount}</span>
+      ) : null}
+    </Button>
+  );
 
   return (
     <form
@@ -1590,38 +1822,8 @@ export function UsageLogFilters({
       onSubmit={submit}
     >
       <div className='logv2-filters__row'>
-        <Controller
-          control={form.control}
-          name='dateRange'
-          render={({ field }) => (
-            <DateRangePicker
-              className='logv2-filters__date'
-              value={toDateRangePickerValue(field.value)}
-              onChange={(next) => {
-                field.onChange(next);
-                void submit();
-              }}
-            />
-          )}
-        />
-        <span
-          className='logv2-seg'
-          role='group'
-          aria-label={t('page.console.log.lane.label')}
-        >
-          {laneOptions.map((option) => (
-            <button
-              type='button'
-              key={option.value || 'all'}
-              aria-pressed={values.group === option.value}
-              className='logv2-seg__button'
-              data-active={values.group === option.value ? 'true' : undefined}
-              onClick={() => pickLane(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </span>
+        <UsageRangeSeg />
+        {narrow ? null : laneSwitch}
         <label className='logv2-search'>
           <Search aria-hidden='true' size={14} />
           <input
@@ -1634,121 +1836,40 @@ export function UsageLogFilters({
             {...form.register(searchField)}
           />
         </label>
-        <Popover
-          open={moreOpen}
-          onOpenChange={(open) => {
-            setMoreOpen(open);
-            // Changes made in the popover apply when it closes.
-            if (!open && popoverDirty()) void submit();
-          }}
-        >
-          <PopoverTrigger>
-            <Button type='button' size='sm' variant='secondary'>
-              <SlidersHorizontal aria-hidden='true' size={14} />
-              {t('page.console.log.filter.more', { defaultValue: '筛选' })}
-              {moreCount > 0 ? (
-                <span className='logv2-filter-count'>{moreCount}</span>
-              ) : null}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align='start' className='logv2-filter-pop'>
-            {scope ? (
-              <div className='logv2-filter-pop__field'>
-                <span className='logv2-filter-pop__label'>
-                  {t('page.console.log.scope.label', { defaultValue: '范围' })}
+        {narrow ? (
+          moreButton
+        ) : (
+          <Popover
+            open={moreOpen}
+            onOpenChange={(open) => {
+              setMoreOpen(open);
+              // Changes made in the popover apply when it closes.
+              if (!open && popoverDirty()) void submit();
+            }}
+          >
+            <PopoverTrigger>{moreButton}</PopoverTrigger>
+            <PopoverContent align='start' className='logv2-filter-pop'>
+              {scopeField}
+              {logTypeField}
+              {adminFields}
+              {keyField}
+              {channelField}
+              <div className='logv2-filter-pop__foot'>
+                <span className='logv2-filter-pop__hint'>
+                  {t('page.console.log.filter.applyOnClose')}
                 </span>
-                {scope}
-              </div>
-            ) : null}
-            <div className='logv2-filter-pop__field'>
-              <span className='logv2-filter-pop__label'>
-                {t('legacy.i18n.log_type.693090ce10')}
-              </span>
-              <Controller
-                control={form.control}
-                name='logType'
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    {Object.entries(logTypeLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                )}
-              />
-            </div>
-            {logs.isAdminUser ? (
-              <div className='logv2-filter-pop__field'>
-                <label
-                  className='logv2-filter-pop__label'
-                  htmlFor='log-model-name'
+                <Button
+                  type='button'
+                  size='sm'
+                  variant='ghost'
+                  onClick={resetPopover}
                 >
-                  {t('legacy.i18n.model_name.38719c9968')}
-                </label>
-                <Input
-                  id='log-model-name'
-                  placeholder={t('legacy.i18n.all.778fc8f994')}
-                  {...form.register('model_name')}
-                />
+                  {t('page.console.log.filter.resetAll')}
+                </Button>
               </div>
-            ) : null}
-            <div className='logv2-filter-pop__field'>
-              <label
-                className='logv2-filter-pop__label'
-                htmlFor='log-token-name'
-              >
-                {t('legacy.i18n.token_name.25a130fc5b')}
-              </label>
-              <Input
-                id='log-token-name'
-                placeholder={t('legacy.i18n.all.778fc8f994')}
-                {...form.register('token_name')}
-              />
-            </div>
-            {logs.isAdminUser ? (
-              <div className='logv2-filter-pop__field'>
-                <label
-                  className='logv2-filter-pop__label'
-                  htmlFor='log-channel'
-                >
-                  {t('legacy.i18n.channel_id.8a01559567')}
-                </label>
-                <Input
-                  id='log-channel'
-                  placeholder={t('legacy.i18n.channel_id.8a01559567')}
-                  {...form.register('channel')}
-                />
-              </div>
-            ) : null}
-            <div className='logv2-filter-pop__foot'>
-              <Button
-                type='button'
-                size='sm'
-                variant='ghost'
-                onClick={() => {
-                  reset();
-                  setMoreOpen(false);
-                }}
-              >
-                {t('page.console.log.filter.clearAll', {
-                  defaultValue: '清除全部',
-                })}
-              </Button>
-              <Button
-                type='button'
-                size='sm'
-                variant='primary'
-                onClick={() => {
-                  setMoreOpen(false);
-                  void submit();
-                }}
-              >
-                {t('page.console.log.filter.done', { defaultValue: '完成' })}
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+        )}
         {viewSwitcher ? (
           <span className='logv2-filters__view'>{viewSwitcher}</span>
         ) : null}
@@ -1771,12 +1892,72 @@ export function UsageLogFilters({
               </button>
             </span>
           ))}
-          <button type='button' className='logv2-filter-clear' onClick={reset}>
-            {t('page.console.log.filter.clearAll', {
-              defaultValue: '清除全部',
-            })}
-          </button>
+          {chips.length ? (
+            <button
+              type='button'
+              className='logv2-filter-clear'
+              onClick={clearConditions}
+            >
+              {t('page.console.log.filter.clearAll', {
+                defaultValue: '清除全部',
+              })}
+            </button>
+          ) : null}
         </div>
+      ) : null}
+      {narrow ? (
+        <Modal
+          body={
+            <div className='logv2-sheet'>
+              <section className='logv2-sheet__section'>
+                <h3 className='logv2-filter-pop__label'>
+                  {t('page.console.usage.range.title')}
+                </h3>
+                <UsageRangeSeg calendar={false} />
+                <UsageRangeCalendarRow />
+              </section>
+              <section className='logv2-sheet__section'>
+                <h3 className='logv2-filter-pop__label'>
+                  {t('page.console.log.lane.label')}
+                </h3>
+                {laneSwitch}
+              </section>
+              {scopeField}
+              {logTypeField}
+              {adminFields}
+              {keyField}
+              {channelField}
+            </div>
+          }
+          closeLabel={t('common.close')}
+          footer={
+            <>
+              <Button
+                type='button'
+                variant='ghost'
+                onClick={() => {
+                  resetPopover();
+                  pickLane('');
+                }}
+              >
+                {t('page.console.log.filter.resetAll')}
+              </Button>
+              <Button
+                type='button'
+                variant='primary'
+                onClick={() => setMoreOpen(false)}
+              >
+                {t('page.console.log.filter.showCount', {
+                  count: logs.total,
+                })}
+              </Button>
+            </>
+          }
+          onOpenChange={setMoreOpen}
+          open={moreOpen}
+          sheet
+          title={t('page.console.log.filter.more', { defaultValue: '筛选' })}
+        />
       ) : null}
     </form>
   );

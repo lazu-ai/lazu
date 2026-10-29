@@ -802,6 +802,76 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   margin-top: -4px;
 }
 
+/* --- create / edit: states ------------------------------------------- */
+
+/* 「已改」 beside a label the reader has changed in the edit form. */
+.tok-create__changed {
+  background: var(--lazu-surface-selected);
+  border-radius: 6px;
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 6px;
+  padding: 1px 6px;
+}
+
+/* After a failed submit: how many fields need work. */
+.tok-create__errors {
+  align-items: center;
+  background: var(--lazu-danger-soft);
+  border-radius: 10px;
+  color: var(--lazu-danger);
+  display: flex;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.tok-create__loading {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin: 0;
+  padding: 48px 0;
+  text-align: center;
+}
+
+.tok-modal-foot--discard .tok-modal-foot__hint {
+  color: var(--lazu-ink);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+/* On phones both dialogs are bottom sheets (modal.tsx `sheet`); these undo
+   the desktop sizes that would otherwise outrank the sheet. */
+@media (max-width: 720px) {
+  .tok-create-modal.lazu-modal-content--sheet,
+  .tok-connect.lazu-modal-content--sheet {
+    max-width: none;
+  }
+
+  .tok-connect.lazu-modal-content.lazu-modal-content--sheet {
+    height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
+  }
+
+  .tok-create-modal .tok-modal-foot {
+    flex-wrap: wrap;
+  }
+
+  .tok-create-modal .tok-modal-foot__hint {
+    flex-basis: 100%;
+    margin-right: 0;
+  }
+
+  .tok-create-modal .tok-modal-foot .lazu-button {
+    flex: 1 1 0;
+  }
+
+  .tok-connect > .tok-modal-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* --- connect ----------------------------------------------------------- */
 
 .tok-connect.lazu-modal-content {

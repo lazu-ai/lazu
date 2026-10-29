@@ -207,6 +207,18 @@ export function errorMessage(error: unknown, fallback?: string): string {
   return lookup('local.unknown') || 'Request failed';
 }
 
+/** The server answered and refused (4xx), so nothing was changed. A local
+ *  failure or a 5xx leaves the outcome unknown and is never read this way. */
+export function isRefusal(error: unknown): boolean {
+  const info = readApiError(error);
+  return (
+    !info.local &&
+    info.status !== undefined &&
+    info.status >= 400 &&
+    info.status < 500
+  );
+}
+
 /** "Error LZ-9001 · Request req_…", for readers who contact support. */
 export function errorReference(error: unknown): string {
   const info = readApiError(error);

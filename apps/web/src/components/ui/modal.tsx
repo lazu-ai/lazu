@@ -1,6 +1,6 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { X } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useControlAppearanceClass } from './control-appearance';
 import { cn } from '../../lib/cn';
@@ -16,8 +16,41 @@ type ModalProps = Omit<DialogPrimitive.Root.Props, 'children'> & {
   hideClose?: boolean;
   labelledBy?: string;
   frameClasses?: { backdrop: string; viewport: string; popup: string };
+  /** On phones (≤720px) the dialog rises from the bottom as a sheet: a
+   *  grabber, a fixed header and footer, and a body that scrolls between
+   *  them. `full` keeps it 44px short of the top whatever its content. */
+  sheet?: boolean | 'full';
   title?: React.ReactNode;
 };
+
+const SHEET_QUERY = '(max-width: 720px)';
+const SWIPE_CLOSE_PX = 72;
+
+/* The on-screen keyboard shrinks the visual viewport but not the layout
+   one, so a sheet pinned to the bottom would sit behind it. The gap is
+   published as a variable the sheet's bottom edge follows. */
+function useKeyboardInset(active: boolean) {
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!active || !viewport) return undefined;
+    const root = document.documentElement;
+    const update = () => {
+      const inset = Math.max(
+        0,
+        window.innerHeight - viewport.height - viewport.offsetTop,
+      );
+      root.style.setProperty('--lazu-keyboard-inset', `${Math.round(inset)}px`);
+    };
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+      root.style.removeProperty('--lazu-keyboard-inset');
+    };
+  }, [active]);
+}
 
 const TABBABLE =
   'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
@@ -87,16 +120,61 @@ export function ModalFrame({
   labelledBy,
   frameClasses,
   onOpenChange,
+  sheet = false,
   trigger,
   ...props
 }: ModalFrameProps) {
   const controlAppearanceClass = useControlAppearanceClass();
+  const popupRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const drag = useRef<{ id: number; y: number } | null>(null);
+  useKeyboardInset(Boolean(sheet) && props.open !== false);
+
+  /* Pulling the grabber down past a threshold closes the sheet through its
+     close button, so it takes the same path as a tap on 关闭 — busy guards
+     and unsaved-change prompts included. */
+  const swipe = sheet
+    ? {
+        onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
+          if (busy || !window.matchMedia(SHEET_QUERY).matches) return;
+          drag.current = { id: event.pointerId, y: event.clientY };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        },
+        onPointerMove: (event: React.PointerEvent<HTMLElement>) => {
+          if (drag.current?.id !== event.pointerId || !popupRef.current) return;
+          const dy = Math.max(0, event.clientY - drag.current.y);
+          popupRef.current.style.transform = `translateY(${dy}px)`;
+        },
+        onPointerUp: (event: React.PointerEvent<HTMLElement>) => {
+          if (drag.current?.id !== event.pointerId) return;
+          const dy = event.clientY - drag.current.y;
+          drag.current = null;
+          if (popupRef.current) popupRef.current.style.transform = '';
+          if (dy > SWIPE_CLOSE_PX) closeRef.current?.click();
+        },
+        onPointerCancel: () => {
+          drag.current = null;
+          if (popupRef.current) popupRef.current.style.transform = '';
+        },
+      }
+    : null;
+
   const { t } = useTranslation();
-  const popupRef = React.useRef<HTMLDivElement>(null);
   return (
     <DialogPrimitive.Root
       onOpenChange={(open, details) => {
         if (!open && busy) {
+          details.cancel();
+          return;
+        }
+        // A toast sits outside the dialog, so pressing its 撤销 would
+        // otherwise count as dismissing the dialog the action came from.
+        if (
+          !open &&
+          details.reason === 'outside-press' &&
+          details.event.target instanceof Element &&
+          details.event.target.closest('[data-sonner-toaster]')
+        ) {
           details.cancel();
           return;
         }
@@ -113,8 +191,11 @@ export function ModalFrame({
           className={frameClasses?.viewport ?? 'lazu-modal-viewport'}
         >
           <DialogPrimitive.Popup
+            ref={popupRef}
             className={cn(
               frameClasses?.popup ?? 'lazu-modal-content',
+              sheet && 'lazu-modal-content--sheet',
+              sheet === 'full' && 'lazu-modal-content--sheet-full',
               controlAppearanceClass,
               className,
             )}
@@ -125,10 +206,17 @@ export function ModalFrame({
             initialFocus={(openType) =>
               pickInitialFocus(popupRef.current, openType)
             }
-            ref={popupRef}
           >
+            {swipe ? (
+              <span
+                aria-hidden='true'
+                className='lazu-modal-grabber'
+                {...swipe}
+              />
+            ) : null}
             {!hideClose ? (
               <DialogPrimitive.Close
+                ref={closeRef}
                 aria-label={
                   closeLabel ?? t('common.close', { defaultValue: '关闭' })
                 }
@@ -158,10 +246,13 @@ export function Modal({
   description,
   footer,
   hideClose = false,
+  sheet = false,
   title,
   onOpenChange,
   ...props
 }: ModalProps) {
+  // A sheet's header grows a rule once its body scrolls under it.
+  const [scrolled, setScrolled] = useState(false);
   return (
     <ModalFrame
       busy={busy}
@@ -169,11 +260,15 @@ export function Modal({
       closeLabel={closeLabel}
       hideClose={hideClose}
       onOpenChange={onOpenChange}
+      sheet={sheet}
       trigger={children}
       {...props}
     >
       {title || description ? (
-        <div className='lazu-modal-header'>
+        <div
+          className='lazu-modal-header'
+          data-scrolled={(sheet && scrolled) || undefined}
+        >
           {title ? (
             <ModalTitle className='lazu-modal-title'>{title}</ModalTitle>
           ) : null}
@@ -184,7 +279,16 @@ export function Modal({
           ) : null}
         </div>
       ) : null}
-      <div className='lazu-modal-body'>{body}</div>
+      <div
+        className='lazu-modal-body'
+        onScroll={
+          sheet
+            ? (event) => setScrolled(event.currentTarget.scrollTop > 0)
+            : undefined
+        }
+      >
+        {body}
+      </div>
       {footer ? <div className='lazu-modal-footer'>{footer}</div> : null}
     </ModalFrame>
   );

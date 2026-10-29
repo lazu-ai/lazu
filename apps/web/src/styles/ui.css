@@ -3317,6 +3317,90 @@
     color: var(--lazu-toast-fg) !important;
   }
 
+  /* 执行 + 撤销 (components/ui/undo-toast.tsx): the ink toast with its own
+     countdown, since sonner draws neither the seconds nor the bar. */
+  .lazu-undo-toast {
+    background: var(--lazu-toast-bg);
+    border-radius: var(--lazu-radius-toast);
+    box-shadow: var(--lazu-shadow-toast);
+    color: var(--lazu-toast-fg);
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    gap: 4px;
+    overflow: hidden;
+    padding: 9px 9px 10px 14px;
+    position: relative;
+    width: min(400px, calc(100vw - 24px));
+  }
+  .lazu-undo-toast__row {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+  }
+  .lazu-undo-toast__message {
+    flex: 1;
+    line-height: 1.4;
+    min-width: 0;
+  }
+  .lazu-undo-toast__time,
+  .lazu-undo-toast__note {
+    color: var(--lazu-toast-fg-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .lazu-undo-toast__button {
+    background: var(--lazu-toast-control);
+    border: 0;
+    border-radius: 8px;
+    color: var(--lazu-toast-fg);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    height: 30px;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+  .lazu-undo-toast__button:focus-visible {
+    outline: 2px solid var(--lazu-toast-fg);
+    outline-offset: 2px;
+  }
+  .lazu-undo-toast__bar {
+    background: var(--lazu-toast-fg-muted);
+    bottom: 0;
+    height: 2px;
+    left: 0;
+    position: absolute;
+    transition: width 250ms linear;
+  }
+  @media (max-width: 767px) {
+    /* sonner already insets the phone toaster from both edges. */
+    .lazu-undo-toast {
+      width: 100%;
+    }
+    .lazu-undo-toast__button {
+      height: 40px;
+      padding: 0 16px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lazu-undo-toast__bar {
+      transition: none;
+    }
+  }
+  /* A row waiting on an undo countdown. */
+  .is-undo-pending,
+  .is-undo-pending td {
+    color: var(--lazu-text-muted);
+    background: var(--lazu-surface-muted);
+  }
+  .is-undo-pending > td,
+  .lazu-card-list__item.is-undo-pending {
+    text-decoration: line-through;
+  }
+
   @media (max-width: 720px) {
     .lazu-page-header {
       display: grid;
@@ -3413,6 +3497,125 @@
     .lazu-tabs-trigger {
       transition-duration: var(--ui-motion-fast);
       transition-property: background-color, border-color, color, opacity;
+    }
+  }
+
+  /* Phone sheet (modal.tsx `sheet`). Below 720px the dialog rises from the
+     bottom edge: grabber, fixed header and footer, a body that scrolls
+     between them, and a bottom edge that follows the on-screen keyboard.
+     Doubled class names outrank the plain .lazu-modal-content phone rules. */
+  .lazu-modal-grabber {
+    display: none;
+  }
+
+  @media (max-width: 720px) {
+    .lazu-modal-content.lazu-modal-content--sheet {
+      border-bottom: 0;
+      border-radius: 20px 20px 0 0;
+      bottom: var(--lazu-keyboard-inset, 0px);
+      display: flex;
+      flex-direction: column;
+      left: 0;
+      max-height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
+      max-width: none;
+      overflow: hidden;
+      padding: 0;
+      top: auto;
+      transform: none;
+      width: 100%;
+    }
+
+    .lazu-modal-content.lazu-modal-content--sheet-full {
+      height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
+    }
+
+    .lazu-modal-content.lazu-modal-content--sheet[data-open] {
+      animation: lazu-sheet-motion var(--ui-motion-base) var(--ui-ease-direct)
+        both;
+    }
+
+    .lazu-modal-content.lazu-modal-content--sheet[data-closed] {
+      animation: lazu-sheet-exit var(--ui-motion-base) var(--ui-ease-direct)
+        both;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-grabber {
+      cursor: grab;
+      display: block;
+      flex: none;
+      height: 22px;
+      position: relative;
+      touch-action: none;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-grabber::before {
+      background: var(--ui-border-strong);
+      border-radius: 3px;
+      content: '';
+      height: 5px;
+      left: 50%;
+      margin-left: -18px;
+      position: absolute;
+      top: 8px;
+      width: 36px;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-close {
+      right: 10px;
+      top: 22px;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-header {
+      border-bottom: 1px solid transparent;
+      flex: none;
+      margin: 0;
+      padding: 6px 52px 12px 16px;
+      transition: border-color var(--ui-motion-fast) var(--ui-ease-direct);
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-header[data-scrolled] {
+      border-bottom-color: var(--ui-border-subtle);
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 4px 16px 16px;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-footer {
+      background: var(--ui-bg-elevated);
+      border-top: 1px solid var(--ui-border-subtle);
+      flex: none;
+      margin: 0;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  @keyframes lazu-sheet-motion {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes lazu-sheet-exit {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lazu-modal-content.lazu-modal-content--sheet[data-open],
+    .lazu-modal-content.lazu-modal-content--sheet[data-closed] {
+      animation: none;
     }
   }
 }

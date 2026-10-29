@@ -5,7 +5,7 @@
  * today's rejections; members see their own. Create, rotate, disable and
  * delete follow S1 / S10. */
 import { Download, Plus, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../../../components/ui/button';
@@ -17,11 +17,15 @@ import {
 } from '../../../components/ui/effort-cap';
 import { InlineNotice } from '../../../components/ui/inline-notice';
 import { Input } from '../../../components/ui/input';
+import {
+  deferUndoable,
+  useUndoPending,
+} from '../../../components/ui/undo-toast';
+import { cn } from '../../../lib/cn';
 import { canRevealKey } from '../access';
 import { MAX_PERSONAL_KEYS } from '../budget';
 import {
   Card,
-  ActionModal,
   KeyLimitBadge,
   Kvs,
   PjBadge,
@@ -35,7 +39,6 @@ import {
   CreateKeyModal,
   EditKeyModal,
   CreatedSecret,
-  DeleteKeyModal,
   RotateKeyModal,
 } from '../components/KeyDialogs';
 import { KeySecretCell } from '../components/KeySecretCell';
@@ -50,7 +53,7 @@ import {
   useProjectModels,
   useProjectTokens,
 } from '../queries';
-import { errorReceipt, receipt } from '../receipt';
+import { errorReceipt, receipt, reversibleReceipt } from '../receipt';
 import { effortUsageHref, rejectionUsageHref } from '../rejections';
 import type { ProjectToken } from '../types';
 
@@ -89,11 +92,6 @@ export default function ProjectKeysPage() {
   } | null>(null);
   const [rotating, setRotating] = useState<ProjectToken | null>(null);
   const [editing, setEditing] = useState<ProjectToken | null>(null);
-  const [deleting, setDeleting] = useState<ProjectToken | null>(null);
-  /* Disable used to confirm in a popover hung off its own row button. That
-     button lives in the overflow menu now, and the menu closes on select, so
-     the confirmation became a dialog of its own. */
-  const [toggling, setToggling] = useState<ProjectToken | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
 
   useEffect(() => {
@@ -137,6 +135,11 @@ export default function ProjectKeysPage() {
   ).length;
   const disabledCount = tokens.filter((k) => k.status !== 'enabled').length;
 
+  /* Disabling is undone by enabling, so neither asks first: the receipt
+     carries the opposite action. The latest row is read at click time, since
+     a toggle bumps the Key's version. */
+  const tokensRef = useRef(tokens);
+  tokensRef.current = tokens;
   const toggle = async (key: ProjectToken) => {
     if (!project.client || !project.current) return;
     try {
@@ -146,15 +149,58 @@ export default function ProjectKeysPage() {
         key.status !== 'enabled',
         key.version,
       );
-      receipt(
-        key.status === 'enabled'
+      const disabled = key.status === 'enabled';
+      reversibleReceipt(
+        disabled
           ? t('projects.key.disabledReceipt', { name: key.name })
           : t('projects.key.enabledReceipt', { name: key.name }),
+        {
+          label: disabled
+            ? t('projects.key.enable')
+            : t('projects.key.disable'),
+          onClick: () => {
+            const latest = tokensRef.current.find((k) => k.id === key.id);
+            if (latest) void toggle(latest);
+          },
+        },
       );
       await invalidate('tokens');
     } catch (e) {
       errorReceipt(e);
     }
+  };
+
+  /* 删除 runs at once with a 10-second undo; the row reads 删除中 until the
+     request goes out. */
+  const undoPending = useUndoPending();
+  const pendingDelete = (key: ProjectToken) =>
+    undoPending.has(`project-token:${key.id}`);
+  const remove = (key: ProjectToken) => {
+    const client = project.client;
+    const current = project.current;
+    if (!client || !current) return;
+    setExpanded(null);
+    deferUndoable({
+      keys: [`project-token:${key.id}`],
+      message: t('undo.token.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name: key.name,
+      }),
+      restored: t('undo.token.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name: key.name,
+      }),
+      failed: t('undo.token.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name: key.name,
+      }),
+      commit: () => client.deleteToken(key.id, current.id),
+      keepalive: {
+        method: 'DELETE',
+        path: `/api/token/${key.id}?project_id=${encodeURIComponent(current.id)}`,
+      },
+      onCommitted: () => void invalidate('tokens'),
+    });
   };
 
   const exportCsv = () => {
@@ -390,7 +436,10 @@ export default function ProjectKeysPage() {
                   key={k.id}
                 >
                   <tr
-                    className='pj-row'
+                    className={cn(
+                      'pj-row',
+                      pendingDelete(k) && 'is-undo-pending',
+                    )}
                     data-highlight={highlight === k.id || undefined}
                     data-muted={k.status !== 'enabled' || stopped || undefined}
                     data-selected={isOpen || undefined}
@@ -405,7 +454,11 @@ export default function ProjectKeysPage() {
                         <span className='pj-nm'>{k.name}</span>
                         <span className='pj-sub pj-mono'>{k.id}</span>
                       </button>
-                      {stopped ? (
+                      {pendingDelete(k) ? (
+                        <PjBadge>
+                          {t('undo.deleting', { defaultValue: '删除中' })}
+                        </PjBadge>
+                      ) : stopped ? (
                         <PjBadge tone='bad'>
                           {t('projects.key.stoppedByRemoval')}
                         </PjBadge>
@@ -507,7 +560,7 @@ export default function ProjectKeysPage() {
                       {formatDayTime(k.last_used_at)}
                     </td>
                     <td className='pj-r'>
-                      <span className='pj-ra'>
+                      <span className='pj-ra' hidden={pendingDelete(k)}>
                         {!stopped ? (
                           <Button
                             size='sm'
@@ -536,7 +589,7 @@ export default function ProjectKeysPage() {
                                 k.status === 'enabled'
                                   ? t('projects.key.disable')
                                   : t('projects.key.enable'),
-                              onSelect: () => setToggling(k),
+                              onSelect: () => void toggle(k),
                             },
                             {
                               danger: true,
@@ -545,7 +598,7 @@ export default function ProjectKeysPage() {
                               label: t('page.console.tables.delete', {
                                 defaultValue: '删除',
                               }),
-                              onSelect: () => setDeleting(k),
+                              onSelect: () => remove(k),
                             },
                           ]}
                           menuLabel={t('projects.common.moreFor', {
@@ -648,7 +701,7 @@ export default function ProjectKeysPage() {
                               ) : null}
                               {k.capabilities.can_delete ? (
                                 <Button
-                                  onClick={() => setDeleting(k)}
+                                  onClick={() => remove(k)}
                                   size='sm'
                                   variant='ghost-danger'
                                 >
@@ -697,27 +750,6 @@ export default function ProjectKeysPage() {
         />
       </Card>
 
-      <ActionModal
-        confirmLabel={
-          toggling?.status === 'enabled'
-            ? t('projects.key.disable')
-            : t('projects.key.enable')
-        }
-        danger={toggling?.status === 'enabled'}
-        onConfirm={() => {
-          if (toggling) void toggle(toggling);
-          setToggling(null);
-        }}
-        onOpenChange={(open) => {
-          if (!open) setToggling(null);
-        }}
-        open={toggling !== null}
-        title={
-          toggling?.status === 'enabled'
-            ? t('projects.key.disableConfirm', { name: toggling.name })
-            : t('projects.key.enableConfirm', { name: toggling?.name ?? '' })
-        }
-      />
       {connecting ? (
         <ProjectKeyConnect
           token={connecting.token}
@@ -757,16 +789,6 @@ export default function ProjectKeysPage() {
           }}
           open
           token={rotating}
-        />
-      ) : null}
-      {deleting ? (
-        <DeleteKeyModal
-          onDeleted={() => setDeleting(null)}
-          onOpenChange={(open) => {
-            if (!open) setDeleting(null);
-          }}
-          open
-          token={deleting}
         />
       ) : null}
     </ConsolePage>

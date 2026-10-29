@@ -12,7 +12,6 @@ export {
 export { Badge } from './badge';
 export { AuthProgress } from './auth-progress';
 export { Button, type ButtonProps, buttonVariants } from './button';
-export { CompactConfirmation } from './compact-confirmation';
 export { Checkbox } from './checkbox';
 export { default as ConsolePage } from './console-page';
 export { DataCard } from './data-card';

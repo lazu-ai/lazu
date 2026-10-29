@@ -8,12 +8,12 @@ import { isAxiosError } from 'axios';
 import { Download, FileText, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DataTableShell } from '../../components/ui/data-table-shell';
 import { EmptyState } from '../../components/ui/empty-state';
 import { ErrorState } from '../../components/ui/error-state';
 import { IconButton } from '../../components/ui/icon-button';
-import { Modal } from '../../components/ui/modal';
 import { Select, SelectItem } from '../../components/ui/select';
 import {
   ColumnVisibilityMenu,
@@ -25,10 +25,10 @@ import {
   useColumnVisibility,
 } from '../../components/ui/table-tools';
 import { Tag } from '../../components/ui/tag';
-import { notify } from '../../components/ui/toast';
+import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
 import { API } from '../../helpers/api';
 import { showError } from '../../helpers/utils';
-import { apiErrorHandler } from '../../lib/api-error';
+import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
 type FileRecord = Record<string, unknown> & {
@@ -119,7 +119,6 @@ const Files = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [purpose, setPurpose] = useState(PURPOSE_ALL);
-  const [deleteTarget, setDeleteTarget] = useState<FileRecord | null>(null);
 
   const filesQuery = useQuery<FileRecord[], Error>({
     queryKey: queryKeys.console.table('files', { purpose }),
@@ -132,17 +131,33 @@ const Files = () => {
       queryKey: queryKeys.console.root,
     });
 
-  const deleteMutation = useMutation<void, Error, FileRecord>({
-    mutationFn: async (file) => {
-      await API.delete(`/api/files/${file.id}`, { skipErrorHandler: true });
-    },
-    onSuccess: () => {
-      notify.success(t('page.console.files.toast.deleteSuccess'));
-      setDeleteTarget(null);
-      invalidate();
-    },
-    onError: apiErrorHandler,
-  });
+  /* 删除 runs at once and offers a 10-second undo instead of a dialog;
+     the row reads 删除中 until the request actually goes out. */
+  const undoPending = useUndoPending();
+  const deleteNow = (file: FileRecord) => {
+    const name = file.filename;
+    const path = `/api/files/${encodeURIComponent(file.id)}`;
+    deferUndoable({
+      keys: [`file:${file.id}`],
+      message: t('undo.file.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name,
+      }),
+      restored: t('undo.file.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.file.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name,
+      }),
+      // The undo toast reports a failure itself, with 重试.
+      commit: async () =>
+        unwrap(await API.delete(path, { skipErrorHandler: true })),
+      keepalive: { method: 'DELETE', path },
+      onCommitted: () => void invalidate(),
+    });
+  };
 
   const downloadMutation = useMutation<void, Error, FileRecord>({
     mutationFn: async (file) => {
@@ -229,13 +244,18 @@ const Files = () => {
           id: 'status',
           key: 'status',
           title: t('page.console.files.column.status'),
-          render: (_value: unknown, record: FileRecord) => (
-            <Tag>
-              {t(`page.console.files.status.${record.status}`, {
-                defaultValue: String(record.status || '-'),
-              })}
-            </Tag>
-          ),
+          render: (_value: unknown, record: FileRecord) =>
+            undoPending.has(`file:${record.id}`) ? (
+              <Badge variant='neutral'>
+                {t('undo.deleting', { defaultValue: '删除中' })}
+              </Badge>
+            ) : (
+              <Tag>
+                {t(`page.console.files.status.${record.status}`, {
+                  defaultValue: String(record.status || '-'),
+                })}
+              </Tag>
+            ),
         },
         {
           id: 'created',
@@ -248,148 +268,114 @@ const Files = () => {
           id: 'actions',
           key: 'actions',
           title: t('page.console.tables.actions'),
-          render: (_value: unknown, record: FileRecord) => (
-            <div className='flex items-center gap-1'>
-              <IconButton
-                aria-label={t('page.console.files.action.download')}
-                size='sm'
-                variant='ghost'
-                disabled={downloadMutation.isPending}
-                onClick={() => downloadMutation.mutate(record)}
-              >
-                <Download size={14} />
-              </IconButton>
-              <IconButton
-                aria-label={t('page.console.files.action.delete')}
-                size='sm'
-                variant='danger'
-                onClick={() => setDeleteTarget(record)}
-              >
-                <Trash2 size={14} />
-              </IconButton>
-            </div>
-          ),
+          render: (_value: unknown, record: FileRecord) =>
+            undoPending.has(`file:${record.id}`) ? null : (
+              <div className='flex items-center gap-1'>
+                <IconButton
+                  aria-label={t('page.console.files.action.download')}
+                  size='sm'
+                  variant='ghost'
+                  disabled={downloadMutation.isPending}
+                  onClick={() => downloadMutation.mutate(record)}
+                >
+                  <Download size={14} />
+                </IconButton>
+                <IconButton
+                  aria-label={t('page.console.files.action.delete')}
+                  size='sm'
+                  variant='danger'
+                  onClick={() => deleteNow(record)}
+                >
+                  <Trash2 size={14} />
+                </IconButton>
+              </div>
+            ),
         },
       ].filter((column) =>
         columnVisibility.visibleColumns.some((meta) => meta.id === column.key),
       ),
-    [columnVisibility.visibleColumns, downloadMutation, t],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deleteNow only reads `t` and `invalidate`
+    [columnVisibility.visibleColumns, downloadMutation, t, undoPending],
   );
 
   return (
-    <>
-      <ConsoleTableFrame
-        title={t('page.console.files.title')}
-        description={t('page.console.files.description')}
-        t={t}
-        isFetching={filesQuery.isFetching}
-        onRefresh={() => filesQuery.refetch()}
-        stats={
-          <div className='flex flex-wrap gap-2'>
-            <MetricPill
-              label={t('page.console.files.metric.total')}
-              value={files.length}
-            />
-            <MetricPill
-              label={t('page.console.files.metric.bytes')}
-              value={formatBytes(totalBytes)}
-            />
-          </div>
-        }
-        columns={
-          <ColumnVisibilityMenu
-            columns={columnMeta}
-            value={columnVisibility.value}
-            onChange={columnVisibility.setColumnVisible}
-            t={t}
+    <ConsoleTableFrame
+      title={t('page.console.files.title')}
+      description={t('page.console.files.description')}
+      t={t}
+      isFetching={filesQuery.isFetching}
+      onRefresh={() => filesQuery.refetch()}
+      stats={
+        <div className='flex flex-wrap gap-2'>
+          <MetricPill
+            label={t('page.console.files.metric.total')}
+            value={files.length}
           />
-        }
-        filters={
-          <label className='min-w-[12rem] text-xs font-medium text-[var(--ui-text-secondary)]'>
-            <span className='mb-1 block'>
-              {t('page.console.files.filter.purpose')}
-            </span>
-            <Select value={purpose} onValueChange={setPurpose}>
-              <SelectItem value={PURPOSE_ALL}>
-                {t('page.console.files.purpose.all')}
-              </SelectItem>
-              <SelectItem value='user_data'>
-                {t('page.console.files.purpose.userData')}
-              </SelectItem>
-              <SelectItem value='vision'>
-                {t('page.console.files.purpose.vision')}
-              </SelectItem>
-            </Select>
-          </label>
-        }
-      >
-        <DataTableShell
-          rowKey='id'
-          columns={columns}
-          data={files}
-          loading={filesQuery.isLoading}
-          empty={
-            filesQuery.isError ? (
-              <ErrorState
-                error={filesQuery.error}
-                action={
-                  <Button onClick={() => filesQuery.refetch()}>
-                    {t('overview.retry')}
-                  </Button>
-                }
-              />
-            ) : (
-              <EmptyState
-                title={t('page.console.files.emptyTitle')}
-                description={t('page.console.files.emptyDescription')}
-              />
-            )
-          }
-          mobileCard={{
-            titleIds: ['filename'],
-            statusIds: ['status'],
-            hideIds: ['id'],
-          }}
+          <MetricPill
+            label={t('page.console.files.metric.bytes')}
+            value={formatBytes(totalBytes)}
+          />
+        </div>
+      }
+      columns={
+        <ColumnVisibilityMenu
+          columns={columnMeta}
+          value={columnVisibility.value}
+          onChange={columnVisibility.setColumnVisible}
+          t={t}
         />
-      </ConsoleTableFrame>
-
-      <Modal
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
+      }
+      filters={
+        <label className='min-w-[12rem] text-xs font-medium text-[var(--ui-text-secondary)]'>
+          <span className='mb-1 block'>
+            {t('page.console.files.filter.purpose')}
+          </span>
+          <Select value={purpose} onValueChange={setPurpose}>
+            <SelectItem value={PURPOSE_ALL}>
+              {t('page.console.files.purpose.all')}
+            </SelectItem>
+            <SelectItem value='user_data'>
+              {t('page.console.files.purpose.userData')}
+            </SelectItem>
+            <SelectItem value='vision'>
+              {t('page.console.files.purpose.vision')}
+            </SelectItem>
+          </Select>
+        </label>
+      }
+    >
+      <DataTableShell
+        rowKey='id'
+        columns={columns}
+        data={files}
+        loading={filesQuery.isLoading}
+        rowClassName={(record) =>
+          undoPending.has(`file:${record.id}`) ? 'is-undo-pending' : undefined
+        }
+        empty={
+          filesQuery.isError ? (
+            <ErrorState
+              error={filesQuery.error}
+              action={
+                <Button onClick={() => filesQuery.refetch()}>
+                  {t('overview.retry')}
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              title={t('page.console.files.emptyTitle')}
+              description={t('page.console.files.emptyDescription')}
+            />
+          )
+        }
+        mobileCard={{
+          titleIds: ['filename'],
+          statusIds: ['status'],
+          hideIds: ['id'],
         }}
-        title={t('page.console.files.delete.title')}
-        description={
-          deleteTarget
-            ? t('page.console.files.delete.description', {
-                filename: deleteTarget.filename,
-              })
-            : undefined
-        }
-        footer={
-          <div className='flex justify-end gap-2'>
-            <Button variant='ghost' onClick={() => setDeleteTarget(null)}>
-              {t('legacy.i18n.cancel.4d0b4688c7')}
-            </Button>
-            <Button
-              variant='danger'
-              loading={deleteMutation.isPending}
-              disabled={!deleteTarget}
-              onClick={() => {
-                if (deleteTarget) {
-                  deleteMutation.mutate(deleteTarget);
-                }
-              }}
-            >
-              <Trash2 size={15} />
-              {t('page.console.files.action.delete')}
-            </Button>
-          </div>
-        }
       />
-    </>
+    </ConsoleTableFrame>
   );
 };
 

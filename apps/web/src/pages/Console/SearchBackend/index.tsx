@@ -12,6 +12,10 @@ import { Modal } from '../../../components/ui/modal';
 import { MultiSelect, Select } from '../../../components/ui/select';
 import { Switch } from '../../../components/ui/switch';
 import {
+  deferUndoable,
+  useUndoPending,
+} from '../../../components/ui/undo-toast';
+import {
   SEARCH_CHANNEL_OPTIONS,
   type SearchCapability,
 } from '../../../constants/search.constants';
@@ -55,9 +59,36 @@ const SearchBackendPage = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<SearchBackendRecord>(emptyDraft);
 
-  const [deleteTarget, setDeleteTarget] = useState<SearchBackendRecord | null>(
-    null,
-  );
+  /* 删除 runs at once and offers a 10-second undo instead of a dialog;
+     the row reads 删除中 until the request actually goes out. */
+  const undoPending = useUndoPending();
+  const isUndoPending = (record: SearchBackendRecord) =>
+    record.id !== undefined && undoPending.has(`search-backend:${record.id}`);
+  const deleteNow = (record: SearchBackendRecord) => {
+    if (!record.id) return;
+    const name = record.name || record.id;
+    const path = `/api/search/backends/${record.id}`;
+    deferUndoable({
+      keys: [`search-backend:${record.id}`],
+      message: t('undo.searchBackend.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name,
+      }),
+      restored: t('undo.searchBackend.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.searchBackend.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name,
+      }),
+      // The undo toast reports a failure itself, with 重试.
+      commit: async () =>
+        unwrap(await API.delete(path, { skipErrorHandler: true })),
+      keepalive: { method: 'DELETE', path },
+      onCommitted: admin.refresh,
+    });
+  };
 
   const isEdit = draft.id !== undefined && draft.id !== null;
 
@@ -166,8 +197,12 @@ const SearchBackendPage = () => {
               <tbody>
                 {admin.backends.map((record) => {
                   const enabled = record.status === 1;
+                  const pending = isUndoPending(record);
                   return (
-                    <tr key={record.id ?? record.name}>
+                    <tr
+                      className={pending ? 'is-undo-pending' : undefined}
+                      key={record.id ?? record.name}
+                    >
                       <td style={{ fontWeight: 600 }}>{record.name || '-'}</td>
 
                       <td>{record.provider || '-'}</td>
@@ -214,37 +249,45 @@ const SearchBackendPage = () => {
                       </td>
                       <td className='font-mono'>{record.priority ?? '-'}</td>
                       <td>
-                        <Badge variant={enabled ? 'success' : 'neutral'}>
-                          {enabled
-                            ? t('page.console.tables.enabled')
-                            : t('page.console.tables.disabled')}
-                        </Badge>
+                        {pending ? (
+                          <Badge variant='neutral'>
+                            {t('undo.deleting', { defaultValue: '删除中' })}
+                          </Badge>
+                        ) : (
+                          <Badge variant={enabled ? 'success' : 'neutral'}>
+                            {enabled
+                              ? t('page.console.tables.enabled')
+                              : t('page.console.tables.disabled')}
+                          </Badge>
+                        )}
                       </td>
                       <td>
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: 4,
-                            justifyContent: 'flex-start',
-                          }}
-                        >
-                          <Button
-                            size='xs'
-                            variant='ghost'
-                            onClick={() => openEdit(record)}
+                        {pending ? null : (
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: 4,
+                              justifyContent: 'flex-start',
+                            }}
                           >
-                            {t('page.console.tables.edit', {
-                              defaultValue: '编辑',
-                            })}
-                          </Button>
-                          <Button
-                            size='xs'
-                            variant='ghost-danger'
-                            onClick={() => setDeleteTarget(record)}
-                          >
-                            {t('page.console.tables.delete')}
-                          </Button>
-                        </div>
+                            <Button
+                              size='xs'
+                              variant='ghost'
+                              onClick={() => openEdit(record)}
+                            >
+                              {t('page.console.tables.edit', {
+                                defaultValue: '编辑',
+                              })}
+                            </Button>
+                            <Button
+                              size='xs'
+                              variant='ghost-danger'
+                              onClick={() => deleteNow(record)}
+                            >
+                              {t('page.console.tables.delete')}
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -255,45 +298,6 @@ const SearchBackendPage = () => {
         )}
       </DataCard>
 
-      <Modal
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
-        }}
-        busy={admin.deleteMutation.isPending}
-        title={t('page.console.tables.delete')}
-        body={
-          <p>
-            {t('search.deleteConfirm', {
-              defaultValue: '删除搜索服务 {{name}}？后续请求将不再使用此配置。',
-              name: deleteTarget?.name,
-            })}
-          </p>
-        }
-        footer={
-          <>
-            <Button
-              disabled={admin.deleteMutation.isPending}
-              variant='secondary'
-              onClick={() => setDeleteTarget(null)}
-            >
-              {t('common.cancel', { defaultValue: '取消' })}
-            </Button>
-            <Button
-              variant='danger'
-              disabled={admin.deleteMutation.isPending}
-              onClick={() => {
-                if (deleteTarget?.id)
-                  admin.deleteMutation.mutate(deleteTarget.id, {
-                    onSuccess: () => setDeleteTarget(null),
-                  });
-              }}
-            >
-              {t('page.console.tables.delete')}
-            </Button>
-          </>
-        }
-      />
       <Modal
         busy={admin.saveMutation.isPending}
         open={editorOpen}

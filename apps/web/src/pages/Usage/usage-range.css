@@ -1,0 +1,74 @@
+/* The calendar cell of the usage range control (UsageRangeSeg.tsx): the
+   picker's compact trigger dressed as one more segment. */
+.usage-range {
+  align-items: center;
+  flex: none;
+}
+
+.usage-range .dashv3-tp-root {
+  display: inline-flex;
+}
+
+.usage-range .dashv3-tp-btn--compact {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  gap: 6px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.usage-range .dashv3-tp-btn--compact:hover {
+  color: var(--lazu-ink);
+}
+
+.usage-range .dashv3-tp-btn--compact[data-open] {
+  background: var(--lazu-surface);
+  box-shadow: var(--yunmu-shadow);
+  color: var(--lazu-ink);
+}
+
+/* A custom range is the selected segment, in the evidence colour so it
+   reads as dates rather than a preset. */
+.usage-range .dashv3-tp-btn--compact[data-accent] {
+  background: var(--lazu-surface);
+  box-shadow: var(--yunmu-shadow);
+  color: var(--lazu-evidence);
+}
+
+.usage-range__custom {
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-range-row {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+  min-height: 40px;
+}
+
+.usage-range--row {
+  background: none;
+  padding: 0;
+}
+
+.usage-range--row .dashv3-tp-btn--compact,
+.usage-range--row .dashv3-tp-btn--compact[data-accent] {
+  background: none;
+  box-shadow: none;
+  color: var(--lazu-text-muted);
+  font-weight: 500;
+  padding: 8px 0 8px 12px;
+}
+
+.usage-range--row .dashv3-tp-btn--compact[data-accent] {
+  color: var(--lazu-evidence);
+}

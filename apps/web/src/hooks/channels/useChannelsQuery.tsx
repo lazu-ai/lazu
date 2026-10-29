@@ -87,21 +87,6 @@ type PageData = {
   total: number;
 };
 
-type ManageChannelVariables = {
-  action:
-    | 'balance'
-    | 'copy'
-    | 'delete'
-    | 'disable'
-    | 'enable'
-    | 'priority'
-    | 'test'
-    | 'weight';
-  id: number | string;
-  record?: ChannelRecord;
-  value?: unknown;
-};
-
 type SaveChannelVariables = {
   editingChannel?: ChannelRecord | null;
   values: ChannelFormValues;
@@ -480,50 +465,6 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
       queryKey: queryKeys.console.root,
     });
 
-  const manageChannelMutation = useMutation({
-    mutationFn: async ({
-      action,
-      id,
-      record,
-      value,
-    }: ManageChannelVariables) => {
-      const data: LooseRecord = { id };
-      let response;
-      if (action === 'delete') {
-        response = await API.delete(`/api/channel/${id}/`);
-      } else if (action === 'enable' || action === 'disable') {
-        data.status = action === 'enable' ? 1 : 2;
-        response = await API.put('/api/channel/', data);
-      } else if (action === 'priority') {
-        data.priority = Number(value);
-        response = await API.put('/api/channel/', data);
-      } else if (action === 'weight') {
-        data.weight = Math.max(0, Number(value));
-        response = await API.put('/api/channel/', data);
-      } else if (action === 'copy') {
-        response = await API.post(`/api/channel/copy/${record?.id}`);
-      } else if (action === 'balance') {
-        response = await API.get(`/api/channel/update_balance/${record?.id}/`);
-      } else if (action === 'test') {
-        response = await API.get(`/api/channel/test/${record?.id}?model=`);
-      }
-      return response ? unwrap<unknown>(response) : undefined;
-    },
-    onSuccess: (payload, variables) => {
-      if (variables.action === 'test') {
-        notify.info(
-          t('page.console.channel.testStarted', {
-            name: variables.record?.name || variables.id,
-          }),
-        );
-      } else {
-        notify.success(t('page.console.tables.actionSuccess'));
-      }
-      invalidate();
-    },
-    onError: apiErrorHandler,
-  });
-
   const saveChannelMutation = useMutation({
     mutationFn: async ({ editingChannel, values }: SaveChannelVariables) => {
       const payload = normalizeChannelPayload(values, editingChannel);
@@ -660,7 +601,6 @@ export function useChannelsQuery({ listEnabled = true } = {}) {
     idSort,
     isFetching: channelsQuery.isFetching,
     isLoading: channelsQuery.isLoading,
-    manageChannelMutation,
     page: pageData.page || page,
     pageSize: pageData.pageSize || pageSize,
     refresh: () => invalidate(),

@@ -142,7 +142,8 @@ test('usage user ranking carries active group and channel filters', async ({
 
   await page.getByRole('button', { name: /^筛选/ }).click();
   await page.locator('#log-channel').fill('1');
-  await page.getByRole('button', { name: '完成', exact: true }).click();
+  // Closing the popover applies what was typed.
+  await page.keyboard.press('Escape');
   // The log's group is the lane; the 线路 switch sets it and searches.
   await page
     .getByRole('group', { name: '线路' })

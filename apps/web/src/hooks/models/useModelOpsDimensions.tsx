@@ -103,20 +103,10 @@ export function useModelOpsDimensionMutations(t: TFunction) {
     onError: apiErrorHandler,
   });
 
-  const deleteLane = useMutation({
-    mutationFn: async (slug: string) => {
-      const response = await API.delete(
-        `/api/model_ops/lanes/${encodeURIComponent(slug)}`,
-      );
-      unwrap<unknown>(response);
-      return slug;
-    },
-    onSuccess: () => invalidateAll(),
-    onError: apiErrorHandler,
-  });
-
   return {
-    deleteLane,
+    /** After a lane is deleted (LanesDialog sends that itself, behind an
+     *  undo countdown). */
+    refreshLanes: invalidateAll,
     saveLane,
     setLaneEnabled,
   };

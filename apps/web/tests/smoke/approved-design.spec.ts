@@ -30,24 +30,22 @@ test('inline key reveal keeps the table stable and opens no dialog', async ({
   );
 });
 
-test('logout uses a dismissible nearby confirmation', async ({ page }) => {
-  await setupMockedApp(page);
+test('logout signs out at once, without a confirmation', async ({ page }) => {
+  let logouts = 0;
+  await setupMockedApp(page, {
+    payloadFor: (raw: string) => {
+      if (new URL(raw).pathname === '/api/user/logout') {
+        logouts++;
+        return { success: true };
+      }
+      return undefined;
+    },
+  });
   await expectRouteReady(page, '/console/token');
-  const trigger = page.locator('.sidebar-v2__logout');
-  await trigger.click();
-  await expect(
-    page.getByRole('button', { name: '退出', exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(
-    page.getByRole('button', { name: '退出', exact: true }),
-  ).toHaveCount(0);
-  await trigger.click();
-  await page.mouse.click(600, 40);
-  await expect(
-    page.getByRole('button', { name: '退出', exact: true }),
-  ).toHaveCount(0);
-  await expect(page).toHaveURL(/console\/token/);
+  await page.locator('.console-topbar__avatar').click();
+  await page.getByRole('menuitem', { name: '退出', exact: true }).click();
+  await expect.poll(() => logouts).toBe(1);
+  await expect(page).toHaveURL(/\/login/);
 });
 
 for (const [name, route] of Object.entries({
@@ -174,14 +172,17 @@ test('search credentials stay inline and delete can be canceled', async ({
     path: '../../.local-results/screenshots/implementation/search-inline.png',
     animations: 'disabled',
   });
+  // 删除 asks nothing: the row reads 删除中 under a 撤销 toast, and 撤销
+  // puts it back without a request.
   await row.getByRole('button', { name: '删除', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(row).toContainText('删除中');
   await page.screenshot({
     path: '../../.local-results/screenshots/implementation/search-delete.png',
     animations: 'disabled',
   });
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(row).not.toContainText('删除中');
   expect(deletes).toBe(0);
 });
 

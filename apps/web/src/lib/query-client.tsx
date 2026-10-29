@@ -4,6 +4,8 @@ import {
   onlineManager,
 } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Toaster } from 'sonner';
 import { readApiError } from './api-error';
 import type { ReactNode } from 'react';
@@ -77,11 +79,20 @@ export function AppQueryProvider({ children }: AppQueryProviderProps) {
 
 // No richColors: the ink/paper toast carries its semantic in the icon, and
 // sonner's tinted surfaces would fight the reversal.
+//
+// The toaster lives on <body>, beside the dialog portals: inside #root's
+// stacking context every toast sat under an open dialog, and an undo raised
+// from a dialog could not be pressed. It mounts after hydration so the
+// prerendered markup and the first client render agree.
 export function AppToaster() {
-  return (
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => setHost(document.body), []);
+  if (!host) return null;
+  return createPortal(
     <Toaster
       closeButton
       expand={false}
+      mobileOffset={{ bottom: 'var(--app-toast-mobile-bottom, 16px)' }}
       position='bottom-right'
       toastOptions={{
         classNames: {
@@ -92,7 +103,8 @@ export function AppToaster() {
           cancelButton: 'app-toast__cancel',
         },
       }}
-    />
+    />,
+    host,
   );
 }
 

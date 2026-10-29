@@ -283,9 +283,13 @@ for (const viewport of [
     await setupConnection(page);
     const dialog = page.locator('.tok-connect');
     const footer = dialog.locator('.tok-modal-foot');
-    const box = await footer.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+    // On a phone the dialog slides up as a sheet; measure once it has landed.
+    await expect
+      .poll(async () => {
+        const box = await footer.boundingBox();
+        return box ? box.y + box.height : Infinity;
+      })
+      .toBeLessThanOrEqual(viewport.height);
     await expect(footer.getByRole('button').last()).toBeInViewport();
     if (viewport.width < 760) {
       await expect(dialog.locator('.tok-connect__rail')).toBeHidden();

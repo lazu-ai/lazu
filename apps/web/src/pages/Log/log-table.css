@@ -1340,6 +1340,106 @@
   justify-content: space-between;
 }
 
+.logv2-filter-pop__hint {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.logv2-filter-pop__check {
+  align-items: center;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.logv2-filter-pop__check input {
+  accent-color: var(--lazu-evidence);
+  height: 16px;
+  margin: 0;
+  width: 16px;
+}
+
+/* The phone filter sheet (UsageLogFilters, SessionsView): one section per
+   condition, buttons instead of menus, each change applied at once. */
+.logv2-sheet {
+  display: grid;
+  gap: 20px;
+}
+
+.logv2-sheet__section {
+  display: grid;
+  gap: 8px;
+}
+
+.logv2-sheet__section > h3 {
+  margin: 0;
+}
+
+.logv2-sheet .logv2-seg {
+  justify-self: start;
+}
+
+.logv2-sheet__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.logv2-sheet__chip {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 10px;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.logv2-sheet__chip[aria-checked='true'] {
+  background: var(--lazu-evidence-soft);
+  border-color: color-mix(in srgb, var(--lazu-evidence) 35%, transparent);
+  color: var(--lazu-evidence);
+  font-weight: 550;
+}
+
+.logv2-sheet__options {
+  border: 1px solid var(--lazu-border);
+  border-radius: 12px;
+  display: grid;
+  overflow: hidden;
+}
+
+.logv2-sheet__option {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 0;
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 13px;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 14px;
+  text-align: left;
+}
+
+.logv2-sheet__option:first-child {
+  border-top: 0;
+}
+
+.logv2-sheet__option[aria-checked='true']::after {
+  color: var(--lazu-evidence);
+  content: '✓';
+  font-weight: 600;
+}
+
 .logv2-filter-chips {
   align-items: center;
   display: flex;
@@ -1388,19 +1488,18 @@
   padding: 0 4px;
 }
 
-/* On a phone the search and the 筛选 button share one line, and the page
-   head's 列 / 导出 stay on the desktop: cards have no columns to pick and a
-   CSV is not something a phone opens. */
+/* On a phone the range and the 筛选 button share the first line and the
+   search takes the next; the page head's 列 / 导出 stay on the desktop:
+   cards have no columns to pick and a CSV is not something a phone opens. */
 @media (max-width: 767px) {
-  /* The search yields to the 筛选 button, but never below a usable width:
-     when the lane switch shares the line it wraps to its own row instead. */
+  .logv2-filters__row > .lazu-button {
+    margin-left: auto;
+  }
   .logv2-search {
-    flex: 1 1 160px;
+    flex: 1 1 100%;
     max-width: none;
     min-width: 0;
-  }
-  .logv2-filters__date {
-    flex-basis: 100%;
+    order: 1;
   }
   .usage-head-tools {
     display: none;
