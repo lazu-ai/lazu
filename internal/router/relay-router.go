@@ -77,6 +77,7 @@ func SetRelayRouter(router *gin.Engine) {
 	}
 	{
 		searchRouter := relayV1Router.Group("")
+		searchRouter.Use(retiringSearch())
 		searchRouter.Use(middleware.RejectEphemeralCredentialOutsideRelay())
 		searchRouter.Use(middleware.ModelRequestRateLimit())
 		searchRouter.POST("/search", controller.Search)

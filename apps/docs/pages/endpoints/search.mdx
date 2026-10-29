@@ -4,6 +4,7 @@ description: Provider-neutral POST /v1/search for web and news retrieval through
 ---
 
 import {
+  Callout,
   CodeSample,
   EndpointGrid,
   EndpointPage,
@@ -19,7 +20,7 @@ import {
   method="POST"
   path="/v1/search"
   title="Search"
-  description="Run provider-neutral web or news search through Lazu. Hosted api.lazu.ai currently enables Tavily, Serper and Jina; self-hosted operators can add Exa or Brave through the same search-backend system."
+  description="Deprecated: provider-neutral web or news search through Lazu. Responses carry Deprecation and Sunset headers; the endpoint is removed in the first release after 2026-11-01."
   aside={
     <EndpointRail
       endpoint="search"
@@ -34,6 +35,10 @@ Admins configure providers in{" "}
 }
 
 >
+
+<Callout type="warning">
+  `POST /v1/search` and the search-backend admin routes are deprecated and are removed in the first release after 2026-11-01. Call a search provider directly, or use a model's built-in web search tool through `/v1/responses` or `/v1/messages`. See the [changelog](/changelog).
+</Callout>
 
 ## What it returns
 
@@ -58,7 +63,7 @@ but the hosted Lazu deployment is configured with this active set:
 | ----------- | ------------- | ----------------------------------- | --------------------------------------------------------------------- |
 | Tavily      | Enabled       | `web_search`, `web_fetch`, `answer` | Supports `include_answer` and `search_depth`; `advanced` is 2 units.  |
 | Serper      | Enabled       | `web_search`                        | Maps `country` / `region`, `language` and `time_range` when provided. |
-| Jina        | Enabled       | `web_search`, `web_fetch`           | Uses `https://s.jina.ai`; best for retrieval-style snippets.          |
+| Jina        | Disabled      | `web_search`, `web_fetch`           | Uses `https://s.jina.ai`; best for retrieval-style snippets.          |
 | Exa / Brave | Supported     | `web_search` after operator setup   | Available for self-hosted or admin-configured deployments.            |
 
 Hosted backends currently use the default backend policy: up to 10 results per

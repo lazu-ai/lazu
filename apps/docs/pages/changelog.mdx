@@ -5,6 +5,12 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 
 # Changelog
 
+## 2026-10-29 — Search endpoint deprecated
+
+- `POST /v1/search` and the search-backend admin routes (`/api/search/backends*`) are deprecated and are removed in the first release after 2026-11-01. Their responses now carry `Deprecation` and `Sunset` headers. No customer of api.lazu.ai called the endpoint, so the window is shorter than the usual 90 days.
+- Going with them: the console's Search backends page, the search health rows, and the API key fields `search_limits_enabled`, `search_providers` and `search_domain_allowlist`.
+- Unchanged: models' built-in web search tools (`web_search` on `/v1/responses` and Chat, Claude's web search on `/v1/messages`) keep working and are billed as before. Self-hosted deployments that rely on `/v1/search` can call the search provider directly.
+
 ## 2026-10-26 — Five self-hosting settings deprecated
 
 - `LogConsumeEnabled=false` is deprecated. After 2027-01-24 consume logs are always written; bound their storage with `LOG_RETENTION_DAYS`.

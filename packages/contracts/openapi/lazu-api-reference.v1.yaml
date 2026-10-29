@@ -1105,7 +1105,10 @@ paths:
       tags:
         - Search
       summary: Run provider-neutral web or news search.
+      deprecated: true
       description: |
+        Deprecated: responses carry `Deprecation` and `Sunset` headers, and the endpoint is removed in the first release after 2026-11-01. Call a search provider directly, or use a model's built-in web search tool.
+
         Executes a raw retrieval request through configured Lazu search backends such as Tavily, Serper, Exa, Jina, or Brave.
 
         The response uses a normalized result schema and includes both the Lazu request count and provider billable unit count.
