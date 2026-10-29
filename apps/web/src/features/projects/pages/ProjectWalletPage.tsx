@@ -656,7 +656,8 @@ function TopupTable({
   });
   const [canceling, setCanceling] = useState<string | null>(null);
   const statusBadge = (row: ProjectTopup) => {
-    if (row.payment_status === 'paid') return <PjBadge>Paid</PjBadge>;
+    if (row.payment_status === 'paid')
+      return <PjBadge>{t('projects.wallet.status.paid')}</PjBadge>;
     if (row.payment_status === 'pending')
       return (
         <>
@@ -694,7 +695,7 @@ function TopupTable({
             <th className='pj-r'>{t('projects.wallet.col.amount')}</th>
             <th>{t('projects.wallet.col.payer')}</th>
             <th>{t('projects.wallet.col.method')}</th>
-            <th>Invoice</th>
+            <th>{t('projects.wallet.doc.invoice')}</th>
             <th>{t('projects.wallet.col.status')}</th>
             <th />
           </tr>
@@ -785,7 +786,7 @@ function TopupTable({
                       }
                       render={
                         <a
-                          aria-label='Invoice'
+                          aria-label={t('projects.wallet.doc.invoice')}
                           href={paymentDocumentPath(
                             projectId,
                             row.id,
@@ -798,13 +799,13 @@ function TopupTable({
                       size='sm'
                       variant='ghost'
                     >
-                      Invoice
+                      {t('projects.wallet.doc.invoice')}
                     </Button>
                     <Button
                       disabled={!row.receipt_url}
                       render={
                         <a
-                          aria-label='Receipt'
+                          aria-label={t('projects.wallet.doc.receipt')}
                           href={paymentDocumentPath(
                             projectId,
                             row.id,
@@ -817,7 +818,7 @@ function TopupTable({
                       size='sm'
                       variant='ghost'
                     >
-                      Receipt
+                      {t('projects.wallet.doc.receipt')}
                     </Button>
                   </span>
                 )}

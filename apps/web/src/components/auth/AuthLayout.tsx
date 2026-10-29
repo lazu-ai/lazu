@@ -1,5 +1,6 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import './auth.css';
 import { AuthExits } from './AuthExits';
@@ -301,6 +302,7 @@ export function AuthTextField({
   useEffect(() => {
     if (!value) setRevealed(false);
   }, [value]);
+  const { t } = useTranslation();
   const effectiveType = isPassword && revealed ? 'text' : type;
   const inputClassNames = [
     Icon ? 'auth-field-input--with-icon' : null,
@@ -343,10 +345,17 @@ export function AuthTextField({
           <button
             type='button'
             className='auth-field-trailing-button'
-            aria-label={revealed ? 'Hide password' : 'Show password'}
+            aria-label={
+              revealed
+                ? t('page.public.auth.hidePassword', {
+                    defaultValue: 'Hide password',
+                  })
+                : t('page.public.auth.showPassword', {
+                    defaultValue: 'Show password',
+                  })
+            }
             aria-pressed={revealed}
             onClick={() => setRevealed((prev) => !prev)}
-            tabIndex={-1}
           >
             {revealed ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>

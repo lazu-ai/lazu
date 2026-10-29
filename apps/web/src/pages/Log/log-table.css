@@ -1392,8 +1392,10 @@
    head's 列 / 导出 stay on the desktop: cards have no columns to pick and a
    CSV is not something a phone opens. */
 @media (max-width: 767px) {
+  /* The search yields to the 筛选 button, but never below a usable width:
+     when the lane switch shares the line it wraps to its own row instead. */
   .logv2-search {
-    flex: 1 1 0;
+    flex: 1 1 160px;
     max-width: none;
     min-width: 0;
   }

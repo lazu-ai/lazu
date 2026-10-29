@@ -1,7 +1,9 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { X } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useControlAppearanceClass } from './control-appearance';
+import { pickInitialFocus } from './modal';
 import { cn } from '../../lib/cn';
 
 type DrawerProps = Omit<DialogPrimitive.Root.Props, 'children'> & {
@@ -9,6 +11,7 @@ type DrawerProps = Omit<DialogPrimitive.Root.Props, 'children'> & {
   busy?: boolean;
   children?: React.ReactNode;
   className?: string;
+  closeLabel?: string;
   description?: React.ReactNode;
   footer?: React.ReactNode;
   overlayClassName?: string;
@@ -21,6 +24,7 @@ export function Drawer({
   busy = false,
   children,
   className,
+  closeLabel,
   description,
   footer,
   overlayClassName,
@@ -30,6 +34,8 @@ export function Drawer({
   ...props
 }: DrawerProps) {
   const controlAppearanceClass = useControlAppearanceClass();
+  const { t } = useTranslation();
+  const popupRef = React.useRef<HTMLDivElement>(null);
   return (
     <DialogPrimitive.Root
       onOpenChange={(open, details) => {
@@ -55,8 +61,15 @@ export function Drawer({
               className,
             )}
             aria-busy={busy || undefined}
+            initialFocus={(openType) =>
+              pickInitialFocus(popupRef.current, openType)
+            }
+            ref={popupRef}
           >
             <DialogPrimitive.Close
+              aria-label={
+                closeLabel ?? t('common.close', { defaultValue: '关闭' })
+              }
               className='lazu-drawer-close'
               disabled={busy}
             >

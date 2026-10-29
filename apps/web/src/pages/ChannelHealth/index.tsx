@@ -580,7 +580,7 @@ export function ChannelHealthPage() {
          is the by-upstream lens, which renames itself below. */
       title={
         view === 'provider'
-          ? t(`${ns}.title`, { defaultValue: '通道健康' })
+          ? t(`${ns}.title`, { defaultValue: '模型状态 · 按供应商' })
           : t(`${ns}.customerTitle`, { defaultValue: '模型状态' })
       }
       description={

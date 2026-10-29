@@ -1496,8 +1496,17 @@ export function TokenFormDrawer({
             'legacy.i18n.when_creating_in_batches_a_random_suffix_will_be_automatically_a.97f8747f02',
           )}
         >
-          <Input min='1' type='number' {...form.register('tokenCount')} />
-          <FieldMessage error>
+          <Input
+            aria-describedby={
+              form.formState.errors.tokenCount ? 'token-count-error' : undefined
+            }
+            aria-label={t('legacy.i18n.new_quantity.0859dc5a65')}
+            error={Boolean(form.formState.errors.tokenCount)}
+            min='1'
+            type='number'
+            {...form.register('tokenCount')}
+          />
+          <FieldMessage error id='token-count-error'>
             {String(form.formState.errors.tokenCount?.message || '')}
           </FieldMessage>
         </MoreSection>
@@ -1513,6 +1522,10 @@ export function TokenFormDrawer({
           {t('legacy.i18n.name.1be7ae4fc2')}
         </label>
         <Input
+          aria-describedby={
+            form.formState.errors.name ? 'token-name-error' : undefined
+          }
+          error={Boolean(form.formState.errors.name)}
           id='token-name'
           maxLength={30}
           placeholder={
@@ -1524,7 +1537,7 @@ export function TokenFormDrawer({
           }
           {...form.register('name')}
         />
-        <FieldMessage error>
+        <FieldMessage error id='token-name-error'>
           {form.formState.errors.name
             ? t('legacy.i18n.please_enter_a_name.c2afb255a5')
             : ''}

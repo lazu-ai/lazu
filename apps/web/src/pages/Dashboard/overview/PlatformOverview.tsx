@@ -782,7 +782,7 @@ export default function PlatformOverview({ range, onRange, onExport }: Props) {
                 <span>{t(`${ns}.client`, { defaultValue: '客户端' })}</span>
                 <span>{t(`${ns}.users`, { defaultValue: '用户' })}</span>
                 <span>{t(`${ns}.sessions`, { defaultValue: '会话' })}</span>
-                <span>Tokens</span>
+                <span>{t(`${ns}.tokens`, { defaultValue: 'Token 数' })}</span>
                 <span>{t(`${ns}.spend`, { defaultValue: '花费' })}</span>
                 <span>
                   {t(`${ns}.requestShare`, { defaultValue: '占请求' })}
@@ -876,7 +876,7 @@ export default function PlatformOverview({ range, onRange, onExport }: Props) {
           title={t(`${ns}.modelSuccess`, { defaultValue: '模型成功率' })}
           link={{
             to: '/console/health',
-            label: t(`${ns}.channelHealth`, { defaultValue: '通道健康 →' }),
+            label: t(`${ns}.channelHealth`, { defaultValue: '模型状态 →' }),
           }}
           columns={[
             t(`${ns}.model`, { defaultValue: '模型' }),
