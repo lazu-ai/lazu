@@ -60,6 +60,14 @@ export const formatStarCount = (count: number) => {
   return `${thousands.toLocaleString('en-US', { maximumFractionDigits: 1 })}k`;
 };
 
+/* Below this a count reads as an empty room rather than as interest, so
+   the button shows the action alone until the repository reaches it. */
+export const SOURCE_STAR_COUNT_FLOOR = 10;
+
+/** The count the button shows: null while unknown or under the floor. */
+export const shownStarCount = (count: number | null) =>
+  count !== null && count >= SOURCE_STAR_COUNT_FLOOR ? count : null;
+
 /** The page's own path, where the flow returns when it has no popup. */
 const currentPagePath = () => window.location.pathname + window.location.search;
 
