@@ -21,7 +21,7 @@ import {
   Sun,
   Wallet,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './console-topbar.css';
@@ -52,14 +52,12 @@ import { useSidebar } from '../../hooks/common/useSidebar';
 import { formatVersionLabel } from '../announcements/versionLabel';
 import { openWhatsNewDialog } from '../announcements/whatsNewChannel';
 import { openReportProblem } from '../support/reportChannel';
-import { CompactConfirmation } from '../ui/compact-confirmation';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { notify } from '../ui/toast';
 
 const LANGUAGES = [
   { label: 'English', shortLabel: 'EN', value: 'en' },
@@ -95,11 +93,6 @@ const ConsoleTopBar = () => {
   const { hasUnread } = useAnnouncementsUnread(Boolean(user));
   const { isModuleVisible } = useSidebar();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [confirmLogout, setConfirmLogout] = useState(false);
-  const cancelLogoutRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (confirmLogout) cancelLogoutRef.current?.focus();
-  }, [confirmLogout]);
 
   const isDark = actualTheme === 'dark';
   const language = normalizeLanguage(i18n.language);
@@ -201,7 +194,6 @@ const ConsoleTopBar = () => {
       // The session may already be gone server-side; the client-side cleanup
       // below is what actually signs this browser out.
     }
-    notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
     userSession.signOut();
     localStorage.removeItem('user');
     navigate('/login');
@@ -432,7 +424,7 @@ const ConsoleTopBar = () => {
 
         <span aria-hidden='true' className='console-topbar__divider' />
 
-        <DropdownMenu onOpenChange={() => setConfirmLogout(false)}>
+        <DropdownMenu>
           <DropdownMenuTrigger>
             <button
               aria-label={t('console.topbar.account', {
@@ -445,77 +437,48 @@ const ConsoleTopBar = () => {
               {initial(viewerName || 'U')}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align='end'
-            className={
-              confirmLogout
-                ? 'lazu-compact-confirmation-surface'
-                : 'console-topbar__menu'
-            }
-          >
-            {confirmLogout ? (
-              <CompactConfirmation
-                title={t('session.logoutConfirm', {
-                  defaultValue: '退出当前账户？',
-                })}
-                cancelLabel={t('common.cancel', { defaultValue: '取消' })}
-                confirmLabel={t('session.confirmLogout', {
-                  defaultValue: '退出',
-                })}
-                cancelRef={cancelLogoutRef}
-                busy={loggingOut}
-                onCancel={() => setConfirmLogout(false)}
-                onConfirm={() => void handleLogout()}
-              />
-            ) : (
-              <>
-                {viewerName ? (
-                  <div className='console-topbar__who'>
-                    <b>{viewerName}</b>
-                    {typeof user?.email === 'string' && user.email ? (
-                      <small>{user.email}</small>
-                    ) : null}
-                  </div>
+          <DropdownMenuContent align='end' className='console-topbar__menu'>
+            {viewerName ? (
+              <div className='console-topbar__who'>
+                <b>{viewerName}</b>
+                {typeof user?.email === 'string' && user.email ? (
+                  <small>{user.email}</small>
                 ) : null}
-                <DropdownMenuItem
-                  className='console-topbar__item'
-                  onMouseEnter={() => preloadConsoleRoute('/console/personal')}
-                  onFocus={() => preloadConsoleRoute('/console/personal')}
-                  onSelect={() => go('/console/personal')}
-                >
-                  <Settings aria-hidden='true' size={14} />
-                  <span>
-                    {t('nav.personalSettings', { defaultValue: '个人设置' })}
-                  </span>
-                </DropdownMenuItem>
-                {showWallet ? (
-                  <DropdownMenuItem
-                    className='console-topbar__item'
-                    onMouseEnter={() => preloadConsoleRoute('/console/wallet')}
-                    onFocus={() => preloadConsoleRoute('/console/wallet')}
-                    onSelect={() => go('/console/wallet')}
-                  >
-                    <Wallet aria-hidden='true' size={14} />
-                    <span>{t('nav.wallet', { defaultValue: '钱包' })}</span>
-                  </DropdownMenuItem>
-                ) : null}
-                <div className='console-topbar__rule' />
-                <DropdownMenuItem
-                  className='console-topbar__item console-topbar__item--danger'
-                  closeOnClick={false}
-                  disabled={loggingOut}
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setConfirmLogout(true);
-                  }}
-                >
-                  <LogOut aria-hidden='true' size={14} />
-                  <span>
-                    {t('session.confirmLogout', { defaultValue: '退出' })}
-                  </span>
-                </DropdownMenuItem>
-              </>
-            )}
+              </div>
+            ) : null}
+            <DropdownMenuItem
+              className='console-topbar__item'
+              onMouseEnter={() => preloadConsoleRoute('/console/personal')}
+              onFocus={() => preloadConsoleRoute('/console/personal')}
+              onSelect={() => go('/console/personal')}
+            >
+              <Settings aria-hidden='true' size={14} />
+              <span>
+                {t('nav.personalSettings', { defaultValue: '个人设置' })}
+              </span>
+            </DropdownMenuItem>
+            {showWallet ? (
+              <DropdownMenuItem
+                className='console-topbar__item'
+                onMouseEnter={() => preloadConsoleRoute('/console/wallet')}
+                onFocus={() => preloadConsoleRoute('/console/wallet')}
+                onSelect={() => go('/console/wallet')}
+              >
+                <Wallet aria-hidden='true' size={14} />
+                <span>{t('nav.wallet', { defaultValue: '钱包' })}</span>
+              </DropdownMenuItem>
+            ) : null}
+            <div className='console-topbar__rule' />
+            <DropdownMenuItem
+              className='console-topbar__item console-topbar__item--danger'
+              disabled={loggingOut}
+              onSelect={() => void handleLogout()}
+            >
+              <LogOut aria-hidden='true' size={14} />
+              <span>
+                {t('session.confirmLogout', { defaultValue: '退出' })}
+              </span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

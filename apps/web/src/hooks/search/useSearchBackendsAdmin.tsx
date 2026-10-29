@@ -91,20 +91,6 @@ export function useSearchBackendsAdmin() {
     onError: apiErrorHandler,
   });
 
-  const deleteMutation = useMutation<unknown, Error, string>({
-    mutationFn: async (id) =>
-      unwrap<unknown>(
-        await API.delete(`/api/search/backends/${id}`, {
-          skipErrorHandler: true,
-        }),
-      ),
-    onSuccess: () => {
-      notify.success(t('page.console.searchBackend.deleted'));
-      invalidate();
-    },
-    onError: apiErrorHandler,
-  });
-
   const toggleMutation = useMutation<
     unknown,
     Error,
@@ -129,7 +115,6 @@ export function useSearchBackendsAdmin() {
     isFetching: listQuery.isFetching,
     refresh: invalidate,
     saveMutation,
-    deleteMutation,
     toggleMutation,
     t,
   };

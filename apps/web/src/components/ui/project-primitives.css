@@ -1793,6 +1793,53 @@
   margin: 0;
 }
 
+/* Typed-name gate: the label above, the field with its check mark, and the
+   last failure written above the buttons. */
+.pj-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pj-gate__label {
+  font-size: 12px;
+}
+
+.pj-gate__field {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.pj-gate__field .lazu-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.pj-gate__check {
+  color: var(--lazu-success);
+  flex: none;
+  height: 16px;
+  width: 16px;
+}
+
+.pj-gate__error {
+  color: var(--lazu-danger);
+  font-size: 12px;
+  margin: 0;
+}
+
+.pj-gate__lines {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.pj-gate__lines p {
+  margin: 0;
+}
+
 .pj-after {
   background: var(--lazu-surface-muted);
   border: 1px solid var(--lazu-border);

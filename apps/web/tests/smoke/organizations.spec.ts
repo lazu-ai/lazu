@@ -172,7 +172,8 @@ test('organizations ledger exposes create and delete', async ({ page }) => {
   await expect(page.getByText('登录名')).toBeVisible();
   await page.getByRole('button', { name: '取消' }).click();
 
-  // Deleting an account is an explicit drawer action with confirmation.
+  // Deleting an account is a hard delete: the drawer's 删除 opens a gate that
+  // stays shut until the username is typed exactly.
   await page
     .locator('tbody tr', { hasText: 'owner@example.com' })
     .first()
@@ -181,7 +182,17 @@ test('organizations ledger exposes create and delete', async ({ page }) => {
     .locator('.acc-drawer')
     .getByRole('button', { name: '删除', exact: true })
     .click();
-  await expect(page.getByRole('button', { name: '确认删除' })).toBeVisible();
+  const gate = page.getByRole('dialog', { name: /删除账户/ });
+  const field = gate.getByRole('textbox');
+  const confirm = gate.getByRole('button', { name: '删除账户', exact: true });
+  await expect(field).toBeFocused();
+  await expect(confirm).toBeDisabled();
+  await field.fill('gra');
+  await expect(confirm).toBeDisabled();
+  await field.fill(' grace ');
+  await expect(confirm).toBeEnabled();
+  await gate.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(gate).toHaveCount(0);
 
   await app.expectNoUnexpectedErrors();
 });

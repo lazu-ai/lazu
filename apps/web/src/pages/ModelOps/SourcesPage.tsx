@@ -13,8 +13,10 @@ import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
 import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
-import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
+import { ModalFrame, ModalTitle } from '../../components/ui/modal';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
+import { API } from '../../helpers/api';
 import { useChannelsQuery } from '../../hooks/channels/useChannelsQuery';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
 import {
@@ -22,6 +24,7 @@ import {
   useModelOpsSourcesQuery,
   type ModelOpsSource,
 } from '../../hooks/models/useModelOpsQuery';
+import { unwrap } from '../../lib/api-error';
 import type { ComponentProps } from 'react';
 import './model-ops.css';
 import './ledger.css';
@@ -51,9 +54,6 @@ export default function SourcesPage() {
   const lanesQuery = useChannelLanesQuery();
   const lanes = lanesQuery.data ?? [];
   const [step, setStep] = useState<SourceStep>('credential');
-  const [pendingDelete, setPendingDelete] = useState<ModelOpsSource | null>(
-    null,
-  );
   const [observed, setObserved] = useState<ModelOpsSource | null>(null);
 
   const creating = searchParams.get('new') === '1';
@@ -120,6 +120,37 @@ export default function SourcesPage() {
   );
 
   const closePanel = () => setParams({ new: null, source: null });
+
+  /* 删除 runs at once and offers a 10-second undo instead of a dialog;
+     the row reads 删除中 until the request actually goes out. */
+  const undoPending = useUndoPending();
+  const isUndoPending = (source: ModelOpsSource) =>
+    undoPending.has(`channel:${String(source.id)}`);
+  const deleteNow = (source: ModelOpsSource) => {
+    const name = source.name;
+    const path = `/api/channel/${source.id}/`;
+    deferUndoable({
+      keys: [`channel:${String(source.id)}`],
+      message: t('undo.channel.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name,
+      }),
+      restored: t('undo.channel.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.channel.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name,
+      }),
+      // The undo toast reports a failure itself, with 重试.
+      commit: async () =>
+        unwrap(await API.delete(path, { skipErrorHandler: true })),
+      keepalive: { method: 'DELETE', path },
+      onCommitted: channels.refresh,
+    });
+    if (String(source.id) === selectedId) closePanel();
+  };
   return (
     <ConsolePage
       appearance='review'
@@ -264,7 +295,8 @@ export default function SourcesPage() {
             sources={rows}
             t={t}
             windowHours={windowHours}
-            onDelete={(source) => setPendingDelete(source)}
+            isUndoPending={isUndoPending}
+            onDelete={deleteNow}
             onOpenObservation={(source) => setObserved(source)}
             onSelect={(id) =>
               setParams({
@@ -452,52 +484,6 @@ export default function SourcesPage() {
           />
         </ModalFrame>
       ) : null}
-
-      <Modal
-        open={Boolean(pendingDelete)}
-        title={t(`${ns}.sources.deleteTitle`, { defaultValue: '删除来源' })}
-        description={t(`${ns}.sources.deleteDescription`, {
-          defaultValue:
-            '删除后该来源的凭据、模型映射和来源池关系都会移除，操作无法撤销。',
-        })}
-        body={<p className='mo-name'>{pendingDelete?.name || ''}</p>}
-        footer={
-          <>
-            <Button
-              disabled={channels.manageChannelMutation.isPending}
-              variant='secondary'
-              onClick={() => setPendingDelete(null)}
-            >
-              {t('common.cancel', { defaultValue: '取消' })}
-            </Button>
-            <Button
-              variant='danger'
-              loading={channels.manageChannelMutation.isPending}
-              onClick={async () => {
-                try {
-                  if (pendingDelete) {
-                    await channels.manageChannelMutation.mutateAsync({
-                      action: 'delete',
-                      id: pendingDelete.id,
-                      record: pendingDelete,
-                    });
-                    if (String(pendingDelete.id) === selectedId) closePanel();
-                  }
-                  setPendingDelete(null);
-                } catch {
-                  /* Mutation reports the error; preserve confirmation for retry. */
-                }
-              }}
-            >
-              {t('page.console.tables.delete')}
-            </Button>
-          </>
-        }
-        onOpenChange={(open: boolean) => {
-          if (!open && !channels.manageChannelMutation.isPending)
-            setPendingDelete(null);
-        }}
-      />
 
       <ObservationDialog
         busy={

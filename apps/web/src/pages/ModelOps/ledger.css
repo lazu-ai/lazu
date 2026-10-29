@@ -49,6 +49,16 @@
   border-bottom: 0;
 }
 
+/* A row waiting on an undo countdown (ui.css mutes it; these rows are not
+   table cells, so the strike-through is drawn here). It opens nothing. */
+.mo-ledger__row.is-undo-pending {
+  cursor: default;
+}
+
+.mo-ledger__row.is-undo-pending > span {
+  text-decoration: line-through;
+}
+
 /* Vertical centring comes from the grid, so the cells carry no block padding
    and cannot push the row taller than `--row-h`. */
 .mo-ledger__row > span {

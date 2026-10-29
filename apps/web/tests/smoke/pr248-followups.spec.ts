@@ -131,7 +131,7 @@ test('shared invitation waits for settings and resets on reopening', async ({
   await expect(page.locator('#pj-invite-email')).toHaveValue('');
 });
 
-test('desktop sign-out requires confirmation and supports cancel', async ({
+test('desktop sign-out runs from the account menu at once', async ({
   page,
 }) => {
   let logouts = 0;
@@ -148,16 +148,6 @@ test('desktop sign-out requires confirmation and supports cancel', async ({
   await page.goto('/console/models');
   await page.locator('.console-topbar__avatar').click();
   await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
-  await expect(
-    page.getByText('Sign out of this account?', { exact: true }),
-  ).toBeVisible();
-  expect(logouts).toBe(0);
-  await expect(
-    page.getByRole('button', { name: 'Cancel', exact: true }),
-  ).toBeFocused();
-  await page.keyboard.press('Enter');
-  await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect.poll(() => logouts).toBe(1);
   await expect(page).toHaveURL(/\/login/);
 });

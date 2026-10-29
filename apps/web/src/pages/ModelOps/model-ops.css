@@ -1063,6 +1063,11 @@
   font-weight: 600;
 }
 
+/* A lane waiting on an undo countdown; ui.css mutes it. */
+.mo-lanedlg__row.is-undo-pending > span {
+  text-decoration: line-through;
+}
+
 /* ---- 待处理 ------------------------------------------------------------- */
 .mo-updates__bar {
   align-items: center;

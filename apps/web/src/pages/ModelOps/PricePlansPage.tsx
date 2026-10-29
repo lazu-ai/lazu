@@ -12,10 +12,12 @@ import {
   type PricePlan,
 } from './pricePlans';
 import { usePricePlansQuery } from './usePricePlans';
+import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
 import { ErrorState } from '../../components/ui/error-state';
 import { PendingBlock } from '../../components/ui/pending';
+import { useUndoPending } from '../../components/ui/undo-toast';
 import { isRoot } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import type { TFunction } from 'i18next';
@@ -27,17 +29,24 @@ const ns = 'page.console.modelOps.plans';
 
 const COLS = 'minmax(0,1.6fr) 110px 150px 100px 110px 90px 130px 96px';
 
-function PlanRow({ plan, t }: { plan: PricePlan; t: TFunction }) {
+/** A plan deleted a moment ago reads 删除中 and opens nothing until the
+ *  undo countdown ends. */
+function PlanRow({
+  deleting,
+  plan,
+  t,
+}: {
+  deleting: boolean;
+  plan: PricePlan;
+  t: TFunction;
+}) {
   const vendors = vendorRuleSpan(plan.rules);
   const models = plan.rules.filter((rule) => rule.kind === 'model').length;
   const until = plan.ends_at
     ? formatEndDay(plan.ends_at)
     : t(`${ns}.forever`, { defaultValue: '长期' });
-  return (
-    <Link
-      className='mo-ledger__row pp-row'
-      to={`/console/price-plans/${plan.id}`}
-    >
+  const cells = (
+    <>
       <span className='pp-row__name'>
         <b>{plan.name}</b>
         {plan.note ? <small>{plan.note}</small> : null}
@@ -64,8 +73,24 @@ function PlanRow({ plan, t }: { plan: PricePlan; t: TFunction }) {
         {until}
       </span>
       <span>
-        <PlanStatusBadge status={planStatus(plan)} t={t} />
+        {deleting ? (
+          <Badge variant='neutral'>
+            {t('undo.deleting', { defaultValue: '删除中' })}
+          </Badge>
+        ) : (
+          <PlanStatusBadge status={planStatus(plan)} t={t} />
+        )}
       </span>
+    </>
+  );
+  return deleting ? (
+    <div className='mo-ledger__row pp-row is-undo-pending'>{cells}</div>
+  ) : (
+    <Link
+      className='mo-ledger__row pp-row'
+      to={`/console/price-plans/${plan.id}`}
+    >
+      {cells}
     </Link>
   );
 }
@@ -77,6 +102,7 @@ export default function PricePlansPage() {
   const root = isRoot();
   const plans = usePricePlansQuery(root);
   const reveal = useDelayedReveal(plans.isPending);
+  const undoPending = useUndoPending();
 
   if (!root) return <Navigate replace to='/console' />;
 
@@ -144,7 +170,12 @@ export default function PricePlansPage() {
             </div>
           ) : (
             plans.data.map((plan) => (
-              <PlanRow key={plan.id} plan={plan} t={t} />
+              <PlanRow
+                deleting={undoPending.has(`price-plan:${plan.id}`)}
+                key={plan.id}
+                plan={plan}
+                t={t}
+              />
             ))
           )}
         </div>

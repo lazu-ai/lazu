@@ -160,15 +160,6 @@ export function usePricePlanMutations() {
     onError: apiErrorHandler,
   });
 
-  const remove = useMutation({
-    mutationFn: async (id: number) => {
-      unwrap(await API.delete(`/api/price-plans/${id}`));
-      return id;
-    },
-    onSuccess: () => refresh(),
-    onError: apiErrorHandler,
-  });
-
   const addMember = useMutation({
     mutationFn: async ({ id, user }: { id: number; user: string }) => {
       unwrap(await API.post(`/api/price-plans/${id}/members`, { user }));
@@ -178,18 +169,7 @@ export function usePricePlanMutations() {
     onError: apiErrorHandler,
   });
 
-  const removeMember = useMutation({
-    mutationFn: async ({ id, user }: { id: number; user: string }) => {
-      unwrap(
-        await API.delete(
-          `/api/price-plans/${id}/members/${encodeURIComponent(user)}`,
-        ),
-      );
-      return id;
-    },
-    onSuccess: (id) => refresh(id),
-    onError: apiErrorHandler,
-  });
-
-  return { addMember, remove, removeMember, save };
+  /* Deleting a plan and taking a member off one go out behind an undo
+     countdown (the pages send those themselves), then refresh here. */
+  return { addMember, refresh, save };
 }

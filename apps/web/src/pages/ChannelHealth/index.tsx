@@ -11,7 +11,6 @@ import { EmptyState } from '../../components/ui/empty-state';
 import { ErrorState } from '../../components/ui/error-state';
 import { Input } from '../../components/ui/input';
 import { LoadingState } from '../../components/ui/loading-state';
-import { Modal } from '../../components/ui/modal';
 import { Select } from '../../components/ui/select';
 import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
@@ -23,7 +22,6 @@ import {
   type ChannelHealthKind,
   type ChannelHealthKindSection,
   type ChannelHealthProvider,
-  type ChannelHealthProviderLane,
   type ChannelHealthRow,
   type ChannelHealthStatus,
 } from '../../hooks/health/useChannelHealthQuery';
@@ -36,6 +34,9 @@ const ns = 'page.console.channelHealth';
 const HEALTH_WINDOW = '7d' as const;
 
 type LaneFilter = 'all' | 'stable' | 'eco';
+/** One route of a source as the weight call names it, with the weight it
+ *  held before, so lowering it can be taken back. */
+type LaneRoute = { lane: 'cheap' | 'direct'; model: string; weight: number };
 type KindFilter = 'all' | ChannelHealthKind;
 
 /** Sections in the order the server sends them; this is the fallback for a
@@ -262,14 +263,8 @@ export function ChannelHealthPage() {
   const [selectedProviderId, setSelectedProviderId] = useState<number | null>(
     null,
   );
-  const [pauseTarget, setPauseTarget] = useState<ChannelHealthProvider | null>(
-    null,
-  );
-  const [pausing, setPausing] = useState(false);
-  const [floorTarget, setFloorTarget] = useState<ChannelHealthProvider | null>(
-    null,
-  );
-  const [flooring, setFlooring] = useState(false);
+  const [pausingId, setPausingId] = useState<number | null>(null);
+  const [flooringId, setFlooringId] = useState<number | null>(null);
   const [testingId, setTestingId] = useState<number | null>(null);
 
   /* One window, the week. The status word is the breaker's verdict now; the
@@ -465,63 +460,121 @@ export function ChannelHealthPage() {
 
   /* Roles and retreats are the two things an operator changes from this page.
      Everything else here reports; these two act, so they live next to the
-     evidence that prompts them rather than in a separate settings screen. */
-  const runFloor = async () => {
-    if (!floorTarget) return;
-    const routes = liveLanes(floorTarget).map((lane) => ({
-      lane: lane.lane === 'eco' ? 'cheap' : 'direct',
-      model: lane.model_name,
-    }));
-    if (!routes.length) {
-      setFloorTarget(null);
-      return;
-    }
-    setFlooring(true);
+     evidence that prompts them rather than in a separate settings screen.
+     Both run at once: each can be taken back exactly, so the receipt carries
+     the way back instead of a dialog asking first. */
+  const setWeights = (channelId: number, weight: number, routes: LaneRoute[]) =>
+    API.put('/api/model_ops/pool_weight/batch', {
+      channel_id: String(channelId),
+      weight,
+      routes: routes.map(({ lane, model }) => ({ lane, model })),
+    }).then((response) => unwrap<unknown>(response));
+
+  /* The batch call sets one weight on every route it names, so the way back
+     is one call per weight the routes held before. */
+  const restoreWeights = async (
+    provider: ChannelHealthProvider,
+    routes: LaneRoute[],
+  ) => {
+    setFlooringId(provider.channel_id);
     try {
-      unwrap<unknown>(
-        await API.put('/api/model_ops/pool_weight/batch', {
-          channel_id: String(floorTarget.channel_id),
-          weight: 0,
-          routes,
-        }),
-      );
+      const byWeight = new Map<number, LaneRoute[]>();
+      for (const route of routes) {
+        if (route.weight === 0) continue;
+        byWeight.set(route.weight, [
+          ...(byWeight.get(route.weight) ?? []),
+          route,
+        ]);
+      }
+      for (const [weight, group] of byWeight) {
+        await setWeights(provider.channel_id, weight, group);
+      }
       notify.success(
-        t(`${ns}.floor.done`, {
+        t(`${ns}.floor.restored`, {
           count: routes.length,
-          defaultValue: '已把 {{count}} 条通道上的权重降到 0',
+          name: provider.channel_name,
         }),
       );
-      setFloorTarget(null);
       await refreshHealth();
     } catch (error) {
       showError(error);
     } finally {
-      setFlooring(false);
+      setFlooringId(null);
     }
   };
 
-  const runPause = async () => {
-    if (!pauseTarget) return;
-    setPausing(true);
+  const runFloor = async (provider: ChannelHealthProvider) => {
+    const routes: LaneRoute[] = liveLanes(provider).map((lane) => ({
+      lane: lane.lane === 'eco' ? 'cheap' : 'direct',
+      model: lane.model_name,
+      weight: lane.weight,
+    }));
+    if (!routes.length) return;
+    setFlooringId(provider.channel_id);
     try {
-      unwrap<unknown>(
-        await API.put(`/api/channel/${pauseTarget.channel_id}/status`, {
-          status: 2,
-          reason: 'paused from the channel health ledger',
-        }),
-      );
+      await setWeights(provider.channel_id, 0, routes);
+      // Weight 0 is not off: the picker adds a base weight to every live
+      // route, so the receipt says the source still takes a share.
       notify.success(
-        t(`${ns}.pause.done`, {
-          defaultValue: '已停用 {{name}}',
-          name: pauseTarget.channel_name,
+        t(`${ns}.floor.doneShare`, {
+          count: routes.length,
+          name: provider.channel_name,
         }),
+        {
+          action: {
+            label: t(`${ns}.floor.restore`),
+            onClick: () => void restoreWeights(provider, routes),
+          },
+        },
       );
-      setPauseTarget(null);
       await refreshHealth();
     } catch (error) {
       showError(error);
     } finally {
-      setPausing(false);
+      setFlooringId(null);
+    }
+  };
+
+  const setSourceStatus = (channelId: number, status: 1 | 2) =>
+    API.put(`/api/channel/${channelId}/status`, {
+      status,
+      reason:
+        status === 2
+          ? 'paused from the channel health ledger'
+          : 're-enabled from the channel health ledger',
+    }).then((response) => unwrap<unknown>(response));
+
+  const runResume = async (provider: ChannelHealthProvider) => {
+    setPausingId(provider.channel_id);
+    try {
+      await setSourceStatus(provider.channel_id, 1);
+      notify.success(t(`${ns}.pause.resumed`, { name: provider.channel_name }));
+      await refreshHealth();
+    } catch (error) {
+      showError(error);
+    } finally {
+      setPausingId(null);
+    }
+  };
+
+  const runPause = async (provider: ChannelHealthProvider) => {
+    setPausingId(provider.channel_id);
+    try {
+      await setSourceStatus(provider.channel_id, 2);
+      notify.success(
+        t(`${ns}.pause.doneLeft`, { name: provider.channel_name }),
+        {
+          action: {
+            label: t(`${ns}.pause.resume`),
+            onClick: () => void runResume(provider),
+          },
+        },
+      );
+      await refreshHealth();
+    } catch (error) {
+      showError(error);
+    } finally {
+      setPausingId(null);
     }
   };
 
@@ -1016,7 +1069,8 @@ export function ChannelHealthPage() {
               <div className='chealth-panel__actions'>
                 <Button
                   disabled={selectedProvider.disabled}
-                  onClick={() => setPauseTarget(selectedProvider)}
+                  loading={pausingId === selectedProvider.channel_id}
+                  onClick={() => void runPause(selectedProvider)}
                   variant='primary'
                 >
                   {selectedProvider.disabled
@@ -1027,7 +1081,8 @@ export function ChannelHealthPage() {
                 </Button>
                 <Button
                   disabled={!liveLanes(selectedProvider).length}
-                  onClick={() => setFloorTarget(selectedProvider)}
+                  loading={flooringId === selectedProvider.channel_id}
+                  onClick={() => void runFloor(selectedProvider)}
                   variant='secondary'
                 >
                   {t(`${ns}.provider.floor`, {
@@ -1082,114 +1137,6 @@ export function ChannelHealthPage() {
           windowSeconds={payload.window_seconds}
         />
       ) : null}
-
-      <Modal
-        busy={pausing}
-        description={t(`${ns}.pause.description`, {
-          defaultValue:
-            '停用后这个来源会退出它服务的每个池子，流量交给池里其余来源。历史数据保留，随时可以重新启用。',
-        })}
-        footer={
-          <>
-            <Button
-              disabled={pausing}
-              onClick={() => setPauseTarget(null)}
-              variant='secondary'
-            >
-              {t('common.cancel', { defaultValue: '取消' })}
-            </Button>
-            <Button
-              loading={pausing}
-              onClick={() => void runPause()}
-              variant='danger'
-            >
-              {t(`${ns}.pause.confirm`, { defaultValue: '确认停用' })}
-            </Button>
-          </>
-        }
-        onOpenChange={(open) => {
-          if (!open) setPauseTarget(null);
-        }}
-        open={Boolean(pauseTarget)}
-        title={t(`${ns}.pause.title`, {
-          defaultValue: '停用 {{name}}',
-          name: pauseTarget?.channel_name ?? '',
-        })}
-        body={
-          pauseTarget ? (
-            <div className='chealth-pool'>
-              {liveLanes(pauseTarget).map((lane: ChannelHealthProviderLane) => (
-                <div
-                  className='chealth-pool__row'
-                  key={`${lane.model_name}::${lane.lane}`}
-                >
-                  <i
-                    className={`chealth-lane-dot chealth-lane-dot--${lane.lane}`}
-                  />
-                  <span className='chealth-pool__name'>{lane.model_name}</span>
-                  <span className='chealth-pool__meta'>
-                    {laneLabel(lane.lane)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null
-        }
-      />
-
-      <Modal
-        busy={flooring}
-        description={t(`${ns}.floor.description`, {
-          defaultValue:
-            '把这个来源在下列通道上的权重设为 0。注意它不会停止接流量——路由给每条在线通道一个基础权重，所以权重 0 只是把它降到池子里的最低份额。要完全停掉，用「停用这个来源」。',
-        })}
-        footer={
-          <>
-            <Button
-              disabled={flooring}
-              onClick={() => setFloorTarget(null)}
-              variant='secondary'
-            >
-              {t('common.cancel', { defaultValue: '取消' })}
-            </Button>
-            <Button
-              loading={flooring}
-              onClick={() => void runFloor()}
-              variant='primary'
-            >
-              {t(`${ns}.floor.confirm`, { defaultValue: '确认降权' })}
-            </Button>
-          </>
-        }
-        onOpenChange={(open) => {
-          if (!open) setFloorTarget(null);
-        }}
-        open={Boolean(floorTarget)}
-        title={t(`${ns}.floor.title`, {
-          defaultValue: '把 {{name}} 的权重降到最低',
-          name: floorTarget?.channel_name ?? '',
-        })}
-        body={
-          floorTarget ? (
-            <div className='chealth-pool'>
-              {liveLanes(floorTarget).map((lane: ChannelHealthProviderLane) => (
-                <div
-                  className='chealth-pool__row'
-                  key={`${lane.model_name}::${lane.lane}`}
-                >
-                  <i
-                    className={`chealth-lane-dot chealth-lane-dot--${lane.lane}`}
-                  />
-                  <span className='chealth-pool__name'>{lane.model_name}</span>
-                  <span className='chealth-pool__meta'>
-                    {`${laneLabel(lane.lane)} · w${lane.weight} → w0`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null
-        }
-      />
     </ConsolePage>
   );
 }

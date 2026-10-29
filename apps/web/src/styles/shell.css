@@ -487,6 +487,13 @@ body[theme-mode='dark'] .mobile-console-status__notch {
   color: var(--lazu-on-action);
 }
 
+/* Phone toasts (undo included) sit above the tab bar, not on it. */
+body:has(.mobile-console-tabbar) {
+  --app-toast-mobile-bottom: calc(
+    var(--mobile-console-tab-height) + env(safe-area-inset-bottom) + 12px
+  );
+}
+
 .mobile-console-tabbar {
   align-items: flex-start;
   background: var(--lazu-page);

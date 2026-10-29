@@ -427,7 +427,7 @@ test('the lane filter narrows the large-model section only', async ({
   await app.expectNoUnexpectedErrors();
 });
 
-test('pausing an upstream names every pool it will leave before applying', async ({
+test('pausing an upstream runs at once and its receipt re-enables it', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -436,21 +436,31 @@ test('pausing an upstream names every pool it will leave before applying', async
   await expectRouteReady(page, '/console/health');
   await openProviderView(page);
 
+  const statusPut = (status) =>
+    page.waitForRequest(
+      (request) =>
+        request.method() === 'PUT' &&
+        new URL(request.url()).pathname === '/api/channel/3/status' &&
+        request.postDataJSON()?.status === status,
+    );
+
+  // Pausing is taken back exactly by re-enabling, so it asks nothing first;
+  // the receipt says what left the pools and carries the way back.
+  const pause = statusPut(2);
   await page.getByRole('button', { name: '停用这个来源' }).click();
+  await pause;
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText(/已停用 relay-blossom/)).toBeVisible();
 
-  // A routing change states exactly what it affects before it is confirmed.
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('relay-blossom');
-  await expect(dialog).toContainText('claude-sonnet-5');
-  await expect(dialog).toContainText('退出它服务的每个池子');
-
-  await dialog.getByRole('button', { name: '确认停用' }).click();
-  await expect(dialog).toBeHidden();
+  const resume = statusPut(1);
+  await page.getByRole('button', { name: '重新启用', exact: true }).click();
+  await resume;
+  await expect(page.getByText(/已重新启用 relay-blossom/)).toBeVisible();
 
   await app.expectNoUnexpectedErrors();
 });
 
-test('the weight action says plainly that it does not stop traffic', async ({
+test('lowering the weight says it does not stop traffic and restores the old weight', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -459,18 +469,35 @@ test('the weight action says plainly that it does not stop traffic', async ({
   await expectRouteReady(page, '/console/health');
   await openProviderView(page);
 
+  const weightPut = (weight) =>
+    page.waitForRequest(
+      (request) =>
+        request.method() === 'PUT' &&
+        new URL(request.url()).pathname ===
+          '/api/model_ops/pool_weight/batch' &&
+        request.postDataJSON()?.weight === weight,
+    );
+
+  const floor = weightPut(0);
   await page.getByRole('button', { name: '把它的权重降到最低' }).click();
+  expect((await floor).postDataJSON()).toMatchObject({
+    channel_id: '3',
+    routes: [{ lane: 'cheap', model: 'claude-sonnet-5' }],
+  });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   // The picker gives every live route a base weight, so weight 0 keeps a
   // share. An operator reaching for this during an incident has to be told,
   // or they will believe they stopped the traffic when they did not.
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('不会停止接流量');
-  await expect(dialog).toContainText('w70 → w0');
-  await expect(dialog).toContainText('停用这个来源');
+  await expect(page.getByText(/仍会分到最低一份流量/)).toBeVisible();
 
-  await dialog.getByRole('button', { name: '确认降权' }).click();
-  await expect(dialog).toBeHidden();
+  // The way back puts each route on the weight it held before (w70 here).
+  const restore = weightPut(70);
+  await page.getByRole('button', { name: '恢复权重', exact: true }).click();
+  expect((await restore).postDataJSON()).toMatchObject({
+    channel_id: '3',
+    routes: [{ lane: 'cheap', model: 'claude-sonnet-5' }],
+  });
 
   await app.expectNoUnexpectedErrors();
 });

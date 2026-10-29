@@ -162,3 +162,50 @@ test('selecting the filtered page never includes hidden API keys', async ({
   await expect(page.locator('.tok-selection__count')).toHaveCount(0);
   await app.expectNoUnexpectedErrors();
 });
+
+function recordDeletes(deletes) {
+  return (url, request) => {
+    if (request.method() === 'DELETE') {
+      deletes.push(new URL(url).pathname);
+      return { success: true, message: '', data: null };
+    }
+    return undefined;
+  };
+}
+
+test('deleting a key waits out the undo countdown before sending', async ({
+  page,
+}) => {
+  const deletes = [];
+  await page.clock.install();
+  const app = await setupMockedApp(page, {
+    payloadFor: recordDeletes(deletes),
+  });
+  await expectRouteReady(page, '/console/token');
+
+  // 撤销 inside the countdown: the row comes back and nothing is sent.
+  await page
+    .getByRole('button', { name: /^删除 Smoke token/ })
+    .first()
+    .click();
+  await expect(page.locator('.is-undo-pending').first()).toBeVisible();
+  await expect(page.locator('.lazu-undo-toast')).toContainText(
+    '已删除 Smoke token',
+  );
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(page.locator('.is-undo-pending')).toHaveCount(0);
+  await page.clock.runFor(12_000);
+  expect(deletes).toHaveLength(0);
+
+  // Left alone, the countdown ends and the deletion goes out once.
+  await page
+    .getByRole('button', { name: /^删除 Smoke token/ })
+    .first()
+    .click();
+  await page.clock.runFor(11_000);
+  await expect.poll(() => deletes.length).toBe(1);
+  expect(deletes[0]).toMatch(/\/api\/token\/1\/?$/);
+  await page.clock.runFor(12_000);
+  expect(deletes).toHaveLength(1);
+  await app.expectNoUnexpectedErrors();
+});

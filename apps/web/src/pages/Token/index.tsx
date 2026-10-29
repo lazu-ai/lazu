@@ -57,11 +57,13 @@ import {
   useColumnVisibility,
 } from '../../components/ui/table-tools';
 import { notify } from '../../components/ui/toast';
+import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
 import {
   KeyAudienceModal,
   shouldAskKeyAudience,
 } from '../../features/projects/components/KeyAudienceModal';
 import { useProject } from '../../features/projects/ProjectContext';
+import { API } from '../../helpers/api';
 import { formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
 import { copy, showError, showSuccess } from '../../helpers/utils';
@@ -70,6 +72,7 @@ import {
   type CreatedSecret,
   type TokenRecord,
 } from '../../hooks/tokens/useTokensQuery';
+import { unwrap } from '../../lib/api-error';
 import { cn } from '../../lib/cn';
 import './rate-limit-slider.css';
 import './token-page.css';
@@ -110,8 +113,6 @@ const Token = () => {
     }
     setFormOpen(true);
   };
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<TokenRecord | null>(null);
   const [connectTarget, setConnectTarget] = useState<ConnectTarget | null>(
     null,
   );
@@ -147,6 +148,63 @@ const Token = () => {
     attentionFilter ? 'all' : statusFilter,
   );
   const overview = useTokenOverview();
+  /* 删除 runs at once and offers a 10-second undo instead of a dialog;
+     the row reads 删除中 until the request actually goes out. */
+  const undoPending = useUndoPending();
+  // The undo toast reports a failure itself, with 重试.
+  const quiet = { skipErrorHandler: true } as const;
+  const isUndoPending = (record: TokenRecord) =>
+    undoPending.has(`token:${String(record.id)}`);
+  const deleteNow = (record: TokenRecord) => {
+    if (record.id === undefined) return;
+    const name = String(record.name || '');
+    deferUndoable({
+      keys: [`token:${String(record.id)}`],
+      message: t('undo.token.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name,
+      }),
+      restored: t('undo.token.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.token.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name,
+      }),
+      commit: async () =>
+        unwrap(await API.delete(`/api/token/${record.id}/`, quiet)),
+      keepalive: { method: 'DELETE', path: `/api/token/${record.id}/` },
+      onCommitted: tokens.refresh,
+    });
+  };
+  const deleteSelected = () => {
+    const ids = tokens.selectedRows
+      .map((record) => record.id)
+      .filter((id) => id !== undefined);
+    if (!ids.length) return;
+    const count = ids.length;
+    deferUndoable({
+      keys: ids.map((id) => `token:${String(id)}`),
+      message: t('undo.token.deletedMany', {
+        defaultValue: '已删除 {{count}} 把密钥',
+        count,
+      }),
+      restored: t('undo.token.restoredMany', {
+        defaultValue: '已恢复 {{count}} 把密钥',
+        count,
+      }),
+      failed: t('undo.token.failedMany', {
+        defaultValue: '没删成，{{count}} 把密钥已放回',
+        count,
+      }),
+      commit: async () =>
+        unwrap(await API.post('/api/token/batch', { ids }, quiet)),
+      keepalive: { method: 'POST', path: '/api/token/batch', body: { ids } },
+      onCommitted: tokens.refresh,
+    });
+    tokens.setSelectedIds([]);
+  };
   const vendorNames = useMemo(
     () =>
       new Map(
@@ -448,6 +506,7 @@ const Token = () => {
       // the only ones with nowhere else to go.
       const deleteLabel = t('page.console.tables.delete');
       const name = String(record.name || '');
+      if (isUndoPending(record)) return null;
 
       return (
         <div className='tokv2-rowactions'>
@@ -495,7 +554,7 @@ const Token = () => {
               className='tokv2-act tokv2-act--icon tokv2-act--danger'
               aria-label={`${deleteLabel} ${name}`}
               title={deleteLabel}
-              onClick={() => setDeleteTarget(record)}
+              onClick={() => deleteNow(record)}
             >
               <Trash2 aria-hidden='true' size={13} />
             </button>
@@ -566,6 +625,13 @@ const Token = () => {
         accessorKey: 'status',
         header: t('page.console.token.column.status'),
         cell: ({ row }) => {
+          if (isUndoPending(row.original)) {
+            return (
+              <Badge variant='neutral'>
+                {t('undo.deleting', { defaultValue: '删除中' })}
+              </Badge>
+            );
+          }
           const code = tokenStatusCode(row.original);
           return (
             <span className={cn('tok-status', `tok-status--${code}`)}>
@@ -885,6 +951,7 @@ const Token = () => {
     selectedIdSet,
     t,
     tokens,
+    undoPending,
     vendorNames,
     visibleTokens,
   ]);
@@ -952,11 +1019,7 @@ const Token = () => {
                 <Power size={14} />
                 {t('page.console.tables.disable')}
               </Button>
-              <Button
-                size='sm'
-                variant='soft-danger'
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button size='sm' variant='soft-danger' onClick={deleteSelected}>
                 <Trash2 size={14} />
                 {t('page.console.tables.delete')}
               </Button>
@@ -1127,6 +1190,9 @@ const Token = () => {
           mobileColumns={allColumns}
           loading={tokens.isLoading}
           rowKey='id'
+          rowClassName={(record) =>
+            isUndoPending(record) ? 'is-undo-pending' : undefined
+          }
           /* Clicking a row asks "how much has this Key used", which is what
              /console/key used to answer on its own page. Editing stays on the
              row's own action button. */
@@ -1161,46 +1227,6 @@ const Token = () => {
           }
         />
       </ConsoleTableFrame>
-      <Modal
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
-        }}
-        busy={tokens.manageTokenMutation.isPending}
-        title={t('page.console.tables.delete')}
-        body={
-          <p>
-            {t('secret.deleteConfirm', {
-              defaultValue: '删除 {{name}}？使用此密钥的应用将无法继续访问。',
-              name: deleteTarget?.name,
-            })}
-          </p>
-        }
-        footer={
-          <>
-            <Button
-              disabled={tokens.manageTokenMutation.isPending}
-              variant='secondary'
-              onClick={() => setDeleteTarget(null)}
-            >
-              {t('common.cancel', { defaultValue: '取消' })}
-            </Button>
-            <Button
-              variant='danger'
-              disabled={tokens.manageTokenMutation.isPending}
-              onClick={() => {
-                if (deleteTarget?.id !== undefined)
-                  tokens.manageTokenMutation.mutate(
-                    { action: 'delete', id: deleteTarget.id },
-                    { onSuccess: () => setDeleteTarget(null) },
-                  );
-              }}
-            >
-              {t('page.console.tables.delete')}
-            </Button>
-          </>
-        }
-      />
       <TokenFormDrawer
         editingToken={editingToken}
         open={formOpen}
@@ -1261,44 +1287,6 @@ const Token = () => {
               })}
             </Button>
           </>
-        }
-      />
-      <Modal
-        busy={tokens.batchDeleteMutation.isPending}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={t('legacy.i18n.batch_delete_token.5e5d9d5031')}
-        description={t(
-          'legacy.i18n.are_you_sure_you_want_to_delete_the_selected_tokens.350223edf9',
-          {
-            count: tokens.selectedRows.length,
-          },
-        )}
-        footer={
-          <div className='flex justify-end gap-2'>
-            <Button
-              variant='ghost'
-              disabled={tokens.batchDeleteMutation.isPending}
-              onClick={() => setDeleteOpen(false)}
-            >
-              {t('legacy.i18n.cancel.4d0b4688c7')}
-            </Button>
-            <Button
-              variant='danger'
-              loading={tokens.batchDeleteMutation.isPending}
-              onClick={async () => {
-                try {
-                  await tokens.batchDeleteMutation.mutateAsync();
-                  setDeleteOpen(false);
-                } catch {
-                  // Keep the stateful dialog open so the user can recover or
-                  // retry without losing the selected API Keys.
-                }
-              }}
-            >
-              {t('page.console.tables.delete')}
-            </Button>
-          </div>
         }
       />
       <FluentPrefillModal

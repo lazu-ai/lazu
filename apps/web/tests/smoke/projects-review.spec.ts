@@ -414,18 +414,15 @@ test('removal always stops the member Keys immediately', async ({ page }) => {
     .filter({ hasText: 'Noor' })
     .getByRole('button', { name: 'More for Noor', exact: true })
     .click();
-  await page.getByRole('menuitem', { name: 'Remove…', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  // There is no leave policy any more: the Keys always stop at once and the
-  // gate says so, with no 24 h grace wording anywhere in the dialog.
-  await expect(dialog).toContainText('Stops immediately');
-  await expect(dialog).toContainText('stop responding immediately');
-  await expect(dialog).not.toContainText('24 h');
-  await dialog.getByRole('checkbox').check();
-  await dialog
-    .getByRole('button', { name: 'Remove Noor', exact: true })
-    .click();
+  // Removing runs at once, with no gate: the server can take it back, so
+  // the receipt offers Undo for the countdown instead.
+  await page.getByRole('menuitem', { name: 'Remove', exact: true }).click();
   await expect.poll(() => removed).toBe(true);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.lazu-undo-toast')).toContainText('Removed Noor');
+  await expect(
+    page.locator('.lazu-undo-toast').getByRole('button', { name: 'Undo' }),
+  ).toBeVisible();
   await page.screenshot({
     path: '../../.local-results/screenshots/projects-review-removal.png',
     animations: 'disabled',
@@ -2196,7 +2193,10 @@ test('narrow members retain role suspend remove and restore actions', async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let restored = false;
+  const writes: string[] = [];
   await setup(page, (url, request) => {
+    if (request.method() !== 'GET' && !url.pathname.includes('/members/u_noor'))
+      writes.push(`${request.method()} ${url.pathname}`);
     if (url.pathname.endsWith('/members'))
       return ok({
         total: members.length,
@@ -2236,18 +2236,19 @@ test('narrow members retain role suspend remove and restore actions', async ({
     page.getByRole('menuitem', { name: 'Suspend', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('menuitem', { name: 'Remove…', exact: true }),
+    page.getByRole('menuitem', { name: 'Remove', exact: true }),
   ).toBeVisible();
+  // Suspend and role changes run at once; their receipts carry the reverse.
   await page.getByRole('menuitem', { name: 'Suspend', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect
+    .poll(() => writes.some((write) => /^PUT .*\/status$/.test(write)))
+    .toBe(true);
   await row.getByRole('button', { name: 'More for Kai' }).click();
   await page.getByRole('menuitem', { name: 'Make admin', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await row.getByRole('button', { name: 'More for Kai' }).click();
-  await page.getByRole('menuitem', { name: 'Remove…', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect
+    .poll(() => writes.some((write) => /^PUT .*\/role$/.test(write)))
+    .toBe(true);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('allocation breakdown reserves its space until members arrive', async ({
