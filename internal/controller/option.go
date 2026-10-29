@@ -117,6 +117,13 @@ func UpdateOption(c *gin.Context) {
 			httperr.Write(c, settingInvalid(option.Key, settingRuleIntegerRange, types.D{"min": 1, "max": setting.StripeMaxTopUp}))
 			return
 		}
+	case "email_setting.low_balance_runway_days":
+		// Whole days; 0 turns the runway check off. A year is already far
+		// beyond anything a balance alert should look at.
+		if days, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string))); parseErr != nil || days < 0 || days > 365 {
+			httperr.Write(c, settingInvalid(option.Key, settingRuleIntegerRange, types.D{"min": 0, "max": 365}))
+			return
+		}
 	case "monitor_setting.auto_test_channel_minutes":
 		// A zero interval is not "never": the hosted scheduler skips it, and the
 		// legacy runner sleeps for zero and probes every channel in a loop.
