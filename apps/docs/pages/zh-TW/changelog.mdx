@@ -5,6 +5,11 @@ description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序�
 
 # 更新日誌
 
+## 2026-10-29 — 移除搜尋介面
+
+- `POST /v1/search` 與 `/api/search/backends*` 已提前於原定的 2026-11-01 移除，下列控制台頁面、狀態頁搜尋列與 API 金鑰搜尋欄位也一併移除。這兩個介面現在回傳 404 `endpoint_not_supported`（LZ-1010）。
+- 錯誤碼 LZ-7302、LZ-7861、LZ-7862 停用。原本的搜尋文件頁會轉址到本更新日誌。
+
 ## 2026-10-29 — 棄用搜尋介面
 
 - `POST /v1/search` 及檢索後端管理介面（`/api/search/backends*`）已棄用，2026-11-01 之後的第一個版本將移除。這些介面的回應現在帶有 `Deprecation`、`Sunset` 標頭。api.lazu.ai 上沒有客戶呼叫過該介面，所以窗口比一般的 90 天短。
