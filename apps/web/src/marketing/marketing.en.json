@@ -194,13 +194,18 @@
       "title": "Hand out this month's quota",
       "body": "Two minutes to sign up, 10% extra on your first top-up.",
       "ctaPrimary": "Sign up free",
-      "ctaSecondary": "Read the docs",
-      "openSource": "Lazu is open source under AGPL-3.0.",
-      "openSourceLink": "Star it on GitHub",
-      "starPending": "Waiting for GitHub…",
-      "starDone": "Starred. Thank you!",
-      "starAlready": "Already starred. Thank you!",
-      "starFailed": "Could not star. Open GitHub"
+      "ctaSecondary": "Read the docs"
+    },
+    "star": {
+      "short": "Star",
+      "long": "Star on GitHub",
+      "starred": "Starred",
+      "aria": "Star Lazu on GitHub",
+      "ariaCount": "Star Lazu on GitHub, {{stars}} stars",
+      "ariaDone": "Starred Lazu on GitHub",
+      "ariaDoneCount": "Starred Lazu on GitHub, {{stars}} stars",
+      "hint": "Lazu is open source under AGPL-3.0. Opens a GitHub window that asks only to star.",
+      "linkHint": "Lazu is open source under AGPL-3.0. Opens the repository on GitHub."
     }
   },
   "about": {

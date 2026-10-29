@@ -194,13 +194,18 @@
       "title": "今月の上限を割り当てましょう",
       "body": "登録は 2 分、初回チャージは 10% 上乗せ。",
       "ctaPrimary": "無料で登録",
-      "ctaSecondary": "ドキュメントを見る",
-      "openSource": "Lazu は AGPL-3.0 のオープンソースです。",
-      "openSourceLink": "GitHub でスターを付ける",
-      "starPending": "GitHub の認可を待っています…",
-      "starDone": "スターを付けました。ありがとうございます！",
-      "starAlready": "すでにスター済みです。ありがとうございます！",
-      "starFailed": "スターを付けられませんでした。GitHub で開く"
+      "ctaSecondary": "ドキュメントを見る"
+    },
+    "star": {
+      "short": "Star",
+      "long": "Star on GitHub",
+      "starred": "Starred",
+      "aria": "GitHub で Lazu にスターを付ける",
+      "ariaCount": "GitHub で Lazu にスターを付ける（現在 {{stars}}）",
+      "ariaDone": "GitHub で Lazu にスターを付けました",
+      "ariaDoneCount": "GitHub で Lazu にスターを付けました（現在 {{stars}}）",
+      "hint": "Lazu は AGPL-3.0 のオープンソースです。GitHub のウィンドウが開き、スターの権限だけを求めます。",
+      "linkHint": "Lazu は AGPL-3.0 のオープンソースです。GitHub でリポジトリを開きます。"
     }
   },
   "about": {

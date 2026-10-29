@@ -356,8 +356,104 @@ body[theme-mode='dark'] .lazu-landing__hero .lazu-landing__eyebrow {
   transform: scale(0.95);
 }
 
-/* The repository link wears the icon-button look; as an anchor it drops the
-   link defaults. */
+/* ============== GitHub star button ==============
+   "☆ Star | 1,284": the shape of GitHub's own button, in the ghost button's
+   colours. md stands beside the 38px CTAs, sm beside the 30px header
+   controls. Phases change the star's fill, the label and the count, never
+   the shape: pending only dims, starred fills the star and inks the edge. */
+.lazu-star {
+  display: inline-flex;
+  align-items: stretch;
+  height: 38px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--lazu-font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    opacity 0.2s;
+}
+
+.lazu-star__action,
+.lazu-star__count {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lazu-star__action {
+  gap: 7px;
+  padding: 0 14px;
+}
+
+.lazu-star__label {
+  display: inline-grid;
+}
+
+.lazu-star__label > * {
+  grid-area: 1 / 1;
+}
+
+.lazu-star__label > [aria-hidden='true'] {
+  visibility: hidden;
+}
+
+.lazu-star__count {
+  padding: 0 12px;
+  border-left: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.2s;
+}
+
+.lazu-star--sm {
+  height: 30px;
+  font-size: 12.5px;
+}
+
+.lazu-star--sm .lazu-star__action {
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.lazu-star--sm .lazu-star__count {
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.lazu-star:hover,
+.lazu-star:hover .lazu-star__count,
+.lazu-star--done,
+.lazu-star--done .lazu-star__count {
+  border-color: var(--ink);
+}
+
+.lazu-star:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.lazu-star[aria-busy='true'] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.lazu-star--done {
+  cursor: default;
+}
+
+/* The header's star button keeps the anchor defaults off as the link it
+   becomes without a star-only App. */
 a.lazu-landing__github {
   text-decoration: none;
 }
@@ -702,57 +798,6 @@ body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
 
 .lazu-landing__final .lazu-landing__cta-row {
   margin-top: 28px;
-}
-
-/* One quiet line under the closing CTAs: the licence and the repository. */
-.lazu-landing__final .lazu-landing__final-oss {
-  font-size: 13.5px;
-  margin-top: 22px;
-}
-
-.lazu-landing__final-oss a {
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.lazu-landing__final-oss a:hover {
-  color: var(--accent);
-}
-
-/* The same line as a button when the deployment can star for the visitor:
-   set like the link, with the star for the action it is. */
-.lazu-landing__final-oss .lazu-source-star {
-  background: none;
-  border: 0;
-  color: var(--ink);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font: inherit;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.lazu-landing__final-oss .lazu-source-star:hover {
-  color: var(--accent);
-}
-
-.lazu-landing__final-oss .lazu-source-star[aria-busy='true'] {
-  color: var(--mute);
-  cursor: progress;
-}
-
-.lazu-landing__final-oss .lazu-source-star--done {
-  color: var(--mute);
-  cursor: default;
-  text-decoration: none;
-}
-
-.lazu-landing__final-oss .lazu-source-star--done svg {
-  fill: currentColor;
 }
 
 .lazu-landing__free {

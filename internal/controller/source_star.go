@@ -128,19 +128,23 @@ func sourceStarFinish(c *gin.Context, result string, returnPath string, popup bo
 }
 
 // SourceStarStatus tells a public page where the deployment's source is
-// published and whether the site can star it for the visitor; the public
-// pages are prerendered and ask this rather than the console's /api/status,
-// so a fork's GitHub entry points at the fork. The answer changes with a
-// restart, so it is cacheable for a while.
+// published, whether the site can star it for the visitor, and how many stars
+// it has when that is known; the public pages are prerendered and ask this
+// rather than the console's /api/status, so a fork's GitHub entry points at
+// the fork. The answer moves slowly, so it is cacheable for a while.
 func SourceStarStatus(c *gin.Context) {
+	data := gin.H{
+		"enabled":    sourceStarEnabled(),
+		"source_url": common.SiteSourceURL(),
+	}
+	if count, ok := sourceStarCount(c.Request.Context()); ok {
+		data["stars"] = count
+	}
 	c.Header("Cache-Control", "public, max-age=300")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data": gin.H{
-			"enabled":    sourceStarEnabled(),
-			"source_url": common.SiteSourceURL(),
-		},
+		"data":    data,
 	})
 }
 

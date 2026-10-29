@@ -691,9 +691,7 @@ const LazuLanding = () => {
                 >
                   {t('landing.final.ctaSecondary')}
                 </a>
-              </Reveal>
-              <Reveal as='p' className='lazu-landing__final-oss'>
-                {t('landing.final.openSource')} <SourceStarButton />
+                <SourceStarButton />
               </Reveal>
             </div>
           </section>

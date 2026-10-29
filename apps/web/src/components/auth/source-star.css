@@ -1,0 +1,58 @@
+/* The star popup's landing page. It is open for a moment at most, so it is
+   one sentence on the page ground: the mark, the outcome, a way to close. */
+.source-star-page {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  background: var(--lazu-page);
+  color: var(--lazu-ink);
+  font-family: var(--lazu-font-sans);
+}
+
+.source-star-page__mark {
+  align-self: flex-start;
+}
+
+.source-star-page__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.source-star-page__body h1 {
+  margin: 0;
+  font-family: var(--lazu-font-display);
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.012em;
+}
+
+.source-star-page__body p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--lazu-text-muted);
+}
+
+.source-star-page__close {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--lazu-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.source-star-page__close:hover {
+  border-color: var(--lazu-ink);
+}

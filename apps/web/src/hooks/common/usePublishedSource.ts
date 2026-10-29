@@ -8,10 +8,14 @@ import { getSourceURL } from '../../helpers/brandUrls';
 import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
-type PublishedSource = { enabled: boolean; url: string };
+type PublishedSource = { enabled: boolean; url: string; stars: number | null };
 
 const fetchPublishedSource = async (): Promise<PublishedSource> => {
-  const data = unwrap<{ enabled?: unknown; source_url?: unknown } | null>(
+  const data = unwrap<{
+    enabled?: unknown;
+    source_url?: unknown;
+    stars?: unknown;
+  } | null>(
     await API.get('/api/source/star', {
       skipErrorHandler: true,
     } as Parameters<typeof API.get>[1]),
@@ -19,32 +23,39 @@ const fetchPublishedSource = async (): Promise<PublishedSource> => {
   return {
     enabled: data?.enabled === true,
     url: typeof data?.source_url === 'string' ? data.source_url : '',
+    stars:
+      typeof data?.stars === 'number' && Number.isFinite(data.stars)
+        ? data.stars
+        : null,
   };
 };
 
 /**
- * The repository behind the GitHub entry, and whether the site can star it
- * for the visitor. App pages learn both from /api/status; the public pages
- * never load that, so there the one public question is asked instead, once
- * per visit and never while prerendering, when the pages carry the
- * build-time link. The two answers come from the same deployment.
+ * The repository behind the GitHub entry, whether the site can star it for
+ * the visitor, and its star count when the deployment knows it. App pages
+ * learn the first two from /api/status; the public pages never load that,
+ * and only the public question carries the count, so the public pages ask it
+ * once per visit and never while prerendering, when the pages carry the
+ * build-time link. The answers come from the same deployment.
  */
-export const usePublishedSource = (): { canStar: boolean; url: string } => {
+export const usePublishedSource = (): {
+  canStar: boolean;
+  url: string;
+  stars: number | null;
+} => {
   const { pathname } = useLocation();
   const { route: prerenderRoute } = usePrerender();
   const { status } = useStatus();
   const probe = useQuery({
     queryKey: queryKeys.publishedSource,
     queryFn: fetchPublishedSource,
-    enabled:
-      !prerenderRoute &&
-      !isAppOwnedPath(pathname) &&
-      status?.source_star === undefined,
+    enabled: !prerenderRoute && !isAppOwnedPath(pathname),
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
   return {
-    canStar: status?.source_star ?? probe.data?.enabled ?? false,
-    url: getSourceURL(status?.source_url || probe.data?.url),
+    canStar: probe.data?.enabled ?? status?.source_star ?? false,
+    url: getSourceURL(probe.data?.url || status?.source_url),
+    stars: probe.data?.stars ?? null,
   };
 };
