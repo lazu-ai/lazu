@@ -684,7 +684,7 @@
 .dashv3-chip--warning {
   background: var(--ui-warning-soft);
   border-color: color-mix(in oklab, var(--ui-warning) 26%, transparent);
-  color: var(--ui-warning);
+  color: var(--lazu-warning-strong);
 }
 
 .dashv3-chip--danger {

@@ -1289,3 +1289,9 @@ h2.sd-card__title {
   line-height: 1.4;
   margin: 0;
 }
+
+/* The search input drops its outline; show focus on the search frame. */
+.ses-search:focus-within {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}

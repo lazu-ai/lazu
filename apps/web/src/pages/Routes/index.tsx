@@ -673,7 +673,7 @@ function ModelDetail({ model }: { model: CatalogModel }) {
 
       <DetailSection
         icon={Workflow}
-        title={t('page.console.plaza.detail.lanes', { defaultValue: '渠道' })}
+        title={t('page.console.plaza.detail.lanes', { defaultValue: '线路' })}
       >
         <div className='plaza-detail__lanes-head'>
           <LaneHealthLegend className='plaza-detail__legend' />

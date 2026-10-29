@@ -2622,3 +2622,9 @@ body:has(.console-review) .pj-modal--invite .lazu-modal-body {
 .pj-evlink:hover {
   color: var(--lazu-evidence);
 }
+
+/* The amount input drops its outline; show focus on the field frame instead. */
+.pj-amt:focus-within {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}

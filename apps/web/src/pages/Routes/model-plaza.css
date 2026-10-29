@@ -1053,3 +1053,21 @@ body[theme-mode='dark'] .plaza-card:hover {
   line-height: 1.7;
   margin: 0;
 }
+
+/* A model with many lanes outgrows a phone; scroll the lane table sideways
+   instead of clipping it. */
+.plaza-lanetable__wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Grid tracks default to auto, which grows to the widest child's min-content
+   (the lane table, the code sample), so on a phone the whole detail pushed
+   past the dialog.
+   Pin the tracks to the dialog width; wide content scrolls in its own box. */
+.plaza-detail,
+.plaza-detail__section,
+.plaza-code {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
