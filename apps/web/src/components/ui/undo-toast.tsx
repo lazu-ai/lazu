@@ -11,7 +11,6 @@
  * first. Leaving the page commits too, with a keepalive request, so a reader
  * never walks away believing something was deleted that was not. */
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { toast as sonnerToast } from 'sonner';
 import { notify } from './toast';
 import { buildAPIURL } from '../../helpers/apiUrl';
 import { getUserIdFromLocalStorage, showError } from '../../helpers/utils';
@@ -134,7 +133,7 @@ function settle(mode: 'commit' | 'keepalive'): string {
   if (!current) return '';
   pending = null;
   window.clearTimeout(current.timer);
-  sonnerToast.dismiss(current.id);
+  notify.dismiss(current.id);
   detachGlobals();
   if (isDeferred(current.options)) {
     if (mode === 'keepalive' && current.options.keepalive) {
@@ -151,7 +150,7 @@ function undoNow() {
   if (!current) return;
   pending = null;
   window.clearTimeout(current.timer);
-  sonnerToast.dismiss(current.id);
+  notify.dismiss(current.id);
   detachGlobals();
   const { options } = current;
   if (isDeferred(options)) {
@@ -224,7 +223,7 @@ function start(options: DeferredUndoOptions | ImmediateUndoOptions) {
     }, seconds * 1000),
   };
   attachGlobals();
-  sonnerToast.custom(
+  notify.custom(
     () => (
       <UndoToast
         committedNote={committedNote}
