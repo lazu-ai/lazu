@@ -562,22 +562,6 @@ export const mockedChannelHealth = {
       channel_count: 1,
       buckets: channelHealthBuckets('ok', 'traffic', 28, 6),
     },
-    {
-      // A search backend is a row per provider, with no lane.
-      model_name: 'Tavily',
-      kind: 'search',
-      lane: '',
-      status: 'operational',
-      source: 'probe',
-      request_count: 2,
-      error_count: 0,
-      success_rate: 1,
-      latency_p50_ms: 2000,
-      latency_p95_ms: 7900,
-      probe_count: 24,
-      channel_count: 1,
-      buckets: channelHealthBuckets('ok', 'probe'),
-    },
   ],
   // The by-upstream projection of the very same window. Kept consistent with
   // the lanes above so the smoke test can assert the two views agree.
@@ -1148,34 +1132,6 @@ function payloadFor(
     };
   }
   if (pathname.startsWith('/api/upload')) return ok([]);
-
-  if (pathname === '/v1/search') {
-    return {
-      query: 'lazu search smoke',
-      results: [
-        {
-          title: 'Lazu smoke search result',
-          url: 'https://example.com/lazu-search-smoke',
-          snippet: 'Mocked search result for the search console smoke test.',
-          content: null,
-          published_at: null,
-          score: 0.99,
-          source: 'web',
-        },
-      ],
-      usage: {
-        web_search_requests: 1,
-        web_search_billable_units: 1,
-      },
-      provider_trace: {
-        backend: 'tavily-smoke',
-      },
-      route_receipt: {
-        selection: 'auto',
-        selected_backend: 'tavily-smoke',
-      },
-    };
-  }
 
   return page([]);
 }

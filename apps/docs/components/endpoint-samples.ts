@@ -135,64 +135,6 @@ data: {"id":"chatcmpl-9aZx","choices":[],"usage":{"prompt_tokens":11,"completion
 data: [DONE]`,
   },
 
-  search: {
-    method: "POST",
-    path: "/v1/search",
-    tryBody: `{\n  "query": "latest OpenAI news",\n  "type": "web",\n  "max_results": 3\n}`,
-    samples: {
-      curl: `curl https://api.lazu.ai/v1/search \\
-  -H "Authorization: Bearer $LAZU_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "query": "latest OpenAI web search API changes",
-    "type": "web",
-    "max_results": 5,
-    "backend": "auto"
-  }'`,
-      python: `import requests
-
-r = requests.post(
-    "https://api.lazu.ai/v1/search",
-    headers={"Authorization": "Bearer $LAZU_API_KEY"},
-    json={"query": "latest models", "max_results": 5},
-)
-print(r.json()["results"])`,
-      ts: `const r = await fetch("https://api.lazu.ai/v1/search", {
-  method: "POST",
-  headers: {
-    Authorization: "Bearer $LAZU_API_KEY",
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ query: "latest models", max_results: 5 }),
-});
-const { results } = await r.json();`,
-    },
-    response: `{
-  "query": "latest OpenAI web search API changes",
-  "results": [
-    {
-      "title": "OpenAI ships web search API",
-      "url": "https://example.com/news",
-      "snippet": "…",
-      "score": 0.92,
-      "source": "tavily"
-    }
-  ],
-  "usage": {
-    "web_search_requests": 1,
-    "web_search_billable_units": 1
-  },
-  "provider_trace": { "backend": "tavily" },
-  "route_receipt": {
-    "selection": "auto",
-    "selected_backend": "search_tavily",
-    "chose_provider": "tavily",
-    "candidates": ["search_tavily"],
-    "decision_reason": "matched web_search capability"
-  }
-}`,
-  },
-
   models: {
     method: "GET",
     path: "/v1/models",

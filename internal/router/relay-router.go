@@ -76,13 +76,6 @@ func SetRelayRouter(router *gin.Engine) {
 		decisionsRouter.POST("/decisions", controller.Decisions)
 	}
 	{
-		searchRouter := relayV1Router.Group("")
-		searchRouter.Use(retiringSearch())
-		searchRouter.Use(middleware.RejectEphemeralCredentialOutsideRelay())
-		searchRouter.Use(middleware.ModelRequestRateLimit())
-		searchRouter.POST("/search", controller.Search)
-	}
-	{
 		filesRouter := relayV1Router.Group("/files")
 		filesRouter.Use(middleware.RejectEphemeralCredentialOutsideRelay())
 		filesRouter.GET("", filecontroller.List)

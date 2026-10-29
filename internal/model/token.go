@@ -448,11 +448,8 @@ type Token struct {
 	UsageAlertPercent int `json:"usage_alert_percent" gorm:"default:0"`
 	// Note is the sentence a human reads to remember what this Key is for.
 	// Tags are for machines reconciling spend; this is not.
-	Note                  string         `json:"note" gorm:"type:varchar(256);default:''"`
-	SearchLimitsEnabled   bool           `json:"search_limits_enabled" gorm:"column:search_limits_enabled;default:false"`
-	SearchProviders       StringSlice    `json:"search_providers" gorm:"type:json"`
-	SearchDomainAllowlist string         `json:"search_domain_allowlist" gorm:"type:varchar(2048);default:''"`
-	DeletedAt             gorm.DeletedAt `gorm:"index"`
+	Note      string         `json:"note" gorm:"type:varchar(256);default:''"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 const tokenKeyStoredDigestPrefix = "digest:"
@@ -1071,7 +1068,6 @@ func updateTokenFieldsTx(tx *gorm.DB, token *Token) error {
 		"rate_limits_enabled", "rpm_limit", "tpm_limit",
 		"model_limits_enabled", "model_limits", "allow_ips", "group", "ip_whitelist_enabled",
 		"ip_blacklist", "ip_blacklist_enabled", "vendor_limits_enabled", "vendor_limits", "vendor_groups", "model_lanes",
-		"search_limits_enabled", "search_providers", "search_domain_allowlist",
 		"model_scope_vendors", "usage_alert_percent", "note", "reasoning_effort_cap", "decision_question_generation").Updates(token).Error; err != nil {
 		return err
 	}

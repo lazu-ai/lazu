@@ -20,7 +20,7 @@ import { FieldMessage } from '../../components/ui/field';
 import { Input } from '../../components/ui/input';
 import { Modal } from '../../components/ui/modal';
 import { PendingBlock } from '../../components/ui/pending';
-import { MultiSelect, Select, SelectItem } from '../../components/ui/select';
+import { Select, SelectItem } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { compactNumber, formatUnixTime } from '../../components/ui/table-tools';
 import { Textarea } from '../../components/ui/textarea';
@@ -29,7 +29,6 @@ import {
   RATE_LIMIT_PRESETS,
   type RateLimitCeiling,
 } from '../../constants/rate-limits';
-import { SEARCH_PROVIDERS } from '../../constants/search.constants';
 import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
 import { usdToMicroUSD } from '../../helpers/render';
@@ -62,9 +61,6 @@ const tokenFormSchema = z
     ip_whitelist_enabled: z.boolean(),
     model_limits: z.array(z.string()),
     model_limits_enabled: z.boolean(),
-    search_limits_enabled: z.boolean(),
-    search_providers: z.array(z.string()),
-    search_domain_allowlist: z.string().optional(),
     metadata: z.string().refine((value) => {
       const raw = String(value || '').trim();
       if (!raw) return true;
@@ -974,15 +970,13 @@ const ADVANCED_FIELDS = new Set([
   'metadata',
   'model_limits',
   'rpm_limit',
-  'search_domain_allowlist',
-  'search_providers',
   'tokenCount',
   'tpm_limit',
 ]);
 
 /** One question in 更多设置: a title, a sentence saying what it is for, and
  *  the switch that turns it on. Closed, it costs one line; open, it shows only
- *  its own fields. Nine of these stacked read as a menu rather than a form. */
+ *  its own fields. Eight of these stacked read as a menu rather than a form. */
 function MoreSection({
   children,
   control,
@@ -1404,51 +1398,6 @@ export function TokenFormDrawer({
           rows={3}
           {...form.register('ip_blacklist')}
         />
-      </MoreSection>
-
-      <MoreSection
-        title={t('page.console.token.search.title')}
-        hint={t('page.console.token.form.searchHint', {
-          defaultValue: '限制能用的搜索源和域名',
-        })}
-        control={
-          <Controller
-            control={form.control}
-            name='search_limits_enabled'
-            render={({ field }) => (
-              <Switch checked={field.value} onCheckedChange={field.onChange} />
-            )}
-          />
-        }
-        open={Boolean(values.search_limits_enabled)}
-      >
-        <Controller
-          control={form.control}
-          name='search_providers'
-          render={({ field }) => (
-            <MultiSelect
-              options={SEARCH_PROVIDERS.map((provider) => ({
-                label: provider.label,
-                value: provider.id,
-              }))}
-              placeholder={t(
-                'page.console.token.search.allowedProvidersPlaceholder',
-              )}
-              value={field.value}
-              onValueChange={field.onChange}
-            />
-          )}
-        />
-        <Textarea
-          placeholder={t(
-            'page.console.token.search.domainAllowlistPlaceholder',
-          )}
-          rows={2}
-          {...form.register('search_domain_allowlist')}
-        />
-        <span className='tokv2-hint'>
-          {t('page.console.token.search.allowedProvidersHint')}
-        </span>
       </MoreSection>
 
       <MoreSection
@@ -1999,7 +1948,7 @@ export function TokenFormDrawer({
         {!team && (
           <span className='tok-create__more-hint'>
             {t('page.console.token.create.moreHint', {
-              defaultValue: '模型范围 · 限流 · 用量提醒 · IP · 检索 · 备注',
+              defaultValue: '模型范围 · 限流 · 用量提醒 · IP · 备注',
             })}
           </span>
         )}

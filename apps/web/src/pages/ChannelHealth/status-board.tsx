@@ -275,9 +275,6 @@ const StatusLane = memo(function StatusLane({
       case 'video':
         p50('generation', '生成 p50 {{value}}', row.latency_p50_ms);
         break;
-      case 'search':
-        p50('response', '响应 p50 {{value}}', row.latency_p50_ms);
-        break;
       default:
         p50('latency', '延迟 p50 {{value}}', row.latency_p50_ms);
     }
@@ -650,10 +647,7 @@ export const StatusBoard = memo(function StatusBoard({
         key={`${section.kind}::${model.name}`}
       >
         <div className='chealth-mcard__head'>
-          <span
-            className={`chealth-mcard__name${section.kind === 'search' ? ' chealth-mcard__name--plain' : ''}`}
-            title={model.name}
-          >
+          <span className='chealth-mcard__name' title={model.name}>
             {model.name}
           </span>
           {family ? (
@@ -692,15 +686,10 @@ export const StatusBoard = memo(function StatusBoard({
     entries: ChannelHealthRow[],
   ) => {
     const parts = [
-      section.kind === 'search'
-        ? t(`${ns}.board.sourceCount`, {
-            defaultValue: '{{count}} 个来源',
-            count: entries.length,
-          })
-        : t(`${ns}.board.modelCount`, {
-            defaultValue: '{{count}} 个模型',
-            count: modelCount(entries),
-          }),
+      t(`${ns}.board.modelCount`, {
+        defaultValue: '{{count}} 个模型',
+        count: modelCount(entries),
+      }),
     ];
     if (section.kind === 'llm') {
       parts.push(

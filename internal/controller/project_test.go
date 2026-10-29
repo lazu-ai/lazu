@@ -856,7 +856,7 @@ func TestProjectPersonalKeyCreationAcceptsProjectClientShape(t *testing.T) {
 	}
 
 	// The full team editor must retain the separate monthly cap while updating advanced policies.
-	raw, _ = json.Marshal(gin.H{"id": advanced.PublicID, "project_id": project.PublicID, "expected_version": advanced.ProjectVersion, "name": "edited-full", "model_limits": []string{}, "model_limits_enabled": true, "model_scope_vendors": []int{17}, "cap_microusd": 30000000, "period_cap": nil, "unlimited_quota": true, "expired_time": expiry + 86400, "rate_limits_enabled": true, "rpm_limit": 12, "usage_alert_percent": 90, "ip_whitelist_enabled": true, "allow_ips": "10.0.0.1", "search_limits_enabled": true, "search_providers": []string{"tavily"}, "note": "edited policy"})
+	raw, _ = json.Marshal(gin.H{"id": advanced.PublicID, "project_id": project.PublicID, "expected_version": advanced.ProjectVersion, "name": "edited-full", "model_limits": []string{}, "model_limits_enabled": true, "model_scope_vendors": []int{17}, "cap_microusd": 30000000, "period_cap": nil, "unlimited_quota": true, "expired_time": expiry + 86400, "rate_limits_enabled": true, "rpm_limit": 12, "usage_alert_percent": 90, "ip_whitelist_enabled": true, "allow_ips": "10.0.0.1", "note": "edited policy"})
 	request = httptest.NewRequest("PUT", "/api/token/", bytes.NewReader(raw))
 	request.Header.Set("Content-Type", "application/json")
 	response = httptest.NewRecorder()
@@ -867,7 +867,7 @@ func TestProjectPersonalKeyCreationAcceptsProjectClientShape(t *testing.T) {
 	if err := db.First(&advanced, advanced.Id).Error; err != nil {
 		t.Fatal(err)
 	}
-	if advanced.ExpiredTime != expiry+86400 || advanced.RPMLimit != 12 || advanced.UsageAlertPercent != 90 || advanced.Note != "edited policy" || !advanced.ModelLimitsEnabled || len(advanced.ModelScopeVendors) != 1 || !advanced.SearchLimitsEnabled || advanced.AllowIps == nil || *advanced.AllowIps != "10.0.0.1" {
+	if advanced.ExpiredTime != expiry+86400 || advanced.RPMLimit != 12 || advanced.UsageAlertPercent != 90 || advanced.Note != "edited policy" || !advanced.ModelLimitsEnabled || len(advanced.ModelScopeVendors) != 1 || advanced.AllowIps == nil || *advanced.AllowIps != "10.0.0.1" {
 		t.Fatalf("full edit lost policy: %+v", advanced)
 	}
 	if err := db.First(&monthly, monthly.ID).Error; err != nil {

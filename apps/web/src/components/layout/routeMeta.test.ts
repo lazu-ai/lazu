@@ -21,8 +21,8 @@ describe('routeMeta', () => {
   });
 
   it('resolves specific mobile page identity before the dashboard fallback', () => {
-    expect(resolveConsoleRouteMeta('/console/search-backend').match).toBe(
-      '/console/search-backend',
+    expect(resolveConsoleRouteMeta('/console/project/members').match).toBe(
+      '/console/project/members',
     );
     expect(resolveConsoleRouteMeta('/console/model-ops').match).toBe(
       '/console/model-ops',

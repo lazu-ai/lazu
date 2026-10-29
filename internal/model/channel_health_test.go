@@ -48,7 +48,7 @@ func setupChannelHealthTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(
 		&RoutingDecision{}, &RoutingOutcome{}, &RoutingAttemptOutcome{}, &Channel{},
 		&Ability{}, &ChannelProbeResult{}, &ChannelProbeBudget{}, &ChannelProbeClaim{},
-		&RouteHealthHourly{}, &RouteHealthRollupState{}, &SearchHealthSample{},
+		&RouteHealthHourly{}, &RouteHealthRollupState{},
 	); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
@@ -1194,35 +1194,6 @@ func TestChannelHealthLegacyProbeDoesNotSetQuietLaneLatency(t *testing.T) {
 
 // When the sample cap binds, the page must keep the newest samples: status,
 // streak and the right-hand cells all read from the end of the window.
-func TestQuerySearchHealthSamplesKeepsTheNewestWhenCapped(t *testing.T) {
-	db := setupChannelHealthTestDB(t)
-	now := time.Now().UTC()
-	rows := make([]SearchHealthSample, 0, searchHealthSampleLimit+2)
-	for i := 0; i < searchHealthSampleLimit+2; i++ {
-		rows = append(rows, SearchHealthSample{
-			ChannelId: 55, Provider: "tavily", Kind: SearchHealthKindProbe, Success: true,
-			SampledAt: now.Add(-time.Duration(searchHealthSampleLimit+2-i) * time.Second),
-		})
-	}
-	if err := db.CreateInBatches(&rows, 1000).Error; err != nil {
-		t.Fatalf("seed samples: %v", err)
-	}
-	got, err := QuerySearchHealthSamples(now.Add(-24 * time.Hour))
-	if err != nil {
-		t.Fatalf("query: %v", err)
-	}
-	if len(got) != searchHealthSampleLimit {
-		t.Fatalf("rows = %d, want the cap %d", len(got), searchHealthSampleLimit)
-	}
-	newest := rows[len(rows)-1].SampledAt
-	if !got[len(got)-1].SampledAt.Equal(newest) || !got[0].SampledAt.Before(got[len(got)-1].SampledAt) {
-		t.Fatalf("window = %s .. %s, want oldest-first ending at the newest sample %s",
-			got[0].SampledAt, got[len(got)-1].SampledAt, newest)
-	}
-}
-
-// healthFigureNear accepts a percentile read back from the hourly histograms:
-// within 10% of the exact value, and exactly zero when nothing was observed.
 func healthFigureNear(got, want float64) bool {
 	if want == 0 {
 		return got == 0

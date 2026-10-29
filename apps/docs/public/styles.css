@@ -461,7 +461,6 @@ a[data-lazu-models]::after {
 .vocs_Sidebar_item[href$="/endpoints/chat"]::after,
 .vocs_Sidebar_item[href$="/endpoints/responses"]::after,
 .vocs_Sidebar_item[href$="/endpoints/embeddings"]::after,
-.vocs_Sidebar_item[href$="/endpoints/search"]::after,
 .vocs_Sidebar_item[href$="/endpoints/files"]::after {
   content: "POST";
 }

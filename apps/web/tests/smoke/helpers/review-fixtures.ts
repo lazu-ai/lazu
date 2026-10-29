@@ -1,50 +1,6 @@
 /** Synthetic review records; never read a production account or credential. */
 export function reviewPayload(url: string) {
   const path = new URL(url).pathname;
-  if (path === '/api/search/backends')
-    return {
-      success: true,
-      data: [
-        {
-          id: 7,
-          name: 'Jina',
-          provider: 'jina',
-          type: 76,
-          masked_key: 'sk-searc••••••••a91f',
-          status: 1,
-          priority: 10,
-          capabilities: ['web_search', 'web_fetch'],
-          last_used_at: 1788677040,
-        },
-        {
-          id: 8,
-          name: 'Serper',
-          provider: 'serper',
-          type: 77,
-          masked_key: 'sk-searc••••••••b72e',
-          status: 1,
-          priority: 20,
-          capabilities: ['web_search'],
-          last_used_at: 1788611880,
-        },
-        {
-          id: 9,
-          name: 'Tavily',
-          provider: 'tavily',
-          type: 75,
-          masked_key: 'sk-searc••••••••c83a',
-          status: 1,
-          priority: 30,
-          capabilities: ['web_search', 'answer'],
-          last_used_at: null,
-        },
-      ],
-    };
-  if (/\/api\/(token|search\/backends)\/\d+\/reveal$/.test(path))
-    return {
-      success: true,
-      data: { key: 'visual-fixture-only-' + 'x'.repeat(96) },
-    };
   if (path === '/api/token/' || path === '/api/token')
     return {
       success: true,

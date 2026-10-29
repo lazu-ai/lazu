@@ -107,9 +107,6 @@ page.console.plaza.error.description
 page.console.pricing.imageOutputPrice
 page.console.pricingOps.description
 page.console.pricingOps.empty.description
-page.console.search.description
-page.console.searchBackend.description
-page.console.searchBackend.editor.description
 page.console.setting.auth.description
 page.console.setting.content.description
 page.console.setting.description
@@ -138,7 +135,6 @@ page.console.token.description
 page.console.token.form.description
 page.console.token.form.quotaMeter
 page.console.token.rateLimit.description
-page.console.token.search.description
 page.console.token.tags.hint
 page.console.token.tags.key
 page.console.token.tags.keyPlaceholder
@@ -184,7 +180,6 @@ sidebar.module.files.description
 sidebar.module.health.description
 sidebar.module.members.description
 sidebar.module.pricing.description
-sidebar.module.search.description
 sidebar.module.status.description
 sidebar.module.studio.description
 statusCenter.description

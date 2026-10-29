@@ -54,7 +54,6 @@ for (const [name, route] of Object.entries({
   users: 'organizations',
   health: 'health',
   models: 'model-ops',
-  search: 'search-backend',
   wallet: 'wallet',
   settings: 'setting',
   overview: '',
@@ -124,67 +123,6 @@ for (const [name, route] of Object.entries({
     await app.expectNoUnexpectedErrors();
   });
 }
-
-test('search credentials stay inline and delete can be canceled', async ({
-  page,
-}) => {
-  let deletes = 0;
-  await setupMockedApp(page, {
-    consoleScope: 'platform:operations',
-    payloadFor: (url: string, request: import('@playwright/test').Request) => {
-      const path = new URL(url).pathname;
-      if (path === '/api/search/backends')
-        return {
-          success: true,
-          data: [
-            {
-              id: 7,
-              name: 'Jina',
-              provider: 'jina',
-              type: 102,
-              status: 1,
-              masked_key: 'jina-de••••••tail',
-              last_used_at: 1788624000,
-              capabilities: ['web_search'],
-              priority: 10,
-            },
-          ],
-        };
-      if (path === '/api/search/backends/7/reveal')
-        return { success: true, data: { key: 'jina-demo-review-key-tail' } };
-      if (path === '/api/search/backends/7' && request.method() === 'DELETE') {
-        deletes++;
-        return { success: true };
-      }
-      return undefined;
-    },
-  });
-  await expectRouteReady(page, '/console/search-backend');
-  const row = page.getByRole('row').filter({ hasText: 'Jina' });
-  const field = row.locator('.lazu-inline-secret input');
-  await expect(field).toHaveValue('jina-de••••••tail');
-  const box = await row.boundingBox();
-  await row.getByRole('button', { name: '显示', exact: true }).click();
-  await expect(field).toHaveValue('jina-demo-review-key-tail');
-  expect(await row.boundingBox()).toEqual(box);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.screenshot({
-    path: '../../.local-results/screenshots/implementation/search-inline.png',
-    animations: 'disabled',
-  });
-  // 删除 asks nothing: the row reads 删除中 under a 撤销 toast, and 撤销
-  // puts it back without a request.
-  await row.getByRole('button', { name: '删除', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(row).toContainText('删除中');
-  await page.screenshot({
-    path: '../../.local-results/screenshots/implementation/search-delete.png',
-    animations: 'disabled',
-  });
-  await page.getByRole('button', { name: '撤销', exact: true }).click();
-  await expect(row).not.toContainText('删除中');
-  expect(deletes).toBe(0);
-});
 
 test('personal settings offer no IP switch and editors dismiss without writing', async ({
   page,

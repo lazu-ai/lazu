@@ -53,7 +53,6 @@ const ADMIN_DESTINATIONS = [
   '/console/user',
   '/console/model-ops',
   '/console/channel',
-  '/console/search-backend',
   '/console/setting',
   '/console/announcements',
   '/console/ops',

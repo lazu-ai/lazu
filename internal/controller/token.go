@@ -199,9 +199,6 @@ func publicTokenPayloadWithPeriodCap(c *gin.Context, token *model.Token, periodC
 		"model_lanes":                  token.ModelLanes.Normalize(),
 		"decision_question_generation": token.DecisionQuestionGeneration,
 		"reasoning_effort_cap":         token.ReasoningEffortCap,
-		"search_limits_enabled":        token.SearchLimitsEnabled,
-		"search_providers":             token.SearchProviders,
-		"search_domain_allowlist":      token.SearchDomainAllowlist,
 		"model_scope_vendors":          publicVendorIDs(token.ModelScopeVendors),
 		"usage_alert_percent":          token.UsageAlertPercent,
 		"note":                         token.Note,
@@ -422,24 +419,21 @@ func GetTokenUsage(c *gin.Context) {
 		"code":    true,
 		"message": "ok",
 		"data": gin.H{
-			"object":                  "token_usage",
-			"name":                    token.Name,
-			"total_granted":           token.RemainQuota + token.UsedQuota,
-			"total_used":              token.UsedQuota,
-			"total_available":         tokenDisplayRemaining(c, []*model.Token{token})[token.Id],
-			"unlimited_quota":         token.UnlimitedQuota,
-			"product":                 token.Product,
-			"metadata":                token.Metadata,
-			"rate_limits_enabled":     token.RateLimitsEnabled,
-			"rpm_limit":               token.RPMLimit,
-			"tpm_limit":               token.TPMLimit,
-			"effective_rate_limits":   publicTokenRateLimitPayload(c, token),
-			"model_limits":            token.GetModelLimitsMap(),
-			"model_limits_enabled":    token.ModelLimitsEnabled,
-			"search_limits_enabled":   token.SearchLimitsEnabled,
-			"search_providers":        token.SearchProviders,
-			"search_domain_allowlist": token.SearchDomainAllowlist,
-			"expires_at":              expiredAt,
+			"object":                "token_usage",
+			"name":                  token.Name,
+			"total_granted":         token.RemainQuota + token.UsedQuota,
+			"total_used":            token.UsedQuota,
+			"total_available":       tokenDisplayRemaining(c, []*model.Token{token})[token.Id],
+			"unlimited_quota":       token.UnlimitedQuota,
+			"product":               token.Product,
+			"metadata":              token.Metadata,
+			"rate_limits_enabled":   token.RateLimitsEnabled,
+			"rpm_limit":             token.RPMLimit,
+			"tpm_limit":             token.TPMLimit,
+			"effective_rate_limits": publicTokenRateLimitPayload(c, token),
+			"model_limits":          token.GetModelLimitsMap(),
+			"model_limits_enabled":  token.ModelLimitsEnabled,
+			"expires_at":            expiredAt,
 		},
 	})
 }
@@ -720,9 +714,6 @@ func AddToken(c *gin.Context) {
 		VendorGroups:               token.VendorGroups.Normalize(),
 		ModelLanes:                 token.ModelLanes.Normalize(),
 		DecisionQuestionGeneration: token.DecisionQuestionGeneration,
-		SearchLimitsEnabled:        token.SearchLimitsEnabled,
-		SearchProviders:            token.SearchProviders,
-		SearchDomainAllowlist:      token.SearchDomainAllowlist,
 		ModelScopeVendors:          token.ModelScopeVendors,
 		UsageAlertPercent:          clampUsageAlertPercent(token.UsageAlertPercent),
 		Note:                       trimTokenNote(token.Note),
@@ -945,9 +936,6 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.VendorGroups = token.VendorGroups.Normalize()
 		cleanToken.ModelLanes = token.ModelLanes.Normalize()
 		cleanToken.DecisionQuestionGeneration = token.DecisionQuestionGeneration
-		cleanToken.SearchLimitsEnabled = token.SearchLimitsEnabled
-		cleanToken.SearchProviders = token.SearchProviders
-		cleanToken.SearchDomainAllowlist = token.SearchDomainAllowlist
 		cleanToken.ModelScopeVendors = token.ModelScopeVendors
 		cleanToken.UsageAlertPercent = clampUsageAlertPercent(token.UsageAlertPercent)
 		cleanToken.Note = trimTokenNote(token.Note)

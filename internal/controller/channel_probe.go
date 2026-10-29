@@ -185,10 +185,6 @@ const (
 	// image any upstream sells is about a cent, the dearest about a nickel.
 	channelProbeImageCostUSD = 0.05
 
-	// channelProbeSearchCostUSD budgets one search probe. The dearest backend
-	// charges under a cent per basic query.
-	channelProbeSearchCostUSD = 0.01
-
 	// channelProbeRetreatInterval is how often a route the breaker has pulled
 	// out of rotation is re-tested. It is the half-open probe of a circuit
 	// breaker: much more frequent than the idle cadence, because nothing else
@@ -479,8 +475,6 @@ func RunChannelProbeSweep(ctx context.Context, now time.Time) (ChannelProbeSweep
 		return result, err
 	}
 	result.Considered = len(candidates)
-	// Search backends are not in the model grid, so an empty model list must
-	// not end the sweep before they are checked.
 	defer func() {
 		if result.Probed > 0 {
 			// The dashboard caches aggregates for 30s; drop it so a freshly
@@ -489,7 +483,7 @@ func RunChannelProbeSweep(ctx context.Context, now time.Time) (ChannelProbeSweep
 		}
 	}()
 	if len(candidates) == 0 {
-		return result, runSearchProbeSweep(ctx, now, budget, &result)
+		return result, nil
 	}
 
 	for index, candidate := range candidates {
@@ -591,7 +585,7 @@ func RunChannelProbeSweep(ctx context.Context, now time.Time) (ChannelProbeSweep
 		}
 	}
 
-	return result, runSearchProbeSweep(ctx, now, budget, &result)
+	return result, nil
 }
 
 // channelProbeAlreadyFresh re-reads a claimed cell's newest attempt. The
@@ -613,104 +607,6 @@ func channelProbeAlreadyFresh(candidate ChannelProbeCandidate, now time.Time) bo
 	return ok && now.Sub(last) < interval
 }
 
-// runSearchProbeSweep asks every enabled search backend the fixed probe
-// question once per probe interval, unless customers have already sampled it.
-// Search backends have no abilities, so they never appear in the model grid
-// the main sweep walks.
-func runSearchProbeSweep(ctx context.Context, now time.Time, budget float64, result *ChannelProbeSweepResult) error {
-	var channels []*model.Channel
-	if err := model.CoreDB().
-		Where("type IN ? AND status = ?", constant.SearchChannelTypes(), common.ChannelStatusEnabled).
-		Order("id asc").
-		Find(&channels).Error; err != nil {
-		return fmt.Errorf("search probe: list backends: %w", err)
-	}
-	if len(channels) == 0 {
-		return nil
-	}
-	last, err := model.LoadSearchHealthLastSamples(now.Add(-channelProbeStaleAfter))
-	if err != nil {
-		return fmt.Errorf("search probe: read last samples: %w", err)
-	}
-	for _, channel := range channels {
-		if ctx.Err() != nil {
-			return nil
-		}
-		// A channel configured for fetch only never serves /v1/search; a
-		// search probe would bill for an operation nobody routes to it.
-		if !service.SearchChannelServesWebSearch(channel) {
-			continue
-		}
-		if at, ok := last[channel.Id]; ok && now.Sub(at) < channelProbeInterval {
-			continue
-		}
-		claimKey := fmt.Sprintf("search\x1f%d", channel.Id)
-		claimToken := uuid.NewString()
-		claimedAt := time.Now().UTC()
-		claimed, err := model.ClaimChannelProbe(claimKey, claimToken, claimedAt, claimedAt.Add(channelProbeClaimLease()))
-		if err != nil {
-			return fmt.Errorf("search probe: claim backend %d: %w", channel.Id, err)
-		}
-		if !claimed {
-			result.Skipped++
-			continue
-		}
-		release := func() {
-			if err := model.ReleaseChannelProbeClaim(claimKey, claimToken); err != nil {
-				common.SysLog("search probe: failed to release claim: " + err.Error())
-			}
-		}
-		// Re-read under the claim for the same reason the model sweep does.
-		fresh, err := model.LoadSearchHealthLastSamples(claimedAt.Add(-channelProbeInterval))
-		if err != nil {
-			release()
-			return fmt.Errorf("search probe: recheck backend %d: %w", channel.Id, err)
-		}
-		if at, ok := fresh[channel.Id]; ok && claimedAt.Sub(at) < channelProbeInterval {
-			release()
-			result.Skipped++
-			continue
-		}
-		day := channelProbeUTCDate(time.Now())
-		reserved, err := model.ReserveChannelProbeBudget(day, budget, channelProbeSearchCostUSD)
-		if err != nil {
-			release()
-			return fmt.Errorf("search probe: reserve backend %d: %w", channel.Id, err)
-		}
-		if !reserved {
-			release()
-			result.BudgetHit = true
-			return nil
-		}
-		sample, attempted := service.ProbeSearchBackend(ctx, channel)
-		if !attempted {
-			if err := model.ReleaseChannelProbeBudget(day, channelProbeSearchCostUSD); err != nil {
-				release()
-				return fmt.Errorf("search probe: release unused budget for backend %d: %w", channel.Id, err)
-			}
-			release()
-			result.Skipped++
-			continue
-		}
-		if ctx.Err() != nil {
-			// Shutdown, not evidence.
-			release()
-			return nil
-		}
-		if err := model.RecordSearchHealthSample(sample); err != nil {
-			release()
-			return fmt.Errorf("search probe: record backend %d: %w", channel.Id, err)
-		}
-		release()
-		result.Probed++
-		result.EstimatedUSD += channelProbeSearchCostUSD
-		if !sample.Success {
-			result.Failures++
-		}
-	}
-	return nil
-}
-
 // probeChannelCell runs one synthetic request against a specific model on a
 // specific channel. Unlike the channel-level auto test, it never disables a
 // channel: a probe failure is evidence for the dashboard, not grounds to take
@@ -726,11 +622,6 @@ func probeChannelCell(ctx context.Context, candidate ChannelProbeCandidate, esti
 	channel, err := model.GetChannelById(candidate.ChannelId, true)
 	if err != nil || channel == nil {
 		outcome.ErrorMessage = "channel unavailable"
-		outcome.Skipped = true
-		return outcome
-	}
-	if constant.IsSearchChannelType(channel.Type) {
-		outcome.ErrorMessage = "search channel is not probeable"
 		outcome.Skipped = true
 		return outcome
 	}

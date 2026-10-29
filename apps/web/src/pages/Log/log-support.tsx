@@ -1164,7 +1164,6 @@ export function LogDetailPanel({
     ? (other.admin_info.use_channel as unknown[]).map(String)
     : [];
   const upstream = String(other.upstream_model_name || '');
-  const routing = isUnknownRecord(other.routing) ? other.routing : null;
   const chargeLabel = record.isRefund
     ? record.refundCostDisplay ||
       formatCost(-Math.abs(record.amount_microusd || 0))
@@ -1355,15 +1354,6 @@ export function LogDetailPanel({
         {isAdminUser && upstream && upstream !== record.model_name ? (
           <DetailFact label={t('page.console.log.m3.upstream')}>
             <span className='logv2-mono'>{upstream}</span>
-          </DetailFact>
-        ) : null}
-        {isAdminUser &&
-        routing &&
-        (routing.selected_backend || routing.chose_provider) ? (
-          <DetailFact label={t('page.console.log.detail.routeSelected')}>
-            <span className='logv2-mono'>
-              {String(routing.selected_backend || routing.chose_provider)}
-            </span>
           </DetailFact>
         ) : null}
         <span className='logv2-m3__spacer' />

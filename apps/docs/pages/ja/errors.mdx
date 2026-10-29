@@ -292,7 +292,6 @@ Lazu 側の問題（一時的に壊れたモデルルートなど）を表すエ
 | <a id="lz-7204"></a>`LZ-7204` | `secret_unavailable` | 409 | `conflict_error` | この API キーはダイジェストのみ保存されているため、完全なキーを表示できません。完全なキーが必要な場合は新しく作成してください。 |
 | <a id="lz-7205"></a>`LZ-7205` | `key_not_found` | 404 | `not_found_error` | この API キーが見つかりません。削除された可能性があります。ページを再読み込みしてください。 |
 | <a id="lz-7301"></a>`LZ-7301` | `channel_not_found` | 404 | `not_found_error` | このチャネルはすでに存在しません。削除された可能性があります。一覧を再読み込みしてください。 |
-| <a id="lz-7302"></a>`LZ-7302` | `channel_search_backend_managed` | 409 | `conflict_error` | このチャネルは検索バックエンドのため、ここでは変更できません。「検索バックエンド」ページで管理してください。 |
 | <a id="lz-7303"></a>`LZ-7303` | `channel_lane_invalid` | 400 | `invalid_request_error` | ティア「\{\{lane\}\}」は存在しません。チャネルは既存のティアのいずれか 1 つに属します。一覧から選択してください。 |
 | <a id="lz-7304"></a>`LZ-7304` | `channel_settings_invalid` | 400 | `invalid_request_error` | チャネルの追加設定を読み取れなかったため、保存されませんでした。JSON の形式と値を確認してください。 |
 | <a id="lz-7305"></a>`LZ-7305` | `channel_model_name_too_long` | 400 | `invalid_request_error` | 255 文字を超えるモデル名があるため、チャネルは保存されませんでした。短くするか削除してください。 |
@@ -413,8 +412,6 @@ Lazu 側の問題（一時的に壊れたモデルルートなど）を表すエ
 | <a id="lz-7828"></a>`LZ-7828` | `video_artifact_missing` | 502 | `api_error` | 動画の生成は終わりましたが、ダウンロードできるファイルがありません。もう一度生成してください。 |
 | <a id="lz-7829"></a>`LZ-7829` | `video_not_ready` | 409 | `conflict_error` | この動画にはまだダウンロードできるファイルがありません。status が succeeded になってからダウンロードしてください。 |
 | <a id="lz-7830"></a>`LZ-7830` | `invalid_wait` | 400 | `invalid_request_error` | wait には 0〜60 の整数（秒）を指定してください。 |
-| <a id="lz-7861"></a>`LZ-7861` | `search_backend_not_found` | 404 | `not_found_error` | この検索バックエンドが見つかりません。一覧を再読み込みしてください。 |
-| <a id="lz-7862"></a>`LZ-7862` | `search_backend_provider_invalid` | 400 | `invalid_request_error` | この検索プロバイダーには対応していないか、チャネルの種類と一致しません。一覧からプロバイダーを選んでください。 |
 | <a id="lz-7864"></a>`LZ-7864` | `upload_file_not_found` | 404 | `not_found_error` | このデータファイルがサーバー上に見つかりません。ファイルのパスを確認してください。 |
 | <a id="lz-7865"></a>`LZ-7865` | `upload_key_not_allowed` | 400 | `invalid_request_error` | このパスはアップロードできません。ディレクトリと設定ファイルは対象外です。通常のデータファイルを選んでください。 |
 | <a id="lz-7866"></a>`LZ-7866` | `upload_failed` | 502 | `api_error` | オブジェクトストレージがアップロードを受け付けませんでした。ストレージの設定を確認して、もう一度お試しください。 |

@@ -49,7 +49,6 @@ const KIND_ORDER: ChannelHealthKind[] = [
   'image',
   'audio',
   'video',
-  'search',
 ];
 
 const rowKind = (row: ChannelHealthRow): ChannelHealthKind => row.kind ?? 'llm';

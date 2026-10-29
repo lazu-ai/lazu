@@ -258,8 +258,6 @@ test('Key edit preserves full policy and updates monthly cap', async ({
         rpm_limit: 7,
         ip_whitelist_enabled: true,
         allow_ips: '127.0.0.1',
-        search_limits_enabled: true,
-        search_providers: ['tavily'],
         note: 'original note',
       });
     }
@@ -293,7 +291,6 @@ test('Key edit preserves full policy and updates monthly cap', async ({
     usage_alert_percent: 80,
     rpm_limit: 7,
     allow_ips: '127.0.0.1',
-    search_providers: ['tavily'],
     note: 'updated note',
   });
   await expect(page.locator('.pj-bars')).toHaveCount(0);

@@ -5,6 +5,11 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 
 # Changelog
 
+## 2026-10-29 — Search endpoint removed
+
+- `POST /v1/search` and `/api/search/backends*` are removed ahead of the announced 2026-11-01 sunset, together with the console page, the search health rows and the API key search fields listed below. Both routes now answer 404 `endpoint_not_supported` (LZ-1010).
+- Error codes LZ-7302, LZ-7861 and LZ-7862 are retired. The old search docs pages redirect to this changelog.
+
 ## 2026-10-29 — Search endpoint deprecated
 
 - `POST /v1/search` and the search-backend admin routes (`/api/search/backends*`) are deprecated and are removed in the first release after 2026-11-01. Their responses now carry `Deprecation` and `Sunset` headers. No customer of api.lazu.ai called the endpoint, so the window is shorter than the usual 90 days.

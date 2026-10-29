@@ -27,8 +27,7 @@ export type ChannelHealthKind =
   | 'decision'
   | 'image'
   | 'audio'
-  | 'video'
-  | 'search';
+  | 'video';
 
 /** One section of the page and the slice width its wall is drawn in. Image
  *  generation is sampled hours apart, so its slices are three times wider. */
@@ -121,7 +120,7 @@ export type ChannelHealthRow = {
    *  not grow with how much the caller asked for. */
   ttft_p95_ms?: number;
   /** Whole-request duration over successful samples — the speed figures of
-   *  kinds without a stream: embeddings, images, search. */
+   *  kinds without a stream: embeddings and images. */
   latency_p50_ms?: number;
   latency_p95_ms?: number;
   output_tps?: number;

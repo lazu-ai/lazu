@@ -6,7 +6,6 @@ import "net/http"
 // Every row here is reached only from operator pages. Numbers: LZ-7300–7399.
 const (
 	ErrorCodeChannelNotFound             ErrorCode = "channel_not_found"
-	ErrorCodeChannelSearchBackendManaged ErrorCode = "channel_search_backend_managed"
 	ErrorCodeChannelLaneInvalid          ErrorCode = "channel_lane_invalid"
 	ErrorCodeChannelSettingsInvalid      ErrorCode = "channel_settings_invalid"
 	ErrorCodeChannelModelNameTooLong     ErrorCode = "channel_model_name_too_long"
@@ -30,10 +29,6 @@ func init() {
 		ErrorCodeChannelNotFound: {
 			ID: "LZ-7301", HTTPStatus: http.StatusNotFound, Type: ErrorTypeNotFound, Audience: AudienceOperator,
 			Template: "Channel {channel_id|requested} was not found. It may have been deleted.",
-		},
-		ErrorCodeChannelSearchBackendManaged: {
-			ID: "LZ-7302", HTTPStatus: http.StatusConflict, Type: ErrorTypeConflict, Audience: AudienceOperator,
-			Template: "This channel is a search backend. Create and edit it on the Search backends page.",
 		},
 		ErrorCodeChannelLaneInvalid: {
 			ID: "LZ-7303", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceOperator,

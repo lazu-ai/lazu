@@ -306,38 +306,6 @@ test('Stream switch updates every displayed and copied request sample', async ({
   await expect(request.locator('pre')).toContainText('include_usage');
 });
 
-test('Search receipt shows billable search units', async ({ page }) => {
-  await page.route('https://api.lazu.ai/v1/search', async (route) => {
-    if (route.request().method() === 'OPTIONS') {
-      await route.fulfill({
-        status: 204,
-        headers: {
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'POST, OPTIONS',
-          'access-control-allow-headers': 'authorization, content-type',
-        },
-      });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      headers: { 'access-control-allow-origin': '*' },
-      contentType: 'application/json',
-      body: JSON.stringify({
-        results: [],
-        usage: { web_search_requests: 1, web_search_billable_units: 2 },
-      }),
-    });
-  });
-  await page.goto(`${docsURL}/endpoints/search/`);
-  await page.locator('#key-search').fill('sk-test-1234');
-  await page.locator('.lazu-send-button').click();
-  const receipt = page.locator('.lazu-receipt[data-live="true"]');
-  await expect(receipt).toContainText('Search requests / billable units');
-  await expect(receipt).toContainText('1 / 2');
-  await expect(receipt).not.toContainText('Tokens in / out');
-});
-
 test('Page actions refresh their prose header after client navigation', async ({
   page,
 }) => {
