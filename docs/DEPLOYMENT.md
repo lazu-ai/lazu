@@ -372,8 +372,9 @@ OIDC ID token and nonce before using its subject and verified email.
 
 ### Starring the published source from the site
 
-With `site.source_url` pointing at a GitHub repository, the landing page and
-the console's Help menu can star it for a visitor without leaving the site.
+With `site.source_url` pointing at a GitHub repository, the star button in
+the public header and on the landing page, and the console's Help menu, can
+star it for a visitor without leaving the site.
 A web page cannot star on its own: the visitor authorizes a GitHub App once,
 in a popup, and the backend stars the repository with the token it is handed.
 The token is used for that one request and never stored. This is a separate
@@ -395,9 +396,16 @@ GITHUB_STAR_CLIENT_SECRET=<client-secret>
 GITHUB_STAR_REDIRECT_URL=https://<console-domain>/api/source/star/callback
 ```
 
-The button appears once both the id and the secret are set and
-`site.source_url` is a `https://github.com/<owner>/<repository>` link. The
-authorization page GitHub shows names only the App's Starring permission.
+The button stars from the site once both the id and the secret are set and
+`site.source_url` is a `https://github.com/<owner>/<repository>` link;
+without them it links to the repository. The authorization page GitHub shows
+names only the App's Starring permission.
+
+The star count beside the button is the repository's public
+`stargazers_count`, read from the GitHub API without credentials and cached
+for ten minutes; a star made through the site is counted at once. The
+backend needs outbound access to `api.github.com` for it.
+Without it the button simply shows no count.
 
 Also set `FRONTEND_BASE_URL=https://<console-domain>` so browser-facing links
 and completed callbacks return to the console. If a redirect URL is omitted,

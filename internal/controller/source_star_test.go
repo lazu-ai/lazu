@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
@@ -36,6 +38,19 @@ func setupSourceStarTest(t *testing.T) {
 	common.GitHubStarRedirectURL = "https://console.example.com/api/source/star/callback"
 	common.AppConfig.Site.SourceURL = "https://github.com/example-org/example"
 	common.OIDCFrontendBaseURL = "https://console.example.com"
+	resetSourceStarCount(t)
+}
+
+// repoLookups counts the fake GitHub's repository lookups, which the star
+// count reads.
+var repoLookups int32
+
+func resetSourceStarCount(t *testing.T) {
+	t.Helper()
+	previous := sourceStarCounts
+	sourceStarCounts = &sourceStarCountCache{}
+	atomic.StoreInt32(&repoLookups, 0)
+	t.Cleanup(func() { sourceStarCounts = previous })
 }
 
 // fakeGitHub stands in for github.com's token endpoint and api.github.com's
@@ -45,6 +60,10 @@ func fakeGitHub(t *testing.T, starred bool) (*httptest.Server, *int32) {
 	var puts int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
+		case r.URL.Path == "/repos/example-org/example" && r.Method == http.MethodGet:
+			atomic.AddInt32(&repoLookups, 1)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"full_name":"example-org/example","stargazers_count":1284}`))
 		case r.URL.Path == "/login/oauth/access_token":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"access_token":"placeholder-user-token","token_type":"bearer"}`))
@@ -267,6 +286,7 @@ func TestSanitizedSourceStarReturnKeepsOnlySitePaths(t *testing.T) {
 
 func TestSourceStarStatusIsPublicAndCacheable(t *testing.T) {
 	setupSourceStarTest(t)
+	fakeGitHub(t, false)
 	for _, enabled := range []bool{true, false} {
 		if !enabled {
 			common.GitHubStarClientSecret = ""
@@ -286,5 +306,96 @@ func TestSourceStarStatusIsPublicAndCacheable(t *testing.T) {
 		if !strings.Contains(recorder.Body.String(), `"source_url":"https://github.com/example-org/example"`) {
 			t.Fatalf("expected the published source in %s", recorder.Body.String())
 		}
+	}
+}
+
+func sourceStarStatusBody(t *testing.T) string {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	sourceStarEngine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/source/star", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	return recorder.Body.String()
+}
+
+func TestSourceStarStatusCarriesTheCachedStarCount(t *testing.T) {
+	setupSourceStarTest(t)
+	fakeGitHub(t, false)
+	for range 3 {
+		if body := sourceStarStatusBody(t); !strings.Contains(body, `"stars":1284`) {
+			t.Fatalf("expected the star count in %s", body)
+		}
+	}
+	if lookups := atomic.LoadInt32(&repoLookups); lookups != 1 {
+		t.Fatalf("expected one repository lookup for three answers, got %d", lookups)
+	}
+}
+
+func TestSourceStarStatusOmitsAnUnknownStarCount(t *testing.T) {
+	setupSourceStarTest(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&repoLookups, 1)
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+	previousAPI := githubAPIBaseURL
+	githubAPIBaseURL = server.URL
+	t.Cleanup(func() { githubAPIBaseURL = previousAPI })
+
+	for range 2 {
+		if body := sourceStarStatusBody(t); strings.Contains(body, `"stars"`) {
+			t.Fatalf("expected no star count when GitHub refuses, got %s", body)
+		}
+	}
+	if lookups := atomic.LoadInt32(&repoLookups); lookups != 1 {
+		t.Fatalf("expected a refused lookup to wait before retrying, got %d lookups", lookups)
+	}
+
+	common.AppConfig.Site.SourceURL = "https://git.example.com/example-org/example"
+	if body := sourceStarStatusBody(t); strings.Contains(body, `"stars"`) {
+		t.Fatalf("expected no star count for a source off GitHub, got %s", body)
+	}
+}
+
+func TestSourceStarCountServesAStaleCountWhileRefreshing(t *testing.T) {
+	setupSourceStarTest(t)
+	fakeGitHub(t, false)
+	sourceStarCounts.repository = "example-org/example"
+	sourceStarCounts.value, sourceStarCounts.known = 1000, true
+	sourceStarCounts.fetchedAt = time.Now().Add(-2 * sourceStarCountTTL)
+
+	if count, ok := sourceStarCount(context.Background()); !ok || count != 1000 {
+		t.Fatalf("expected the stale count while refreshing, got %d %v", count, ok)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		sourceStarCounts.mu.Lock()
+		value, refreshing := sourceStarCounts.value, sourceStarCounts.refreshing
+		sourceStarCounts.mu.Unlock()
+		if value == 1284 && !refreshing {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expected the refresh to land, still %d", value)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestSourceStarCallbackCountsTheNewStar(t *testing.T) {
+	for _, starred := range []bool{false, true} {
+		t.Run(map[bool]string{false: "new", true: "existing"}[starred], func(t *testing.T) {
+			setupSourceStarTest(t)
+			fakeGitHub(t, starred)
+			if body := sourceStarStatusBody(t); !strings.Contains(body, `"stars":1284`) {
+				t.Fatalf("expected the fetched count first, got %s", body)
+			}
+			startThenCallback(t, func(state string) string { return "code=one-time&state=" + url.QueryEscape(state) })
+			want := map[bool]string{false: `"stars":1285`, true: `"stars":1284`}[starred]
+			if body := sourceStarStatusBody(t); !strings.Contains(body, want) {
+				t.Fatalf("expected %s after the callback, got %s", want, body)
+			}
+		})
 	}
 }

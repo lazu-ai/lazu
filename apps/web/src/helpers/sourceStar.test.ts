@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  formatStarCount,
   hasSourceStarred,
   isSourceStarred,
   parseSourceStarResult,
@@ -90,5 +91,16 @@ describe('sourceStar', () => {
     visit('/?star=cancelled');
     expect(takeSourceStarResultFromLocation()).toBe('cancelled');
     expect(hasSourceStarred()).toBe(false);
+  });
+});
+
+describe('formatStarCount', () => {
+  it('sets counts the way GitHub does', () => {
+    expect(formatStarCount(0)).toBe('0');
+    expect(formatStarCount(1284)).toBe('1,284');
+    expect(formatStarCount(9999)).toBe('9,999');
+    expect(formatStarCount(10_000)).toBe('10k');
+    expect(formatStarCount(12_345)).toBe('12.3k');
+    expect(formatStarCount(12_399)).toBe('12.3k');
   });
 });

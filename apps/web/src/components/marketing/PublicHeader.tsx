@@ -1,8 +1,9 @@
-import { Check, Github, Globe2, Menu, Moon, Sun, X } from 'lucide-react';
+import { Check, Globe2, Menu, Moon, Sun, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import Reveal from './Reveal';
+import SourceStarButton from './SourceStarButton';
 import ThemedBrandLogo from './ThemedBrandLogo';
 import { useStatus } from '../../context/Status';
 import { useActualTheme, useSetTheme } from '../../context/Theme';
@@ -82,8 +83,8 @@ const PublicHeader = ({ pathnameOverride }: PublicHeaderProps = {}) => {
       getDocsHomeURL(pathLocale),
     [statusState, pathLocale],
   );
-  // The repository: a low-frequency global control beside language and
-  // theme (public-web-system #10), and a row of the sheet menu on phones.
+  // The repository: the star button beside language and theme on wider
+  // screens (public-web-system #10), and a row of the sheet menu on phones.
   const sourceLink = usePublishedSource().url;
   // /models (and pages extensions add) are rendered by the API, not by this
   // SPA, so they are plain document links. The section they own is marked
@@ -251,16 +252,7 @@ const PublicHeader = ({ pathnameOverride }: PublicHeaderProps = {}) => {
         </div>
         <div className='lazu-landing__nav-spacer' />
         <div className='lazu-landing__nav-actions'>
-          <a
-            className='lazu-landing__icon-btn lazu-landing__github'
-            href={sourceLink}
-            aria-label={t('landing.nav.github')}
-            title={t('landing.nav.github')}
-            rel='noopener noreferrer'
-            target='_blank'
-          >
-            <Github size={14} />
-          </a>
+          <SourceStarButton className='lazu-landing__github' size='sm' />
           <div className='lazu-landing__lang-wrapper' ref={langWrapperRef}>
             <button
               type='button'

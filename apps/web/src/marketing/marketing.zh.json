@@ -188,13 +188,18 @@
       "title": "先把这个月的额度分出去",
       "body": "两分钟注册,首充送 10%。",
       "ctaPrimary": "免费注册",
-      "ctaSecondary": "看文档",
-      "openSource": "Lazu 以 AGPL-3.0 开源。",
-      "openSourceLink": "到 GitHub 点个 Star",
-      "starPending": "等待 GitHub 授权…",
-      "starDone": "已点 Star，谢谢！",
-      "starAlready": "你已经点过 Star，谢谢！",
-      "starFailed": "没能点上，去 GitHub 看看"
+      "ctaSecondary": "看文档"
+    },
+    "star": {
+      "short": "Star",
+      "long": "Star on GitHub",
+      "starred": "Starred",
+      "aria": "在 GitHub 上给 Lazu 点 Star",
+      "ariaCount": "在 GitHub 上给 Lazu 点 Star，当前 {{stars}} 个",
+      "ariaDone": "已在 GitHub 上给 Lazu 点了 Star",
+      "ariaDoneCount": "已在 GitHub 上给 Lazu 点了 Star，当前 {{stars}} 个",
+      "hint": "Lazu 以 AGPL-3.0 开源。会打开 GitHub 窗口，只申请 Star 权限。",
+      "linkHint": "Lazu 以 AGPL-3.0 开源。在 GitHub 打开仓库。"
     }
   },
   "about": {

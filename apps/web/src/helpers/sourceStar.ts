@@ -50,6 +50,16 @@ export const hasSourceStarred = () => {
   }
 };
 
+/**
+ * The count beside the star button, set the way GitHub sets it: in full up
+ * to four digits, then in thousands with one decimal ("12.3k").
+ */
+export const formatStarCount = (count: number) => {
+  if (count < 10_000) return count.toLocaleString('en-US');
+  const thousands = Math.floor(count / 100) / 10;
+  return `${thousands.toLocaleString('en-US', { maximumFractionDigits: 1 })}k`;
+};
+
 /** The page's own path, where the flow returns when it has no popup. */
 const currentPagePath = () => window.location.pathname + window.location.search;
 
