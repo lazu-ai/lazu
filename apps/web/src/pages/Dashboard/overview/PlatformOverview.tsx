@@ -808,9 +808,7 @@ export default function PlatformOverview({ range, onRange, onExport }: Props) {
                         ? t(`${ns}.unknownClient`, {
                             defaultValue: '没认出来的程序',
                           })
-                        : known
-                          ? agentName(client.client)
-                          : client.client;
+                        : agentName(client.client);
                     return (
                       <div key={client.client} className='ov-clients__row'>
                         <span className='ov-clients__name'>

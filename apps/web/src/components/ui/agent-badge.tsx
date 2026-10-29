@@ -24,15 +24,78 @@ const AGENTS: Record<string, { mark: string; name: string }> = {
   zed: { mark: 'ZD', name: 'Zed' },
   aider: { mark: 'AI', name: 'Aider' },
   continue: { mark: 'CT', name: 'Continue' },
+  'iflow-cli': { mark: 'iF', name: 'iFlow CLI' },
+  'github-copilot': { mark: 'GH', name: 'GitHub Copilot' },
+  'hermes-agent': { mark: 'HA', name: 'Hermes Agent' },
+  jan: { mark: 'JN', name: 'Jan' },
+  'cc-switch': { mark: 'CS', name: 'CC Switch' },
+  anythingllm: { mark: 'AL', name: 'AnythingLLM' },
+  lobechat: { mark: 'LB', name: 'LobeChat' },
+  'cherry-studio': { mark: 'CH', name: 'Cherry Studio' },
+  chatbox: { mark: 'CB', name: 'Chatbox' },
+  'open-webui': { mark: 'OU', name: 'Open WebUI' },
+  sillytavern: { mark: 'ST', name: 'SillyTavern' },
+  librechat: { mark: 'LC', name: 'LibreChat' },
+  void: { mark: 'VD', name: 'Void' },
+  'openai-agents': { mark: 'AG', name: 'OpenAI Agents SDK' },
+  mastra: { mark: 'MA', name: 'Mastra' },
   ...Object.assign(
     {},
     ...extensionI18n.map((extension) => extension.clientBadges ?? {}),
   ),
 };
 
+/**
+ * SDKs, HTTP clients and browsers: transports many programs share, so they
+ * get a readable name but never count as a recognised agent.
+ */
+const LIBRARIES: Record<string, string> = {
+  'openai-python': 'OpenAI SDK (Python)',
+  'openai-node': 'OpenAI SDK (Node)',
+  'openai-go': 'OpenAI SDK (Go)',
+  'openai-java': 'OpenAI SDK (Java)',
+  'openai-dotnet': 'OpenAI SDK (.NET)',
+  'anthropic-python': 'Anthropic SDK (Python)',
+  'anthropic-typescript': 'Anthropic SDK (TypeScript)',
+  'anthropic-go': 'Anthropic SDK (Go)',
+  'anthropic-java': 'Anthropic SDK (Java)',
+  'stainless-js': 'OpenAI / Anthropic SDK (bundled)',
+  'google-genai': 'Google GenAI SDK',
+  'google-genai-python': 'Google GenAI SDK',
+  'mistral-python': 'Mistral SDK',
+  langchain: 'LangChain',
+  litellm: 'LiteLLM',
+  'llama-index': 'LlamaIndex',
+  'pydantic-ai': 'PydanticAI',
+  'semantic-kernel': 'Semantic Kernel',
+  'spring-ai': 'Spring AI',
+  'ai-sdk': 'Vercel AI SDK',
+  curl: 'curl',
+  wget: 'wget',
+  httpie: 'HTTPie',
+  postman: 'Postman',
+  insomnia: 'Insomnia',
+  axios: 'axios',
+  'node-fetch': 'Node fetch',
+  bun: 'Bun',
+  'python-requests': 'Python requests',
+  'python-httpx': 'Python httpx',
+  'python-urllib': 'Python urllib',
+  okhttp: 'OkHttp',
+  aiohttp: 'aiohttp',
+  'go-http': 'Go net/http',
+  reqwest: 'Rust reqwest',
+  'java-http': 'Java HTTP client',
+  ktor: 'Ktor',
+  electron: 'Electron app',
+  'browser-chrome': 'Chrome',
+  'browser-firefox': 'Firefox',
+  'browser-safari': 'Safari',
+};
+
 export function agentName(client: string | undefined | null): string {
   const key = (client || '').trim().toLowerCase();
-  return AGENTS[key]?.name || client || '—';
+  return AGENTS[key]?.name || LIBRARIES[key] || client || '—';
 }
 
 export function isKnownAgent(client: string | undefined | null): boolean {

@@ -175,6 +175,25 @@ func resolveAgentSession(c *gin.Context, body []byte, features *relayrouter.Feat
 	return agentSession{}
 }
 
+// sessionSourceClient is the client a session source identifies on its own:
+// only the sources that come from one agent's private header, never the
+// shared X-Session-Id, body fields or the per-Key fallback.
+func sessionSourceClient(source string) string {
+	switch source {
+	case SessionSourceCodex:
+		return "codex"
+	case SessionSourceClaudeCode:
+		return "claude-code"
+	case SessionSourceKilo:
+		return "kilo-code"
+	case SessionSourceGoose:
+		return "goose"
+	}
+	// Cline sends X-Task-ID only to its own providers, so a hit here is more
+	// likely another program using that header name.
+	return ""
+}
+
 func looksLikeCodex(c *gin.Context, client string) bool {
 	if client == "codex" {
 		return true
@@ -348,9 +367,25 @@ func applyAgentSession(c *gin.Context, features *relayrouter.Features, tokenID i
 	if existing := common.GetContextKeyString(c, constant.ContextKeySessionID); existing != "" {
 		return agentSession{ID: existing, Source: common.GetContextKeyString(c, constant.ContextKeySessionSource)}
 	}
-	clientInfo := common.ParseClientRequest(c.GetHeader("User-Agent"), c.GetHeader("originator"), c.GetHeader("x-app"))
+	clientInfo := common.ParseClientRequest(common.ClientHeaders{
+		UserAgent:  c.GetHeader("User-Agent"),
+		Originator: c.GetHeader("originator"),
+		XApp:       c.GetHeader("x-app"),
+		XTitle:     c.GetHeader("X-Title"),
+	})
 	if clientInfo.Raw != "" {
 		common.SetContextKey(c, constant.ContextKeyClientUserAgent, clientInfo.Raw)
+	}
+	var body []byte
+	if strings.Contains(strings.ToLower(c.GetHeader("Content-Type")), "json") {
+		body, _ = common.GetRequestBody(c)
+	}
+	session := resolveAgentSession(c, body, features, tokenID, clientInfo.Framework)
+	// An agent's own session header names it even when its User-Agent is the
+	// SDK's or missing: Goose sends no User-Agent at all, Kilo and OpenCode
+	// builds vary. The header wins over a library tag, never over a program's.
+	if framework := sessionSourceClient(session.Source); framework != "" && !common.IsNamedClient(clientInfo.Framework) {
+		clientInfo.Framework = framework
 	}
 	if clientInfo.Framework != "" {
 		common.SetContextKey(c, constant.ContextKeyClientFramework, clientInfo.Framework)
@@ -358,11 +393,6 @@ func applyAgentSession(c *gin.Context, features *relayrouter.Features, tokenID i
 	if clientInfo.Version != "" {
 		common.SetContextKey(c, constant.ContextKeyClientVersion, clientInfo.Version)
 	}
-	var body []byte
-	if strings.Contains(strings.ToLower(c.GetHeader("Content-Type")), "json") {
-		body, _ = common.GetRequestBody(c)
-	}
-	session := resolveAgentSession(c, body, features, tokenID, clientInfo.Framework)
 	if session.ID == "" {
 		return session
 	}

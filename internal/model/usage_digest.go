@@ -164,11 +164,8 @@ func CollectDigestUsage(userID int, current DigestPeriod, previous DigestPeriod,
 // DigestSourceKey groups a client tag into the sources a digest names: the
 // coding agents by name, everything else (SDKs, curl, unknown) as direct API.
 func DigestSourceKey(client string) string {
-	switch client = strings.ToLower(strings.TrimSpace(client)); client {
-	case "claude-code", "codex", "opencode", "gemini-cli", "qwen-code", "kilo-code", "roo-code", "crush", "openclaw":
-		return client
-	}
-	if _, ok := common.ExtensionClientName(client); ok {
+	client = strings.ToLower(strings.TrimSpace(client))
+	if common.IsNamedClient(client) {
 		return client
 	}
 	return "api"
