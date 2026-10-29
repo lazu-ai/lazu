@@ -172,6 +172,31 @@ func TestParseClientRequestHeaders(t *testing.T) {
 	}
 }
 
+// A client named by a header never inherits the version of the SDK,
+// runtime or Electron shell its User-Agent describes; one the User-Agent
+// names keeps its own.
+func TestParseClientRequestVersion(t *testing.T) {
+	cases := []struct {
+		name    string
+		headers ClientHeaders
+		version string
+	}{
+		{"cherry studio via x-title drops the electron version", ClientHeaders{UserAgent: "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Electron/36.4.0 Safari/537.36", XTitle: "Cherry Studio"}, ""},
+		{"codex via originator drops the sdk version", ClientHeaders{UserAgent: "OpenAI/JS 7.39.0", Originator: "codex_cli_rs"}, ""},
+		{"roo code via originator drops the sdk version", ClientHeaders{UserAgent: "OpenAI/JS 5.12.0", Originator: "roo-code"}, ""},
+		{"named user-agent keeps its version", ClientHeaders{UserAgent: "RooCode/3.53.0", Originator: "codex_cli_rs"}, "3.53.0"},
+		{"qwen code keeps its own version", ClientHeaders{UserAgent: "claude-cli/0.26.4 (external, cli)", XApp: "cli"}, "0.26.4"},
+		{"library keeps its version when nothing names a client", ClientHeaders{UserAgent: "OpenAI/Python 1.51.0"}, "1.51.0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ParseClientRequest(tc.headers).Version; got != tc.version {
+				t.Errorf("version: got %q want %q", got, tc.version)
+			}
+		})
+	}
+}
+
 func TestClientClassification(t *testing.T) {
 	for _, tag := range []string{"claude-code", "codex", "opencode", "kilo-code", "goose", "cherry-studio", "github-copilot"} {
 		if !IsAgentClient(tag) || !IsNamedClient(tag) || IsLibraryClient(tag) {

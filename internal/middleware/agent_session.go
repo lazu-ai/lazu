@@ -384,8 +384,9 @@ func applyAgentSession(c *gin.Context, features *relayrouter.Features, tokenID i
 	// An agent's own session header names it even when its User-Agent is the
 	// SDK's or missing: Goose sends no User-Agent at all, Kilo and OpenCode
 	// builds vary. The header wins over a library tag, never over a program's.
+	// The User-Agent's version belonged to the library, so it goes too.
 	if framework := sessionSourceClient(session.Source); framework != "" && !common.IsNamedClient(clientInfo.Framework) {
-		clientInfo.Framework = framework
+		clientInfo.Framework, clientInfo.Version = framework, ""
 	}
 	if clientInfo.Framework != "" {
 		common.SetContextKey(c, constant.ContextKeyClientFramework, clientInfo.Framework)
