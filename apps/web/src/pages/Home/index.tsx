@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LazuLanding from './components/LazuLanding';
+import GoogleOneTap from '../../components/auth/GoogleOneTap';
 import { usePrerender } from '../../context/Prerender';
 import { useStatus } from '../../context/Status';
 import { useActualTheme } from '../../context/Theme';
@@ -208,6 +209,9 @@ const Home = () => {
 
   return (
     <div className='w-full overflow-x-hidden'>
+      {/* Client-only: the prerender and the first hydration pass do no
+          network work, and the prompt draws nothing of ours anyway. */}
+      {prerenderRoute ? null : <GoogleOneTap next='/console' />}
       {!homePageContentLoaded ? (
         <div className='home-loading-shell'>
           <div className='home-loading-panel'>

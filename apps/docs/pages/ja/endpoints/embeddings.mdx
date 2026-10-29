@@ -1,6 +1,6 @@
 ---
 title: "Embeddings API（OpenAI 互換）"
-description: OpenAI-compatible /v1/embeddings。request fields、batch inputs、dimensions。
+description: OpenAI 互換の /v1/embeddings。BAAI/bge-m3 などベクトルモデルのリクエスト項目、バッチ入力、トークン上限、課金、コード例。
 ---
 
 import {
@@ -16,30 +16,33 @@ import {
   method="POST"
   path="/v1/embeddings"
   title="Embeddings"
-  description="OpenAI-compatible clients で vector embeddings を作成します。モデルカタログで embeddings support と custom dimensions support を確認してください。"
+  description="OpenAI 互換クライアントでテキストをベクトルに変換し、セマンティック検索、RAG、クラスタリング、重複排除に使えます。モデルカタログには embeddings 対応モデル、1 入力あたりのトークン上限、無視されるパラメータが載っています。"
   aside={
     <EndpointRail
       endpoint="embeddings"
       extra={
         <MiniCard title="Catalog filter">
-          <code>supported_endpoint_types</code> includes <code>embeddings</code>
+          <code>supported_endpoint_types</code> に <code>embeddings</code> を含む
         </MiniCard>
       }
     />
   }
 >
 
-## Request body
+## リクエストボディ
 
 <FieldList>
   <Field name="model" type="string" required>
-    <code>/api/models/catalog</code> の embedding model ID。
+    <code>/api/models/catalog</code> の embedding モデル ID。例：{" "}
+    <code>BAAI/bge-m3</code>。
   </Field>
-  <Field name="input" type="string | string[]" required>
-    text input または ordered batch。response は入力順を保持します。
+  <Field name="input" type="string | string[] | integer[] | integer[][]" required>
+    1 件のテキスト、順序付きのテキスト配列、またはトークン化済みの入力（トークン ID の配列、またはその配列）。レスポンスは入力順を保ちます。トークン
+    ID は 1 個 1 トークンとして数えます。すべてのモデルが受け付けるわけではありません。
   </Field>
   <Field name="dimensions" type="integer" nullable>
-    truncation を support する model の optional vector dimension。
+    ベクトルを短縮できるモデル（<code>text-embedding-3-*</code> など）の出力次元。次元が固定のモデルはカタログの{" "}
+    <code>unsupported_params</code> に <code>dimensions</code> を載せ、常にネイティブ次元を返します。
   </Field>
   <Field
     name="encoding_format"
@@ -47,30 +50,107 @@ import {
     nullable
     values={["float", "base64"]}
   >
-    upstream が support する場合の output encoding format。
+    出力エンコーディング。<code>unsupported_params</code> に載っているモデルは常に float 配列を返します。
+  </Field>
+  <Field name="user" type="string" nullable>
+    エンドユーザー識別子。不正利用の監視のため上流へ渡されます。
   </Field>
 </FieldList>
 
-## Response
+## レスポンス
 
 <FieldList>
   <Field name="object" type="string">
-    通常は <code>list</code>。
+    常に <code>list</code>。
   </Field>
   <Field name="data" type="object[]">
-    input ごとの embedding item。
+    入力ごとに 1 項目、入力と同じ順序。
+  </Field>
+  <Field name="data[].index" type="integer">
+    このベクトルに対応する入力の位置。
   </Field>
   <Field name="data[].embedding" type="number[] | string">
-    vector values または <code>encoding_format</code> に応じた base64 vector。
+    ベクトル。<code>encoding_format</code> が <code>base64</code> でモデルが対応している場合は base64 文字列。
+  </Field>
+  <Field name="model" type="string">
+    リクエストしたモデル ID。どのプロバイダーが処理したかには左右されません。
   </Field>
   <Field name="usage.prompt_tokens" type="integer">
-    embedding に使われた input tokens。
+    このリクエストで課金された入力トークン数。
+  </Field>
+  <Field name="usage.total_tokens" type="integer">
+    <code>prompt_tokens</code> と同じ。embedding に出力トークンはありません。
+  </Field>
+  <Field name="usage.cost" type="number">
+    課金額（USD）。レスポンスヘッダー <code>x-lazu-cost-usd</code> も同じ値です。
   </Field>
 </FieldList>
 
-## Batch guidance
+```json
+{
+  "object": "list",
+  "data": [
+    { "object": "embedding", "index": 0, "embedding": [-0.0338, 0.0174, -0.0461] },
+    { "object": "embedding", "index": 1, "embedding": [-0.0412, 0.0209, -0.0397] }
+  ],
+  "model": "BAAI/bge-m3",
+  "usage": { "prompt_tokens": 14, "total_tokens": 14, "cost": 0.000001 }
+}
+```
 
-小さな batch は array で渡せます。大規模 jobs では client-side chunking を行い、
-provider の body-size と token limits を超えないようにしてください。
+## 例：セマンティック検索
+
+ドキュメントを一度ベクトル化し、クエリごとにベクトル化して、コサイン類似度で並べます。`BAAI/bge-m3` は 100 以上の言語を同じベクトル空間に写すので、英語のクエリで中国語や日本語のドキュメントを翻訳なしで見つけられます。
+
+```python
+import numpy as np
+from openai import OpenAI
+
+client = OpenAI(base_url="https://api.lazu.ai/v1", api_key="YOUR_LAZU_KEY")
+
+docs = [
+    "Reset your password from Settings → Security.",
+    "账单每月 1 日生成，可在控制台下载发票。",
+    "API キーはプロジェクトごとに発行できます。",
+]
+
+def embed(texts):
+    resp = client.embeddings.create(model="BAAI/bge-m3", input=texts)
+    vectors = np.array([item.embedding for item in resp.data])
+    return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+doc_vectors = embed(docs)
+query_vector = embed(["Where can I download my invoice?"])[0]
+
+scores = doc_vectors @ query_vector
+for index in scores.argsort()[::-1]:
+    print(f"{scores[index]:.3f}  {docs[index]}")
+```
+
+## 制限
+
+- **1 入力あたりのトークン上限。** カタログの `input_limit` は 1 入力に含められる最大トークン数です（`BAAI/bge-m3` は 8192）。超えた入力は `400 context_length_exceeded`（LZ-1005）で拒否され、課金されません。長い文書は上限未満のチャンクに分けてください。1 チャンク数百〜1000 トークン程度のほうが検索精度も上がりやすくなります。
+- **バッチ。** 配列を渡すと複数テキストを 1 リクエストでベクトル化できます。大量処理では 1 バッチ数十〜数百件にし、失敗したバッチだけ再試行してください。
+- **空入力。** 多くのモデルは空文字列を拒否します。送信前に空のチャンクを除いてください。
+
+## 課金
+
+Embeddings は入力トークンのみ課金され、単価は[料金とライン](/ja/models/pricing)の入力価格です。プロバイダーが読み取ったトークン数を返す場合はその数で課金し、返さない場合は Lazu が汎用トークナイザーでローカルに数えます。モデル固有のトークナイザーとは言語によって数パーセント前後することがあります。失敗したリクエストは課金されません。各リクエストの課金トークン数と金額は `usage` とリクエスト詳細で確認できます。
+
+## 主なモデル
+
+| モデル                   | 次元 | 1 入力の最大トークン | `dimensions` 指定   | 備考                         |
+| ------------------------ | ---- | -------------------- | ------------------- | ---------------------------- |
+| `BAAI/bge-m3`            | 1024 | 8192                 | 不可                | オープンウェイト、100+ 言語  |
+| `text-embedding-3-small` | 1536 | 8191                 | 可                  | OpenAI、低コスト             |
+| `text-embedding-3-large` | 3072 | 8191                 | 可                  | OpenAI、最高品質             |
+| `gemini-embedding-001`   | 3072 | 2048                 | 可（768、1536）     | Google                       |
+
+キーで呼び出せるモデルはデプロイによって異なります。モデルカタログが正です。
+
+## 関連ページ
+
+- [モデルカタログ](/ja/models/catalog)
+- [料金とライン](/ja/models/pricing)
 
 </EndpointPage>

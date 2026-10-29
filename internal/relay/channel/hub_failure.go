@@ -71,7 +71,8 @@ func StreamErrorCode(upstreamError *types.OpenAIError) (types.ErrorCode, bool) {
 	// (internal/relay/errmap), so an in-band failure and a 400 carrying the
 	// same words are treated alike.
 	case strings.Contains(text, "context_length_exceeded") || strings.Contains(text, "context length") || strings.Contains(text, "context window") ||
-		strings.Contains(text, "maximum context") || strings.Contains(text, "prompt is too long"):
+		strings.Contains(text, "maximum context") || strings.Contains(text, "prompt is too long") ||
+		strings.Contains(text, "sequence too long"):
 		return types.ErrorCodeContextLengthExceeded, true
 	case strings.Contains(text, "invalid_request") || strings.Contains(text, "invalid request"):
 		return types.ErrorCodeBadRequestBody, true

@@ -104,7 +104,9 @@ func SetPublicSiteRouter(router *gin.Engine) {
 		}
 		page(prefix+"/models", controller.PublicModelsIndex(locale))
 		page(prefix+"/models/:vendor", controller.PublicModelMaker(locale))
-		page(prefix+"/models/:vendor/:model", controller.PublicModelPage(locale))
+		// A catch-all, because a model id may itself contain a slash
+		// (BAAI/bge-m3).
+		page(prefix+"/models/:vendor/*model", controller.PublicModelPage(locale))
 		for _, register := range localePages {
 			register(page, prefix, locale)
 		}

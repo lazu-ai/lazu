@@ -257,9 +257,9 @@ func socialOAuthConfig(ctx context.Context, c *gin.Context, provider string) (*o
 	}
 	switch provider {
 	case googleOAuthProvider:
-		googleProvider, err := oidc.NewProvider(ctx, "https://accounts.google.com")
+		googleProvider, err := googleOIDCProvider(ctx)
 		if err != nil {
-			return nil, nil, fmt.Errorf("load google oidc configuration: %w", err)
+			return nil, nil, err
 		}
 		config := &oauth2.Config{
 			ClientID:     common.GoogleOAuthClientID,
@@ -302,12 +302,48 @@ func socialOAuthRedirectURL(c *gin.Context, provider string) (string, error) {
 	return baseURL + "/api/auth/oauth/" + provider + "/callback", nil
 }
 
+const googleOIDCIssuer = "https://accounts.google.com"
+
+var (
+	googleOIDCProviderMu     sync.Mutex
+	googleOIDCProviderCached *oidc.Provider
+)
+
+// googleOIDCProvider loads Google's discovery document once per process. The
+// provider's key set refreshes itself when Google rotates its signing keys and
+// does not keep the caller's cancellation, so caching it is safe; a failed
+// load is not cached and the next sign-in tries again.
+func googleOIDCProvider(ctx context.Context) (*oidc.Provider, error) {
+	googleOIDCProviderMu.Lock()
+	defer googleOIDCProviderMu.Unlock()
+	if googleOIDCProviderCached != nil {
+		return googleOIDCProviderCached, nil
+	}
+	provider, err := oidc.NewProvider(ctx, googleOIDCIssuer)
+	if err != nil {
+		return nil, fmt.Errorf("load google oidc configuration: %w", err)
+	}
+	googleOIDCProviderCached = provider
+	return provider, nil
+}
+
 func googleIdentityFromToken(ctx context.Context, verifier *oidc.IDTokenVerifier, token *oauth2.Token, nonce string) (socialIdentity, error) {
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok || rawIDToken == "" {
+		return socialIdentity{}, errors.New("google id_token missing")
+	}
+	return googleIdentityFromIDToken(ctx, verifier, rawIDToken, nonce)
+}
+
+// googleIdentityFromIDToken verifies a Google ID token (signature, audience,
+// issuer, expiry), checks it carries the nonce this browser was given, and
+// reads the verified address from it. The redirect callback and One Tap both
+// end here.
+func googleIdentityFromIDToken(ctx context.Context, verifier *oidc.IDTokenVerifier, rawIDToken string, nonce string) (socialIdentity, error) {
 	if verifier == nil {
 		return socialIdentity{}, errors.New("google id token verifier is unavailable")
 	}
-	rawIDToken, ok := token.Extra("id_token").(string)
-	if !ok || rawIDToken == "" {
+	if rawIDToken == "" {
 		return socialIdentity{}, errors.New("google id_token missing")
 	}
 	idToken, err := verifier.Verify(ctx, rawIDToken)

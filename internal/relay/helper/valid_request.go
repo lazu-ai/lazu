@@ -168,13 +168,16 @@ func GetAndValidateEmbeddingRequest(c *gin.Context, relayMode int) (*dto.Embeddi
 	}
 
 	if embeddingRequest.Input == nil {
-		return nil, fmt.Errorf("input is empty")
+		return nil, types.NewError(errors.New("input is required"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
 	if relayMode == relayconstant.RelayModeModerations && embeddingRequest.Model == "" {
 		embeddingRequest.Model = "omni-moderation-latest"
 	}
 	if relayMode == relayconstant.RelayModeEmbeddings && embeddingRequest.Model == "" {
 		embeddingRequest.Model = c.Param("model")
+	}
+	if embeddingRequest.Model == "" {
+		return nil, types.NewError(errors.New("model is required"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
 	return embeddingRequest, nil
 }

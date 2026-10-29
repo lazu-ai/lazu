@@ -24,6 +24,7 @@ func TestMapDefault(t *testing.T) {
 		{name: "explicit overload", status: 500, body: `{"error":"overloaded"}`, want: types.ErrorCodeUpstreamOverloaded},
 		{name: "status 500", status: http.StatusInternalServerError, body: ``, want: types.ErrorCodeUpstreamError},
 		{name: "context window", status: http.StatusBadRequest, body: `maximum context length is 8192 tokens`, want: types.ErrorCodeContextLengthExceeded},
+		{name: "embedding input over the sequence limit", status: http.StatusBadRequest, body: `{"errors":[{"message":"AiError: Sequence too long: 10263 > 8192","code":8007}],"success":false}`, want: types.ErrorCodeContextLengthExceeded},
 		{name: "provider 402", status: http.StatusPaymentRequired, body: ``, want: types.ErrorCodeUpstreamBillingFailed},
 		{name: "openai account out of credit", status: http.StatusTooManyRequests, body: `{"error":{"type":"insufficient_quota","message":"You exceeded your current quota"}}`, want: types.ErrorCodeUpstreamBillingFailed},
 		{name: "anthropic credit", status: http.StatusBadRequest, body: `{"error":{"message":"Your credit balance is too low"}}`, want: types.ErrorCodeUpstreamBillingFailed},

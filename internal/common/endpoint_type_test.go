@@ -121,3 +121,24 @@ func TestCustomModel_NoExtraEndpoints(t *testing.T) {
 		t.Errorf("Custom model should NOT include gemini endpoint, got: %v", eps)
 	}
 }
+
+// --- Embedding models ---
+
+// A vector model is served by /v1/embeddings on every channel family and
+// cannot chat, so the chat endpoints the channel type implies are not
+// advertised: they would be the catalog's default example.
+func TestEmbeddingModel_AdvertisesOnlyEmbeddings(t *testing.T) {
+	for _, channelType := range []int{constant.ChannelTypeOpenAI, constant.ChannelTypeGemini, constant.ChannelTypeAnthropic} {
+		eps := GetEndpointTypesByChannelType(channelType, "BAAI/bge-m3")
+		if len(eps) != 1 || eps[0] != constant.EndpointTypeEmbeddings {
+			t.Errorf("channel type %d: embedding model should advertise only embeddings, got: %v", channelType, eps)
+		}
+	}
+}
+
+func TestRerankerIsNotAnEmbeddingModel(t *testing.T) {
+	eps := GetEndpointTypesByChannelType(constant.ChannelTypeOpenAI, "bge-reranker-v2-m3")
+	if hasEndpoint(eps, constant.EndpointTypeEmbeddings) {
+		t.Errorf("a reranker must not be filed under embeddings, got: %v", eps)
+	}
+}

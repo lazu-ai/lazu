@@ -1,6 +1,6 @@
 ---
 title: "Embeddings 向量 API（OpenAI 兼容）"
-description: OpenAI-compatible /v1/embeddings，请求字段、批量输入、维度和响应说明。
+description: OpenAI 兼容的 /v1/embeddings：BAAI/bge-m3 等向量模型的请求字段、批量输入、token 上限、计费与示例。
 ---
 
 import {
@@ -16,7 +16,7 @@ import {
   method="POST"
   path="/v1/embeddings"
   title="Embeddings"
-  description="使用 OpenAI-compatible 客户端创建向量 embedding。通过模型目录确认哪些模型支持 embeddings，以及是否支持自定义 dimensions。"
+  description="用任意 OpenAI 兼容客户端把文本变成向量，用于语义检索、RAG、聚类和去重。模型目录会列出哪些模型支持 embeddings、单条输入的 token 上限，以及它们会忽略的参数。"
   aside={
     <EndpointRail
       endpoint="embeddings"
@@ -33,13 +33,16 @@ import {
 
 <FieldList>
   <Field name="model" type="string" required>
-    来自 <code>/api/models/catalog</code> 的 embedding 模型 ID。
+    来自 <code>/api/models/catalog</code> 的 embedding 模型 ID，例如{" "}
+    <code>BAAI/bge-m3</code>。
   </Field>
-  <Field name="input" type="string | string[]" required>
-    文本输入，或有序文本批量输入。响应会保持输入顺序。
+  <Field name="input" type="string | string[] | integer[] | integer[][]" required>
+    一条文本、一组有序文本，或已经分好词的输入（一组 token id，或多组）。响应保持输入顺序。token
+    id 按每个 1 个 token 计；并非所有模型都接受这种输入。
   </Field>
   <Field name="dimensions" type="integer" nullable>
-    支持截断的模型可使用可选向量维度。
+    可缩短向量的模型（如 <code>text-embedding-3-*</code>）的输出维度。维度固定的模型会在目录的{" "}
+    <code>unsupported_params</code> 里列出 <code>dimensions</code>，始终返回原生维度。
   </Field>
   <Field
     name="encoding_format"
@@ -47,7 +50,10 @@ import {
     nullable
     values={["float", "base64"]}
   >
-    上游支持时可选择输出编码格式。
+    输出编码。在 <code>unsupported_params</code> 里列出它的模型始终返回浮点数组。
+  </Field>
+  <Field name="user" type="string" nullable>
+    你的终端用户标识，透传给上游用于滥用监测。
   </Field>
 </FieldList>
 
@@ -55,32 +61,92 @@ import {
 
 <FieldList>
   <Field name="object" type="string">
-    通常为 <code>list</code>。
+    固定为 <code>list</code>。
   </Field>
   <Field name="data" type="object[]">
-    每个 input 对应一个 embedding item。
+    每条输入对应一项，顺序与输入一致。
+  </Field>
+  <Field name="data[].index" type="integer">
+    该向量对应的输入位置。
   </Field>
   <Field name="data[].embedding" type="number[] | string">
-    向量数值，或取决于 <code>encoding_format</code> 的 base64 编码向量。
+    向量；当 <code>encoding_format</code> 为 <code>base64</code> 且模型支持时为 base64 字符串。
+  </Field>
+  <Field name="model" type="string">
+    你请求的模型 ID，与实际由哪家服务商处理无关。
   </Field>
   <Field name="usage.prompt_tokens" type="integer">
-    embedding 使用的输入 token 数。
+    本次计费的输入 token 数。
+  </Field>
+  <Field name="usage.total_tokens" type="integer">
+    与 <code>prompt_tokens</code> 相同：embedding 没有输出 token。
+  </Field>
+  <Field name="usage.cost" type="number">
+    本次扣费金额（美元）。响应头 <code>x-lazu-cost-usd</code> 是同一个值。
   </Field>
 </FieldList>
 
-## 批量建议
+```json
+{
+  "object": "list",
+  "data": [
+    { "object": "embedding", "index": 0, "embedding": [-0.0338, 0.0174, -0.0461] },
+    { "object": "embedding", "index": 1, "embedding": [-0.0412, 0.0209, -0.0397] }
+  ],
+  "model": "BAAI/bge-m3",
+  "usage": { "prompt_tokens": 14, "total_tokens": 14, "cost": 0.000001 }
+}
+```
 
-小批量可以直接传数组。大规模数据任务建议在客户端分块，确保每个请求都不超过
-provider 的 body size 和 token 限制。
+## 示例：语义检索
+
+文档先向量化一次，每个查询再向量化，按余弦相似度排序。`BAAI/bge-m3` 把 100 多种语言映射到同一个向量空间，英文查询不用翻译就能找到中文或日文文档。
+
+```python
+import numpy as np
+from openai import OpenAI
+
+client = OpenAI(base_url="https://api.lazu.ai/v1", api_key="YOUR_LAZU_KEY")
+
+docs = [
+    "Reset your password from Settings → Security.",
+    "账单每月 1 日生成，可在控制台下载发票。",
+    "API キーはプロジェクトごとに発行できます。",
+]
+
+def embed(texts):
+    resp = client.embeddings.create(model="BAAI/bge-m3", input=texts)
+    vectors = np.array([item.embedding for item in resp.data])
+    return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+doc_vectors = embed(docs)
+query_vector = embed(["Where can I download my invoice?"])[0]
+
+scores = doc_vectors @ query_vector
+for index in scores.argsort()[::-1]:
+    print(f"{scores[index]:.3f}  {docs[index]}")
+```
+
+## 限制
+
+- **单条输入 token 上限。** 目录里的 `input_limit` 是一条输入最多能有多少 token（`BAAI/bge-m3` 为 8192）。超长输入会被拒绝，返回 `400 context_length_exceeded`（LZ-1005），不扣费。长文档请先切块到上限以下；每块几百到一千 token 通常检索效果也更好。
+- **批量。** 传数组即可一次向量化多条文本。大任务建议每批几十到几百条，失败时重试那一批，而不是发一个超大请求。
+- **空输入。** 多数模型会拒绝空字符串，发送前请去掉空块。
+
+## 计费
+
+Embeddings 只按输入 token 计费，单价见[定价与渠道](/zh/models/pricing)里该模型的输入价。服务商返回了读取的 token 数时按它计费；没有返回时，Lazu 用通用分词器在本地计数，与模型自带分词器相比可能相差几个百分点，偏多偏少取决于语言。失败的请求不扣费。每次请求的计费 token 和金额都在 `usage` 和请求详情里。
 
 ## 常见模型
 
-| Model                    | Dim  | Notes                |
-| ------------------------ | ---- | -------------------- |
-| `BAAI/bge-m3`            | 1024 | Multilingual         |
-| `text-embedding-3-small` | 1536 | OpenAI cheap default |
-| `text-embedding-3-large` | 3072 | OpenAI high quality  |
-| `gemini-embedding-001`   | 768  | Google default       |
+| 模型                     | 维度 | 单条最大输入 token | 自定义 `dimensions` | 说明                     |
+| ------------------------ | ---- | ------------------ | ------------------- | ------------------------ |
+| `BAAI/bge-m3`            | 1024 | 8192               | 不支持              | 开放权重，100+ 种语言    |
+| `text-embedding-3-small` | 1536 | 8191               | 支持                | OpenAI，低成本           |
+| `text-embedding-3-large` | 3072 | 8191               | 支持                | OpenAI，效果最好         |
+| `gemini-embedding-001`   | 3072 | 2048               | 支持（768、1536）   | Google                   |
+
+你的 Key 能调用哪些模型取决于部署，以模型目录为准。
 
 ## 相关页面
 

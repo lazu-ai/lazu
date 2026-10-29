@@ -1,6 +1,6 @@
 ---
-title: "Embeddings 向量 API（相容 OpenAI）"
-description: OpenAI-compatible /v1/embeddings，請求欄位、批次輸入、維度和響應說明。
+title: "Embeddings 向量 API（OpenAI 相容）"
+description: OpenAI 相容的 /v1/embeddings：BAAI/bge-m3 等向量模型的請求欄位、批次輸入、token 上限、計費與範例。
 ---
 
 import {
@@ -16,7 +16,7 @@ import {
   method="POST"
   path="/v1/embeddings"
   title="Embeddings"
-  description="使用 OpenAI-compatible 用戶端建立向量 embedding。透過模型目錄確認哪些模型支援 embeddings，以及是否支援自訂 dimensions。"
+  description="用任意 OpenAI 相容用戶端把文字轉成向量，用於語意檢索、RAG、分群與去重。模型目錄會列出哪些模型支援 embeddings、單筆輸入的 token 上限，以及它們會忽略的參數。"
   aside={
     <EndpointRail
       endpoint="embeddings"
@@ -33,13 +33,16 @@ import {
 
 <FieldList>
   <Field name="model" type="string" required>
-    來自 <code>/api/models/catalog</code> 的 embedding 模型 ID。
+    來自 <code>/api/models/catalog</code> 的 embedding 模型 ID，例如{" "}
+    <code>BAAI/bge-m3</code>。
   </Field>
-  <Field name="input" type="string | string[]" required>
-    文字輸入，或有序文字批次輸入。響應會保持輸入順序。
+  <Field name="input" type="string | string[] | integer[] | integer[][]" required>
+    一筆文字、一組有序文字，或已經分好詞的輸入（一組 token id，或多組）。回應保持輸入順序。token
+    id 每個按 1 個 token 計；並非所有模型都接受這種輸入。
   </Field>
   <Field name="dimensions" type="integer" nullable>
-    支援截斷的模型可使用可選向量維度。
+    可縮短向量的模型（如 <code>text-embedding-3-*</code>）的輸出維度。維度固定的模型會在目錄的{" "}
+    <code>unsupported_params</code> 列出 <code>dimensions</code>，一律回傳原生維度。
   </Field>
   <Field
     name="encoding_format"
@@ -47,31 +50,103 @@ import {
     nullable
     values={["float", "base64"]}
   >
-    上游支援時可選擇輸出編碼格式。
+    輸出編碼。在 <code>unsupported_params</code> 列出它的模型一律回傳浮點陣列。
+  </Field>
+  <Field name="user" type="string" nullable>
+    你的終端使用者識別碼，透傳給上游用於濫用監測。
   </Field>
 </FieldList>
 
-## 響應
+## 回應
 
 <FieldList>
   <Field name="object" type="string">
-    通常為 <code>list</code>。
+    固定為 <code>list</code>。
   </Field>
   <Field name="data" type="object[]">
-    每個 input 對應一個 embedding item。
+    每筆輸入對應一項，順序與輸入一致。
+  </Field>
+  <Field name="data[].index" type="integer">
+    該向量對應的輸入位置。
   </Field>
   <Field name="data[].embedding" type="number[] | string">
-    向量數值，或取決於 <code>encoding_format</code> 的 base64 編碼向量。
+    向量；當 <code>encoding_format</code> 為 <code>base64</code> 且模型支援時為 base64 字串。
+  </Field>
+  <Field name="model" type="string">
+    你請求的模型 ID，與實際由哪家服務商處理無關。
   </Field>
   <Field name="usage.prompt_tokens" type="integer">
-    embedding 使用的輸入 token 數。
+    本次計費的輸入 token 數。
+  </Field>
+  <Field name="usage.total_tokens" type="integer">
+    與 <code>prompt_tokens</code> 相同：embedding 沒有輸出 token。
+  </Field>
+  <Field name="usage.cost" type="number">
+    本次扣費金額（美元）。回應標頭 <code>x-lazu-cost-usd</code> 是同一個值。
   </Field>
 </FieldList>
 
-## 批次建議
+```json
+{
+  "object": "list",
+  "data": [
+    { "object": "embedding", "index": 0, "embedding": [-0.0338, 0.0174, -0.0461] },
+    { "object": "embedding", "index": 1, "embedding": [-0.0412, 0.0209, -0.0397] }
+  ],
+  "model": "BAAI/bge-m3",
+  "usage": { "prompt_tokens": 14, "total_tokens": 14, "cost": 0.000001 }
+}
+```
 
-小批次可以直接傳陣列。大規模資料任務建議在用戶端分塊，確保每個請求都不超過
-provider 的 body size 和 token 限制。
+## 範例：語意檢索
+
+文件先向量化一次，每個查詢再向量化，依餘弦相似度排序。`BAAI/bge-m3` 把 100 多種語言映射到同一個向量空間，英文查詢不必翻譯就能找到中文或日文文件。
+
+```python
+import numpy as np
+from openai import OpenAI
+
+client = OpenAI(base_url="https://api.lazu.ai/v1", api_key="YOUR_LAZU_KEY")
+
+docs = [
+    "Reset your password from Settings → Security.",
+    "账单每月 1 日生成，可在控制台下载发票。",
+    "API キーはプロジェクトごとに発行できます。",
+]
+
+def embed(texts):
+    resp = client.embeddings.create(model="BAAI/bge-m3", input=texts)
+    vectors = np.array([item.embedding for item in resp.data])
+    return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+doc_vectors = embed(docs)
+query_vector = embed(["Where can I download my invoice?"])[0]
+
+scores = doc_vectors @ query_vector
+for index in scores.argsort()[::-1]:
+    print(f"{scores[index]:.3f}  {docs[index]}")
+```
+
+## 限制
+
+- **單筆輸入 token 上限。** 目錄中的 `input_limit` 是一筆輸入最多能有多少 token（`BAAI/bge-m3` 為 8192）。超長輸入會被拒絕，回傳 `400 context_length_exceeded`（LZ-1005），不扣費。長文件請先切塊到上限以下；每塊幾百到一千 token 通常檢索效果也更好。
+- **批次。** 傳陣列即可一次向量化多筆文字。大型任務建議每批幾十到幾百筆，失敗時重試那一批，而不是送出一個超大請求。
+- **空輸入。** 多數模型會拒絕空字串，送出前請移除空塊。
+
+## 計費
+
+Embeddings 只依輸入 token 計費，單價見[定價與通道](/zh-TW/models/pricing)中該模型的輸入價。服務商回傳了讀取的 token 數時依它計費；沒有回傳時，Lazu 以通用分詞器在本地計數，與模型自帶分詞器相比可能相差幾個百分點，偏多或偏少取決於語言。失敗的請求不扣費。每次請求的計費 token 與金額都在 `usage` 和請求詳情中。
+
+## 常見模型
+
+| 模型                     | 維度 | 單筆最大輸入 token | 自訂 `dimensions`   | 說明                     |
+| ------------------------ | ---- | ------------------ | ------------------- | ------------------------ |
+| `BAAI/bge-m3`            | 1024 | 8192               | 不支援              | 開放權重，100+ 種語言    |
+| `text-embedding-3-small` | 1536 | 8191               | 支援                | OpenAI，低成本           |
+| `text-embedding-3-large` | 3072 | 8191               | 支援                | OpenAI，效果最好         |
+| `gemini-embedding-001`   | 3072 | 2048               | 支援（768、1536）   | Google                   |
+
+你的 Key 能呼叫哪些模型取決於部署，以模型目錄為準。
 
 ## 相關頁面
 

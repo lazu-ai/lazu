@@ -1055,10 +1055,11 @@ paths:
 
             resp = client.embeddings.create(
                 model="BAAI/bge-m3",
-                input=["doc one", "doc two"],
+                input=["How do I reset my password?", "如何重置密码？"],
             )
             for item in resp.data:
-                print(item.embedding[:5])
+                print(item.index, len(item.embedding))
+            print(resp.usage.prompt_tokens)
         - lang: TypeScript
           label: openai SDK
           source: |
@@ -1071,9 +1072,9 @@ paths:
 
             const resp = await client.embeddings.create({
               model: "BAAI/bge-m3",
-              input: ["doc one", "doc two"],
+              input: ["How do I reset my password?", "如何重置密码？"],
             });
-            console.log(resp.data[0].embedding.slice(0, 5));
+            console.log(resp.data.length, resp.usage.prompt_tokens);
       requestBody:
         required: true
         content:
@@ -3565,6 +3566,14 @@ components:
             - type: array
               items:
                 type: string
+            - type: array
+              items:
+                type: integer
+            - type: array
+              items:
+                type: array
+                items:
+                  type: integer
         encoding_format:
           type: string
           enum:
@@ -3572,6 +3581,8 @@ components:
             - base64
         dimensions:
           type: integer
+        user:
+          type: string
     EmbeddingsResponse:
       type: object
       properties:
@@ -3589,10 +3600,12 @@ components:
               index:
                 type: integer
               embedding:
-                type: array
-                items:
-                  type: number
-                  format: float
+                oneOf:
+                  - type: array
+                    items:
+                      type: number
+                      format: float
+                  - type: string
         model:
           type: string
         usage:
@@ -3602,6 +3615,8 @@ components:
               type: integer
             total_tokens:
               type: integer
+            cost:
+              type: number
     SearchRequest:
       type: object
       required:

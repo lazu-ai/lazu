@@ -386,10 +386,16 @@ func updatePricingFromCore() error {
 
 	// A model with a video capability row is served by /v1/videos only: the
 	// chat endpoints its channel type implies would be advertised (and shown
-	// as the default example) but cannot generate a clip.
+	// as the default example) but cannot generate a clip. An endpoints
+	// override that declares embeddings says the same of /v1/embeddings, and
+	// is how an operator files a vector model whose name does not say so.
 	for modelName, meta := range metaMap {
 		if meta.VideoCapabilities != nil {
 			modelSupportEndpointsStr[modelName] = []string{string(constant.EndpointTypeVideoGeneration)}
+			continue
+		}
+		if _, declared := modelEndpointInfoMap[modelName][string(constant.EndpointTypeEmbeddings)]; declared {
+			modelSupportEndpointsStr[modelName] = []string{string(constant.EndpointTypeEmbeddings)}
 		}
 	}
 

@@ -66,6 +66,28 @@ describe('the one shared answer about which ways in are open', () => {
     });
   });
 
+  it('carries the One Tap client id only when the deployment offers it', async () => {
+    http.get.mockResolvedValue(
+      answer({
+        ...codeAndPassword,
+        google_one_tap_client_id: 'client.apps.googleusercontent.com',
+      }),
+    );
+    await fetchAuthStatus();
+    expect(getAuthStatusSnapshot().status?.google_one_tap_client_id).toBe(
+      'client.apps.googleusercontent.com',
+    );
+
+    resetAuthStatusForTests();
+    http.get.mockResolvedValue(
+      answer({ ...codeAndPassword, google_one_tap_client_id: '' }),
+    );
+    await fetchAuthStatus();
+    expect(
+      getAuthStatusSnapshot().status?.google_one_tap_client_id,
+    ).toBeUndefined();
+  });
+
   // The whole point of the change: until an answer exists, callers must be
   // able to tell that they have none, rather than reading a null as "password".
   it('is not ready before the first answer', () => {

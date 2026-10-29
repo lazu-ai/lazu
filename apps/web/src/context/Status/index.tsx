@@ -33,16 +33,23 @@ export const statusQueryOptions = () => ({
 
 /* The deployment's public settings (/api/status). PageLayout fetches them
  * into the query cache under queryKeys.status; everything else reads that
- * entry here without fetching. Until the first answer arrives, the copy the
- * last visit stored stands in, without being written to the cache, so it
- * never delays that fetch. */
+ * entry here without fetching. Whenever the cache holds no answer (before the
+ * first fetch returns, and after a first fetch that failed) the copy the last
+ * visit stored stands in. It is never written to the cache, so it neither
+ * delays that fetch nor hides a later successful one. A placeholder would not
+ * do: it only applies while the query is pending, so a failed first fetch
+ * would leave every reader with no settings for the rest of the session. */
 export function useStatus(): StatusState {
   const { data } = useQuery({
     ...statusQueryOptions(),
     enabled: false,
-    placeholderData: () => readStoredStatus() as FetchedStatus,
   });
-  return useMemo(() => ({ status: data as StatusPayload }), [data]);
+  return useMemo(
+    () => ({
+      status: (data ?? readStoredStatus()) as StatusPayload,
+    }),
+    [data],
+  );
 }
 
 /* The reducer-shaped API extensions still use: [{ status }, dispatch] with

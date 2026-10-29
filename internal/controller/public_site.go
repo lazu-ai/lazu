@@ -144,7 +144,11 @@ func PublicModelMaker(locale string) gin.HandlerFunc {
 func PublicModelPage(locale string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		maker := c.Param("vendor")
-		id := c.Param("model")
+		id := strings.TrimPrefix(c.Param("model"), "/")
+		if id == "" {
+			c.Redirect(http.StatusMovedPermanently, publicsite.LocalizedPath("/models/"+maker, locale))
+			return
+		}
 		format := "html"
 		switch {
 		case strings.HasSuffix(id, ".md"):

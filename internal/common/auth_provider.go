@@ -24,3 +24,9 @@ func AuthProviderEnabled(provider string) bool {
 		return false
 	}
 }
+
+// GoogleOneTapAvailable reports whether the sign-in doors may offer Google One
+// Tap: the Google provider is usable and the operator switched One Tap on.
+func GoogleOneTapAvailable() bool {
+	return GoogleOneTapEnabled && AuthProviderEnabled("google")
+}

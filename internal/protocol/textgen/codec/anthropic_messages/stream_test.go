@@ -298,3 +298,21 @@ func mustFinish[T any](out []T, err error) []T {
 	}
 	return out
 }
+
+// Gemini puts usageMetadata after the parts of the same chunk, so the first
+// chunk's input count arrives behind its first text. message_start must still
+// carry it: clients size their context from message_start's input_tokens.
+func TestMessageStartCarriesUsageReportedAfterTheFirstContent(t *testing.T) {
+	emitter := NewStreamEmitter("", "m")
+	frames := emitter.Emit(
+		textgen.Event{Kind: textgen.EventText, Text: "Hi"},
+		textgen.Event{Kind: textgen.EventUsage, Usage: &dto.Usage{PromptTokens: 1234, CompletionTokens: 1}},
+	)
+	if len(frames) == 0 || frames[0].Event != "message_start" {
+		t.Fatalf("first frame %+v, want message_start", frames)
+	}
+	usage := frames[0].Data["message"].(map[string]any)["usage"].(map[string]any)
+	if usage["input_tokens"] != 1234 || usage["output_tokens"] != 0 {
+		t.Fatalf("message_start usage %v, want input 1234 and output 0", usage)
+	}
+}

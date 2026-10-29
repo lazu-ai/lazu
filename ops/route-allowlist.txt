@@ -34,14 +34,14 @@ GET /api/workers/status/:name  # pending: no caller in this repository; the rout
 GET /dashboard/billing/subscription  # pending: deprecated OpenAI dashboard alias with no removal date yet
 GET /dashboard/billing/usage  # pending: deprecated OpenAI dashboard alias with no removal date yet
 GET /ja/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-GET /ja/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /ja/models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /ja/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /ja/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /ja/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /ja/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /metrics  # external-api: scraped by Prometheus
 GET /models.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-GET /models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /v1/dashboard/billing/subscription  # pending: deprecated OpenAI dashboard alias with no removal date yet
@@ -54,34 +54,34 @@ GET /v1/media/jobs/:id  # external-api: OpenAI-compatible endpoint SDK clients c
 GET /v1/realtime  # external-api: OpenAI-compatible endpoint SDK clients call
 GET /v1beta/openai/models  # external-api: OpenAI-compatible endpoint SDK clients call
 GET /zh-TW/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-GET /zh-TW/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh-TW/models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh-TW/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh-TW/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh-TW/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh-TW/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-GET /zh/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+GET /zh/models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /zh/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /ja/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-HEAD /ja/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /ja/models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /ja/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /ja/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /ja/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /ja/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /models.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-HEAD /models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh-TW/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-HEAD /zh-TW/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh-TW/models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh-TW/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh-TW/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh-TW/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh-TW/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-HEAD /zh/models/:vendor/:model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
+HEAD /zh/models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh/privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh/terms  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 HEAD /zh/terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers

@@ -16,7 +16,12 @@ const (
 	// therefore before ContextKeyOriginalModel exists. Rejections raised in
 	// the auth/distribute chain (model_not_allowed, budget limits) need it so
 	// their log row is not written with an empty model_name.
-	ContextKeyRequestModel     ContextKey = "request_model"
+	ContextKeyRequestModel ContextKey = "request_model"
+	// ContextKeyPublicModel is the model name the caller asked for, set for
+	// the current attempt only when the channel maps it to another upstream
+	// name. Response writers put it back wherever the upstream echoes its own
+	// model id, so a mapping never shows the caller which provider served it.
+	ContextKeyPublicModel      ContextKey = "public_model"
 	ContextKeyRequestStartTime ContextKey = "request_start_time"
 
 	/* token related keys */

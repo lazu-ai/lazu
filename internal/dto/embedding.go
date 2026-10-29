@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/types"
@@ -8,17 +9,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// EmbeddingRequest is the OpenAI /v1/embeddings body. Input is kept as sent
+// (a string, a list of strings, or token arrays) and forwarded unchanged to
+// OpenAI-compatible upstreams; ParseInput reads the text out of it for the
+// local token estimate and for the Gemini conversion.
 type EmbeddingRequest struct {
-	Model            string   `json:"model"`
-	Input            any      `json:"input"`
-	EncodingFormat   string   `json:"encoding_format,omitempty"`
-	Dimensions       int      `json:"dimensions,omitempty"`
-	User             string   `json:"user,omitempty"`
-	Seed             float64  `json:"seed,omitempty"`
-	Temperature      *float64 `json:"temperature,omitempty"`
-	TopP             float64  `json:"top_p,omitempty"`
-	FrequencyPenalty float64  `json:"frequency_penalty,omitempty"`
-	PresencePenalty  float64  `json:"presence_penalty,omitempty"`
+	Model          string `json:"model"`
+	Input          any    `json:"input"`
+	EncodingFormat string `json:"encoding_format,omitempty"`
+	Dimensions     int    `json:"dimensions,omitempty"`
+	User           string `json:"user,omitempty"`
 }
 
 func (r *EmbeddingRequest) GetTokenCountMeta() *types.TokenCountMeta {
@@ -30,8 +30,43 @@ func (r *EmbeddingRequest) GetTokenCountMeta() *types.TokenCountMeta {
 	}
 
 	return &types.TokenCountMeta{
-		CombineText: strings.Join(texts, "\n"),
+		CombineText:  strings.Join(texts, "\n"),
+		TokenIDCount: r.countTokenIDs(),
 	}
+}
+
+// countTokenIDs counts the input sent as token ids: one array of ids, or a
+// list of them. Each id is one token, so an upstream that reports no usage
+// still bills them instead of reading them as empty text.
+func (r *EmbeddingRequest) countTokenIDs() int {
+	items, ok := r.Input.([]any)
+	if !ok {
+		return 0
+	}
+	count := 0
+	for _, item := range items {
+		switch value := item.(type) {
+		case []any:
+			for _, id := range value {
+				if isTokenID(id) {
+					count++
+				}
+			}
+		default:
+			if isTokenID(value) {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func isTokenID(value any) bool {
+	switch value.(type) {
+	case float64, int, int64, json.Number:
+		return true
+	}
+	return false
 }
 
 func (r *EmbeddingRequest) IsStream(c *gin.Context) bool {

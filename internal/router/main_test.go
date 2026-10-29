@@ -215,8 +215,8 @@ func TestPublicSitePagesAnswerHead(t *testing.T) {
 		"/zh/terms.md",
 		"/models",
 		"/models/:vendor",
-		"/models/:vendor/:model",
-		"/zh/models/:vendor/:model",
+		"/models/:vendor/*model",
+		"/zh/models/:vendor/*model",
 	} {
 		if !hasRoute(routes, http.MethodGet, path) || !hasRoute(routes, http.MethodHead, path) {
 			t.Errorf("%s: want GET and HEAD registered", path)

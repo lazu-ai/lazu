@@ -1,6 +1,6 @@
 ---
 title: "Embeddings API (OpenAI-compatible)"
-description: OpenAI-compatible /v1/embeddings with request fields, batch inputs, dimensions and examples.
+description: OpenAI-compatible /v1/embeddings for BAAI/bge-m3 and other vector models — request fields, batches, token limits, billing and examples.
 ---
 
 import {
@@ -16,7 +16,7 @@ import {
   method="POST"
   path="/v1/embeddings"
   title="Embeddings"
-  description="Create vector embeddings with OpenAI-compatible clients. Use the model catalog to discover which models support embeddings and whether they accept custom dimensions."
+  description="Turn text into vectors for semantic search, RAG, clustering and deduplication with any OpenAI-compatible client. The model catalog lists which models serve embeddings, their per-input token limit and the parameters they ignore."
   aside={
     <EndpointRail
       endpoint="embeddings"
@@ -36,13 +36,19 @@ import {
 
 <FieldList>
   <Field name="model" type="string" required>
-    Embedding model ID from <code>/api/models/catalog</code>.
+    Embedding model ID from <code>/api/models/catalog</code>, for example{" "}
+    <code>BAAI/bge-m3</code>.
   </Field>
-  <Field name="input" type="string | string[]" required>
-    Text input or ordered batch of text inputs. The response preserves order.
+  <Field name="input" type="string | string[] | integer[] | integer[][]" required>
+    One text, an ordered batch of texts, or input that is already tokenized
+    (an array of token ids, or a batch of them). The response keeps the input
+    order. Token ids are counted one token each; not every model accepts them.
   </Field>
   <Field name="dimensions" type="integer" nullable>
-    Optional vector dimension for models that support truncation.
+    Output size for models that can shorten their vectors, such as{" "}
+    <code>text-embedding-3-*</code>. Models with a fixed size list{" "}
+    <code>dimensions</code> in the catalog's <code>unsupported_params</code>{" "}
+    and always return their native size.
   </Field>
   <Field
     name="encoding_format"
@@ -50,7 +56,11 @@ import {
     nullable
     values={["float", "base64"]}
   >
-    Output encoding format when supported by the upstream provider.
+    Output encoding. Models that list it in <code>unsupported_params</code>{" "}
+    always return floats.
+  </Field>
+  <Field name="user" type="string" nullable>
+    Your end-user identifier, passed through for abuse monitoring.
   </Field>
 </FieldList>
 
@@ -58,33 +68,110 @@ import {
 
 <FieldList>
   <Field name="object" type="string">
-    Usually <code>list</code>.
+    Always <code>list</code>.
   </Field>
   <Field name="data" type="object[]">
-    One embedding item per input.
+    One item per input, in input order.
+  </Field>
+  <Field name="data[].index" type="integer">
+    Position of the input this vector belongs to.
   </Field>
   <Field name="data[].embedding" type="number[] | string">
-    Vector values or base64-encoded vector depending on
-    <code>encoding_format</code>.
+    The vector, or a base64 string when <code>encoding_format</code> is{" "}
+    <code>base64</code> and the model supports it.
+  </Field>
+  <Field name="model" type="string">
+    The model ID you sent, whichever provider served the request.
   </Field>
   <Field name="usage.prompt_tokens" type="integer">
-    Input tokens used for embedding.
+    Input tokens billed for this request.
+  </Field>
+  <Field name="usage.total_tokens" type="integer">
+    Same as <code>prompt_tokens</code>: embeddings have no output tokens.
+  </Field>
+  <Field name="usage.cost" type="number">
+    Amount charged in USD. The <code>x-lazu-cost-usd</code> response header
+    carries the same value.
   </Field>
 </FieldList>
 
-## Batch guidance
+```json
+{
+  "object": "list",
+  "data": [
+    { "object": "embedding", "index": 0, "embedding": [-0.0338, 0.0174, -0.0461] },
+    { "object": "embedding", "index": 1, "embedding": [-0.0412, 0.0209, -0.0397] }
+  ],
+  "model": "BAAI/bge-m3",
+  "usage": { "prompt_tokens": 14, "total_tokens": 14, "cost": 0.000001 }
+}
+```
 
-Pass an array for small batches. For large data jobs, chunk client-side so each
-request stays within provider body-size and token limits.
+## Example: semantic search
+
+Embed the documents once, embed each query, and rank by cosine similarity.
+`BAAI/bge-m3` maps more than 100 languages into one space, so an English query
+finds Chinese or Japanese documents without translation.
+
+```python
+import numpy as np
+from openai import OpenAI
+
+client = OpenAI(base_url="https://api.lazu.ai/v1", api_key="YOUR_LAZU_KEY")
+
+docs = [
+    "Reset your password from Settings → Security.",
+    "账单每月 1 日生成，可在控制台下载发票。",
+    "API キーはプロジェクトごとに発行できます。",
+]
+
+def embed(texts):
+    resp = client.embeddings.create(model="BAAI/bge-m3", input=texts)
+    vectors = np.array([item.embedding for item in resp.data])
+    return vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+doc_vectors = embed(docs)
+query_vector = embed(["Where can I download my invoice?"])[0]
+
+scores = doc_vectors @ query_vector
+for index in scores.argsort()[::-1]:
+    print(f"{scores[index]:.3f}  {docs[index]}")
+```
+
+## Limits
+
+- **Per-input token limit.** The catalog's `input_limit` is the most tokens one
+  input may hold (8192 for `BAAI/bge-m3`). A longer input is refused with
+  `400 context_length_exceeded` (LZ-1005) and costs nothing. Split long
+  documents into chunks below the limit; a few hundred to a thousand tokens per
+  chunk usually retrieves better anyway.
+- **Batches.** Send an array to embed several texts in one request. For large
+  jobs, send batches of tens to a few hundred inputs and retry a failed batch
+  rather than one huge request.
+- **Empty input.** An empty string is refused by most models; drop empty chunks
+  before sending.
+
+## Billing
+
+Embeddings bill input tokens only, at the model's input price on
+[Pricing & lanes](/models/pricing). When the provider reports how many tokens
+it read, that count is billed. When it does not, Lazu counts the input with a
+standard tokenizer; that count can differ by a few percent from the model's own
+tokenizer, in either direction depending on the language. Failed requests are
+not charged. Each request's billed tokens and amount are in `usage` and in the
+request detail.
 
 ## Common models
 
-| Model                    | Dim  | Notes                |
-| ------------------------ | ---- | -------------------- |
-| `BAAI/bge-m3`            | 1024 | Multilingual         |
-| `text-embedding-3-small` | 1536 | OpenAI cheap default |
-| `text-embedding-3-large` | 3072 | OpenAI high quality  |
-| `gemini-embedding-001`   | 768  | Google default       |
+| Model                    | Dimensions | Max input tokens | Custom `dimensions` | Notes                           |
+| ------------------------ | ---------- | ---------------- | ------------------- | ------------------------------- |
+| `BAAI/bge-m3`            | 1024       | 8192             | No                  | Open weights, 100+ languages    |
+| `text-embedding-3-small` | 1536       | 8191             | Yes                 | OpenAI, low cost                |
+| `text-embedding-3-large` | 3072       | 8191             | Yes                 | OpenAI, highest quality         |
+| `gemini-embedding-001`   | 3072       | 2048             | Yes (768, 1536)     | Google                          |
+
+Which of these your key can call depends on the deployment; the catalog is the
+source of truth.
 
 ## See also
 

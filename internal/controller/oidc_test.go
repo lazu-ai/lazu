@@ -904,3 +904,15 @@ func seedOIDCIdentity(t *testing.T, user model.User, subject string) {
 		t.Fatalf("seed OIDC identity: %v", err)
 	}
 }
+
+func TestOIDCContextSuppliesAClientWithATimeout(t *testing.T) {
+	client, ok := oidcContext(context.Background()).Value(oauth2.HTTPClient).(*http.Client)
+	if !ok || client == http.DefaultClient || client.Timeout <= 0 {
+		t.Fatalf("identity provider calls need a client with a timeout, got %#v", client)
+	}
+	injected := &http.Client{}
+	ctx := oidc.ClientContext(context.Background(), injected)
+	if got, _ := oidcContext(ctx).Value(oauth2.HTTPClient).(*http.Client); got != injected {
+		t.Fatal("a client already in the context must be kept")
+	}
+}
