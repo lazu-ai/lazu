@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
@@ -943,11 +944,68 @@ func dueDigests(now time.Time, loc *time.Location) []dueDigest {
 	return out
 }
 
+// digestOutcome is what one attempt at one (reader, kind, period) came to.
+type digestOutcome struct {
+	Sent    bool
+	Skipped string // the skip reason, or ""
+	Failed  bool
+}
+
+// digestRunSummary counts one run's outcomes per kind and period.
+type digestRunSummary struct {
+	Sent    int
+	Failed  int
+	Skipped map[string]int
+}
+
+// digestRunLine words one period's summary: "weekly 2026-W43: sent 9,
+// skipped 87 (below_minimum 85, opted_out 2)".
+func digestRunLine(kind, period string, s digestRunSummary) string {
+	reasons := make([]string, 0, len(s.Skipped))
+	for reason := range s.Skipped {
+		reasons = append(reasons, reason)
+	}
+	sort.Strings(reasons)
+	skipped := 0
+	parts := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		skipped += s.Skipped[reason]
+		parts = append(parts, fmt.Sprintf("%s %d", reason, s.Skipped[reason]))
+	}
+	line := fmt.Sprintf("usage digests %s %s: sent %d, skipped %d", kind, period, s.Sent, skipped)
+	if len(parts) > 0 {
+		line += " (" + strings.Join(parts, ", ") + ")"
+	}
+	if s.Failed > 0 {
+		line += fmt.Sprintf(", failed %d", s.Failed)
+	}
+	return line
+}
+
+// digestRunSkipLogged keeps the "not running" notice to one line per
+// process: the task runs every few minutes.
+var digestRunSkipLogged sync.Once
+
+func logDigestRunSkipped(reason string) {
+	digestRunSkipLogged.Do(func() {
+		common.SysWarn("usage digests: run skipped, " + reason + " (this is logged once per process)")
+	})
+}
+
 // RunUsageDigests sends every digest that is due. It runs every few minutes;
 // the unique archive key makes each (reader, kind, period) go out once even
-// with several instances running.
+// with several instances running. Each run that claims at least one row
+// logs a summary per kind and period; a run that cannot start says so once.
 func RunUsageDigests(ctx context.Context, now time.Time) error {
-	if !common.UsageDigestEnabled || model.CoreDB() == nil || model.TelemetryDB() == nil {
+	switch {
+	case !common.UsageDigestEnabled:
+		logDigestRunSkipped("usage digests are disabled")
+		return nil
+	case model.CoreDB() == nil:
+		logDigestRunSkipped("no core store")
+		return nil
+	case model.TelemetryDB() == nil:
+		logDigestRunSkipped("no telemetry store")
 		return nil
 	}
 	model.
@@ -961,6 +1019,9 @@ func RunUsageDigests(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	type runKey struct{ Kind, Period string }
+	summaries := map[runKey]*digestRunSummary{}
+	var order []runKey
 	for _, c := range candidates {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -977,26 +1038,62 @@ func RunUsageDigests(ctx context.Context, now time.Time) error {
 			}
 		}
 		for _, d := range due {
-			if err := runOneDigest(c, setting, d, monthlyToday, now); err != nil {
+			outcome, err := runOneDigest(c, setting, d, monthlyToday, now)
+			if err != nil {
 				common.SysError(fmt.Sprintf("usage digest %s for user %d: %v", d.Kind, c.Id, err))
 			}
+			if outcome == nil {
+				continue
+			}
+			_, _, period := DigestPeriods(d.Kind, d.SendDay)
+			key := runKey{d.Kind, period}
+			summary := summaries[key]
+			if summary == nil {
+				summary = &digestRunSummary{Skipped: map[string]int{}}
+				summaries[key] = summary
+				order = append(order, key)
+			}
+			switch {
+			case outcome.Sent:
+				summary.Sent++
+			case outcome.Failed:
+				summary.Failed++
+			case outcome.Skipped != "":
+				summary.Skipped[outcome.Skipped]++
+			}
+		}
+	}
+	for _, key := range order {
+		summary := summaries[key]
+		line := digestRunLine(key.Kind, key.Period, *summary)
+		// Readers skipped for incomplete data mean the rollup the digests
+		// read is behind: worth a warning, not just a line.
+		if summary.Skipped[digestSkipIncomplete] > 0 {
+			common.SysWarn(line)
+		} else {
+			common.SysLog(line)
 		}
 	}
 	return nil
 }
 
-func runOneDigest(c model.DigestCandidate, setting dto.UserSetting, d dueDigest, monthlyToday bool, now time.Time) error {
+// runOneDigest sends, skips or fails one due digest. It returns nil when the
+// period was already claimed (by an earlier run or another instance).
+func runOneDigest(c model.DigestCandidate, setting dto.UserSetting, d dueDigest, monthlyToday bool, now time.Time) (*digestOutcome, error) {
 	_, _, period := DigestPeriods(d.Kind, d.SendDay)
 	key := digestRefKey(d.Kind, c.Id, period)
 	if exists, err := model.MailDeliveryExists(key); err != nil || exists {
-		return err
+		return nil, err
 	}
 	row := &model.MailDelivery{Kind: digestMailKind(d.Kind), UserID: c.Id, Receiver: c.Email, RefKey: &key, Period: period,
 		Template: digestTemplateVersion, Lang: common.MailLang(setting.Language), Timezone: d.SendDay.Location().String(), CreatedAt: now.Unix()}
-	skip := func(reason string) error {
+	skip := func(reason string) (*digestOutcome, error) {
 		row.Status, row.Error = model.MailStatusSkipped, reason
-		_, err := model.ClaimMailDelivery(row)
-		return err
+		claimed, err := model.ClaimMailDelivery(row)
+		if err != nil || !claimed {
+			return nil, err
+		}
+		return &digestOutcome{Skipped: reason}, nil
 	}
 	if digestOptedOut(setting, d.Kind) {
 		return skip(digestSkipOptedOut)
@@ -1006,7 +1103,7 @@ func runOneDigest(c model.DigestCandidate, setting dto.UserSetting, d dueDigest,
 	}
 	snap, err := BuildDigestSnapshot(c.Id, setting, d.Kind, d.SendDay)
 	if err != nil {
-		return err
+		return &digestOutcome{Failed: true}, err
 	}
 	if snap.Usage.CurrentMissing {
 		return skip(digestSkipIncomplete)
@@ -1023,9 +1120,12 @@ func runOneDigest(c model.DigestCandidate, setting dto.UserSetting, d dueDigest,
 	row.Status = model.MailStatusGenerating
 	claimed, err := model.ClaimMailDelivery(row)
 	if err != nil || !claimed {
-		return err
+		return nil, err
 	}
-	return sendDigest(row, snap, c.Id, digestHeaders(c.Id, d.Kind))
+	if err := sendDigest(row, snap, c.Id, digestHeaders(c.Id, d.Kind)); err != nil {
+		return &digestOutcome{Failed: true}, err
+	}
+	return &digestOutcome{Sent: true}, nil
 }
 
 // RefreshMailDeliveryStatus asks Resend what happened to recent mail.
