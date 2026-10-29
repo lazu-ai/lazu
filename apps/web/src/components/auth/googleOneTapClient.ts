@@ -15,6 +15,10 @@ import { buildAPIURL } from '../../helpers/apiUrl';
 
 const GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
 const ONE_TAP_PATH = '/api/auth/google/one-tap';
+// The server keeps a nonce for ten minutes. Google is configured with the one
+// it was given, so past this age a prompt would hand back a token the server
+// refuses; a minute of margin covers the round trips and a slow click.
+const NONCE_LIFETIME_MS = 9 * 60 * 1000;
 
 type GoogleCredentialResponse = { credential?: string };
 
@@ -104,6 +108,17 @@ const errorCode = (body: ApiEnvelope): string =>
  * whoever started last. */
 let current: GoogleOneTapOptions | null = null;
 let initialized: Promise<GoogleIdentity | null> | null = null;
+// When the nonce behind `initialized` was asked for (it may be pending).
+let initializedAt = 0;
+let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+const forgetInitialization = () => {
+  initialized = null;
+  if (expiryTimer !== null) {
+    clearTimeout(expiryTimer);
+    expiryTimer = null;
+  }
+};
 
 const submit = async (credential: string | undefined) => {
   const options = current;
@@ -111,7 +126,7 @@ const submit = async (credential: string | undefined) => {
   const url = options.apiURL ?? buildAPIURL;
   // The server clears the nonce on this post, whatever the outcome; a later
   // start asks for a fresh one.
-  initialized = null;
+  forgetInitialization();
   options.beforeSubmit?.();
   try {
     const response = await fetch(url(ONE_TAP_PATH), {
@@ -163,15 +178,38 @@ const initialize = async (
   return identity;
 };
 
+const pageVisible = () =>
+  typeof document === 'undefined' || document.visibilityState !== 'hidden';
+
 /** Offer One Tap on this page. Safe to call more than once. */
 export const startGoogleOneTap = (options: GoogleOneTapOptions): void => {
   if (typeof window === 'undefined' || !options.clientId) return;
   current = options;
+  // A later page of the same app reuses Google's configuration only while
+  // its nonce is still one the server will accept.
+  if (initialized && Date.now() - initializedAt >= NONCE_LIFETIME_MS) {
+    forgetInitialization();
+  }
   if (!initialized) {
-    initialized = initialize(options).catch(() => null);
-    // A start that found nothing to show (no nonce, no script) may be retried.
-    void initialized.then((identity) => {
-      if (!identity) initialized = null;
+    const attempt = initialize(options).catch(() => null);
+    initialized = attempt;
+    initializedAt = Date.now();
+    void attempt.then((identity) => {
+      if (initialized !== attempt) return;
+      // A start that found nothing to show (no nonce, no script) may be retried.
+      if (!identity) {
+        forgetInitialization();
+        return;
+      }
+      // A prompt still on screen when its nonce expires is renewed with a
+      // fresh one, so choosing an account never meets a refused token. A
+      // hidden page is left alone and renews on its next start.
+      expiryTimer = setTimeout(() => {
+        expiryTimer = null;
+        if (initialized !== attempt) return;
+        forgetInitialization();
+        if (current && pageVisible()) startGoogleOneTap(current);
+      }, NONCE_LIFETIME_MS);
     });
   }
   void initialized.then((identity) => {

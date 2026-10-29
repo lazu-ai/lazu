@@ -41,8 +41,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+const NINE_MINUTES = 9 * 60 * 1000;
 
 describe('Google One Tap', () => {
   it('prompts with the nonce the server issued', async () => {
@@ -151,5 +155,60 @@ describe('Google One Tap', () => {
     expect(google.initialize).toHaveBeenCalledTimes(1);
     expect(google.cancel).toHaveBeenCalledTimes(1);
     expect(google.prompt).toHaveBeenCalledTimes(2);
+  });
+
+  // A visitor reads the home page for more than the nonce's lifetime, then
+  // moves to the sign-in page of the same app.
+  it('asks for a fresh nonce when a later page starts after it aged', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { data: { nonce: 'n-1' } }))
+      .mockResolvedValueOnce(json(200, { data: { nonce: 'n-2' } }));
+    const { startGoogleOneTap, stopGoogleOneTap } = await loadClient();
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    const home = { clientId: 'client-1', onSignedIn: vi.fn() };
+    startGoogleOneTap(home);
+    await settle();
+    stopGoogleOneTap(home);
+    now.mockReturnValue(1_000_000 + NINE_MINUTES);
+    startGoogleOneTap({ clientId: 'client-1', onSignedIn: vi.fn() });
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(google.initialize).toHaveBeenCalledTimes(2);
+    expect(google.initialize.mock.calls[1][0].nonce).toBe('n-2');
+    expect(google.prompt).toHaveBeenCalledTimes(2);
+  });
+
+  it('renews a prompt still on screen when its nonce expires', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { visibilityState: 'visible' });
+    fetchMock
+      .mockResolvedValueOnce(json(200, { data: { nonce: 'n-1' } }))
+      .mockResolvedValueOnce(json(200, { data: { nonce: 'n-2' } }));
+    const { startGoogleOneTap } = await loadClient();
+
+    startGoogleOneTap({ clientId: 'client-1', onSignedIn: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(google.prompt).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(NINE_MINUTES);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(google.initialize.mock.calls[1][0].nonce).toBe('n-2');
+    expect(google.prompt).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves a hidden page alone until it starts again', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('document', { visibilityState: 'hidden' });
+    fetchMock.mockResolvedValueOnce(json(200, { data: { nonce: 'n-1' } }));
+    const { startGoogleOneTap } = await loadClient();
+
+    startGoogleOneTap({ clientId: 'client-1', onSignedIn: vi.fn() });
+    await vi.advanceTimersByTimeAsync(NINE_MINUTES + 1000);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(google.prompt).toHaveBeenCalledTimes(1);
   });
 });
