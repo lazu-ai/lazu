@@ -6,11 +6,12 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/service"
+	"github.com/oklog/ulid/v2"
 	"gorm.io/gorm"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 )
 
 func TestShutdownDrainsDiagnosticsBeforeStoppingWriters(t *testing.T) {
@@ -25,7 +26,14 @@ func TestShutdownDrainsDiagnosticsBeforeStoppingWriters(t *testing.T) {
 	model.SetTelemetryDB(db)
 	common.RedisEnabled = false
 	t.Cleanup(func() { model.SetTelemetryDB(oldDB); common.RedisEnabled = oldRedis; raw, _ := db.DB(); raw.Close() })
-	row := model.Log{RequestID: common.GenerateRequestID(), Type: model.LogTypeConsume, RequestTS: time.Now().UnixMilli(), Other: "{}"}
+	// The diagnostics update matches request_ts to the time in the id, so take
+	// it from the id: a separate time.Now() can land a millisecond later.
+	requestID := common.GenerateRequestID()
+	id, err := ulid.ParseStrict(strings.TrimPrefix(requestID, common.RequestIDPrefix))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := model.Log{RequestID: requestID, Type: model.LogTypeConsume, RequestTS: int64(id.Time()), Other: "{}"}
 	if err := db.Create(&row).Error; err != nil {
 		t.Fatal(err)
 	}
