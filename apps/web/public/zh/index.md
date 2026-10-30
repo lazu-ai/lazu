@@ -1,8 +1,8 @@
-<!-- Lazu · Lazu｜Agent 的模型供应：一个 Key 调用 Claude、GPT、Gemini、Seedance · https://lazu.ai/zh/ -->
+<!-- Lazu · Lazu｜编程 Agent 和自动化任务的模型账户：Claude、GPT、Gemini 一个 Key，支付宝充值 · https://lazu.ai/zh/ -->
 
-# Agent 的模型供应。
+# 编程 Agent 和自动化任务的模型账户。
 
-Agent 要的模型，一个 Key 全有：Opus 写代码，GPT Image 出图，Seedance 做视频。Claude Code、Codex 和 SDK 直接接入，每次调用都有账单。
+写代码、跑评测、跑线上服务，一个 Key 全走：Claude、GPT、Gemini、DeepSeek 都在。预算到额就停，每笔调用有回执，支付宝或对公充值。Claude Code、Codex 和 SDK 直接接入。
 
 ## 一个账户，每个 Agent 一把 Key
 

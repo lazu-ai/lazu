@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu — The model supply for agents: Claude, GPT, Gemini, Seedance",
-      "description": "Every model your agent needs, on one key: Claude, GPT, Gemini and DeepSeek for code, GPT Image for images, Seedance for video. Pay as you go."
+      "title": "Lazu — The model account for coding agents and pipelines",
+      "description": "One key for Claude, GPT, Gemini and DeepSeek. A budget that stops, a receipt for every request. Works with Claude Code, Codex and OpenCode, and runs your evals and production jobs. Pay as you go."
     },
     "nav": {
       "models": "Models",
@@ -35,12 +35,12 @@
       "menu": "Menu"
     },
     "hero": {
-      "eyebrow": "For agents, apps and the teams that run them",
-      "headline": "The model supply ",
-      "headlineEm": "for agents.",
-      "whatBefore": "Every model your agent needs, ",
+      "eyebrow": "For coding agents and pipelines",
+      "headline": "The model account for ",
+      "headlineEm": "coding agents and pipelines.",
+      "whatBefore": "Code, evals and production jobs, ",
       "whatBold": "on one key",
-      "whatAfter": ": Opus for code, GPT Image for images, Seedance for video. Connect Claude Code, Codex or any SDK, and every call is itemized.",
+      "whatAfter": ": Claude, GPT, Gemini and DeepSeek. A budget that stops, a receipt for every call, pay as you go. Connect Claude Code, Codex or any SDK.",
       "ctaPrimary": "Sign up free",
       "ctaSecondary": "See the console",
       "free": "10% extra on your first top-up, up to $10"
