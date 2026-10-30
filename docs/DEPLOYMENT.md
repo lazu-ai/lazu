@@ -50,6 +50,27 @@ startup. Review `config/backend/config.yaml` alongside them: `site`,
 Do not supply placeholder credentials for integrations you do not use; leave
 them empty and the feature stays off.
 
+### Balance alerts
+
+Two checks warn an account before its balance runs out, both under
+`email_notifications.low_balance` in `config/backend/config.yaml` and
+editable in the console under **系统设置 › 计费 › 余额不足时**:
+
+- The fixed threshold (`threshold_usd`, default $20) fires on the request
+  that takes the balance under it and repeats on `remind_days`.
+- The runway check (`runway_days`, default 3) runs hourly in the jobs process
+  (or in the API when it runs all-in-one). It averages each account's spend
+  over the trailing 7 days and, when the balance covers fewer days than
+  this, sends the account the low-balance mail with the estimated days left
+  and posts one line to the operator by mail and `TELEGRAM_OPS_CHAT`:
+  account, balance, daily spend, days left. An account already at zero or
+  below gets the operator line only; its own mail is the fixed threshold's
+  reminder schedule. Each account gets at most one runway alert per 24
+  hours, recorded in the mail archive so restarts and several instances do
+  not repeat it. Accounts with under a day of spend history are left to the
+  fixed threshold. `0` turns the runway check off; the operator line still
+  goes out when low-balance mail to users is switched off.
+
 ## Optional integration settings
 
 | Capability                                          | Configuration                                                                                                                                                                                                                                                                         |
@@ -68,7 +89,8 @@ Validate each enabled integration with its actual provider configuration.
 Create one bot with @BotFather and set `TELEGRAM_BOT_TOKEN` on the API and
 jobs containers. Every operational alert mail (disk, error rate, payment
 documents, backups, worker failures, a channel whose upstream keeps refusing
-its billing or key) is then also posted to
+its billing or key, an account whose balance will not last the configured
+number of days) is then also posted to
 `TELEGRAM_OPS_CHAT`:
 
 - The value is a chat id (`-1001234567890` for a group) or

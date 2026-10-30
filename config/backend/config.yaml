@@ -126,6 +126,15 @@ email_notifications:
     # Low-balance reminder schedule (days 1, 3, 7, 15, 30 below threshold).
     # After day 30 reminders stop until the balance rises above the threshold again.
     remind_days: [1, 3, 7, 15, 30]
+    # Runway check, once an hour: average daily spend over the trailing 7
+    # days against the current balance. Under this many days the account
+    # gets the low-balance mail with the estimated days left and the
+    # operator gets one line by mail and Telegram, at most once per account
+    # per 24 hours. An account already at zero gets the operator line only
+    # (its own mail follows remind_days above). Accounts with under a day
+    # of spend history are left to the fixed threshold. 0 turns the runway
+    # check off.
+    runway_days: 3
 
 # -----------------------------------------------------------
 # Site identity (optional)

@@ -266,6 +266,9 @@ type LowBalanceEmailConfig struct {
 	Enable       bool    `yaml:"enabled"`
 	ThresholdUSD float64 `yaml:"threshold_usd"`
 	RemindDays   []int   `yaml:"remind_days"`
+	// RunwayDays: alert when the balance covers fewer days of spend than
+	// this; 0 turns the runway check off.
+	RunwayDays int `yaml:"runway_days"`
 }
 
 func defaultConfig() AppConfigStruct {
@@ -314,6 +317,7 @@ func defaultConfig() AppConfigStruct {
 		Enable:       true,
 		ThresholdUSD: 20,
 		RemindDays:   []int{1, 3, 7, 15, 30},
+		RunwayDays:   3,
 	}
 	c.EmailNotifications.AdminEmail = ""
 
@@ -671,6 +675,11 @@ func loadConfigFile(found string) {
 			}
 			if remindDays := NormalizePositiveIntSlice(parseDays(lbSec["remind_days"])); len(remindDays) > 0 {
 				AppConfig.EmailNotifications.LowBalance.RemindDays = remindDays
+			}
+			if runway, ok := lbSec["runway_days"].(int); ok && runway >= 0 {
+				AppConfig.EmailNotifications.LowBalance.RunwayDays = runway
+			} else if runwayFloat, ok := lbSec["runway_days"].(float64); ok && runwayFloat >= 0 {
+				AppConfig.EmailNotifications.LowBalance.RunwayDays = int(runwayFloat)
 			}
 		}
 	}

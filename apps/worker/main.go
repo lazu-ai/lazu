@@ -144,6 +144,7 @@ func buildWorkerTasks(resources *workerResources, oneShot bool) []worker.Task {
 			worker.NewProjectNotificationTask(),
 			worker.NewGatewayPerformanceTask(),
 			worker.NewUsageDigestTask(),
+			worker.NewBalanceRunwayTask(), // hourly: accounts whose balance will not last the configured days
 			worker.NewMailArchiveTask(),
 			worker.NewProjectPaymentDocumentTask(),
 			worker.NewProjectAutoReloadTask(), // charges saved cards for wallets under their reload line
