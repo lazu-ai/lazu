@@ -1,8 +1,8 @@
-<!-- Lazu · Lazu — The model supply for agents: Claude, GPT, Gemini, Seedance · https://lazu.ai/ -->
+<!-- Lazu · Lazu — The model account for coding agents and pipelines · https://lazu.ai/ -->
 
-# The model supply for agents.
+# The model account for coding agents and pipelines.
 
-Every model your agent needs, on one key: Opus for code, GPT Image for images, Seedance for video. Connect Claude Code, Codex or any SDK, and every call is itemized.
+Code, evals and production jobs, on one key: Claude, GPT, Gemini and DeepSeek. A budget that stops, a receipt for every call, pay as you go. Connect Claude Code, Codex or any SDK.
 
 ## One account, a key for every agent
 

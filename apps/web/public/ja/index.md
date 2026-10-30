@@ -1,8 +1,8 @@
-<!-- Lazu · Lazu｜エージェントのためのモデル供給：Claude・GPT・Gemini・Seedance を 1 つのキーで · https://lazu.ai/ja/ -->
+<!-- Lazu · Lazu｜コーディングエージェントと自動化タスクのためのモデルアカウント：Claude・GPT・Gemini を 1 つのキーで · https://lazu.ai/ja/ -->
 
-# エージェントのためのモデル供給。
+# コーディングエージェントと自動化タスクのためのモデルアカウント。
 
-エージェントに必要なモデルが、1 つのキーですべて。Opus でコード、GPT Image で画像、Seedance で動画。Claude Code、Codex、SDK からそのまま接続でき、呼び出しごとに明細が残ります。
+コードを書く、評価を回す、本番で動かす。すべて 1 つのキーで。Claude・GPT・Gemini・DeepSeek が揃っています。予算に達したら止まり、呼び出しごとに明細が残り、従量課金です。Claude Code・Codex・SDK からそのまま接続できます。
 
 ## アカウントはひとつ、キーはエージェントごとに
 

@@ -1,8 +1,8 @@
-<!-- Lazu · Lazu｜Agent 的模型供應：一把 Key 呼叫 Claude、GPT、Gemini、Seedance · https://lazu.ai/zh-TW/ -->
+<!-- Lazu · Lazu｜Coding Agent 和自動化任務的模型帳戶：Claude、GPT、Gemini 一把 Key · https://lazu.ai/zh-TW/ -->
 
-# Agent 的模型供應。
+# Coding Agent 和自動化任務的模型帳戶。
 
-Agent 需要的模型，一把 Key 全都有：Opus 寫程式，GPT Image 出圖，Seedance 做影片。Claude Code、Codex 和 SDK 直接接入，每次呼叫都有明細。
+寫程式、跑評測、跑線上服務，一把 Key 全走：Claude、GPT、Gemini、DeepSeek 都在。預算到額就停，每次呼叫都有明細，按量付費。Claude Code、Codex 和 SDK 直接接入。
 
 ## 一個帳戶，每個 Agent 一把 Key
 
