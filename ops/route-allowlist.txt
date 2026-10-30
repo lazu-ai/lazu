@@ -9,6 +9,7 @@ GET /api/auth/oauth/:provider/callback  # webhook: identity provider redirects t
 GET /api/auth/oidc/callback  # webhook: identity provider redirects the browser here
 GET /api/channel/models_enabled  # pending: no caller in this repository; the route table decides
 GET /api/channel/tag/models  # pending: no caller in this repository; the route table decides
+GET /api/channel/update_balance/:id  # pending: the console dropped its per-channel balance action; the route table decides
 GET /api/community/models  # pending: no caller in this repository; the route table decides
 GET /api/community/models/:id  # pending: no caller in this repository; the route table decides
 GET /api/community/stats  # pending: no caller in this repository; the route table decides
@@ -89,6 +90,7 @@ POST /api/channel/:id/key  # pending: no caller in this repository; the route ta
 POST /api/channel_health/route_retreat/clear  # external-api: operators clear a repaired route's temporary breaker retreat
 POST /api/channel/batch  # pending: no caller in this repository; the route table decides
 POST /api/channel/batch/tag  # pending: no caller in this repository; the route table decides
+POST /api/channel/copy/:id  # pending: the console dropped its copy-channel action; the route table decides
 POST /api/channel/multi_key/manage  # pending: no caller in this repository; the route table decides
 POST /api/channel/tag/disabled  # pending: no caller in this repository; the route table decides
 POST /api/channel/tag/enabled  # pending: no caller in this repository; the route table decides
