@@ -16,10 +16,10 @@ import {
 
 export const USAGE_RANGE_PRESETS = ['24h', '7d', '30d'] as const;
 export type UsageRangePreset = (typeof USAGE_RANGE_PRESETS)[number];
-export const DEFAULT_USAGE_RANGE: UsageRangePreset = '7d';
+const DEFAULT_USAGE_RANGE: UsageRangePreset = '7d';
 
 /** Address-bar keys that belong to the range; tab switches keep them. */
-export const USAGE_RANGE_PARAMS = [
+const USAGE_RANGE_PARAMS = [
   'range',
   'from',
   'to',
@@ -27,7 +27,7 @@ export const USAGE_RANGE_PARAMS = [
   'end_timestamp',
 ] as const;
 
-export type UsageRange = {
+type UsageRange = {
   /** Whole days the window touches, for 「8 天」 on narrow screens. */
   days: number;
   /** Unix seconds; the end is the last second of the last day. */
@@ -46,8 +46,7 @@ const toDayKey = (date: Date): DayKey => ({
   m: date.getMonth(),
   d: date.getDate(),
 });
-export const dayParam = (day: DayKey) =>
-  `${day.y}-${pad(day.m + 1)}-${pad(day.d)}`;
+const dayParam = (day: DayKey) => `${day.y}-${pad(day.m + 1)}-${pad(day.d)}`;
 const parseDay = (value: string | null): DayKey | null => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '');
   if (!match) return null;
@@ -93,7 +92,7 @@ function presetRange(preset: UsageRangePreset, now: Date): UsageRange {
   };
 }
 
-export function readUsageRange(
+function readUsageRange(
   params: URLSearchParams,
   now: Date = new Date(),
 ): UsageRange {
