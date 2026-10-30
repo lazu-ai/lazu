@@ -18,7 +18,7 @@ import type { KeyboardEvent } from 'react';
 
 const SK = 'page.console.log.session';
 
-export function usageRangeLabel(
+function usageRangeLabel(
   preset: UsageRangePreset,
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {

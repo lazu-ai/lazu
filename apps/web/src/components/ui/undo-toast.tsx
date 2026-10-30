@@ -18,7 +18,7 @@ import { MOBILE_BREAKPOINT } from '../../hooks/common/useIsMobile';
 import i18n from '../../i18n/i18n';
 import { errorMessage } from '../../lib/api-error';
 
-export type UndoRequest = {
+type UndoRequest = {
   body?: unknown;
   method: 'DELETE' | 'POST' | 'PUT';
   path: string;
@@ -32,7 +32,7 @@ type CommonOptions = {
   seconds?: number;
 };
 
-export type DeferredUndoOptions = CommonOptions & {
+type DeferredUndoOptions = CommonOptions & {
   /** Sends the deletion. Errors put the rows back with a 重试. */
   commit: () => Promise<unknown>;
   /** 「没删成，Smoke token 已放回」 */
@@ -45,7 +45,7 @@ export type DeferredUndoOptions = CommonOptions & {
   onCommitted?: () => void;
 };
 
-export type ImmediateUndoOptions = CommonOptions & {
+type ImmediateUndoOptions = CommonOptions & {
   onUndone?: () => void;
   undo: () => Promise<unknown>;
 };
@@ -58,7 +58,7 @@ type Pending = {
   timer: number;
 };
 
-export const UNDO_SECONDS = 10;
+const UNDO_SECONDS = 10;
 
 let pending: Pending | null = null;
 let pendingKeys: ReadonlySet<string> = new Set();

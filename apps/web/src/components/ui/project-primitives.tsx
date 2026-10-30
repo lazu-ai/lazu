@@ -6,7 +6,6 @@ import { Button } from './button';
 import { Checkbox } from './checkbox';
 import { Input } from './input';
 import { Modal } from './modal';
-import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { cn } from '../../lib/cn';
 import './project-primitives.css';
 /* Three, and only three: a plain label, something the reader should act on,
@@ -321,65 +320,6 @@ export function ErrLine({
     >
       {children}
     </span>
-  );
-}
-
-/** Adjacent confirmation for reversible actions (S3, S5, S10). */
-export function ConfirmPop({
-  trigger,
-  text,
-  confirmLabel,
-  cancelLabel,
-  danger = false,
-  busy = false,
-  onConfirm,
-  open,
-  onOpenChange,
-  align = 'end',
-}: {
-  trigger: React.ReactElement;
-  text: React.ReactNode;
-  confirmLabel: React.ReactNode;
-  cancelLabel?: React.ReactNode;
-  danger?: boolean;
-  busy?: boolean;
-  onConfirm: () => void | Promise<void>;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  align?: 'start' | 'center' | 'end';
-}) {
-  const { t } = useTranslation();
-  const [internal, setInternal] = useState(false);
-  const isOpen = open ?? internal;
-  const setOpen = (next: boolean) => {
-    if (!next && busy) return;
-    onOpenChange ? onOpenChange(next) : setInternal(next);
-  };
-  return (
-    <Popover open={isOpen} onOpenChange={setOpen}>
-      <PopoverTrigger>{trigger}</PopoverTrigger>
-      <PopoverContent align={align} className='pj-pop' side='bottom'>
-        <p>{text}</p>
-        <div className='pj-pop__acts'>
-          <Button
-            disabled={busy}
-            onClick={() => setOpen(false)}
-            size='sm'
-            variant='secondary'
-          >
-            {cancelLabel ?? t('common.cancel', { defaultValue: 'Cancel' })}
-          </Button>
-          <Button
-            loading={busy}
-            onClick={() => void onConfirm()}
-            size='sm'
-            variant={danger ? 'danger' : 'primary'}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }
 

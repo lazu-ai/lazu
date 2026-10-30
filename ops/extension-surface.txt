@@ -3,6 +3,7 @@
 # Add a line in the same change that adds a hook.
 apps/worker.registerCommand  # extension hook
 internal/common.DecodeJson  # reached only from an extension
+internal/common.ExtensionClientName  # reached only from an extension
 internal/common.RegisterClientPattern  # extension hook
 internal/common.RegisterConfigSection  # extension hook
 internal/controller.RegisterPublicPageCachePolicy  # extension hook

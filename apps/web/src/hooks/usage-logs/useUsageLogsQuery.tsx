@@ -320,7 +320,7 @@ export const LOG_COLUMN_KEYS = {
   USERNAME: 'username',
 } as const;
 
-export function getDefaultUsageLogFilters(): UsageLogFilters {
+function getDefaultUsageLogFilters(): UsageLogFilters {
   return {
     channel: '',
     dateRange: getDefaultUsageLogDateRange(),

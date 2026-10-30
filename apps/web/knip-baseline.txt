@@ -120,7 +120,6 @@ types src/components/common/ScrollableContainer.tsx ScrollInfo
 types src/components/common/ScrollableContainer.tsx ScrollableContainerHandle
 types src/components/common/announcement/AnnouncementTimeline.tsx AnnouncementTimelineProps
 types src/components/common/charts/VChart.tsx VChartProps
-types src/components/dashboard/time-picker-v3.tsx DayKey
 types src/components/layout/routeMeta.ts ConsoleRouteMeta
 types src/components/layout/routeMeta.ts ConsoleSectionKey
 types src/components/layout/routeMeta.ts RouteTransitionKind
