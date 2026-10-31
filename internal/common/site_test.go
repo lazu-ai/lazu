@@ -99,3 +99,33 @@ site:
 		t.Fatalf("site = %+v", AppConfig.Site)
 	}
 }
+
+// Only an https link reaches mail footers and error bodies; anything else
+// stays out rather than printing a broken or dangerous link.
+func TestSiteCommunityURLAcceptsOnlyHTTPS(t *testing.T) {
+	withSiteConfig(t, SiteConfig{}, "")
+	if got := SiteCommunityURL(); got != "" {
+		t.Fatalf("unconfigured community url = %q", got)
+	}
+	for _, bad := range []string{"http://t.me/example", "javascript:alert(1)", "https://t.me/a b", "t.me/example"} {
+		AppConfig.Site.CommunityURL = bad
+		if got := SiteCommunityURL(); got != "" {
+			t.Fatalf("community url %q accepted as %q", bad, got)
+		}
+	}
+	AppConfig.Site.CommunityURL = " https://t.me/+AbCdEf "
+	if got := SiteCommunityURL(); got != "https://t.me/+AbCdEf" {
+		t.Fatalf("community url = %q", got)
+	}
+	if got := SiteCommunityPlatform(); got != "Telegram" {
+		t.Fatalf("platform = %q", got)
+	}
+	AppConfig.Site.CommunityURL = "https://discord.gg/example"
+	if got := SiteCommunityPlatform(); got != "Discord" {
+		t.Fatalf("platform = %q", got)
+	}
+	AppConfig.Site.CommunityURL = "https://forum.example.com"
+	if got := SiteCommunityPlatform(); got != "" {
+		t.Fatalf("platform = %q", got)
+	}
+}

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 // Error types are the single answer to "what should the client do next".
@@ -178,12 +180,38 @@ func RenderWire(code ErrorCode, details map[string]any, runtimeStatus int) WireE
 		Status:   status,
 		Type:     pspec.Type,
 		Code:     public,
-		Message:  RenderTemplate(pspec.Template, details),
+		Message:  RenderTemplate(pspec.Template, withSiteDetails(pspec.Template, details)),
 		ID:       pspec.ID,
 		Docs:     ErrorDocsURL(pspec.ID),
 		Audience: pspec.Audience,
 		Known:    known,
 	}
+}
+
+// sitePlaceholderPrefix marks placeholders the deployment fills, not the
+// error: where to top up, where to ask. Clients such as coding agents print
+// the message verbatim, so the links go into the sentence itself.
+const sitePlaceholderPrefix = "{site_"
+
+// withSiteDetails adds the deployment's own links to a template's details:
+// `site_wallet_at` (" at <console>/console/wallet", only once a web origin is
+// configured) and `site_community_hint` (" Questions: <community url>", only
+// with site.community_url). The caller's map is left untouched.
+func withSiteDetails(template string, details map[string]any) map[string]any {
+	if !strings.Contains(template, sitePlaceholderPrefix) {
+		return details
+	}
+	merged := make(map[string]any, len(details)+2)
+	for k, v := range details {
+		merged[k] = v
+	}
+	if origin := common.SiteWebOrigin(); origin != "" && origin != common.DefaultLocalWebOrigin {
+		merged["site_wallet_at"] = " at " + origin + "/console/wallet"
+	}
+	if community := common.SiteCommunityURL(); community != "" {
+		merged["site_community_hint"] = " Questions: " + community
+	}
+	return merged
 }
 
 // ErrorDocsURL links an LZ number to its row in the docs reference.
@@ -439,7 +467,7 @@ var gatewayCatalog = map[ErrorCode]ErrorSpec{
 	// ── LZ-3xxx · wallet and budgets ───────────────────────────────────
 	ErrorCodeInsufficientQuota: {
 		ID: "LZ-3101", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
-		Template: "Wallet balance is too low for this request. Top up to continue.",
+		Template: "Wallet balance is too low for this request. Top up{site_wallet_at|} to continue.{site_community_hint|}",
 	},
 	ErrorCodeKeyBudgetExceeded: {
 		ID: "LZ-3201", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,

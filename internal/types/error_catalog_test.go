@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 var lzNumber = regexp.MustCompile(`^LZ-[1-9]\d{3}$`)
@@ -310,5 +312,31 @@ func TestPublicDetailsRespectResolvedAudience(t *testing.T) {
 	err := NewError(nil, ErrorCodeTokenModelDenied, ErrOptionWithDetails(D{"model": "example-model"}))
 	if err.ToOpenAIError().Details == nil || err.ToClaudeError().Details == nil {
 		t.Fatal("customer guidance was lost")
+	}
+}
+
+// The low-balance message names where to top up and where to ask only once
+// the deployment says so; a bare deployment keeps the plain sentence.
+func TestInsufficientQuotaMessageCarriesSiteLinks(t *testing.T) {
+	original := common.AppConfig
+	originalOIDC := common.OIDCFrontendBaseURL
+	t.Cleanup(func() { common.AppConfig = original; common.OIDCFrontendBaseURL = originalOIDC })
+	common.OIDCFrontendBaseURL = ""
+	t.Setenv("FRONTEND_BASE_URL", "")
+	common.AppConfig.Site = common.SiteConfig{}
+
+	plain := RenderWire(ErrorCodeInsufficientQuota, nil, 0).Message
+	if plain != "Wallet balance is too low for this request. Top up to continue." {
+		t.Fatalf("bare message = %q", plain)
+	}
+	common.AppConfig.Site = common.SiteConfig{WebOrigin: "https://console.example.com", CommunityURL: "https://t.me/+AbCdEf"}
+	full := RenderWire(ErrorCodeInsufficientQuota, map[string]any{"reason": "x"}, 0).Message
+	want := "Wallet balance is too low for this request. Top up at https://console.example.com/console/wallet to continue. Questions: https://t.me/+AbCdEf"
+	if full != want {
+		t.Fatalf("message = %q\nwant      %q", full, want)
+	}
+	// Other rows are rendered as before, with the caller's details only.
+	if got := RenderWire(ErrorCodeKeyBudgetExceeded, nil, 0).Message; strings.Contains(got, "example.com") {
+		t.Fatalf("key budget message picked up site links: %q", got)
 	}
 }
