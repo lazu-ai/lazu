@@ -166,6 +166,12 @@ type SiteConfig struct {
 	// SourceURL is where this deployment's source code is published. AGPL
 	// section 13 asks a network service to offer it; the console links here.
 	SourceURL string `yaml:"source_url"`
+	// CommunityURL is where this deployment's users talk to each other and
+	// to the operator (a chat group, a forum). Mail footers and the
+	// low-balance error point here. The web pages take theirs at build time
+	// (VITE_BRAND_COMMUNITY_URL), so the two can differ, which lets each
+	// entry carry its own invite link.
+	CommunityURL string `yaml:"community_url"`
 }
 
 // TelegramConfig is the deployment's Telegram bot. The token is a secret:
@@ -689,6 +695,9 @@ func loadConfigFile(found string) {
 	}
 	if v := strings.TrimRight(strings.TrimSpace(userCfg.Site.SourceURL), "/"); v != "" {
 		AppConfig.Site.SourceURL = v
+	}
+	if v := strings.TrimSpace(userCfg.Site.CommunityURL); v != "" {
+		AppConfig.Site.CommunityURL = v
 	}
 	if v := strings.TrimSpace(userCfg.Telegram.BotToken); v != "" {
 		AppConfig.Telegram.BotToken = v

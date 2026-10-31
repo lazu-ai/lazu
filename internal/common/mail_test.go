@@ -74,3 +74,27 @@ func TestMailUSD(t *testing.T) {
 		t.Fatal("credit should carry a plus sign")
 	}
 }
+
+// A configured community shows before the support link on user mail, named
+// after its platform; ops mail keeps its console link alone.
+func TestRenderMailFooterCommunityLink(t *testing.T) {
+	withSiteConfig(t, SiteConfig{}, "")
+	plain, _ := RenderMail(Mail{Tier: MailPaper, Lang: MailEN, Title: "Hi"})
+	if strings.Contains(plain, "Community") || strings.Contains(plain, "&nbsp;·&nbsp;") {
+		t.Fatal("footer shows a community link without site.community_url")
+	}
+	AppConfig.Site.CommunityURL = "https://t.me/example_group"
+	en, _ := RenderMail(Mail{Tier: MailPaper, Lang: MailEN, Title: "Hi"})
+	if !strings.Contains(en, `href="https://t.me/example_group"`) || !strings.Contains(en, ">Telegram</a>") || !strings.Contains(en, "Contact support") {
+		t.Fatalf("english footer lost the community or support link:\n%s", en)
+	}
+	AppConfig.Site.CommunityURL = "https://forum.example.com/lazu"
+	zh, _ := RenderMail(Mail{Tier: MailPaper, Title: "你好"})
+	if !strings.Contains(zh, ">社区</a>") || !strings.Contains(zh, "联系支持") {
+		t.Fatal("chinese footer lost the generic community label or support link")
+	}
+	ops, _ := RenderMail(Mail{Tier: MailOps, Title: "disk"})
+	if strings.Contains(ops, "forum.example.com") {
+		t.Fatal("ops footer must not carry the community link")
+	}
+}

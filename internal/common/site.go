@@ -57,6 +57,34 @@ func SiteHost() string {
 // SiteSourceURL is where this deployment's source is published, or empty.
 func SiteSourceURL() string { return cleanOrigin(AppConfig.Site.SourceURL) }
 
+// SiteCommunityURL is where this deployment's users gather (site.community_url),
+// or empty. Only an https link counts, as on the web pages: the value lands
+// in mail and in error bodies that clients print verbatim.
+func SiteCommunityURL() string {
+	raw := strings.TrimSpace(AppConfig.Site.CommunityURL)
+	if !strings.HasPrefix(raw, "https://") || strings.ContainsAny(raw, " \t\r\n\"'<>") {
+		return ""
+	}
+	return raw
+}
+
+// SiteCommunityPlatform names the service behind SiteCommunityURL when the
+// host gives it away (Telegram, Discord), or returns "" for a generic label.
+func SiteCommunityPlatform() string {
+	parsed, err := url.Parse(SiteCommunityURL())
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(parsed.Hostname())
+	switch {
+	case host == "t.me" || host == "telegram.me" || strings.HasSuffix(host, ".t.me"):
+		return "Telegram"
+	case host == "discord.gg" || host == "discord.com" || strings.HasSuffix(host, ".discord.com"):
+		return "Discord"
+	}
+	return ""
+}
+
 // SiteOperator is the legal operator named on legal pages, or empty.
 func SiteOperator() string { return strings.TrimSpace(AppConfig.Site.Operator) }
 
