@@ -143,6 +143,11 @@ email_notifications:
 #   source_url: "https://github.com/your-org/your-fork"
 #   # A GitHub repository here can also be starred from the site: see
 #   # GITHUB_STAR_CLIENT_ID in docs/DEPLOYMENT.md.
+#   # Where users talk to you and each other (https only). Mail footers and
+#   # the low-balance error point here; the web pages take their own link at
+#   # build time (VITE_BRAND_COMMUNITY_URL), so each entry can carry its own
+#   # invite link.
+#   community_url: "https://t.me/your_group"
 
 # -----------------------------------------------------------
 # Telegram (optional)
