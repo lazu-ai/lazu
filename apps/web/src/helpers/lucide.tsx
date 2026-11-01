@@ -21,7 +21,6 @@ import {
   Activity,
   Building2,
   Megaphone,
-  Telescope,
   Search,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -89,8 +88,6 @@ export function getLucideIcon(
       return <Tag {...commonProps} color={iconColor} />;
     case 'setting':
       return <Settings {...commonProps} color={iconColor} />;
-    case 'search_backend':
-      return <Telescope {...commonProps} color={iconColor} />;
     case 'search':
       return <Search {...commonProps} color={iconColor} />;
     case 'channel_health':

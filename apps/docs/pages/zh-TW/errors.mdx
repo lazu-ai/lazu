@@ -292,7 +292,6 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 | <a id="lz-7204"></a>`LZ-7204` | `secret_unavailable` | 409 | `conflict_error` | 這把 Key 只保存了摘要，無法顯示完整金鑰。如需完整金鑰，請新增一把。 |
 | <a id="lz-7205"></a>`LZ-7205` | `key_not_found` | 404 | `not_found_error` | 找不到這把 Key，它可能已被刪除。請重新整理頁面。 |
 | <a id="lz-7301"></a>`LZ-7301` | `channel_not_found` | 404 | `not_found_error` | 這個渠道已不存在，可能已被刪除。請重新整理列表。 |
-| <a id="lz-7302"></a>`LZ-7302` | `channel_search_backend_managed` | 409 | `conflict_error` | 這個渠道是檢索後端，不能在這裡修改。請到「檢索後端」頁面管理。 |
 | <a id="lz-7303"></a>`LZ-7303` | `channel_lane_invalid` | 400 | `invalid_request_error` | 檔位「\{\{lane\}\}」不存在。每個渠道只屬於一個既有檔位，請從列表中選擇。 |
 | <a id="lz-7304"></a>`LZ-7304` | `channel_settings_invalid` | 400 | `invalid_request_error` | 渠道額外設定無法解析，沒有儲存。請檢查 JSON 格式和取值。 |
 | <a id="lz-7305"></a>`LZ-7305` | `channel_model_name_too_long` | 400 | `invalid_request_error` | 有模型名稱超過 255 個字元，渠道沒有儲存。請縮短或刪除它。 |
@@ -413,8 +412,6 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 | <a id="lz-7828"></a>`LZ-7828` | `video_artifact_missing` | 502 | `api_error` | 影片已生成結束，但沒有可下載的檔案。請重新生成。 |
 | <a id="lz-7829"></a>`LZ-7829` | `video_not_ready` | 409 | `conflict_error` | 這部影片還沒有可下載的檔案。等狀態變成 succeeded 後再下載。 |
 | <a id="lz-7830"></a>`LZ-7830` | `invalid_wait` | 400 | `invalid_request_error` | wait 必須是 0 到 60 之間的整數秒。 |
-| <a id="lz-7861"></a>`LZ-7861` | `search_backend_not_found` | 404 | `not_found_error` | 找不到這個搜尋後端。請重新整理列表。 |
-| <a id="lz-7862"></a>`LZ-7862` | `search_backend_provider_invalid` | 400 | `invalid_request_error` | 不支援這個搜尋服務商，或它與渠道類型不一致。請從列表中選擇服務商。 |
 | <a id="lz-7864"></a>`LZ-7864` | `upload_file_not_found` | 404 | `not_found_error` | 伺服器上找不到這個資料檔案。請檢查檔案路徑。 |
 | <a id="lz-7865"></a>`LZ-7865` | `upload_key_not_allowed` | 400 | `invalid_request_error` | 這個路徑不能上傳。目錄和設定檔不在上傳範圍內，請選擇一般資料檔案。 |
 | <a id="lz-7866"></a>`LZ-7866` | `upload_failed` | 502 | `api_error` | 物件儲存沒有接受這次上傳。請檢查儲存設定後再試。 |

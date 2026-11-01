@@ -35,7 +35,6 @@ import ConsolePage from '../../components/ui/console-page';
 import { DatePicker } from '../../components/ui/date-picker';
 import { ErrorState } from '../../components/ui/error-state';
 import { Input } from '../../components/ui/input';
-import { Modal } from '../../components/ui/modal';
 import { PendingBlock, PendingValue } from '../../components/ui/pending';
 import {
   Popover,
@@ -45,6 +44,7 @@ import {
 import { coerceItemsPayload } from '../../components/ui/table-tools';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { notify } from '../../components/ui/toast';
+import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
 import { API } from '../../helpers';
 import { isRoot } from '../../helpers/utils';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
@@ -123,6 +123,37 @@ function MembersPanel({
   const [draft, setDraft] = useState('');
   const [keyword, setKeyword] = useState('');
   const mutations = usePricePlanMutations();
+  /* 移出 runs at once and offers a 10-second undo; the member leaves the
+     list until then, and nothing is sent unless the countdown runs out. */
+  const undoPending = useUndoPending();
+  const memberKey = (member: PricePlanMember) =>
+    `price-plan-member:${planId}:${member.public_id}`;
+  const shown = members.filter((member) => !undoPending.has(memberKey(member)));
+  const removeMember = (member: PricePlanMember) => {
+    if (!planId) return;
+    const name = member.display_name || member.username;
+    const path = `/api/price-plans/${planId}/members/${encodeURIComponent(member.public_id)}`;
+    deferUndoable({
+      keys: [memberKey(member)],
+      message: t('undo.pricePlanMember.removed', {
+        defaultValue: '已移出 {{name}}',
+        name,
+      }),
+      restored: t('undo.pricePlanMember.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.pricePlanMember.failed', {
+        defaultValue: '没移出，{{name}} 已放回',
+        name,
+      }),
+      // The undo toast reports a failure itself, with 重试.
+      commit: async () =>
+        unwrap(await API.delete(path, { skipErrorHandler: true })),
+      keepalive: { method: 'DELETE', path },
+      onCommitted: () => mutations.refresh(planId),
+    });
+  };
 
   useEffect(() => {
     const handle = window.setTimeout(() => setKeyword(draft.trim()), 250);
@@ -170,7 +201,7 @@ function MembersPanel({
         <b>
           {t(`${ns}.edit.members`, { defaultValue: '成员' })}
           {' · '}
-          {pending ? <PendingValue chars={2} /> : members.length}
+          {pending ? <PendingValue chars={2} /> : shown.length}
         </b>
       </div>
       {planId ? (
@@ -248,7 +279,7 @@ function MembersPanel({
       {pending ? (
         <PendingBlock height={46} />
       ) : (
-        members.map((member) => {
+        shown.map((member) => {
           const name = member.display_name || member.username;
           return (
             <div className='pp-member' key={member.public_id}>
@@ -263,17 +294,7 @@ function MembersPanel({
                 size='xs'
                 variant='ghost'
                 disabled={!planId}
-                loading={
-                  mutations.removeMember.isPending &&
-                  mutations.removeMember.variables?.user === member.public_id
-                }
-                onClick={() =>
-                  planId &&
-                  mutations.removeMember.mutate({
-                    id: planId,
-                    user: member.public_id,
-                  })
-                }
+                onClick={() => removeMember(member)}
               >
                 {t(`${ns}.edit.removeMember`, { defaultValue: '移出' })}
               </Button>
@@ -304,7 +325,6 @@ export default function PricePlanEditorPage() {
   const [draft, setDraft] = useState<PlanDraft>(emptyDraft);
   const [initial, setInitial] = useState<PlanDraft>(emptyDraft);
   const [showProblems, setShowProblems] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [vendorOpen, setVendorOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
   const [modelQuery, setModelQuery] = useState('');
@@ -358,6 +378,36 @@ export default function PricePlanEditorPage() {
         },
       },
     );
+  };
+
+  /* 删除 runs at once and offers a 10-second undo instead of a dialog: the
+     page goes back to the list, where the plan reads 删除中 until the
+     request actually goes out. */
+  const deletePlan = () => {
+    if (!planId) return;
+    const name = initial.name;
+    const path = `/api/price-plans/${planId}`;
+    deferUndoable({
+      keys: [`price-plan:${planId}`],
+      message: t('undo.pricePlan.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name,
+      }),
+      restored: t('undo.pricePlan.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.pricePlan.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name,
+      }),
+      // The undo toast reports a failure itself, with 重试.
+      commit: async () =>
+        unwrap(await API.delete(path, { skipErrorHandler: true })),
+      keepalive: { method: 'DELETE', path },
+      onCommitted: () => mutations.refresh(),
+    });
+    navigate('/console/price-plans', { replace: true });
   };
 
   const vendorsTaken = new Set(draft.vendors.map((rule) => rule.vendor_id));
@@ -830,10 +880,7 @@ export default function PricePlanEditorPage() {
       actions={
         <>
           {planId ? (
-            <Button
-              variant='ghost-danger'
-              onClick={() => setConfirmDelete(true)}
-            >
+            <Button variant='ghost-danger' onClick={deletePlan}>
               {t(`${ns}.edit.delete`, { defaultValue: '删除' })}
             </Button>
           ) : null}
@@ -879,43 +926,6 @@ export default function PricePlanEditorPage() {
           </Button>
         </div>
       ) : null}
-
-      <Modal
-        open={confirmDelete}
-        title={t(`${ns}.edit.deleteTitle`, {
-          defaultValue: '删除「{{name}}」？',
-          name: initial.name,
-        })}
-        description={t(`${ns}.edit.deleteHint`, {
-          defaultValue: '成员回到标准价。',
-        })}
-        busy={mutations.remove.isPending}
-        onOpenChange={(open) => {
-          if (!open) setConfirmDelete(false);
-        }}
-        footer={
-          <>
-            <Button variant='ghost' onClick={() => setConfirmDelete(false)}>
-              {t('common.cancel', { defaultValue: '取消' })}
-            </Button>
-            <Button
-              variant='soft-danger'
-              loading={mutations.remove.isPending}
-              onClick={() =>
-                planId &&
-                mutations.remove.mutate(planId, {
-                  onSuccess: () =>
-                    navigate('/console/price-plans', {
-                      replace: true,
-                    }),
-                })
-              }
-            >
-              {t(`${ns}.edit.delete`, { defaultValue: '删除' })}
-            </Button>
-          </>
-        }
-      />
     </ConsolePage>
   );
 }

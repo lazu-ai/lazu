@@ -49,6 +49,9 @@ const fromControl = (event: React.MouseEvent | React.KeyboardEvent) =>
   );
 
 type ModelLedgerProps = {
+  /** A model deleted a moment ago: the row reads 删除中 until the undo
+   *  countdown ends, and offers nothing to click. */
+  isUndoPending?: (view: ModelView) => boolean;
   /** Each lane's default ratio, percent of the official price. */
   laneRatios: Record<string, number>;
   onSelect: (id: string | null) => void;
@@ -130,6 +133,7 @@ function LaneCell({
 
 /** 模型账簿 — one row per model, 40px tall, scanned top to bottom. */
 export default function ModelLedger({
+  isUndoPending,
   laneRatios,
   onSelect,
   onToggleListed,
@@ -239,19 +243,20 @@ export default function ModelLedger({
     const isSelected = selectedId === id;
     const blocked = Boolean(view.blockReason) && !view.listed;
     const official = officialOf(view.record as Record<string, unknown>);
+    const deleting = Boolean(isUndoPending?.(view));
     return (
       <div
-        className={`mo-ledger__row${isSelected ? ' is-selected' : ''}`}
+        className={`mo-ledger__row${isSelected ? ' is-selected' : ''}${deleting ? ' is-undo-pending' : ''}`}
         key={id}
         aria-selected={isSelected}
         role='row'
-        tabIndex={0}
+        tabIndex={deleting ? -1 : 0}
         onClick={(event) => {
-          if (fromControl(event)) return;
+          if (deleting || fromControl(event)) return;
           onSelect(id);
         }}
         onKeyDown={(event) => {
-          if (fromControl(event)) return;
+          if (deleting || fromControl(event)) return;
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             onSelect(id);
@@ -259,16 +264,18 @@ export default function ModelLedger({
         }}
       >
         <span role='cell'>
-          <Checkbox
-            aria-label={t(`${ns}.models.selectModel`, {
-              defaultValue: '选择 {{name}}',
-              name: view.name,
-            })}
-            checked={selectedIds.has(view.id)}
-            onCheckedChange={(checked: unknown) =>
-              onToggleSelection(view, checked === true)
-            }
-          />
+          {deleting ? null : (
+            <Checkbox
+              aria-label={t(`${ns}.models.selectModel`, {
+                defaultValue: '选择 {{name}}',
+                name: view.name,
+              })}
+              checked={selectedIds.has(view.id)}
+              onCheckedChange={(checked: unknown) =>
+                onToggleSelection(view, checked === true)
+              }
+            />
+          )}
         </span>
         <span className='mo-ledger__cell--name' role='cell'>
           <span className='mo-name'>{view.name}</span>
@@ -399,21 +406,27 @@ export default function ModelLedger({
           )}
         </span>
         <span role='cell'>
-          <Switch
-            aria-label={
-              view.blockReason ||
-              t(`${ns}.models.toggleListing`, {
-                defaultValue: '上架 {{name}}',
-                name: view.name,
-              })
-            }
-            checked={view.listed}
-            disabled={!view.listed && (poolsLoading || blocked)}
-            title={view.blockReason || undefined}
-            onCheckedChange={(checked: boolean) =>
-              onToggleListed(view, checked)
-            }
-          />
+          {deleting ? (
+            <Badge variant='neutral'>
+              {t('undo.deleting', { defaultValue: '删除中' })}
+            </Badge>
+          ) : (
+            <Switch
+              aria-label={
+                view.blockReason ||
+                t(`${ns}.models.toggleListing`, {
+                  defaultValue: '上架 {{name}}',
+                  name: view.name,
+                })
+              }
+              checked={view.listed}
+              disabled={!view.listed && (poolsLoading || blocked)}
+              title={view.blockReason || undefined}
+              onCheckedChange={(checked: boolean) =>
+                onToggleListed(view, checked)
+              }
+            />
+          )}
         </span>
       </div>
     );

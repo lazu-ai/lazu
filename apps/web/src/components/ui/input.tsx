@@ -1,4 +1,5 @@
 import React from 'react';
+import { useFieldControlProps } from './field';
 import { cn } from '../../lib/cn';
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
@@ -8,17 +9,30 @@ export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   (
-    { className, error, type = 'text', 'aria-invalid': ariaInvalid, ...props },
+    {
+      className,
+      error,
+      type = 'text',
+      'aria-describedby': ariaDescribedBy,
+      'aria-invalid': ariaInvalid,
+      ...props
+    },
     ref,
-  ) => (
-    <input
-      ref={ref}
-      type={type}
-      aria-invalid={error ? true : ariaInvalid}
-      className={cn('lazu-input', className)}
-      {...props}
-    />
-  ),
+  ) => {
+    const fieldProps = useFieldControlProps({
+      'aria-describedby': ariaDescribedBy,
+      'aria-invalid': error ? true : ariaInvalid,
+    });
+    return (
+      <input
+        ref={ref}
+        type={type}
+        {...fieldProps}
+        className={cn('lazu-input', className)}
+        {...props}
+      />
+    );
+  },
 );
 
 Input.displayName = 'Input';

@@ -42,7 +42,12 @@ import ErrorBoundary from '../common/ErrorBoundary';
 import PublicFooter from '../marketing/PublicFooter';
 import PublicHeader from '../marketing/PublicHeader';
 import ReportProblemDialog from '../support/ReportProblemDialog';
-import { StatusCenter, recordStatusIssue } from '../ui/status-center';
+import {
+  STATUS_ISSUE_OFFLINE,
+  STATUS_ISSUE_RUNTIME_UNAVAILABLE,
+  StatusCenter,
+  recordStatusIssue,
+} from '../ui/status-center';
 import type { UserPayload } from '../../context/User/reducer';
 import type { CSSProperties } from 'react';
 
@@ -227,13 +232,16 @@ const PageLayout = () => {
   useEffect(() => {
     const handleOffline = () =>
       recordStatusIssue({
+        dedupeKey: STATUS_ISSUE_OFFLINE,
         kind: 'warning',
-        message: 'This device is offline. Existing data remains visible.',
+        message: i18n.t('statusCenter.detail.offline', {
+          defaultValue: '这台设备已离线，已加载的数据仍可查看。',
+        }),
         source: 'Network',
       });
     window.addEventListener('offline', handleOffline);
     return () => window.removeEventListener('offline', handleOffline);
-  }, []);
+  }, [i18n]);
 
   useEffect(() => {
     restoreMobileMenuFocusRef.current = false;
@@ -337,11 +345,14 @@ const PageLayout = () => {
     if (!statusQuery.error) return;
     console.warn('[PageLayout] Failed to load status', statusQuery.error);
     recordStatusIssue({
+      dedupeKey: STATUS_ISSUE_RUNTIME_UNAVAILABLE,
       kind: 'unavailable',
-      message: 'Backend status could not be loaded.',
+      message: i18n.t('statusCenter.detail.statusUnavailable', {
+        defaultValue: '读不到后端运行状态。',
+      }),
       source: 'Runtime',
     });
-  }, [statusQuery.error]);
+  }, [i18n, statusQuery.error]);
 
   useEffect(() => {
     if (isMarketingRoute) return;

@@ -22,6 +22,18 @@ export const receipt = (
       : undefined,
   });
 
+/** A receipt whose one action takes the change back (停用 → 启用). Used
+ *  where the change is reversible on its own and needs no confirmation. */
+export const reversibleReceipt = (
+  message: string,
+  reverse: { label: string; onClick: () => void },
+) =>
+  toast.success(message, {
+    duration: RECEIPT_SECONDS * 1000,
+    className: 'projects-receipt',
+    action: reverse,
+  });
+
 /** The sentence a reader sees for a failed project call: the `errors` copy
  *  for its code, never the server's English message. */
 export const describeError = (error: unknown): string => errorMessage(error);

@@ -15,7 +15,6 @@ import {
 import {
   BudgetPicker,
   Card,
-  ConfirmPop,
   KeyLimitBadge,
   Ledger,
   Notice,
@@ -47,7 +46,7 @@ import {
   useProjectInvites,
   useProjectMembers,
 } from '../queries';
-import { errorReceipt, receipt } from '../receipt';
+import { errorReceipt, receipt, reversibleReceipt } from '../receipt';
 import {
   REJECTION_REASONS,
   rejectionActionKey,
@@ -383,14 +382,43 @@ export function MemberOverview() {
       setBusy(false);
     }
   };
-  const withdraw = async (id: string) => {
+  /* Withdrawing runs at once: the same amount and reason can be sent again,
+     so the receipt carries 重新提交 instead of a bubble asking first. */
+  const resubmit = async (requested: number, note: string) => {
     if (!project.client || !project.current) return;
     try {
-      await project.client.withdrawBudgetRequest(project.current.id, id);
-      receipt(t('projects.request.withdrawn'));
+      await project.client.createBudgetRequest(project.current.id, {
+        requested_microusd: requested,
+        reason: note,
+      });
+      receipt(t('projects.request.sentReceipt', { owner: ownerName }));
       await invalidate('budget');
     } catch (e) {
       errorReceipt(e);
+    }
+  };
+  const withdraw = async (request: {
+    id: string;
+    requested_microusd: number;
+    reason: string;
+  }) => {
+    if (!project.client || !project.current) return;
+    setBusy(true);
+    try {
+      await project.client.withdrawBudgetRequest(
+        project.current.id,
+        request.id,
+      );
+      reversibleReceipt(t('projects.request.withdrawn'), {
+        label: t('projects.request.resubmit'),
+        onClick: () =>
+          void resubmit(request.requested_microusd, request.reason),
+      });
+      await invalidate('budget');
+    } catch (e) {
+      errorReceipt(e);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -606,16 +634,14 @@ export function MemberOverview() {
                     </small>
                   </span>
                   <PjBadge tone='warn'>{t('projects.request.pending')}</PjBadge>
-                  <ConfirmPop
-                    confirmLabel={t('projects.request.withdraw')}
-                    onConfirm={() => withdraw(pending.id)}
-                    text={t('projects.request.withdrawConfirm')}
-                    trigger={
-                      <Button size='sm' variant='ghost'>
-                        {t('projects.request.withdraw')}
-                      </Button>
-                    }
-                  />
+                  <Button
+                    loading={busy}
+                    onClick={() => void withdraw(pending)}
+                    size='sm'
+                    variant='ghost'
+                  >
+                    {t('projects.request.withdraw')}
+                  </Button>
                 </div>
                 <p className='pj-sub'>{t('projects.request.onlyOne')}</p>
               </div>

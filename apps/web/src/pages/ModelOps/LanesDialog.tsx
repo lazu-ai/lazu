@@ -1,15 +1,20 @@
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import LaneForm from './LaneForm';
+import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Modal } from '../../components/ui/modal';
 import { PendingBlock } from '../../components/ui/pending';
+import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
+import { API } from '../../helpers/api';
 import { isRoot } from '../../helpers/utils';
 import {
   useChannelLanesQuery,
   useModelOpsDimensionMutations,
+  type ChannelLane,
 } from '../../hooks/models/useModelOpsDimensions';
+import { unwrap } from '../../lib/api-error';
 import type { TFunction } from 'i18next';
 
 const ns = 'page.console.modelOps';
@@ -48,6 +53,37 @@ export default function LanesDialog({ t }: { t: TFunction }) {
     const value = Number(ratios[lane.slug]);
     return !Number.isFinite(value) || value <= 0 || value > 1000;
   });
+
+  /* 删除 runs at once and offers a 10-second undo instead of a dialog;
+     the lane reads 删除中 until the request actually goes out. */
+  const undoPending = useUndoPending();
+  const isUndoPending = (lane: ChannelLane) =>
+    undoPending.has(`lane:${lane.slug}`);
+  const deleteNow = (lane: ChannelLane) => {
+    const name = lane.name || lane.slug;
+    const path = `/api/model_ops/lanes/${encodeURIComponent(lane.slug)}`;
+    deferUndoable({
+      keys: [`lane:${lane.slug}`],
+      message: t('undo.lane.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name,
+      }),
+      restored: t('undo.lane.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.lane.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name,
+      }),
+      // The undo toast reports a failure itself, with 重试.
+      commit: async () =>
+        unwrap(await API.delete(path, { skipErrorHandler: true })),
+      keepalive: { method: 'DELETE', path },
+      onCommitted: mutations.refreshLanes,
+    });
+    back();
+  };
 
   const close = () => {
     setOpen(false);
@@ -106,53 +142,70 @@ export default function LanesDialog({ t }: { t: TFunction }) {
                   {t(`${ns}.lanes.colModels`, { defaultValue: '模型' })}
                 </span>
               </div>
-              {lanes.map((lane) => (
-                <div className='mo-lanedlg__row' key={lane.slug}>
-                  <span className='mo-lanedlg__lane'>
-                    <Button
-                      size='sm'
-                      variant='link'
-                      onClick={() => setView({ kind: 'lane', slug: lane.slug })}
-                    >
-                      {lane.name}
-                    </Button>
-                    <span className='mo-sub'>
-                      {t(`${ns}.lanes.sources`, {
-                        count: lane.sources,
-                        defaultValue: '{{count}} 个来源',
-                      })}
-                      {!lane.enabled
-                        ? ` · ${t(`${ns}.lanes.stopped`, { defaultValue: '已停用' })}`
-                        : ''}
+              {lanes.map((lane) => {
+                const pending = isUndoPending(lane);
+                return (
+                  <div
+                    className={`mo-lanedlg__row${pending ? ' is-undo-pending' : ''}`}
+                    key={lane.slug}
+                  >
+                    <span className='mo-lanedlg__lane'>
+                      {pending ? (
+                        <span>
+                          {lane.name}{' '}
+                          <Badge variant='neutral'>
+                            {t('undo.deleting', { defaultValue: '删除中' })}
+                          </Badge>
+                        </span>
+                      ) : (
+                        <Button
+                          size='sm'
+                          variant='link'
+                          onClick={() =>
+                            setView({ kind: 'lane', slug: lane.slug })
+                          }
+                        >
+                          {lane.name}
+                        </Button>
+                      )}
+                      <span className='mo-sub'>
+                        {t(`${ns}.lanes.sources`, {
+                          count: lane.sources,
+                          defaultValue: '{{count}} 个来源',
+                        })}
+                        {!lane.enabled
+                          ? ` · ${t(`${ns}.lanes.stopped`, { defaultValue: '已停用' })}`
+                          : ''}
+                      </span>
                     </span>
-                  </span>
-                  <span className='mo-lanedlg__ratio'>
-                    <Input
-                      aria-label={t(`${ns}.lanes.ratioFor`, {
-                        defaultValue: '{{name}}默认比例',
-                        name: lane.name,
+                    <span className='mo-lanedlg__ratio'>
+                      <Input
+                        aria-label={t(`${ns}.lanes.ratioFor`, {
+                          defaultValue: '{{name}}默认比例',
+                          name: lane.name,
+                        })}
+                        disabled={!isRoot() || pending}
+                        inputMode='decimal'
+                        value={ratios[lane.slug] ?? String(ratioOf(lane.slug))}
+                        onChange={(event) =>
+                          setRatios((current) => ({
+                            ...current,
+                            [lane.slug]: event.target.value,
+                          }))
+                        }
+                      />
+                      <span className='mo-lanedlg__unit'>%</span>
+                    </span>
+                    <span className='mo-sub'>
+                      {t(`${ns}.lanes.modes`, {
+                        defaultValue: '{{following}} 跟随 · {{fixed}} 固定',
+                        fixed: lane.fixed ?? 0,
+                        following: lane.following ?? 0,
                       })}
-                      disabled={!isRoot()}
-                      inputMode='decimal'
-                      value={ratios[lane.slug] ?? String(ratioOf(lane.slug))}
-                      onChange={(event) =>
-                        setRatios((current) => ({
-                          ...current,
-                          [lane.slug]: event.target.value,
-                        }))
-                      }
-                    />
-                    <span className='mo-lanedlg__unit'>%</span>
-                  </span>
-                  <span className='mo-sub'>
-                    {t(`${ns}.lanes.modes`, {
-                      defaultValue: '{{following}} 跟随 · {{fixed}} 固定',
-                      fixed: lane.fixed ?? 0,
-                      following: lane.following ?? 0,
-                    })}
-                  </span>
-                </div>
-              ))}
+                    </span>
+                  </div>
+                );
+              })}
               {changed.map((lane) => (
                 <p className='mo-notice mo-notice--warn' key={lane.slug}>
                   {t(`${ns}.lanes.repriceNote`, {
@@ -188,8 +241,7 @@ export default function LanesDialog({ t }: { t: TFunction }) {
             lane={selected}
             onCancel={back}
             onDelete={() => {
-              if (!selected) return;
-              mutations.deleteLane.mutate(selected.slug, { onSuccess: back });
+              if (selected) deleteNow(selected);
             }}
             onSave={(next) => {
               mutations.saveLane.mutate(

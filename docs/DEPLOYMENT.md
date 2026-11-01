@@ -79,7 +79,8 @@ editable in the console under **系统设置 › 计费 › 余额不足时**:
 | Telegram alerts, business events and answer bot     | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OPS_CHAT`, `TELEGRAM_EVENTS_CHAT`, `TELEGRAM_EVENTS_TIMEZONE`, `TELEGRAM_UPDATES`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ANSWER_MODEL`, `TELEGRAM_ANSWER_API_KEY`, `TELEGRAM_ANSWER_CHATS`; see [Telegram](#telegram)                                  |
 | Separate browser origins                            | `FRONTEND_BASE_URL`, and exact `CORS_ALLOW_ORIGINS` where needed; see the sign-in guidance below                                                                                                                                                                                      |
 | Cloudflare edge purge on deploy                     | `CF_API_TOKEN` (a token scoped to Zone → Cache Purge for the site's zone) and `CF_ZONE_ID`; see below                                                                                                                                                                                 |
-| Support address and community link on the web pages | `VITE_BRAND_SUPPORT_EMAIL`, `VITE_BRAND_COMMUNITY_URL`: build arguments of the frontend image (`apps/web/Dockerfile`), because the public pages are prerendered. The community link appears in the public footer, the console Help menu and the Organization schema; empty shows none |
+| Support address and community link on the web pages | `VITE_BRAND_SUPPORT_EMAIL`, `VITE_BRAND_COMMUNITY_URL`: build arguments of the frontend image (`apps/web/Dockerfile`), because the public pages are prerendered. The community link appears in the public footer, the console top bar and Help menu (the phone's Help sheet too) and the Organization schema. The docs image (`apps/docs/Dockerfile`) takes `VITE_BRAND_COMMUNITY_URL` as well and shows it beside GitHub in its top bar. Empty shows none |
+| Community link in mail footers and the low-balance error | `site.community_url` in the backend config (an https link). User mail footers link it before the support address; the `insufficient_quota` error says where to top up (once `site.web_origin` or `FRONTEND_BASE_URL` is set) and where to ask. Separate from the web build argument on purpose, so each entry can carry its own invite link and the operator can tell which one brought a member |
 
 Starting containers does not verify payment, email or object storage workflows.
 Validate each enabled integration with its actual provider configuration.
@@ -220,8 +221,8 @@ The gateway makes two kinds of outbound request, with different rules:
   and **addresses a user sets** (their notification webhook and Bark URL) go
   through the media fetch policy above.
 - **Addresses an operator configures** may be private and are not checked
-  against that policy. These are channel base URLs (search backends among
-  them), the OpenID Connect provider, the Uptime Kuma address, the Telegram
+  against that policy. These are channel base URLs, the OpenID Connect
+  provider, the Uptime Kuma address, the Telegram
   `api_base` and knowledge URLs, the answerer and release-note model
   endpoints, object storage, the operator alert webhook and the model
   metadata sources. Each has its own timeout.

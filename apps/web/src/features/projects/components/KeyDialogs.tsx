@@ -34,14 +34,7 @@ import {
 } from '../queries';
 import { errorReceipt, receipt } from '../receipt';
 import { useOperationId } from '../useOperationId';
-import {
-  ActionModal,
-  ErrLine,
-  FormRow,
-  FormRows,
-  GateModal,
-  SegControl,
-} from './atoms';
+import { ActionModal, ErrLine, FormRow, FormRows, SegControl } from './atoms';
 import type { ProjectToken } from '../types';
 
 /* --------------------------------------------------------- created secret */
@@ -421,54 +414,6 @@ export function RotateKeyModal({
 }
 
 /* ------------------------------------------------------------ delete (S10.5) */
-
-export function DeleteKeyModal({
-  token,
-  open,
-  onOpenChange,
-  onDeleted,
-}: {
-  token: ProjectToken;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDeleted: () => void;
-}) {
-  const { t } = useTranslation(['projects', 'translation'], {
-    nsMode: 'fallback',
-  });
-  const project = useProject();
-  const invalidate = useInvalidateProject();
-  const [busy, setBusy] = useState(false);
-  const remove = async () => {
-    if (!project.client || !project.current) return;
-    setBusy(true);
-    try {
-      await project.client.deleteToken(token.id, project.current.id);
-      onOpenChange(false);
-      await invalidate('tokens');
-      receipt(t('projects.key.deletedReceipt', { name: token.name }));
-      onDeleted();
-    } catch (e) {
-      errorReceipt(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <GateModal
-      busy={busy}
-      confirmLabel={t('page.console.tables.delete', { defaultValue: '删除' })}
-      description={t('projects.key.deleteLede', {
-        project: project.currentName,
-      })}
-      gate={{ type: 'checkbox', label: t('projects.key.deleteGate') }}
-      onConfirm={remove}
-      onOpenChange={onOpenChange}
-      open={open}
-      title={t('projects.key.deleteTitle', { name: token.name })}
-    />
-  );
-}
 
 export function EditKeyModal({
   token,

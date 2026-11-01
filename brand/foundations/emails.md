@@ -24,8 +24,9 @@ Lazu 发出的每一封邮件都属于三层之一。层由「这封信的新闻
 
 ## 2. 共用规则
 
-- **外框**：640px，地面 `#f2f2ef`，页脚在卡片外：左 `Lazu.ai`，右 联系支持 / Contact support。运维页脚左侧
-  是 `lazu-backend@<NODE_NAME>`，右侧打开控制台。不写「系统邮件，请勿回复」「© 年份」「感谢一路相伴」。
+- **外框**：640px，地面 `#f2f2ef`，页脚在卡片外：左 `Lazu.ai`，右 联系支持 / Contact support。配置了
+  `site.community_url` 时，右侧先放社区链接（按域名叫 Telegram / Discord，认不出就叫 社区 / Community），
+  再用 `·` 隔开联系支持。运维页脚左侧是 `lazu-backend@<NODE_NAME>`，右侧打开控制台，不带社区链接。不写「系统邮件，请勿回复」「© 年份」「感谢一路相伴」。
 - **标题行**：用户邮件不加 `[Lazu]` 前缀，直接说事（「Lazu 余额只剩 $3.20」「Panda 邀请你加入 北辰实验室」）。
   运维邮件统一 `[Lazu ops]` 前缀。
 - **预览文字**：每封都有 preheader，写标题没说完的半句。

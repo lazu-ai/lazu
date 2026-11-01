@@ -1,12 +1,15 @@
 /* R3 · 成员与预算. Four-column ledger (allocation drawn inside its own cell),
  * member table, pending invitation rows, suspended rows and removal with
  * undo. A row's 「编辑」 opens the small member dialog (budget, allowed models,
- * reasoning-effort cap); role, suspension and removal live in its ··· menu.
+ * reasoning-effort cap); role, suspension and removal live in its ··· menu
+ * and run at once: role and suspension receipts carry the reverse action,
+ * removal and revoking an invite offer an undo
+ * (brand/foundations/feedback-system.md §10).
  * Locked 2026-09-28: brand/foundations/team-projects-2026-09.md. */
 import { Download, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../../../components/ui/button';
 import ConsolePage from '../../../components/ui/console-page';
 import { RowActions } from '../../../components/ui/data-table-shell';
@@ -14,6 +17,11 @@ import { EffortCapBadge } from '../../../components/ui/effort-cap';
 import { InlineNotice } from '../../../components/ui/inline-notice';
 import { Input } from '../../../components/ui/input';
 import { PendingBlock } from '../../../components/ui/pending';
+import {
+  deferUndoable,
+  offerUndo,
+  useUndoPending,
+} from '../../../components/ui/undo-toast';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
 import { isLazuApiError } from '../../../lib/api-error';
 import {
@@ -26,7 +34,6 @@ import { INVITE_VALID_DAYS } from '../budget';
 import {
   BudgetCell,
   Card,
-  ActionModal,
   Ledger,
   PjBadge,
   RoleBadge,
@@ -37,11 +44,7 @@ import {
 } from '../components/atoms';
 import { InviteExpiry } from '../components/InviteExpiry';
 import { InviteModal } from '../components/InviteModal';
-import {
-  RemoveMemberModal,
-  RoleChangeModal,
-  UndoRemoveLine,
-} from '../components/MemberDialogs';
+import { UndoRemoveLine, undoRemoval } from '../components/MemberDialogs';
 import { MemberEditModal } from '../components/MemberEditModal';
 import { budgetTone, formatUSD, formatUSDShort, percentOf } from '../money';
 import { useProject } from '../ProjectContext';
@@ -52,7 +55,7 @@ import {
   useProjectMembers,
   useProjectTokens,
 } from '../queries';
-import { errorReceipt, receipt } from '../receipt';
+import { errorReceipt, receipt, reversibleReceipt } from '../receipt';
 import {
   type ProjectInvite,
   type ProjectMember,
@@ -90,7 +93,6 @@ export default function MembersPage() {
   const { t } = useTranslation(['projects', 'translation'], {
     nsMode: 'fallback',
   });
-  const navigate = useNavigate();
   const project = useProject();
   const invalidate = useInvalidateProject();
   const detail = useProjectDetail();
@@ -111,17 +113,7 @@ export default function MembersPage() {
     else next.delete('edit');
     setSearch(next, { replace: true });
   };
-  const [roleChange, setRoleChange] = useState<{
-    member: ProjectMember;
-    role: 'admin' | 'member';
-  } | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [removing, setRemoving] = useState<ProjectMember | null>(null);
-  /* Suspend and revoke confirmed in popovers hung off their own row buttons.
-     Those buttons are in the overflow menu now, and the menu closes on
-     select, so each confirms in a dialog. */
-  const [suspending, setSuspending] = useState<ProjectMember | null>(null);
-  const [revoking, setRevoking] = useState<ProjectInvite | null>(null);
   const [undo, setUndo] = useState<{
     member: ProjectMember;
     receipt: RemovalReceipt;
@@ -152,8 +144,12 @@ export default function MembersPage() {
   const d = detail.data;
   const list = members.data ?? [];
   const revealMembers = useDelayedReveal(members.isPending);
+  /* An invite being revoked leaves the list at once; 撤销 puts it back. */
+  const undoPending = useUndoPending();
   const pending = (invites.data ?? []).filter(
-    (i) => i.status === 'pending' || i.status === 'expired',
+    (i) =>
+      (i.status === 'pending' || i.status === 'expired') &&
+      !undoPending.has(`invite:${i.id}`),
   );
   const allKeys = tokens.data ?? [];
 
@@ -217,13 +213,86 @@ export default function MembersPage() {
         member.user_id,
         status,
       );
-      receipt(
-        status === 'suspended'
+      const suspended = status === 'suspended';
+      reversibleReceipt(
+        suspended
           ? t('projects.status.suspended', { name: member.username })
           : t('projects.status.restored', { name: member.username }),
+        {
+          label: suspended
+            ? t('projects.status.enable')
+            : t('projects.status.suspend'),
+          onClick: () =>
+            void setStatus(member, suspended ? 'active' : 'suspended'),
+        },
       );
       await invalidate('members');
       await invalidate('tokens');
+    } catch (error) {
+      errorReceipt(error);
+    }
+  };
+
+  const changeRole = async (
+    member: ProjectMember,
+    role: Exclude<ProjectMember['role'], 'owner'>,
+  ) => {
+    if (!project.client || !project.current) return;
+    try {
+      await project.client.setMemberRole(
+        project.current.id,
+        member.user_id,
+        role,
+      );
+      const promoted = role === 'admin';
+      reversibleReceipt(
+        promoted
+          ? t('projects.role.promoted', { name: member.username })
+          : t('projects.role.demoted', { name: member.username }),
+        {
+          label: promoted
+            ? t('projects.memberEdit.makeMember')
+            : t('projects.memberEdit.makeAdmin'),
+          onClick: () => void changeRole(member, promoted ? 'member' : 'admin'),
+        },
+      );
+      await invalidate('members');
+    } catch (error) {
+      errorReceipt(error);
+    }
+  };
+
+  /* Removal stops the member's Keys at once. The server keeps a 10-minute
+     undo: the toast offers it for ten seconds, the line above the table for
+     the rest. */
+  const removeMember = async (member: ProjectMember) => {
+    const client = project.client;
+    const current = project.current;
+    if (!client || !current) return;
+    try {
+      const result = await client.removeMember(current.id, member.user_id);
+      setUndo({ member, receipt: result });
+      if (search.has('edit') || search.has('member')) {
+        const next = new URLSearchParams(search);
+        next.delete('edit');
+        next.delete('member');
+        setSearch(next, { replace: true });
+      }
+      await invalidate('members');
+      await invalidate('tokens');
+      offerUndo({
+        message: t('projects.remove.removedToast', { name: member.username }),
+        undo: () =>
+          undoRemoval({
+            client,
+            invalidate,
+            member,
+            projectId: current.id,
+            receiptData: result,
+            t,
+          }),
+        onUndone: () => setUndo(null),
+      });
     } catch (error) {
       errorReceipt(error);
     }
@@ -253,18 +322,25 @@ export default function MembersPage() {
     }
   };
 
-  const revoke = async (invite: ProjectInvite) => {
-    if (!project.client || !project.current) return;
-    setBusyInvite(invite.id);
-    try {
-      await project.client.revokeInvite(project.current.id, invite.id);
-      receipt(t('projects.invite.revoked', { email: invite.email }));
-      await invalidate('invites');
-    } catch (error) {
-      errorReceipt(error);
-    } finally {
-      setBusyInvite(null);
-    }
+  /* Nothing is sent until the undo runs out, so the link keeps working for
+     those ten seconds. */
+  const revoke = (invite: ProjectInvite) => {
+    const client = project.client;
+    const current = project.current;
+    if (!client || !current) return;
+    const path = `/api/project/${current.id}/invites/${invite.id}/revoke`;
+    deferUndoable({
+      keys: [`invite:${invite.id}`],
+      message:
+        invite.status === 'expired'
+          ? t('projects.invite.removedToast', { email: invite.email })
+          : t('projects.invite.revoked', { email: invite.email }),
+      restored: t('projects.invite.revokeUndone', { email: invite.email }),
+      failed: t('projects.invite.revokeFailed', { email: invite.email }),
+      commit: () => client.revokeInvite(current.id, invite.id),
+      keepalive: { method: 'POST', path },
+      onCommitted: () => void invalidate('invites'),
+    });
   };
 
   const exportCsv = () => {
@@ -373,23 +449,20 @@ export default function MembersPage() {
                   ? t('projects.memberEdit.makeMember')
                   : t('projects.memberEdit.makeAdmin'),
               onSelect: () =>
-                setRoleChange({
-                  member: m,
-                  role: m.role === 'admin' ? 'member' : 'admin',
-                }),
+                void changeRole(m, m.role === 'admin' ? 'member' : 'admin'),
             },
             {
               hidden: !removable || suspended,
               key: 'suspend',
               label: t('projects.status.suspend'),
-              onSelect: () => setSuspending(m),
+              onSelect: () => void setStatus(m, 'suspended'),
             },
             {
               danger: true,
               hidden: !removable,
               key: 'remove',
               label: t('projects.remove.button'),
-              onSelect: () => setRemoving(m),
+              onSelect: () => void removeMember(m),
             },
           ]}
           menuLabel={t('projects.common.moreFor', {
@@ -772,10 +845,7 @@ export default function MembersPage() {
                                 label: expired
                                   ? t('projects.invite.remove')
                                   : t('projects.invite.revoke'),
-                                onSelect: () =>
-                                  expired
-                                    ? void revoke(invite)
-                                    : setRevoking(invite),
+                                onSelect: () => revoke(invite),
                               },
                             ]}
                             menuLabel={t('projects.common.moreFor', {
@@ -879,8 +949,7 @@ export default function MembersPage() {
                           label: expired
                             ? t('projects.invite.remove')
                             : t('projects.invite.revoke'),
-                          onSelect: () =>
-                            expired ? void revoke(invite) : setRevoking(invite),
+                          onSelect: () => revoke(invite),
                         },
                       ]}
                       menuLabel={t('projects.common.moreFor', {
@@ -912,37 +981,6 @@ export default function MembersPage() {
         onOpenChange={setInviteOpen}
         open={inviteOpen}
       />
-      <ActionModal
-        confirmLabel={t('projects.status.suspend')}
-        danger
-        onConfirm={() => {
-          if (suspending) void setStatus(suspending, 'suspended');
-          setSuspending(null);
-        }}
-        onOpenChange={(open) => {
-          if (!open) setSuspending(null);
-        }}
-        open={suspending !== null}
-        title={t('projects.status.suspendConfirm', {
-          name: suspending?.username ?? '',
-          project: project.currentName,
-        })}
-      />
-      <ActionModal
-        confirmLabel={t('projects.invite.revoke')}
-        danger
-        onConfirm={() => {
-          if (revoking) void revoke(revoking);
-          setRevoking(null);
-        }}
-        onOpenChange={(open) => {
-          if (!open) setRevoking(null);
-        }}
-        open={revoking !== null}
-        title={t('projects.invite.revokeConfirm', {
-          name: (revoking?.email ?? '').split('@')[0],
-        })}
-      />
       {(() => {
         const target = list.find((m) => m.user_id === editing);
         return target &&
@@ -961,32 +999,6 @@ export default function MembersPage() {
           />
         ) : null;
       })()}
-      {roleChange ? (
-        <RoleChangeModal
-          member={roleChange.member}
-          nextRole={roleChange.role}
-          onOpenChange={(open) => {
-            if (!open) setRoleChange(null);
-          }}
-          onDone={() => setRoleChange(null)}
-          open
-        />
-      ) : null}
-      {removing ? (
-        <RemoveMemberModal
-          keys={allKeys.filter((k) => k.owner?.id === removing.user_id)}
-          member={removing}
-          onOpenChange={(open) => {
-            if (!open) setRemoving(null);
-          }}
-          onRemoved={(r) => {
-            setUndo({ member: removing, receipt: r });
-            setRemoving(null);
-            navigate('/console/project/members');
-          }}
-          open
-        />
-      ) : null}
     </ConsolePage>
   );
 }

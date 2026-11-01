@@ -45,6 +45,29 @@ export const getCommunityURL = (): string | null => {
   return /^https?:\/\/\S+$/.test(raw) ? raw : null;
 };
 
+/* The chat app a community link opens, when its host says so, so an entry
+ * can be labelled with the place it leads ("Telegram") rather than a generic
+ * word. Any other host (a forum, a self-hosted chat) gets null and the
+ * caller's generic label. */
+const COMMUNITY_PLATFORMS: { hosts: string[]; name: string }[] = [
+  { hosts: ['t.me', 'telegram.me', 'telegram.dog'], name: 'Telegram' },
+  { hosts: ['discord.gg', 'discord.com'], name: 'Discord' },
+];
+
+export const getCommunityPlatform = (url: string | null): string | null => {
+  if (!url) return null;
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+  return (
+    COMMUNITY_PLATFORMS.find((platform) => platform.hosts.includes(host))
+      ?.name ?? null
+  );
+};
+
 /* The repository behind the GitHub entry on the public pages. Same order as
  * the docs URL: a build may point at a fork (VITE_BRAND_SOURCE_URL), the
  * running deployment may name where its own source is published

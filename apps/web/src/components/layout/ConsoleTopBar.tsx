@@ -17,11 +17,12 @@ import {
   Globe2,
   LogOut,
   Moon,
+  Send,
   Settings,
   Sun,
   Wallet,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './console-topbar.css';
@@ -35,6 +36,7 @@ import { ProjectSwitcher } from '../../features/projects/components/ProjectSwitc
 import { useProject } from '../../features/projects/ProjectContext';
 import { API } from '../../helpers/api';
 import {
+  getCommunityPlatform,
   getCommunityURL,
   getDocsBaseURL,
   getSupportEmail,
@@ -52,14 +54,12 @@ import { useSidebar } from '../../hooks/common/useSidebar';
 import { formatVersionLabel } from '../announcements/versionLabel';
 import { openWhatsNewDialog } from '../announcements/whatsNewChannel';
 import { openReportProblem } from '../support/reportChannel';
-import { CompactConfirmation } from '../ui/compact-confirmation';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { notify } from '../ui/toast';
 
 const LANGUAGES = [
   { label: 'English', shortLabel: 'EN', value: 'en' },
@@ -95,11 +95,6 @@ const ConsoleTopBar = () => {
   const { hasUnread } = useAnnouncementsUnread(Boolean(user));
   const { isModuleVisible } = useSidebar();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [confirmLogout, setConfirmLogout] = useState(false);
-  const cancelLogoutRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (confirmLogout) cancelLogoutRef.current?.focus();
-  }, [confirmLogout]);
 
   const isDark = actualTheme === 'dark';
   const language = normalizeLanguage(i18n.language);
@@ -155,6 +150,18 @@ const ConsoleTopBar = () => {
   /* The community link exists only when the build names one; support mail
      always has an address (the brand default when the build sets none). */
   const communityHref = getCommunityURL();
+  /* Named after the app it opens when the host says which ("Telegram"), so
+     the reader knows where the click goes; any other link is 社区. */
+  const communityName = getCommunityPlatform(communityHref);
+  const communityLabel =
+    communityName ??
+    t('console.topbar.communityShort', { defaultValue: '社区' });
+  const communityHint = communityName
+    ? t('console.topbar.communityHint', {
+        defaultValue: '加入 {{name}} 交流群',
+        name: communityName,
+      })
+    : t('console.topbar.community', { defaultValue: '加入社区' });
   const supportEmail = getSupportEmail();
   /* An API-key pass has no wallet of its own, and a deployment can switch the
      page off entirely; /console/wallet refuses both. The sidebar and the
@@ -201,7 +208,6 @@ const ConsoleTopBar = () => {
       // The session may already be gone server-side; the client-side cleanup
       // below is what actually signs this browser out.
     }
-    notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
     userSession.signOut();
     localStorage.removeItem('user');
     navigate('/login');
@@ -295,6 +301,24 @@ const ConsoleTopBar = () => {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* The community sits in the bar itself, not only in Help: people
+            who want to ask other people rarely think to open a menu called
+            帮助 for it. Absent when the build names no community. */}
+        {communityHref ? (
+          <a
+            aria-label={communityHint}
+            className='console-topbar__tool console-topbar__tool--labelled'
+            data-owns-chrome=''
+            href={communityHref}
+            rel='noopener noreferrer'
+            target='_blank'
+            title={communityHint}
+          >
+            <Send aria-hidden='true' size={15} />
+            <span>{communityLabel}</span>
+          </a>
+        ) : null}
+
         {/* Help is also where the build number lives. A gateway's version
             matters when something is wrong, which is exactly when someone
             opens this menu — it does not need a permanent plate of its own. */}
@@ -337,7 +361,12 @@ const ConsoleTopBar = () => {
                 }
               >
                 <span>
-                  {t('console.topbar.community', { defaultValue: '加入社群' })}
+                  {communityName
+                    ? t('console.topbar.communityNamed', {
+                        defaultValue: '{{name}} 交流群',
+                        name: communityName,
+                      })
+                    : communityHint}
                 </span>
               </DropdownMenuItem>
             ) : null}
@@ -432,7 +461,7 @@ const ConsoleTopBar = () => {
 
         <span aria-hidden='true' className='console-topbar__divider' />
 
-        <DropdownMenu onOpenChange={() => setConfirmLogout(false)}>
+        <DropdownMenu>
           <DropdownMenuTrigger>
             <button
               aria-label={t('console.topbar.account', {
@@ -445,77 +474,48 @@ const ConsoleTopBar = () => {
               {initial(viewerName || 'U')}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align='end'
-            className={
-              confirmLogout
-                ? 'lazu-compact-confirmation-surface'
-                : 'console-topbar__menu'
-            }
-          >
-            {confirmLogout ? (
-              <CompactConfirmation
-                title={t('session.logoutConfirm', {
-                  defaultValue: '退出当前账户？',
-                })}
-                cancelLabel={t('common.cancel', { defaultValue: '取消' })}
-                confirmLabel={t('session.confirmLogout', {
-                  defaultValue: '退出',
-                })}
-                cancelRef={cancelLogoutRef}
-                busy={loggingOut}
-                onCancel={() => setConfirmLogout(false)}
-                onConfirm={() => void handleLogout()}
-              />
-            ) : (
-              <>
-                {viewerName ? (
-                  <div className='console-topbar__who'>
-                    <b>{viewerName}</b>
-                    {typeof user?.email === 'string' && user.email ? (
-                      <small>{user.email}</small>
-                    ) : null}
-                  </div>
+          <DropdownMenuContent align='end' className='console-topbar__menu'>
+            {viewerName ? (
+              <div className='console-topbar__who'>
+                <b>{viewerName}</b>
+                {typeof user?.email === 'string' && user.email ? (
+                  <small>{user.email}</small>
                 ) : null}
-                <DropdownMenuItem
-                  className='console-topbar__item'
-                  onMouseEnter={() => preloadConsoleRoute('/console/personal')}
-                  onFocus={() => preloadConsoleRoute('/console/personal')}
-                  onSelect={() => go('/console/personal')}
-                >
-                  <Settings aria-hidden='true' size={14} />
-                  <span>
-                    {t('nav.personalSettings', { defaultValue: '个人设置' })}
-                  </span>
-                </DropdownMenuItem>
-                {showWallet ? (
-                  <DropdownMenuItem
-                    className='console-topbar__item'
-                    onMouseEnter={() => preloadConsoleRoute('/console/wallet')}
-                    onFocus={() => preloadConsoleRoute('/console/wallet')}
-                    onSelect={() => go('/console/wallet')}
-                  >
-                    <Wallet aria-hidden='true' size={14} />
-                    <span>{t('nav.wallet', { defaultValue: '钱包' })}</span>
-                  </DropdownMenuItem>
-                ) : null}
-                <div className='console-topbar__rule' />
-                <DropdownMenuItem
-                  className='console-topbar__item console-topbar__item--danger'
-                  closeOnClick={false}
-                  disabled={loggingOut}
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setConfirmLogout(true);
-                  }}
-                >
-                  <LogOut aria-hidden='true' size={14} />
-                  <span>
-                    {t('session.confirmLogout', { defaultValue: '退出' })}
-                  </span>
-                </DropdownMenuItem>
-              </>
-            )}
+              </div>
+            ) : null}
+            <DropdownMenuItem
+              className='console-topbar__item'
+              onMouseEnter={() => preloadConsoleRoute('/console/personal')}
+              onFocus={() => preloadConsoleRoute('/console/personal')}
+              onSelect={() => go('/console/personal')}
+            >
+              <Settings aria-hidden='true' size={14} />
+              <span>
+                {t('nav.personalSettings', { defaultValue: '个人设置' })}
+              </span>
+            </DropdownMenuItem>
+            {showWallet ? (
+              <DropdownMenuItem
+                className='console-topbar__item'
+                onMouseEnter={() => preloadConsoleRoute('/console/wallet')}
+                onFocus={() => preloadConsoleRoute('/console/wallet')}
+                onSelect={() => go('/console/wallet')}
+              >
+                <Wallet aria-hidden='true' size={14} />
+                <span>{t('nav.wallet', { defaultValue: '钱包' })}</span>
+              </DropdownMenuItem>
+            ) : null}
+            <div className='console-topbar__rule' />
+            <DropdownMenuItem
+              className='console-topbar__item console-topbar__item--danger'
+              disabled={loggingOut}
+              onSelect={() => void handleLogout()}
+            >
+              <LogOut aria-hidden='true' size={14} />
+              <span>
+                {t('session.confirmLogout', { defaultValue: '退出' })}
+              </span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

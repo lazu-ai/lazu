@@ -24,9 +24,9 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 import { Input } from '../../components/ui/input';
-import { Modal } from '../../components/ui/modal';
 import { Pagination } from '../../components/ui/pagination';
 import { notify } from '../../components/ui/toast';
+import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
 import { API } from '../../helpers/api';
 import { isRoot, showError } from '../../helpers/utils';
 import { useModelInfoReviewsQuery } from '../../hooks/models/useModelInfoQuery';
@@ -71,7 +71,6 @@ export default function ModelOpsPage() {
 
   const [syncKind, setSyncKind] = useState<SyncPreviewKind | null>(null);
   const [savingTier, setSavingTier] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<ModelView | null>(null);
   const [makersOpen, setMakersOpen] = useState(false);
   const reviewsQuery = useModelInfoReviewsQuery();
   const pendingView = searchParams.get('view') === 'pending';
@@ -280,6 +279,85 @@ export default function ModelOpsPage() {
     }
     setSelectedId(null, true);
   }, [navigate, setSelectedId]);
+
+  /* 删除 runs at once and offers a 10-second undo instead of a dialog;
+     the row reads 删除中 until the request actually goes out. */
+  const undoPending = useUndoPending();
+  // The undo toast reports a failure itself, with 重试.
+  const quiet = { skipErrorHandler: true } as const;
+  const isUndoPending = (view: ModelView) =>
+    undoPending.has(`model:${String(view.id)}`);
+  const deleteNow = (view: ModelView) => {
+    const name = view.name;
+    const path = `/api/models/${view.id}`;
+    deferUndoable({
+      keys: [`model:${String(view.id)}`],
+      message: t('undo.model.deleted', {
+        defaultValue: '已删除 {{name}}',
+        name,
+      }),
+      restored: t('undo.model.restored', {
+        defaultValue: '已恢复 {{name}}',
+        name,
+      }),
+      failed: t('undo.model.failed', {
+        defaultValue: '没删成，{{name}} 已放回',
+        name,
+      }),
+      commit: async () => unwrap(await API.delete(path, quiet)),
+      keepalive: { method: 'DELETE', path },
+      onCommitted: models.refresh,
+    });
+    if (String(view.id) === selectedId) closeInspector();
+    models.setSelectedModels((current: ModelRecord[]) =>
+      current.filter((item) => String(item.id) !== String(view.id)),
+    );
+  };
+  const deleteSelected = () => {
+    const ids = ((models.selectedModels || []) as ModelRecord[]).map(
+      (record) => record.id,
+    );
+    if (!ids.length) return;
+    const count = ids.length;
+    /* Models have no batch endpoint, so the commit is one DELETE each and a
+       retry only sends the ones that have not gone through. With several
+       requests there is no single keepalive; leaving the page tries them. */
+    const remaining = new Set(ids);
+    deferUndoable({
+      keys: ids.map((id) => `model:${String(id)}`),
+      message: t('undo.model.deletedMany', {
+        count,
+        defaultValue: '已删除 {{count}} 个模型',
+      }),
+      restored: t('undo.model.restoredMany', {
+        count,
+        defaultValue: '已恢复 {{count}} 个模型',
+      }),
+      failed: t('undo.model.failedMany', {
+        count,
+        defaultValue: '没删成，{{count}} 个模型已放回',
+      }),
+      commit: async () => {
+        const results = await Promise.allSettled(
+          [...remaining].map(async (id) => {
+            unwrap(await API.delete(`/api/models/${id}`, quiet));
+            remaining.delete(id);
+          }),
+        );
+        const failure = results.find(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected',
+        );
+        if (failure) {
+          // Some may have gone through; show the list as it now is.
+          models.refresh();
+          throw failure.reason;
+        }
+      },
+      onCommitted: models.refresh,
+    });
+    models.setSelectedModels([]);
+  };
 
   const pricingOwners = useMemo(() => {
     const result = new Map<string, string>();
@@ -588,6 +666,9 @@ export default function ModelOpsPage() {
               >
                 {t(`${ns}.models.bulkUnlist`, { defaultValue: '批量下架' })}
               </Button>
+              <Button size='sm' variant='soft-danger' onClick={deleteSelected}>
+                {t('page.console.tables.delete')}
+              </Button>
               <Button
                 size='sm'
                 variant='ghost'
@@ -621,6 +702,7 @@ export default function ModelOpsPage() {
             </div>
           ) : (
             <ModelLedger
+              isUndoPending={isUndoPending}
               laneRatios={laneRatios}
               pendingRelease={pendingRelease}
               poolsLoading={poolsQuery.isLoading}
@@ -692,7 +774,7 @@ export default function ModelOpsPage() {
           view={selected}
           windowHours={WINDOW_HOURS}
           onClose={closeInspector}
-          onDelete={(view) => setPendingDelete(view)}
+          onDelete={deleteNow}
           onMetaSaved={() => {
             queryClient.invalidateQueries({ queryKey: ['console'] });
             if (isNew) closeInspector();
@@ -717,53 +799,6 @@ export default function ModelOpsPage() {
           onTabChange={setPanelTab}
         />
       ) : null}
-
-      <Modal
-        open={Boolean(pendingDelete)}
-        title={t(`${ns}.models.deleteTitle`, { defaultValue: '删除模型' })}
-        description={t(`${ns}.models.deleteDescription`, {
-          defaultValue:
-            '删除后该模型会从工作台目录消失，已发布的定价版本会保留在审计里。',
-        })}
-        body={<p className='mo-name'>{pendingDelete?.name || ''}</p>}
-        footer={
-          <>
-            <Button
-              disabled={models.manageModelMutation.isPending}
-              variant='secondary'
-              onClick={() => setPendingDelete(null)}
-            >
-              {t('common.cancel', { defaultValue: '取消' })}
-            </Button>
-            <Button
-              variant='danger'
-              loading={models.manageModelMutation.isPending}
-              onClick={async () => {
-                try {
-                  if (pendingDelete) {
-                    await models.manageModelMutation.mutateAsync({
-                      action: 'delete',
-                      id: pendingDelete.id,
-                    });
-                    if (String(pendingDelete.id) === selectedId) {
-                      setSelectedId(null);
-                    }
-                  }
-                  setPendingDelete(null);
-                } catch {
-                  /* Mutation reports the error; preserve confirmation for retry. */
-                }
-              }}
-            >
-              {t('page.console.tables.delete')}
-            </Button>
-          </>
-        }
-        onOpenChange={(open: boolean) => {
-          if (!open && !models.manageModelMutation.isPending)
-            setPendingDelete(null);
-        }}
-      />
 
       <MakerOrderDialog open={makersOpen} t={t} onOpenChange={setMakersOpen} />
       <SyncPreviewModal

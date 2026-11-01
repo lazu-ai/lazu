@@ -14,6 +14,15 @@ import { join } from "node:path";
 // themselves.
 const BASE_PATH = "/docs";
 
+// The community link a deployment names at build time, the same
+// VITE_BRAND_COMMUNITY_URL the web app reads. Only an https URL is passed
+// on; sidebar-extras.js reads it from a <meta> and adds the entry beside
+// GitHub. Unset, the docs show no community entry.
+const COMMUNITY_URL = (() => {
+  const raw = String(process.env.VITE_BRAND_COMMUNITY_URL || "").trim();
+  return /^https:\/\/\S+$/.test(raw) ? raw : "";
+})();
+
 // Scripts a deployment adds to every page's <head>: each extensions/*.head.js
 // file is inlined as one script, in name order. The public tree has none.
 const extensionsDir = join(import.meta.dirname, "extensions");
@@ -93,6 +102,15 @@ const head = () =>
         dangerouslySetInnerHTML: { __html: script.source },
       }),
     ),
+    ...(COMMUNITY_URL
+      ? [
+          createElement("meta", {
+            key: "community-url",
+            name: "lazu-community-url",
+            content: COMMUNITY_URL,
+          }),
+        ]
+      : []),
     createElement("link", {
       key: "brand-theme",
       rel: "stylesheet",

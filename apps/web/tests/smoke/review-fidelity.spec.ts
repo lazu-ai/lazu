@@ -131,7 +131,7 @@ test('review tables retain visible actions and never grow when a long key is rev
     consoleScope: 'platform:operations',
     payloadFor: reviewPayload,
   });
-  for (const route of ['search-backend', 'token']) {
+  for (const route of ['token']) {
     await expectRouteReady(page, `/console/${route}`);
     const secret = page.locator('.lazu-inline-secret').first();
     await expect(secret).toBeVisible();

@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -19,7 +18,12 @@ import { setUserData } from '../../helpers/data';
 import { getMicroUSDPerUSD } from '../../helpers/render';
 import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
-import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
+import {
+  apiErrorHandler,
+  errorMessage,
+  isRefusal,
+  unwrap,
+} from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import useAuthStatus from '../auth/useAuthStatus';
 import { Button } from '../ui/button';
@@ -29,6 +33,7 @@ import { InlineNotice } from '../ui/inline-notice';
 import { Input } from '../ui/input';
 import { Modal } from '../ui/modal';
 import { PendingBlock, PendingValue } from '../ui/pending';
+import { GateModal } from '../ui/project-primitives';
 import { Select, SelectItem } from '../ui/select';
 import { SettingsCard, SettingsRow } from '../ui/settings-card';
 import { Switch } from '../ui/switch';
@@ -384,7 +389,6 @@ const PersonalSetting = () => {
   const userSession = useSession();
   const [expanded, setExpanded] = useState<ExpandedRow>(null);
   const [usernameDraft, setUsernameDraft] = useState('');
-  const [deleteText, setDeleteText] = useState('');
   const { status: authStatus } = useAuthStatus();
   const timeZone = useMemo(resolveTimeZone, []);
 
@@ -625,12 +629,11 @@ const PersonalSetting = () => {
     onError: apiErrorHandler,
   });
 
+  // A failure stays in the gate, written above its buttons, instead of a
+  // toast from the request interceptor.
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
-      if (deleteText !== user.username) {
-        throw new Error(t(`${ns}.delete.confirmationError`));
-      }
-      unwrap(await API.delete('/api/user/self'));
+      unwrap(await API.delete('/api/user/self', { skipErrorHandler: true }));
     },
     onSuccess: async () => {
       notify.success(t(`${ns}.delete.success`));
@@ -639,8 +642,16 @@ const PersonalSetting = () => {
       localStorage.removeItem('user');
       navigate('/login');
     },
-    onError: apiErrorHandler,
   });
+  // The delete is one transaction: a refusal changed nothing. A lost answer
+  // or a server failure leaves the outcome unknown, and says so.
+  const deleteError = deleteAccountMutation.error
+    ? isRefusal(deleteAccountMutation.error)
+      ? t(`${ns}.delete.failed`, {
+          reason: errorMessage(deleteAccountMutation.error),
+        })
+      : errorMessage(deleteAccountMutation.error)
+    : undefined;
 
   const notificationType = notificationForm.watch('warningType');
   /* Telegram is offered only where the deployment's bot can complete a
@@ -777,10 +788,7 @@ const PersonalSetting = () => {
     >
       <PersonalEditorContext.Provider
         value={{
-          close: () => {
-            setDeleteText('');
-            setExpanded(null);
-          },
+          close: () => setExpanded(null),
           busy:
             changeUsernameMutation.isPending ||
             changePasswordMutation.isPending ||
@@ -1547,60 +1555,32 @@ const PersonalSetting = () => {
               )
             }
           />
-          <Modal
-            className='personal-setting-editor'
-            open={expanded === 'delete'}
-            title={t(`${ns}.delete.title`)}
+          <GateModal
             busy={deleteAccountMutation.isPending}
+            confirmLabel={t(`${ns}.delete.confirmAction`)}
+            error={deleteError}
+            gate={{
+              type: 'typed',
+              expected: user.username || '',
+              inputId: 'delete-confirm',
+              label: t(`${ns}.delete.typeUsername`, {
+                username: user.username,
+              }),
+            }}
+            onConfirm={() => deleteAccountMutation.mutate()}
             onOpenChange={(open) => {
               if (!open) {
-                setDeleteText('');
                 setExpanded(null);
+                deleteAccountMutation.reset();
               }
             }}
+            open={expanded === 'delete'}
+            title={t(`${ns}.delete.question`, { username: user.username })}
             body={
-              <SetEditor tone='danger'>
-                <p className='set-ed__d'>{t(`${ns}.delete.warning`)}</p>
-                <label className='set-ed__lb' htmlFor='delete-confirm'>
-                  {t(`${ns}.delete.confirmation`, {
-                    username: user.username,
-                  })}
-                </label>
-                <div className='set-ed__row'>
-                  <Input
-                    autoComplete='off'
-                    className='set-ed__field'
-                    id='delete-confirm'
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      setDeleteText(event.target.value)
-                    }
-                    placeholder={user.username}
-                    value={deleteText}
-                  />
-                  <Button
-                    disabled={deleteText !== user.username}
-                    loading={deleteAccountMutation.isPending}
-                    onClick={() => deleteAccountMutation.mutate()}
-                    size='sm'
-                    type='button'
-                    variant='danger'
-                  >
-                    <Trash2 aria-hidden='true' size={14} />
-                    {t(`${ns}.delete.submit`)}
-                  </Button>
-                  <Button
-                    disabled={deleteAccountMutation.isPending}
-                    onClick={() => {
-                      setDeleteText('');
-                      setExpanded(null);
-                    }}
-                    size='sm'
-                    type='button'
-                  >
-                    {t(`${ns}.action.cancel`)}
-                  </Button>
-                </div>
-              </SetEditor>
+              <div className='pj-gate__lines'>
+                <p>{t(`${ns}.delete.what`)}</p>
+                <p>{t(`${ns}.delete.final`)}</p>
+              </div>
             }
           />
         </div>

@@ -152,7 +152,8 @@ test('account deletion clears canceled confirmation and stays open while a reque
   });
   await expectRouteReady(page, '/console/personal');
   const trigger = page.getByRole('button', { name: '删除账号…', exact: true });
-  const dialog = page.getByRole('dialog', { name: '删除账号', exact: true });
+  const dialog = page.getByRole('dialog', { name: '删除账号 admin？' });
+  const confirm = dialog.getByRole('button', { name: '删除账号', exact: true });
   for (const dismiss of ['escape', 'outside']) {
     await trigger.click();
     await dialog.locator('#delete-confirm').fill('admin');
@@ -162,17 +163,18 @@ test('account deletion clears canceled confirmation and stays open while a reque
   }
   await trigger.click();
   await expect(dialog.locator('#delete-confirm')).toHaveValue('');
+  await expect(dialog.locator('#delete-confirm')).toBeFocused();
   await expect(dialog).toHaveCSS('opacity', '1');
   await page.screenshot({
     path: '../../.local-results/screenshots/implementation/personal-delete.png',
   });
-  await expect(dialog.getByRole('button', { name: '永久删除' })).toBeDisabled();
+  await expect(confirm).toBeDisabled();
   await dialog.locator('#delete-confirm').fill('admin');
   const deletion = page.waitForRequest(
     (r) =>
       r.method() === 'DELETE' && new URL(r.url()).pathname === '/api/user/self',
   );
-  await dialog.getByRole('button', { name: '永久删除' }).click();
+  await confirm.click();
   await deletion;
   await expect(
     dialog.getByRole('button', { name: '取消', exact: true }),
@@ -181,6 +183,13 @@ test('account deletion clears canceled confirmation and stays open while a reque
   await page.mouse.click(10, 10);
   await expect(dialog).toBeVisible();
   finish();
+  // A server failure leaves the outcome unknown: the gate stays open with the
+  // error above its buttons, keeps what was typed, and offers 再试一次.
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await expect(dialog.locator('#delete-confirm')).toHaveValue('admin');
+  await expect(
+    dialog.getByRole('button', { name: '再试一次', exact: true }),
+  ).toBeEnabled();
   await expect(
     dialog.getByRole('button', { name: '取消', exact: true }),
   ).toBeEnabled();

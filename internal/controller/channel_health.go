@@ -12,7 +12,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/httperr"
 	"github.com/lazu-ai/lazu/internal/model"
-	"github.com/lazu-ai/lazu/internal/service"
 )
 
 // Channel health is the one place that turns request facts into the stability
@@ -167,14 +166,11 @@ type channelHealthLaneView struct {
 	Maker       string `json:"maker,omitempty"`
 	MakerRank   int    `json:"maker_rank"`
 	ReleaseDate string `json:"release_date,omitempty"`
-	// Kind is what the row's model produces — llm, embedding, image, search,
-	// and later audio and video. Each kind is measured by its own figures and
+	// Kind is what the row's model produces — llm, embedding, image, and
+	// later audio and video. Each kind is measured by its own figures and
 	// drawn in its own section, so an image model is never judged by a
 	// first-token time it cannot have.
 	Kind string `json:"kind"`
-	// Provider is a search row's backend name as /v1/search accepts it
-	// (tavily, serper …); the row's model_name is its display label.
-	Provider string `json:"provider,omitempty"`
 	// LaneSlug is the lane's real registry name, which Lane is not: the
 	// customer-facing key collapses every non-agent lane to "stable" so the
 	// product only ever shows two. Any admin action that writes back to a
@@ -194,7 +190,7 @@ type channelHealthLaneView struct {
 	TTFTP95Ms *float64 `json:"ttft_p95_ms,omitempty"`
 	// LatencyP50Ms and LatencyP95Ms rank whole-request duration over every
 	// sample. They are the speed figures of kinds without a stream —
-	// embeddings, images, search — where a request has one shape whoever
+	// embeddings and images — where a request has one shape whoever
 	// sends it.
 	LatencyP50Ms *float64 `json:"latency_p50_ms,omitempty"`
 	LatencyP95Ms *float64 `json:"latency_p95_ms,omitempty"`
@@ -409,25 +405,6 @@ func GetChannelHealth(c *gin.Context) {
 		common.SysLog("channel health: breaker overlay skipped: " + err.Error())
 	}
 
-	snapshot, err = overlayChannelHealthSearch(snapshot, time.Now().UTC())
-	if err != nil {
-		common.SysLog("channel health: search overlay skipped: " + err.Error())
-		// Only search lost its current evidence. Keep the usable historical
-		// snapshot and model lanes, without claiming stale search is healthy.
-		rows := append([]channelHealthLaneView(nil), snapshot.rows...)
-		for i := range rows {
-			if rows[i].Kind != channelHealthKindSearch {
-				continue
-			}
-			rows[i].Status = publicStatusUnknown
-			rows[i].Sources = append([]channelHealthSourceView(nil), rows[i].Sources...)
-			for j := range rows[i].Sources {
-				rows[i].Sources[j].Status = publicStatusUnknown
-			}
-		}
-		snapshot.rows = rows
-	}
-
 	isAdmin := c.GetInt("role") >= common.RoleRootUser
 	rows, err := projectChannelHealthRows(c, snapshot.rows, isAdmin)
 	if err != nil {
@@ -506,20 +483,9 @@ func projectChannelHealthRows(c *gin.Context, rows []channelHealthLaneView, isAd
 		accessibleNames = getUserCatalogModelNames()
 	}
 	accessible := stringSet(accessibleNames)
-	allowedSearch, searchRestricted := service.SearchProvidersAllowedForToken(c)
 	result := make([]channelHealthLaneView, 0, len(rows))
 	for _, row := range rows {
-		// A search backend is selected by name in /v1/search rather than
-		// granted like a model, so its row follows the key's search policy:
-		// every backend for an unrestricted key, only the allowed ones — or
-		// none — for a restricted one.
-		if row.Kind == channelHealthKindSearch {
-			if searchRestricted {
-				if _, ok := allowedSearch[row.Provider]; !ok {
-					continue
-				}
-			}
-		} else if !accessible[row.ModelName] {
+		if !accessible[row.ModelName] {
 			continue
 		}
 		result = append(result, row)
@@ -589,12 +555,6 @@ func overlayChannelHealthBreaker(
 	providerStatus := map[int]string{}
 	rows := make([]channelHealthLaneView, len(snapshot.rows))
 	for i, row := range snapshot.rows {
-		if row.Kind == channelHealthKindSearch {
-			// Search backends have no breaker; their streak was read from
-			// their own samples when the row was folded.
-			rows[i] = row
-			continue
-		}
 		sources := make([]channelHealthSourceView, len(row.Sources))
 		copy(sources, row.Sources)
 		for j := range sources {
@@ -867,19 +827,6 @@ func buildChannelHealthSnapshotContext(ctx context.Context, window time.Duration
 		rows, grid, channelPercentiles, lastProbes, upstreamBuckets,
 		channelHealthCurrentCells(grid), since, bucketSeconds, bucketCount,
 	)
-	// Search backends are not routes in the grid; their rows come from their
-	// own samples and join the same list as one more section.
-	searchBackends, err := loadSearchHealthBackends()
-	if err != nil {
-		return channelHealthSnapshot{}, err
-	}
-	if len(searchBackends) > 0 {
-		searchSamples, err := model.QuerySearchHealthSamples(since)
-		if err != nil {
-			return channelHealthSnapshot{}, err
-		}
-		rows = append(rows, foldSearchHealth(searchBackends, searchSamples, since, bucketSeconds, bucketCount)...)
-	}
 	return channelHealthSnapshot{
 		windowSeconds: int64(window.Seconds()),
 		bucketSeconds: bucketSeconds,
@@ -2165,17 +2112,6 @@ func summarizeChannelHealth(rows []channelHealthLaneView) channelHealthSummaryVi
 	var outputTokens, decodeMs float64
 
 	for _, row := range rows {
-		if row.Kind == channelHealthKindSearch {
-			// A search backend has no lane and no throughput; it is counted
-			// only toward the issues an operator needs to see.
-			switch row.Status {
-			case publicStatusOutage:
-				summary.OutageCount++
-			case publicStatusDegraded:
-				summary.DegradedCount++
-			}
-			continue
-		}
 		models[row.ModelName] = struct{}{}
 		summary.RequestCount += row.RequestCount
 		switch row.Status {
@@ -2220,7 +2156,7 @@ func summarizeChannelHealth(rows []channelHealthLaneView) channelHealthSummaryVi
 
 // loadCatalogHealthByLane is the plaza's view of each lane: the health page's
 // week, read from the same cached view, then brought up to the breaker's
-// verdict. Search backends are not catalog models and stay out.
+// verdict.
 func loadCatalogHealthByLane(modelNames []string) map[string]map[string]dto.ModelCatalogHealth {
 	result := map[string]map[string]dto.ModelCatalogHealth{}
 	if len(modelNames) == 0 {
@@ -2233,7 +2169,7 @@ func loadCatalogHealthByLane(modelNames []string) map[string]map[string]dto.Mode
 	}
 	wanted := stringSet(modelNames)
 	for _, row := range snapshot.rows {
-		if row.Kind == channelHealthKindSearch || !wanted[row.ModelName] {
+		if !wanted[row.ModelName] {
 			continue
 		}
 		if result[row.ModelName] == nil {

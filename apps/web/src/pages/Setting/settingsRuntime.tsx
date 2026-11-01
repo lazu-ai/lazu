@@ -343,6 +343,7 @@ const SettingRow = ({
 /** A number or text box that carries its unit inside the control. */
 const ValueInput = ({
   ariaLabel,
+  errorId,
   form,
   numeric,
   prefix,
@@ -352,6 +353,8 @@ const ValueInput = ({
   width,
 }: {
   ariaLabel: string;
+  /** Id of the error message under the control, when one is showing. */
+  errorId?: string;
   form: ReturnType<typeof useForm<SettingsValues>>;
   numeric?: boolean;
   prefix?: string;
@@ -363,8 +366,10 @@ const ValueInput = ({
   <span className={`set-num set-num--${width || 'md'}`}>
     {prefix ? <span className='set-num__pre'>{prefix}</span> : null}
     <Input
+      aria-describedby={errorId}
       aria-label={ariaLabel}
       className='set-num__in'
+      error={Boolean(errorId)}
       id={settingKey}
       placeholder={placeholder}
       type={numeric ? 'number' : 'text'}
@@ -1322,6 +1327,8 @@ const EditableField = ({
           </button>
         </div>
         <Textarea
+          aria-describedby={errorMessage ? `${field.key}-error` : undefined}
+          aria-invalid={errorMessage ? true : undefined}
           id={field.key}
           rows={6}
           placeholder={field.placeholder}
@@ -1332,7 +1339,9 @@ const EditableField = ({
             {field.description}
           </p>
         ) : null}
-        <FieldMessage error>{errorMessage}</FieldMessage>
+        <FieldMessage error id={`${field.key}-error`}>
+          {errorMessage}
+        </FieldMessage>
       </div>
     );
   }
@@ -1344,6 +1353,7 @@ const EditableField = ({
         <>
           <ValueInput
             ariaLabel={field.label}
+            errorId={errorMessage ? `${field.key}-error` : undefined}
             form={form}
             numeric={field.kind === 'number' || field.kind === 'money'}
             placeholder={field.placeholder}
@@ -1353,7 +1363,9 @@ const EditableField = ({
             width={field.width}
           />
           {errorMessage ? (
-            <FieldMessage error>{errorMessage}</FieldMessage>
+            <FieldMessage error id={`${field.key}-error`}>
+              {errorMessage}
+            </FieldMessage>
           ) : null}
         </>
       }

@@ -791,7 +791,7 @@ const AnnouncementsPage = ({
                       <span className='ann-model' key={name}>
                         {name}
                         <button
-                          aria-label={t('legacy.i18n.delete.f24e0e29f4', {
+                          aria-label={t('common.delete', {
                             defaultValue: '删除',
                           })}
                           onClick={() =>

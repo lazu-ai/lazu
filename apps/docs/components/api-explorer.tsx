@@ -31,13 +31,6 @@ const OPS: Op[] = [
       messages: [{ role: "user", content: "Say hello from the explorer" }],
     },
   },
-  {
-    id: "search",
-    method: "POST",
-    label: "Run search",
-    path: "/v1/search",
-    body: { query: "latest OpenAI news", type: "web", max_results: 3 },
-  },
   { id: "models", method: "GET", label: "List models", path: "/v1/models" },
   {
     id: "embeddings",

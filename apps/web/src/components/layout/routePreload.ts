@@ -8,7 +8,6 @@ const consoleRouteLoaders: Record<string, () => Promise<unknown>> = {
   '/console/personal': () =>
     import('../../components/settings/PersonalSetting'),
   '/console/models': () => import('../../pages/Routes'),
-  '/console/search-backend': () => import('../../pages/Console/SearchBackend'),
   '/console/setting': () => import('../../pages/Setting'),
   '/console/token': () => import('../../pages/Token'),
   '/console/usage': () => import('../../pages/Usage'),

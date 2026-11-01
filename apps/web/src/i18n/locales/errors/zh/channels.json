@@ -1,6 +1,5 @@
 {
   "channel_not_found": "这个渠道已不存在，可能已被删除。请刷新列表。",
-  "channel_search_backend_managed": "这个渠道是检索后端，不能在这里修改。请到「检索后端」页面管理。",
   "channel_lane_invalid": "档位「{{lane}}」不存在。每个渠道只属于一个已有档位，请从列表中选择。",
   "channel_settings_invalid": "渠道额外设置无法解析，没有保存。请检查 JSON 格式和取值。",
   "channel_model_name_too_long": "有模型名称超过 255 个字符，渠道没有保存。请缩短或删除它。",

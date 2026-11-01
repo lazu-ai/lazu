@@ -182,17 +182,6 @@ func parseStatusFilter(statusParam string) int {
 	}
 }
 
-func includeSearchBackends(c *gin.Context) bool {
-	include, _ := strconv.ParseBool(c.Query("include_search_backends"))
-	return include
-}
-
-// rejectSearchBackendChannelMutation answers a channel route that reached a
-// search backend: those are created and edited on their own page.
-func rejectSearchBackendChannelMutation(c *gin.Context, action string) {
-	httperr.Code(c, types.ErrorCodeChannelSearchBackendManaged, types.D{"action": action})
-}
-
 // resolveChannelID turns a channel's public or numeric id into its row id.
 // An id that names no channel is channel_not_found; a lookup failure stays
 // internal.
@@ -222,14 +211,6 @@ func resolveChannelIDs(raws []string) ([]int, error) {
 	return ids, nil
 }
 
-func tagContainsSearchBackends(tag string) (bool, error) {
-	var count int64
-	err := model.CoreDB().Model(&model.Channel{}).
-		Where("tag = ? AND type IN ?", tag, constant.SearchChannelTypes()).
-		Count(&count).Error
-	return count > 0, err
-}
-
 func clearChannelInfo(channel *model.Channel) {
 	channel.Key = ""
 	if channel.ChannelInfo.IsMultiKey {
@@ -243,7 +224,6 @@ func GetAllChannels(c *gin.Context) {
 	channelData := make([]*model.Channel, 0)
 	idSort, _ := strconv.ParseBool(c.Query("id_sort"))
 	enableTagMode, _ := strconv.ParseBool(c.Query("tag_mode"))
-	includeSearch := includeSearchBackends(c)
 	statusParam := c.Query("status")
 	// statusFilter: -1 all, 1 enabled, 0 disabled (include auto & manual)
 	statusFilter := parseStatusFilter(statusParam)
@@ -274,9 +254,6 @@ func GetAllChannels(c *gin.Context) {
 			}
 			filtered := make([]*model.Channel, 0)
 			for _, ch := range tagChannels {
-				if !includeSearch && constant.IsSearchChannelType(ch.Type) {
-					continue
-				}
 				if statusFilter == common.ChannelStatusEnabled && ch.Status != common.ChannelStatusEnabled {
 					continue
 				}
@@ -293,9 +270,6 @@ func GetAllChannels(c *gin.Context) {
 		total, _ = model.CountAllTags()
 	} else {
 		baseQuery := model.CoreDB().Model(&model.Channel{})
-		if !includeSearch {
-			baseQuery = baseQuery.Where("type NOT IN ?", constant.SearchChannelTypes())
-		}
 		if typeFilter >= 0 {
 			baseQuery = baseQuery.Where("type = ?", typeFilter)
 		}
@@ -324,9 +298,6 @@ func GetAllChannels(c *gin.Context) {
 	}
 
 	countQuery := model.CoreDB().Model(&model.Channel{})
-	if !includeSearch {
-		countQuery = countQuery.Where("type NOT IN ?", constant.SearchChannelTypes())
-	}
 	if statusFilter == common.ChannelStatusEnabled {
 		countQuery = countQuery.Where("status = ?", common.ChannelStatusEnabled)
 	} else if statusFilter == 0 {
@@ -363,11 +334,6 @@ func FetchUpstreamModels(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
-
 	baseURL := constant.ChannelBaseURLs[channel.Type]
 	if channel.GetBaseURL() != "" {
 		baseURL = channel.GetBaseURL()
@@ -411,7 +377,6 @@ func SearchChannels(c *gin.Context) {
 	statusFilter := parseStatusFilter(statusParam)
 	idSort, _ := strconv.ParseBool(c.Query("id_sort"))
 	enableTagMode, _ := strconv.ParseBool(c.Query("tag_mode"))
-	includeSearch := includeSearchBackends(c)
 	channelData := make([]*model.Channel, 0)
 	if enableTagMode {
 		tags, err := model.SearchTags(keyword, group, modelKeyword, idSort)
@@ -434,17 +399,6 @@ func SearchChannels(c *gin.Context) {
 			return
 		}
 		channelData = channels
-	}
-
-	if !includeSearch {
-		filtered := make([]*model.Channel, 0, len(channelData))
-		for _, ch := range channelData {
-			if constant.IsSearchChannelType(ch.Type) {
-				continue
-			}
-			filtered = append(filtered, ch)
-		}
-		channelData = filtered
 	}
 
 	if statusFilter == common.ChannelStatusEnabled || statusFilter == 0 {
@@ -533,10 +487,6 @@ func GetChannel(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
 	if channel != nil {
 		clearChannelInfo(channel)
 		if costs, err := model.ListProviderCostPricesForChannel(channel.Id); err == nil {
@@ -566,11 +516,6 @@ func GetChannelKey(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
-
 	model.RecordLog(userId, model.LogTypeSystem, fmt.Sprintf("Viewed channel key (channel_id=%d)", channelId))
 
 	c.JSON(http.StatusOK, gin.H{
@@ -628,11 +573,6 @@ func AddChannel(c *gin.Context) {
 	err := c.ShouldBindJSON(&addChannelRequest)
 	if err != nil {
 		httperr.Code(c, types.ErrorCodeBadRequestBody)
-		return
-	}
-
-	if addChannelRequest.Channel != nil && constant.IsSearchChannelType(addChannelRequest.Channel.Type) {
-		rejectSearchBackendChannelMutation(c, "create")
 		return
 	}
 
@@ -710,10 +650,6 @@ func DeleteChannel(c *gin.Context) {
 	channel, err := model.GetChannelById(id, true)
 	if err != nil {
 		httperr.Write(c, err)
-		return
-	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
 		return
 	}
 	err = channel.Delete()
@@ -794,10 +730,6 @@ func UpdateChannelStatusById(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
 	if channel.Status == *req.Status {
 		common.ApiSuccess(c, gin.H{"id": channel.PublicID, "status": channel.Status, "changed": false})
 		return
@@ -829,13 +761,6 @@ func DisableTagChannels(c *gin.Context) {
 		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "tag"})
 		return
 	}
-	if contains, err := tagContainsSearchBackends(channelTag.Tag); err != nil {
-		httperr.Write(c, err)
-		return
-	} else if contains {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
 	if err := model.DisableChannelByTag(channelTag.Tag); err != nil {
 		httperr.Write(c, err)
 		return
@@ -859,13 +784,6 @@ func EnableTagChannels(c *gin.Context) {
 		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "tag"})
 		return
 	}
-	if contains, err := tagContainsSearchBackends(channelTag.Tag); err != nil {
-		httperr.Write(c, err)
-		return
-	} else if contains {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
 	if err := model.EnableChannelByTag(channelTag.Tag); err != nil {
 		httperr.Write(c, err)
 		return
@@ -887,13 +805,6 @@ func EditTagChannels(c *gin.Context) {
 	}
 	if channelTag.Tag == "" {
 		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "tag"})
-		return
-	}
-	if contains, err := tagContainsSearchBackends(channelTag.Tag); err != nil {
-		httperr.Write(c, err)
-		return
-	} else if contains {
-		rejectSearchBackendChannelMutation(c, "edit")
 		return
 	}
 	if err := model.EditChannelByTag(channelTag.Tag, channelTag.NewTag, channelTag.ModelMapping, channelTag.Models, channelTag.Groups, channelTag.Priority, channelTag.Weight); err != nil {
@@ -927,17 +838,6 @@ func DeleteChannelBatch(c *gin.Context) {
 	ids, err := resolveChannelIDs(channelBatch.Ids)
 	if err != nil {
 		httperr.Write(c, err)
-		return
-	}
-	var searchCount int64
-	if err := model.CoreDB().Model(&model.Channel{}).
-		Where("id IN ? AND type IN ?", ids, constant.SearchChannelTypes()).
-		Count(&searchCount).Error; err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	if searchCount > 0 {
-		rejectSearchBackendChannelMutation(c, "edit")
 		return
 	}
 	if err := model.BatchDeleteChannels(ids); err != nil {
@@ -985,11 +885,6 @@ func UpdateChannel(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(originChannel.Type) || constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
-
 	// Always copy the original ChannelInfo so that fields like IsMultiKey and MultiKeySize are retained.
 	channel.ChannelInfo = originChannel.ChannelInfo
 
@@ -1069,11 +964,6 @@ func FetchModels(c *gin.Context) {
 		httperr.Code(c, types.ErrorCodeBadRequestBody)
 		return
 	}
-	if constant.IsSearchChannelType(req.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
-
 	baseURL := req.BaseURL
 	if baseURL == "" {
 		baseURL = constant.ChannelBaseURLs[req.Type]
@@ -1108,17 +998,6 @@ func BatchSetChannelTag(c *gin.Context) {
 	ids, err := resolveChannelIDs(channelBatch.Ids)
 	if err != nil {
 		httperr.Write(c, err)
-		return
-	}
-	var searchCount int64
-	if err := model.CoreDB().Model(&model.Channel{}).
-		Where("id IN ? AND type IN ?", ids, constant.SearchChannelTypes()).
-		Count(&searchCount).Error; err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	if searchCount > 0 {
-		rejectSearchBackendChannelMutation(c, "edit")
 		return
 	}
 	if err := model.BatchSetChannelTag(ids, channelBatch.Tag); err != nil {
@@ -1190,11 +1069,6 @@ func CopyChannel(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(origin.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
-
 	// clone channel
 	clone := *origin // shallow copy is sufficient as we will overwrite primitives
 	clone.Id = 0     // let DB auto-generate
@@ -1264,11 +1138,6 @@ func ManageMultiKeys(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
-
 	if !channel.ChannelInfo.IsMultiKey {
 		httperr.Code(c, types.ErrorCodeChannelNotMultiKey, types.D{"channel_id": request.ChannelId})
 		return

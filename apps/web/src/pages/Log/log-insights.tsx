@@ -515,7 +515,11 @@ export function UsageUserRanking({
                   defaultValue: '请求',
                 })}
               </th>
-              <th className='logv2-num'>Tokens</th>
+              <th className='logv2-num'>
+                {t('page.console.log.users.tokens', {
+                  defaultValue: 'Token 数',
+                })}
+              </th>
               <th className='logv2-num'>
                 {t('page.console.log.users.spend', { defaultValue: '消费' })}
               </th>

@@ -30,24 +30,22 @@ test('inline key reveal keeps the table stable and opens no dialog', async ({
   );
 });
 
-test('logout uses a dismissible nearby confirmation', async ({ page }) => {
-  await setupMockedApp(page);
+test('logout signs out at once, without a confirmation', async ({ page }) => {
+  let logouts = 0;
+  await setupMockedApp(page, {
+    payloadFor: (raw: string) => {
+      if (new URL(raw).pathname === '/api/user/logout') {
+        logouts++;
+        return { success: true };
+      }
+      return undefined;
+    },
+  });
   await expectRouteReady(page, '/console/token');
-  const trigger = page.locator('.sidebar-v2__logout');
-  await trigger.click();
-  await expect(
-    page.getByRole('button', { name: '退出', exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(
-    page.getByRole('button', { name: '退出', exact: true }),
-  ).toHaveCount(0);
-  await trigger.click();
-  await page.mouse.click(600, 40);
-  await expect(
-    page.getByRole('button', { name: '退出', exact: true }),
-  ).toHaveCount(0);
-  await expect(page).toHaveURL(/console\/token/);
+  await page.locator('.console-topbar__avatar').click();
+  await page.getByRole('menuitem', { name: '退出', exact: true }).click();
+  await expect.poll(() => logouts).toBe(1);
+  await expect(page).toHaveURL(/\/login/);
 });
 
 for (const [name, route] of Object.entries({
@@ -56,7 +54,6 @@ for (const [name, route] of Object.entries({
   users: 'organizations',
   health: 'health',
   models: 'model-ops',
-  search: 'search-backend',
   wallet: 'wallet',
   settings: 'setting',
   overview: '',
@@ -126,64 +123,6 @@ for (const [name, route] of Object.entries({
     await app.expectNoUnexpectedErrors();
   });
 }
-
-test('search credentials stay inline and delete can be canceled', async ({
-  page,
-}) => {
-  let deletes = 0;
-  await setupMockedApp(page, {
-    consoleScope: 'platform:operations',
-    payloadFor: (url: string, request: import('@playwright/test').Request) => {
-      const path = new URL(url).pathname;
-      if (path === '/api/search/backends')
-        return {
-          success: true,
-          data: [
-            {
-              id: 7,
-              name: 'Jina',
-              provider: 'jina',
-              type: 102,
-              status: 1,
-              masked_key: 'jina-de••••••tail',
-              last_used_at: 1788624000,
-              capabilities: ['web_search'],
-              priority: 10,
-            },
-          ],
-        };
-      if (path === '/api/search/backends/7/reveal')
-        return { success: true, data: { key: 'jina-demo-review-key-tail' } };
-      if (path === '/api/search/backends/7' && request.method() === 'DELETE') {
-        deletes++;
-        return { success: true };
-      }
-      return undefined;
-    },
-  });
-  await expectRouteReady(page, '/console/search-backend');
-  const row = page.getByRole('row').filter({ hasText: 'Jina' });
-  const field = row.locator('.lazu-inline-secret input');
-  await expect(field).toHaveValue('jina-de••••••tail');
-  const box = await row.boundingBox();
-  await row.getByRole('button', { name: '显示', exact: true }).click();
-  await expect(field).toHaveValue('jina-demo-review-key-tail');
-  expect(await row.boundingBox()).toEqual(box);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.screenshot({
-    path: '../../.local-results/screenshots/implementation/search-inline.png',
-    animations: 'disabled',
-  });
-  await row.getByRole('button', { name: '删除', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.screenshot({
-    path: '../../.local-results/screenshots/implementation/search-delete.png',
-    animations: 'disabled',
-  });
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  expect(deletes).toBe(0);
-});
 
 test('personal settings offer no IP switch and editors dismiss without writing', async ({
   page,

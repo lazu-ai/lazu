@@ -545,3 +545,9 @@
   min-height: 200px;
   overflow: auto;
 }
+
+/* The editor drops its own outline; show focus on the frame instead. */
+.ann-md:has(.ann-md__input:focus) {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}

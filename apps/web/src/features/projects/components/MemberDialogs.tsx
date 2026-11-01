@@ -1,7 +1,7 @@
-/* Dialogs that act on one member: role change (S4), removal (S5) — which
- * always stops that member's Keys in this project immediately, with a
- * 10-minute undo — and the budget-request handling shared with the Members
- * page and the attention list (S8). */
+/* Member removal undo (S5): removing a member stops their Keys in this
+ * project at once and the server keeps a 10-minute undo. Also the
+ * budget-request handling shared with the Members page and the attention
+ * list (S8). */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../../components/ui/button';
@@ -22,8 +22,6 @@ import { errorReceipt, receipt } from '../receipt';
 import {
   type BudgetRequest,
   type ProjectMember,
-  type ProjectRole,
-  type ProjectToken,
   type RemovalReceipt,
 } from '../types';
 import {
@@ -32,184 +30,46 @@ import {
   ErrLine,
   FormRow,
   FormRows,
-  GateModal,
   budgetErrorText,
 } from './atoms';
 
 /* ------------------------------------------------------------ role change */
 
-export function RoleChangeModal({
+/** Take a removal back while its receipt is still valid. Shared by the
+ *  undo toast and the 10-minute line above the member table. */
+export async function undoRemoval({
+  client,
+  invalidate,
   member,
-  nextRole,
-  open,
-  onOpenChange,
-  onDone,
+  projectId,
+  receiptData,
+  t,
 }: {
+  client: NonNullable<ReturnType<typeof useProject>['client']>;
+  invalidate: ReturnType<typeof useInvalidateProject>;
   member: ProjectMember;
-  nextRole: Exclude<ProjectRole, 'owner'>;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDone?: (member: ProjectMember) => void;
+  projectId: string;
+  receiptData: RemovalReceipt;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
-  const { t } = useTranslation(['projects', 'translation'], {
-    nsMode: 'fallback',
-  });
-  const project = useProject();
-  const invalidate = useInvalidateProject();
-  const [busy, setBusy] = useState(false);
-  const promote = nextRole === 'admin';
-
-  const confirm = async () => {
-    if (!project.client || !project.current) return;
-    setBusy(true);
-    try {
-      const updated = await project.client.setMemberRole(
-        project.current.id,
-        member.user_id,
-        nextRole,
-      );
-      onOpenChange(false);
-      receipt(
-        promote
-          ? t('projects.role.promoted', { name: member.username })
-          : t('projects.role.demoted', { name: member.username }),
-      );
-      await invalidate('members');
-      onDone?.(updated);
-    } catch (error) {
-      errorReceipt(error);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <ActionModal
-      busy={busy}
-      busyLabel={t('projects.common.applying')}
-      confirmLabel={
-        promote
-          ? t('projects.role.promoteConfirm')
-          : t('projects.role.demoteConfirm')
-      }
-      description={
-        promote
-          ? t('projects.role.immediateNoSave')
-          : t('projects.role.immediate')
-      }
-      onConfirm={confirm}
-      onOpenChange={onOpenChange}
-      open={open}
-      title={
-        promote
-          ? t('projects.role.promoteTitle', { name: member.username })
-          : t('projects.role.demoteTitle', { name: member.username })
-      }
-    >
-      <ul className='pj-modal__list'>
-        {promote ? (
-          <>
-            <li>{t('projects.role.promote1')}</li>
-            <li>{t('projects.role.promote2')}</li>
-            <li>{t('projects.role.promote3')}</li>
-            <li>{t('projects.role.promote4')}</li>
-          </>
-        ) : (
-          <>
-            <li>{t('projects.role.demote1')}</li>
-            <li>{t('projects.role.demote2')}</li>
-          </>
-        )}
-      </ul>
-    </ActionModal>
+  const result = await client.undoRemove(
+    projectId,
+    member.user_id,
+    receiptData.removal_id,
   );
-}
-
-/* ---------------------------------------------------------------- removal */
-
-export function RemoveMemberModal({
-  member,
-  keys,
-  open,
-  onOpenChange,
-  onRemoved,
-}: {
-  member: ProjectMember;
-  keys: ProjectToken[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onRemoved: (receipt: RemovalReceipt) => void;
-}) {
-  const { t } = useTranslation(['projects', 'translation'], {
-    nsMode: 'fallback',
-  });
-  const project = useProject();
-  const invalidate = useInvalidateProject();
-  const [busy, setBusy] = useState(false);
-  // Removal always stops the member's Keys in this project immediately —
-  // there is no grace period and no policy to branch on.
-  const enabledKeys = keys.filter((k) => k.status === 'enabled');
-
-  const remove = async () => {
-    if (!project.client || !project.current) return;
-    setBusy(true);
-    try {
-      const result = await project.client.removeMember(
-        project.current.id,
-        member.user_id,
-      );
-      onOpenChange(false);
-      await invalidate('members');
-      await invalidate('tokens');
-      onRemoved(result);
-    } catch (error) {
-      errorReceipt(error);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <GateModal
-      busy={busy}
-      busyLabel={t('projects.remove.removing')}
-      confirmLabel={t('projects.remove.confirm', { name: member.username })}
-      description={t('projects.remove.lede', { name: member.username })}
-      gate={{
-        type: 'checkbox',
-        label: t('projects.remove.gate', {
-          count: enabledKeys.length,
+  await invalidate('members');
+  await invalidate('tokens');
+  receipt(
+    result.skipped_key_ids.length
+      ? t('projects.remove.undonePartial', {
           name: member.username,
-        }),
-      }}
-      onConfirm={remove}
-      onOpenChange={onOpenChange}
-      open={open}
-      title={t('projects.remove.title', {
-        name: member.username,
-        project: project.currentName,
-      })}
-      bullets={[
-        <span key='keys'>
-          <b>{t('projects.remove.stopNow')}</b>{' '}
-          {t('projects.remove.keys', {
-            count: enabledKeys.length,
-            name: member.username,
-            names: enabledKeys.map((k) => k.name).join('、') || '—',
-          })}
-        </span>,
-        t('projects.remove.budget', {
-          budget: formatUSDShort(member.budget_microusd),
+          restored: result.restored_key_ids.length,
+          skipped: result.skipped_key_ids.length,
+        })
+      : t('projects.remove.undone', {
           name: member.username,
-          spent: formatUSD(member.month_spend_microusd),
+          restored: result.restored_key_ids.length,
         }),
-        t('projects.remove.history', {
-          name: member.username,
-          project: project.currentName,
-        }),
-        t('projects.remove.ownProject', { name: member.username }),
-      ]}
-    />
   );
 }
 
@@ -240,25 +100,14 @@ export function UndoRemoveLine({
     if (!project.client || !project.current) return;
     setBusy(true);
     try {
-      const result = await project.client.undoRemove(
-        project.current.id,
-        member.user_id,
-        receiptData.removal_id,
-      );
-      await invalidate('members');
-      await invalidate('tokens');
-      receipt(
-        result.skipped_key_ids.length
-          ? t('projects.remove.undonePartial', {
-              name: member.username,
-              restored: result.restored_key_ids.length,
-              skipped: result.skipped_key_ids.length,
-            })
-          : t('projects.remove.undone', {
-              name: member.username,
-              restored: result.restored_key_ids.length,
-            }),
-      );
+      await undoRemoval({
+        client: project.client,
+        invalidate,
+        member,
+        projectId: project.current.id,
+        receiptData,
+        t,
+      });
       onUndone();
     } catch (error) {
       errorReceipt(error);

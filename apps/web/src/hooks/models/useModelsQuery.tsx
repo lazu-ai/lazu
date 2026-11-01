@@ -19,11 +19,7 @@ import {
   showError,
   showSuccess,
 } from '../../helpers/utils';
-import {
-  apiErrorHandler,
-  apiErrorHandlerWith,
-  unwrap,
-} from '../../lib/api-error';
+import { apiErrorHandlerWith, unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 
 type LooseRecord = Record<string, unknown>;
@@ -94,11 +90,6 @@ type PageData = {
   page: number;
   pageSize: number;
   total: number;
-};
-
-type ManageModelVariables = {
-  action: 'delete' | 'disable' | 'enable';
-  id: number | string;
 };
 
 type SaveModelVariables = {
@@ -432,26 +423,6 @@ export function useModelsQuery(loadEditorOptions = true) {
       queryKey: queryKeys.console.root,
     });
 
-  const manageModelMutation = useMutation({
-    mutationFn: async ({ action, id }: ManageModelVariables) => {
-      let response;
-      if (action === 'delete') {
-        response = await API.delete(`/api/models/${id}`);
-      } else {
-        response = await API.put('/api/models/?status_only=true', {
-          id,
-          status: action === 'enable' ? 1 : 0,
-        });
-      }
-      return unwrap<unknown>(response);
-    },
-    onSuccess: () => {
-      notify.success(t('page.console.tables.actionSuccess'));
-      invalidate();
-    },
-    onError: apiErrorHandler,
-  });
-
   const syncMutation = useMutation({
     mutationFn: async () => {
       const response = await API.post('/api/models/sync_upstream', {});
@@ -502,23 +473,6 @@ export function useModelsQuery(loadEditorOptions = true) {
       invalidate();
     },
     onError: apiErrorHandlerWith(t('page.console.models.syncOpenRouterFailed')),
-  });
-
-  const batchDeleteMutation = useMutation({
-    mutationFn: async () => {
-      const ids = selectedModels.map((model) => model.id);
-      const results = await Promise.all(
-        ids.map((id) => API.delete(`/api/models/${id}`)),
-      );
-      results.forEach((response) => unwrap<unknown>(response));
-      return ids.length;
-    },
-    onSuccess: (count) => {
-      notify.success(t('page.console.models.batchDeleted', { count }));
-      setSelectedModels([]);
-      invalidate();
-    },
-    onError: apiErrorHandlerWith(t('page.console.models.batchDeleteFailed')),
   });
 
   const saveModelMutation = useMutation({
@@ -598,13 +552,11 @@ export function useModelsQuery(loadEditorOptions = true) {
   );
 
   return {
-    batchDeleteMutation,
     copyModel,
     draftFilters,
     filters,
     isFetching: modelsQuery.isFetching,
     isLoading: modelsQuery.isLoading,
-    manageModelMutation,
     models: pageData.items,
     endpointGroups: endpointOptionsQuery.data || [],
     editorOptionsLoading:

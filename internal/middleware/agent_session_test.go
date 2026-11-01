@@ -129,3 +129,65 @@ func TestSessionContentRespectsCaptureSwitch(t *testing.T) {
 		}
 	}
 }
+
+// An agent that leaves the SDK's User-Agent in place (or sends none, as Goose
+// does) is still named by its own session header; a client the User-Agent
+// already names is never renamed by a shared header.
+func TestApplyAgentSessionBackfillsClientFromSource(t *testing.T) {
+	cases := []struct {
+		name    string
+		headers map[string]string
+		client  string
+		version string
+	}{
+		{"goose without user-agent", map[string]string{"agent-session-id": "20261029_1"}, "goose", ""},
+		{"kilo task header over sdk ua", map[string]string{"User-Agent": "Anthropic/JS 0.60.0", "X-KILOCODE-TASKID": "task-1"}, "kilo-code", ""},
+		{"codex headers over sdk ua", map[string]string{"User-Agent": "OpenAI/JS 7.39.0", "session-id": "0199f3", "thread-id": "0199f3"}, "codex", ""},
+		{"claude code session header over bare sdk ua", map[string]string{"User-Agent": "Anthropic/JS 0.60.0", "X-Claude-Code-Session-Id": "s-1"}, "claude-code", ""},
+		{"named ua is kept on a shared session header", map[string]string{"User-Agent": "RooCode/3.53.0", "X-Session-Id": "ses_abc"}, "roo-code", "3.53.0"},
+		{"library ua stays when the source is shared", map[string]string{"User-Agent": "OpenAI/JS 7.39.0", "X-Session-Id": "ses_abc"}, "openai-node", "7.39.0"},
+		{"x-title names an app", map[string]string{"User-Agent": "python-requests/2.32.0", "X-Title": "Open WebUI"}, "open-webui", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := sessionContext(tc.headers)
+			applyAgentSession(c, nil, 1)
+			if got := common.GetContextKeyString(c, constant.ContextKeyClientFramework); got != tc.client {
+				t.Errorf("client: got %q want %q", got, tc.client)
+			}
+			if got := common.GetContextKeyString(c, constant.ContextKeyClientVersion); got != tc.version {
+				t.Errorf("version: got %q want %q", got, tc.version)
+			}
+		})
+	}
+}
+
+// Cline v4 and OpenHands send only an SDK's User-Agent to a custom base URL;
+// the opening of their built-in system prompt names them.
+func TestApplyAgentSessionNamesClientFromSystemPrompt(t *testing.T) {
+	const cline = "You are Cline, an AI coding agent. Your primary goal is to assist users."
+	cases := []struct {
+		name   string
+		ua     string
+		body   string
+		client string
+	}{
+		{"chat system message", "ai-sdk-openai-compatible/3.0.4 ai-sdk-provider-utils/5.0.2 node.js/22", `{"messages":[{"role":"system","content":"` + cline + `"},{"role":"user","content":"hi"}]}`, "cline"},
+		{"chat system parts", "ai-sdk-openai-compatible/3.0.4", `{"messages":[{"role":"system","content":[{"type":"text","text":"` + cline + `"}]}]}`, "cline"},
+		{"anthropic system blocks", "ai-sdk-anthropic/3.0.4", `{"system":[{"type":"text","text":"` + cline + `"}],"messages":[]}`, "cline"},
+		{"responses instructions", "OpenAI/Python 2.37.0", `{"instructions":"You are OpenHands agent, a helpful AI assistant","input":"hi"}`, "openhands"},
+		{"responses developer item", "OpenAI/Python 2.37.0", `{"input":[{"role":"developer","content":[{"type":"input_text","text":"` + cline + `"}]}]}`, "cline"},
+		{"a named ua is never renamed", "RooCode/3.53.0", `{"messages":[{"role":"system","content":"` + cline + `"}]}`, "roo-code"},
+		{"prompt elsewhere is ignored", "OpenAI/JS 6.10.0", `{"messages":[{"role":"user","content":"` + cline + `"}]}`, "openai-node"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := sessionContext(map[string]string{"Content-Type": "application/json", "User-Agent": tc.ua})
+			c.Request.Body = io.NopCloser(strings.NewReader(tc.body))
+			applyAgentSession(c, nil, 1)
+			if got := common.GetContextKeyString(c, constant.ContextKeyClientFramework); got != tc.client {
+				t.Errorf("client: got %q want %q", got, tc.client)
+			}
+		})
+	}
+}

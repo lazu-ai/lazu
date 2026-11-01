@@ -33,7 +33,7 @@ test('status history is isolated by account and active scope', async ({
     legacy: localStorage.getItem('lazu-status-center'),
     other: localStorage.getItem('lazu-status-center:2:workspace:default'),
   }));
-  expect(stored.current).toContain('This device is offline');
+  expect(stored.current).toContain('warning:dedupe:device-offline');
   expect(stored.legacy).toBeNull();
   expect(stored.other).toContain('private failure');
   await app.expectNoUnexpectedErrors();

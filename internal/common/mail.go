@@ -107,6 +107,19 @@ type Mail struct {
 	FooterLeft  string
 	FooterRight string
 	FooterHref  string
+	// FooterCommunity links the deployment's community (site.community_url)
+	// before the support link on user mail. Empty hides it.
+	FooterCommunity     string
+	FooterCommunityHref string
+}
+
+// communityFooterLabel names the community link in a mail footer: the
+// platform when the host gives it away, else a generic word.
+func communityFooterLabel(lang string) string {
+	if platform := SiteCommunityPlatform(); platform != "" {
+		return platform
+	}
+	return MailText(lang, "社区", "Community")
 }
 
 func (m Mail) SeverityColor() string {
@@ -161,6 +174,14 @@ func RenderMail(m Mail) (string, error) {
 			m.FooterHref = "mailto:" + email
 		} else {
 			m.FooterHref = SiteWebOrigin()
+		}
+	}
+	if m.FooterCommunityHref == "" && m.Tier != MailOps {
+		if community := SiteCommunityURL(); community != "" {
+			m.FooterCommunityHref = community
+			if m.FooterCommunity == "" {
+				m.FooterCommunity = communityFooterLabel(m.Lang)
+			}
 		}
 	}
 	var body bytes.Buffer

@@ -545,7 +545,9 @@ const KeyInspectorPage = () => {
                 icon={BarChart3}
                 label={t('legacy.i18n.token_usage.0ce7002aab')}
                 value={compactNumber(summary.total_tokens || 0)}
-                subtitle={t('Prompt + Completion')}
+                subtitle={t('page.keyusage.promptPlusCompletion', {
+                  defaultValue: '输入 + 输出',
+                })}
                 variant='neutral'
               />
             </div>

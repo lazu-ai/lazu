@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  getCommunityPlatform,
   getCommunityURL,
   getDocsBaseURL,
   getDocsURL,
@@ -37,6 +38,14 @@ describe('brand URLs', () => {
     expect(getCommunityURL()).toBeNull();
     vi.stubEnv('VITE_BRAND_COMMUNITY_URL', 'https://t.me/example_group');
     expect(getCommunityURL()).toBe('https://t.me/example_group');
+  });
+
+  it('names the chat app a community link opens, when it knows the host', () => {
+    expect(getCommunityPlatform('https://t.me/example_group')).toBe('Telegram');
+    expect(getCommunityPlatform('https://www.discord.gg/abc')).toBe('Discord');
+    expect(getCommunityPlatform('https://forum.example.com/')).toBeNull();
+    expect(getCommunityPlatform('https://t.me.example.com/')).toBeNull();
+    expect(getCommunityPlatform(null)).toBeNull();
   });
 
   it('points the GitHub entry at the build, the deployment, then upstream', () => {

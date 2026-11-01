@@ -306,7 +306,6 @@ message; the cause is recorded against the request ID.
 | <a id="lz-7204"></a>`LZ-7204` | `secret_unavailable` | 409 | `conflict_error` | Only a fingerprint of this API key was kept, so the full key can't be shown. Create a new key if you need the full value. |
 | <a id="lz-7205"></a>`LZ-7205` | `key_not_found` | 404 | `not_found_error` | This API key no longer exists. It may have been deleted. Refresh the page. |
 | <a id="lz-7301"></a>`LZ-7301` | `channel_not_found` | 404 | `not_found_error` | This channel no longer exists. It may have been deleted; refresh the list. |
-| <a id="lz-7302"></a>`LZ-7302` | `channel_search_backend_managed` | 409 | `conflict_error` | This channel is a search backend, so it cannot be changed here. Manage it on the Search backends page. |
 | <a id="lz-7303"></a>`LZ-7303` | `channel_lane_invalid` | 400 | `invalid_request_error` | Lane “\{\{lane\}\}” does not exist. A channel belongs to exactly one existing lane; pick one from the list. |
 | <a id="lz-7304"></a>`LZ-7304` | `channel_settings_invalid` | 400 | `invalid_request_error` | The channel's extra settings could not be read, so nothing was saved. Check the JSON format and values. |
 | <a id="lz-7305"></a>`LZ-7305` | `channel_model_name_too_long` | 400 | `invalid_request_error` | A model name is longer than 255 characters, so the channel was not saved. Shorten or remove it. |
@@ -427,8 +426,6 @@ message; the cause is recorded against the request ID.
 | <a id="lz-7828"></a>`LZ-7828` | `video_artifact_missing` | 502 | `api_error` | The video finished without a file to download. Generate it again. |
 | <a id="lz-7829"></a>`LZ-7829` | `video_not_ready` | 409 | `conflict_error` | This video has no file yet. Wait until its status is succeeded, then download it. |
 | <a id="lz-7830"></a>`LZ-7830` | `invalid_wait` | 400 | `invalid_request_error` | wait must be a whole number of seconds from 0 to 60. |
-| <a id="lz-7861"></a>`LZ-7861` | `search_backend_not_found` | 404 | `not_found_error` | This search backend was not found. Refresh the list. |
-| <a id="lz-7862"></a>`LZ-7862` | `search_backend_provider_invalid` | 400 | `invalid_request_error` | This search provider is not supported or does not match the channel type. Choose a listed provider. |
 | <a id="lz-7864"></a>`LZ-7864` | `upload_file_not_found` | 404 | `not_found_error` | This data file was not found on the server. Check the file path. |
 | <a id="lz-7865"></a>`LZ-7865` | `upload_key_not_allowed` | 400 | `invalid_request_error` | This path can't be uploaded. Directories and configuration files are excluded; choose a regular data file. |
 | <a id="lz-7866"></a>`LZ-7866` | `upload_failed` | 502 | `api_error` | Object storage did not accept the upload. Check the storage settings and try again. |
