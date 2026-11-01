@@ -62,12 +62,12 @@ func TestBuildWorkerTasksOnlyAddsDatabaseTasksWhenReady(t *testing.T) {
 
 	withDatabase := buildWorkerTasks(&workerResources{databaseReady: true}, false)
 	extensionTasks := len(worker.ExtensionTasks())
-	if len(withDatabase) != 24+extensionTasks {
+	if len(withDatabase) != 25+extensionTasks {
 		t.Fatalf("expected database-backed tasks, got %d", len(withDatabase))
 	}
 
 	oneShot := buildWorkerTasks(&workerResources{databaseReady: true}, true)
-	if len(oneShot) != 30+extensionTasks {
+	if len(oneShot) != 31+extensionTasks {
 		t.Fatalf("expected hosted one-shot task coverage, got %d", len(oneShot))
 	}
 

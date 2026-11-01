@@ -17,7 +17,12 @@ type EmailSetting struct {
 	LowBalanceEnabled      bool    `json:"low_balance_enabled"`
 	LowBalanceThresholdUSD float64 `json:"low_balance_threshold_usd"`
 	LowBalanceRemindDays   []int   `json:"low_balance_remind_days"`
-	AdminEmail             string  `json:"admin_email"`
+	// LowBalanceRunwayDays is how many days of spend a balance must still
+	// cover; under that, the hourly runway check mails the account and alerts
+	// the operator. 0 turns the runway check off; the fixed threshold above
+	// keeps working on its own.
+	LowBalanceRunwayDays int    `json:"low_balance_runway_days"`
+	AdminEmail           string `json:"admin_email"`
 }
 
 var emailSetting = EmailSetting{
@@ -27,8 +32,13 @@ var emailSetting = EmailSetting{
 	LowBalanceEnabled:      true,
 	LowBalanceThresholdUSD: 20,
 	LowBalanceRemindDays:   []int{1, 3, 7, 15, 30},
+	LowBalanceRunwayDays:   DefaultLowBalanceRunwayDays,
 	AdminEmail:             "",
 }
+
+// DefaultLowBalanceRunwayDays is the runway under which the balance alert
+// fires when no deployment sets its own.
+const DefaultLowBalanceRunwayDays = 3
 
 func init() {
 	config.GlobalConfig.Register("email_setting", &emailSetting)
@@ -63,6 +73,9 @@ func LoadFromAppConfig(app common.AppConfigStruct) {
 	}
 	if remindDays := common.NormalizePositiveIntSlice(lb.RemindDays); len(remindDays) > 0 {
 		emailSetting.LowBalanceRemindDays = remindDays
+	}
+	if lb.RunwayDays >= 0 {
+		emailSetting.LowBalanceRunwayDays = lb.RunwayDays
 	}
 	if email := strings.TrimSpace(app.EmailNotifications.AdminEmail); email != "" {
 		emailSetting.AdminEmail = email

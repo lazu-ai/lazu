@@ -124,6 +124,18 @@ const createSections = (t: TFunction): SettingSection[] => [
         description: t('page.console.settingV2.billing.field.remindDaysHelp'),
         placeholder: '7',
       },
+      /* Independent of the switch above: the operator alert goes out even
+         when user mail is off, so the field is not indented under it. */
+      {
+        key: 'email_setting.low_balance_runway_days',
+        kind: 'number',
+        width: 'sm',
+        unit: t('page.console.settingV2.billing.field.daysUnit', {
+          defaultValue: 'days',
+        }),
+        label: t('page.console.settingV2.billing.field.runwayDays'),
+        description: t('page.console.settingV2.billing.field.runwayDaysHelp'),
+      },
     ],
   },
   {

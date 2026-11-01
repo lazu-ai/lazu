@@ -118,6 +118,7 @@ export const billingDefaults = {
   'email_setting.low_balance_enabled': true,
   'email_setting.low_balance_threshold_usd': 20,
   'email_setting.low_balance_remind_days': '[1,3,7,15,30]',
+  'email_setting.low_balance_runway_days': 3,
   'email_setting.balance_change_enabled': true,
 };
 
@@ -130,6 +131,13 @@ export const billingSchema = z.object({
   'email_setting.low_balance_enabled': boolField,
   'email_setting.low_balance_threshold_usd': numberField,
   'email_setting.low_balance_remind_days': stringField,
+  /* Whole days; 0 turns the runway check off. The server holds the same range. */
+  'email_setting.low_balance_runway_days': z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(365)
+    .optional(),
   'email_setting.balance_change_enabled': boolField,
 });
 

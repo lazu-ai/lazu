@@ -140,30 +140,7 @@ func SendLowBalanceEmailIfNeeded(user *model.User, balance billing.MicroUSD, thr
 		return false, true
 	}
 
-	lang := userMailLang(user)
-	left := common.MailUSD(balance.Dollars())
-	line := common.MailUSD(threshold.Dollars())
-	subject := common.MailText(lang, "Lazu 余额只剩 "+left, "Your Lazu balance is down to "+left)
-	message := common.MailText(lang,
-		"余额已低于提醒线 "+line+"，用完后 API 请求会返回 402。",
-		"Your balance is under your "+line+" reminder. When it runs out, API requests return 402.")
-	if balance <= 0 {
-		message = common.MailText(lang, "余额已用完，API 请求会返回 402，充值后立即恢复。", "Your balance has run out. API requests return 402 until you top up.")
-	}
-	body, err := common.RenderMail(common.Mail{
-		Lang: lang, Tier: common.MailInk, Eyebrow: "LOW BALANCE",
-		Preheader: common.MailText(lang, "低于提醒线 "+line, "Under your "+line+" reminder"),
-		Hero:      left, CompactHero: absDollars(balance) >= 1000,
-		Message: message,
-		Blocks: []common.MailBlock{
-			{Facts: []common.MailFact{
-				{Label: common.MailText(lang, "当前余额", "Balance"), Value: left},
-				{Label: common.MailText(lang, "提醒线", "Reminder at"), Value: line},
-			}},
-			{Primary: &common.MailAction{Label: common.MailText(lang, "去充值", "Top up"), URL: userMailLink(user, model.SurfaceLinkWallet)},
-				Secondary: &common.MailAction{Label: common.MailText(lang, "调整提醒", "Change reminders"), URL: userMailLink(user, model.SurfaceLinkSettings)}},
-		},
-	})
+	subject, body, err := lowBalanceMail(user, balance, threshold, nil)
 	if err != nil {
 		common.SysError("render low balance email: " + err.Error())
 		return false, false
@@ -178,4 +155,52 @@ func SendLowBalanceEmailIfNeeded(user *model.User, balance billing.MicroUSD, thr
 		}
 	})
 	return true, true
+}
+
+// lowBalanceMail renders the low-balance mail. With a runway estimate the
+// mail says how many days the balance lasts at the account's own rate;
+// without one it names the reminder line the balance crossed (threshold).
+func lowBalanceMail(user *model.User, balance billing.MicroUSD, threshold billing.MicroUSD, runway *BalanceRunway) (subject, body string, err error) {
+	lang := userMailLang(user)
+	left := common.MailUSD(balance.Dollars())
+	subject = common.MailText(lang, "Lazu 余额只剩 "+left, "Your Lazu balance is down to "+left)
+	var message, preheader string
+	facts := []common.MailFact{{Label: common.MailText(lang, "当前余额", "Balance"), Value: left}}
+	switch {
+	case balance <= 0:
+		message = common.MailText(lang, "余额已用完，API 请求会返回 402，充值后立即恢复。", "Your balance has run out. API requests return 402 until you top up.")
+		preheader = common.MailText(lang, "API 请求正在返回 402", "API requests are returning 402")
+		if runway != nil && runway.Known {
+			facts = append(facts, common.MailFact{Label: common.MailText(lang, "日均消耗（近 7 天）", "Daily spend (7-day average)"), Value: common.MailUSD(runway.DailySpend.Dollars())})
+		}
+	case runway != nil && runway.Known:
+		days := balanceRunwayDaysText(*runway, lang)
+		subject = common.MailText(lang, "Lazu 余额约剩 "+days, "Your Lazu balance lasts about "+days)
+		message = common.MailText(lang,
+			"按你最近 7 天的用量，余额大约还能用 "+days+"。用完后 API 请求会返回 402。",
+			"At your spend over the last 7 days, your balance lasts about "+days+" more. When it runs out, API requests return 402.")
+		preheader = common.MailText(lang, "当前余额 "+left, "Balance "+left)
+		facts = append(facts,
+			common.MailFact{Label: common.MailText(lang, "日均消耗（近 7 天）", "Daily spend (7-day average)"), Value: common.MailUSD(runway.DailySpend.Dollars())},
+			common.MailFact{Label: common.MailText(lang, "预计可用", "Lasts about"), Value: days})
+	default:
+		line := common.MailUSD(threshold.Dollars())
+		message = common.MailText(lang,
+			"余额已低于提醒线 "+line+"，用完后 API 请求会返回 402。",
+			"Your balance is under your "+line+" reminder. When it runs out, API requests return 402.")
+		preheader = common.MailText(lang, "低于提醒线 "+line, "Under your "+line+" reminder")
+		facts = append(facts, common.MailFact{Label: common.MailText(lang, "提醒线", "Reminder at"), Value: line})
+	}
+	body, err = common.RenderMail(common.Mail{
+		Lang: lang, Tier: common.MailInk, Eyebrow: "LOW BALANCE",
+		Preheader: preheader,
+		Hero:      left, CompactHero: absDollars(balance) >= 1000,
+		Message: message,
+		Blocks: []common.MailBlock{
+			{Facts: facts},
+			{Primary: &common.MailAction{Label: common.MailText(lang, "去充值", "Top up"), URL: userMailLink(user, model.SurfaceLinkWallet)},
+				Secondary: &common.MailAction{Label: common.MailText(lang, "调整提醒", "Change reminders"), URL: userMailLink(user, model.SurfaceLinkSettings)}},
+		},
+	})
+	return subject, body, err
 }
