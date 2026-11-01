@@ -191,10 +191,6 @@ func UpdateChannelBalance(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
 	if channel.ChannelInfo.IsMultiKey {
 		httperr.Code(c, types.ErrorCodeChannelBalanceUnsupported, types.D{"reason": "multi_key"})
 		return
@@ -214,9 +210,6 @@ func updateAllChannelsBalance() error {
 	}
 	for _, channel := range channels {
 		if channel.Status != common.ChannelStatusEnabled {
-			continue
-		}
-		if constant.IsSearchChannelType(channel.Type) {
 			continue
 		}
 		if channel.ChannelInfo.IsMultiKey {

@@ -36,7 +36,6 @@ describe('postLoginDestination', () => {
     '/console/user/123',
     '/console/model-ops/sources',
     '/console/channel',
-    '/console/search-backend',
     '/console/setting',
     '/console/announcements',
   ])('sends ordinary accounts home from %s', (path) => {

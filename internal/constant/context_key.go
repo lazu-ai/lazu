@@ -54,9 +54,6 @@ const (
 	ContextKeyTokenVendorLimitEnabled ContextKey = "token_vendor_limit_enabled"
 	ContextKeyTokenVendorGroups       ContextKey = "token_vendor_groups"
 	ContextKeyTokenModelLanes         ContextKey = "token_model_lanes"
-	ContextKeyTokenSearchLimitEnabled ContextKey = "token_search_limit_enabled"
-	ContextKeyTokenSearchProviders    ContextKey = "token_search_providers"
-	ContextKeyTokenSearchDomainAllow  ContextKey = "token_search_domain_allowlist"
 	ContextKeyEphemeralCredential     ContextKey = "ephemeral_credential"
 
 	/* channel related keys */

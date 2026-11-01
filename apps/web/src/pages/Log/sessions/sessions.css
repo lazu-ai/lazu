@@ -909,6 +909,18 @@
   }
 
   /* ---- filter row ---------------------------------------------------- */
+  /* On a phone: range, Agent and 筛选 on the first line, search below. */
+  @media (max-width: 767px) {
+    .ses-filters .ses-search {
+      flex-basis: 100%;
+      order: 1;
+    }
+
+    .ses-filters > .lazu-button {
+      margin-left: auto;
+    }
+  }
+
   .ses-filters {
     align-items: center;
     display: flex;
@@ -1288,4 +1300,10 @@ h2.sd-card__title {
   font-weight: 600;
   line-height: 1.4;
   margin: 0;
+}
+
+/* The search input drops its outline; show focus on the search frame. */
+.ses-search:focus-within {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
 }

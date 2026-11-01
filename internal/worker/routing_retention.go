@@ -59,9 +59,6 @@ func PurgeOldRoutingDataAt(now time.Time) error {
 	if err := model.PurgeOldChannelProbeResults(now.AddDate(0, 0, -model.ChannelProbeRetentionDays)); err != nil {
 		return err
 	}
-	if err := model.PurgeOldSearchHealthSamples(now.AddDate(0, 0, -30)); err != nil {
-		return err
-	}
 	if err := model.PurgeOrphanRouteHealthStates(); err != nil {
 		return err
 	}

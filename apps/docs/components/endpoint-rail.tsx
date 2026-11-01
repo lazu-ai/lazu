@@ -16,7 +16,7 @@ type RequestTab = keyof Samples;
 type ResponseTab = "example" | "stream" | "error" | "body" | "headers";
 
 type EndpointRailProps = {
-  /** Endpoint key into ENDPOINT_SAMPLES (chat, search, models, …). */
+  /** Endpoint key into ENDPOINT_SAMPLES (chat, models, …). */
   endpoint: string;
   /** Extra cards rendered below the receipt. */
   extra?: ReactNode;
@@ -30,8 +30,6 @@ type LiveResult = {
   usage: {
     input?: number;
     output?: number;
-    searchRequests?: number;
-    searchUnits?: number;
   };
   model?: string;
   keyEnding: string;
@@ -88,7 +86,6 @@ type Copy = {
   requestId: string;
   providerRegion: string;
   tokens: string;
-  searchUsage: string;
   noCompatibleModels: string;
   pendingCost: string;
   openConsole: string;
@@ -126,7 +123,6 @@ const COPY: Record<string, Copy> = {
     requestId: "Request ID",
     providerRegion: "Gateway · region",
     tokens: "Tokens in / out",
-    searchUsage: "Search requests / billable units",
     noCompatibleModels: "No compatible models",
     pendingCost: "Cost not reported",
     openConsole: "Open this request in the console",
@@ -162,7 +158,6 @@ const COPY: Record<string, Copy> = {
     requestId: "请求 ID",
     providerRegion: "网关节点 · 区域",
     tokens: "Token 输入 / 输出",
-    searchUsage: "搜索请求 / 计费单位",
     noCompatibleModels: "没有兼容模型",
     pendingCost: "未返回费用",
     openConsole: "在控制台打开这条请求",
@@ -197,7 +192,6 @@ const COPY: Record<string, Copy> = {
     requestId: "請求 ID",
     providerRegion: "閘道節點 · 區域",
     tokens: "Token 輸入 / 輸出",
-    searchUsage: "搜尋請求 / 計費單位",
     noCompatibleModels: "沒有相容模型",
     pendingCost: "未回傳費用",
     openConsole: "在主控台開啟這筆請求",
@@ -233,7 +227,6 @@ const COPY: Record<string, Copy> = {
     requestId: "リクエスト ID",
     providerRegion: "ゲートウェイ · リージョン",
     tokens: "トークン 入力 / 出力",
-    searchUsage: "検索リクエスト / 課金単位",
     noCompatibleModels: "対応モデルなし",
     pendingCost: "料金未返却",
     openConsole: "このリクエストをコンソールで開く",
@@ -288,8 +281,6 @@ function usageFromPayload(payload: unknown): LiveResult["usage"] {
   return {
     input: number(usage.prompt_tokens ?? usage.input_tokens),
     output: number(usage.completion_tokens ?? usage.output_tokens),
-    searchRequests: number(usage.web_search_requests),
-    searchUnits: number(usage.web_search_billable_units),
   };
 }
 
@@ -785,7 +776,7 @@ export function EndpointRail({ endpoint, extra }: EndpointRailProps) {
               t.model,
               t.lane,
               t.providerRegion,
-              endpoint === "search" ? t.searchUsage : t.tokens,
+              t.tokens,
               t.keyEnding,
             ].map((label) => (
               <div key={label}>
@@ -833,11 +824,9 @@ export function EndpointRail({ endpoint, extra }: EndpointRailProps) {
               </dd>
             </div>
             <div>
-              <dt>{endpoint === "search" ? t.searchUsage : t.tokens}</dt>
+              <dt>{t.tokens}</dt>
               <dd>
-                {endpoint === "search"
-                  ? `${result.usage.searchRequests ?? "—"} / ${result.usage.searchUnits ?? "—"}`
-                  : `${result.usage.input ?? "—"} / ${result.usage.output ?? "—"}`}
+                {`${result.usage.input ?? "—"} / ${result.usage.output ?? "—"}`}
               </dd>
             </div>
             <div>

@@ -101,7 +101,7 @@ func TestPeekRequestedModelMatchesJSONCaseFoldingAndRejectsAmbiguity(t *testing.
 		}
 	}
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest("POST", "/v1/search", strings.NewReader(`{"MODEL":"allowed"}`))
+	c.Request = httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"MODEL":"allowed"}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	peekRequestedModel(c)
 	modelRequest, _, err := getModelRequest(c)

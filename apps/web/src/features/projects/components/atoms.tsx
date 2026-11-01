@@ -9,7 +9,6 @@ export {
   PjBadge,
   SegControl,
   ErrLine,
-  ConfirmPop,
   GateModal,
   ActionModal,
   Notice,

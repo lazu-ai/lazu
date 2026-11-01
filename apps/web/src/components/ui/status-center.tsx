@@ -24,6 +24,12 @@ export type StatusIssue = {
   source?: string;
 };
 
+/* Dedupe keys for the issues the console raises itself. The status center
+   titles and explains these by key, in the reader's current language, so a
+   stored entry does not keep the language it was recorded in. */
+export const STATUS_ISSUE_OFFLINE = 'device-offline';
+export const STATUS_ISSUE_RUNTIME_UNAVAILABLE = 'runtime-status-unavailable';
+
 const LEGACY_STORAGE_KEY = 'lazu-status-center';
 const STORAGE_KEY_PREFIX = 'lazu-status-center:';
 const MAX_ISSUES = 30;
@@ -186,25 +192,39 @@ const formatTime = (timestamp: number) =>
     minute: '2-digit',
   }).format(timestamp);
 
+const issueHasKey = (issue: StatusIssue, dedupeKey: string) =>
+  issue.id.endsWith(`:dedupe:${dedupeKey}`);
+
 /** Raw transport errors read like stack traces. Map the ones we recognise onto
- *  a short human title; anything else keeps its own text. */
+ *  a short human title; anything else keeps its own text. The English
+ *  patterns match entries stored before these issues carried a dedupe key. */
 const presentStatusMessage = (
-  message: string,
+  issue: StatusIssue,
   t: TFunction,
 ): { detail?: string; title: string } => {
-  const stripped = message.trim();
-  if (/backend status could not be loaded/i.test(stripped)) {
+  const stripped = issue.message.trim();
+  if (
+    issueHasKey(issue, STATUS_ISSUE_RUNTIME_UNAVAILABLE) ||
+    /backend status could not be loaded/i.test(stripped)
+  ) {
     return {
       title: t('statusCenter.title.statusUnavailable', {
         defaultValue: '运行时状态读不到',
       }),
-      detail: stripped,
+      detail: t('statusCenter.detail.statusUnavailable', {
+        defaultValue: '读不到后端运行状态。',
+      }),
     };
   }
-  if (/this device is offline/i.test(stripped)) {
+  if (
+    issueHasKey(issue, STATUS_ISSUE_OFFLINE) ||
+    /this device is offline/i.test(stripped)
+  ) {
     return {
       title: t('statusCenter.title.offline', { defaultValue: '设备已离线' }),
-      detail: stripped,
+      detail: t('statusCenter.detail.offline', {
+        defaultValue: '这台设备已离线，已加载的数据仍可查看。',
+      }),
     };
   }
   return { title: stripped };
@@ -298,7 +318,7 @@ export function StatusCenter({
         {currentIssues.length ? (
           <div className='lazu-status-sheet__list'>
             {currentIssues.map((issue) => {
-              const presented = presentStatusMessage(issue.message, t);
+              const presented = presentStatusMessage(issue, t);
               return (
                 <article
                   className='lazu-status-sheet__item'
@@ -316,7 +336,7 @@ export function StatusCenter({
                         ? t('statusCenter.repeated', { count: issue.count })
                         : formatTime(issue.lastSeenAt)}
                       {issue.source
-                        ? ` · ${issue.source}`
+                        ? ` · ${t(`statusCenter.source.${issue.source.toLowerCase()}`, { defaultValue: issue.source })}`
                         : ` · ${t('statusCenter.defaultSource')}`}
                     </span>
                   </div>

@@ -10,29 +10,6 @@ for (const theme of ['light', 'dark'] as const) {
       }, theme);
     });
 
-    test('desktop sign-out retains its compact geometry inside the account menu', async ({
-      page,
-    }) => {
-      await page.goto('/console/models');
-      await page.locator('.console-topbar__avatar').click();
-      await page
-        .getByRole('menuitem', { name: 'Sign out', exact: true })
-        .click();
-      const popup = page
-        .locator('.lazu-dropdown-content')
-        .filter({ hasText: 'Sign out of this account?' });
-      await expect(popup).toHaveCSS('width', '210px');
-      await expect(popup).toHaveCSS('border-radius', '14px');
-      const cancel = popup.getByRole('button', { name: 'Cancel', exact: true });
-      await expect(cancel).toHaveCSS('height', '28px');
-      await expect(cancel).toHaveCSS('border-radius', '8px');
-      await expect(cancel).toBeFocused();
-      await cancel.click();
-      await expect(
-        page.getByRole('menuitem', { name: 'Sign out', exact: true }),
-      ).toBeVisible();
-    });
-
     test('personal settings controls retain their appearance in a portal', async ({
       page,
     }) => {
@@ -122,23 +99,22 @@ for (const theme of ['light', 'dark'] as const) {
   });
 }
 
-test('mobile sign-out retains compact styling and dismisses without signing out', async ({
-  page,
-}) => {
+test('mobile sign-out signs out from the drawer at once', async ({ page }) => {
+  let logouts = 0;
   await page.setViewportSize({ width: 390, height: 844 });
-  await setupMockedApp(page, { language: 'en' });
+  await setupMockedApp(page, {
+    language: 'en',
+    payloadFor: (raw: string) => {
+      if (new URL(raw).pathname === '/api/user/logout') {
+        logouts++;
+        return { success: true };
+      }
+      return undefined;
+    },
+  });
   await page.goto('/console/models');
   await page.locator('.mobile-console-menu-trigger').click();
   await page.locator('.sidebar-v2__logout').click();
-  const popup = page
-    .locator('.lazu-popover-content')
-    .filter({ hasText: 'Sign out of this account?' });
-  await expect(popup).toHaveCSS('width', '210px');
-  await expect(popup).toHaveCSS('border-radius', '14px');
-  await expect(
-    popup.getByRole('button', { name: 'Cancel', exact: true }),
-  ).toHaveCSS('height', '28px');
-  await page.keyboard.press('Escape');
-  await expect(popup).not.toBeVisible();
-  await expect(page).toHaveURL(/\/console\/models/);
+  await expect.poll(() => logouts).toBe(1);
+  await expect(page).toHaveURL(/\/login/);
 });

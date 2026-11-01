@@ -98,7 +98,6 @@ func TestSetApiRouter_RegistersCriticalRoutes(t *testing.T) {
 		{method: "POST", path: "/api/files"},
 		{method: "GET", path: "/api/usage/summary"},
 		{method: "GET", path: "/api/usage/requests/:request_id"},
-		{method: "GET", path: "/api/search/backends"},
 		{method: "GET", path: "/api/status"},
 		{method: "GET", path: "/api/auth/oauth/:provider/login"},
 		{method: "GET", path: "/api/auth/oauth/:provider/callback"},

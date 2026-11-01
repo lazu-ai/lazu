@@ -85,23 +85,6 @@ func TestRunChannelProbeSweepZeroBudgetDisablesAllProbes(t *testing.T) {
 	}
 }
 
-func TestProbeSearchChannelExitIsSkipped(t *testing.T) {
-	db := setupModelOpsControllerTestDB(t)
-	channel := model.Channel{
-		Id: 91, PublicID: "jina-probe", Name: "jina", Key: "test",
-		Type: constant.ChannelTypeJina, Status: common.ChannelStatusEnabled,
-	}
-	if err := db.Create(&channel).Error; err != nil {
-		t.Fatalf("seed Jina channel: %v", err)
-	}
-	outcome := probeChannelCell(context.Background(), ChannelProbeCandidate{
-		Lane: model.ChannelLaneDirect, ModelName: "bge-reranker-v2-m3", ChannelId: channel.Id,
-	}, 0.25)
-	if !outcome.Skipped || outcome.Success || outcome.CostUSD != 0 {
-		t.Fatalf("search-channel probe = %+v, want a zero-cost skipped result", outcome)
-	}
-}
-
 func TestProbeUnavailableChannelReleasesReservation(t *testing.T) {
 	setupModelOpsControllerTestDB(t)
 	outcome := probeChannelCell(context.Background(), ChannelProbeCandidate{
@@ -506,51 +489,6 @@ func TestFoldChannelHealthClearsBlockedOnSourcesWithEvidence(t *testing.T) {
 	}
 	if row.Status != publicStatusOperational {
 		t.Fatalf("status = %q, want operational", row.Status)
-	}
-}
-
-func TestSearchOverlayFailureKeepsModelHealth(t *testing.T) {
-	db := setupModelOpsControllerTestDB(t)
-	// Search backend discovery fails after a usable snapshot was cached.
-	if err := db.Migrator().DropTable(&model.Channel{}); err != nil {
-		t.Fatal(err)
-	}
-	snapshot := channelHealthSnapshot{
-		windowSeconds: 86400, bucketSeconds: 3600, updatedAt: time.Now().UTC(),
-		rows: []channelHealthLaneView{
-			{ModelName: "model-ok", Kind: channelHealthKindLLM, Status: publicStatusOperational, Source: channelHealthSourceTraffic},
-			{ModelName: "Serper", Kind: channelHealthKindSearch, Provider: "serper", Status: publicStatusOperational, Source: channelHealthSourceTraffic,
-				Sources: []channelHealthSourceView{{ChannelID: 1, Status: publicStatusOperational}}},
-		},
-	}
-	channelHealthCache.Lock()
-	channelHealthCache.items = map[string]channelHealthSnapshot{"24h": snapshot}
-	channelHealthCache.Unlock()
-	t.Cleanup(func() {
-		channelHealthCache.Lock()
-		channelHealthCache.items = map[string]channelHealthSnapshot{}
-		channelHealthCache.Unlock()
-	})
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/channel_health?window=24h", nil)
-	c.Set("role", common.RoleRootUser)
-	GetChannelHealth(c)
-	var envelope struct {
-		Success bool                  `json:"success"`
-		Data    channelHealthResponse `json:"data"`
-	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &envelope); err != nil {
-		t.Fatal(err)
-	}
-	if !envelope.Success || len(envelope.Data.Rows) != 2 {
-		t.Fatalf("health unavailable: %s", recorder.Body.String())
-	}
-	if envelope.Data.Rows[0].Status != publicStatusOperational || envelope.Data.Rows[1].Status != publicStatusUnknown {
-		t.Fatalf("wrong fallback statuses: %+v", envelope.Data.Rows)
-	}
-	if snapshot.rows[1].Status != publicStatusOperational || snapshot.rows[1].Sources[0].Status != publicStatusOperational {
-		t.Fatal("cached snapshot was mutated")
 	}
 }
 

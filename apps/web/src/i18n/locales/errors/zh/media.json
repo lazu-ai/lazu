@@ -18,8 +18,6 @@
   "video_artifact_missing": "视频已生成结束，但没有可下载的文件。请重新生成。",
   "video_not_ready": "这个视频还没有可下载的文件。等状态变成 succeeded 后再下载。",
   "invalid_wait": "wait 必须是 0 到 60 之间的整数秒。",
-  "search_backend_not_found": "找不到这个搜索后端。请刷新列表。",
-  "search_backend_provider_invalid": "不支持这个搜索服务商，或它与渠道类型不一致。请从列表中选择服务商。",
   "upload_file_not_found": "服务器上找不到这个数据文件。请检查文件路径。",
   "upload_key_not_allowed": "这个路径不能上传。目录和配置文件不在上传范围内，请选择普通数据文件。",
   "upload_failed": "对象存储没有接受这次上传。请检查存储配置后再试。"

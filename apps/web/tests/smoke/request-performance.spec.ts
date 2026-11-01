@@ -214,7 +214,6 @@ test('same-account login after logout reads fresh session data immediately', asy
   await expect.poll(() => selfReads).toBe(1);
   await page.locator('.console-topbar__avatar').click();
   await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page).toHaveURL(/\/login/);
   await page.locator('#auth-identifier').fill('review-user');
   await page.locator('#auth-password').fill('test-password');

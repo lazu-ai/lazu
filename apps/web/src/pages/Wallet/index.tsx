@@ -892,59 +892,63 @@ const WalletPage = () => {
                 {t('page.system.loading.title')}
               </div>
             ) : ledgerRows.length ? (
-              <table className='wal-ledger'>
-                <thead>
-                  <tr>
-                    <th>{t(`${ns}.ledger.date`, { defaultValue: '日期' })}</th>
-                    <th className='wal-ledger__num'>
-                      {t(`${ns}.ledger.spend`, { defaultValue: '消耗' })}
-                    </th>
-                    <th className='wal-ledger__num'>
-                      {t(`${ns}.ledger.credit`, { defaultValue: '充值' })}
-                    </th>
-                    <th className='wal-ledger__num'>
-                      {t(`${ns}.ledger.balance`, { defaultValue: '余额' })}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledgerRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        <Link
-                          aria-label={t(`${ns}.ledger.inspect`, {
-                            date: row.date,
-                            defaultValue: `Inspect requests from ${row.date}`,
-                          })}
-                          className='wal-ledger__date-link'
-                          to={`/console/usage?tab=logs&start_timestamp=${dayjs(row.date).startOf('day').unix()}&end_timestamp=${dayjs(row.date).endOf('day').unix()}`}
-                        >
-                          {dayjs(row.date).format('MM-DD')}
-                        </Link>
-                      </td>
-                      <td className='wal-ledger__num'>
-                        {row.spend ? (
-                          formatSigned(-row.spend)
-                        ) : (
-                          <span className='wal-ledger__idle'>—</span>
-                        )}
-                      </td>
-                      <td className='wal-ledger__num'>
-                        {row.credit ? (
-                          <span className='wal-ledger__credit'>
-                            {formatSigned(row.credit)}
-                          </span>
-                        ) : (
-                          <span className='wal-ledger__idle'>—</span>
-                        )}
-                      </td>
-                      <td className='wal-ledger__num'>
-                        {formatCurrency(row.balance)}
-                      </td>
+              <div className='lazu-table-wrap'>
+                <table className='wal-ledger'>
+                  <thead>
+                    <tr>
+                      <th>
+                        {t(`${ns}.ledger.date`, { defaultValue: '日期' })}
+                      </th>
+                      <th className='wal-ledger__num'>
+                        {t(`${ns}.ledger.spend`, { defaultValue: '消耗' })}
+                      </th>
+                      <th className='wal-ledger__num'>
+                        {t(`${ns}.ledger.credit`, { defaultValue: '充值' })}
+                      </th>
+                      <th className='wal-ledger__num'>
+                        {t(`${ns}.ledger.balance`, { defaultValue: '余额' })}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {ledgerRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>
+                          <Link
+                            aria-label={t(`${ns}.ledger.inspect`, {
+                              date: row.date,
+                              defaultValue: `Inspect requests from ${row.date}`,
+                            })}
+                            className='wal-ledger__date-link'
+                            to={`/console/usage?tab=logs&start_timestamp=${dayjs(row.date).startOf('day').unix()}&end_timestamp=${dayjs(row.date).endOf('day').unix()}`}
+                          >
+                            {dayjs(row.date).format('MM-DD')}
+                          </Link>
+                        </td>
+                        <td className='wal-ledger__num'>
+                          {row.spend ? (
+                            formatSigned(-row.spend)
+                          ) : (
+                            <span className='wal-ledger__idle'>—</span>
+                          )}
+                        </td>
+                        <td className='wal-ledger__num'>
+                          {row.credit ? (
+                            <span className='wal-ledger__credit'>
+                              {formatSigned(row.credit)}
+                            </span>
+                          ) : (
+                            <span className='wal-ledger__idle'>—</span>
+                          )}
+                        </td>
+                        <td className='wal-ledger__num'>
+                          {formatCurrency(row.balance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className='wal-ledger__empty'>
                 {t(`${billingNs}.ledger.emptyDescription`)}

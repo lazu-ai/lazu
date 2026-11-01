@@ -1,6 +1,5 @@
 {
   "channel_not_found": "This channel no longer exists. It may have been deleted; refresh the list.",
-  "channel_search_backend_managed": "This channel is a search backend, so it cannot be changed here. Manage it on the Search backends page.",
   "channel_lane_invalid": "Lane “{{lane}}” does not exist. A channel belongs to exactly one existing lane; pick one from the list.",
   "channel_settings_invalid": "The channel's extra settings could not be read, so nothing was saved. Check the JSON format and values.",
   "channel_model_name_too_long": "A model name is longer than 255 characters, so the channel was not saved. Shorten or remove it.",

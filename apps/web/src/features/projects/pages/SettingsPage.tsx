@@ -24,7 +24,11 @@ import {
   SettingsRow,
 } from '../../../components/ui/settings-card';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
-import { errorMessage, isLazuApiError } from '../../../lib/api-error';
+import {
+  errorMessage,
+  isLazuApiError,
+  isRefusal,
+} from '../../../lib/api-error';
 import { draftFromMicro, validateBudget, type BudgetDraft } from '../budget';
 import {
   BudgetPicker,
@@ -73,6 +77,7 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [dissolveOpen, setDissolveOpen] = useState(false);
   const [dissolving, setDissolving] = useState(false);
+  const [dissolveError, setDissolveError] = useState('');
   const [portalBusy, setPortalBusy] = useState(false);
   const [missingPortalProject, setMissingPortalProject] = useState<
     string | null
@@ -137,9 +142,14 @@ export default function SettingsPage() {
     if (ok) setEditor(null);
   };
 
+  const openDissolve = (open: boolean) => {
+    setDissolveError('');
+    setDissolveOpen(open);
+  };
   const dissolve = async () => {
     if (!project.client || !project.current || !d) return;
     setDissolving(true);
+    setDissolveError('');
     try {
       await project.client.dissolveProject(project.current.id, d.name);
       setDissolveOpen(false);
@@ -148,7 +158,13 @@ export default function SettingsPage() {
       receipt(t('projects.settings.dissolvedReceipt', { name: d.name }));
       navigate('/console');
     } catch (e) {
-      errorReceipt(e);
+      // The dissolve is one transaction: a refusal changed nothing. A lost
+      // answer did not say, and its own sentence says the outcome is unknown.
+      setDissolveError(
+        isRefusal(e)
+          ? t('projects.settings.dissolveFailed', { reason: errorMessage(e) })
+          : errorMessage(e),
+      );
     } finally {
       setDissolving(false);
     }
@@ -180,9 +196,10 @@ export default function SettingsPage() {
   const memberCount = (members.data ?? []).filter(
     (m) => m.role !== 'owner',
   ).length;
-  // Dissolving stops every Key that is not the owner's own.
+  // Dissolving stops every Key that is not the owner's own; the count is the
+  // ones still working, the rest are already stopped.
   const otherKeyCount = (tokens.data ?? []).filter(
-    (k) => k.owner?.id !== project.viewerId,
+    (k) => k.owner?.id !== project.viewerId && k.status === 'enabled',
   ).length;
   const topupLabel = (value: ProjectSettings['who_can_topup']) =>
     value === 'owner'
@@ -449,7 +466,7 @@ export default function SettingsPage() {
                   members.isError ||
                   tokens.isError
                 }
-                onClick={() => setDissolveOpen(true)}
+                onClick={() => openDissolve(true)}
                 size='sm'
                 variant='danger'
               >
@@ -544,27 +561,36 @@ export default function SettingsPage() {
         busy={dissolving}
         busyLabel={t('projects.settings.dissolving')}
         confirmLabel={t('projects.settings.dissolveConfirm')}
-        description={t('projects.settings.dissolveLede')}
+        error={dissolveError || undefined}
         gate={{
           type: 'typed',
           expected: d?.name ?? '',
-          label: t('projects.settings.typeName'),
+          label: t('projects.settings.typeNameToConfirm', {
+            name: d?.name ?? '',
+          }),
         }}
         onConfirm={dissolve}
-        onOpenChange={setDissolveOpen}
+        onOpenChange={openDissolve}
         open={dissolveOpen}
         title={t('projects.settings.dissolveTitle', { name: d?.name ?? '' })}
-        bullets={[
-          t('projects.settings.dissolve1', {
-            members: memberCount,
-            keys: otherKeyCount,
-          }),
-          t('projects.settings.dissolve2', {
-            balance: formatUSD(d?.balance_microusd),
-            name: d?.name ?? project.currentName,
-          }),
-          t('projects.settings.dissolve3'),
-        ]}
+        body={
+          <div className='pj-gate__lines'>
+            <p>
+              {memberCount === 0
+                ? t('projects.settings.dissolveNoMembers')
+                : otherKeyCount === 0
+                  ? t('projects.settings.dissolveMembersOnly', {
+                      members: memberCount,
+                    })
+                  : t('projects.settings.dissolveMembers', {
+                      members: memberCount,
+                      keys: otherKeyCount,
+                    })}
+            </p>
+            <p>{t('projects.settings.dissolveKeeps')}</p>
+            <p>{t('projects.settings.dissolveFinal')}</p>
+          </div>
+        }
       />
     </ConsolePage>
   );

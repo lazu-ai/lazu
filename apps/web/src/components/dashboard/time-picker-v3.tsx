@@ -12,6 +12,7 @@
  * - Apply commits the draft; outside-click / Esc cancels.
  */
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -20,6 +21,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import './time-picker-v3.css';
 
 const ns = 'page.console.dashboard';
 
@@ -67,6 +69,23 @@ const PRESETS: PresetDef[] = [
   { id: '30d', labelKey: `${ns}.timePicker.preset.30d` },
 ];
 
+/* Calendar-shaped shortcuts for pages whose 24h / 7d / 30d already sit in a
+   segmented control beside the picker. */
+export const CALENDAR_PRESET_IDS = [
+  'today',
+  'yesterday',
+  '3d',
+  '14d',
+  'thisMonth',
+  'lastMonth',
+  '90d',
+];
+
+const presetDef = (id: string): PresetDef => ({
+  id,
+  labelKey: `${ns}.timePicker.preset.${id}`,
+});
+
 export function resolvePreset(id: string, now: Date): ResolvedRange | null {
   const t = dateToObj(now);
   const h = now.getHours();
@@ -106,6 +125,28 @@ export function resolvePreset(id: string, now: Date): ResolvedRange | null {
         start: addDays(t, -29),
         end: t,
       };
+    case '90d':
+      return {
+        mode: 'day',
+        label: '最近 90 天',
+        start: addDays(t, -89),
+        end: t,
+      };
+    case 'today':
+      return { mode: 'day', label: '今天', start: t, end: t };
+    case 'yesterday':
+      return {
+        mode: 'day',
+        label: '昨天',
+        start: addDays(t, -1),
+        end: addDays(t, -1),
+      };
+    case 'thisMonth':
+      return { mode: 'day', label: '本月', start: { ...t, d: 1 }, end: t };
+    case 'lastMonth': {
+      const end = addDays({ ...t, d: 1 }, -1);
+      return { mode: 'day', label: '上月', start: { ...end, d: 1 }, end };
+    }
     default:
       return null;
   }
@@ -468,22 +509,36 @@ type CompactPopoverLayout = {
 };
 
 type TimePickerProps = {
+  /* Which side of the compact trigger the popover lines up with. */
+  align?: 'end' | 'start';
   /* Compact renders the trigger as a bare chevron so the picker can ride as
      the last cell of the overview's 24h/7d/30d segmented control — the head
      shows one range control, but 3d / 14d / custom stay reachable. */
   compact?: boolean;
+  /* Shown in the compact trigger in place of the calendar icon, e.g. the
+     custom dates once they are chosen. */
+  compactLabel?: ReactNode;
   now?: Date;
   onChange: (value: TimePickerValue) => void;
+  /* Quick-pick ids (see resolvePreset); defaults to 24h … 30d. */
+  presets?: string[];
   value: TimePickerValue;
 };
 
 export function InteractiveTimePicker({
+  align = 'end',
   compact = false,
+  compactLabel,
   now: nowProp,
   onChange,
+  presets,
   value,
 }: TimePickerProps) {
   const { t } = useTranslation();
+  const presetList = useMemo(
+    () => (presets ? presets.map(presetDef) : PRESETS),
+    [presets],
+  );
   const now = nowProp ?? new Date();
   const today = dateToObj(now);
 
@@ -553,7 +608,10 @@ export function InteractiveTimePicker({
         window.innerWidth - width - viewportPadding,
       );
       const left = Math.min(
-        Math.max(viewportPadding, trigger.right - width),
+        Math.max(
+          viewportPadding,
+          align === 'start' ? trigger.left : trigger.right - width,
+        ),
         maxLeft,
       );
       const next = { left, maxHeight, top, width };
@@ -580,7 +638,7 @@ export function InteractiveTimePicker({
       window.removeEventListener('resize', updatePosition);
       document.removeEventListener('scroll', updatePosition, true);
     };
-  }, [compact, open]);
+  }, [align, compact, open]);
 
   // Keyboard nav
   useEffect(() => {
@@ -593,10 +651,10 @@ export function InteractiveTimePicker({
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         const cur = focused || value.presetId;
-        const idx = PRESETS.findIndex((p) => p.id === cur);
+        const idx = presetList.findIndex((p) => p.id === cur);
         const delta = e.key === 'ArrowDown' ? 1 : -1;
         const next =
-          PRESETS[(idx + delta + PRESETS.length) % PRESETS.length].id;
+          presetList[(idx + delta + presetList.length) % presetList.length].id;
         setFocused(next);
         return;
       }
@@ -608,7 +666,7 @@ export function InteractiveTimePicker({
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, focused, value.presetId]);
+  }, [open, focused, presetList, value.presetId]);
 
   const handlePresetClick = useCallback(
     (id: string) => {
@@ -740,7 +798,7 @@ export function InteractiveTimePicker({
           aria-label={t(`${ns}.timePicker.dialogLabel`)}
           title={sideText ? `${mainText} · ${sideText}` : mainText}
         >
-          <CalIcon />
+          {compactLabel ?? <CalIcon />}
         </button>
       ) : (
         <button
@@ -799,7 +857,7 @@ export function InteractiveTimePicker({
             <span className='dashv3-tp-quick-label'>
               {t(`${ns}.timePicker.quickLabel`)}
             </span>
-            {PRESETS.map((p) => {
+            {presetList.map((p) => {
               const isSel = !inDraft && p.id === value.presetId;
               const isFoc = !isSel && p.id === focused;
               return (

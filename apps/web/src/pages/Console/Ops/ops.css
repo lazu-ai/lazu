@@ -1811,3 +1811,8 @@ a.ops-table__row {
   font-size: 13.5px;
   margin: 6px;
 }
+
+/* The editor textarea drops its outline; show focus on its pane instead. */
+.ops-editor__pane:has(.ops-editor__text:focus) {
+  box-shadow: inset 0 0 0 2px var(--lazu-evidence-soft);
+}

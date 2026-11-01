@@ -175,6 +175,25 @@ func resolveAgentSession(c *gin.Context, body []byte, features *relayrouter.Feat
 	return agentSession{}
 }
 
+// sessionSourceClient is the client a session source identifies on its own:
+// only the sources that come from one agent's private header, never the
+// shared X-Session-Id, body fields or the per-Key fallback.
+func sessionSourceClient(source string) string {
+	switch source {
+	case SessionSourceCodex:
+		return "codex"
+	case SessionSourceClaudeCode:
+		return "claude-code"
+	case SessionSourceKilo:
+		return "kilo-code"
+	case SessionSourceGoose:
+		return "goose"
+	}
+	// Cline sends X-Task-ID only to its own providers, so a hit here is more
+	// likely another program using that header name.
+	return ""
+}
+
 func looksLikeCodex(c *gin.Context, client string) bool {
 	if client == "codex" {
 		return true
@@ -348,9 +367,34 @@ func applyAgentSession(c *gin.Context, features *relayrouter.Features, tokenID i
 	if existing := common.GetContextKeyString(c, constant.ContextKeySessionID); existing != "" {
 		return agentSession{ID: existing, Source: common.GetContextKeyString(c, constant.ContextKeySessionSource)}
 	}
-	clientInfo := common.ParseClientRequest(c.GetHeader("User-Agent"), c.GetHeader("originator"), c.GetHeader("x-app"))
+	clientInfo := common.ParseClientRequest(common.ClientHeaders{
+		UserAgent:      c.GetHeader("User-Agent"),
+		Originator:     c.GetHeader("originator"),
+		XApp:           c.GetHeader("x-app"),
+		XTitle:         c.GetHeader("X-Title"),
+		OpenAIPlatform: c.GetHeader("openai-platform"),
+		OpenWebUI:      headerValue(c, "X-OpenWebUI-User-Id", "X-OpenWebUI-Chat-Id", "X-OpenWebUI-User-Jwt"),
+	})
 	if clientInfo.Raw != "" {
 		common.SetContextKey(c, constant.ContextKeyClientUserAgent, clientInfo.Raw)
+	}
+	var body []byte
+	if strings.Contains(strings.ToLower(c.GetHeader("Content-Type")), "json") {
+		body, _ = common.GetRequestBody(c)
+	}
+	session := resolveAgentSession(c, body, features, tokenID, clientInfo.Framework)
+	// An agent's own session header names it even when its User-Agent is the
+	// SDK's or missing: Goose sends no User-Agent at all, Kilo and OpenCode
+	// builds vary. The header wins over a library tag, never over a program's.
+	// The User-Agent's version belonged to the library, so it goes too.
+	if framework := sessionSourceClient(session.Source); framework != "" && !common.IsNamedClient(clientInfo.Framework) {
+		clientInfo.Framework, clientInfo.Version = framework, ""
+	}
+	// Last, an agent that names itself nowhere but in its system prompt.
+	if !common.IsNamedClient(clientInfo.Framework) && len(body) > 0 {
+		if framework := common.ClientFromSystemPrompt(systemPromptFromContext(c, body)); framework != "" {
+			clientInfo.Framework, clientInfo.Version = framework, ""
+		}
 	}
 	if clientInfo.Framework != "" {
 		common.SetContextKey(c, constant.ContextKeyClientFramework, clientInfo.Framework)
@@ -358,11 +402,6 @@ func applyAgentSession(c *gin.Context, features *relayrouter.Features, tokenID i
 	if clientInfo.Version != "" {
 		common.SetContextKey(c, constant.ContextKeyClientVersion, clientInfo.Version)
 	}
-	var body []byte
-	if strings.Contains(strings.ToLower(c.GetHeader("Content-Type")), "json") {
-		body, _ = common.GetRequestBody(c)
-	}
-	session := resolveAgentSession(c, body, features, tokenID, clientInfo.Framework)
 	if session.ID == "" {
 		return session
 	}
@@ -416,4 +455,49 @@ func firstUserMessageFromContext(c *gin.Context, body []byte) string {
 		return ""
 	}
 	return firstUserMessage(body)
+}
+
+// systemPromptFromContext returns the request's first system or developer
+// instruction: Chat's leading system message, Anthropic's `system`, or the
+// Responses `instructions`.
+func systemPromptFromContext(c *gin.Context, body []byte) string {
+	if parsed, ok := common.GetContextKeyType[*textgen.ParsedRequest](c, constant.ContextKeyTextgenParsed); ok && parsed != nil && parsed.Semantic != nil {
+		if len(parsed.Semantic.Instructions) > 0 {
+			return parsed.Semantic.Instructions[0].Text
+		}
+		if len(parsed.Semantic.Conversation) == 0 {
+			return ""
+		}
+		if item := parsed.Semantic.Conversation[0]; item.Kind == textgen.InputMessage && (item.Role == "system" || item.Role == "developer") {
+			for _, part := range item.Content {
+				if part.Kind == textgen.ContentText {
+					return part.Text
+				}
+			}
+		}
+		return ""
+	}
+	return systemPrompt(body)
+}
+
+func systemPrompt(body []byte) string {
+	first := func(content gjson.Result) string {
+		if content.Type == gjson.String {
+			return content.String()
+		}
+		return content.Get("0.text").String()
+	}
+	if system := gjson.GetBytes(body, "system"); system.Exists() {
+		return first(system)
+	}
+	if instructions := gjson.GetBytes(body, "instructions"); instructions.Type == gjson.String {
+		return instructions.String()
+	}
+	for _, path := range []string{"messages.0", "input.0"} {
+		item := gjson.GetBytes(body, path)
+		if role := item.Get("role").String(); role == "system" || role == "developer" {
+			return first(item.Get("content"))
+		}
+	}
+	return ""
 }

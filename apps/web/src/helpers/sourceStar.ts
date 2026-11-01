@@ -62,7 +62,7 @@ export const formatStarCount = (count: number) => {
 
 /* Below this a count reads as an empty room rather than as interest, so
    the button shows the action alone until the repository reaches it. */
-export const SOURCE_STAR_COUNT_FLOOR = 10;
+const SOURCE_STAR_COUNT_FLOOR = 10;
 
 /** The count the button shows: null while unknown or under the floor. */
 export const shownStarCount = (count: number | null) =>

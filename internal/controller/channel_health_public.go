@@ -25,9 +25,6 @@ func attachPublicChannelHealthPercentiles(rows []channelHealthLaneView, health m
 	counts := map[publicLane]int{}
 	models := map[string]bool{}
 	for _, row := range rows {
-		if row.Kind == channelHealthKindSearch {
-			continue
-		}
 		key := publicLane{row.ModelName, row.Lane}
 		counts[key]++
 		if counts[key] > 1 {
@@ -61,7 +58,7 @@ func attachPublicChannelHealthPercentiles(rows []channelHealthLaneView, health m
 // mergePublicChannelHealthRows runs after access filtering but before source
 // redaction. Raw route names are deliberately absent from the grouping key.
 func mergePublicChannelHealthRows(rows []channelHealthLaneView) []channelHealthLaneView {
-	type publicLane struct{ kind, model, lane, provider string }
+	type publicLane struct{ kind, model, lane string }
 	groups := map[publicLane][]channelHealthLaneView{}
 	order := make([]publicLane, 0, len(rows))
 	for _, row := range rows {
@@ -69,7 +66,7 @@ func mergePublicChannelHealthRows(rows []channelHealthLaneView) []channelHealthL
 		if kind == "" {
 			kind = channelHealthKindLLM
 		}
-		key := publicLane{kind, row.ModelName, row.Lane, row.Provider}
+		key := publicLane{kind, row.ModelName, row.Lane}
 		if _, ok := groups[key]; !ok {
 			order = append(order, key)
 		}
@@ -92,7 +89,7 @@ func mergePublicChannelHealthLane(rows []channelHealthLaneView) channelHealthLan
 	// operator metadata can become the apparent public lane's figure.
 	merged := channelHealthLaneView{
 		ModelName: rows[0].ModelName, Kind: rows[0].Kind,
-		Lane: rows[0].Lane, Provider: rows[0].Provider,
+		Lane:   rows[0].Lane,
 		Source: channelHealthSourceNone,
 	}
 	statuses := make([]channelHealthSourceView, 0, len(rows))

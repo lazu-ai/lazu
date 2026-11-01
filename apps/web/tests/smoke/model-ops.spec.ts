@@ -334,7 +334,7 @@ test('source model search keeps an open draft and counts unique models', async (
   await app.expectNoUnexpectedErrors();
 });
 
-test('failed model deletion keeps confirmation open for retry', async ({
+test('model deletion runs behind an undo and puts the row back when it fails', async ({
   page,
 }) => {
   let deletions = 0;
@@ -350,18 +350,24 @@ test('failed model deletion keeps confirmation open for retry', async ({
       }
     },
   });
-  await expectRouteReady(page, '/console/model-ops');
-  await page
+  await expectRouteReady(page, '/console/model-ops?model=1&panel=info');
+  await page.getByRole('button', { name: '删除模型', exact: true }).click();
+  // No confirmation: the row reads 删除中 and the toast offers 撤销.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const row = page
     .locator('.mo-ledger__row', { hasText: 'gpt-4o-mini' })
-    .getByRole('button', { name: '删除', exact: true })
-    .click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: '删除', exact: true }).click();
-  await expect.poll(() => deletions).toBe(1);
-  await expect(dialog).toBeVisible();
+    .first();
+  await expect(row).toContainText('删除中');
   await expect(
-    dialog.getByRole('button', { name: '删除', exact: true }),
-  ).toBeEnabled();
+    page.getByRole('button', { name: '撤销', exact: true }),
+  ).toBeVisible();
+  expect(deletions).toBe(0);
+  // Nothing is sent until the countdown ends; a failure puts the row back.
+  await expect.poll(() => deletions, { timeout: 15_000 }).toBe(1);
+  await expect(row).not.toContainText('删除中');
+  await expect(
+    page.getByRole('button', { name: '重试', exact: true }),
+  ).toBeVisible();
 });
 
 test('inspector tabs have keyboard navigation and ledger rows stay one line on mobile', async ({
@@ -493,4 +499,65 @@ test('来源表单 edits request overrides and keeps the stored ones on save', a
     status_code_mapping: '{"400":"503"}',
   });
   await app.expectNoUnexpectedErrors();
+});
+
+// The undo toast sits outside the dialog; pressing it must neither be
+// blocked by the dialog nor count as dismissing it.
+test('undoing a lane deletion from its toast keeps the lanes dialog open', async ({
+  page,
+}) => {
+  const deletes = [];
+  await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: (url, request) => {
+      const p = new URL(url).pathname;
+      if (request.method() === 'DELETE') {
+        deletes.push(p);
+        return { success: true, data: null };
+      }
+      if (p === '/api/model_ops/lanes')
+        return {
+          success: true,
+          message: '',
+          data: {
+            items: [
+              {
+                slug: 'direct',
+                name: '稳定档',
+                enabled: true,
+                builtin: true,
+                ever_enabled: true,
+                sort: 0,
+                sources: 2,
+                priced: 2,
+              },
+              {
+                slug: 'trial',
+                name: '试用档',
+                enabled: false,
+                builtin: false,
+                ever_enabled: false,
+                sort: 5,
+                sources: 0,
+                priced: 0,
+              },
+            ],
+          },
+        };
+      return undefined;
+    },
+  });
+  await expectRouteReady(page, '/console/model-ops');
+  await page.getByRole('button', { name: '线路', exact: true }).first().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: '试用档' }).click();
+  await dialog.getByRole('button', { name: '删除', exact: true }).click();
+  await expect(page.locator('.lazu-undo-toast')).toBeVisible();
+  await page
+    .locator('.lazu-undo-toast')
+    .getByRole('button', { name: '撤销' })
+    .click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('试用档');
+  expect(deletes).toHaveLength(0);
 });

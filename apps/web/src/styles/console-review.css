@@ -675,6 +675,44 @@ body:has(.console-review)
   background: var(--lazu-surface-muted);
   padding: 14px 22px;
 }
+/* Phone sheets (modal.tsx `sheet`, the rest in ui.css): the review chrome
+   above would keep them a centred card, so the same selector shapes, one
+   class longer, hand them the full width and the sheet's own spacing. */
+@media (max-width: 720px) {
+  body:has(.console-review)
+    .lazu-modal-content.lazu-modal-content--sheet:not(.whats-new-panel):not(
+      .lazu-modal-content--wide
+    ):not(.lazu-modal-content--xwide) {
+    max-width: none;
+    width: 100%;
+  }
+  body:has(.console-review)
+    .lazu-modal-content.lazu-modal-content--sheet:not(.whats-new-panel) {
+    border-radius: 20px 20px 0 0;
+    max-height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
+  }
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-header {
+    border-bottom-color: transparent;
+    padding: 6px 52px 12px 16px;
+  }
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-header[data-scrolled] {
+    border-bottom-color: var(--lazu-border);
+  }
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-body {
+    padding: 4px 16px 16px;
+  }
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-footer {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}
 @media (max-width: 1100px) {
   .app-shell-v2--console .console-page-shell.console-review {
     width: 100%;

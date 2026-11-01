@@ -900,10 +900,6 @@ func TestChannel(c *gin.Context) {
 			return
 		}
 	}
-	if constant.IsSearchChannelType(channel.Type) {
-		rejectSearchBackendChannelMutation(c, "edit")
-		return
-	}
 	if channel.GetOtherSettings().CodexClientOnly {
 		// A Codex-only source is validated by a real Codex session; the
 		// generic probe is skipped, not failed.
@@ -989,7 +985,7 @@ func loadAllChannelsForTest() ([]*model.Channel, int64, error) {
 
 func runAllChannelTests(channels []*model.Channel, disableThreshold int64, notify bool) {
 	for _, channel := range channels {
-		if constant.IsSearchChannelType(channel.Type) || channel.GetOtherSettings().CodexClientOnly {
+		if channel.GetOtherSettings().CodexClientOnly {
 			continue
 		}
 		isChannelEnabled := channel.Status == common.ChannelStatusEnabled

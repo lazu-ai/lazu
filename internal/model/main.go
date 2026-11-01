@@ -415,7 +415,6 @@ func migrateDB() error {
 		&ChannelProbeClaim{},
 		&RouteObservation{},
 		&RouteObservationCheck{},
-		&SearchHealthSample{},
 	}, append(RedisLedgerModels(), extensions.coreModels...)...)...)
 	if err != nil {
 		return err

@@ -54,6 +54,9 @@ type DataTableShellProps<TData extends RowRecord> = {
   mobileCard?: false | MobileCardConfig;
   onRowClick?: (record: TData, event: MouseEvent<HTMLElement>) => void;
   renderExpanded?: (record: TData) => ReactNode;
+  /** Extra class for a row (desktop) or card (mobile), e.g. a row waiting
+   *  on an undo countdown. */
+  rowClassName?: (record: TData) => string | undefined;
   rowKey?: PropertyKey | ((record: TData) => number | string);
   selectedRowKey?: number | string | null;
 };
@@ -130,6 +133,7 @@ export function DataTableShell<TData extends RowRecord>({
   mobileCard,
   onRowClick,
   renderExpanded,
+  rowClassName,
   rowKey = 'id',
   selectedRowKey,
 }: DataTableShellProps<TData>) {
@@ -166,6 +170,7 @@ export function DataTableShell<TData extends RowRecord>({
         expandedId={expandedId}
         setExpandedId={setExpandedId}
         mobileCard={mobileCard}
+        rowClassName={rowClassName}
         selectedRowKey={selectedRowKey}
         t={t}
         className={className}
@@ -265,6 +270,7 @@ export function DataTableShell<TData extends RowRecord>({
                   className={cn(
                     isExpanded && 'lazu-table__row--expanded',
                     isSelected && 'lazu-table__row--selected',
+                    rowClassName?.(row.original),
                   )}
                 >
                   {renderExpanded ? (
@@ -389,6 +395,7 @@ function MobileCardList<TData extends RowRecord>({
   expandedId,
   setExpandedId,
   mobileCard,
+  rowClassName,
   selectedRowKey,
   t,
   className,
@@ -398,6 +405,7 @@ function MobileCardList<TData extends RowRecord>({
   mobileCard?: false | MobileCardConfig;
   onRowClick?: (record: TData, event: MouseEvent<HTMLElement>) => void;
   renderExpanded?: (record: TData) => ReactNode;
+  rowClassName?: (record: TData) => string | undefined;
   selectedRowKey?: number | string | null;
   setExpandedId: Dispatch<SetStateAction<string | null>>;
   t: (key: string) => string;
@@ -453,6 +461,7 @@ function MobileCardList<TData extends RowRecord>({
               interactive && 'lazu-card-list__item--interactive',
               isExpanded && 'lazu-card-list__item--expanded',
               isSelected && 'lazu-card-list__item--selected',
+              rowClassName?.(row.original),
             )}
             onClick={handleClick}
           >

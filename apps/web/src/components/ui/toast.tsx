@@ -59,7 +59,7 @@ const createTaskToast = (
 };
 
 export const notify = {
-  custom: sonnerToast,
+  custom: sonnerToast.custom,
   dismiss: sonnerToast.dismiss,
   error: (message: ToastMessage, options?: ExternalToast) =>
     sonnerToast.error(

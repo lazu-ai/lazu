@@ -1034,3 +1034,9 @@
   color: var(--lazu-warning-strong);
   font-size: 12px;
 }
+
+/* The chip input drops its outline; show focus on the chip row instead. */
+.set-chip:has(.set-chip__in:focus) {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}

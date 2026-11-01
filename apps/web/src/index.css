@@ -523,8 +523,24 @@ button:not(.lazu-button):not(.lazu-icon-button):not(
     .lazu-switch
   ):not(.lazu-select-trigger):not(.lazu-date-trigger):not(
     [data-owns-chrome]
-  ):focus {
+  ):focus:not(:focus-visible) {
   outline: none;
+}
+
+/* The reset above strips the browser ring, so keyboard focus needs one back.
+   Pointer clicks keep no ring (:focus-visible only matches keyboard focus).
+   Buttons that paint their own chrome get the same ring unless they define a
+   focus style of their own. */
+button:not(.lazu-button):not(.lazu-icon-button):not(
+    .lazu-pagination-button
+  ):not(.lazu-toolbar-button):not(.lazu-tabs-trigger):not(.lazu-checkbox):not(
+    .lazu-switch
+  ):not(.lazu-select-trigger):not(.lazu-date-trigger):not(
+    [data-owns-chrome]
+  ):focus-visible,
+button[data-owns-chrome]:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
 }
 
 ::selection {

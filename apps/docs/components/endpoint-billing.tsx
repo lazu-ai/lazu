@@ -8,7 +8,6 @@ const COPY = {
     pricing: "Pricing & lanes",
     usagePricing:
       "Usage tokens at the selected model and lane price; other billable dimensions may apply.",
-    search: "Search charges depend on the selected backend and billable units.",
     other:
       "Check this endpoint's billable dimensions and the request receipt; do not infer a charge from the response alone.",
     read: "Read-only reference endpoint; this is not a model generation request.",
@@ -20,8 +19,6 @@ const COPY = {
     lane: "Lane",
     usage: "Tokens · input / output",
     inputUsage: "Tokens · input",
-    searchUsage: "Search billable units",
-    backend: "Backend",
     key: "Key",
     details: "Read a real request receipt",
     reference:
@@ -32,7 +29,6 @@ const COPY = {
     pricing: "价格与线路",
     usagePricing:
       "按所选模型与线路的价格计算 token 用量；可能包含其他计费维度。",
-    search: "搜索费用取决于所选后端与计费单位。",
     other: "查看该接口的计费维度和请求回执，不要仅根据响应推算费用。",
     read: "只读查询接口，不是模型生成请求。",
     receipt: "请求回执",
@@ -43,8 +39,6 @@ const COPY = {
     lane: "线路",
     usage: "Token · 输入 / 输出",
     inputUsage: "Token · 输入",
-    searchUsage: "搜索计费单位",
-    backend: "搜索后端",
     key: "Key",
     details: "查看真实请求回执",
     reference: "计费请求完成后，使用网关请求 ID 查询用量维度、计费明细与耗时。",
@@ -54,7 +48,6 @@ const COPY = {
     pricing: "價格與線路",
     usagePricing:
       "依所選模型與線路的價格計算 token 用量；可能包含其他計費維度。",
-    search: "搜尋費用取決於所選後端與計費單位。",
     other: "查看此介面的計費維度與請求回執，不要只依回應推算費用。",
     read: "唯讀查詢介面，不是模型生成請求。",
     receipt: "請求回執",
@@ -65,8 +58,6 @@ const COPY = {
     lane: "線路",
     usage: "Token · 輸入 / 輸出",
     inputUsage: "Token · 輸入",
-    searchUsage: "搜尋計費單位",
-    backend: "搜尋後端",
     key: "Key",
     details: "查看真實請求回執",
     reference: "計費請求完成後，使用網關請求 ID 查詢用量維度、計費明細與耗時。",
@@ -76,7 +67,6 @@ const COPY = {
     pricing: "料金とレーン",
     usagePricing:
       "選択したモデルとレーンの料金でトークン使用量を計算します。他の課金項目が適用される場合もあります。",
-    search: "検索料金はバックエンドと課金単位によって異なります。",
     other:
       "課金項目とリクエストの明細を確認してください。レスポンスだけから料金を推測しないでください。",
     read: "読み取り専用 API。モデル生成リクエストではありません。",
@@ -88,8 +78,6 @@ const COPY = {
     lane: "レーン",
     usage: "トークン · 入力 / 出力",
     inputUsage: "トークン · 入力",
-    searchUsage: "検索課金単位",
-    backend: "検索バックエンド",
     key: "キー",
     details: "実際のリクエスト明細を見る",
     reference:
@@ -122,9 +110,7 @@ export function EndpointBilling({
             path,
           )
         ? t.usagePricing
-        : path === "/v1/search"
-          ? t.search
-          : t.other;
+        : t.other;
   return (
     <p className="lazu-endpoint-billing">
       <strong>{t.billed}</strong>
@@ -140,9 +126,8 @@ export function EndpointReceipt({ endpoint }: { endpoint: string }) {
   // This standalone teaching example is deliberately distinct from SDK samples
   // and live responses. Never present a guessed price as a measured charge.
   const generation = endpoint === "chat" || endpoint === "responses";
-  const search = endpoint === "search";
   const embeddings = endpoint === "embeddings";
-  const illustrative = generation || search || embeddings;
+  const illustrative = generation || embeddings;
   return (
     <section className="lazu-receipt" aria-label={t.receipt}>
       <div className="lazu-receipt-head">
@@ -152,9 +137,7 @@ export function EndpointReceipt({ endpoint }: { endpoint: string }) {
       {illustrative ? (
         <>
           <div className="lazu-receipt-total">
-            <strong>
-              {search ? "$0.0050" : embeddings ? "$0.0001" : "$0.00028"}
-            </strong>
+            <strong>{embeddings ? "$0.0001" : "$0.00028"}</strong>
             <span data-ok="true">200 · 842 ms</span>
           </div>
           <dl>
@@ -163,18 +146,14 @@ export function EndpointReceipt({ endpoint }: { endpoint: string }) {
               <dd>req_demo_01</dd>
             </div>
             <div>
-              <dt>{search ? t.backend : `${t.model} · ${t.lane}`}</dt>
+              <dt>{`${t.model} · ${t.lane}`}</dt>
               <dd>
-                {search
-                  ? "example-search-backend"
-                  : `${embeddings ? "text-embedding-3-small" : DEFAULT_CHAT_MODEL} · stable`}
+                {`${embeddings ? "text-embedding-3-small" : DEFAULT_CHAT_MODEL} · stable`}
               </dd>
             </div>
             <div>
-              <dt>
-                {search ? t.searchUsage : embeddings ? t.inputUsage : t.usage}
-              </dt>
-              <dd>{search ? "1" : embeddings ? "1,200" : "1,200 / 320"}</dd>
+              <dt>{embeddings ? t.inputUsage : t.usage}</dt>
+              <dd>{embeddings ? "1,200" : "1,200 / 320"}</dd>
             </div>
             <div>
               <dt>{t.key}</dt>

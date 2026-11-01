@@ -63,11 +63,13 @@ const (
 	channelTypeReserved57 = 57
 	channelTypeReserved58 = 58
 	channelTypeReserved59 = 59
-	ChannelTypeTavily     = 60
-	ChannelTypeExa        = 61
-	ChannelTypeJina       = 62
-	ChannelTypeSerper     = 63
-	ChannelTypeBrave      = 64
+	// 60–64 were the search backends (Tavily, Exa, Jina, Serper, Brave)
+	// behind the retired /v1/search endpoint.
+	channelTypeReserved60 = 60
+	channelTypeReserved61 = 61
+	channelTypeReserved62 = 62
+	channelTypeReserved63 = 63
+	channelTypeReserved64 = 64
 	ChannelTypeDummy      // this one is only for count, do not add any channel after this
 
 )
@@ -135,11 +137,11 @@ var ChannelBaseURLs = []string{
 	"",                 // 57
 	"",                 // 58
 	"",                 // 59
-	"https://api.tavily.com",
-	"https://api.exa.ai",
-	"https://s.jina.ai",
-	"https://google.serper.dev",
-	"https://api.search.brave.com",
+	"",                 // 60
+	"",                 // 61
+	"",                 // 62
+	"",                 // 63
+	"",                 // 64
 }
 
 var ChannelTypeNames = map[int]string{
@@ -149,11 +151,6 @@ var ChannelTypeNames = map[int]string{
 	ChannelTypeAnthropic: "Anthropic",
 	ChannelTypeGemini:    "Gemini",
 	ChannelTypeXai:       "xAI",
-	ChannelTypeTavily:    "Tavily",
-	ChannelTypeExa:       "Exa",
-	ChannelTypeJina:      "Jina",
-	ChannelTypeSerper:    "Serper",
-	ChannelTypeBrave:     "Brave Search",
 }
 
 func GetChannelTypeName(channelType int) string {
@@ -161,57 +158,4 @@ func GetChannelTypeName(channelType int) string {
 		return name
 	}
 	return "Unknown"
-}
-
-func IsSearchChannelType(channelType int) bool {
-	switch channelType {
-	case ChannelTypeTavily, ChannelTypeExa, ChannelTypeJina, ChannelTypeSerper, ChannelTypeBrave:
-		return true
-	default:
-		return false
-	}
-}
-
-func SearchChannelTypes() []int {
-	return []int{
-		ChannelTypeTavily,
-		ChannelTypeExa,
-		ChannelTypeJina,
-		ChannelTypeSerper,
-		ChannelTypeBrave,
-	}
-}
-
-func SearchProviderFromChannelType(channelType int) string {
-	switch channelType {
-	case ChannelTypeTavily:
-		return "tavily"
-	case ChannelTypeExa:
-		return "exa"
-	case ChannelTypeJina:
-		return "jina"
-	case ChannelTypeSerper:
-		return "serper"
-	case ChannelTypeBrave:
-		return "brave"
-	default:
-		return ""
-	}
-}
-
-func SearchChannelTypeFromProvider(provider string) int {
-	switch provider {
-	case "tavily":
-		return ChannelTypeTavily
-	case "exa":
-		return ChannelTypeExa
-	case "jina":
-		return ChannelTypeJina
-	case "serper":
-		return ChannelTypeSerper
-	case "brave":
-		return ChannelTypeBrave
-	default:
-		return ChannelTypeUnknown
-	}
 }

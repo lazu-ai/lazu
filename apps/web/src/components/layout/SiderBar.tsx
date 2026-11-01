@@ -21,14 +21,11 @@ import { getLucideIcon } from '../../helpers/lucide';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { useSidebar } from '../../hooks/common/useSidebar';
-import { CompactConfirmation } from '../ui/compact-confirmation';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 /* The sidebar renders the `.pj-sidefoot` role row on every console page, but
    the project stylesheet used to arrive only with a project page's own imports
    — so on Usage, Keys and Models it rendered unstyled. The sidebar shows it,
    so the sidebar imports its styles. */
 import '../../features/projects/projects.css';
-import { notify } from '../ui/toast';
 
 const ROUTER_MAP = {
   token: '/console/token',
@@ -36,7 +33,6 @@ const ROUTER_MAP = {
   user: '/console/organizations',
   usage: '/console/usage',
   key_inspector: '/console/key',
-  search_backend: '/console/search-backend',
   setting: '/console/setting',
   announcements: '/console/ops',
   detail: '/console',
@@ -151,7 +147,6 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
      back here rather than leaving a multi-project reader stranded. */
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const handleLogout = useCallback(async () => {
     setLoggingOut(true);
@@ -161,7 +156,6 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
       // The session may already be gone server-side; the cleanup below is what
       // actually signs this browser out.
     }
-    notify.success(t('legacy.i18n.logout_successful.ea3f16cb50'));
     userSession.signOut();
     localStorage.removeItem('user');
     navigate('/login');
@@ -310,11 +304,6 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
               // 模型管理 + 定价运营 + 渠道 are one decision, so they are one page.
               text: t('nav.modelOps', { defaultValue: '模型运营' }),
               itemKey: 'model_ops',
-              allowed: platformUser,
-            },
-            {
-              text: t('nav.searchBackend', { defaultValue: '搜索后端' }),
-              itemKey: 'search_backend',
               allowed: platformUser,
             },
             {
@@ -495,36 +484,16 @@ const SiderBar = ({ onNavigate = () => undefined }: SiderBarProps) => {
               {/* The phone top bar keeps only the page name and its two
                   status icons, so theme and language live in the drawer. */}
               <ChromeControls compact className='sidebar-v2__chrome-controls' />
-              <Popover open={logoutOpen} onOpenChange={setLogoutOpen}>
-                <PopoverTrigger>
-                  <button
-                    aria-label={t('legacy.i18n.logout.6a1a5c708c')}
-                    className='sidebar-v2__logout'
-                    title={t('legacy.i18n.logout.6a1a5c708c')}
-                    type='button'
-                  >
-                    <LogOut aria-hidden='true' size={15} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  side='top'
-                  align='end'
-                  className='lazu-compact-confirmation-surface'
-                >
-                  <CompactConfirmation
-                    title={t('session.logoutConfirm', {
-                      defaultValue: '退出当前账户？',
-                    })}
-                    cancelLabel={t('common.cancel', { defaultValue: '取消' })}
-                    confirmLabel={t('session.confirmLogout', {
-                      defaultValue: '退出',
-                    })}
-                    busy={loggingOut}
-                    onCancel={() => setLogoutOpen(false)}
-                    onConfirm={() => void handleLogout()}
-                  />
-                </PopoverContent>
-              </Popover>
+              <button
+                aria-label={t('legacy.i18n.logout.6a1a5c708c')}
+                className='sidebar-v2__logout'
+                disabled={loggingOut}
+                onClick={() => void handleLogout()}
+                title={t('legacy.i18n.logout.6a1a5c708c')}
+                type='button'
+              >
+                <LogOut aria-hidden='true' size={15} />
+              </button>
             </div>
           ) : null}
         </div>

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import MobileHelpSheet from './MobileHelpSheet';
 import {
   consoleRouteLabelKeys,
   isUsageLogsPath,
@@ -177,11 +178,12 @@ const MobileConsoleChrome = ({
           <span>{titleLabel}</span>
         </div>
         <div className='mobile-console-actions'>
-          {/* Only the page name and two status icons live up here: service
-              status (it used to float over the content, bottom-right) and the
-              product updates plate. Theme and language are in the drawer. */}
+          {/* Only the page name and a few icons live up here: service status
+              (it used to float over the content, bottom-right), the product
+              updates plate and Help. Theme and language are in the drawer. */}
           <StatusCenter placement='inline' />
           <VersionPlate variant='mobile' />
+          <MobileHelpSheet />
           <Link
             to='/console/personal'
             className='mobile-console-avatar'

@@ -9,6 +9,7 @@ import { ModelOpsBars } from './healthBars';
 import { observationProgress } from './observation';
 import { observationSummaryLine, shortModelName } from './ObservationDialog';
 import SourceTypeBadge from './SourceTypeBadge';
+import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { resolveProviderBrand } from '../../components/ui/provider-brands';
 import { ProviderLogo } from '../../components/ui/provider-icons';
@@ -45,6 +46,9 @@ export const isObservingSource = (source: ModelOpsSource) =>
   Boolean(source.observation && !source.observation.live_routes);
 
 type SourceLedgerProps = {
+  /** A source deleted a moment ago: the row reads 删除中 until the undo
+   *  countdown ends, and offers nothing to click. */
+  isUndoPending?: (source: ModelOpsSource) => boolean;
   onDelete: (source: ModelOpsSource) => void;
   onOpenObservation: (source: ModelOpsSource) => void;
   onSelect: (id: string | null) => void;
@@ -59,6 +63,7 @@ type SourceLedgerProps = {
 
 /** 来源账簿 — the same grid as 模型, so the two pages read as one object. */
 export default function SourceLedger({
+  isUndoPending,
   narrow,
   onDelete,
   onOpenObservation,
@@ -130,6 +135,7 @@ export default function SourceLedger({
         );
         const observation = source.observation;
         const observing = isObservingSource(source);
+        const deleting = Boolean(isUndoPending?.(source));
         const buckets = measured ? allBuckets : [];
         const cost =
           [
@@ -149,17 +155,17 @@ export default function SourceLedger({
 
         return (
           <div
-            className={`mo-ledger__row${isSelected ? ' is-selected' : ''}${observing ? ' is-observing' : ''}`}
+            className={`mo-ledger__row${isSelected ? ' is-selected' : ''}${observing ? ' is-observing' : ''}${deleting ? ' is-undo-pending' : ''}`}
             key={id}
             aria-selected={isSelected}
             role='row'
-            tabIndex={0}
+            tabIndex={deleting ? -1 : 0}
             onClick={(event) => {
-              if (fromControl(event)) return;
+              if (deleting || fromControl(event)) return;
               onSelect(id);
             }}
             onKeyDown={(event) => {
-              if (fromControl(event)) return;
+              if (deleting || fromControl(event)) return;
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 onSelect(id);
@@ -205,7 +211,7 @@ export default function SourceLedger({
                     defaultValue: '{{typeName}} · {{count}} 个模型',
                     typeName: source.type_name || source.type,
                   })}
-                  {observation ? (
+                  {observation && !deleting ? (
                     <>
                       {' · '}
                       <Button
@@ -347,7 +353,11 @@ export default function SourceLedger({
               {/* A watched source is not switched on; it goes live. The two
                   controls share the column because they answer the same
                   question: is this source serving? */}
-              {observing && observation ? (
+              {deleting ? (
+                <Badge variant='neutral'>
+                  {t('undo.deleting', { defaultValue: '删除中' })}
+                </Badge>
+              ) : observing && observation ? (
                 <Button
                   size='sm'
                   variant='primary'
@@ -372,29 +382,33 @@ export default function SourceLedger({
               )}
             </span>
             <span className='mo-rowbtns' role='cell'>
-              <Button
-                aria-label={t('page.console.tables.edit')}
-                aria-pressed={isSelected}
-                className={`mo-rowbtn${isSelected ? ' is-open' : ''}`}
-                size='xs'
-                title={t('page.console.tables.edit')}
-                variant='secondary'
-                onClick={() => onSelect(id)}
-              >
-                <Pencil size={13} />
-                {narrow ? null : t('page.console.tables.edit')}
-              </Button>
-              <Button
-                aria-label={t('page.console.tables.delete')}
-                className='mo-rowbtn mo-rowbtn--danger'
-                size='xs'
-                title={t('page.console.tables.delete')}
-                variant='secondary'
-                onClick={() => onDelete(source)}
-              >
-                <Trash2 size={13} />
-                {narrow ? null : t('page.console.tables.delete')}
-              </Button>
+              {deleting ? null : (
+                <>
+                  <Button
+                    aria-label={t('page.console.tables.edit')}
+                    aria-pressed={isSelected}
+                    className={`mo-rowbtn${isSelected ? ' is-open' : ''}`}
+                    size='xs'
+                    title={t('page.console.tables.edit')}
+                    variant='secondary'
+                    onClick={() => onSelect(id)}
+                  >
+                    <Pencil size={13} />
+                    {narrow ? null : t('page.console.tables.edit')}
+                  </Button>
+                  <Button
+                    aria-label={t('page.console.tables.delete')}
+                    className='mo-rowbtn mo-rowbtn--danger'
+                    size='xs'
+                    title={t('page.console.tables.delete')}
+                    variant='secondary'
+                    onClick={() => onDelete(source)}
+                  >
+                    <Trash2 size={13} />
+                    {narrow ? null : t('page.console.tables.delete')}
+                  </Button>
+                </>
+              )}
             </span>
           </div>
         );

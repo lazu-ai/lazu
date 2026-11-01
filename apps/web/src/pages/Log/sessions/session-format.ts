@@ -5,8 +5,6 @@ import { splitDuration } from '../../../components/ui/metric-format';
 import type { AgentSessionRange } from '../../../hooks/usage-logs/useAgentSessions';
 import type { TFunction } from 'i18next';
 
-export const SESSION_RANGES: AgentSessionRange[] = ['24h', '7d', '30d'];
-
 /** i18n key prefix every new session string lives under. The older
  *  `page.console.log.session.*` leaves belong to the retired session view. */
 export const SK = 'page.console.log.session';

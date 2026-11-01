@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, ChevronRight, CircleAlert, Copy, Search } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ import { FieldMessage } from '../../components/ui/field';
 import { Input } from '../../components/ui/input';
 import { Modal } from '../../components/ui/modal';
 import { PendingBlock } from '../../components/ui/pending';
-import { MultiSelect, Select, SelectItem } from '../../components/ui/select';
+import { Select, SelectItem } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { compactNumber, formatUnixTime } from '../../components/ui/table-tools';
 import { Textarea } from '../../components/ui/textarea';
@@ -29,7 +29,6 @@ import {
   RATE_LIMIT_PRESETS,
   type RateLimitCeiling,
 } from '../../constants/rate-limits';
-import { SEARCH_PROVIDERS } from '../../constants/search.constants';
 import { asMicroUSD, formatMoney } from '../../helpers/money';
 import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
 import { usdToMicroUSD } from '../../helpers/render';
@@ -62,9 +61,6 @@ const tokenFormSchema = z
     ip_whitelist_enabled: z.boolean(),
     model_limits: z.array(z.string()),
     model_limits_enabled: z.boolean(),
-    search_limits_enabled: z.boolean(),
-    search_providers: z.array(z.string()),
-    search_domain_allowlist: z.string().optional(),
     metadata: z.string().refine((value) => {
       const raw = String(value || '').trim();
       if (!raw) return true;
@@ -974,15 +970,13 @@ const ADVANCED_FIELDS = new Set([
   'metadata',
   'model_limits',
   'rpm_limit',
-  'search_domain_allowlist',
-  'search_providers',
   'tokenCount',
   'tpm_limit',
 ]);
 
 /** One question in 更多设置: a title, a sentence saying what it is for, and
  *  the switch that turns it on. Closed, it costs one line; open, it shows only
- *  its own fields. Nine of these stacked read as a menu rather than a form. */
+ *  its own fields. Eight of these stacked read as a menu rather than a form. */
 function MoreSection({
   children,
   control,
@@ -1007,6 +1001,14 @@ function MoreSection({
     </section>
   );
 }
+
+/** Fields that answer one question count as one unsaved change. */
+const DIRTY_GROUPS: Record<string, string> = {
+  expired_time: 'expiry',
+  expires_never: 'expiry',
+  remain_quota: 'quota',
+  unlimited_quota: 'quota',
+};
 
 export function TokenFormDrawer({
   editingToken,
@@ -1042,6 +1044,9 @@ export function TokenFormDrawer({
   });
   const values = form.watch();
   const [moreOpen, setMoreOpen] = useState(false);
+  /* Closing with unsaved changes — 取消, 关闭, Escape, a tap outside or a
+     swipe down — turns the footer into 「有 N 处修改还没保存」 instead. */
+  const [discardAsk, setDiscardAsk] = useState(false);
   const [expiryChoice, setExpiryChoice] = useState<
     'never' | '30' | '90' | 'custom'
   >('never');
@@ -1056,7 +1061,7 @@ export function TokenFormDrawer({
     if (choice === 'never') {
       setExpiryOffset(null);
     } else if (choice === 'custom') {
-      form.setValue('expires_never', false);
+      form.setValue('expires_never', false, { shouldDirty: true });
     } else {
       setExpiryOffset(Number(choice));
     }
@@ -1072,6 +1077,7 @@ export function TokenFormDrawer({
 
   useEffect(() => {
     if (!open) {
+      setDiscardAsk(false);
       return;
     }
     if (isEdit && editValues) {
@@ -1091,14 +1097,14 @@ export function TokenFormDrawer({
 
   const setExpiryOffset = (days: number | null) => {
     if (days === null) {
-      form.setValue('expires_never', true);
-      form.setValue('expired_time', null);
+      form.setValue('expires_never', true, { shouldDirty: true });
+      form.setValue('expired_time', null, { shouldDirty: true });
       return;
     }
     const next = new Date();
     next.setDate(next.getDate() + days);
-    form.setValue('expires_never', false);
-    form.setValue('expired_time', next);
+    form.setValue('expires_never', false, { shouldDirty: true });
+    form.setValue('expired_time', next, { shouldDirty: true });
   };
 
   const tokenLaneVendors = useTokenLaneVendors(tokens.vendorOptions.vendors);
@@ -1395,51 +1401,6 @@ export function TokenFormDrawer({
       </MoreSection>
 
       <MoreSection
-        title={t('page.console.token.search.title')}
-        hint={t('page.console.token.form.searchHint', {
-          defaultValue: '限制能用的搜索源和域名',
-        })}
-        control={
-          <Controller
-            control={form.control}
-            name='search_limits_enabled'
-            render={({ field }) => (
-              <Switch checked={field.value} onCheckedChange={field.onChange} />
-            )}
-          />
-        }
-        open={Boolean(values.search_limits_enabled)}
-      >
-        <Controller
-          control={form.control}
-          name='search_providers'
-          render={({ field }) => (
-            <MultiSelect
-              options={SEARCH_PROVIDERS.map((provider) => ({
-                label: provider.label,
-                value: provider.id,
-              }))}
-              placeholder={t(
-                'page.console.token.search.allowedProvidersPlaceholder',
-              )}
-              value={field.value}
-              onValueChange={field.onChange}
-            />
-          )}
-        />
-        <Textarea
-          placeholder={t(
-            'page.console.token.search.domainAllowlistPlaceholder',
-          )}
-          rows={2}
-          {...form.register('search_domain_allowlist')}
-        />
-        <span className='tokv2-hint'>
-          {t('page.console.token.search.allowedProvidersHint')}
-        </span>
-      </MoreSection>
-
-      <MoreSection
         title={t('page.console.token.decision.generation', {
           defaultValue: 'Automatic decision questions',
         })}
@@ -1496,8 +1457,17 @@ export function TokenFormDrawer({
             'legacy.i18n.when_creating_in_batches_a_random_suffix_will_be_automatically_a.97f8747f02',
           )}
         >
-          <Input min='1' type='number' {...form.register('tokenCount')} />
-          <FieldMessage error>
+          <Input
+            aria-describedby={
+              form.formState.errors.tokenCount ? 'token-count-error' : undefined
+            }
+            aria-label={t('legacy.i18n.new_quantity.0859dc5a65')}
+            error={Boolean(form.formState.errors.tokenCount)}
+            min='1'
+            type='number'
+            {...form.register('tokenCount')}
+          />
+          <FieldMessage error id='token-count-error'>
             {String(form.formState.errors.tokenCount?.message || '')}
           </FieldMessage>
         </MoreSection>
@@ -1505,14 +1475,72 @@ export function TokenFormDrawer({
     </div>
   );
 
+  /* What the reader changed, one entry per question (额度 is two fields). */
+  const dirty = new Set(
+    Object.keys(form.formState.dirtyFields).map(
+      (name) => DIRTY_GROUPS[name] ?? name,
+    ),
+  );
+  const changedTag = (group: string) =>
+    isEdit && dirty.has(group) ? (
+      <span className='tok-create__changed'>
+        {t('page.console.token.form.changed')}
+      </span>
+    ) : null;
+  const requestClose = () => {
+    if (dirty.size && !tokens.saveTokenMutation.isPending) {
+      setDiscardAsk(true);
+      return;
+    }
+    onOpenChange(false);
+  };
+  /* After a failed submit, one line at the top says how many fields need
+     work; the form has already scrolled to and focused the first. */
+  const errorCount = Object.keys(form.formState.errors).filter(
+    (name) => name !== 'root',
+  ).length;
+  const loadingDetails = isEdit && !team && !editValues;
+  /* An edit opens on its loading line, where the dialog finds no field to
+     focus. Once the settings arrive, the name takes focus, unless the reader
+     is already in a field or on a touch screen, where it would raise the
+     keyboard. */
+  const wasLoading = useRef(loadingDetails);
+  useEffect(() => {
+    const was = wasLoading.current;
+    wasLoading.current = loadingDetails;
+    if (!open || !was || loadingDetails) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    // Without a field the dialog focused itself or its first button.
+    const active = document.activeElement;
+    if (
+      active &&
+      active !== document.body &&
+      (!active.closest('.lazu-modal-content') ||
+        active.matches('input, select, textarea, [contenteditable="true"]'))
+    )
+      return;
+    document.getElementById('token-name')?.focus();
+  }, [loadingDetails, open]);
+
   const formBody = (
     <form className='tok-create' id='token-form' onSubmit={submit}>
       {team?.content}
+      {form.formState.submitCount > 0 && errorCount > 0 ? (
+        <div className='tok-create__errors' role='alert'>
+          <CircleAlert aria-hidden='true' size={15} />
+          {t('page.console.token.form.errorSummary', { count: errorCount })}
+        </div>
+      ) : null}
       <div className='tok-create__field'>
         <label className='tok-create__label' htmlFor='token-name'>
           {t('legacy.i18n.name.1be7ae4fc2')}
+          {changedTag('name')}
         </label>
         <Input
+          aria-describedby={
+            form.formState.errors.name ? 'token-name-error' : undefined
+          }
+          error={Boolean(form.formState.errors.name)}
           id='token-name'
           maxLength={30}
           placeholder={
@@ -1524,7 +1552,7 @@ export function TokenFormDrawer({
           }
           {...form.register('name')}
         />
-        <FieldMessage error>
+        <FieldMessage error id='token-name-error'>
           {form.formState.errors.name
             ? t('legacy.i18n.please_enter_a_name.c2afb255a5')
             : ''}
@@ -1543,6 +1571,7 @@ export function TokenFormDrawer({
                 : t('page.console.token.create.quota', {
                     defaultValue: '额度',
                   })}
+            {changedTag('quota')}
           </label>
           <span className='tok-create__hint'>
             {isEdit && !team && quotaDisplay
@@ -1728,6 +1757,7 @@ export function TokenFormDrawer({
       <div className='tok-create__field'>
         <span className='tok-create__label' id='token-expiry-label'>
           {t('page.console.token.create.expiry', { defaultValue: '到期' })}
+          {changedTag('expiry')}
         </span>
         <div
           className='tokv2-seg tok-create__seg'
@@ -1918,7 +1948,7 @@ export function TokenFormDrawer({
         {!team && (
           <span className='tok-create__more-hint'>
             {t('page.console.token.create.moreHint', {
-              defaultValue: '模型范围 · 限流 · 用量提醒 · IP · 检索 · 备注',
+              defaultValue: '模型范围 · 限流 · 用量提醒 · IP · 备注',
             })}
           </span>
         )}
@@ -1937,7 +1967,15 @@ export function TokenFormDrawer({
     <Modal
       busy={tokens.saveTokenMutation.isPending}
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next, details) => {
+        if (!next && dirty.size && !discardAsk) {
+          details.cancel();
+          setDiscardAsk(true);
+          return;
+        }
+        onOpenChange(next);
+      }}
+      sheet='full'
       className={cn(
         'tok-create-modal',
         isEdit && 'tok-create-modal--edit',
@@ -1991,58 +2029,89 @@ export function TokenFormDrawer({
             {team.content}
             <PendingBlock height={420} />
           </>
+        ) : loadingDetails ? (
+          <p className='tok-create__loading' role='status'>
+            {t('page.console.token.form.loadingDetails')}
+          </p>
         ) : (
           formBody
         )
       }
       footer={
-        <div className='tok-modal-foot'>
-          {isEdit ? null : (
-            <span className='tok-modal-foot__hint'>
-              {team
-                ? team.countLabel
-                : t('page.console.token.create.footHint', {
-                    defaultValue: '创建后直接打开接入窗口，可在里面选工具',
-                  })}
+        discardAsk ? (
+          <div className='tok-modal-foot tok-modal-foot--discard'>
+            <span className='tok-modal-foot__hint' role='status'>
+              {t('page.console.token.form.unsaved', { count: dirty.size })}
             </span>
-          )}
-          <Button
-            type='button'
-            variant='secondary'
-            disabled={tokens.saveTokenMutation.isPending}
-            onClick={() => {
-              if (team && !isEdit) {
-                form.reset(defaultValues as TokenFormInput);
-                setMoreOpen(false);
-                setExpiryChoice('never');
-              } else onOpenChange(false);
-            }}
-          >
-            {team && !isEdit
-              ? t('projects.key.form.reset')
-              : t('common.cancel', { defaultValue: '取消' })}
-          </Button>
-          <Button
-            disabled={team?.disabled}
-            form='token-form'
-            variant='primary'
-            loading={
-              tokens.saveTokenMutation.isPending ||
-              (isEdit && detailQuery.isFetching)
-            }
-            type='submit'
-          >
-            {isEdit
-              ? t('page.console.token.form.save', { defaultValue: '保存修改' })
-              : team
-                ? t('page.console.token.form.createTitle', {
-                    defaultValue: '创建密钥',
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => setDiscardAsk(false)}
+            >
+              {t('page.console.token.form.keepEditing')}
+            </Button>
+            <Button
+              type='button'
+              variant='danger'
+              onClick={() => {
+                setDiscardAsk(false);
+                onOpenChange(false);
+              }}
+            >
+              {t('page.console.token.form.discard')}
+            </Button>
+          </div>
+        ) : (
+          <div className='tok-modal-foot'>
+            {isEdit ? null : (
+              <span className='tok-modal-foot__hint'>
+                {team
+                  ? team.countLabel
+                  : t('page.console.token.create.footHint', {
+                      defaultValue: '创建后直接打开接入窗口，可在里面选工具',
+                    })}
+              </span>
+            )}
+            <Button
+              type='button'
+              variant='secondary'
+              disabled={tokens.saveTokenMutation.isPending}
+              onClick={() => {
+                if (team && !isEdit) {
+                  form.reset(defaultValues as TokenFormInput);
+                  setMoreOpen(false);
+                  setExpiryChoice('never');
+                } else requestClose();
+              }}
+            >
+              {team && !isEdit
+                ? t('projects.key.form.reset')
+                : t('common.cancel', { defaultValue: '取消' })}
+            </Button>
+            <Button
+              disabled={team?.disabled || loadingDetails}
+              form='token-form'
+              variant='primary'
+              loading={
+                tokens.saveTokenMutation.isPending ||
+                (isEdit && detailQuery.isFetching)
+              }
+              type='submit'
+            >
+              {isEdit
+                ? t('page.console.token.form.save', {
+                    defaultValue: '保存修改',
                   })
-                : t('page.console.token.create.submit', {
-                    defaultValue: '创建并接入',
-                  })}
-          </Button>
-        </div>
+                : team
+                  ? t('page.console.token.form.createTitle', {
+                      defaultValue: '创建密钥',
+                    })
+                  : t('page.console.token.create.submit', {
+                      defaultValue: '创建并接入',
+                    })}
+            </Button>
+          </div>
+        )
       }
     />
   );

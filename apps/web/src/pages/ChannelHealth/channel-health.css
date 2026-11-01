@@ -983,10 +983,6 @@
   overflow-wrap: anywhere;
 }
 
-.chealth-mcard__name--plain {
-  font-family: inherit;
-}
-
 .chealth-mcard__tag {
   color: var(--lazu-text-faint);
   flex: none;

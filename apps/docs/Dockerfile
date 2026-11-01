@@ -11,6 +11,9 @@ COPY apps/docs ./apps/docs
 COPY brand ./brand
 COPY packages/contracts/openapi ./packages/contracts/openapi
 WORKDIR /repo/apps/docs
+# The community link beside GitHub in the docs top bar; empty shows none.
+ARG VITE_BRAND_COMMUNITY_URL=""
+ENV VITE_BRAND_COMMUNITY_URL=${VITE_BRAND_COMMUNITY_URL}
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runner

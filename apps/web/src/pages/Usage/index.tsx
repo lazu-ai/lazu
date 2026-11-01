@@ -93,13 +93,14 @@ export default function UsagePage() {
     next.set('tab', view.tab);
     if (view.value === 'sessions') {
       next.set('view', 'sessions');
-    } else if (view.tab === 'logs') {
-      next.delete('view');
     } else {
       next.delete('view');
-      next.delete('request');
-      if (view.tab !== 'tasks') {
-        for (const key of ['task', 'status', 'days', 'q']) next.delete(key);
+    }
+    /* The time range (range / from / to) rides along to the next tab; each
+       tab's own status, search and open row stay behind. */
+    if (view.value !== activeView) {
+      for (const key of ['request', 'task', 'status', 'days', 'q']) {
+        next.delete(key);
       }
     }
     setParams(next);
