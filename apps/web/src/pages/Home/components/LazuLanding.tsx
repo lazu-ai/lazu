@@ -408,7 +408,10 @@ const LazuLanding = () => {
                 <Reveal as='h1' delay={1} className='lazu-landing__headline'>
                   {t('landing.hero.headline')}
                   {t('landing.hero.headlineEm', { defaultValue: '' }) ? (
-                    <em>{t('landing.hero.headlineEm')}</em>
+                    <>
+                      <wbr />
+                      <em>{t('landing.hero.headlineEm')}</em>
+                    </>
                   ) : null}
                 </Reveal>
 

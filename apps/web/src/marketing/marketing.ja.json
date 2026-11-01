@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu｜エージェントのためのモデル供給：Claude・GPT・Gemini・Seedance を 1 つのキーで",
-      "description": "エージェントに必要なモデルを 1 つのキーで。Claude・GPT・Gemini・DeepSeek でコード、GPT Image・Seedream で画像、Seedance で動画。Claude Code や Codex からそのまま使え、従量課金です。"
+      "title": "Lazu｜コーディングエージェントと自動化タスクのためのモデルアカウント：Claude・GPT・Gemini を 1 つのキーで",
+      "description": "1 つのキーで Claude・GPT・Gemini・DeepSeek を呼び出せます。予算に達したら止まり、リクエストごとに明細が残ります。Claude Code・Codex・OpenCode から接続でき、評価、データ処理、本番ジョブにも使えます。従量課金。"
     },
     "nav": {
       "models": "モデル",
@@ -35,12 +35,12 @@
       "menu": "メニュー"
     },
     "hero": {
-      "eyebrow": "エージェント、アプリ、チームのために",
-      "headline": "エージェントのための",
-      "headlineEm": "モデル供給。",
-      "whatBefore": "エージェントに必要なモデルが、",
-      "whatBold": "1 つのキーですべて",
-      "whatAfter": "。Opus でコード、GPT Image で画像、Seedance で動画。Claude Code、Codex、SDK からそのまま接続でき、呼び出しごとに明細が残ります。",
+      "eyebrow": "コーディングエージェントと自動化タスクのために",
+      "headline": "コーディングエージェントと自動化タスクのための",
+      "headlineEm": "モデルアカウント。",
+      "whatBefore": "コードを書く、評価を回す、本番で動かす。",
+      "whatBold": "すべて 1 つのキーで",
+      "whatAfter": "。Claude・GPT・Gemini・DeepSeek が揃っています。予算に達したら止まり、呼び出しごとに明細が残り、従量課金です。Claude Code・Codex・SDK からそのまま接続できます。",
       "ctaPrimary": "無料で登録",
       "ctaSecondary": "画面を見る",
       "free": "初回チャージは 10% 上乗せ（最大 $10）"

@@ -1,6 +1,6 @@
 # Lazu
 
-> Every model your agent needs, on one key: Claude, GPT, Gemini and DeepSeek for code, GPT Image for images, Seedance for video. Pay as you go.
+> One key for Claude, GPT, Gemini and DeepSeek. A budget that stops, a receipt for every request. Works with Claude Code, Codex and OpenCode, and runs your evals and production jobs. Pay as you go.
 
 ## Key facts
 
