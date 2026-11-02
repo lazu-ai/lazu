@@ -296,8 +296,9 @@ team-console 探索稿的角色与后端待办，登记成员详情主从页例�
 - **Approved canvas:** `archive:brand/canvases.md` (`archive:brand/explorations/seo-surfaces-2026-09/`)
 - **Rules:** `foundations/seo-surfaces-2026-09.md`
 
-Public header 模型 · 文档 · 博客 · 常见问题; four-column footer with the
-DUBRIO LLC legal line; /about; API-rendered /models and one page per model
+Public header 模型 · 文档 · 博客 · 常见问题; footer with the DUBRIO LLC
+legal line and up to six link columns (产品 · 热门模型 · 开发者 · 对比 · 公司 ·
+法律; 热门模型 only when the build names models, added 2026-11 for search); /about; API-rendered /models and one page per model
 (layout A); blog with auto-drawn covers; docs under lazu.ai/docs. Console
 「公告」 becomes 「运营」 (上新 · 公告 · 博客 · 配图) with a split Markdown /
 live-preview blog editor.

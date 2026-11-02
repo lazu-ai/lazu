@@ -16,10 +16,15 @@ export const getDocsURL = (path = '') => {
 /** Docs locales are a subset of app locales; anything else falls back to en. */
 const DOCS_LOCALES = new Set(['ja', 'zh', 'zh-TW']);
 
-export const getDocsQuickstartURL = (language = '') => {
+/** A docs page in the reader's language: /docs/<page> for English,
+ *  /docs/<locale>/<page> for the docs locales. */
+export const getDocsPageURL = (page: string, language = '') => {
   const locale = DOCS_LOCALES.has(language) ? `/${language}` : '';
-  return getDocsURL(`${locale}/quickstart`);
+  return getDocsURL(`${locale}/${page.replace(/^\/+/, '')}`);
 };
+
+export const getDocsQuickstartURL = (language = '') =>
+  getDocsPageURL('quickstart', language);
 
 /** Docs home for a UI locale: /docs, /docs/zh/, /docs/zh-TW/, /docs/ja/.
  *  Locale homes are canonical with their slash; the slashless spelling
@@ -43,6 +48,31 @@ export const getSupportEmail = () =>
 export const getCommunityURL = (): string | null => {
   const raw = String(import.meta.env.VITE_BRAND_COMMUNITY_URL || '').trim();
   return /^https?:\/\/\S+$/.test(raw) ? raw : null;
+};
+
+/* Model pages the public footer lists under "Popular models". Which models
+ * are popular is a fact about one deployment's traffic and catalog, so the
+ * build names them (VITE_BRAND_FOOTER_MODELS) and a build without the list
+ * shows no such column. The value is comma-separated `<model page>=<label>`
+ * pairs, where the page is the path under /models, e.g.
+ * `anthropic/claude-opus-5-5=Claude Opus 5.5`. Malformed entries are dropped. */
+export type FooterModel = { path: string; label: string };
+
+const FOOTER_MODEL_PATH = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+$/;
+
+export const getFooterModels = (): FooterModel[] => {
+  const raw = String(import.meta.env.VITE_BRAND_FOOTER_MODELS || '');
+  const models: FooterModel[] = [];
+  for (const entry of raw.split(',')) {
+    const separator = entry.indexOf('=');
+    if (separator < 0) continue;
+    const path = entry.slice(0, separator).trim().replace(/^\/+/, '');
+    const label = entry.slice(separator + 1).trim();
+    if (!label || !FOOTER_MODEL_PATH.test(path)) continue;
+    if (path.split('/').some((segment) => /^\.+$/.test(segment))) continue;
+    models.push({ path: `/models/${path}`, label });
+  }
+  return models;
 };
 
 /* The chat app a community link opens, when its host says so, so an entry
