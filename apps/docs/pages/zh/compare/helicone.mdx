@@ -30,7 +30,7 @@ description: "Helicone 是一个 LLM 观测平台，前面带一个网关：日�
 
 ## 钱
 
-Helicone 测量花费；它不持有余额。自定义限流策略可以按时间窗限制请求数或美分数并返回 `429`，但没有能把一把 Key 彻底停掉的按 Key 预算，而且这些限制跑在托管的基础设施上。Lazu 拿着钱：调上游之前从预付余额里预留一个估算值，按上游报的用量结算，每个维度都记录为上游测量、本地估算或不可用，账户付不起的请求到不了上游（[计费合同](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+Helicone 测量花费；它不持有余额。自定义限流策略可以按时间窗限制请求数或美分数并返回 `429`，但没有能把一把 Key 彻底停掉的按 Key 预算，而且这些限制跑在 Cloudflare KV 上，自建时能不能用没有文档说明。Lazu 拿着钱：调上游之前从预付余额里预留一个估算值，按上游报的用量结算，每个维度都记录为上游测量、本地估算或不可用，账户付不起的请求到不了上游（[计费合同](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
 
 ## 一个请求留下什么
 

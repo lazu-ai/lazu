@@ -30,7 +30,7 @@ description: "Bifrost 是 Maxim AI 出的 Go AI 閘道，有虛擬 Key、美元�
 
 ## 錢
 
-兩個專案都在呼叫前預留一個美元金額。Bifrost 按虛擬 Key、團隊或客戶各記一份預算，按排程重置，用 `402 budget_exceeded` 拒絕，並讓營運者臨時加額。Lazu 從預付餘額裡扣：呼叫上游之前預留一個估算值，按上游回報的用量結算費用，每個維度都記錄為上游測量、本機估算或不可用。失敗且沒有可計費輸出的請求退回預留，帳戶付不起的請求到不了上游，什麼都不會被悄悄透支（[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+兩個專案都在呼叫前面放一道美元預算。Bifrost 按虛擬 Key、團隊或客戶各記一份預算，按排程重置，用 `402 budget_exceeded` 拒絕，並讓營運者臨時加額。Lazu 從預付餘額裡扣：呼叫上游之前預留一個估算值，按上游回報的用量結算費用，每個維度都記錄為上游測量、本機估算或不可用。失敗且沒有可計費輸出的請求退回預留，帳戶付不起的請求到不了上游，什麼都不會被悄悄透支（[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
 
 差別在預算是給誰的。Bifrost 的預算管的是內部支出，會重置。Lazu 的預算建立在付進來的餘額上，每個請求的紀錄花錢的人或 Agent 自己能讀，不只是營運者能看。
 

@@ -30,7 +30,7 @@ description: "Bifrost is a Go AI gateway from Maxim AI with virtual keys, dollar
 
 ## Money
 
-Both projects reserve a dollar amount before the call. Bifrost keeps a budget per virtual key, team or customer, resets it on a schedule, refuses with `402 budget_exceeded` and lets an operator add a temporary override. Lazu draws on a prepaid balance: an estimate is reserved before the upstream call, the charge is settled from the usage the provider reports, and each dimension is recorded as provider-measured, locally estimated or unavailable. A failed request with no billable output refunds the reservation, a request the account cannot cover never reaches the provider, and nothing is quietly overdrawn ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+Both put a dollar budget in front of the call. Bifrost keeps a budget per virtual key, team or customer, resets it on a schedule, refuses with `402 budget_exceeded` and lets an operator add a temporary override. Lazu draws on a prepaid balance: an estimate is reserved before the upstream call, the charge is settled from the usage the provider reports, and each dimension is recorded as provider-measured, locally estimated or unavailable. A failed request with no billable output refunds the reservation, a request the account cannot cover never reaches the provider, and nothing is quietly overdrawn ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
 
 The difference is who the budget is for. Bifrost's budgets govern internal spend and reset. Lazu's budgets sit on a balance that was paid in, and the record of each request is readable by the person or agent that spent it, not only by the operator.
 

@@ -30,7 +30,7 @@ description: "Helicone is an LLM observability platform with a gateway in front:
 
 ## Money
 
-Helicone measures spend; it does not hold a balance. A custom rate-limit policy can cap requests or cents per window and answer `429`, but there is no per-key budget that stops a key for good, and the limits run on the hosted infrastructure. Lazu holds the money: an estimate is reserved from a prepaid balance before the upstream call, the charge is settled from the usage the provider reports, each dimension is recorded as provider-measured, locally estimated or unavailable, and a request the account cannot cover never reaches the provider ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+Helicone measures spend; it does not hold a balance. A custom rate-limit policy can cap requests or cents per window and answer `429`, but there is no per-key budget that stops a key for good, and the limits run on Cloudflare KV; self-host support for them is not documented. Lazu holds the money: an estimate is reserved from a prepaid balance before the upstream call, the charge is settled from the usage the provider reports, each dimension is recorded as provider-measured, locally estimated or unavailable, and a request the account cannot cover never reaches the provider ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
 
 ## What a request leaves behind
 
