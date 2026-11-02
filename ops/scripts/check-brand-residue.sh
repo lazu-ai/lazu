@@ -133,7 +133,7 @@ def self_test():
         subprocess.run(['git', 'rm', '-q', '-f', '--', 'docs/One API.md'], cwd=root, check=True)
         stage('apps/docs/pages/zh/compare/new-api.mdx', 'Lazu vs New API: new-api, docs.newapi.pro, one-api\n')
         assert not scan(root), 'comparison pages may name the upstream projects'
-        stage('apps/docs/pages/zh/compare/new-api.mdx', 'Pandalla\n')
+        stage('apps/docs/pages/zh/compare/new-api.mdx', 'DUBRIFY\n')
         assert scan(root), 'comparison pages still may not carry retired Lazu brands'
         subprocess.run(['git', 'rm', '-q', '-f', '--', 'apps/docs/pages/zh/compare/new-api.mdx'], cwd=root, check=True)
         stage('apps/docs/pages/new-api.mdx', 'Neutral content\n')
