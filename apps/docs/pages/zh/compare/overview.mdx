@@ -20,12 +20,12 @@ Lazu 是给团队、实验室或公司用的**模型账户**：每个人、每�
 | **Lazu** | Go 网关 + 账本 + 控制台 + 文档站，一套 Docker 栈 | 给人和 Agent 开模型账户的团队 | 用户、团队、项目；按 Key、按成员设预算；预付先预留，按上游计数结算 | 每个请求一条记录，标明每个数字的来源和计费明细；Agent 会话；离线核对脚本 | AGPL-3.0 |
 | [LiteLLM](/zh/compare/litellm) | Python 代理 + SDK，YAML 配置，管理界面 | 给内部服务统一入口的平台团队 | 虚拟 Key、用户、团队、组织；各层级预算可定期重置 | 花费统计和日志；部分报表属企业版 | MIT；`enterprise/` 目录另行许可 |
 | [New API](/zh/compare/new-api) | Go 网关 + 控制台 | 用一套部署服务很多用户的运营者 | 用户、分组、令牌额度、订阅、充值 | 用量和审计日志、成本核算 | AGPL-3.0 附署名条款 |
-| one-api | Go 网关 + 控制台 | 想要一个 OpenAI 格式入口的自建者 | 用户、分组、令牌额度、兑换码 | 额度明细 | MIT 附页脚署名；最后一次发布是 2025 年 2 月 |
-| Bifrost | Go 网关 + 界面 | 平台团队，有企业版 | 虚拟 Key、团队、客户；美元预算可重置 | 日志、Prometheus 指标、追踪 | Apache-2.0 |
-| Portkey Gateway | TypeScript 网关，按请求配置 | 应用开发者；预算、RBAC 和观测在托管平台里 | 托管套餐里有预算 | 本地控制台看日志；保留期按套餐 | MIT；仓库自 2026 年 5 月起停更 |
-| Helicone | 观测平台，前面带一个网关 | 先要日志和追踪的 AI 工程师 | 按请求数或花费限流；没有按 Key 的预算 | 每个请求的费用、延迟和 token | Apache-2.0（平台） |
-| Kong AI Gateway | Kong 上的插件 | 已经在跑 Kong 的企业 | 按消费者组设 token 额度和费用预算，企业版 | 通过 Kong 计量 | 核心 Apache-2.0，企业插件闭源 |
-| OpenRouter | 仅托管 | 要一把 Key、不想跑服务器的开发者 | 可开子 Key 并设额度 | 活动页和按请求查费用的接口 | 不开源 |
+| [one-api](/zh/compare/one-api) | Go 网关 + 控制台 | 想要一个 OpenAI 格式入口的自建者 | 用户、分组、令牌额度、兑换码 | 额度明细 | MIT 附页脚署名；最后一次发布是 2025 年 2 月 |
+| [Bifrost](/zh/compare/bifrost) | Go 网关 + 界面 | 平台团队，有企业版 | 虚拟 Key、团队、客户；美元预算可重置 | 日志、Prometheus 指标、追踪 | Apache-2.0 |
+| [Portkey Gateway](/zh/compare/portkey) | TypeScript 网关，按请求配置 | 应用开发者；预算、RBAC 和观测在托管平台里 | 托管套餐里有预算 | 本地控制台看日志；保留期按套餐 | MIT；仓库自 2026 年 5 月起停更 |
+| [Helicone](/zh/compare/helicone) | 观测平台，前面带一个网关 | 先要日志和追踪的 AI 工程师 | 按请求数或花费限流；没有按 Key 的预算 | 每个请求的费用、延迟和 token | Apache-2.0（平台） |
+| [Kong AI Gateway](/zh/compare/kong) | Kong 上的插件 | 已经在跑 Kong 的企业 | 按消费者组设 token 额度和费用预算，企业版 | 通过 Kong 计量 | 核心 Apache-2.0，企业插件闭源 |
+| [OpenRouter](/zh/compare/openrouter) | 仅托管 | 要一把 Key、不想跑服务器的开发者 | 可开子 Key 并设额度 | 活动页和按请求查费用的接口 | 不开源 |
 
 ## 预算用完会怎样
 
@@ -54,4 +54,10 @@ Lazu、LiteLLM、New API 和 Bifrost 都原生接受 OpenAI、Anthropic Messages
 
 - [Lazu 与 LiteLLM](/zh/compare/litellm)
 - [Lazu 与 New API](/zh/compare/new-api)
+- [Lazu 与 one-api](/zh/compare/one-api)
+- [Lazu 与 Bifrost](/zh/compare/bifrost)
+- [Lazu 与 Portkey](/zh/compare/portkey)
+- [Lazu 与 Helicone](/zh/compare/helicone)
+- [Lazu 与 Kong AI Gateway](/zh/compare/kong)
+- [Lazu 与 OpenRouter](/zh/compare/openrouter)
 - [计费规则](/zh/billing) · [请求详情](/zh/endpoints/usage-requests) · [Agent 会话费用](/zh/agent-session-costs)

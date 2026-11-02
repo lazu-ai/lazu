@@ -1,0 +1,51 @@
+---
+title: "Lazu vs Kong AI Gateway"
+description: "Kong AI Gateway is a set of plugins on Kong Gateway: open-source proxying to providers, with load balancing, cost limits and semantic cache on Kong Enterprise. Lazu is a standalone self-hosted gateway with accounts, budgets and usage records. Where each fits."
+---
+
+# Lazu vs Kong AI Gateway
+
+[Kong AI Gateway](https://developer.konghq.com/ai-gateway/) is not a separate product: it is a family of plugins on Kong Gateway, the API gateway, that proxy to model providers and apply policy to the traffic. Lazu is a standalone gateway that carries accounts, a ledger and a console. The right question is not which is better but whether you already run Kong. Facts were checked on 2 November 2026; Kong's AI Gateway 2.0 is replacing the `ai-proxy` plugins with an AI Model entity and policies, so plugin names on this page will date.
+
+## Who each is for
+
+**Kong AI Gateway** is for enterprises that already run Kong for their APIs and want model traffic governed the same way: declarative configuration, consumer groups, the Konnect control plane, and the Enterprise plugins for balancing, cost limits and semantic caching.
+
+**Lazu** is for teams, labs and companies that want a model account for every person and agent without adopting an API-management platform: one Docker stack, a console, keys with budgets, and a usage record per request.
+
+## Side by side
+
+| | Kong AI Gateway | Lazu |
+| --- | --- | --- |
+| Form | Plugins on Kong Gateway (Lua on OpenResty) | Go gateway and worker, React console, Vocs docs; one Docker Compose stack |
+| Configuration | Declarative YAML (decK), Admin API, Konnect UI | Upstreams, prices, users and announcements in the console |
+| Open source | `ai-proxy` (17 providers), `ai-prompt-guard`, `ai-request-transformer` | Everything in the repository |
+| Enterprise only | `ai-proxy-advanced` (load balancing, failover, circuit breakers), `ai-rate-limiting-advanced` (token and cost limits), `ai-semantic-cache` | Nothing |
+| Accounts | Kong consumers and consumer groups; token quotas and cost budgets per group on Enterprise | Users, teams and projects, member budgets, API keys |
+| Budget | Cost limit per window via `ai-rate-limiting-advanced`; the request that crosses the limit completes and the next one is blocked with `429` | Prepaid balance; reserved before the call, settled from the provider's counters, released on failure; a request the account cannot cover is refused before the call |
+| Usage records | Token metering and Kong's logging plugins | One record per request with usage, measurement source and billing lines, readable by the key that sent it; agent sessions; reconciliation script |
+| Routing | Open-source `ai-proxy` documents no balancing or failover; Enterprise adds round-robin, least-connections, lowest-latency, semantic and priority balancing with failover criteria | Channel selection by priority and weight per model, health window, retry on the same model; public route-health page |
+| Protocols | OpenAI format in, provider format out; native `llm_format` modes pass through unconverted to the matching provider | OpenAI, Anthropic Messages and Gemini natively; translates only when lossless |
+| Licence | Apache-2.0 core; Enterprise plugins proprietary | AGPL-3.0-or-later |
+
+## Money
+
+Kong's cost control is a rate limit: `ai-rate-limiting-advanced` computes a cost per request from the model's input and output prices and blocks once a consumer group's window is spent, with the documented caveat that the request that reaches the limit still completes. It is an Enterprise plugin. Lazu's is a balance: an estimate is reserved from a prepaid balance before the upstream call, the charge is settled from the usage the provider reports, each dimension is recorded as provider-measured, locally estimated or unavailable, and a request the account cannot cover is refused before it reaches the provider ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+
+## Protocols
+
+Kong's open-source `ai-proxy` accepts OpenAI-format requests and converts them for each of its providers; its native `llm_format` modes forward Anthropic, Bedrock, Cohere, Gemini or Hugging Face requests unchanged, and only to that provider. Lazu accepts the three families natively and converts between them only along edges verified lossless; a request that needs a feature the upstream cannot carry is refused with a `400` naming the feature before any upstream call ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+
+## What Kong has that Lazu does not
+
+- A full API gateway around the model traffic: authentication plugins, rate limiting, transformations, the whole Kong plugin catalogue.
+- Declarative configuration in version control and a hosted control plane.
+- Semantic caching and semantic load balancing on Enterprise.
+- Enterprise support and compliance.
+
+## When to choose which
+
+- You run Kong and model calls are one more kind of API traffic to govern: **Kong AI Gateway**, with the Enterprise plugins for anything beyond proxying.
+- You need a model account for people and agents, with budgets, a balance and readable usage records, and no API-management platform in the way: **Lazu**.
+
+See also [Lazu vs LiteLLM](/compare/litellm) and the [overview of other gateways](/compare/overview).

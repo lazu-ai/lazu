@@ -1,0 +1,55 @@
+---
+title: "Lazu vs Portkey"
+description: "Portkey's open-source gateway is a TypeScript router with per-request configs; keys, budgets and observability live in its hosted platform, and the repository has been quiet since May 2026. Lazu is a self-hosted gateway with accounts, budgets and usage records built in."
+---
+
+# Lazu vs Portkey
+
+[Portkey AI Gateway](https://github.com/Portkey-AI/gateway) is a TypeScript gateway that routes to a very large number of models with retries, fallbacks, load balancing and guardrails configured per request. Keys, budgets, RBAC and observability belong to Portkey's hosted platform. Lazu is a Go gateway that carries its accounts, ledger and console with it. Facts were checked on 2 November 2026.
+
+## Where Portkey stands
+
+The open-source repository's last release is `v1.15.2` from January 2026 and its last commit is from May 2026; a `2.0.0` branch exists but was not merged. Palo Alto Networks completed its acquisition of Portkey on 29 May 2026. The gateway still runs, but anyone choosing it today is choosing a codebase whose future is decided elsewhere.
+
+## Who each is for
+
+**Portkey** is for application developers who call many models and want retries, fallbacks, weighted load balancing and guardrails expressed as a config object on each request, and who are willing to use the hosted platform for everything about keys, budgets and logs beyond a local console.
+
+**Lazu** is for teams, labs and companies that hand keys to people and agents and want the account layer to live on their own server: budgets reserved before the call, a usage record per request that the key's owner can read, a catalog with prices, and a console for the operator.
+
+## Side by side
+
+| | Portkey Gateway | Lazu |
+| --- | --- | --- |
+| Runtime | TypeScript; `npx`, Docker, Node, Cloudflare Workers | Go gateway and worker, React console, Vocs docs; one Docker Compose stack |
+| Configuration | Per-request config object or header: retries, fallbacks, load balancing, guardrails | Upstreams, prices, users and announcements in the console |
+| Accounts | Virtual keys in the hosted platform; the open-source gateway documents no key store | Users, teams and projects, member budgets, API keys |
+| Budget | Cost and token limits that expire the key, with alerts and resets, on the hosted Enterprise plan and select Pro customers | Prepaid balance; per-key caps, project and spend budgets; reserved before the call, settled from the provider's counters, released on failure |
+| Usage records | Local console shows local logs; logging, tracing and retention are hosted-plan features (3 days on Dev, 30 on Pro) | One record per request with usage, measurement source and billing lines, readable by the key that sent it; agent sessions; reconciliation script |
+| Routing | Fallbacks with error triggers, up to five retries with backoff, weighted and conditional routing | Channel selection by priority and weight per model, health window, retry on the same model; public route-health page |
+| Protocols | OpenAI signature across providers | OpenAI, Anthropic Messages and Gemini natively; translates only when lossless |
+| Extension | `plugins/` of guardrail integrations | Go and web extension points compiled into the build |
+| Paid tier | Dev (free), Pro, Enterprise: caching, prompt management, observability, budgets, PII redaction, RBAC, SSO, private deployments | None |
+| Licence | MIT; repository quiet since May 2026 | AGPL-3.0-or-later |
+
+## Money
+
+In Portkey, a budget is a hosted-platform feature: a cost or token limit on a provider integration that expires the key when reached, with alert thresholds and weekly or monthly resets, available on Enterprise and to some Pro customers. The open-source gateway on its own has no budgets. In Lazu, budgets are part of the self-hosted product: an estimate is reserved from a prepaid balance before the upstream call, the charge is settled from the usage the provider reports, each dimension is recorded as provider-measured, locally estimated or unavailable, and a failed request with no billable output refunds its reservation ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+
+## Protocols
+
+Portkey's README describes a familiar OpenAI signature across its providers. Lazu accepts OpenAI, Anthropic Messages and Gemini requests natively and converts only along edges verified lossless; a request that needs a feature the upstream cannot carry is refused with a `400` naming the feature before any upstream call ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+
+## What Portkey has that Lazu does not
+
+- Coverage of well over a thousand models and modalities.
+- Routing expressed per request, including conditional routing and configurable fallback triggers.
+- A set of guardrail plugins from third-party vendors.
+- Deployment on Cloudflare Workers.
+
+## When to choose which
+
+- You are an application developer, you want routing policy in the request itself, and you are fine with the hosted platform for keys, budgets and logs: **Portkey**, with the caveat above about the repository.
+- You need the account layer on your own server, with budgets, a balance and a usage record the key's owner can read: **Lazu**.
+
+See also [Lazu vs LiteLLM](/compare/litellm) and the [overview of other gateways](/compare/overview).

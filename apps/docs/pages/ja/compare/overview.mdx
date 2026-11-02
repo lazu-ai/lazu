@@ -20,12 +20,12 @@ Lazu はチーム、研究室、企業のための**モデルアカウント**�
 | **Lazu** | Go ゲートウェイ + 台帳 + コンソール + ドキュメント、1 つの Docker スタック | 人とエージェントにモデルアカウントを渡すチーム | ユーザー、チーム、プロジェクト。キー別・メンバー別の予算。前払いで予約し、プロバイダーのカウンターで精算 | リクエストごとに 1 件、各数値の出所と課金明細付き。エージェントセッション。オフライン照合スクリプト | AGPL-3.0 |
 | [LiteLLM](/ja/compare/litellm) | Python プロキシ + SDK、YAML 設定、管理 UI | 社内サービスの共有ゲートウェイを運用するプラットフォームチーム | 仮想キー、ユーザー、チーム、組織。スコープ別予算とリセット周期 | 支出追跡とログ。一部のレポートは Enterprise | MIT。`enterprise/` は別ライセンス |
 | [New API](/ja/compare/new-api) | Go ゲートウェイ + コンソール | 1 つのデプロイで多数のユーザーに提供する運営者 | ユーザー、グループ、トークン枠、サブスクリプション、チャージ | 利用・監査ログ、コスト計算 | AGPL-3.0 + 表示条件 |
-| one-api | Go ゲートウェイ + コンソール | OpenAI 形式の入口が 1 つ欲しいセルフホスト派 | ユーザー、グループ、トークン枠、引換コード | 枠の明細 | MIT + フッター表示。最終リリースは 2025 年 2 月 |
-| Bifrost | Go ゲートウェイ + UI | プラットフォームチーム。Enterprise 版あり | 仮想キー、チーム、顧客。ドル建て予算とリセット | ログ、Prometheus メトリクス、トレース | Apache-2.0 |
-| Portkey Gateway | TypeScript ゲートウェイ、リクエスト単位の設定 | アプリ開発者。予算、RBAC、観測はホスト型プラットフォーム側 | ホスト型プランに予算 | ローカルコンソールでログ。保持期間はプラン次第 | MIT。リポジトリは 2026 年 5 月以降更新なし |
-| Helicone | 観測プラットフォームとその前段のゲートウェイ | ログとトレースを最優先する AI エンジニア | リクエスト数または金額でレート制限。キー別予算は未記載 | 全リクエストのコスト、レイテンシ、トークン | Apache-2.0（プラットフォーム） |
-| Kong AI Gateway | Kong のプラグイン | すでに Kong を運用する企業 | コンシューマーグループ別のトークン枠とコスト予算。Enterprise | Kong 経由の計量 | コアは Apache-2.0、Enterprise プラグインは非公開 |
-| OpenRouter | ホスト型のみ | キー 1 つで済ませたい、サーバーを持ちたくない開発者 | 発行キーにクレジット上限 | アクティビティページとリクエスト別コスト API | 非オープンソース |
+| [one-api](/ja/compare/one-api) | Go ゲートウェイ + コンソール | OpenAI 形式の入口が 1 つ欲しいセルフホスト派 | ユーザー、グループ、トークン枠、引換コード | 枠の明細 | MIT + フッター表示。最終リリースは 2025 年 2 月 |
+| [Bifrost](/ja/compare/bifrost) | Go ゲートウェイ + UI | プラットフォームチーム。Enterprise 版あり | 仮想キー、チーム、顧客。ドル建て予算とリセット | ログ、Prometheus メトリクス、トレース | Apache-2.0 |
+| [Portkey Gateway](/ja/compare/portkey) | TypeScript ゲートウェイ、リクエスト単位の設定 | アプリ開発者。予算、RBAC、観測はホスト型プラットフォーム側 | ホスト型プランに予算 | ローカルコンソールでログ。保持期間はプラン次第 | MIT。リポジトリは 2026 年 5 月以降更新なし |
+| [Helicone](/ja/compare/helicone) | 観測プラットフォームとその前段のゲートウェイ | ログとトレースを最優先する AI エンジニア | リクエスト数または金額でレート制限。キー別予算は未記載 | 全リクエストのコスト、レイテンシ、トークン | Apache-2.0（プラットフォーム） |
+| [Kong AI Gateway](/ja/compare/kong) | Kong のプラグイン | すでに Kong を運用する企業 | コンシューマーグループ別のトークン枠とコスト予算。Enterprise | Kong 経由の計量 | コアは Apache-2.0、Enterprise プラグインは非公開 |
+| [OpenRouter](/ja/compare/openrouter) | ホスト型のみ | キー 1 つで済ませたい、サーバーを持ちたくない開発者 | 発行キーにクレジット上限 | アクティビティページとリクエスト別コスト API | 非オープンソース |
 
 ## 予算を使い切るとどうなるか
 
@@ -54,4 +54,10 @@ Lazu、LiteLLM、New API、Bifrost は OpenAI、Anthropic Messages、Gemini の�
 
 - [Lazu と LiteLLM](/ja/compare/litellm)
 - [Lazu と New API](/ja/compare/new-api)
+- [Lazu と one-api](/ja/compare/one-api)
+- [Lazu と Bifrost](/ja/compare/bifrost)
+- [Lazu と Portkey](/ja/compare/portkey)
+- [Lazu と Helicone](/ja/compare/helicone)
+- [Lazu と Kong AI Gateway](/ja/compare/kong)
+- [Lazu と OpenRouter](/ja/compare/openrouter)
 - [料金体系](/ja/billing) · [リクエスト詳細](/ja/endpoints/usage-requests) · [Agent セッション費用](/ja/agent-session-costs)

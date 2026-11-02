@@ -1,0 +1,51 @@
+---
+title: "Lazu vs OpenRouter"
+description: "OpenRouter is a hosted service: one key for hundreds of models, nothing to run, not open source. Lazu is an open-source gateway you host yourself, with accounts, budgets and usage records, and lazu.ai runs it hosted with models included. When each fits."
+---
+
+# Lazu vs OpenRouter
+
+[OpenRouter](https://openrouter.ai) gives you one API key for hundreds of models across providers, with automatic fallback when a provider errors, and nothing to run. It is a closed, hosted service: there is no repository and no self-host option. Lazu is open source under AGPL-3.0 and runs on your own server; lazu.ai also runs it as a hosted service with the models included. This page is about what each is, not which is cheaper. Facts were checked on 2 November 2026.
+
+## Who each is for
+
+**OpenRouter** is for a developer who wants to try or ship against many models with one key and one bill, and who is happy for the keys, the logs and the balance to live with a third party.
+
+**Lazu** is for a team, lab or company that wants to be the one issuing keys: a key with a budget for every person and agent, a usage record per request the key's owner can read, a catalog with the prices you set, and routes to your own provider accounts. Self-host it, or use the hosted lazu.ai if you do not want to run it.
+
+## Side by side
+
+| | OpenRouter | Lazu |
+| --- | --- | --- |
+| Form | Hosted service | Open-source gateway you run; also hosted at lazu.ai |
+| Source | Closed | AGPL-3.0-or-later on GitHub |
+| Providers | OpenRouter's own provider contracts, hundreds of models | Your own provider accounts, or lazu.ai's |
+| Protocols | OpenAI-style Chat Completions, Responses and Completions; Anthropic Messages | OpenAI Chat Completions and Responses, Anthropic Messages, Gemini `generateContent` |
+| Keys | Provisioned keys from a management API with a credit limit and optional daily reset; per-key usage | Users, teams and projects, member budgets, API keys |
+| Budget | Credit limit per key | Prepaid balance; per-key caps, project and spend budgets; reserved before the call, settled from the provider's counters, released on failure |
+| Usage records | Activity page filterable by model, provider and key; a per-request generation endpoint with cost and tokens | One record per request with usage, measurement source and billing lines, readable by the key that sent it; agent sessions; reconciliation script |
+| Routing | Automatic fallback to the next provider on error; model variants that prefer speed or price | Channel selection by priority and weight per model, health window, retry on the same model; public route-health page |
+| Pricing | Provider list price plus a platform fee on credit purchases | Prices you set per model and lane in your own catalog |
+| Teams | Business and Enterprise plans | Teams and projects with members, roles, invites and member budgets, in the open-source product |
+
+## Money
+
+OpenRouter sells credits: inference at the provider's list price plus a platform fee on each credit purchase, and a credit limit per provisioned key. Lazu holds a prepaid balance that you top up and price: an estimate is reserved before the upstream call, the charge is settled from the usage the provider reports, each dimension is recorded as provider-measured, locally estimated or unavailable, and a request the account cannot cover never reaches the provider ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)). On a self-hosted Lazu the upstream bill is yours, so the price you set per model is the price your people pay.
+
+## What a request leaves behind
+
+Both expose per-request cost. OpenRouter's generation endpoint returns tokens and cost for a request ID. Lazu's [request details](/endpoints/usage-requests) add which numbers the provider measured and which were estimated, the billing line items and public timing, and group a coding agent's requests into sessions that a [script](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py) reconciles offline.
+
+## What OpenRouter has that Lazu does not
+
+- Hundreds of models from many providers behind one key, with no provider accounts to open.
+- Nothing to run or operate.
+- Fallback across providers for the same model, and variants that prefer speed or price.
+- Bring-your-own-key with a fee waiver up to a monthly volume.
+
+## When to choose which
+
+- You are one developer or a small app, you want the widest model list today, and you do not need to issue keys to others: **OpenRouter**.
+- You issue keys to people and agents, you want budgets and records on your own terms, and you want the option to run it yourself: **Lazu**. If running it is the obstacle, lazu.ai is the same product hosted.
+
+See also [Lazu vs LiteLLM](/compare/litellm) and the [overview of other gateways](/compare/overview).

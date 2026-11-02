@@ -1,0 +1,51 @@
+---
+title: "Lazu 与 Helicone"
+description: "Helicone 是一个 LLM 观测平台，前面带一个网关：日志、追踪和按请求的费用，以托管为主。Lazu 是一个自建网关，带账户、预算和每个请求一条用量记录。各自适合什么场景。"
+---
+
+# Lazu 与 Helicone
+
+[Helicone](https://github.com/Helicone/helicone) 是给 LLM 应用用的观测平台，同时也充当网关：改一下 base URL，加一把 Helicone 的 Key，每个请求就连同费用、延迟和 token 一起被记下来。Lazu 首先是一个网关：账户、预算和每个请求一条用量记录，控制台和文档在同一个产品里。两者在「每个请求都有一条记录」上重合，在这条记录是干什么用的上分开。事实于 2026 年 11 月 2 日核对。
+
+## 各自给谁用
+
+**Helicone** 给的是想看清自己应用在干什么的 AI 工程师：仪表盘、会话和追踪、按请求的费用，付费套餐上有预警和报表。它默认是托管服务；自建镜像打包了网页应用、API、对象存储和数据库，网关单独部署，Helm chart 需要联系公司。
+
+**Lazu** 给的是把 Key 交给人和 Agent、需要回答谁花了多少的团队、实验室和公司：每把 Key 的预算在调用前预留，每个请求留下一条主人自己能读的记录，运营者在一台服务器上跑完整套东西。
+
+## 并排看
+
+| | Helicone | Lazu |
+| --- | --- | --- |
+| 形态 | 带代理的观测平台（TypeScript）；另有一个 Rust 网关仓库，自 2025 年 11 月起没有提交 | Go 网关和 worker、React 控制台、Vocs 文档站；一套 Docker Compose |
+| 部署 | 默认托管；自建用 `helicone-all-in-one` Docker 镜像，不含网关；Helm 需企业联系 | 一套 Docker Compose，带 PostgreSQL 和 Redis |
+| 配置 | `Helicone-*` 请求头 | 上游、价格、用户、公告都在控制台 |
+| 账户 | 组织和按套餐的席位 | 用户、团队和项目、成员预算、API Key |
+| 预算 | 没有写明按 Key 的预算；按时间窗按请求数或费用限流，命中返回 `429` | 预付余额；按 Key 上限、项目和支出预算；调用前预留，按上游计数结算，失败释放 |
+| 用量记录 | 每个请求的费用、延迟和 token；会话和追踪；保留期按套餐 | 每个请求一条记录，含用量、测量来源和计费明细，发起请求的 Key 可读；Agent 会话；核对脚本 |
+| 路由 | 托管网关里的路由和自动回退 | 每个模型按优先级和权重选渠道，健康窗口，同模型重试；公开的线路健康页 |
+| 协议 | OpenAI 风格的语法调 OpenAI、Anthropic、Google 和 Bedrock | 原生 OpenAI、Anthropic Messages 和 Gemini；只在无损时转换 |
+| 付费版 | Hobby（免费）、Pro、Team、企业版：预警和报表、HQL、SOC 2 和 HIPAA、SAML SSO、本地部署 | 没有 |
+| 许可 | Apache-2.0（平台） | AGPL-3.0-or-later |
+
+## 钱
+
+Helicone 测量花费；它不持有余额。自定义限流策略可以按时间窗限制请求数或美分数并返回 `429`，但没有能把一把 Key 彻底停掉的按 Key 预算，而且这些限制跑在托管的基础设施上。Lazu 拿着钱：调上游之前从预付余额里预留一个估算值，按上游报的用量结算，每个维度都记录为上游测量、本地估算或不可用，账户付不起的请求到不了上游（[计费合同](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+
+## 一个请求留下什么
+
+这是两者最接近的地方。Helicone 的记录是为调试和分析做的：会话、追踪、属性，付费套餐上还有查询语言。Lazu 的记录是为结算做的：标准化用量、哪些数字是上游测量的、哪些是估算的、计费明细和公开的耗时，发起请求的 Key 可以取回（[请求详情](/zh/endpoints/usage-requests)）。Agent 的请求按会话归组，[一个脚本](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py)可以离线核对导出的会话。两个都想要的话，Lazu 可以放在观测工具后面；两者不是替代关系。
+
+## Helicone 有而 Lazu 没有的
+
+- 为调试应用做的仪表盘、会话和追踪，以及一套查询它们的语言。
+- 预警和定时报表。
+- OpenTelemetry 导出和一个查日志的 MCP 服务器。
+- 什么都不用跑的托管服务。
+
+## 什么时候选哪个
+
+- 你想盯着一个已经在跑的应用，Key 和账单在别人手里，选 **Helicone**。
+- 你是发 Key、拿着余额的那个人，每个请求的记录得好到能拿来结算，选 **Lazu**。
+
+另见 [Lazu 与 Bifrost](/zh/compare/bifrost) 和[其他网关概览](/zh/compare/overview)。

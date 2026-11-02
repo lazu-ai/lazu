@@ -1,0 +1,54 @@
+---
+title: "Lazu vs Bifrost"
+description: "Bifrost is a Go AI gateway from Maxim AI with virtual keys, dollar budgets and an Enterprise tier. Lazu is a Go gateway that gives people and agents a model account. Where each fits, and how they differ in budgets, usage records, protocols and licence."
+---
+
+# Lazu vs Bifrost
+
+[Bifrost](https://github.com/maximhq/bifrost) is a Go gateway from Maxim AI, an observability company, that unifies access to twenty-plus providers behind one endpoint with virtual keys, teams, customers and dollar budgets. Lazu is also a Go gateway, shipped as one product with a ledger, a console and a docs site. The two are the closest pair on this site in form; they differ in who holds the key and what the record of a request is for. Facts were checked on 2 November 2026.
+
+## Who each is for
+
+**Bifrost** is for platform and infrastructure teams that want a fast Go gateway with governance: virtual keys scoped to a team or a customer, budgets with reset periods, Prometheus metrics and tracing, an MCP gateway, and an Enterprise tier for cluster mode, guardrails and SSO.
+
+**Lazu** is for teams, labs and companies that hand keys to people and agents: each key has a budget, each request leaves a record the key's owner can read, and the operator manages upstreams, prices and users in a console rather than a config file.
+
+## Side by side
+
+| | Bifrost | Lazu |
+| --- | --- | --- |
+| Runtime | Go gateway with a web UI; `npx`, Docker, Helm, Go SDK | Go gateway and worker, React console, Vocs docs; one Docker Compose stack |
+| Configuration | Web UI, `config.json` or management API | Upstreams, prices, users and announcements in the console; env vars and `config.yaml` for credentials only |
+| Accounts | Virtual keys (`sk-bf-*`, deny-by-default providers), teams, customers | Users, teams and projects, member budgets, API keys |
+| Budget | Dollar budgets with reset periods from a minute to a year; `402 budget_exceeded`; temporary overrides | Prepaid balance; per-key caps, project and spend budgets; reserved before the call, settled from the provider's counters, released on failure |
+| Usage records | Logging, Prometheus metrics, distributed tracing; current usage per budget | One record per request with usage, measurement source and billing lines, readable by the key that sent it; agent sessions; reconciliation script |
+| Routing | Failover between providers and models, load balancing across keys; adaptive load balancing is Enterprise | Channel selection by priority and weight per model, health window, retry on the same model; public route-health page |
+| Protocols | Drop-in base URLs for OpenAI, Anthropic and Google GenAI SDKs; translates between them | Same three families; translates only when lossless, otherwise a `400` naming the feature |
+| Extension | Middleware architecture; MCP gateway | Go and web extension points compiled into the build; the core does not know the extensions exist |
+| Paid tier | Enterprise: cluster mode, guardrails, SAML/OIDC SSO, adaptive load balancing, MCP federated auth, SLA | None; everything in the repository runs without a licence key |
+| Licence | Apache-2.0 | AGPL-3.0-or-later |
+
+## Money
+
+Both projects reserve a dollar amount before the call. Bifrost keeps a budget per virtual key, team or customer, resets it on a schedule, refuses with `402 budget_exceeded` and lets an operator add a temporary override. Lazu draws on a prepaid balance: an estimate is reserved before the upstream call, the charge is settled from the usage the provider reports, and each dimension is recorded as provider-measured, locally estimated or unavailable. A failed request with no billable output refunds the reservation, a request the account cannot cover never reaches the provider, and nothing is quietly overdrawn ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+
+The difference is who the budget is for. Bifrost's budgets govern internal spend and reset. Lazu's budgets sit on a balance that was paid in, and the record of each request is readable by the person or agent that spent it, not only by the operator.
+
+## Protocols
+
+Both accept OpenAI, Anthropic and Gemini requests and send them to providers that speak another format. Bifrost documents request transformation, response normalization and error mapping across providers and states no fidelity rule. Lazu translates only along edges verified lossless, and refuses the rest with a `400` naming the feature and field before any upstream call, so tool calls or reasoning parameters are not dropped on the way ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+
+## What Bifrost has that Lazu does not
+
+- An MCP gateway, and MCP with federated auth on Enterprise.
+- Prometheus metrics and distributed tracing out of the box.
+- A Go SDK for using the gateway as a library, a Helm chart, and `npx` start.
+- Budget reset periods and temporary overrides.
+- A permissive Apache-2.0 licence.
+
+## When to choose which
+
+- Your gateway is infrastructure for your own services, you want metrics and tracing in your existing stack, or you need Apache-2.0: **Bifrost**.
+- Your gateway is the account you hand to people: a key with a budget, a balance, a request record its owner can read, and a console a non-programmer operator can run: **Lazu**.
+
+See also [Lazu vs LiteLLM](/compare/litellm) and the [overview of other gateways](/compare/overview).

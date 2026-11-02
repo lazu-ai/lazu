@@ -1,0 +1,56 @@
+---
+title: "Lazu 与 one-api"
+description: "one-api 是 New API 和 Lazu 共同源自的 Go 网关。它是干什么的，今天处于什么状态，以及 Lazu 在 Key、预算、用量记录和协议上改了什么。"
+---
+
+# Lazu 与 one-api
+
+[one-api](https://github.com/songquanpeng/one-api) 是这个家族的起点：在多家供应商前面放一个 OpenAI 格式的入口，用户、令牌和额度在一个网页控制台里管理。[New API](/zh/compare/new-api) 源自它，Lazu 源自 New API。它的署名保留在 Lazu 的 NOTICE 和控制台里。这一页讲的是 one-api 是什么、Lazu 改了什么，不是谁更好。事实于 2026 年 11 月 2 日核对。
+
+## one-api 的现状
+
+one-api 采用 MIT 许可，README 里附带一条保留页脚署名和链接的条件。它的最后一次发布 `v0.6.10` 是 2025 年 2 月，最后一次提交是 2026 年 1 月。它仍然能用，很多部署还在跑它，但一个一年多没有发布的项目跟不上供应商的新模型、新端点和新请求字段。这是看它的后代的主要原因。
+
+## 各自给谁用
+
+**one-api** 给的是想要一个 OpenAI 格式入口、几条渠道、带额度、有效期、IP 段和允许模型的令牌的自建者，令牌发给用邮箱、GitHub、飞书或微信登录的用户。兑换码给用户的额度充值。
+
+**Lazu** 给的是给人和 Agent 开模型账户的团队、实验室或公司：一把带预算的 Key，每个请求一条 Key 的主人自己能读的用量记录，以及一个带价格和线路健康的目录。除了 OpenAI 的请求，它也原生接受 Anthropic 和 Gemini 的请求。
+
+## 并排看
+
+| | one-api | Lazu |
+| --- | --- | --- |
+| 血统 | 原始项目 | one-api → New API → Lazu；保留署名 |
+| 许可 | MIT 附页脚署名条件 | AGPL-3.0-or-later |
+| 活跃度 | 最后一次发布 2025 年 2 月；最后一次提交 2026 年 1 月 | 持续发布 |
+| 入站协议 | 仅 OpenAI 格式；其他供应商是上游渠道类型 | OpenAI Chat Completions 和 Responses、Anthropic Messages、Gemini `generateContent` |
+| 账户 | 用户、分组、带额度、有效期、IP 段和模型白名单的令牌；兑换码 | 用户、团队和项目、成员预算、API Key |
+| 预算 | 令牌额度与账户额度分开；用完返回 `403 insufficient_user_quota` | 预付余额；按 Key 上限、项目和支出预算；调用前预留，按上游计数结算，失败释放 |
+| 用量记录 | 给运营者看的额度明细日志 | 每个请求一条记录，含用量、测量来源和计费明细，发起请求的 Key 可读；Agent 会话；核对脚本 |
+| 路由 | 渠道负载均衡、自动重试、可选的按指标禁用渠道 | 每个模型按优先级和权重选渠道，健康窗口，同模型重试；公开的线路健康页 |
+| 部署 | Docker、Compose、发布二进制、宝塔、Sealos、Zeabur、Render；主从多节点 | 一套 Docker Compose，带 PostgreSQL 和 Redis |
+| 付费版 | 没有 | 没有 |
+
+## 钱
+
+one-api 先预扣令牌的额度，响应之后再调整，用户或令牌的额度用完时返回 `403` 拒绝。Lazu 保留了预扣的思路，并把它写成合同：调上游之前从预付余额里预留一个估算值，按上游报的用量结算，每个维度都记录为上游测量、本地估算或不可用。失败且没有可计费输出的请求退回预留，账户付不起的请求到不了上游，不可用的数字永远不会用预留值填上（[计费合同](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+
+## 协议
+
+one-api 接受 OpenAI 格式的请求，并转换给每种渠道类型。Claude Code 或 Gemini SDK 的用户得经过一层 OpenAI 兼容适配器。Lazu 原生接受三族请求，只沿着验证过无损的边转换；请求用到上游承载不了的功能时，在调上游之前就返回点名该功能的 `400`（[设计说明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+## one-api 有而 Lazu 没有的
+
+- 飞书和微信登录，以及控制台主题。
+- 兑换码。
+- 单个发布二进制，以及 Sealos、Zeabur 和 Render 的一键模板。
+- 主从多节点部署文档。
+
+## 该跑哪一个
+
+one-api 已经够你用、你只需要 OpenAI 格式的客户端调它已经认识的模型，跑 **one-api**。
+
+你想要同样形状的控制台但有活跃的发布节奏、原生的 Anthropic 和 Gemini 端点、调用前就预留的预算和一条 Key 的主人自己能读的用量记录，跑 **Lazu**。如果你正要从 one-api 迁出，[New API](/zh/compare/new-api) 是另一个仍在维护的后代；那一页讲了两者的区别。
+
+另见 [Lazu 与 New API](/zh/compare/new-api) 和[其他网关概览](/zh/compare/overview)。

@@ -1,0 +1,54 @@
+---
+title: "Lazu 與 Bifrost"
+description: "Bifrost 是 Maxim AI 出的 Go AI 閘道，有虛擬 Key、美元預算和企業版。Lazu 是一個 Go 閘道，給人和 Agent 開模型帳戶。各自適合什麼場景，預算、用量紀錄、協定和授權上有什麼不同。"
+---
+
+# Lazu 與 Bifrost
+
+[Bifrost](https://github.com/maximhq/bifrost) 是觀測公司 Maxim AI 出的 Go 閘道，用一個入口統一二十多家供應商，帶虛擬 Key、團隊、客戶和美元預算。Lazu 也是一個 Go 閘道，連同帳本、主控台和文件站打包成一個產品。兩者是這個站上形態最接近的一對；差別在誰持有 Key，以及一個請求的紀錄是用來做什麼的。事實於 2026 年 11 月 2 日核對。
+
+## 各自給誰用
+
+**Bifrost** 給的是想要一個快速的 Go 閘道加治理的平台和基礎設施團隊：限定在團隊或客戶範圍的虛擬 Key、帶重置週期的預算、Prometheus 指標和追蹤、一個 MCP 閘道，以及提供叢集模式、護欄和 SSO 的企業版。
+
+**Lazu** 給的是把 Key 交給人和 Agent 的團隊、實驗室和公司：每把 Key 有預算，每個請求留下一筆 Key 主人自己能讀的紀錄，營運者在主控台而不是設定檔裡管上游、價格和使用者。
+
+## 並排看
+
+| | Bifrost | Lazu |
+| --- | --- | --- |
+| 執行環境 | 帶網頁介面的 Go 閘道；`npx`、Docker、Helm、Go SDK | Go 閘道和 worker、React 主控台、Vocs 文件站；一套 Docker Compose |
+| 設定 | 網頁介面、`config.json` 或管理 API | 上游、價格、使用者、公告都在主控台；環境變數和 `config.yaml` 只放憑證 |
+| 帳戶 | 虛擬 Key（`sk-bf-*`，供應商預設拒絕）、團隊、客戶 | 使用者、團隊和專案、成員預算、API Key |
+| 預算 | 美元預算，重置週期從一分鐘到一年；`402 budget_exceeded`；可臨時加額 | 預付餘額；按 Key 上限、專案和支出預算；呼叫前預留，按上游計數結算，失敗釋放 |
+| 用量紀錄 | 日誌、Prometheus 指標、分散式追蹤；每個預算的目前用量 | 每個請求一筆紀錄，含用量、測量來源和計費明細，發起請求的 Key 可讀；Agent 工作階段；核對腳本 |
+| 路由 | 供應商和模型之間的故障轉移，多把 Key 之間的負載平衡；自適應負載平衡屬企業版 | 每個模型按優先級和權重選通道，健康視窗，同模型重試；公開的線路健康頁 |
+| 協定 | OpenAI、Anthropic 和 Google GenAI SDK 的直接替換 base URL；在三者之間轉換 | 相同三族；只在無損時轉換，否則回傳點名該功能的 `400` |
+| 擴充 | 中介軟體架構；MCP 閘道 | 編譯進建置的 Go 和前端擴充點；核心不知道擴充的存在 |
+| 付費版 | 企業版：叢集模式、護欄、SAML/OIDC SSO、自適應負載平衡、MCP 聯合驗證、SLA | 沒有；儲存庫裡的東西不需要授權金鑰就能全部跑起來 |
+| 授權 | Apache-2.0 | AGPL-3.0-or-later |
+
+## 錢
+
+兩個專案都在呼叫前預留一個美元金額。Bifrost 按虛擬 Key、團隊或客戶各記一份預算，按排程重置，用 `402 budget_exceeded` 拒絕，並讓營運者臨時加額。Lazu 從預付餘額裡扣：呼叫上游之前預留一個估算值，按上游回報的用量結算費用，每個維度都記錄為上游測量、本機估算或不可用。失敗且沒有可計費輸出的請求退回預留，帳戶付不起的請求到不了上游，什麼都不會被悄悄透支（[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+
+差別在預算是給誰的。Bifrost 的預算管的是內部支出，會重置。Lazu 的預算建立在付進來的餘額上，每個請求的紀錄花錢的人或 Agent 自己能讀，不只是營運者能看。
+
+## 協定
+
+兩者都接受 OpenAI、Anthropic 和 Gemini 請求，並發給說另一種格式的供應商。Bifrost 的文件寫了跨供應商的請求轉換、回應正規化和錯誤對應，沒有寫保真規則。Lazu 只沿著驗證過無損的邊轉換，其餘的在呼叫上游之前回傳點名功能和欄位的 `400`，所以工具呼叫或推理參數不會在路上被丟掉（[設計說明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+## Bifrost 有而 Lazu 沒有的
+
+- MCP 閘道，企業版還有帶聯合驗證的 MCP。
+- 開箱即用的 Prometheus 指標和分散式追蹤。
+- 把閘道當函式庫用的 Go SDK、Helm chart 和 `npx` 啟動。
+- 預算重置週期和臨時加額。
+- 寬鬆的 Apache-2.0 授權。
+
+## 什麼時候選哪個
+
+- 閘道是你自家服務的基礎設施、你要把指標和追蹤接進現有的堆疊、或你需要 Apache-2.0，選 **Bifrost**。
+- 閘道本身就是你要交給人的帳戶：帶預算的 Key、餘額、主人自己能讀的請求紀錄、一個不寫程式的營運者也能用的主控台，選 **Lazu**。
+
+另見 [Lazu 與 LiteLLM](/zh-TW/compare/litellm) 和[其他閘道概覽](/zh-TW/compare/overview)。

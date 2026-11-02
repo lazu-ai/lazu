@@ -1,0 +1,56 @@
+---
+title: "Lazu vs one-api"
+description: "one-api is the Go gateway that New API and Lazu both descend from. What it does, where it stands today, and what Lazu changed in keys, budgets, usage records and protocols."
+---
+
+# Lazu vs one-api
+
+[one-api](https://github.com/songquanpeng/one-api) is the project that started the family: one OpenAI-format endpoint in front of many providers, with users, tokens and quotas managed in a web console. [New API](/compare/new-api) was derived from it, and Lazu from New API. Its attribution is kept in Lazu's NOTICE and console. This page is about what one-api is and what Lazu changed, not about which is better. Facts were checked on 2 November 2026.
+
+## Where one-api stands
+
+one-api is MIT licensed with a README condition to keep the footer attribution and link. Its last release, `v0.6.10`, is from February 2025, and the last commit from January 2026. It still works, and many deployments run it, but a project that has not released in over a year will not follow the providers' new models, endpoints and request fields. That is the main reason to look at its descendants.
+
+## Who each is for
+
+**one-api** is for a self-hoster who wants one OpenAI-format endpoint, a few channels, and tokens with quotas, expiry, IP ranges and allowed models, handed out to users who sign in with email, GitHub, Feishu or WeChat. Redemption codes top up a user's quota.
+
+**Lazu** is for a team, lab or company giving people and agents a model account: a key with a budget, a usage record per request that the key's owner can read, and a catalog with prices and route health. It accepts Anthropic and Gemini requests natively as well as OpenAI's.
+
+## Side by side
+
+| | one-api | Lazu |
+| --- | --- | --- |
+| Lineage | Original project | one-api → New API → Lazu; attribution kept |
+| Licence | MIT with a footer-attribution condition | AGPL-3.0-or-later |
+| Activity | Last release February 2025; last commit January 2026 | Released continuously |
+| Inbound protocols | OpenAI format only; other providers are upstream channel types | OpenAI Chat Completions and Responses, Anthropic Messages, Gemini `generateContent` |
+| Accounts | Users, groups, tokens with quota, expiry, IP range and model allowlist; redemption codes | Users, teams and projects, member budgets, API keys |
+| Budget | Token quota separate from account quota; `403 insufficient_user_quota` when gone | Prepaid balance; per-key caps, project and spend budgets; reserved before the call, settled from the provider's counters, released on failure |
+| Usage records | Quota-detail logs for the operator | One record per request with usage, measurement source and billing lines, readable by the key that sent it; agent sessions; reconciliation script |
+| Routing | Channel load balancing, automatic retry, optional metric-based channel disabling | Channel selection by priority and weight per model, health window, retry on the same model; public route-health page |
+| Deployment | Docker, Compose, release binary, Baota, Sealos, Zeabur, Render; master/slave multi-node | One Docker Compose stack with PostgreSQL and Redis |
+| Paid tier | None | None |
+
+## Money
+
+one-api pre-consumes a token's quota, then adjusts after the response, and refuses with `403` when a user's or token's quota is gone. Lazu keeps the pre-consume idea and writes it down as a contract: an estimate is reserved from the prepaid balance before the upstream call, the charge is settled from the usage the provider reports, and each dimension is recorded as provider-measured, locally estimated or unavailable. A failed request with no billable output refunds the reservation, a request the account cannot cover never reaches the provider, and an unavailable number is never filled in with the reservation ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+
+## Protocols
+
+one-api accepts OpenAI-format requests and converts them to each channel type. A Claude Code or Gemini SDK user has to go through an OpenAI-compatible adapter. Lazu accepts all three families natively and converts only along edges verified lossless; a request that needs a feature the upstream cannot carry is refused with a `400` naming the feature before any upstream call ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+
+## What one-api has that Lazu does not
+
+- Sign-in with Feishu and WeChat, and console themes.
+- Redemption codes.
+- A single release binary and one-click templates for Sealos, Zeabur and Render.
+- Master/slave multi-node deployment docs.
+
+## Which to run
+
+Run **one-api** if it already serves you and you only need OpenAI-format clients on models it already knows.
+
+Run **Lazu** if you want the same console shape with an active release train, native Anthropic and Gemini endpoints, budgets reserved before the call and a usage record the key's owner can read. If you are moving off one-api, [New API](/compare/new-api) is the other maintained descendant; that page says what separates the two.
+
+See also [Lazu vs New API](/compare/new-api) and the [overview of other gateways](/compare/overview).

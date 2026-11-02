@@ -1,0 +1,55 @@
+---
+title: "Lazu 與 Portkey"
+description: "Portkey 的開源閘道是一個按請求設定的 TypeScript 路由器；Key、預算和觀測在它的託管平台裡，儲存庫自 2026 年 5 月起停更。Lazu 是一個自建閘道，帳戶、預算和用量紀錄都內建。"
+---
+
+# Lazu 與 Portkey
+
+[Portkey AI Gateway](https://github.com/Portkey-AI/gateway) 是一個 TypeScript 閘道，路由到非常多的模型，重試、回退、負載平衡和護欄都按請求設定。Key、預算、RBAC 和觀測屬於 Portkey 的託管平台。Lazu 是一個 Go 閘道，帳戶、帳本和主控台隨身帶著。事實於 2026 年 11 月 2 日核對。
+
+## Portkey 現在走到哪
+
+開源儲存庫最後一次發布是 2026 年 1 月的 `v1.15.2`，最後一次提交是 2026 年 5 月；有一個 `2.0.0` 分支，但沒有合併。Palo Alto Networks 於 2026 年 5 月 29 日完成了對 Portkey 的收購。閘道還能跑，但今天選它的人，選的是一個未來由別處決定的程式碼庫。
+
+## 各自給誰用
+
+**Portkey** 給的是呼叫很多模型的應用開發者：要把重試、回退、加權負載平衡和護欄寫成每個請求上的一個設定物件，並且願意在本機主控台之外，把 Key、預算和日誌的一切交給託管平台。
+
+**Lazu** 給的是把 Key 交給人和 Agent、並想把帳戶層放在自己伺服器上的團隊、實驗室和公司：呼叫前就預留的預算，每個請求一筆 Key 主人自己能讀的用量紀錄，一個帶價格的目錄，一個給營運者的主控台。
+
+## 並排看
+
+| | Portkey Gateway | Lazu |
+| --- | --- | --- |
+| 執行環境 | TypeScript；`npx`、Docker、Node、Cloudflare Workers | Go 閘道和 worker、React 主控台、Vocs 文件站；一套 Docker Compose |
+| 設定 | 按請求的設定物件或標頭：重試、回退、負載平衡、護欄 | 上游、價格、使用者、公告都在主控台 |
+| 帳戶 | 託管平台裡的虛擬 Key；開源閘道的文件沒有寫 Key 的儲存 | 使用者、團隊和專案、成員預算、API Key |
+| 預算 | 讓 Key 過期的費用和 token 上限，帶預警和重置，在託管企業版方案和部分 Pro 客戶 | 預付餘額；按 Key 上限、專案和支出預算；呼叫前預留，按上游計數結算，失敗釋放 |
+| 用量紀錄 | 本機主控台看本機日誌；日誌、追蹤和保留期是託管方案功能（Dev 3 天，Pro 30 天） | 每個請求一筆紀錄，含用量、測量來源和計費明細，發起請求的 Key 可讀；Agent 工作階段；核對腳本 |
+| 路由 | 帶錯誤觸發條件的回退，最多五次帶退避的重試，加權和條件路由 | 每個模型按優先級和權重選通道，健康視窗，同模型重試；公開的線路健康頁 |
+| 協定 | 跨供應商的 OpenAI 簽名 | 原生 OpenAI、Anthropic Messages 和 Gemini；只在無損時轉換 |
+| 擴充 | `plugins/` 裡的護欄整合 | 編譯進建置的 Go 和前端擴充點 |
+| 付費版 | Dev（免費）、Pro、企業版：快取、提示詞管理、觀測、預算、PII 遮蔽、RBAC、SSO、私有部署 | 沒有 |
+| 授權 | MIT；儲存庫自 2026 年 5 月起停更 | AGPL-3.0-or-later |
+
+## 錢
+
+在 Portkey，預算是託管平台的功能：供應商整合上的一個費用或 token 上限，到了就讓 Key 過期，帶預警門檻和每週或每月重置，在企業版和部分 Pro 客戶可用。開源閘道自己沒有預算。在 Lazu，預算是自建產品的一部分：呼叫上游之前從預付餘額裡預留一個估算值，按上游回報的用量結算費用，每個維度都記錄為上游測量、本機估算或不可用，失敗且沒有可計費輸出的請求退回預留（[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+
+## 協定
+
+Portkey 的 README 寫的是跨供應商一套熟悉的 OpenAI 簽名。Lazu 原生接受 OpenAI、Anthropic Messages 和 Gemini 請求，只沿著驗證過無損的邊轉換；請求用到上游承載不了的功能時，在呼叫上游之前就回傳點名該功能的 `400`（[設計說明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+## Portkey 有而 Lazu 沒有的
+
+- 覆蓋遠超過一千個模型和多種模態。
+- 按請求表達的路由，包括條件路由和可設定的回退觸發條件。
+- 一組來自第三方廠商的護欄外掛。
+- 部署到 Cloudflare Workers。
+
+## 什麼時候選哪個
+
+- 你是應用開發者、你要把路由策略放在請求本身、Key、預算和日誌交給託管平台也沒關係，選 **Portkey**，但要記得上面關於儲存庫的提醒。
+- 你需要帳戶層放在自己的伺服器上，帶預算、餘額和 Key 主人自己能讀的用量紀錄，選 **Lazu**。
+
+另見 [Lazu 與 LiteLLM](/zh-TW/compare/litellm) 和[其他閘道概覽](/zh-TW/compare/overview)。

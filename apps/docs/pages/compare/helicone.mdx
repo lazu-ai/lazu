@@ -1,0 +1,51 @@
+---
+title: "Lazu vs Helicone"
+description: "Helicone is an LLM observability platform with a gateway in front: logs, traces and cost per request, mostly hosted. Lazu is a self-hosted gateway with accounts, budgets and a usage record per request. Where each fits."
+---
+
+# Lazu vs Helicone
+
+[Helicone](https://github.com/Helicone/helicone) is an observability platform for LLM applications that also acts as a gateway: change the base URL, add a Helicone key, and every request is logged with its cost, latency and tokens. Lazu is a gateway first: accounts, budgets and a usage record per request, with the console and docs in the same product. The two overlap on "a record of every request" and differ on what that record is for. Facts were checked on 2 November 2026.
+
+## Who each is for
+
+**Helicone** is for AI engineers who want to see what their application is doing: dashboards, sessions and traces, cost per request, alerts and reports on the paid plans. It is a hosted service by default; the self-host image bundles the web app, API, object store and databases, while the gateway is deployed separately and the Helm chart requires contacting the company.
+
+**Lazu** is for teams, labs and companies that hand keys to people and agents and need to answer who spent what: each key has a budget reserved before the call, each request leaves a record its owner can read, and the operator runs the whole thing on one server.
+
+## Side by side
+
+| | Helicone | Lazu |
+| --- | --- | --- |
+| Form | Observability platform (TypeScript) with a proxy; a separate Rust gateway repository has had no commits since November 2025 | Go gateway and worker, React console, Vocs docs; one Docker Compose stack |
+| Deployment | Hosted by default; `helicone-all-in-one` Docker image for self-hosting, gateway not bundled; Helm through enterprise contact | One Docker Compose stack with PostgreSQL and Redis |
+| Configuration | `Helicone-*` request headers | Upstreams, prices, users and announcements in the console |
+| Accounts | Organizations and seats per plan | Users, teams and projects, member budgets, API keys |
+| Budget | No per-key budgets documented; rate limits by request count or cost per window, `429` when hit | Prepaid balance; per-key caps, project and spend budgets; reserved before the call, settled from the provider's counters, released on failure |
+| Usage records | Every request with cost, latency and tokens; sessions and traces; retention by plan | One record per request with usage, measurement source and billing lines, readable by the key that sent it; agent sessions; reconciliation script |
+| Routing | Routing and automatic fallbacks in the hosted gateway | Channel selection by priority and weight per model, health window, retry on the same model; public route-health page |
+| Protocols | OpenAI-style syntax to OpenAI, Anthropic, Google and Bedrock | OpenAI, Anthropic Messages and Gemini natively; translates only when lossless |
+| Paid tier | Hobby (free), Pro, Team, Enterprise: alerts and reports, HQL, SOC 2 and HIPAA, SAML SSO, on-prem | None |
+| Licence | Apache-2.0 (platform) | AGPL-3.0-or-later |
+
+## Money
+
+Helicone measures spend; it does not hold a balance. A custom rate-limit policy can cap requests or cents per window and answer `429`, but there is no per-key budget that stops a key for good, and the limits run on the hosted infrastructure. Lazu holds the money: an estimate is reserved from a prepaid balance before the upstream call, the charge is settled from the usage the provider reports, each dimension is recorded as provider-measured, locally estimated or unavailable, and a request the account cannot cover never reaches the provider ([billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+
+## What a request leaves behind
+
+This is where the two are closest. Helicone's record is built for debugging and analysis: sessions, traces, properties, a query language on the paid plans. Lazu's record is built for settlement: the normalized usage, which numbers the provider measured and which were estimated, the billing lines and public timing, fetchable by the key that made the request ([request details](/endpoints/usage-requests)). Agent requests are grouped into sessions and a [script](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py) reconciles an exported session offline. If you want both, Lazu can sit behind an observability tool; the two are not substitutes.
+
+## What Helicone has that Lazu does not
+
+- Dashboards, sessions and traces built for debugging an application, and a query language over them.
+- Alerts and scheduled reports.
+- OpenTelemetry export and an MCP server for the logs.
+- A hosted service with nothing to run.
+
+## When to choose which
+
+- You want to watch an application you already run, and someone else holds the keys and the bill: **Helicone**.
+- You are the one issuing keys and holding the balance, and the record of each request has to be good enough to settle on: **Lazu**.
+
+See also [Lazu vs Bifrost](/compare/bifrost) and the [overview of other gateways](/compare/overview).

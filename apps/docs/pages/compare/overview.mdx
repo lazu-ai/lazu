@@ -20,12 +20,12 @@ Pick Lazu when the question you need answered is *who spent what, on which model
 | **Lazu** | Go gateway + ledger + console + docs, one Docker stack | Teams giving people and agents a model account | Users, teams, projects; per-key and per-member budgets; prepaid reservation, settled from the provider's counters | One record per request, with the source of every number and the billing lines; agent sessions; offline reconciliation script | AGPL-3.0 |
 | [LiteLLM](/compare/litellm) | Python proxy + SDK, YAML config, admin UI | Platform teams running a shared gateway for internal services | Virtual keys, users, teams, orgs; budgets per scope with reset periods | Spend tracking and logs; several reports are Enterprise | MIT; `enterprise/` directory separately licensed |
 | [New API](/compare/new-api) | Go gateway + console | Operators serving many users from one deployment | Users, groups, token quotas, subscriptions, top-ups | Usage and audit logs, cost accounting | AGPL-3.0 with attribution terms |
-| one-api | Go gateway + console | Self-hosters wanting one OpenAI-format endpoint | Users, groups, token quotas, redemption codes | Quota logs | MIT with footer attribution; last release February 2025 |
-| Bifrost | Go gateway + UI | Platform teams, with an Enterprise tier | Virtual keys, teams, customers; dollar budgets with resets | Logs, Prometheus metrics, tracing | Apache-2.0 |
-| Portkey Gateway | TypeScript gateway, per-request config | App developers; budgets, RBAC and observability live in the hosted platform | Budgets on the hosted plans | Local console shows logs; retention tiered by plan | MIT; repository quiet since May 2026 |
-| Helicone | Observability platform with a gateway in front | AI engineers who want logs and traces first | Rate limits by requests or cost; no per-key budgets documented | Every request with cost, latency and tokens | Apache-2.0 (platform) |
-| Kong AI Gateway | Plugins on Kong | Enterprises already running Kong | Token quotas and cost budgets per consumer group, Enterprise | Metering through Kong | Apache-2.0 core, Enterprise plugins proprietary |
-| OpenRouter | Hosted only | Developers who want one key and no server | Provisioned keys with credit limits | Activity page and a per-request cost endpoint | Not open source |
+| [one-api](/compare/one-api) | Go gateway + console | Self-hosters wanting one OpenAI-format endpoint | Users, groups, token quotas, redemption codes | Quota logs | MIT with footer attribution; last release February 2025 |
+| [Bifrost](/compare/bifrost) | Go gateway + UI | Platform teams, with an Enterprise tier | Virtual keys, teams, customers; dollar budgets with resets | Logs, Prometheus metrics, tracing | Apache-2.0 |
+| [Portkey Gateway](/compare/portkey) | TypeScript gateway, per-request config | App developers; budgets, RBAC and observability live in the hosted platform | Budgets on the hosted plans | Local console shows logs; retention tiered by plan | MIT; repository quiet since May 2026 |
+| [Helicone](/compare/helicone) | Observability platform with a gateway in front | AI engineers who want logs and traces first | Rate limits by requests or cost; no per-key budgets documented | Every request with cost, latency and tokens | Apache-2.0 (platform) |
+| [Kong AI Gateway](/compare/kong) | Plugins on Kong | Enterprises already running Kong | Token quotas and cost budgets per consumer group, Enterprise | Metering through Kong | Apache-2.0 core, Enterprise plugins proprietary |
+| [OpenRouter](/compare/openrouter) | Hosted only | Developers who want one key and no server | Provisioned keys with credit limits | Activity page and a per-request cost endpoint | Not open source |
 
 ## What happens when a budget runs out
 
@@ -54,4 +54,10 @@ Three self-hostable gateways appeared in 2025 and 2026 and are worth knowing: **
 
 - [Lazu vs LiteLLM](/compare/litellm)
 - [Lazu vs New API](/compare/new-api)
+- [Lazu vs one-api](/compare/one-api)
+- [Lazu vs Bifrost](/compare/bifrost)
+- [Lazu vs Portkey](/compare/portkey)
+- [Lazu vs Helicone](/compare/helicone)
+- [Lazu vs Kong AI Gateway](/compare/kong)
+- [Lazu vs OpenRouter](/compare/openrouter)
 - [How pricing works](/billing) · [Request details](/endpoints/usage-requests) · [Agent session costs](/agent-session-costs)
