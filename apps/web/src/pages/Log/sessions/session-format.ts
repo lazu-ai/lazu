@@ -174,24 +174,6 @@ export const spanText = (start: number, end: number) => {
   return `${date(a)} ${clockText(start)} → ${sameDay ? '' : `${date(b)} `}${clockText(end)}`;
 };
 
-const SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹';
-
-/** spanText for a narrow cell: an end on a later day keeps only its clock
- *  and a day count, "09-29 23:31 → 00:33⁺¹". */
-export const spanTextCompact = (start: number, end: number) => {
-  const days = Math.round(
-    (dayStart(new Date(end * 1000)) - dayStart(new Date(start * 1000))) /
-      86_400_000,
-  );
-  if (days <= 0) return spanText(start, end);
-  const a = new Date(start * 1000);
-  const offset = `⁺${String(days)
-    .split('')
-    .map((digit) => SUPERSCRIPT[Number(digit)])
-    .join('')}`;
-  return `${pad(a.getMonth() + 1)}-${pad(a.getDate())} ${clockText(start)} → ${clockText(end)}${offset}`;
-};
-
 export type SessionState = 'ok' | 'retried' | 'failed';
 
 /** 成功: nothing failed. 重试过: something failed and later requests went
@@ -239,4 +221,66 @@ export const sessionLanes = (
   return (['stable', 'eco', 'fallback'] as SessionLane[])
     .filter((lane) => counts[lane] > 0)
     .map((lane) => ({ count: counts[lane], lane }));
+};
+
+/** "11-01 20:30": where a session starts, in the list's 开始 column. */
+export const startText = (unix: number) => {
+  const date = new Date(unix * 1000);
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${clockText(unix)}`;
+};
+
+/** Work time: seconds under a minute, minutes and hours above. */
+const workText = (seconds: number, t: TFunction) =>
+  seconds < 60
+    ? t(`${SK}.duration.s`, { n: Math.max(1, Math.round(seconds)) })
+    : durationText(seconds, t);
+
+/** A stop or a span: whole hours once it passes one. */
+const roughText = (seconds: number, t: TFunction) =>
+  seconds >= 3_600
+    ? t(`${SK}.duration.h`, { hours: Math.round(seconds / 3_600) })
+    : workText(seconds, t);
+
+/** The list's mini timeline (canvas 3B): each stretch of work as a share of
+ *  the session's span, and a caption that says how long it worked and how
+ *  long it stopped, so a session left overnight does not read as 23 hours
+ *  of work. */
+export const sessionTimeline = (
+  session: {
+    last_at: number;
+    segments?: { end: number; start: number }[];
+    started_at: number;
+  },
+  t: TFunction,
+) => {
+  const segments = session.segments?.length
+    ? session.segments
+    : [{ end: session.last_at, start: session.started_at }];
+  const first = segments[0].start;
+  const span = Math.max(segments[segments.length - 1].end - first, 1);
+  const bars = segments.map((segment) => {
+    const width = Math.max(((segment.end - segment.start) / span) * 100, 3);
+    const left = Math.min(((segment.start - first) / span) * 100, 100 - width);
+    return { left, width };
+  });
+  const work = workText(
+    segments.reduce((sum, segment) => sum + (segment.end - segment.start), 0),
+    t,
+  );
+  const count = segments.length;
+  const caption =
+    count === 1
+      ? t(`${SK}.timeline.one`, { work })
+      : count === 2
+        ? t(`${SK}.timeline.stopped`, {
+            count,
+            stop: roughText(segments[1].start - segments[0].end, t),
+            work,
+          })
+        : t(`${SK}.timeline.across`, {
+            count,
+            span: roughText(span, t),
+            work,
+          });
+  return { bars, caption };
 };

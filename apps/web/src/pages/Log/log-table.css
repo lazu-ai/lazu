@@ -662,6 +662,131 @@
   }
 }
 
+/* API 调用's head card (canvas 1B): spend, its bars, four figures. */
+.spend-card {
+  align-items: stretch;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 18px;
+  box-sizing: border-box;
+  display: flex;
+  gap: 32px;
+  height: 172px;
+  padding: 20px 24px;
+  width: 100%;
+}
+
+.spend-card__hero {
+  display: flex;
+  flex: 0 0 200px;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.spend-card__label {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.spend-card__value {
+  font-family: var(--lazu-font-display);
+  font-size: 52px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-top: 8px;
+}
+
+.spend-card__bars {
+  align-items: flex-end;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.spend-card__col {
+  align-items: center;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.spend-card__bar {
+  background: color-mix(in srgb, var(--lazu-evidence) 35%, transparent);
+  border-radius: 6px 6px 2px 2px;
+  max-width: 40px;
+  width: 100%;
+}
+
+.spend-card__bar[data-current] {
+  background: var(--lazu-evidence);
+}
+
+.spend-card__tick {
+  color: var(--lazu-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  height: 14px;
+  line-height: 14px;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.spend-card__side {
+  border-left: 1px solid color-mix(in srgb, var(--lazu-ink) 8%, transparent);
+  display: flex;
+  flex: 0 0 180px;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  padding-left: 24px;
+}
+
+.spend-card__metric {
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+}
+
+.spend-card__metric > span {
+  color: var(--lazu-text-muted);
+}
+
+.spend-card__metric > b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .spend-card {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    height: auto;
+    padding: 16px 18px;
+  }
+
+  .spend-card__hero {
+    gap: 8px;
+  }
+
+  .spend-card__value {
+    font-size: 40px;
+  }
+
+  .spend-card__bars {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .spend-card__side {
+    gap: 8px;
+    padding-left: 16px;
+  }
+}
+
 .logv2-modelcell {
   align-items: center;
   display: inline-flex;
@@ -1039,7 +1164,8 @@
   flex-direction: column;
 }
 
-.console-page-shell.usage-log-page .console-compact-stats:has(.logv2-summary) {
+.console-page-shell.usage-log-page .console-compact-stats:has(.logv2-summary),
+.console-page-shell.usage-log-page .console-compact-stats:has(.spend-card) {
   margin: 0;
   order: -1;
   padding: 0 0 16px;
@@ -1252,13 +1378,15 @@
    Time, lane, search and one 筛选 button; everything else lives in the
    popover, and what is set shows as removable chips above the table. The
    page head carries 列 and 导出. */
-.usage-head-tools {
+.usage-head-tools,
+.usage-head-tools__slot {
   align-items: center;
   display: flex;
   gap: 8px;
 }
 
-.usage-head-tools:empty {
+.usage-head-tools:empty,
+.usage-head-tools__slot:empty {
   display: none;
 }
 
@@ -1504,4 +1632,53 @@
   .usage-head-tools {
     display: none;
   }
+}
+
+/* A failed request (canvas 2B): the row and the line under it share a faint
+   red wash, and the line says what went wrong without opening the detail. */
+.logv2-row[data-failed='true'] td,
+.logv2-failrow td {
+  background: color-mix(in srgb, var(--lazu-danger) 5%, transparent);
+}
+
+.logv2-row[data-failed='true'] td {
+  border-bottom: 0;
+}
+
+.logv2-failrow {
+  cursor: pointer;
+}
+
+.logv2-table tbody .logv2-failrow td {
+  padding-top: 0;
+}
+
+.logv2-failnote {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 6px 16px;
+  white-space: normal;
+}
+
+.logv2-failnote__raw {
+  background: none;
+  border: 0;
+  color: var(--lazu-evidence);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 0;
+}
+
+.logv2-failnote__raw:hover {
+  color: var(--lazu-evidence-strong);
+  text-decoration: underline;
+}
+
+.logv2-failnote__code {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
 }

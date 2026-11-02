@@ -16,6 +16,7 @@ import {
   type LogViewMode,
 } from './log-insights';
 import {
+  FailureNote,
   LogDetailPanel,
   NUMERIC_LOG_COLUMNS,
   UsageLogFilters as UsageLogFiltersPanel,
@@ -23,13 +24,13 @@ import {
   readBlobDownloadError,
   requestIdentity,
   renderLogCell,
-  shortTokens,
   type LogCellContext,
   type LogRecord,
   type UsageRequestRecord,
 } from './log-support';
 import { SK } from './sessions/session-format';
 import SessionsView from './sessions/SessionsView';
+import { SpendCard } from './SpendCard';
 import { Button } from '../../components/ui/button';
 import { DataTableShell } from '../../components/ui/data-table-shell';
 import {
@@ -41,7 +42,7 @@ import {
 import { EmptyState } from '../../components/ui/empty-state';
 import { Modal } from '../../components/ui/modal';
 import { Pagination } from '../../components/ui/pagination';
-import { Pending, PendingValue } from '../../components/ui/pending';
+import { PendingValue } from '../../components/ui/pending';
 import {
   ColumnVisibilityMenu,
   ConsoleTableFrame,
@@ -57,6 +58,7 @@ import { rejectionLabelKey } from '../../features/projects/rejections';
 import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
 import { showError } from '../../helpers/utils';
+import { useUsageRange } from '../../hooks/usage-logs/usageRange';
 import {
   LOG_COLUMN_KEYS,
   useSpendBudgetsQuery,
@@ -160,6 +162,12 @@ function ProjectScopeChips({
 const Token = () => {
   const logs = useUsageLogsQuery();
   const { t } = logs;
+  const { range } = useUsageRange();
+  /* The stat answers spend for the whole range; the rows below a
+     失败 or other non-consume filter cost nothing. */
+  const listSpend = ['', '0', '2'].includes(logs.filters.logType || '')
+    ? Number(logs.stat.amount_microusd || 0)
+    : 0;
   const { availableScopes, setActiveScope } = useConsoleScope();
   const headSlot = useContext(UsageHeadSlotContext);
   const platformScope = availableScopes.find(
@@ -602,58 +610,12 @@ const Token = () => {
               />
             </div>
           ) : (
-            /* Every figure reads off a query that may not have answered yet;
-               `logs.total` defaults to 0 while in flight, and a strip reading
-               "请求 0" over a table that is still loading contradicts itself. */
-            <div className='logv2-summary'>
-              <div className='logv2-summary__cell'>
-                <span>{t('page.console.log.summary.spend')}</span>
-                <b>
-                  <Pending chars={6} pending={logs.isLoading}>
-                    {`$${(Number(logs.stat.amount_microusd || 0) / 1_000_000).toFixed(2)}`}
-                  </Pending>
-                </b>
-              </div>
-              <div className='logv2-summary__cell'>
-                <span>{t('page.console.log.summary.requests')}</span>
-                <b>
-                  <Pending chars={4} pending={logs.isLoading}>
-                    {logs.totalAtLeast ? (
-                      <span
-                        title={t(
-                          'page.console.log.summary.requestsAtLeastHint',
-                          {
-                            total: logs.total.toLocaleString(),
-                          },
-                        )}
-                      >
-                        {t('page.console.log.summary.requestsAtLeast', {
-                          total: logs.total.toLocaleString(),
-                        })}
-                      </span>
-                    ) : (
-                      logs.total.toLocaleString()
-                    )}
-                  </Pending>
-                </b>
-              </div>
-              <div className='logv2-summary__cell'>
-                <span>RPM</span>
-                <b>
-                  <Pending chars={3} pending={logs.isLoading}>
-                    {Number(logs.stat.rpm || 0).toLocaleString()}
-                  </Pending>
-                </b>
-              </div>
-              <div className='logv2-summary__cell'>
-                <span>TPM</span>
-                <b>
-                  <Pending chars={4} pending={logs.isLoading}>
-                    {shortTokens(logs.stat.tpm)}
-                  </Pending>
-                </b>
-              </div>
-            </div>
+            <SpendCard
+              loading={logs.statLoading}
+              preset={range.preset}
+              range={range}
+              stat={logs.stat}
+            />
           )
         }
         filters={
@@ -826,6 +788,11 @@ const Token = () => {
                             <tr
                               key={record.key}
                               className='logv2-row'
+                              data-failed={
+                                Number(record.type) === 5 && !isOpen
+                                  ? 'true'
+                                  : undefined
+                              }
                               data-selected={isOpen ? 'true' : undefined}
                               onClick={() => selectRequest(record)}
                             >
@@ -846,6 +813,26 @@ const Token = () => {
                                 </td>
                               ))}
                             </tr>,
+                            Number(record.type) === 5 && !isOpen ? (
+                              <tr
+                                className='logv2-failrow'
+                                key={`${record.key}-fail`}
+                                onClick={() => selectRequest(record)}
+                              >
+                                <td aria-hidden='true' />
+                                <td
+                                  colSpan={
+                                    columnVisibility.visibleColumns.length - 1
+                                  }
+                                >
+                                  <FailureNote
+                                    onOpen={() => selectRequest(record)}
+                                    record={record}
+                                    t={t}
+                                  />
+                                </td>
+                              </tr>
+                            ) : null,
                             isOpen ? (
                               <tr
                                 className='logv2-detail-row'
@@ -902,10 +889,7 @@ const Token = () => {
                           ? 'page.console.log.footer.summaryAtLeast'
                           : 'page.console.log.footer.summary',
                         {
-                          cost: formatMoney(
-                            asMicroUSD(logs.stat.amount_microusd),
-                            6,
-                          ),
+                          cost: formatMoney(asMicroUSD(listSpend), 6),
                           defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
                           total: compactNumber(logs.total),
                         },
@@ -966,10 +950,7 @@ const Token = () => {
                           ? 'page.console.log.footer.summaryAtLeast'
                           : 'page.console.log.footer.summary',
                         {
-                          cost: formatMoney(
-                            asMicroUSD(logs.stat.amount_microusd),
-                            6,
-                          ),
+                          cost: formatMoney(asMicroUSD(listSpend), 6),
                           defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
                           total: compactNumber(logs.total),
                         },

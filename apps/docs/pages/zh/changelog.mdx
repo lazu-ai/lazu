@@ -5,10 +5,13 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 
 # 更新日志
 
-## 2026-11-02 — 移除月度报告
+## 2026-11-02 — 用量与日志改版，移除月度报告
 
 - 控制台“用量与日志”里的“月度报告”标签和它使用的 `/api/reports/monthly*` 接口已移除，这些接口现在返回 404。月度报告从未发送过邮件或生成 PDF；每月花费请在总览或 API 调用里按 30 天、90 天或自定义时间范围查看。
 - `monthly_reports`、`report_subscriptions` 两张表暂时留在数据库里，之后的数据库版本升级时删除。
+- “文件”标签并入“生成任务”：在“生成任务”里选“上传的文件”即可看到通过 `/v1/files` 上传的文件，下载和删除照旧；旧链接 `?tab=files` 会自动跳转过去。生成的图片和视频仍列在各自的任务里。
+- 时间范围移到页头，“API 调用”“Agent 会话”“生成任务”三个页面共用；新增 90 天。“API 调用”顶部改为按天显示花费，并给出请求数、成功率、缓存命中率和首字中位数；失败的请求在行下直接写明原因和处理办法。
+- `GET /api/log/self/stat` 和 `GET /api/log/stat` 不再返回 `rpm`、`tpm`（它们只统计最近 60 秒，查看历史时总是 0），改为返回所选范围的 `request_count`、`error_count`、`cache_hit_ratio`、`median_ttft_ms`、按小时的 `series`，以及上一段同样长的时间的 `previous_amount_microusd`。
 
 ## 2026-10-29 — 移除搜索接口
 
@@ -29,6 +32,7 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 - `SETTLEMENT_OUTBOX_ENABLED=true` 已弃用。2027-01-24 之后结算 outbox 及其对账任务将移除；结算失败仍由失败对账任务恢复。
 - `DataExportEnabled`（连同 `DataExportInterval`）已弃用。2027-02-01 之后按小时汇总的 `usage_data` 表和 `GET /api/data/` 将移除；看板和用量页不读取它们。如需保留，请先导出这张表。
 - 配置了其中任一项的部署，启动时会输出一行 `deprecated setting:` 提示。详见部署指南的“Deprecated settings”一节。
+
 ## 2026-10-26 — 一批 API 路由计划下线
 
 下列路由现在会返回 `Deprecation`、`Sunset` 响应头；有替代接口的，还会返回 `Link: <…>; rel="successor-version"`。管理接口在 2026-12-01 之后删除，用户接口和公开 API 在 2027-02-01 之后删除。每次删除前都会核对生产访问记录。

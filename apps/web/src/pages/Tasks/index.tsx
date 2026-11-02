@@ -1,8 +1,19 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { SlidersHorizontal } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useDebouncedCallback } from 'use-debounce';
+import { formatTaskRemaining } from './format';
+import { TasksEmpty } from './TasksEmpty';
+import { UploadsTable, fetchUploads } from './UploadsTable';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '../../components/ui/popover';
 import { createSearchParams } from '../../components/ui/table-tools';
 import { notify } from '../../components/ui/toast';
 import { API } from '../../helpers/api';
@@ -14,7 +25,6 @@ import { useUsageScope } from '../../hooks/usage-logs/useUsageScope';
 import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import { UserIdentity } from '../Log/log-support';
-import { UsageRangeSeg } from '../Usage/UsageRangeSeg';
 import '../Log/log-table.css';
 import './tasks.css';
 import type { TFunction } from 'i18next';
@@ -83,6 +93,10 @@ const PAGE_SIZE = 20;
 const ACTIVE_POLL_MS = 10_000;
 const DAY = 86_400;
 const STATUSES = ['', 'active', 'succeeded', 'failed'] as const;
+/* 全部 / 图片 / 视频 are the jobs; 上传的文件 is what the caller uploaded,
+   listed here since the 文件 tab went away. */
+const KINDS = ['', 'image', 'video', 'uploads'] as const;
+type TaskKind = (typeof KINDS)[number];
 
 /** "$0.4115": the log's cost format. */
 export const formatTaskCost = (microusd: number) => {
@@ -106,23 +120,6 @@ export const formatTaskTime = (unix?: number) => {
 export const formatTaskDuration = (seconds: number) => {
   const s = Math.max(0, Math.round(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-};
-
-/** "2 天 23 小时" / "18 小时" / "40 分钟" until a file is deleted. */
-export const formatTaskRemaining = (
-  expiresAt: number,
-  nowSec: number,
-  t: TFunction,
-) => {
-  const left = expiresAt - nowSec;
-  if (left <= 0) return t('page.console.tasks.keep.gone');
-  const days = Math.floor(left / DAY);
-  const hours = Math.floor((left % DAY) / 3600);
-  if (days > 0) return t('page.console.tasks.keep.days', { days, hours });
-  if (hours > 0) return t('page.console.tasks.keep.hours', { hours });
-  return t('page.console.tasks.keep.minutes', {
-    minutes: Math.max(1, Math.floor(left / 60)),
-  });
 };
 
 export const taskSpecText = (task: ConsoleTask, t: TFunction) => {
@@ -429,6 +426,14 @@ export default function TasksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const status = searchParams.get('status') || '';
   const openId = searchParams.get('task') || '';
+  const kindParam = searchParams.get('kind') || '';
+  const kind: TaskKind = (KINDS as readonly string[]).includes(kindParam)
+    ? (kindParam as TaskKind)
+    : '';
+  const uploads = kind === 'uploads';
+  const modelName = searchParams.get('model') || '';
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [modelDraft, setModelDraft] = useState(modelName);
   const [page, setPage] = useState(1);
   const [draft, setDraft] = useState(searchParams.get('q') || '');
   const q = searchParams.get('q') || '';
@@ -448,7 +453,19 @@ export default function TasksPage() {
   const start = range.start;
   const end = range.preset === 'custom' ? range.end : undefined;
   useEffect(() => setPage(1), [start, end]);
-  const params = { admin, status, start, end, q, page, project };
+  const jobKind = uploads ? '' : kind;
+  const params = {
+    admin,
+    status,
+    start,
+    end,
+    q,
+    page,
+    project,
+    kind: jobKind,
+    modelName,
+  };
+  const tasksURL = admin ? '/api/log/tasks' : '/api/log/self/tasks';
 
   const query = useQuery({
     queryKey: queryKeys.console.table('tasks', params),
@@ -458,22 +475,44 @@ export default function TasksPage() {
         page_size: PAGE_SIZE,
         project_id: project.project_id,
         end_timestamp: end,
+        kind: jobKind || undefined,
+        model_name: modelName || undefined,
         q: q || undefined,
         start_timestamp: start,
         status: status || undefined,
         token_id: project.token_id,
         user_id: project.user_id,
       });
-      return unwrap<TaskPage>(
-        await API.get(
-          `${admin ? '/api/log/tasks' : '/api/log/self/tasks'}?${search}`,
-        ),
-      );
+      return unwrap<TaskPage>(await API.get(`${tasksURL}?${search}`));
     },
+    enabled: !uploads,
     placeholderData: keepPreviousData,
     refetchInterval: (state) =>
       (state.state.data?.summary?.active ?? 0) > 0 ? ACTIVE_POLL_MS : false,
   });
+  /* Whether anything was ever generated here, whatever the range: an empty
+     range is one sentence, an account that has never made an image or a
+     video gets the way to make one. */
+  const ever = useQuery({
+    queryKey: queryKeys.console.table('tasks-ever', { admin, project }),
+    queryFn: async () => {
+      const search = createSearchParams({
+        p: 1,
+        page_size: 1,
+        project_id: project.project_id,
+        token_id: project.token_id,
+        user_id: project.user_id,
+      });
+      return unwrap<TaskPage>(await API.get(`${tasksURL}?${search}`)).total;
+    },
+  });
+  const uploadsCount = useQuery({
+    queryKey: queryKeys.console.table('uploads-count', {}),
+    queryFn: async () => (await fetchUploads(1)).length,
+    enabled: !admin && ever.data === 0,
+  });
+  const neverGenerated = !admin && ever.data === 0 && !uploads;
+
   const data = query.data;
   const items = data?.items ?? [];
   const summary = data?.summary;
@@ -510,60 +549,109 @@ export default function TasksPage() {
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
+  const pickKind = (value: TaskKind) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set('kind', value);
+    else next.delete('kind');
+    next.delete('task');
+    if (value === 'uploads') next.delete('status');
+    setSearchParams(next, { replace: true });
+    setPage(1);
+  };
+  const kindSwitch = (
+    <div
+      aria-label={t('page.console.tasks.kind.label')}
+      className='logv2-seg usage-seg'
+      role='group'
+    >
+      {KINDS.map((value) => (
+        <button
+          aria-pressed={kind === value}
+          className='logv2-seg__button'
+          data-active={kind === value ? 'true' : undefined}
+          key={value || 'all'}
+          onClick={() => pickKind(value)}
+          type='button'
+        >
+          {t(`page.console.tasks.kind.${value || 'all'}`)}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (neverGenerated) {
+    return (
+      <div className='tasks-page'>
+        {uploadsCount.data ? (
+          <div className='tasks-filters'>{kindSwitch}</div>
+        ) : null}
+        <TasksEmpty />
+      </div>
+    );
+  }
+
+  const applyModel = () => {
+    if (modelDraft.trim() !== modelName) setParam('model', modelDraft.trim());
+  };
+
   return (
     <div className='tasks-page'>
-      <div className='logv2-summary tasks-summary'>
-        <div className='logv2-summary__cell'>
-          <span>{t('page.console.tasks.summary.spend')}</span>
-          <b>{formatTaskCost(summary?.spend_microusd ?? 0)}</b>
+      {uploads ? null : (
+        <div className='logv2-summary tasks-summary'>
+          <div className='logv2-summary__cell'>
+            <span>{t('page.console.tasks.summary.spend')}</span>
+            <b>{formatTaskCost(summary?.spend_microusd ?? 0)}</b>
+          </div>
+          <div className='logv2-summary__cell'>
+            <span>{t('page.console.tasks.summary.tasks')}</span>
+            <b>{(summary?.tasks ?? 0).toLocaleString()}</b>
+          </div>
+          <div className='logv2-summary__cell'>
+            <span>{t('page.console.tasks.summary.active')}</span>
+            <b>
+              {summary?.active ?? 0} ·{' '}
+              {formatTaskCost(summary?.active_hold_microusd ?? 0)}
+            </b>
+          </div>
+          <div className='logv2-summary__cell'>
+            <span>{t('page.console.tasks.summary.failed')}</span>
+            <b>
+              {summary?.failed ?? 0} ·{' '}
+              {formatTaskCost(summary?.refunded_microusd ?? 0)}
+            </b>
+          </div>
+          <div className='logv2-summary__cell'>
+            <span>{t('page.console.tasks.summary.expiring')}</span>
+            <b className={summary?.expiring_soon ? 'tasks-tone--warn' : ''}>
+              {summary?.expiring_soon ?? 0}
+            </b>
+          </div>
         </div>
-        <div className='logv2-summary__cell'>
-          <span>{t('page.console.tasks.summary.tasks')}</span>
-          <b>{(summary?.tasks ?? 0).toLocaleString()}</b>
-        </div>
-        <div className='logv2-summary__cell'>
-          <span>{t('page.console.tasks.summary.active')}</span>
-          <b>
-            {summary?.active ?? 0} ·{' '}
-            {formatTaskCost(summary?.active_hold_microusd ?? 0)}
-          </b>
-        </div>
-        <div className='logv2-summary__cell'>
-          <span>{t('page.console.tasks.summary.failed')}</span>
-          <b>
-            {summary?.failed ?? 0} ·{' '}
-            {formatTaskCost(summary?.refunded_microusd ?? 0)}
-          </b>
-        </div>
-        <div className='logv2-summary__cell'>
-          <span>{t('page.console.tasks.summary.expiring')}</span>
-          <b className={summary?.expiring_soon ? 'tasks-tone--warn' : ''}>
-            {summary?.expiring_soon ?? 0}
-          </b>
-        </div>
-      </div>
+      )}
 
       <div className='tasks-filters'>
-        <UsageRangeSeg />
-        <div
-          aria-label={t('page.console.tasks.filter.status')}
-          className='tasks-seg'
-          role='group'
-        >
-          {STATUSES.map((value) => (
-            <button
-              aria-pressed={status === value}
-              className='tasks-seg__button'
-              key={value || 'all'}
-              type='button'
-              onClick={() => setParam('status', value)}
-            >
-              {statusLabel(value)}
-            </button>
-          ))}
-        </div>
-        {/* Searches as you type, like the other usage tabs. There are no
-            further conditions yet, so no 筛选 button. */}
+        {kindSwitch}
+        {uploads ? null : (
+          <div
+            aria-label={t('page.console.tasks.filter.status')}
+            className='logv2-seg usage-seg'
+            role='group'
+          >
+            {STATUSES.map((value) => (
+              <button
+                aria-pressed={status === value}
+                className='logv2-seg__button'
+                data-active={status === value ? 'true' : undefined}
+                key={value || 'all'}
+                type='button'
+                onClick={() => setParam('status', value)}
+              >
+                {statusLabel(value)}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* Searches as you type, like the other usage tabs. */}
         <form
           className='tasks-search'
           role='search'
@@ -577,7 +665,11 @@ export default function TasksPage() {
           </label>
           <input
             id='tasks-q'
-            placeholder={t('page.console.tasks.filter.search')}
+            placeholder={
+              uploads
+                ? t('page.console.tasks.uploads.search')
+                : t('page.console.tasks.filter.search')
+            }
             type='search'
             value={draft}
             onChange={(event) => {
@@ -586,179 +678,258 @@ export default function TasksPage() {
             }}
           />
         </form>
+        {uploads ? null : (
+          <Popover
+            open={moreOpen}
+            onOpenChange={(open) => {
+              setMoreOpen(open);
+              if (!open) applyModel();
+            }}
+          >
+            <PopoverTrigger>
+              <Button
+                className='usage-filter-button'
+                size='sm'
+                type='button'
+                variant='secondary'
+              >
+                <SlidersHorizontal aria-hidden='true' size={14} />
+                {t('page.console.log.filter.more')}
+                {modelName ? (
+                  <span className='logv2-filter-count'>1</span>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align='end' className='logv2-filter-pop'>
+              <div className='logv2-filter-pop__field'>
+                <label
+                  className='logv2-filter-pop__label'
+                  htmlFor='tasks-model'
+                >
+                  {t('page.console.tasks.col.model')}
+                </label>
+                <Input
+                  id='tasks-model'
+                  placeholder={t('page.console.tasks.filter.modelPlaceholder')}
+                  value={modelDraft}
+                  onChange={(event) => setModelDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      setMoreOpen(false);
+                      applyModel();
+                    }
+                  }}
+                />
+              </div>
+              <div className='logv2-filter-pop__foot'>
+                <span className='logv2-filter-pop__hint'>
+                  {t('page.console.log.filter.applyOnClose')}
+                </span>
+                <Button
+                  size='sm'
+                  type='button'
+                  variant='ghost'
+                  onClick={() => {
+                    setModelDraft('');
+                    setParam('model', '');
+                  }}
+                >
+                  {t('page.console.log.filter.resetAll')}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
-      <div className='logv2-card'>
-        <div className='logv2-scroll'>
-          <table className='logv2-table tasks-table'>
-            <thead>
-              <tr>
-                <th scope='col'>{t('page.console.tasks.col.time')}</th>
-                {admin ? (
-                  <th scope='col'>{t('page.console.log.column.user')}</th>
-                ) : null}
-                <th scope='col'>{t('page.console.tasks.col.status')}</th>
-                <th scope='col'>{t('page.console.tasks.col.model')}</th>
-                <th scope='col'>{t('page.console.tasks.col.key')}</th>
-                <th scope='col'>{t('page.console.tasks.col.took')}</th>
-                <th className='logv2-num' scope='col'>
-                  {t('page.console.tasks.col.cost')}
-                </th>
-                <th scope='col'>{t('page.console.tasks.col.keep')}</th>
-                <th scope='col'>{t('page.console.tasks.col.spec')}</th>
-                <th scope='col'>{t('page.console.tasks.col.content')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
+      {uploads ? (
+        <UploadsTable nowSec={nowSec} q={q} />
+      ) : (
+        <div className='logv2-card'>
+          <div className='logv2-scroll'>
+            <table className='logv2-table tasks-table'>
+              <thead>
                 <tr>
-                  <td className='tasks-empty' colSpan={columns}>
-                    {query.isLoading
-                      ? t('page.system.loading.title')
-                      : t('page.console.tasks.empty')}
-                  </td>
+                  <th scope='col'>{t('page.console.tasks.col.time')}</th>
+                  {admin ? (
+                    <th scope='col'>{t('page.console.log.column.user')}</th>
+                  ) : null}
+                  <th scope='col'>{t('page.console.tasks.col.status')}</th>
+                  <th scope='col'>{t('page.console.tasks.col.model')}</th>
+                  <th scope='col'>{t('page.console.tasks.col.key')}</th>
+                  <th scope='col'>{t('page.console.tasks.col.took')}</th>
+                  <th className='logv2-num' scope='col'>
+                    {t('page.console.tasks.col.cost')}
+                  </th>
+                  <th scope='col'>{t('page.console.tasks.col.keep')}</th>
+                  <th scope='col'>{t('page.console.tasks.col.spec')}</th>
+                  <th scope='col'>{t('page.console.tasks.col.content')}</th>
                 </tr>
-              ) : null}
-              {items.map((task) => {
-                const open = openId === task.id;
-                const took = isActive(task)
-                  ? t('page.console.tasks.took.waiting', {
-                      time: formatTaskDuration(nowSec - task.created_at),
-                    })
-                  : task.completed_at
-                    ? formatTaskDuration(task.completed_at - task.created_at)
-                    : '—';
-                const expiresAt = task.artifact?.expires_at;
-                return (
-                  <Fragment key={task.id}>
-                    <tr
-                      className='logv2-row'
-                      data-open={open ? 'true' : undefined}
-                      onClick={() => setParam('task', open ? '' : task.id)}
-                    >
-                      <td>
-                        <button
-                          aria-expanded={open}
-                          className='logv2-link logv2-time'
-                          type='button'
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setParam('task', open ? '' : task.id);
-                          }}
-                        >
-                          {formatTaskTime(task.created_at)}
-                        </button>
-                      </td>
-                      {admin ? (
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr>
+                    <td className='tasks-empty' colSpan={columns}>
+                      {query.isLoading
+                        ? t('page.system.loading.title')
+                        : t('page.console.tasks.empty')}
+                    </td>
+                  </tr>
+                ) : null}
+                {items.map((task) => {
+                  const open = openId === task.id;
+                  const took = isActive(task)
+                    ? t('page.console.tasks.took.waiting', {
+                        time: formatTaskDuration(nowSec - task.created_at),
+                      })
+                    : task.completed_at
+                      ? formatTaskDuration(task.completed_at - task.created_at)
+                      : '—';
+                  const expiresAt = task.artifact?.expires_at;
+                  return (
+                    <Fragment key={task.id}>
+                      <tr
+                        className='logv2-row'
+                        data-open={open ? 'true' : undefined}
+                        onClick={() => setParam('task', open ? '' : task.id)}
+                      >
                         <td>
-                          <UserIdentity
-                            name={task.username || '—'}
-                            uid={task.user_id}
-                          />
-                        </td>
-                      ) : null}
-                      <td>
-                        <TaskStatusCell task={task} t={t} />
-                      </td>
-                      <td>
-                        <span className='logv2-model'>{task.model}</span>
-                      </td>
-                      <td>
-                        {task.token_name ? (
-                          task.token_name
-                        ) : (
-                          <span className='logv2-soft'>
-                            {task.key_deleted
-                              ? t('page.console.tasks.keyDeleted')
-                              : task.source && task.source !== 'media_job'
-                                ? 'Studio'
-                                : t('page.console.tasks.noKey')}
-                          </span>
-                        )}
-                      </td>
-                      <td className='logv2-soft tasks-nowrap'>{took}</td>
-                      <td className='logv2-num'>
-                        {isActive(task) ? (
-                          <span className='logv2-soft'>
-                            {t('page.console.tasks.cost.held', {
-                              amount: formatTaskCost(task.hold_microusd),
-                            })}
-                          </span>
-                        ) : (
-                          formatTaskCost(task.charge_microusd)
-                        )}
-                        {task.status === 'failed' && task.refund_microusd ? (
-                          <span className='logv2-chip logv2-chip--bad tasks-chip'>
-                            {t('page.console.tasks.cost.refunded')}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className='tasks-nowrap'>
-                        {expiresAt && !task.file_expired ? (
-                          <span
-                            className={
-                              expiresAt - nowSec < DAY
-                                ? 'tasks-tone--warn'
-                                : 'logv2-soft'
-                            }
+                          <button
+                            aria-expanded={open}
+                            className='logv2-link logv2-time'
+                            type='button'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setParam('task', open ? '' : task.id);
+                            }}
                           >
-                            {formatTaskRemaining(expiresAt, nowSec, t)}
+                            {formatTaskTime(task.created_at)}
+                          </button>
+                        </td>
+                        {admin ? (
+                          <td>
+                            <UserIdentity
+                              name={task.username || '—'}
+                              uid={task.user_id}
+                            />
+                          </td>
+                        ) : null}
+                        <td>
+                          <TaskStatusCell task={task} t={t} />
+                        </td>
+                        <td>
+                          <span className='logv2-model'>{task.model}</span>
+                        </td>
+                        <td>
+                          {task.token_name ? (
+                            task.token_name
+                          ) : (
+                            <span className='logv2-soft'>
+                              {task.key_deleted
+                                ? t('page.console.tasks.keyDeleted')
+                                : task.source && task.source !== 'media_job'
+                                  ? 'Studio'
+                                  : t('page.console.tasks.noKey')}
+                            </span>
+                          )}
+                        </td>
+                        <td className='logv2-soft tasks-nowrap'>{took}</td>
+                        <td className='logv2-num'>
+                          {isActive(task) ? (
+                            <span className='logv2-soft'>
+                              {t('page.console.tasks.cost.held', {
+                                amount: formatTaskCost(task.hold_microusd),
+                              })}
+                            </span>
+                          ) : (
+                            formatTaskCost(task.charge_microusd)
+                          )}
+                          {task.status === 'failed' && task.refund_microusd ? (
+                            <span className='logv2-chip logv2-chip--bad tasks-chip'>
+                              {t('page.console.tasks.cost.refunded')}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className='tasks-nowrap'>
+                          {expiresAt && !task.file_expired ? (
+                            <span
+                              className={
+                                expiresAt - nowSec < DAY
+                                  ? 'tasks-tone--warn'
+                                  : 'logv2-soft'
+                              }
+                            >
+                              {formatTaskRemaining(expiresAt, nowSec, t)}
+                            </span>
+                          ) : (
+                            <span className='logv2-faint'>
+                              {task.file_expired
+                                ? t('page.console.tasks.keep.gone')
+                                : '—'}
+                            </span>
+                          )}
+                        </td>
+                        <td className='tasks-nowrap'>
+                          {taskSpecText(task, t)}
+                        </td>
+                        <td>
+                          <span className='tasks-prompt' title={task.prompt}>
+                            {task.prompt || '—'}
                           </span>
-                        ) : (
-                          <span className='logv2-faint'>
-                            {task.file_expired
-                              ? t('page.console.tasks.keep.gone')
-                              : '—'}
-                          </span>
-                        )}
-                      </td>
-                      <td className='tasks-nowrap'>{taskSpecText(task, t)}</td>
-                      <td>
-                        <span className='tasks-prompt' title={task.prompt}>
-                          {task.prompt || '—'}
-                        </span>
-                      </td>
-                    </tr>
-                    {open ? (
-                      <tr className='logv2-detail-row'>
-                        <td colSpan={columns}>
-                          <TaskDetail nowSec={nowSec} t={t} task={task} />
                         </td>
                       </tr>
-                    ) : null}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      {open ? (
+                        <tr className='logv2-detail-row'>
+                          <td colSpan={columns}>
+                            <TaskDetail nowSec={nowSec} t={t} task={task} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className='tasks-pager'>
-        <span>{t('page.console.tasks.count', { n: data?.total ?? 0 })}</span>
-        <span className='tasks-pager__buttons'>
-          <button
-            className='tasks-button'
-            disabled={page <= 1}
-            type='button'
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-          >
-            {t('page.console.tasks.prev')}
-          </button>
-          <span>
-            {page} / {totalPages}
+      {uploads ? (
+        <div className='tasks-pager'>
+          <span className='logv2-soft'>
+            {t('page.console.tasks.uploads.retention')}
           </span>
-          <button
-            className='tasks-button'
-            disabled={page >= totalPages}
-            type='button'
-            onClick={() => setPage((value) => value + 1)}
-          >
-            {t('page.console.tasks.next')}
-          </button>
-        </span>
-        <span className='logv2-soft'>{t('page.console.tasks.retention')}</span>
-      </div>
+        </div>
+      ) : (
+        <div className='tasks-pager'>
+          <span>{t('page.console.tasks.count', { n: data?.total ?? 0 })}</span>
+          <span className='tasks-pager__buttons'>
+            <button
+              className='tasks-button'
+              disabled={page <= 1}
+              type='button'
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+            >
+              {t('page.console.tasks.prev')}
+            </button>
+            <span>
+              {page} / {totalPages}
+            </span>
+            <button
+              className='tasks-button'
+              disabled={page >= totalPages}
+              type='button'
+              onClick={() => setPage((value) => value + 1)}
+            >
+              {t('page.console.tasks.next')}
+            </button>
+          </span>
+          <span className='logv2-soft'>
+            {t('page.console.tasks.retention')}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

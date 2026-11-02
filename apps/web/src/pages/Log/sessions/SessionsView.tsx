@@ -1,13 +1,12 @@
 /* 用量与日志 · Agent 会话: one row per task an agent ran, with the range's
  * totals above it. Requests that carried no session id are not agent
  * sessions; they live only in the API 调用 tab. */
-import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   SK,
   type SessionLane,
-  durationText,
   officialSaving,
   pct,
   rangeLabel,
@@ -15,17 +14,12 @@ import {
   sessionClient,
   sessionLanes,
   sessionState,
+  sessionTimeline,
   spanText,
-  spanTextCompact,
+  startText,
 } from './session-format';
 import { AgentBadge, agentName } from '../../../components/ui/agent-badge';
 import { Button } from '../../../components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../../components/ui/dropdown-menu';
 import { EmptyState } from '../../../components/ui/empty-state';
 import { ErrorState } from '../../../components/ui/error-state';
 import {
@@ -297,37 +291,32 @@ function SpendCell({
 function PendingRow({ admin }: { admin: boolean }) {
   return (
     <div aria-hidden='true' className='sv-row' data-admin={admin || undefined}>
+      <PendingValue chars={11} />
       <span className='sv-two'>
-        <PendingValue chars={17} />
+        <span className='sv-track' />
         <span className='sv-sub'>
-          <PendingValue chars={6} />
+          <PendingValue chars={14} />
         </span>
       </span>
-      <span className='sv-two'>
-        <PendingValue chars={6} />
-        {admin ? (
+      {admin ? (
+        <span className='sv-two'>
+          <PendingValue chars={6} />
           <span className='sv-sub'>
             <PendingValue chars={6} />
           </span>
-        ) : null}
+        </span>
+      ) : null}
+      <span className='sv-two'>
+        <PendingValue chars={26} />
+        <span className='sv-sub'>
+          <PendingValue chars={15} />
+        </span>
       </span>
       <span className='sv-agent'>
         <span className='lz-agent-badge' data-ghost data-size='sm'>
           &nbsp;
         </span>
         <PendingValue chars={8} />
-      </span>
-      <span className='sv-two'>
-        <PendingValue chars={26} />
-        <span className='sv-sub'>
-          <PendingValue chars={10} />
-        </span>
-      </span>
-      <span className='sv-two'>
-        <PendingValue chars={15} />
-        <span className='sv-sub'>
-          <PendingValue chars={4} />
-        </span>
       </span>
       <span className='sv-two sv-right'>
         <PendingValue chars={11} />
@@ -346,49 +335,6 @@ function PendingRow({ admin }: { admin: boolean }) {
   );
 }
 
-function FilterMenu({
-  allLabel,
-  label,
-  onPick,
-  options,
-  value,
-}: {
-  allLabel: string;
-  label: string;
-  onPick: (value: string) => void;
-  options: { label: string; value: string }[];
-  value: string;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        <button
-          data-owns-chrome
-          aria-pressed={Boolean(value)}
-          className='ses-btn'
-          type='button'
-        >
-          {value ? label : allLabel}
-          <ChevronDown aria-hidden='true' size={13} />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align='start'>
-        <DropdownMenuItem onSelect={() => onPick('')}>
-          {allLabel}
-        </DropdownMenuItem>
-        {options.map((option) => (
-          <DropdownMenuItem
-            key={option.value}
-            onSelect={() => onPick(option.value)}
-          >
-            {option.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export default function SessionsView({ admin, t }: Props) {
   /* The range is the one the usage tabs share; a preset goes to the server
      by name so its window matches the summary's own. */
@@ -404,7 +350,7 @@ export default function SessionsView({ admin, t }: Props) {
   const [client, setClient] = useState('');
   const [tokenName, setTokenName] = useState('');
   const [userId, setUserId] = useState('');
-  const [failed, setFailed] = useState(false);
+  const [result, setResult] = useState<'' | 'failed' | 'ok'>('');
   const [draft, setDraft] = useState('');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
@@ -422,7 +368,7 @@ export default function SessionsView({ admin, t }: Props) {
     client,
     tokenName,
     userId,
-    failed,
+    result,
     keyword,
     admin,
   ]);
@@ -430,9 +376,9 @@ export default function SessionsView({ admin, t }: Props) {
   const list = useAgentSessionsQuery({
     admin,
     client,
-    failed,
     keyword,
     page,
+    result: result || undefined,
     pageSize: PAGE_SIZE,
     range,
     ...windowParams,
@@ -488,16 +434,15 @@ export default function SessionsView({ admin, t }: Props) {
     ? ratio(summary.cached_tokens, summary.prompt_tokens)
     : null;
 
-  /* Agent is the main dimension and keeps its menu; Key, 只看失败 and the
-     operator's user filter sit behind 筛选 and show as chips once set. On a
-     phone the row only has room for the range and 筛选, so Agent joins the
-     sheet and shows as a chip too. */
+  /* The row has the status (全部 / 成功 / 有失败), the search and 筛选; Agent,
+     Key and the operator's user filter sit behind 筛选 and show as chips
+     once set. */
   const allValue = '__all';
   const userLabel =
     userOptions.find((option) => option.value === userId)?.label ||
     `#${userId}`;
   const chips: Array<{ clear: () => void; key: string; label: string }> = [];
-  if (narrow && client)
+  if (client)
     chips.push({
       clear: () => setClient(''),
       key: 'client',
@@ -509,12 +454,6 @@ export default function SessionsView({ admin, t }: Props) {
       key: 'token',
       label: t('page.console.log.filter.chipKey', { value: tokenName }),
     });
-  if (failed)
-    chips.push({
-      clear: () => setFailed(false),
-      key: 'failed',
-      label: t(`${SK}.list.onlyFailed`, { defaultValue: '只看失败' }),
-    });
   if (admin && userId)
     chips.push({
       clear: () => setUserId(''),
@@ -523,9 +462,8 @@ export default function SessionsView({ admin, t }: Props) {
     });
   const clearConditions = () => {
     setTokenName('');
-    setFailed(false);
     setUserId('');
-    if (narrow) setClient('');
+    setClient('');
   };
   const choice = (
     value: string,
@@ -566,34 +504,15 @@ export default function SessionsView({ admin, t }: Props) {
     );
   const moreFields = (
     <>
-      {narrow ? (
-        <div className='logv2-filter-pop__field'>
-          <span className='logv2-filter-pop__label'>Agent</span>
-          <div className='logv2-sheet__chips' role='radiogroup'>
-            {[
-              {
-                label: t(`${SK}.list.allClients`, {
-                  defaultValue: '全部 Agent',
-                }),
-                value: '',
-              },
-              ...clientOptions,
-            ].map((option) => (
-              <button
-                aria-checked={client === option.value}
-                className='logv2-sheet__chip'
-                data-owns-chrome
-                key={option.value || allValue}
-                onClick={() => setClient(option.value)}
-                role='radio'
-                type='button'
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <div className='logv2-filter-pop__field'>
+        <span className='logv2-filter-pop__label'>Agent</span>
+        {choice(
+          client,
+          clientOptions,
+          t(`${SK}.list.allClients`, { defaultValue: '全部 Agent' }),
+          setClient,
+        )}
+      </div>
       {admin ? (
         <div className='logv2-filter-pop__field'>
           <span className='logv2-filter-pop__label'>
@@ -619,18 +538,36 @@ export default function SessionsView({ admin, t }: Props) {
           {t('page.console.log.filter.keysInRange')}
         </span>
       </div>
-      <label className='logv2-filter-pop__check'>
-        <input
-          checked={failed}
-          onChange={(event) => setFailed(event.target.checked)}
-          type='checkbox'
-        />
-        {t(`${SK}.list.onlyFailed`, { defaultValue: '只看失败' })}
-      </label>
     </>
+  );
+  const statusOptions: Array<['' | 'failed' | 'ok', string]> = [
+    ['', t('page.console.usage.status.all')],
+    ['ok', t('page.console.usage.status.ok')],
+    ['failed', t('page.console.usage.status.hasFailed')],
+  ];
+  const statusSwitch = (
+    <span
+      aria-label={t('page.console.usage.status.label')}
+      className='logv2-seg usage-seg'
+      role='group'
+    >
+      {statusOptions.map(([value, label]) => (
+        <button
+          aria-pressed={result === value}
+          className='logv2-seg__button'
+          data-active={result === value ? 'true' : undefined}
+          key={value || 'all'}
+          onClick={() => setResult(value)}
+          type='button'
+        >
+          {label}
+        </button>
+      ))}
+    </span>
   );
   const moreButton = (
     <Button
+      className='usage-filter-button'
       onClick={narrow ? () => setMoreOpen(true) : undefined}
       size='sm'
       type='button'
@@ -706,24 +643,27 @@ export default function SessionsView({ admin, t }: Props) {
       </div>
 
       <div className='ses-filters'>
-        <UsageRangeSeg />
-        {narrow ? null : (
-          <FilterMenu
-            allLabel={t(`${SK}.list.allClients`, {
-              defaultValue: '全部 Agent',
+        {statusSwitch}
+        <label className='ses-search'>
+          <SearchIcon />
+          <input
+            aria-label={t(`${SK}.list.searchAria`, {
+              defaultValue: '搜索会话',
             })}
-            label={agentName(client)}
-            onPick={setClient}
-            options={clientOptions}
-            value={client}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={t(`${SK}.list.searchPlaceholder`, {
+              defaultValue: '搜索首条消息、会话编号',
+            })}
+            type='search'
+            value={draft}
           />
-        )}
+        </label>
         {narrow ? (
           moreButton
         ) : (
           <Popover open={moreOpen} onOpenChange={setMoreOpen}>
             <PopoverTrigger>{moreButton}</PopoverTrigger>
-            <PopoverContent align='start' className='logv2-filter-pop'>
+            <PopoverContent align='end' className='logv2-filter-pop'>
               {moreFields}
               <div className='logv2-filter-pop__foot'>
                 <span className='logv2-filter-pop__hint' />
@@ -739,20 +679,6 @@ export default function SessionsView({ admin, t }: Props) {
             </PopoverContent>
           </Popover>
         )}
-        <label className='ses-search'>
-          <SearchIcon />
-          <input
-            aria-label={t(`${SK}.list.searchAria`, {
-              defaultValue: '搜索会话',
-            })}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t(`${SK}.list.searchPlaceholder`, {
-              defaultValue: '搜索首条消息、会话编号',
-            })}
-            type='search'
-            value={draft}
-          />
-        </label>
       </div>
       {chips.length ? (
         <div className='logv2-filter-chips ses-chips'>
@@ -821,15 +747,13 @@ export default function SessionsView({ admin, t }: Props) {
       <div className='sv-table'>
         <div className='sv-scroll'>
           <div className='sv-row sv-row--head' data-admin={admin || undefined}>
-            <span>
-              {t(`${SK}.list.col.span`, { defaultValue: '开始 → 结束' })}
-            </span>
-            <span>
-              {admin
-                ? t(`${SK}.list.col.userKey`, { defaultValue: '用户 · Key' })
-                : t(`${SK}.list.col.key`, { defaultValue: 'Key' })}
-            </span>
-            <span>{t(`${SK}.list.col.agent`, { defaultValue: 'Agent' })}</span>
+            <span>{t(`${SK}.list.col.start`)}</span>
+            <span>{t(`${SK}.list.col.timeline`)}</span>
+            {admin ? (
+              <span>
+                {t(`${SK}.list.col.userKey`, { defaultValue: '用户 · Key' })}
+              </span>
+            ) : null}
             <span
               title={t(`${SK}.list.col.sessionHint`, {
                 defaultValue: '取这个会话的第一条消息',
@@ -837,9 +761,7 @@ export default function SessionsView({ admin, t }: Props) {
             >
               {t(`${SK}.list.col.session`, { defaultValue: '会话' })}
             </span>
-            <span>
-              {t(`${SK}.list.col.modelLane`, { defaultValue: '模型 · 线路' })}
-            </span>
+            <span>{t(`${SK}.list.col.agent`, { defaultValue: 'Agent' })}</span>
             <span className='sv-right'>
               {t(`${SK}.list.col.usage`, { defaultValue: '用量' })}
             </span>
@@ -937,6 +859,7 @@ function SessionRow({
   const href = sessionDetailHref(session.id, admin);
   const lanes = sessionLanes(session.models);
   const [firstModel, ...otherModels] = session.models;
+  const timeline = sessionTimeline(session, t);
   return (
     // The whole row is a pointer shortcut; the time link is its keyboard
     // handle, as in the 请求 table.
@@ -946,68 +869,72 @@ function SessionRow({
       data-admin={admin || undefined}
       onClick={() => navigate(href)}
     >
+      <Link
+        className='sv-time'
+        onClick={(event) => event.stopPropagation()}
+        title={spanText(session.started_at, session.last_at)}
+        to={href}
+      >
+        {startText(session.started_at)}
+      </Link>
       <span className='sv-two'>
-        <Link
-          className='sv-time'
-          onClick={(event) => event.stopPropagation()}
+        <span
+          aria-label={timeline.caption}
+          className='sv-track'
+          role='img'
           title={spanText(session.started_at, session.last_at)}
-          to={href}
         >
-          {spanTextCompact(session.started_at, session.last_at)}
-        </Link>
-        <span className='sv-sub'>
-          {durationText(session.last_at - session.started_at, t)}
+          {timeline.bars.map((bar, index) => (
+            <span
+              className='sv-track__seg'
+              key={index}
+              style={{ left: `${bar.left}%`, width: `${bar.width}%` }}
+            />
+          ))}
         </span>
+        <span className='sv-sub'>{timeline.caption}</span>
       </span>
-      <span className='sv-two'>
-        {admin ? (
-          <>
-            <span className='sv-ellipsis'>{session.username || '—'}</span>
-            <span className='sv-sub sv-ellipsis'>
-              {session.token_name || '—'}
-            </span>
-          </>
-        ) : (
-          <span className='sv-ellipsis sv-muted'>
+      {admin ? (
+        <span className='sv-two'>
+          <span className='sv-ellipsis'>{session.username || '—'}</span>
+          <span className='sv-sub sv-ellipsis'>
             {session.token_name || '—'}
           </span>
-        )}
-      </span>
-      <span className='sv-agent'>
-        <AgentBadge client={client} size='sm' />
-        <span className='sv-ellipsis'>{client ? agentName(client) : '—'}</span>
-      </span>
+        </span>
+      ) : null}
       <span className='sv-two'>
         <span className='sv-ellipsis' title={sessionTitle(session, t)}>
           {sessionTitle(session, t)}
         </span>
-        {session.subagent_count + session.compact_count + session.review_count >
-        0 ? (
-          <span className='sv-tags'>
+        {/* The models, their lanes and the session's kinds share the line
+            under the title, so the list fits the card without scrolling. */}
+        <span className='sv-meta'>
+          <span
+            className='sv-mono sv-ellipsis'
+            title={session.models.map((model) => model.model_name).join(', ')}
+          >
+            {firstModel ? firstModel.model_name : '—'}
+            {otherModels.length > 0 ? ` +${otherModels.length}` : ''}
+          </span>
+          {lanes.map(({ count, lane }) => (
+            <SessionLaneChip
+              count={lane === 'fallback' ? count : undefined}
+              key={lane}
+              lane={lane}
+              t={t}
+            />
+          ))}
+          {session.subagent_count +
+            session.compact_count +
+            session.review_count >
+          0 ? (
             <SessionKindTags session={session} t={t} />
-          </span>
-        ) : null}
-      </span>
-      <span className='sv-two'>
-        <span
-          className='sv-mono sv-ellipsis'
-          title={session.models.map((model) => model.model_name).join(', ')}
-        >
-          {firstModel ? firstModel.model_name : '—'}
-          {otherModels.length > 0 ? ` +${otherModels.length}` : ''}
+          ) : null}
         </span>
-        {lanes.length > 0 ? (
-          <span className='sv-lanes'>
-            {lanes.map(({ count, lane }) => (
-              <SessionLaneChip
-                count={lane === 'fallback' ? count : undefined}
-                key={lane}
-                lane={lane}
-                t={t}
-              />
-            ))}
-          </span>
-        ) : null}
+      </span>
+      <span className='sv-agent'>
+        <AgentBadge client={client} size='sm' />
+        <span className='sv-ellipsis'>{client ? agentName(client) : '—'}</span>
       </span>
       <span className='sv-two sv-right'>
         <span className='sv-mono'>

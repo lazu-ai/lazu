@@ -1,7 +1,7 @@
-/* The time slot at the head of every 用量与日志 filter row: 24 小时 / 7 天 /
- * 30 天 and a calendar. A custom range shows its dates where the calendar
- * icon was (only the day count on phones) and leaves the three presets
- * unselected; picking one returns to it. ← → move between the four. */
+/* 用量与日志's time range, in the page head and shared by its three views:
+ * 24 小时 / 7 天 / 30 天 / 90 天 / 自定义. A custom range shows its dates in
+ * place of 自定义 (only the day count on phones) and leaves the presets
+ * unselected; picking one returns to it. ← → move between the five. */
 import { useTranslation } from 'react-i18next';
 import {
   CALENDAR_PRESET_IDS,
@@ -22,11 +22,7 @@ function usageRangeLabel(
   preset: UsageRangePreset,
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
-  return preset === '24h'
-    ? t(`${SK}.range.24h`, { defaultValue: '24 小时' })
-    : preset === '7d'
-      ? t(`${SK}.range.7d`, { defaultValue: '7 天' })
-      : t(`${SK}.range.30d`, { defaultValue: '30 天' });
+  return t(`${SK}.range.${preset}`);
 }
 
 function moveFocus(event: KeyboardEvent<HTMLElement>) {
@@ -81,13 +77,13 @@ export function UsageRangeSeg({
           align='start'
           compact
           compactLabel={
-            custom ? (
-              <span className='usage-range__custom'>
-                {narrow
+            <span className='usage-range__custom'>
+              {!custom
+                ? t('page.console.usage.range.customShort')
+                : narrow
                   ? t('page.console.usage.range.days', { count: range.days })
                   : range.label}
-              </span>
-            ) : undefined
+            </span>
           }
           onChange={setPicker}
           presets={CALENDAR_PRESET_IDS}

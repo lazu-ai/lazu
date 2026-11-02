@@ -1,22 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { expectRouteReady, setupMockedApp, fail } from './helpers/mock-app';
 
-for (const [route, api] of [['/console/usage?tab=files', '/api/files']]) {
-  test(`existing table ${route} retains its recovery action`, async ({
-    page,
-  }) => {
-    await setupMockedApp(page);
-    await expectRouteReady(page, route);
-    const retry = page.getByRole('button', { name: '刷新', exact: true });
-    await expect(retry).toBeEnabled();
-    const read = page.waitForRequest(
-      (r) => r.method() === 'GET' && new URL(r.url()).pathname === api,
-    );
-    await retry.click();
-    await read;
-  });
-}
-
 test('overview low-balance task opens users with the matching server filter', async ({
   page,
 }) => {

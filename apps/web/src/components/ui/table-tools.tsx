@@ -113,14 +113,6 @@ export function formatUnixTime(value: unknown, fallback = '-') {
   }).format(new Date(millis));
 }
 
-export function truncateMiddle(value: unknown, head = 18, tail = 8) {
-  const text = String(value || '');
-  if (text.length <= head + tail + 3) {
-    return text || '-';
-  }
-  return `${text.slice(0, head)}...${text.slice(-tail)}`;
-}
-
 export function statusBadgeVariant(status: unknown): BadgeVariant {
   const successStatuses: readonly unknown[] = [
     1,

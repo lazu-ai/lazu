@@ -156,7 +156,19 @@ export type UsageUserAggregateRow = {
   request_count?: number;
 };
 
-type UsageLogStat = Record<string, unknown>;
+/** GET /api/log/(self/)stat: the range's totals under the list's filters,
+ *  whatever result the list itself is narrowed to. */
+export type UsageLogStat = {
+  amount_microusd?: number;
+  cache_hit_ratio?: number;
+  cached_input_tokens?: number;
+  error_count?: number;
+  median_ttft_ms?: number;
+  previous_amount_microusd?: number;
+  prompt_tokens?: number;
+  request_count?: number;
+  series?: { amount_microusd: number; bucket: number; request_count: number }[];
+};
 type UserInfo =
   | (Record<string, unknown> & {
       display_name?: string;
@@ -826,6 +838,7 @@ export function useUsageLogsQuery() {
     showUserInfo: (userId: number | string | null | undefined) =>
       userInfoMutation.mutate(userId),
     stat: statQuery.data || {},
+    statLoading: statQuery.isLoading,
     submitFilters,
     t,
     total: pageData.total,

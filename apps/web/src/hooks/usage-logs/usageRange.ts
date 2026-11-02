@@ -1,7 +1,7 @@
 /* 用量与日志's one time range. API 调用, Agent 会话 and 生成任务 share it
  * through the address bar, so picking 7 天 on one tab is 7 天 on the next:
  *
- *   ?range=24h | 7d | 30d          a preset (none means 7d)
+ *   ?range=24h | 7d | 30d | 90d    a preset (none means 7d)
  *   ?from=2026-10-21&to=2026-10-28 whole local days from the calendar
  *   ?start_timestamp=…&end_timestamp=…  an exact window from a deep link
  */
@@ -14,7 +14,7 @@ import {
   resolvePreset,
 } from '../../components/dashboard/time-picker-v3';
 
-export const USAGE_RANGE_PRESETS = ['24h', '7d', '30d'] as const;
+export const USAGE_RANGE_PRESETS = ['24h', '7d', '30d', '90d'] as const;
 export type UsageRangePreset = (typeof USAGE_RANGE_PRESETS)[number];
 const DEFAULT_USAGE_RANGE: UsageRangePreset = '7d';
 
@@ -83,7 +83,7 @@ function presetRange(preset: UsageRangePreset, now: Date): UsageRange {
       ? Math.floor(now.getTime() / 1000) - DAY
       : window.startTimestamp;
   return {
-    days: preset === '24h' ? 1 : preset === '7d' ? 7 : 30,
+    days: { '24h': 1, '7d': 7, '30d': 30, '90d': 90 }[preset],
     end: endOfToday,
     label: '',
     picker,

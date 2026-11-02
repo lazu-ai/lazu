@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { formatTaskRemaining } from './format';
 import {
   formatTaskCost,
   formatTaskDuration,
-  formatTaskRemaining,
   taskSpecText,
   type ConsoleTask,
 } from './index';

@@ -97,7 +97,6 @@ exports src/pages/Routes/lane-block.tsx money
 exports src/pages/Routes/lane-block.tsx useLaneLabel
 exports src/pages/Setting/Access/rateLimitOptions.ts parseRateLimitOptions
 exports src/pages/Token/access-addresses.tsx accessAddressKindLabel
-exports src/pages/Token/connect/ConnectModal.tsx connectBaseURL
 exports src/pages/Token/connect/LaneControl.tsx laneClientName
 exports src/pages/Token/connect/modelPicker.ts TOOL_HOME_VENDOR
 exports src/pages/Token/connect/modelPicker.ts TOOL_REQUIRED_ENDPOINTS
