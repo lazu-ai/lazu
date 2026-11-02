@@ -19,50 +19,50 @@ Lazu 的公开网页不是另一套营销皮肤，而是 云母产品系统面�
 
 ## 1. Visual foundations
 
-| #   | Area             | Locked direction | Implementation rule                                                                                 |
-| --- | ---------------- | ---------------- | --------------------------------------------------------------------------------------------------- |
-| 01  | Display headings | **衬线声明式**   | Hero 主声明、章节标题与标题旁的大数字使用 `--lazu-font-display`（Instrument Serif；CJK 退回系统宋体）；眉题、编号与 ID 用 IBM Plex Mono；20px 以下一律不用衬线。 |
-| 02  | Reading          | **舒展阅读**     | 正文 17px / 1.75，单栏阅读宽度约 720px；长文不铺满 1280px 容器。                                    |
+| #   | Area             | Locked direction | Implementation rule                                                                                                                                                                    |
+| --- | ---------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | Display headings | **衬线声明式**   | Hero 主声明、章节标题与标题旁的大数字使用 `--lazu-font-display`（Instrument Serif；CJK 退回系统宋体）；眉题、编号与 ID 用 IBM Plex Mono；20px 以下一律不用衬线。                       |
+| 02  | Reading          | **舒展阅读**     | 正文 17px / 1.75，单栏阅读宽度约 720px；长文不铺满 1280px 容器。                                                                                                                       |
 | 03  | Type scale       | **宽屏表达阶**   | Display 42–58px（衬线，行高 1.02，字距 -0.015em；与右栏说明并排，不独占整行；下限 42px 满足 <480px 的 Display 底线），H2 30–46px（衬线），H3 21px（Geist 600）；响应式使用 `clamp()`。 |
-| 04  | Spacing          | **4/8 自适应阶** | 组件内部坚持 4/8 倍数；页面级间距允许 24/48/72/96/120 形成节拍。                                    |
-| 05  | Grid             | **1280 十二列**  | 内容最大宽度 1280px，12 列、24px gutter；长文和表单使用子网格收窄。                                 |
-| 06  | Section rhythm   | **章节留白**     | 主章节间距 72–120px；相关子区块使用 48–80px，不用连续卡片填满页面。                                 |
-| 07  | Radius           | **Kumo 7**       | 控件与普通表面 7px，浮层 11px；pill 仅用于悬浮公告、短状态与筛选。                                  |
-| 08  | Surface          | **无框色差**     | 默认依靠 page/base/subtle 的色差分区；hairline 只在边界、数据和交互需要时出现，阴影只用于真实浮层。 |
+| 04  | Spacing          | **4/8 自适应阶** | 组件内部坚持 4/8 倍数；页面级间距允许 24/48/72/96/120 形成节拍。                                                                                                                       |
+| 05  | Grid             | **1280 十二列**  | 内容最大宽度 1280px，12 列、24px gutter；长文和表单使用子网格收窄。                                                                                                                    |
+| 06  | Section rhythm   | **章节留白**     | 主章节间距 72–120px；相关子区块使用 48–80px，不用连续卡片填满页面。                                                                                                                    |
+| 07  | Radius           | **Kumo 7**       | 控件与普通表面 7px，浮层 11px；pill 仅用于悬浮公告、短状态与筛选。                                                                                                                     |
+| 08  | Surface          | **无框色差**     | 默认依靠 page/base/subtle 的色差分区；hairline 只在边界、数据和交互需要时出现，阴影只用于真实浮层。                                                                                    |
 
 ## 2. Shared public chrome
 
-| #   | Area              | Locked direction  | Implementation rule                                                                     |
-| --- | ----------------- | ----------------- | --------------------------------------------------------------------------------------- |
-| 09  | Announcement      | **悬浮胶囊**      | 用于发布、活动和非阻断更新；居中悬浮、可关闭，不挤压 Header。维护和故障仍使用正式通知。 |
-| 10  | Header            | **Kumo 标准顶栏** | 单层 64px 顶栏：Logo、主要导航、低频全局控件、登录和唯一主 CTA。                        |
-| 11  | Active navigation | **Neutral Fill**  | 当前项使用中性填充与较重文字；橙色不铺满导航项。                                        |
-| 12  | Global controls   | **独立图标**      | 语言、主题和账户保持独立、带 tooltip 的图标按钮；不可只依赖图形含义。                   |
-| 13  | Mobile navigation | **底部 Sheet**    | 小屏保留 Logo 与主要 CTA，完整导航从底部 Sheet 展开；支持拖拽关闭、ESC 和焦点锁定。     |
-| 14  | Page heading      | **任务页头**      | Breadcrumb、标题、摘要和相关动作构成稳定二级页头；避免纯装饰封面。                      |
+| #   | Area              | Locked direction  | Implementation rule                                                                                |
+| --- | ----------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| 09  | Announcement      | **悬浮胶囊**      | 用于发布、活动和非阻断更新；居中悬浮、可关闭，不挤压 Header。维护和故障仍使用正式通知。            |
+| 10  | Header            | **Kumo 标准顶栏** | 单层 64px 顶栏：Logo、主要导航、低频全局控件、登录和唯一主 CTA。                                   |
+| 11  | Active navigation | **Neutral Fill**  | 当前项使用中性填充与较重文字；橙色不铺满导航项。                                                   |
+| 12  | Global controls   | **独立图标**      | 语言、主题和账户保持独立、带 tooltip 的图标按钮；不可只依赖图形含义。                              |
+| 13  | Mobile navigation | **底部 Sheet**    | 小屏保留 Logo 与主要 CTA，完整导航从底部 Sheet 展开；支持拖拽关闭、ESC 和焦点锁定。                |
+| 14  | Page heading      | **任务页头**      | Breadcrumb、标题、摘要和相关动作构成稳定二级页头；避免纯装饰封面。                                 |
 | 15  | Footer            | **结构化四栏**    | 产品、开发者、公司、法律/状态四组；底部只留品牌归属与版权行。语言和主题只在 Header（2026-09-30）。 |
 
 ## 3. Marketing and proof modules
 
-| #   | Area              | Locked direction | Implementation rule                                                                  |
-| --- | ----------------- | ---------------- | ------------------------------------------------------------------------------------ |
+| #   | Area              | Locked direction    | Implementation rule                                                                                                                                                                                                                                             |
+| --- | ----------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 16  | Homepage Hero     | **声明 + 控制台窗** | 1160 容器：眉题；衬线主声明（末句斜体强调）在左，说明句与两个动作在右 380px 栏；下方 880px 控制台窗（窗条 + 侧栏 + 成员与额度页），随滚动由后仰归位；再下是一条墨线与线下三个衬线数字。窗内是按真实控制台绘制的界面，跟随访客语言，不嵌截图、不放装饰性伪终端。 |
-| 17  | Providers         | **线下三个数字** | 模型数、供应商数、当前可用率来自 `/api/pricing` 与状态接口，取不到就整条隐藏；不堆 Logo、不写死数字。 |
-| 18  | Core capabilities | **能力工作台**   | Route/Observe/Control 以证据、操作和结果组成局部工作台，避免同构营销卡片墙。         |
-| 19  | Proof modules     | **账本条目**     | 「四个头疼」是一份编号账本：衬线编号、标题与说明在左，真实控制台面（模型价目、额度、Key、月账）在右，全部用发丝线分区，不用卡片。 |
-| 20  | How it works      | **三行编号**     | 注册并充值 → 配置 → 建 Key，三列并排、衬线编号、一条墨线起头；不做卡片墙。 |
-| 21  | Use cases         | **任务清单**     | 按任务和目标组织场景，不按模糊人物画像组织；每项指向具体能力或指南。                 |
-| 22  | Architecture      | **Kumo Flow**    | 客户端、Lazu、供应商和观测层使用清晰节点流；连线表达方向，不做装饰拓扑。             |
-| 23  | Quickstart        | **代码 + 回执**  | 示例旁必须显示响应、模型、路由、延迟或成本回执，让接入结果可验证。                   |
-| 24  | Pricing           | **价格卡片**     | 用少量清楚方案卡解释开源、云与企业路径；复杂能力差异另用比较表。                     |
-| 25  | Final CTA         | **Kumo 行动带**  | 页面末尾使用短标题、一个墨/纸主动作和一个中性次动作，不重复整页销售叙事。             |
+| 17  | Providers         | **线下三个数字**    | 模型数、供应商数、当前可用率来自 `/api/pricing` 与状态接口，取不到就整条隐藏；不堆 Logo、不写死数字。                                                                                                                                                           |
+| 18  | Core capabilities | **能力工作台**      | Route/Observe/Control 以证据、操作和结果组成局部工作台，避免同构营销卡片墙。                                                                                                                                                                                    |
+| 19  | Proof modules     | **账本条目**        | 「四个头疼」是一份编号账本：衬线编号、标题与说明在左，真实控制台面（模型价目、额度、Key、月账）在右，全部用发丝线分区，不用卡片。                                                                                                                               |
+| 20  | How it works      | **三行编号**        | 注册并充值 → 配置 → 建 Key，三列并排、衬线编号、一条墨线起头；不做卡片墙。                                                                                                                                                                                      |
+| 21  | Use cases         | **任务清单**        | 按任务和目标组织场景，不按模糊人物画像组织；每项指向具体能力或指南。                                                                                                                                                                                            |
+| 22  | Architecture      | **Kumo Flow**       | 客户端、Lazu、供应商和观测层使用清晰节点流；连线表达方向，不做装饰拓扑。                                                                                                                                                                                        |
+| 23  | Quickstart        | **代码 + 回执**     | 示例旁必须显示响应、模型、路由、延迟或成本回执，让接入结果可验证。                                                                                                                                                                                              |
+| 24  | Pricing           | **价格卡片**        | 用少量清楚方案卡解释开源、云与企业路径；复杂能力差异另用比较表。                                                                                                                                                                                                |
+| 25  | Final CTA         | **Kumo 行动带**     | 页面末尾使用短标题、一个墨/纸主动作和一个中性次动作，不重复整页销售叙事。                                                                                                                                                                                       |
 
 ## 4. Actions, forms and discovery
 
 | #   | Area           | Locked direction  | Implementation rule                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --- | -------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 26  | Buttons        | **墨/纸 primary** | 主按钮为墨底纸字（深色下纸底墨字），带边框 secondary、无框 ghost、语义 danger；同一区域仅一个 primary。暖橙已随 BRAND.md § 02 退役。                                                                                                                                                                                                                                                                                         |
-| 27  | Links          | **证据色链接**    | 可交互文字使用证据色（G1 起为青）；正文链接仍需下划线或上下文动作，外链标记 `↗`。                                                                                                                                                                                                                                                                                                                                             |
+| 27  | Links          | **证据色链接**    | 可交互文字使用证据色（G1 起为青）；正文链接仍需下划线或上下文动作，外链标记 `↗`。                                                                                                                                                                                                                                                                                                                                            |
 | 28  | Badge and tag  | **Kumo 方角**     | 5px 小圆角；版本、分类、Beta 与状态分开建模，状态继续使用形状 + 文字 + 颜色。                                                                                                                                                                                                                                                                                                                                                |
 | 29  | Forms          | **字段 + 说明**   | 标签在上，帮助和影响说明与字段相邻；验证信息说明原因并给出恢复动作。                                                                                                                                                                                                                                                                                                                                                         |
 | 30  | Search         | **命令面板**      | `⌘K` 同时支持站点跳转、模型/文档搜索与高频动作；基本导航不能因此被隐藏。                                                                                                                                                                                                                                                                                                                                                     |
@@ -70,13 +70,13 @@ Lazu 的公开网页不是另一套营销皮肤，而是 云母产品系统面�
 
 ## 5. Content and data components
 
-| #   | Area           | Locked direction     | Implementation rule                                                                  |
-| --- | -------------- | -------------------- | ------------------------------------------------------------------------------------ |
-| 32  | Tabs           | **Action Underline** | 页面同级视图使用墨色下划线；互斥显示模式仍可使用 neutral segmented。                 |
+| #   | Area           | Locked direction     | Implementation rule                                                                                                                                     |
+| --- | -------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 32  | Tabs           | **Action Underline** | 页面同级视图使用墨色下划线；互斥显示模式仍可使用 neutral segmented。                                                                                    |
 | 33  | FAQ            | **分组问答**         | 按真实主题分组；每个问题带锚点，答案常开。折叠会把答案藏在一次点击后面——读者要找的就是答案，而爬虫不会点。（2026-09-20 修订：原「单项展开」条款退役。） |
-| 34  | Resource cards | **身份条目**         | 每个资源突出类型、标题、摘要和唯一动作；优先条目/列表结构，不默认做悬浮卡片。        |
-| 35  | Public tables  | **Subtle Header**    | 表头使用 subtle surface 与 muted text；48px 行高，支持排序、窄屏横向滚动和文本摘要。 |
-| 40  | Pagination     | **数字分页**         | 明确当前页、总页数和前后动作；数据列表保留 URL 状态，避免刷新后丢失位置。            |
+| 34  | Resource cards | **身份条目**         | 每个资源突出类型、标题、摘要和唯一动作；优先条目/列表结构，不默认做悬浮卡片。                                                                           |
+| 35  | Public tables  | **Subtle Header**    | 表头使用 subtle surface 与 muted text；48px 行高，支持排序、窄屏横向滚动和文本摘要。                                                                    |
+| 40  | Pagination     | **数字分页**         | 明确当前页、总页数和前后动作；数据列表保留 URL 状态，避免刷新后丢失位置。                                                                               |
 
 ## 6. Feedback and recovery
 
@@ -140,13 +140,21 @@ Implementation: `apps/docs` (`public/styles.css`, `public/agent-actions.js`,
 `components/endpoint-rail.tsx`, `components/docs-home.tsx`).
 
 - **Chrome.** 56px top bar across the full width: Primary lockup + `DOCS`
-  mono tag, Guides / API reference / Changelog, a centred 380px search
+  mono tag, Guides / API reference / Changelog, a 380px search
   ("Search docs or paste an error code"), language, theme and the ink
   Console button. A flat 244px sidebar with a hairline right edge; mono
   uppercase group labels; selection is fill + weight + foreground only.
+- **Frame (2026-11-02).** Sidebar 244 · 64 · article 720 · 64 · outline 244,
+  1336px in all, centred on the screen; wider screens get equal paper on
+  both sides, so the article's centre is the screen's centre. The top bar
+  sits on the same columns: lockup over the sidebar, section links from the
+  article's left edge, search ending at its right edge, language, theme and
+  Console over the outline. Without the outline (≤1280px) the article keeps
+  its left edge; the endpoint workbench runs from the article to the screen
+  edge; the docs home starts its column under the lockup.
 - **Two page shapes.** Only pages that can send a request (the endpoint
   reference) are split: article on paper at left, a full-height graphite
-  workbench column (`--lazu-code-bg`, ~39vw) at right. Everything else
+  workbench column (`--lazu-code-bg`, 440–720px) at right. Everything else
   (guides, lookups, changelog) is a single 720px column with inline code
   and a right outline.
 - **Type.** H1 is the display serif at 52px (home 68px); section headings
