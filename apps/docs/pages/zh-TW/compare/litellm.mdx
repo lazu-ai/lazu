@@ -1,0 +1,47 @@
+---
+title: "Lazu 與 LiteLLM"
+description: "LiteLLM 是一個 Python 函式庫加代理，給你的服務一個統一介面呼叫多家供應商；Lazu 是一個 Go 閘道，給人和 Agent 開模型帳戶。各自適合什麼場景，Key、預算、用量紀錄和協定上有什麼不同。"
+---
+
+# Lazu 與 LiteLLM
+
+[LiteLLM](https://github.com/BerriAI/litellm) 是用得最多的開源 LLM 閘道。它起初是一個 Python SDK，用一個函式呼叫一百家供應商，代理是圍著它長出來的。Lazu 是一個 Go 閘道，連同帳本、主控台和文件站打包成一個產品。兩者在「一個入口，多家供應商」上重合，在周圍幾乎所有事情上分開。以下事實於 2026 年 11 月 2 日核對。
+
+## 各自給誰用
+
+**LiteLLM** 給的是為自家服務跑共享閘道的平台團隊：要一個能進版本庫的 `config.yaml`，要能掛 Python 回呼，要一個管 Key、團隊和花費的管理介面。SDK 不帶代理也能單獨用。
+
+**Lazu** 給的是給人和 Agent 發 Key 的團隊、實驗室或公司：每把 Key 有預算，每個請求有紀錄，Key 的主人自己能讀。營運者在主控台裡管上游、價格和使用者；路由沒有設定檔。
+
+## 並排看
+
+| | LiteLLM | Lazu |
+| --- | --- | --- |
+| 執行環境 | Python 代理（Rust 路徑可選，只服務少數幾條路由）；pip、Docker、Helm | Go 閘道和 worker、React 主控台、Vocs 文件站；一套 Docker Compose |
+| 設定 | `config.yaml` 加環境變數；管理介面 | 上游、價格、使用者、公告都在主控台；環境變數和 `config.yaml` 只放憑證 |
+| 帳戶 | 虛擬 Key、內部使用者、團隊、組織、客戶 | 使用者、團隊和專案、成員預算、API Key |
+| 預算 | 按 Key、團隊、成員、使用者、客戶，可定期重置；到 `max_budget` 硬攔 | 預付餘額；按 Key 上限、專案和支出預算；呼叫前預留，按上游計數結算，失敗釋放 |
+| 用量紀錄 | 花費統計和日誌；花費報表、按團隊記日誌和多種匯出屬企業版 | 每個請求一筆紀錄，含用量、測量來源和計費明細，發起請求的 Key 可讀；Agent 工作階段；核對腳本 |
+| 路由 | Router 在多個部署間重試和回退，負載平衡 | 每個模型按優先級和權重選通道，健康視窗，同模型重試；公開的線路健康頁 |
+| 協定 | 接收 OpenAI、Anthropic `/v1/messages`、Gemini `generateContent`，轉給任意供應商 | 接收同樣三族；只在無損時轉換，否則回傳點名該功能的 `400` |
+| 擴充 | `litellm_settings` 裡的 Python `CustomLogger` 鉤子和護欄 | 編譯進建置的 Go 和前端擴充點；核心不知道擴充的存在 |
+| 付費版 | 企業授權：5 人以上 SSO、稽核日誌、RBAC、標籤預算、預警、花費報表、日誌匯出、更多護欄 | 沒有；儲存庫裡的東西不需要授權金鑰就能全部跑起來 |
+| 授權 | MIT，`enterprise/` 另有授權 | AGPL-3.0-or-later |
+
+## 錢
+
+LiteLLM 按層級統計花費，超預算的層級被攔。Lazu 開始得更早、結束得更晚：呼叫上游之前從預付餘額裡預留一個估算值，呼叫完之後按上游回報的用量結算，並把每個維度標成上游測量、本機估算或不可用。失敗且沒有可計費輸出的請求退回預留；帳戶付不起的請求到不了上游；帳戶永遠不會被悄悄透支。規則寫在[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)裡，也老實寫了一句：預留是估算不是上限，沒限制輸出長度的請求可能花得比預留的多。
+
+如果你要的是給十幾個內部服務按月重置的預算，LiteLLM 今天就有。如果你要把一把 Key 交給外包或 Agent，事後要能準確說出它花了多少，Lazu 就是圍著這件事做的。
+
+## 協定
+
+兩者都接受 OpenAI、Anthropic 和 Gemini 格式的請求，並發給說另一種格式的供應商。LiteLLM 的文件寫了能轉到它支援的每家供應商，沒有寫保真規則。Lazu 只沿著驗證過無損的邊轉換，其餘的在呼叫上游之前回傳點名功能和欄位的 `400`，所以工具呼叫或推理參數不會在路上被丟掉（[設計說明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+## 什麼時候選哪個
+
+- 閘道是你平台內部的一塊、你要 YAML 和 Python 鉤子、或你已經在用 LiteLLM SDK，選 **LiteLLM**。
+- 閘道本身就是你要交給人的產品：帶預算的 Key、錢包、他們自己能讀的請求紀錄、一個不寫程式的營運者也能用的主控台，選 **Lazu**。
+- 兩個一起跑也合理：LiteLLM 當服務裡的函式庫，Lazu 當那個服務扣錢的帳戶。
+
+另見 [Lazu 與 New API](/zh-TW/compare/new-api) 和[其他閘道概覽](/zh-TW/compare/overview)。

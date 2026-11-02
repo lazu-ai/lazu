@@ -1,0 +1,51 @@
+---
+title: "Lazu 與 Kong AI Gateway"
+description: "Kong AI Gateway 是 Kong Gateway 上的一組外掛：開源的供應商代理，負載平衡、費用上限和語意快取在 Kong 企業版。Lazu 是一個獨立的自建閘道，有帳戶、預算和用量紀錄。各自適合什麼場景。"
+---
+
+# Lazu 與 Kong AI Gateway
+
+[Kong AI Gateway](https://developer.konghq.com/ai-gateway/) 不是一個獨立產品：它是 API 閘道 Kong Gateway 上的一族外掛，代理到模型供應商並對流量套用策略。Lazu 是一個獨立的閘道，帶著帳戶、帳本和主控台。該問的不是誰更好，而是你是不是已經在跑 Kong。事實於 2026 年 11 月 2 日核對；Kong 的 AI Gateway 2.0 正在用 AI Model 實體和策略取代 `ai-proxy` 系列外掛，所以這一頁上的外掛名稱會過時。
+
+## 各自給誰用
+
+**Kong AI Gateway** 給的是已經用 Kong 管 API、想用同一套方式治理模型流量的企業：宣告式設定、消費者群組、Konnect 控制平面，以及負載平衡、費用上限和語意快取的企業版外掛。
+
+**Lazu** 給的是想給每個人、每個 Agent 開模型帳戶、又不想引入 API 管理平台的團隊、實驗室和公司：一套 Docker 堆疊、一個主控台、帶預算的 Key、每個請求一筆用量紀錄。
+
+## 並排看
+
+| | Kong AI Gateway | Lazu |
+| --- | --- | --- |
+| 形態 | Kong Gateway 上的外掛（OpenResty 上的 Lua） | Go 閘道和 worker、React 主控台、Vocs 文件站；一套 Docker Compose |
+| 設定 | 宣告式 YAML（decK）、Admin API、Konnect 介面 | 上游、價格、使用者、公告都在主控台 |
+| 開源 | `ai-proxy`（17 家供應商）、`ai-prompt-guard`、`ai-request-transformer` | 儲存庫裡的全部 |
+| 僅企業版 | `ai-proxy-advanced`（負載平衡、故障轉移、斷路器）、`ai-rate-limiting-advanced`（token 和費用上限）、`ai-semantic-cache` | 沒有 |
+| 帳戶 | Kong 消費者和消費者群組；企業版按群組設 token 額度和費用預算 | 使用者、團隊和專案、成員預算、API Key |
+| 預算 | 透過 `ai-rate-limiting-advanced` 按時間窗設費用上限；越過上限的那個請求會完成，下一個被 `429` 攔下 | 預付餘額；呼叫前預留，按上游計數結算，失敗釋放；帳戶付不起的請求在呼叫前就被拒絕 |
+| 用量紀錄 | token 計量和 Kong 的日誌外掛 | 每個請求一筆紀錄，含用量、測量來源和計費明細，發起請求的 Key 可讀；Agent 工作階段；核對腳本 |
+| 路由 | 開源的 `ai-proxy` 文件沒有寫負載平衡或故障轉移；企業版加上輪詢、最少連線、最低延遲、語意和優先級負載平衡，帶故障轉移條件 | 每個模型按優先級和權重選通道，健康視窗，同模型重試；公開的線路健康頁 |
+| 協定 | OpenAI 格式進、供應商格式出；原生 `llm_format` 模式不轉換，原樣透傳給對應的供應商 | 原生 OpenAI、Anthropic Messages 和 Gemini；只在無損時轉換 |
+| 授權 | 核心 Apache-2.0；企業版外掛閉源 | AGPL-3.0-or-later |
+
+## 錢
+
+Kong 的費用控制是一種限流：`ai-rate-limiting-advanced` 用模型的輸入和輸出價格算出每個請求的費用，消費者群組的時間窗花完就攔，文件也寫明了一點：碰到上限的那個請求仍會完成。它是企業版外掛。Lazu 的是一個餘額：呼叫上游之前從預付餘額裡預留一個估算值，按上游回報的用量結算費用，每個維度都記錄為上游測量、本機估算或不可用，帳戶付不起的請求在到達上游之前就被拒絕（[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+
+## 協定
+
+Kong 開源的 `ai-proxy` 接受 OpenAI 格式的請求，並為它的每家供應商轉換；原生 `llm_format` 模式把 Anthropic、Bedrock、Cohere、Gemini 或 Hugging Face 請求原樣轉發，而且只轉給那家供應商。Lazu 原生接受三族，只沿著驗證過無損的邊在它們之間轉換；請求用到上游承載不了的功能時，在呼叫上游之前就回傳點名該功能的 `400`（[設計說明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+## Kong 有而 Lazu 沒有的
+
+- 圍著模型流量的一整個 API 閘道：驗證外掛、限流、轉換、整個 Kong 外掛目錄。
+- 放進版本控制的宣告式設定，以及託管的控制平面。
+- 企業版的語意快取和語意負載平衡。
+- 企業版支援。
+
+## 什麼時候選哪個
+
+- 你在跑 Kong，模型呼叫只是又一種要治理的 API 流量，選 **Kong AI Gateway**，代理以外的事都要企業版外掛。
+- 你需要給人和 Agent 開模型帳戶，帶預算、餘額和能讀的用量紀錄，中間不要隔一個 API 管理平台，選 **Lazu**。
+
+另見 [Lazu 與 LiteLLM](/zh-TW/compare/litellm) 和[其他閘道概覽](/zh-TW/compare/overview)。

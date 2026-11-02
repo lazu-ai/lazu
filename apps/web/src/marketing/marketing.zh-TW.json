@@ -17,7 +17,7 @@
   "landing": {
     "meta": {
       "title": "Lazu｜Coding Agent 和自動化任務的模型帳戶：Claude、GPT、Gemini 一把 Key",
-      "description": "一把 Key 呼叫 Claude、GPT、Gemini、DeepSeek，信用卡或支付寶儲值。預算到額就停，每筆請求有明細。接 Claude Code、Codex、OpenCode，跑評測、跑資料、跑線上服務。"
+      "description": "一把 Key 呼叫 Claude、GPT、Gemini、DeepSeek，信用卡或支付寶儲值，每把 Key 有自己的預算和用量紀錄。接 Claude Code、Codex、OpenCode，跑評測、跑資料、跑線上服務。"
     },
     "nav": {
       "models": "模型",
@@ -40,7 +40,7 @@
       "headlineEm": "模型帳戶。",
       "whatBefore": "寫程式、跑評測、跑線上服務，",
       "whatBold": "一把 Key 全走",
-      "whatAfter": "：Claude、GPT、Gemini、DeepSeek 都在。預算到額就停，每次呼叫都有明細，按量付費。Claude Code、Codex 和 SDK 直接接入。",
+      "whatAfter": "：Claude、GPT、Gemini、DeepSeek 都在，按量付費，每把 Key 有自己的預算和用量紀錄。Claude Code、Codex 和 SDK 直接接入。",
       "ctaPrimary": "免費註冊",
       "ctaSecondary": "看看介面",
       "free": "首次儲值送 10%,最多 $10"

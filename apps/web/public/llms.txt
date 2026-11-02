@@ -1,6 +1,6 @@
 # Lazu
 
-> One key for Claude, GPT, Gemini and DeepSeek. A budget that stops, a receipt for every request. Works with Claude Code, Codex and OpenCode, and runs your evals and production jobs. Pay as you go.
+> One key for Claude, GPT, Gemini and DeepSeek, with a budget and a usage record per key. Works with Claude Code, Codex and OpenCode, and runs your evals and production jobs. Pay as you go.
 
 ## Key facts
 

@@ -1,0 +1,51 @@
+---
+title: "Lazu 與 Helicone"
+description: "Helicone 是一個前面帶閘道的 LLM 觀測平台：每個請求的日誌、追蹤和費用，大多是託管的。Lazu 是一個自建閘道，有帳戶、預算和每個請求一筆用量紀錄。各自適合什麼場景。"
+---
+
+# Lazu 與 Helicone
+
+[Helicone](https://github.com/Helicone/helicone) 是給 LLM 應用用的觀測平台，同時也當閘道：換掉 base URL，加一把 Helicone Key，每個請求就連同費用、延遲和 token 一起記下來。Lazu 首先是一個閘道：帳戶、預算和每個請求一筆用量紀錄，主控台和文件在同一個產品裡。兩者在「每個請求一筆紀錄」上重合，在這筆紀錄是用來做什麼上分開。事實於 2026 年 11 月 2 日核對。
+
+## 各自給誰用
+
+**Helicone** 給的是想看自己的應用在做什麼的 AI 工程師：儀表板、工作階段和追蹤、每個請求的費用、付費方案裡的預警和報表。它預設是託管服務；自建映像檔打包了網頁應用、API、物件儲存和資料庫，閘道另外部署，Helm chart 要聯絡公司才拿得到。
+
+**Lazu** 給的是把 Key 交給人和 Agent、需要回答誰花了多少的團隊、實驗室和公司：每把 Key 有呼叫前就預留的預算，每個請求留下一筆主人自己能讀的紀錄，營運者在一台伺服器上跑完整套。
+
+## 並排看
+
+| | Helicone | Lazu |
+| --- | --- | --- |
+| 形態 | 帶代理的觀測平台（TypeScript）；另一個 Rust 閘道儲存庫自 2025 年 11 月起沒有提交 | Go 閘道和 worker、React 主控台、Vocs 文件站；一套 Docker Compose |
+| 部署 | 預設託管；自建用 `helicone-all-in-one` Docker 映像檔，不含閘道；Helm 透過企業版聯絡 | 一套 Docker Compose 加 PostgreSQL 和 Redis |
+| 設定 | `Helicone-*` 請求標頭 | 上游、價格、使用者、公告都在主控台 |
+| 帳戶 | 組織和按方案計的席次 | 使用者、團隊和專案、成員預算、API Key |
+| 預算 | 文件沒有寫按 Key 的預算；按時間窗按請求數或費用限流，到了回傳 `429` | 預付餘額；按 Key 上限、專案和支出預算；呼叫前預留，按上游計數結算，失敗釋放 |
+| 用量紀錄 | 每個請求的費用、延遲和 token；工作階段和追蹤；保留期按方案 | 每個請求一筆紀錄，含用量、測量來源和計費明細，發起請求的 Key 可讀；Agent 工作階段；核對腳本 |
+| 路由 | 託管閘道裡的路由和自動回退 | 每個模型按優先級和權重選通道，健康視窗，同模型重試；公開的線路健康頁 |
+| 協定 | OpenAI 風格語法轉到 OpenAI、Anthropic、Google 和 Bedrock | 原生 OpenAI、Anthropic Messages 和 Gemini；只在無損時轉換 |
+| 付費版 | Hobby（免費）、Pro、Team、企業版：預警和報表、HQL、SOC 2 和 HIPAA、SAML SSO、地端 | 沒有 |
+| 授權 | Apache-2.0（平台） | AGPL-3.0-or-later |
+
+## 錢
+
+Helicone 量的是支出，不持有餘額。自訂的限流策略可以按時間窗限制請求數或美分數，回傳 `429`，但沒有能讓一把 Key 徹底停下來的按 Key 預算，而且限制跑在 Cloudflare KV 上，自建時能不能用沒有文件說明。Lazu 持有錢：呼叫上游之前從預付餘額裡預留一個估算值，按上游回報的用量結算費用，每個維度都記錄為上游測量、本機估算或不可用，帳戶付不起的請求到不了上游（[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+
+## 一個請求留下什麼
+
+這是兩者最接近的地方。Helicone 的紀錄是為除錯和分析做的：工作階段、追蹤、屬性、付費方案裡的查詢語言。Lazu 的紀錄是為結算做的：標準化用量、哪些數字是上游測量的、哪些是估算的、計費明細和公開的耗時，發起請求的 Key 可以取回（[請求詳情](/zh-TW/endpoints/usage-requests)）。Agent 的請求按工作階段歸組，[一個腳本](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py)可以離線核對匯出的工作階段。兩個都要的話，Lazu 可以放在觀測工具後面；兩者不是替代品。
+
+## Helicone 有而 Lazu 沒有的
+
+- 為除錯應用做的儀表板、工作階段和追蹤，以及跑在上面的查詢語言。
+- 預警和排程報表。
+- OpenTelemetry 匯出和一個給日誌用的 MCP 伺服器。
+- 一個什麼都不用跑的託管服務。
+
+## 什麼時候選哪個
+
+- 你要看的是自己已經在跑的應用，Key 和帳單在別人手上，選 **Helicone**。
+- 你是發 Key、持有餘額的那個人，每個請求的紀錄得好到能拿來結算，選 **Lazu**。
+
+另見 [Lazu 與 Bifrost](/zh-TW/compare/bifrost) 和[其他閘道概覽](/zh-TW/compare/overview)。

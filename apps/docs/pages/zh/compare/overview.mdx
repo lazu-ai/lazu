@@ -1,0 +1,63 @@
+---
+title: "Lazu 与其他 LLM 网关的对比"
+description: "Lazu 和 LiteLLM、New API、one-api、Bifrost、Portkey、Helicone、Kong AI Gateway、OpenRouter 各自给谁用，Key、预算和用量记录怎么做，哪些是开源的。"
+---
+
+# Lazu 与其他 LLM 网关的对比
+
+这一页里的每个项目都是在多家模型供应商前面放一个统一入口。它们的区别在于给谁用，以及怎么处理钱。这里只说每个项目是干什么的，不排名。事实于 2026 年 11 月 2 日对照各项目的仓库和文档核对，之后会过时。
+
+## Lazu 是干什么的
+
+Lazu 是给团队、实验室或公司用的**模型账户**：每个人、每个 Agent 一把 Key，各有各的预算；每个请求留下一条用量记录，Key 的主人自己能查。网关、账本、控制台和这个文档站打包成一个可部署的产品，AGPL-3.0 许可。它源自 [New API](/zh/compare/new-api)，New API 源自 one-api；路由、计费和用量这三层按书面合同重写过。
+
+当你要回答的问题是「谁在哪个模型上花了多少钱，能不能证明」，选 Lazu。当你需要的是嵌进自己服务里的库、不用自己跑服务器的托管 Key，或者给已经在跑的网关加个插件，选别的。
+
+## 并排看
+
+| | 形态 | 给谁用 | Key 与预算 | 用量记录 | 许可 |
+| --- | --- | --- | --- | --- | --- |
+| **Lazu** | Go 网关 + 账本 + 控制台 + 文档站，一套 Docker 栈 | 给人和 Agent 开模型账户的团队 | 用户、团队、项目；按 Key、按成员设预算；预付先预留，按上游计数结算 | 每个请求一条记录，标明每个数字的来源和计费明细；Agent 会话；离线核对脚本 | AGPL-3.0 |
+| [LiteLLM](/zh/compare/litellm) | Python 代理 + SDK，YAML 配置，管理界面 | 给内部服务统一入口的平台团队 | 虚拟 Key、用户、团队、组织；各层级预算可定期重置 | 花费统计和日志；部分报表属企业版 | MIT；`enterprise/` 目录另行许可 |
+| [New API](/zh/compare/new-api) | Go 网关 + 控制台 | 用一套部署服务很多用户的运营者 | 用户、分组、令牌额度、订阅、充值 | 用量和审计日志、成本核算 | AGPL-3.0 附署名条款 |
+| [one-api](/zh/compare/one-api) | Go 网关 + 控制台 | 想要一个 OpenAI 格式入口的自建者 | 用户、分组、令牌额度、兑换码 | 额度明细 | MIT 附页脚署名；最后一次发布是 2025 年 2 月 |
+| [Bifrost](/zh/compare/bifrost) | Go 网关 + 界面 | 平台团队，有企业版 | 虚拟 Key、团队、客户；美元预算可重置 | 日志、Prometheus 指标、追踪 | Apache-2.0 |
+| [Portkey Gateway](/zh/compare/portkey) | TypeScript 网关，按请求配置 | 应用开发者；预算、RBAC 和观测在托管平台里 | 托管套餐里有预算 | 本地控制台看日志；保留期按套餐 | MIT；仓库自 2026 年 5 月起停更 |
+| [Helicone](/zh/compare/helicone) | 观测平台，前面带一个网关 | 先要日志和追踪的 AI 工程师 | 按请求数或花费限流；没有按 Key 的预算 | 每个请求的费用、延迟和 token | Apache-2.0（平台） |
+| [Kong AI Gateway](/zh/compare/kong) | Kong 上的插件 | 已经在跑 Kong 的企业 | 按消费者组设 token 额度和费用预算，企业版 | 通过 Kong 计量 | 核心 Apache-2.0，企业插件闭源 |
+| [OpenRouter](/zh/compare/openrouter) | 仅托管 | 要一把 Key、不想跑服务器的开发者 | 可开子 Key 并设额度 | 活动页和按请求查费用的接口 | 不开源 |
+
+## 预算用完会怎样
+
+预算好不好，看它拦下请求的那一刻。几个项目原则一致，机制各异。
+
+- **Lazu** 在调上游之前从预付余额里预留资金，调完之后按上游自己报的用量计数结算。Key、项目或账户付不起的请求在到达上游之前就被拒绝。失败且没有可计费输出的请求释放预留。上游没报计数的，记录里如实标注；不编数字，也不悄悄透支（[计费说明](/zh/billing)、[计费合同](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。
+- **LiteLLM** 在 Key、用户、团队或客户超过 `max_budget` 后拦截，可以按周期重置；预算预警属企业版。
+- **New API** 和 **one-api** 在令牌或用户额度用完后返回 `403 insufficient_user_quota`。
+- **Bifrost** 返回 `402 budget_exceeded`，可临时加额。
+- **Kong** 拦的是超过费用上限的那个请求的*下一个*请求。
+- **Portkey** 在托管企业版里让 Key 过期；**Helicone** 按时间窗按费用限流，但没有 Key 预算。
+
+## 一个请求留下什么
+
+Lazu 为每个完成的请求保存标准化的 token 维度、其中哪些是上游测量的、哪些是本地估算的、计费明细和公开的耗时；发起请求的 Key 可以按请求 ID 取回（[请求详情](/zh/endpoints/usage-requests)）。编程 Agent 发来的请求按会话归组，仓库里带了[一个脚本](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py)，不打印提示词就能核对导出的会话。其他项目也记请求和费用；区别在于 Lazu 的记录是书面合同的一部分，付钱的人自己能读，不只是运营者能看。
+
+## 协议
+
+Lazu、LiteLLM、New API 和 Bifrost 都原生接受 OpenAI、Anthropic Messages 和 Gemini 格式的请求，并在上游说另一种格式时做转换。one-api 只接受 OpenAI 格式。Kong 开源的 `ai-proxy` 从 OpenAI 格式转换，或者把原生格式原样透传。Lazu 多了一条别人没有明说的规则：只在无损时才转换；请求用到上游承载不了的功能时，在调上游之前就返回点名该功能的 `400`（[设计说明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+## 更新的项目
+
+2025 到 2026 年出现了三个值得知道的可自建网关：**gpt-load**（Go，MIT；一把管理 Key 后面放渠道组和 Key 池，没有按人的账户）、**AxonHub**（Go；任意 SDK 到任意供应商，按请求算成本，RBAC）和 mozilla-ai 的 **otari**（Python；虚拟 Key、预算和用量统计）。这一页只看了它们的 README。
+
+## 相关
+
+- [Lazu 与 LiteLLM](/zh/compare/litellm)
+- [Lazu 与 New API](/zh/compare/new-api)
+- [Lazu 与 One API](/zh/compare/one-api)
+- [Lazu 与 Bifrost](/zh/compare/bifrost)
+- [Lazu 与 Portkey](/zh/compare/portkey)
+- [Lazu 与 Helicone](/zh/compare/helicone)
+- [Lazu 与 Kong AI Gateway](/zh/compare/kong)
+- [Lazu 与 OpenRouter](/zh/compare/openrouter)
+- [计费规则](/zh/billing) · [请求详情](/zh/endpoints/usage-requests) · [Agent 会话费用](/zh/agent-session-costs)

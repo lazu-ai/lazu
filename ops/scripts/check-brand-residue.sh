@@ -47,8 +47,15 @@ UPSTREAM_ATTRIBUTION = (
 )
 
 
+# The comparison pages describe the upstream projects as third parties, so
+# they may name them; the retired Lazu brands are still forbidden there. The
+# routes to the two upstream pages may appear wherever the docs link to them.
+COMPARISON_PAGES = re.compile(r'apps/docs/pages/(?:(?:zh|zh-TW|ja)/)?compare/[a-z0-9-]+\.mdx')
+COMPARISON_ROUTES = ('/compare/new-api', '/compare/one-api')
+
+
 def without_attribution(line):
-    for link in UPSTREAM_ATTRIBUTION:
+    for link in UPSTREAM_ATTRIBUTION + COMPARISON_ROUTES:
         line = line.replace(link, '')
     return line
 
@@ -65,7 +72,8 @@ def scan(root):
         if not raw:
             continue
         name = os.fsdecode(raw)
-        if forbidden(name, path=True):
+        comparison = bool(COMPARISON_PAGES.fullmatch(name))
+        if not comparison and forbidden(name, path=True):
             hits.append(f'{name}: forbidden tracked path')
         if name == SELF or name in LEGAL_NOTICES:
             continue
@@ -83,7 +91,9 @@ def scan(root):
             # and still scan every other byte of these production source files.
             text = '\n' * COPYRIGHT_HEADER.count('\n') + text[len(COPYRIGHT_HEADER):]
         for number, line in enumerate(text.splitlines(), 1):
-            if forbidden(without_attribution(line)):
+            line_hit = (NAMES.search(without_attribution(line)) if comparison
+                        else forbidden(without_attribution(line)))
+            if line_hit:
                 hits.append(f'{name}:{number}: {line.strip()}')
     return hits
 
@@ -121,6 +131,19 @@ def self_test():
         stage('docs/One API.md', 'Neutral content\n')
         assert any('forbidden tracked path' in hit for hit in scan(root))
         subprocess.run(['git', 'rm', '-q', '-f', '--', 'docs/One API.md'], cwd=root, check=True)
+        stage('apps/docs/pages/zh/compare/new-api.mdx', 'Lazu vs New API: new-api, docs.newapi.pro, one-api\n')
+        assert not scan(root), 'comparison pages may name the upstream projects'
+        stage('apps/docs/pages/zh/compare/new-api.mdx', 'Pandalla\n')
+        assert scan(root), 'comparison pages still may not carry retired Lazu brands'
+        subprocess.run(['git', 'rm', '-q', '-f', '--', 'apps/docs/pages/zh/compare/new-api.mdx'], cwd=root, check=True)
+        stage('apps/docs/pages/new-api.mdx', 'Neutral content\n')
+        assert scan(root), 'the exemption covers only the compare section'
+        subprocess.run(['git', 'rm', '-q', '-f', '--', 'apps/docs/pages/new-api.mdx'], cwd=root, check=True)
+        stage('fixture.txt', 'link("/compare/new-api") link("/compare/one-api")\n')
+        assert not scan(root), 'routes to the comparison pages are allowed'
+        stage('fixture.txt', 'link("/new-api")\n')
+        assert scan(root), 'other routes naming the upstream are not'
+        stage('fixture.txt', 'Lazu\n')
         stage('NOTICE', 'new-api by QuantumNous\n')
         assert not scan(root)
         for name in COPYRIGHT_FILES:

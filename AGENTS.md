@@ -4,7 +4,7 @@ Repo-level context for AI agents (Codex, Claude Code, Cursor, and similar tools)
 
 ## What This Is
 
-Lazu is an open-source OpenAI-compatible AI gateway, operations console, and public documentation site. The product, package namespace, database and service names are all Lazu. Earlier product names are retired from product branding, code identifiers and file paths. Retain legal attribution in NOTICE and the original source copyright headers; the scanner permits only these explicit legal exceptions. CI runs `ops/scripts/check-brand-residue.sh` to enforce this.
+Lazu is an open-source OpenAI-compatible AI gateway, operations console, and public documentation site. The product, package namespace, database and service names are all Lazu. Earlier product names are retired from product branding, code identifiers and file paths. Retain legal attribution in NOTICE and the original source copyright headers; the scanner permits only these explicit legal exceptions, plus the comparison pages under `apps/docs/pages/compare/`, which name the upstream projects as third parties. CI runs `ops/scripts/check-brand-residue.sh` to enforce this.
 
 See [README.md](./README.md) for the full project structure and setup instructions.
 
@@ -148,6 +148,46 @@ enforces the first two by machine; the rest are on review.
   tests when changes affect authentication, authorization, billing, destructive
   operations, shared route contracts, or another high-risk workflow.
 - For docs changes, run `npm run typecheck && npm run lint && npm run build` when feasible.
+
+### Public Pages
+
+Derives from Principles 1, 2 and 5. Applies to the docs site
+(`apps/docs/pages`), the public site copy (`apps/web/src/marketing`) and the
+README. These pages are read by search engines and by the models behind AI
+search, and the same structure serves both: a page that answers one question
+in its own words, with its facts dated and its neighbours linked, is the page
+that gets found and quoted. Shape every public-page change for that.
+
+1. **One topic per page, named the way people look for it.** `title` is the
+   topic ("Lazu vs LiteLLM", not "Comparison 2"), `description` is one
+   sentence that stands on its own as the answer, and the H1 matches the
+   title. A page that covers two topics is two pages. Give each question its
+   own heading, keep paragraphs short, and put side-by-side facts in a table,
+   so a passage can be quoted without its neighbours.
+2. **Comparison content is a hub and spokes.** One page per project under
+   `apps/docs/pages/compare/`, each with the same sections (who each is for,
+   side by side, money, protocols, what the other has that Lazu does not,
+   when to choose which), and `compare/overview.mdx` as the hub whose table
+   links every spoke and whose Related list names them all. A spoke links
+   back to the hub and to its nearest sibling. A project only mentioned in
+   the hub's table has no page yet; the table row gets a link when it does.
+3. **Say only what was checked, and when.** A claim about another project
+   cites what its repository or documentation states, carries the date it was
+   checked, and says "not documented" rather than guessing. Describe what
+   each project is for; never rank, and never write "better than".
+4. **Four locales ship together.** Every public page exists in en, zh, zh-TW
+   and ja in the same PR, with internal links prefixed per locale, and its
+   sidebar entry in `apps/docs/components/docs-nav.ts`. `make test-docs`
+   refuses a topic missing from a locale.
+5. **Generated surfaces are regenerated, never hand-edited.** The docs build
+   emits a Markdown twin, `llms.txt`, `llms-full.txt` and the sitemap for
+   every route (`apps/docs/scripts/sync-openapi.ts`). A change to
+   `apps/web/src/marketing/marketing.*.json` is followed by
+   `bun scripts/generate-seo-assets.mjs` in `apps/web`, and the regenerated
+   `apps/web/public/*.md` and `llms.txt` are committed with it.
+
+Rules 4 and 5 are enforced by `make test-docs` and the generators; 1 to 3 on
+review.
 
 ### Request Path
 

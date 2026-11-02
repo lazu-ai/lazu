@@ -1,0 +1,56 @@
+---
+title: "Lazu 與 New API"
+description: "Lazu 基於 New API。保留了什麼，重寫了什麼（路由、計費、用量紀錄、協定轉換），以及該跑哪一個。"
+---
+
+# Lazu 與 New API
+
+Lazu 基於 [New API](https://github.com/QuantumNous/new-api)，New API 基於 [one-api](https://github.com/songquanpeng/one-api)。這條血統按上游授權的要求保留在儲存庫的 NOTICE 和主控台裡。這一頁講的是改了什麼，不是誰更好：New API 是一個營運得很好、社群很大的專案，已經在跑它的人沒有理由遷移，除非下面的差別對他重要。事實於 2026 年 11 月 2 日核對。
+
+## 共同的底子
+
+兩者都是帶主控台的 Go 閘道。都接受 OpenAI Chat Completions 和 Responses、Anthropic Messages、Gemini `generateContent` 請求，都維護帶優先級和權重的上游通道，失敗重試，管理使用者、群組和帶額度的 API Key，用預付餘額計費。都用 Docker Compose 加 PostgreSQL 和 Redis 跑。熟悉一個主控台，另一個也不陌生。
+
+## Lazu 重寫了什麼
+
+**計費是合約，不是倍率。** New API 用倍率和運算式定價，令牌或使用者額度用完回傳 `403 insufficient_user_quota`。Lazu 把扣費路徑換成了一份書面的[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)：呼叫前預留資金，按上游用量計數結算，請求失敗且沒有可計費輸出時釋放。每個用量維度都記錄是上游測量、Lazu 估算還是不可用；不可用的數字永遠不會用預留值填上，帳戶永遠不會被悄悄透支。價格按模型、按線路列在一個 Key 自己能查的目錄裡。
+
+**客戶自己能讀的用量紀錄。** New API 的用量和稽核日誌是給營運者的。Lazu 把每個完成的請求開放給發起它的 Key：標準化用量、測量來源、計費明細和耗時，按請求 ID 取（[請求詳情](/zh-TW/endpoints/usage-requests)）。程式代理的請求按工作階段歸組，[一個腳本](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py)可以離線核對匯出的工作階段。
+
+**帶保真規則的協定轉換。** New API 在入站格式和供應商格式之間轉換。Lazu 在一份不可變的請求表示上重建了這一層：每次嘗試都從原始請求重新規劃路徑，只沿著驗證過無損的邊轉換，請求用到上游承載不了的功能時在呼叫前回傳點名該功能的 `400`（[設計說明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+**看得見的路由。** 按優先級和權重選通道、失敗重試、把出故障的通道移出輪換，這些是共有的。Lazu 不把用戶端錯誤算作通道故障，並公開一個線路健康頁，使用者不用問營運者就能看到每條線路的狀態。
+
+**團隊和專案。** New API 有使用者和群組。Lazu 加了專案：成員、角色、邀請和按成員的預算，一個組織可以在一個餘額上跑幾個團隊。
+
+**擴充點。** 部署方自己編譯進去的功能透過文件化的鉤子接入（[docs/EXTENSIONS.md](https://github.com/lazu-ai/lazu/blob/main/docs/EXTENSIONS.md)）；核心沒有它們也能建置和執行。New API 透過 JavaScript 任務外掛擴充媒體任務，其餘靠改原始碼。
+
+**一個產品，不只是閘道。** Lazu 自帶公開頁面、帶線路和價格的模型目錄，以及英文、簡體中文、繁體中文、日文四種語言的文件站，從一份原始碼產生，附帶給讀文件的 Agent 用的 Markdown 和 `llms.txt`。
+
+## New API 有而 Lazu 沒有的
+
+- 更大的社群、更多通道類型、新供應商覆蓋得更快。
+- 訂閱和兌換碼，以及 Stripe 以外的付款整合。
+- 1Panel 和寶塔的安裝方式，多節點叢集文件。
+
+## 並排看
+
+| | New API | Lazu |
+| --- | --- | --- |
+| 基礎 | one-api | New API |
+| 授權 | AGPL-3.0 附署名條款 | AGPL-3.0-or-later；保留 New API 和 one-api 的署名 |
+| 計費 | 倍率和運算式；額度用完 `403` | 預留 → 結算 → 釋放，按維度記測量來源，按模型和線路定價 |
+| 用量紀錄 | 營運者日誌 | 按請求紀錄，Key 可讀；Agent 工作階段；核對腳本 |
+| 協定轉換 | 入站格式轉供應商格式 | 只走無損邊；否則回傳點名功能的 `400` |
+| 路由 | 優先級、權重、重試、親和 | 相同，外加公開的線路健康頁 |
+| 組織 | 使用者和群組 | 使用者、團隊和帶成員預算的專案 |
+| 擴充 | JavaScript 任務外掛；改原始碼 | Go 和前端擴充點 |
+| 文件 | docs.newapi.pro | lazu.ai/docs 四種語言，帶 `llms.txt` |
+
+## 該跑哪一個
+
+已經在跑 New API、需要它的訂閱和兌換碼功能、或想在供應商一發布就有最廣的通道覆蓋，跑 **New API**。
+
+你賣的或發出去的是一個帳戶：呼叫前就預留的預算、客戶自己能讀的紀錄、帶價格的目錄、公開的線路頁，跑 **Lazu**。
+
+另見 [Lazu 與 LiteLLM](/zh-TW/compare/litellm) 和[其他閘道概覽](/zh-TW/compare/overview)。

@@ -1,0 +1,51 @@
+---
+title: "Lazu 與 OpenRouter"
+description: "OpenRouter 是一個託管服務：一把 Key 用幾百個模型，什麼都不用跑，不開源。Lazu 是一個你自己託管的開源閘道，有帳戶、預算和用量紀錄，lazu.ai 也提供含模型的託管版。各自適合什麼場景。"
+---
+
+# Lazu 與 OpenRouter
+
+[OpenRouter](https://openrouter.ai) 給你一把 API Key 用跨供應商的幾百個模型，供應商出錯時自動回退，什麼都不用跑。它是一個封閉的託管服務：沒有儲存庫，也沒有自建選項。Lazu 以 AGPL-3.0 開源，跑在你自己的伺服器上；lazu.ai 也把它當託管服務來跑，模型包含在內。這一頁講的是各自是什麼，不是誰更便宜。事實於 2026 年 11 月 2 日核對。
+
+## 各自給誰用
+
+**OpenRouter** 給的是想用一把 Key、一張帳單試用或上線很多模型的開發者，而且不介意 Key、日誌和餘額都放在第三方那裡。
+
+**Lazu** 給的是想自己當發 Key 的那一方的團隊、實驗室或公司：每個人、每個 Agent 一把帶預算的 Key，每個請求一筆 Key 主人自己能讀的用量紀錄，一個價格由你定的目錄，以及通往你自己供應商帳戶的線路。可以自建，不想跑的話用託管的 lazu.ai。
+
+## 並排看
+
+| | OpenRouter | Lazu |
+| --- | --- | --- |
+| 形態 | 託管服務 | 你自己跑的開源閘道；lazu.ai 也有託管版 |
+| 原始碼 | 封閉 | GitHub 上，AGPL-3.0-or-later |
+| 供應商 | OpenRouter 自己的供應商合約，幾百個模型 | 你自己的供應商帳戶，或 lazu.ai 的 |
+| 協定 | OpenAI 風格的 Chat Completions、Responses 和 Completions；Anthropic Messages | OpenAI Chat Completions 和 Responses、Anthropic Messages、Gemini `generateContent` |
+| Key | 用管理 API 開出的 Key，帶額度上限和可選的每日重置；按 Key 的用量 | 使用者、團隊和專案、成員預算、API Key |
+| 預算 | 按 Key 的額度上限 | 預付餘額；按 Key 上限、專案和支出預算；呼叫前預留，按上游計數結算，失敗釋放 |
+| 用量紀錄 | 可按模型、供應商和 Key 篩選的活動頁；一個按請求查費用和 token 的 generation 端點 | 每個請求一筆紀錄，含用量、測量來源和計費明細，發起請求的 Key 可讀；Agent 工作階段；核對腳本 |
+| 路由 | 出錯時自動回退到下一家供應商；偏好速度或價格的模型變體 | 每個模型按優先級和權重選通道，健康視窗，同模型重試；公開的線路健康頁 |
+| 定價 | 供應商牌價加購買額度時的平台費 | 你在自己的目錄裡按模型和線路定的價格 |
+| 團隊 | Business 和企業版方案 | 開源產品裡就有帶成員、角色、邀請和成員預算的團隊和專案 |
+
+## 錢
+
+OpenRouter 賣的是額度：推理按供應商牌價計，每次購買額度收一筆平台費，每把開出的 Key 有額度上限。Lazu 持有一個由你儲值、由你定價的預付餘額：呼叫上游之前預留一個估算值，按上游回報的用量結算費用，每個維度都記錄為上游測量、本機估算或不可用，帳戶付不起的請求到不了上游（[計費合約](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)）。自建的 Lazu 上游帳單是你的，所以你按模型定的價格就是你的人付的價格。
+
+## 一個請求留下什麼
+
+兩者都公開每個請求的費用。OpenRouter 的 generation 端點按請求 ID 回傳 token 和費用。Lazu 的[請求詳情](/zh-TW/endpoints/usage-requests)多了哪些數字是上游測量的、哪些是估算的、計費明細項目和公開的耗時，並把程式代理的請求按工作階段歸組，[一個腳本](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py)可以離線核對。
+
+## OpenRouter 有而 Lazu 沒有的
+
+- 一把 Key 後面是多家供應商的幾百個模型，不用自己開供應商帳戶。
+- 什麼都不用跑、不用維運。
+- 同一個模型跨供應商的回退，以及偏好速度或價格的變體。
+- 自帶 Key，每月一定用量以內免收費用。
+
+## 什麼時候選哪個
+
+- 你是一個開發者或一個小應用、你今天就要最廣的模型清單、不需要發 Key 給別人，選 **OpenRouter**。
+- 你發 Key 給人和 Agent、你要按自己的規則設預算和留紀錄、你要保留自己跑的選項，選 **Lazu**。如果跑起來是障礙，lazu.ai 就是同一個產品的託管版。
+
+另見 [Lazu 與 LiteLLM](/zh-TW/compare/litellm) 和[其他閘道概覽](/zh-TW/compare/overview)。

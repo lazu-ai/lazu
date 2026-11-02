@@ -1,0 +1,56 @@
+---
+title: "Lazu vs New API"
+description: "Lazu is based on New API. What was kept, what was rewritten (routing, billing, usage records, protocol conversion), and which one to run."
+---
+
+# Lazu vs New API
+
+Lazu is based on [New API](https://github.com/QuantumNous/new-api), which is based on [one-api](https://github.com/songquanpeng/one-api). The lineage is kept in the repository's NOTICE and in the console, as the upstream's licence terms ask. This page is about what changed, not about which is better: New API is a well-run project with a large community, and anyone who already operates it has no reason to migrate unless the differences below matter to them. Facts were checked on 2 November 2026.
+
+## The shared base
+
+Both are Go gateways with a web console. Both accept OpenAI Chat Completions and Responses, Anthropic Messages and Gemini `generateContent` requests, keep upstream channels with priorities and weights, retry on failure, manage users, groups and API keys with quotas, and bill in a prepaid balance. Both run from Docker Compose with PostgreSQL and Redis. If you know one console, the other is familiar.
+
+## What Lazu rewrote
+
+**Billing is a contract, not a multiplier.** New API prices with ratios and expression-based pricing and stops a token or user at `403 insufficient_user_quota`. Lazu replaced the charge path with a written [billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md): funds are reserved before the call, settled from the provider's usage counters, and released when a request fails without billable output. Each usage dimension records whether the provider measured it, Lazu estimated it, or it is unavailable; an unavailable number is never filled in from the reservation, and an account is never silently overdrawn. Prices are listed per model and per lane in a catalog the key can query.
+
+**A usage record the customer can read.** New API keeps usage and audit logs for the operator. Lazu exposes each completed request to the key that made it: normalized usage, measurement source, billing line items and timing, fetched by request ID ([request details](/endpoints/usage-requests)). Requests from a coding agent group into sessions, and [a script](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py) reconciles an exported session offline.
+
+**Protocol conversion with a fidelity rule.** New API converts between its inbound formats and provider formats. Lazu rebuilt this on an immutable request representation: each attempt plans its route from the original request, a conversion is performed only along edges verified lossless, and a request that needs a feature the upstream cannot carry is refused with a `400` naming the feature, before the call ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+
+**Routing you can see.** Channel selection by priority and weight, retries and taking a failing channel out of rotation are shared. Lazu keeps client errors from counting as channel faults, and publishes a route-health page so users see the state of each route without asking the operator.
+
+**Teams and projects.** New API has users and groups. Lazu adds projects with members, roles, invitations and per-member budgets, so one organization can run several teams on one balance.
+
+**Extension points.** Features a deployment compiles in attach through documented hooks ([docs/EXTENSIONS.md](https://github.com/lazu-ai/lazu/blob/main/docs/EXTENSIONS.md)); the core builds and runs without them. New API extends through JavaScript task plugins for media tasks and otherwise through source changes.
+
+**A product, not only a gateway.** Lazu ships its public pages, a model catalog with lanes and prices, and a docs site in English, Chinese, Traditional Chinese and Japanese, generated from one source with Markdown and `llms.txt` for agents that read docs.
+
+## What New API has that Lazu does not
+
+- A larger community, more channel types and faster coverage of new providers.
+- Subscriptions and redemption codes, and payment integrations beyond Stripe.
+- Installers for 1Panel and Baota, and multi-node cluster docs.
+
+## Side by side
+
+| | New API | Lazu |
+| --- | --- | --- |
+| Base | one-api | New API |
+| Licence | AGPL-3.0 with attribution terms | AGPL-3.0-or-later; keeps New API's and one-api's attribution |
+| Billing | Ratios and expressions; quota stop at `403` | Reservation → settlement → release, per-dimension measurement source, prices per model and lane |
+| Usage records | Operator logs | Per-request record readable by the key; agent sessions; reconciliation script |
+| Protocol conversion | Converts inbound formats to provider formats | Lossless edges only; `400` naming the feature otherwise |
+| Routing | Priority, weight, retry, affinity | Same, plus a public route-health page |
+| Organizations | Users and groups | Users, teams and projects with member budgets |
+| Extending | JavaScript task plugins; source changes | Go and web extension points |
+| Docs | docs.newapi.pro | lazu.ai/docs in four languages, with `llms.txt` |
+
+## Which one to run
+
+Run **New API** if you already run it, if you need its subscription and redemption features, or if you want the widest channel coverage as soon as a provider ships.
+
+Run **Lazu** if what you sell or hand out is an account: budgets that are reserved before the call, records the customer can read, a catalog with prices, and a public route page.
+
+See also [Lazu vs LiteLLM](/compare/litellm) and [the overview of other gateways](/compare/overview).
