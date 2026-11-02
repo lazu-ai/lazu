@@ -59,8 +59,12 @@ export type AgentSession = {
   token_name: string;
 };
 
+/** A stretch of work in unix seconds; stops over two minutes split them. */
+export type AgentSessionSegment = { end: number; start: number };
+
 export type AgentSessionListItem = AgentSession & {
   models: AgentSessionModel[];
+  segments?: AgentSessionSegment[];
   tokens: number;
   /** Operator reads only. */
   user_id?: number;
@@ -143,6 +147,8 @@ export type AgentSessionListParams = {
   admin: boolean;
   client?: string;
   failed?: boolean;
+  /** Sessions with (failed) or without (ok) any failed request. */
+  result?: 'failed' | 'ok';
   keyword?: string;
   page: number;
   pageSize: number;
@@ -183,6 +189,7 @@ async function fetchAgentSessions(
     client: params.client,
     failed: params.failed ? '1' : undefined,
     keyword: params.keyword,
+    result: params.result,
     p: params.page,
     page_size: params.pageSize,
     end_timestamp: params.endTimestamp,

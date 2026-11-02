@@ -142,13 +142,13 @@ test('usage user ranking carries active group and channel filters', async ({
 
   await page.getByRole('button', { name: /^筛选/ }).click();
   await page.locator('#log-channel').fill('1');
-  // Closing the popover applies what was typed.
-  await page.keyboard.press('Escape');
-  // The log's group is the lane; the 线路 switch sets it and searches.
+  // The log's group is the lane; the 线路 switch in 筛选 sets it.
   await page
     .getByRole('group', { name: '线路' })
     .getByRole('button', { name: '稳定', exact: true })
     .click();
+  // Closing the popover applies what was typed.
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '用户消费', exact: true }).click();
 
   await expect
@@ -403,7 +403,6 @@ test('a log list that stopped counting shows its total as a lower bound', async 
     },
   });
   await expectRouteReady(page, '/console/usage?tab=logs');
-  await expect(page.locator('.logv2-summary')).toContainText('10,000+');
   await expect(
     page.locator('.logv2-desktop-master .logv2-foot').first(),
   ).toContainText('超过');

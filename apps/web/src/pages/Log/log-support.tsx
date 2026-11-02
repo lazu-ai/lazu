@@ -3,7 +3,7 @@ import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useDebouncedCallback } from 'use-debounce';
 import { z } from 'zod';
 import { SessionLogCell, SessionReceiptBlock } from './sessions/SessionReceipt';
@@ -34,6 +34,7 @@ import {
   usageDashboardScopeParam,
   useUsageLogsQuery,
 } from '../../hooks/usage-logs/useUsageLogsQuery';
+import i18n from '../../i18n/i18n';
 import { LazuApiError, readApiError } from '../../lib/api-error';
 import { useOverviewQuery } from '../Dashboard/overview/overview-api';
 import { UsageRangeCalendarRow, UsageRangeSeg } from '../Usage/UsageRangeSeg';
@@ -351,7 +352,7 @@ const compactTokenFormat = new Intl.NumberFormat('en', {
 });
 
 /** 18400 → "18.4K". Latin K/M on purpose: 万 would change the column width. */
-export const shortTokens = (value: unknown) =>
+const shortTokens = (value: unknown) =>
   compactTokenFormat.format(Number(value) || 0);
 
 const retryCount = (record: LogRecord) => {
@@ -577,6 +578,13 @@ export function renderLogCell(
       return (
         <span className='logv2-credit'>
           +{formatCost(record.amount_microusd)}
+        </span>
+      );
+    }
+    if (type === 5 && !(Number(record.amount_microusd) > 0)) {
+      return (
+        <span className='logv2-soft'>
+          {t('page.console.log.failNote.free')}
         </span>
       );
     }
@@ -1129,8 +1137,11 @@ export function LogDetailPanel({
   const generationSeconds = streamed
     ? (duration ?? 0) - firstTokenMs / 1000
     : (duration ?? 0);
+  // A non-streamed duration includes reading the prompt, and a sub-second
+  // generation divides by noise (2,000 tok in "1 s" reads 2,000 tok/s);
+  // neither is a speed, so neither shows one.
   const tokensPerSecond =
-    generationSeconds > 0 && outputTokens > 0
+    streamed && generationSeconds >= 1 && outputTokens > 0
       ? Math.round(outputTokens / generationSeconds)
       : 0;
 
@@ -1393,6 +1404,48 @@ export function LogDetailPanel({
 
 /** A failed request leads with what went wrong and whether it cost anything,
  *  then the upstream's own words. */
+/** The line under a failed row (canvas 2B): what went wrong and what to
+ *  do, from the same catalog the console's own errors read, then a link to
+ *  the raw message and the status and code. */
+export function FailureNote({
+  onOpen,
+  record,
+  t,
+}: {
+  onOpen: () => void;
+  record: LogRecord;
+  t: TFunction;
+}) {
+  const other = record.otherParsed || {};
+  const code = String(other.error_code || '');
+  const type = String(other.error_type || '');
+  const status = Number(other.status_code) || 0;
+  const errorsNs = { ns: 'errors' } as const;
+  const sentence =
+    (code && i18n.exists(code, errorsNs) && String(i18n.t(code, errorsNs))) ||
+    (type &&
+      i18n.exists(`type.${type}`, errorsNs) &&
+      String(i18n.t(`type.${type}`, errorsNs))) ||
+    t('page.console.log.failNote.generic');
+  const tail = [status || '', code || type].filter(Boolean).join(' · ');
+  return (
+    <div className='logv2-failnote'>
+      <span>{sentence}</span>
+      <button
+        className='logv2-failnote__raw'
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+        type='button'
+      >
+        {t('page.console.log.failNote.raw')}
+      </button>
+      {tail ? <span className='logv2-failnote__code'>{tail}</span> : null}
+    </div>
+  );
+}
+
 function FailureSummary({
   amountMicrousd,
   content,
@@ -1460,7 +1513,22 @@ export function UsageLogFilters({
     resetForm(logs.filters);
   }, [logs.filters, resetForm]);
 
+  /* A customer's search box takes a model name or a request ID; an ID opens
+     that request rather than filtering the list. */
+  const [, setSearchParams] = useSearchParams();
   const submit = form.handleSubmit((values) => {
+    const requestId = logs.isAdminUser ? '' : values.model_name.trim();
+    if (requestId.startsWith('req_')) {
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.set('request', requestId);
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
     logs.submitFilters({
       ...values,
       // An operator typing a different username intentionally leaves the
@@ -1506,7 +1574,7 @@ export function UsageLogFilters({
   const searchField = logs.isAdminUser ? 'username' : 'model_name';
   const searchLabel = logs.isAdminUser
     ? t('legacy.i18n.user_name.a311ed747b')
-    : t('legacy.i18n.model_name.38719c9968');
+    : t('page.console.usage.search.requests');
   const searchValue = values[searchField];
 
   /* Search as you type: the box applies itself a beat after the last key, so
@@ -1550,7 +1618,7 @@ export function UsageLogFilters({
      On phones the lane is one of them. */
   const applied = logs.filters;
   const chips: Array<{ key: string; label: string; clear: () => void }> = [];
-  if (narrow && applied.group) {
+  if (applied.group) {
     chips.push({
       key: 'lane',
       label: t('page.console.log.filter.chipLane', {
@@ -1561,7 +1629,7 @@ export function UsageLogFilters({
       clear: () => applyFilters({ group: '' }),
     });
   }
-  if (applied.logType && applied.logType !== '0') {
+  if (applied.logType && !['0', '2', '5'].includes(applied.logType)) {
     chips.push({
       key: 'logType',
       label: t('page.console.log.filter.chipLogType', {
@@ -1790,8 +1858,49 @@ export function UsageLogFilters({
     </span>
   );
 
+  /* 全部 / 成功 / 失败 over the log type: a consume row is a request that
+     went through, an error row one that failed. The 筛选 popover keeps the
+     rarer types (充值, 管理, 系统). */
+  const statusOptions: Array<[string, string]> = [
+    ['0', t('page.console.usage.status.all')],
+    ['2', t('page.console.usage.status.ok')],
+    ['5', t('page.console.usage.status.failed')],
+  ];
+  const statusSwitch = (
+    <span
+      aria-label={t('page.console.usage.status.label')}
+      className='logv2-seg usage-seg'
+      role='group'
+    >
+      {statusOptions.map(([value, label]) => (
+        <button
+          aria-pressed={(applied.logType || '0') === value}
+          className='logv2-seg__button'
+          data-active={(applied.logType || '0') === value ? 'true' : undefined}
+          key={value}
+          onClick={() => {
+            form.setValue('logType', value);
+            void submit();
+          }}
+          type='button'
+        >
+          {label}
+        </button>
+      ))}
+    </span>
+  );
+  const laneField = (
+    <div className='logv2-filter-pop__field'>
+      <span className='logv2-filter-pop__label'>
+        {t('page.console.log.lane.label')}
+      </span>
+      {laneSwitch}
+    </div>
+  );
+
   const moreButton = (
     <Button
+      className='usage-filter-button'
       type='button'
       size='sm'
       variant='secondary'
@@ -1812,16 +1921,19 @@ export function UsageLogFilters({
       onSubmit={submit}
     >
       <div className='logv2-filters__row'>
-        <UsageRangeSeg />
-        {narrow ? null : laneSwitch}
+        {statusSwitch}
         <label className='logv2-search'>
           <Search aria-hidden='true' size={14} />
           <input
             aria-label={searchLabel}
-            placeholder={t('page.console.log.filter.searchPlaceholder', {
-              defaultValue: '搜索{{field}}…',
-              field: searchLabel,
-            })}
+            placeholder={
+              logs.isAdminUser
+                ? t('page.console.log.filter.searchPlaceholder', {
+                    defaultValue: '搜索{{field}}…',
+                    field: searchLabel,
+                  })
+                : searchLabel
+            }
             type='search'
             {...form.register(searchField)}
           />
@@ -1838,8 +1950,9 @@ export function UsageLogFilters({
             }}
           >
             <PopoverTrigger>{moreButton}</PopoverTrigger>
-            <PopoverContent align='start' className='logv2-filter-pop'>
+            <PopoverContent align='end' className='logv2-filter-pop'>
               {scopeField}
+              {laneField}
               {logTypeField}
               {adminFields}
               {keyField}

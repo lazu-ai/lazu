@@ -165,18 +165,6 @@ func ProjectLogViews(project Project, logs []*Log) ([]ProjectLogView, error) {
 	}
 	return result, nil
 }
-func ProjectLogsStat(access ProjectLogAccess, filter ProjectLogFilter) (Stat, error) {
-	var result Stat
-	filter.Type = LogTypeConsume
-	filter.Rejected = false
-	if err := ProjectLogsQuery(access, filter).Select("COALESCE(SUM(amount_microusd),0) AS amount_microusd").Scan(&result).Error; err != nil {
-		return result, err
-	}
-	filter.Start = time.Now().Add(-time.Minute).Unix()
-	filter.End = 0
-	err := ProjectLogsQuery(access, filter).Select("COUNT(*) AS rpm, COALESCE(SUM(prompt_tokens + completion_tokens),0) AS tpm").Scan(&result).Error
-	return result, err
-}
 func ProjectUsageData(access ProjectLogAccess, start, end int64) ([]UsageData, error) {
 	rows := []UsageData{}
 	query := ProjectLogsQuery(access, ProjectLogFilter{Type: LogTypeConsume, Start: start, End: end})

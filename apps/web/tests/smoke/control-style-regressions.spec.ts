@@ -63,19 +63,6 @@ for (const theme of ['light', 'dark'] as const) {
       await page.keyboard.press('Escape');
     });
 
-    test('monthly report date trigger keeps its field surface', async ({
-      page,
-    }) => {
-      await page.goto('/console/usage?tab=monthly');
-      const date = page.locator('.lazu-date-trigger');
-      await expect(date).toBeVisible();
-      await expect(date).toHaveCSS('border-top-width', '1px');
-      await expect(date).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-      await date.click();
-      await expect(page.locator('.lazu-calendar-popover')).toBeVisible();
-      await page.keyboard.press('Escape');
-    });
-
     test('legacy interaction aliases resolve to current theme tokens', async ({
       page,
     }) => {

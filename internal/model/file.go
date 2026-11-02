@@ -202,6 +202,19 @@ func ListFilesByOwner(userID int, purpose string, limit int, order string, princ
 	return files, err
 }
 
+// ListUploadedFilesByOwner is ListFilesByOwner without the files that are a
+// media job's result, i.e. what the caller uploaded.
+func ListUploadedFilesByOwner(userID int, limit int, principals ...ProjectPrincipal) ([]File, error) {
+	files := make([]File, 0)
+	if limit <= 0 || limit > 10000 {
+		limit = 10000
+	}
+	generated := CoreDB().Model(&MediaJob{}).Select("artifact_file_id").Where("artifact_file_id <> ''")
+	err := requestResourceScope(CoreDB(), userID, principals).Where("id NOT IN (?)", generated).
+		Order("created_at desc").Limit(limit).Find(&files).Error
+	return files, err
+}
+
 func ListExpiredFiles(now int64, limit int) ([]File, error) {
 	files := make([]File, 0)
 	if CoreDB() == nil || !CoreDB().Migrator().HasTable(&File{}) {

@@ -115,6 +115,7 @@ func agentSessionQuery(c *gin.Context) model.AgentSessionQuery {
 		Client:     c.Query("client"),
 		TokenName:  c.Query("token_name"),
 		OnlyFailed: c.Query("failed") == "1" || c.Query("failed") == "true",
+		Result:     c.Query("result"),
 		Keyword:    c.Query("keyword"),
 	}
 }

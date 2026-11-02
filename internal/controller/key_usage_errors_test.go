@@ -123,14 +123,6 @@ func TestGetUserUsageDataRejectsWindowOverThirtyDays(t *testing.T) {
 	}
 }
 
-func TestGenerateMonthlyReportRejectsMonthOutOfRange(t *testing.T) {
-	w, body := serveKeyUsage(t, http.MethodPost, "/api/reports/monthly/generate", "/api/reports/monthly/generate?year=2026&month=13", nil, GenerateMonthlyReport)
-	assertKeyUsageError(t, w, body, http.StatusBadRequest, "invalid_request", true)
-	if body.Error.Param != "month" {
-		t.Fatalf("param = %q, want month", body.Error.Param)
-	}
-}
-
 func TestDeleteSpendBudgetRejectsMissingID(t *testing.T) {
 	w, body := serveKeyUsage(t, http.MethodDelete, "/api/admin/spend-budgets/:id", "/api/admin/spend-budgets/abc", nil, DeleteSpendBudget)
 	assertKeyUsageError(t, w, body, http.StatusBadRequest, "invalid_request", true)

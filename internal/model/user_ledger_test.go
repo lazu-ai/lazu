@@ -520,9 +520,9 @@ func TestUserAccountOperationalAggregations(t *testing.T) {
 	if err != nil || total != 2 || len(logs) != 2 {
 		t.Fatalf("GetAllLogs user_id total=%d rows=%#v err=%v, want 2", total, logs, err)
 	}
-	stat := SumUsedQuota(LogTypeUnknown, 0, 0, "", "owner-five", 5, "", 0, "")
-	if stat.AmountMicrousd != 300 {
-		t.Fatalf("SumUsedQuota immutable user id=%d, want 300", stat.AmountMicrousd)
+	stat, err := AdminLogsRangeStat(AdminLogFilter{Username: "owner-five", UserID: 5})
+	if err != nil || stat.AmountMicrousd != 300 {
+		t.Fatalf("AdminLogsRangeStat immutable user id=%d err=%v, want 300", stat.AmountMicrousd, err)
 	}
 
 	if err := db.Create(&[]WalletLedger{

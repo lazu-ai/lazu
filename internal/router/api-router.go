@@ -409,17 +409,6 @@ func SetApiRouter(router *gin.Engine) {
 			modelRankingAdmin.POST("/recalculate", controller.RecalculateModelRankings)
 		}
 
-		// Monthly reports
-		reportRoute := apiRouter.Group("/reports")
-		reportRoute.Use(middleware.UserAuth())
-		{
-			reportRoute.GET("/monthly", controller.ListMonthlyReports)
-			reportRoute.GET("/monthly/latest", controller.GetMonthlyReportLatest)
-			reportRoute.POST("/monthly/generate", controller.GenerateMonthlyReport)
-			reportRoute.GET("/monthly/subscription", controller.GetMonthlyReportSubscription)
-			reportRoute.PUT("/monthly/subscription", controller.UpdateMonthlyReportSubscription)
-		}
-
 		prefillGroupRoute := apiRouter.Group("/prefill_group")
 		prefillGroupRoute.Use(middleware.RootAuth())
 		{

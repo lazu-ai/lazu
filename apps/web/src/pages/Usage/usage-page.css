@@ -1,0 +1,109 @@
+/* 用量与日志: the time range sits in the page head and the three views share
+   it; each view's row below the tabs is its status, a search box that takes
+   the rest of the line, and 筛选. */
+
+.usage-page--log-first .usage-head-tools {
+  align-self: flex-end;
+}
+
+/* The segmented control: a 4% ink track, the picked segment a white sheet
+   with a hairline. */
+.logv2-seg.usage-seg {
+  background: var(--lazu-surface-muted);
+  border-radius: 10px;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+}
+
+.logv2-seg.usage-seg .logv2-seg__button,
+.usage-seg .dashv3-tp-btn--compact {
+  border-radius: 7px;
+  color: var(--lazu-ink);
+  font-size: 13px;
+  font-weight: 400;
+  min-height: 30px;
+  padding: 5px 11px;
+}
+
+.logv2-seg.usage-seg .logv2-seg__button[data-active='true'],
+.usage-seg .dashv3-tp-btn--compact[data-open],
+.usage-seg .dashv3-tp-btn--compact[data-accent] {
+  background: var(--lazu-surface);
+  box-shadow: 0 0 0 1px var(--lazu-border);
+}
+
+/* A custom range shows its dates in the evidence colour. */
+.usage-seg .dashv3-tp-btn--compact[data-accent] {
+  color: var(--lazu-evidence);
+}
+
+.usage-page--log-first .logv2-filters__row,
+.usage-page--log-first .ses-filters,
+.usage-page--log-first .tasks-filters {
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+
+.usage-page--log-first .logv2-search,
+.usage-page--log-first .ses-search {
+  border-color: color-mix(in srgb, var(--lazu-ink) 12%, transparent);
+  border-radius: 10px;
+  flex: 1 1 auto;
+  height: 36px;
+  max-width: none;
+  min-width: 0;
+}
+
+.usage-page--log-first .tasks-search {
+  flex: 1 1 auto;
+  margin-left: 0;
+  min-width: 0;
+}
+
+.usage-page--log-first .tasks-search input {
+  border-color: color-mix(in srgb, var(--lazu-ink) 12%, transparent);
+  border-radius: 10px;
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
+  width: 100%;
+}
+
+.usage-page--log-first .tasks-search input:focus-visible {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+  outline: 0;
+}
+
+.usage-filter-button.lazu-button {
+  background: var(--lazu-surface);
+  border: 1px solid color-mix(in srgb, var(--lazu-ink) 12%, transparent);
+  border-radius: 10px;
+  color: var(--lazu-ink);
+  flex: none;
+  font-size: 13px;
+  font-weight: 400;
+  height: 36px;
+  padding: 0 12px;
+}
+
+@media (max-width: 767px) {
+  .usage-page--log-first .logv2-filters__row,
+  .usage-page--log-first .ses-filters,
+  .usage-page--log-first .tasks-filters {
+    flex-wrap: wrap;
+  }
+
+  .usage-page--log-first .logv2-search,
+  .usage-page--log-first .ses-search,
+  .usage-page--log-first .tasks-search {
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .usage-page--log-first .usage-filter-button.lazu-button {
+    margin-left: auto;
+  }
+}

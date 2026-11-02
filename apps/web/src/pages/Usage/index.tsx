@@ -1,23 +1,23 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { UsageHeadSlotContext } from './headSlot';
+import { UsageRangeSeg } from './UsageRangeSeg';
 import ConsolePage from '../../components/ui/console-page';
 import { LoadingState } from '../../components/ui/loading-state';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useSidebar } from '../../hooks/common/useSidebar';
+import './usage-page.css';
 
 const Log = lazy(() => import('../Log'));
-const MonthlyReport = lazy(() => import('../MonthlyReport'));
-const Files = lazy(() => import('../Files'));
 const Tasks = lazy(() => import('../Tasks'));
 
 /* The page's peer views, all on the head's underline strip: the request log,
-   its Agent sessions, media tasks (videos and images, which bill when they
-   finish), the monthly report and files. Files is an API-side
-   resource rather than its own workflow, so it rides here instead of a peer
-   sidebar entry — see brand/foundations/yunmu-console.md. Nothing is behind a
-   「更多」 menu any more. */
+   its Agent sessions and media tasks (videos and images, which bill when they
+   finish). Uploaded files are listed under 生成任务's 上传的文件, so the old
+   ?tab=files lands there. The time range sits in the page head and the three
+   views share it; on phones each view's filter sheet carries it instead. */
 const views = [
   {
     value: 'requests',
@@ -37,44 +37,28 @@ const views = [
     labelKey: 'page.console.usage.tabs.tasks',
     fallback: '生成任务',
   },
-  {
-    value: 'monthly',
-    tab: 'monthly',
-    labelKey: 'page.console.usage.tabs.monthly',
-    fallback: '月度报告',
-  },
-  {
-    value: 'files',
-    tab: 'files',
-    labelKey: 'page.console.usage.tabs.files',
-    fallback: '文件',
-    module: 'files',
-  },
 ] as const;
 
 const components = {
   logs: Log,
   tasks: Tasks,
-  monthly: MonthlyReport,
-  files: Files,
 };
 
 export default function UsagePage() {
   const { t } = useTranslation();
   const { isModuleVisible } = useSidebar();
+  const narrow = useIsMobile();
   const [params, setParams] = useSearchParams();
   const [headSlot, setHeadSlot] = useState<HTMLElement | null>(null);
   const activeTab = params.get('tab') || 'logs';
-  const visibleViews = useMemo(
-    () =>
-      views.filter(
-        (item) =>
-          !('module' in item) || isModuleVisible('workspace', item.module),
-      ),
-    [isModuleVisible],
-  );
 
-  if (!visibleViews.some((item) => item.tab === activeTab)) {
+  if (activeTab === 'files') {
+    const next = new URLSearchParams(params);
+    next.set('tab', 'tasks');
+    if (isModuleVisible('workspace', 'files')) next.set('kind', 'uploads');
+    return <Navigate to={`/console/usage?${next}`} replace />;
+  }
+  if (!views.some((item) => item.tab === activeTab)) {
     return <Navigate to='/console/usage?tab=logs' replace />;
   }
 
@@ -87,7 +71,7 @@ export default function UsagePage() {
   const ActiveComponent = components[activeTab as keyof typeof components];
 
   const pickView = (value: string) => {
-    const view = visibleViews.find((item) => item.value === value);
+    const view = views.find((item) => item.value === value);
     if (!view) return;
     const next = new URLSearchParams(params);
     next.set('tab', view.tab);
@@ -99,7 +83,15 @@ export default function UsagePage() {
     /* The time range (range / from / to) rides along to the next tab; each
        tab's own status, search and open row stay behind. */
     if (view.value !== activeView) {
-      for (const key of ['request', 'task', 'status', 'days', 'q']) {
+      for (const key of [
+        'request',
+        'task',
+        'status',
+        'days',
+        'q',
+        'kind',
+        'model',
+      ]) {
         next.delete(key);
       }
     }
@@ -111,7 +103,14 @@ export default function UsagePage() {
       <ConsolePage
         appearance='review'
         title={t('page.console.usage.title')}
-        actions={<div className='usage-head-tools' ref={setHeadSlot} />}
+        actions={
+          <div className='usage-head-tools'>
+            {narrow ? null : (
+              <UsageRangeSeg className='usage-seg usage-range--head' />
+            )}
+            <div className='usage-head-tools__slot' ref={setHeadSlot} />
+          </div>
+        }
         tabs={
           <Tabs value={activeView} onValueChange={pickView}>
             <TabsList
@@ -119,7 +118,7 @@ export default function UsagePage() {
                 defaultValue: '用量视图',
               })}
             >
-              {visibleViews.map((item) => (
+              {views.map((item) => (
                 <TabsTrigger key={item.value} value={item.value}>
                   {t(item.labelKey, { defaultValue: item.fallback })}
                 </TabsTrigger>
