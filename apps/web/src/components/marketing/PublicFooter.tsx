@@ -6,7 +6,9 @@ import { webExtensions } from '../../extensions';
 import {
   getCommunityURL,
   getDocsHomeURL,
+  getDocsPageURL,
   getDocsURL,
+  getFooterModels,
   getSupportEmail,
 } from '../../helpers/brandUrls';
 import {
@@ -17,6 +19,7 @@ import {
 } from '../../helpers/marketingLocale';
 import { UPSTREAM_NOTICE, UPSTREAM_URL } from '../../helpers/upstream';
 import { usePublishedSource } from '../../hooks/common/usePublishedSource';
+import type { CSSProperties } from 'react';
 
 type FooterItem = {
   href: string;
@@ -28,6 +31,21 @@ type FooterItem = {
 
 const LOCALES: MarketingLocale[] = ['en', 'zh', 'zh-TW', 'ja'];
 
+// One link per comparison page in the docs (apps/docs/pages/compare), named
+// as in the docs sidebar so the anchor text matches the page title people
+// search for. Paths keep their leading slash: the brand check exempts these
+// routes only in that spelling.
+const COMPARISONS: { page: string; name: string }[] = [
+  { page: '/compare/litellm', name: 'LiteLLM' },
+  { page: '/compare/new-api', name: 'New API' },
+  { page: '/compare/one-api', name: 'One API' },
+  { page: '/compare/openrouter', name: 'OpenRouter' },
+  { page: '/compare/portkey', name: 'Portkey' },
+  { page: '/compare/helicone', name: 'Helicone' },
+  { page: '/compare/bifrost', name: 'Bifrost' },
+  { page: '/compare/kong', name: 'Kong AI Gateway' },
+];
+
 // Read on use: the extension list is not ready while modules load.
 const extensionFooterItems = () =>
   webExtensions().flatMap((extension) => extension.publicNav?.footer ?? []);
@@ -38,8 +56,10 @@ type PublicFooterProps = {
   pathnameOverride?: string;
 };
 
-// Locked public footer (public-web-system #15): four structured columns and a
-// legal line naming the operator. Language and theme live in the header only. The operator appears here and in the
+// Locked public footer (public-web-system #15), widened for search in
+// November 2026: up to six structured columns and a legal line naming the
+// operator. "Popular models" appears only when the build names models
+// (VITE_BRAND_FOOTER_MODELS); every other column is always there. Language and theme live in the header only. The operator appears here and in the
 // Organization schema only — never in titles or headings.
 const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   const { t, i18n } = useTranslation('marketing');
@@ -58,6 +78,7 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   const supportEmail = getSupportEmail();
   const communityURL = getCommunityURL();
   const sourceURL = usePublishedSource().url;
+  const footerModels = getFooterModels();
 
   const columns: { key: string; title: string; items: FooterItem[] }[] = [
     {
@@ -69,6 +90,21 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
         { href: '/register', label: t('footer.start'), internal: true },
       ],
     },
+    ...(footerModels.length
+      ? [
+          {
+            key: 'models',
+            title: t('footer.popularModels'),
+            items: [
+              ...footerModels.map((model) => ({
+                href: at(model.path),
+                label: model.label,
+              })),
+              { href: at('/models'), label: t('footer.allModels') },
+            ],
+          },
+        ]
+      : []),
     {
       key: 'developers',
       title: t('footer.developers'),
@@ -79,6 +115,20 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
         { href: sourceURL, label: t('landing.nav.github') },
         { href: '/llms.txt', label: 'llms.txt', mono: true },
         { href: '/models.json', label: '/models.json', mono: true },
+      ],
+    },
+    {
+      key: 'compare',
+      title: t('footer.compare'),
+      items: [
+        ...COMPARISONS.map((comparison) => ({
+          href: getDocsPageURL(comparison.page, locale),
+          label: t('footer.compareWith', { name: comparison.name }),
+        })),
+        {
+          href: getDocsPageURL('/compare/overview', locale),
+          label: t('footer.allComparisons'),
+        },
       ],
     },
     {
@@ -113,7 +163,14 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
   return (
     <footer className='lazu-public-footer' role='contentinfo'>
       <div className='lazu-public-footer__inner'>
-        <div className='lazu-public-footer__grid'>
+        <div
+          className='lazu-public-footer__grid'
+          style={
+            {
+              '--lazu-footer-columns': columns.length,
+            } as CSSProperties
+          }
+        >
           <div className='lazu-public-footer__brand'>
             <Link reloadDocument to={at('/')} aria-label={t('brand.name')}>
               <ThemedBrandLogo size='footer' alt={t('brand.name')} />

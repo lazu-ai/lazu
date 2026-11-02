@@ -19,14 +19,17 @@ ENV DISABLE_ESLINT_PLUGIN=true
 # (src/helpers/brandUrls.ts). Empty keeps the defaults; an empty community
 # URL shows no community link, and an empty source URL points the GitHub
 # entry at the upstream project (or at `site.source_url` once the server says).
+# The footer's popular models (`<model page>=<label>,…`) show only when named.
 ARG VITE_BRAND_DOCS_URL=""
 ARG VITE_BRAND_SUPPORT_EMAIL=""
 ARG VITE_BRAND_COMMUNITY_URL=""
 ARG VITE_BRAND_SOURCE_URL=""
+ARG VITE_BRAND_FOOTER_MODELS=""
 ENV VITE_BRAND_DOCS_URL=${VITE_BRAND_DOCS_URL} \
     VITE_BRAND_SUPPORT_EMAIL=${VITE_BRAND_SUPPORT_EMAIL} \
     VITE_BRAND_COMMUNITY_URL=${VITE_BRAND_COMMUNITY_URL} \
-    VITE_BRAND_SOURCE_URL=${VITE_BRAND_SOURCE_URL}
+    VITE_BRAND_SOURCE_URL=${VITE_BRAND_SOURCE_URL} \
+    VITE_BRAND_FOOTER_MODELS=${VITE_BRAND_FOOTER_MODELS}
 RUN bun run build
 
 FROM nginx:alpine

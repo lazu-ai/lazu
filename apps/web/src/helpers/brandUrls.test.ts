@@ -3,7 +3,9 @@ import {
   getCommunityPlatform,
   getCommunityURL,
   getDocsBaseURL,
+  getDocsPageURL,
   getDocsURL,
+  getFooterModels,
   getSourceURL,
   getSupportEmail,
 } from './brandUrls';
@@ -22,6 +24,33 @@ describe('brand URLs', () => {
     expect(getDocsURL('/changelog')).toBe(
       'https://docs-preview.example.com/changelog',
     );
+  });
+
+  it("links a docs page in the reader's language", () => {
+    vi.stubEnv('VITE_BRAND_DOCS_URL', '');
+    expect(getDocsPageURL('compare/litellm')).toBe(
+      'https://lazu.ai/docs/compare/litellm',
+    );
+    expect(getDocsPageURL('/compare/litellm', 'zh-TW')).toBe(
+      'https://lazu.ai/docs/zh-TW/compare/litellm',
+    );
+    expect(getDocsPageURL('compare/litellm', 'fr')).toBe(
+      'https://lazu.ai/docs/compare/litellm',
+    );
+  });
+
+  it('lists footer models only when the build names them', () => {
+    vi.stubEnv('VITE_BRAND_FOOTER_MODELS', '');
+    expect(getFooterModels()).toEqual([]);
+    vi.stubEnv(
+      'VITE_BRAND_FOOTER_MODELS',
+      ' anthropic/claude-opus-5-5=Claude Opus 5.5, baai/BAAI/bge-m3 = BGE-M3 ,' +
+        'no-label=,=Nameless,flat=Flat,../etc=Up,https://x.test/a=Away',
+    );
+    expect(getFooterModels()).toEqual([
+      { path: '/models/anthropic/claude-opus-5-5', label: 'Claude Opus 5.5' },
+      { path: '/models/baai/BAAI/bge-m3', label: 'BGE-M3' },
+    ]);
   });
 
   it('names the brand support address unless the build sets another', () => {

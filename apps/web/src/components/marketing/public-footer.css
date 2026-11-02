@@ -1,5 +1,8 @@
 /* Locked public footer (public-web-system #15), drawn from
-   archive:brand/explorations/seo-surfaces-2026-09/Footer.dc.html. */
+   archive:brand/explorations/seo-surfaces-2026-09/Footer.dc.html and widened
+   in November 2026 to up to six link columns (PublicFooter.tsx sets
+   --lazu-footer-columns). The brand block keeps a third of the width when
+   there are four columns, as in the original drawing. */
 .lazu-public-footer {
   position: relative;
   z-index: 1;
@@ -22,14 +25,15 @@
 .lazu-public-footer__grid {
   display: grid;
   gap: 24px;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(0, 2fr)
+    repeat(var(--lazu-footer-columns, 4), minmax(0, 1fr));
 }
 
 .lazu-public-footer__brand {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  grid-column: span 2;
 }
 
 .lazu-public-footer__brand a {
@@ -110,10 +114,20 @@
   }
 }
 
+@media (max-width: 1100px) {
+  .lazu-public-footer__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 32px;
+  }
+
+  .lazu-public-footer__brand {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 900px) {
   .lazu-public-footer__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 32px;
   }
 }
 
