@@ -5,6 +5,7 @@ import { basePathFixes } from "./scripts/base-path-plugin";
 import { searchPerformance } from "./scripts/search-performance-plugin";
 import { outlineFix } from "./scripts/outline-fix-plugin";
 import { notFoundPage } from "./scripts/not-found-plugin";
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -35,6 +36,22 @@ const extensionHeadScripts = existsSync(extensionsDir)
         source: readFileSync(join(extensionsDir, name), "utf8"),
       }))
   : [];
+
+// The URL of a public/ file the <head> links, with a hash of its contents in
+// the query. These files have fixed names, and Cloudflare turns the origin's
+// `no-cache` on them into four hours of browser cache, so without the hash a
+// reader who opened the docs before a release kept the old stylesheet and
+// scripts. The pages themselves are not cached, so they pick up the new URL
+// at once. The scripts read their base path from their own URL's pathname,
+// which the query does not touch.
+const publicDir = join(import.meta.dirname, "public");
+const publicAsset = (name: string) => {
+  const hash = createHash("sha256")
+    .update(readFileSync(join(publicDir, name)))
+    .digest("hex")
+    .slice(0, 10);
+  return `${BASE_PATH}/${name}?v=${hash}`;
+};
 
 // Brand is the only visual source. Vocs maps its required theme keys onto the
 // generated Kumo semantic tokens loaded from /brand.generated.css.
@@ -114,12 +131,12 @@ const head = () =>
     createElement("link", {
       key: "brand-theme",
       rel: "stylesheet",
-      href: `${BASE_PATH}/brand.generated.css`,
+      href: publicAsset("brand.generated.css"),
     }),
     createElement("link", {
       key: "docs-theme",
       rel: "stylesheet",
-      href: `${BASE_PATH}/styles.css`,
+      href: publicAsset("styles.css"),
     }),
     // Vanilla JS that mounts a theme toggle + language switcher into the
     // bottom of Vocs' sidebar (next to the GitHub icon). Vocs doesn't
@@ -127,7 +144,7 @@ const head = () =>
     // runtime. Plain JS so we don't pull React onto every page.
     createElement("script", {
       key: "docs-sidebar-extras",
-      src: `${BASE_PATH}/sidebar-extras.js`,
+      src: publicAsset("sidebar-extras.js"),
       defer: true,
     }),
     // The "give this page to a model" row under each title: copy the route's
@@ -136,12 +153,12 @@ const head = () =>
     // every page; Vocs has no slot for it.
     createElement("script", {
       key: "docs-site-footer",
-      src: `${BASE_PATH}/site-footer.js`,
+      src: publicAsset("site-footer.js"),
       defer: true,
     }),
     createElement("script", {
       key: "docs-agent-actions",
-      src: `${BASE_PATH}/agent-actions.js`,
+      src: publicAsset("agent-actions.js"),
       defer: true,
     }),
   );
