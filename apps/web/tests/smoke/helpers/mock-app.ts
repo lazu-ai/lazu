@@ -1116,11 +1116,6 @@ function payloadFor(
   if (pathname.startsWith('/api/uptime/status')) {
     return ok({ overall_status: 'up', services: [] });
   }
-  if (pathname.startsWith('/api/reports/monthly/subscription')) {
-    return ok({ enabled: false });
-  }
-  if (pathname.startsWith('/api/reports/monthly/latest')) return ok(null);
-  if (pathname.startsWith('/api/reports/monthly')) return page([]);
   if (pathname.startsWith('/api/home_page_content'))
     return ok({ enabled: false });
   if (pathname.startsWith('/api/workers')) return ok({});

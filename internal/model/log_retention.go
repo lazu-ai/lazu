@@ -12,11 +12,7 @@ import (
 //     (default 30; automatic cleanup enforces the 30-day ranking window).
 //   - usage_data: per-user × model × hour aggregate. Small, kept 365d so users
 //     can see annual consumption history.
-//   - monthly_reports: rolled-up monthly stats. Kept 365d for the same reason.
-const (
-	usageDataRetentionDays     = 365
-	monthlyReportRetentionDays = 365
-)
+const usageDataRetentionDays = 365
 
 func PurgeLogData(cutoff time.Time) {
 	if cutoff.IsZero() {
@@ -25,7 +21,6 @@ func PurgeLogData(cutoff time.Time) {
 	cutoffUnix := cutoff.Unix()
 	now := time.Now()
 	usageCutoff := now.AddDate(0, 0, -usageDataRetentionDays).Unix()
-	monthlyReportCutoff := now.AddDate(0, 0, -monthlyReportRetentionDays)
 
 	if TelemetryDB() != nil {
 		var err error
@@ -39,12 +34,6 @@ func PurgeLogData(cutoff time.Time) {
 		}
 		if err := TelemetryDB().Where("created_at < ?", usageCutoff).Delete(&UsageData{}).Error; err != nil {
 			common.SysError("failed to purge usage_data: " + err.Error())
-		}
-	}
-
-	if CoreDB() != nil {
-		if err := CoreDB().Where("created_at < ?", monthlyReportCutoff).Delete(&MonthlyReport{}).Error; err != nil {
-			common.SysError("failed to purge monthly_reports: " + err.Error())
 		}
 	}
 }

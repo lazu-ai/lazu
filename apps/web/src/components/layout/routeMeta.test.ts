@@ -42,7 +42,7 @@ describe('routeMeta', () => {
   it('highlights Logs only for the logs usage view', () => {
     expect(isUsageLogsPath('/console/usage', '')).toBe(true);
     expect(isUsageLogsPath('/console/usage', '?tab=logs')).toBe(true);
-    expect(isUsageLogsPath('/console/usage', '?tab=monthly')).toBe(false);
+    expect(isUsageLogsPath('/console/usage', '?tab=tasks')).toBe(false);
   });
 
   it('classifies route transitions by surface and history direction', () => {

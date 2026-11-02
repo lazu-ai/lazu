@@ -6,7 +6,6 @@ import { expectRouteReady, setupMockedApp } from './helpers/mock-app';
 const routes = [
   ['personal', '/console/personal'],
   ['wallet', '/console/wallet'],
-  ['usage-monthly', '/console/usage?tab=monthly'],
   ['setting-accounts', '/console/setting?tab=accounts'],
   ['setting-observability', '/console/setting?tab=observability'],
 ];

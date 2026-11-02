@@ -389,8 +389,6 @@ func migrateDB() error {
 		&ModelMetadata{},
 		&Vendor{},
 		&PrefillGroup{},
-		&MonthlyReport{},
-		&ReportSubscription{},
 		&ProviderCostPrice{},
 		&ModelSellPrice{},
 		&PricePlan{},
@@ -548,9 +546,6 @@ func migrateDB() error {
 	// schema_versions table exists (a database older than the marker, or a
 	// fresh one with no rows) the fill runs unrecorded; it only writes blanks.
 	if err = backfillClaudeReasoningPolicyOnce(coreDB); err != nil {
-		return err
-	}
-	if err = EnsureMonthlyReportUniqConstraint(); err != nil {
 		return err
 	}
 	if err = migrateSchema33Core(coreDB); err != nil {

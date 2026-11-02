@@ -16,7 +16,6 @@ import {
   CircleUser,
   Package,
   Trophy,
-  CalendarCheck,
   FileText,
   Activity,
   Building2,
@@ -67,8 +66,6 @@ export function getLucideIcon(
       return <CreditCard {...commonProps} color={iconColor} />;
     case 'billing':
       return <Receipt {...commonProps} color={iconColor} />;
-    case 'monthly_report':
-      return <CalendarCheck {...commonProps} color={iconColor} />;
     case 'channel':
       return <Layers {...commonProps} color={iconColor} />;
     /* 'user' is the admin 用户 page (organizations). It sits in the same column

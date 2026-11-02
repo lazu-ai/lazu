@@ -8,15 +8,13 @@ import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useSidebar } from '../../hooks/common/useSidebar';
 
 const Log = lazy(() => import('../Log'));
-const MonthlyReport = lazy(() => import('../MonthlyReport'));
 const Files = lazy(() => import('../Files'));
 const Tasks = lazy(() => import('../Tasks'));
 
 /* The page's peer views, all on the head's underline strip: the request log,
    its Agent sessions, media tasks (videos and images, which bill when they
-   finish), the monthly report and files. Files is an API-side
-   resource rather than its own workflow, so it rides here instead of a peer
-   sidebar entry — see brand/foundations/yunmu-console.md. Nothing is behind a
+   finish) and files. Files is an API-side resource rather than its own
+   workflow, so it rides here instead of a peer sidebar entry — see brand/foundations/yunmu-console.md. Nothing is behind a
    「更多」 menu any more. */
 const views = [
   {
@@ -38,12 +36,6 @@ const views = [
     fallback: '生成任务',
   },
   {
-    value: 'monthly',
-    tab: 'monthly',
-    labelKey: 'page.console.usage.tabs.monthly',
-    fallback: '月度报告',
-  },
-  {
     value: 'files',
     tab: 'files',
     labelKey: 'page.console.usage.tabs.files',
@@ -55,7 +47,6 @@ const views = [
 const components = {
   logs: Log,
   tasks: Tasks,
-  monthly: MonthlyReport,
   files: Files,
 };
 
