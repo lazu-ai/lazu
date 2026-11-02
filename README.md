@@ -42,11 +42,12 @@ starts leave both alone. There is no browser-based install step.
 
 ### Connect a client
 
-Any OpenAI SDK works with `base_url` set to `http://<your-host>:3001/v1`.
-Claude Code talks to the Anthropic Messages endpoint of the same host, Codex
-and OpenCode to the OpenAI endpoints; the [Quickstart](https://lazu.ai/docs/quickstart)
-has the exact settings per tool, with `https://api.lazu.ai` replaced by your own
-origin.
+Any OpenAI SDK works with `base_url` set to `http://<your-host>:3001/v1`
+([Quickstart](https://lazu.ai/docs/quickstart)). Claude Code talks to the
+Anthropic Messages endpoint of the same host, Codex and OpenCode to the OpenAI
+endpoints; the guides for [Claude Code](https://lazu.ai/blog/claude-code-custom-api)
+and [Codex](https://lazu.ai/blog/codex-custom-provider) show the settings, with
+`https://api.lazu.ai` replaced by your own origin.
 
 ### Optional integrations
 

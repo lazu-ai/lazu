@@ -36,7 +36,7 @@ LiteLLM はスコープ別に支出を追跡し、予算を超えたスコープ
 
 ## プロトコル
 
-どちらも OpenAI、Anthropic、Gemini 形式のリクエストを受け付け、別形式を話すプロバイダーに送ります。LiteLLM は変換できる限り変換します。Lazu は無損失と検証されたエッジに沿ってのみ変換し、それ以外は上流を呼ぶ前に機能とフィールドを示す `400` で拒否するので、ツール呼び出しや推論パラメーターが途中で落とされることはありません（[設計ノート](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+どちらも OpenAI、Anthropic、Gemini 形式のリクエストを受け付け、別形式を話すプロバイダーに送ります。LiteLLM はサポートする全プロバイダーへの変換を文書化していますが、忠実性の規則は示していません。Lazu は無損失と検証されたエッジに沿ってのみ変換し、それ以外は上流を呼ぶ前に機能とフィールドを示す `400` で拒否するので、ツール呼び出しや推論パラメーターが途中で落とされることはありません（[設計ノート](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
 
 ## どちらを選ぶか
 

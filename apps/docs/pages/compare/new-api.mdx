@@ -19,7 +19,7 @@ Both are Go gateways with a web console. Both accept OpenAI Chat Completions and
 
 **Protocol conversion with a fidelity rule.** New API converts between its inbound formats and provider formats. Lazu rebuilt this on an immutable request representation: each attempt plans its route from the original request, a conversion is performed only along edges verified lossless, and a request that needs a feature the upstream cannot carry is refused with a `400` naming the feature, before the call ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
 
-**Routing you can see.** Channel selection by priority and weight is shared. Lazu adds a health window that takes a faulting channel out of rotation, keeps client errors from counting as faults, and publishes a route-health page so users see the state of each route without asking the operator.
+**Routing you can see.** Channel selection by priority and weight, retries and taking a failing channel out of rotation are shared. Lazu keeps client errors from counting as channel faults, and publishes a route-health page so users see the state of each route without asking the operator.
 
 **Teams and projects.** New API has users and groups. Lazu adds projects with members, roles, invitations and per-member budgets, so one organization can run several teams on one balance.
 
@@ -42,7 +42,7 @@ Both are Go gateways with a web console. Both accept OpenAI Chat Completions and
 | Billing | Ratios and expressions; quota stop at `403` | Reservation → settlement → release, per-dimension measurement source, prices per model and lane |
 | Usage records | Operator logs | Per-request record readable by the key; agent sessions; reconciliation script |
 | Protocol conversion | Converts inbound formats to provider formats | Lossless edges only; `400` naming the feature otherwise |
-| Routing | Priority, weight, retry, affinity | Same, plus health window and a public route-health page |
+| Routing | Priority, weight, retry, affinity | Same, plus a public route-health page |
 | Organizations | Users and groups | Users, teams and projects with member budgets |
 | Extending | JavaScript task plugins; source changes | Go and web extension points |
 | Docs | docs.newapi.pro | lazu.ai/docs in four languages, with `llms.txt` |

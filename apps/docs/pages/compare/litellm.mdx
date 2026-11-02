@@ -36,7 +36,7 @@ If you need budgets that reset monthly for a dozen internal services, LiteLLM ha
 
 ## Protocols
 
-Both accept OpenAI, Anthropic and Gemini request formats and send them to providers that speak another format. LiteLLM translates as far as it can. Lazu translates only along edges it has verified lossless and refuses the rest with a `400` that names the feature and field, before any upstream call, so a tool-call or reasoning parameter is never dropped on the way through ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+Both accept OpenAI, Anthropic and Gemini request formats and send them to providers that speak another format. LiteLLM documents translation to every provider it supports and states no fidelity rule. Lazu translates only along edges it has verified lossless and refuses the rest with a `400` that names the feature and field, before any upstream call, so a tool-call or reasoning parameter is never dropped on the way through ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
 
 ## When to choose which
 

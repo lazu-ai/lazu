@@ -36,7 +36,7 @@ LiteLLM 按層級統計花費，超預算的層級被攔。Lazu 開始得更早�
 
 ## 協定
 
-兩者都接受 OpenAI、Anthropic 和 Gemini 格式的請求，並發給說另一種格式的供應商。LiteLLM 能轉多少轉多少。Lazu 只沿著驗證過無損的邊轉換，其餘的在呼叫上游之前回傳點名功能和欄位的 `400`，所以工具呼叫或推理參數不會在路上被丟掉（[設計說明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+兩者都接受 OpenAI、Anthropic 和 Gemini 格式的請求，並發給說另一種格式的供應商。LiteLLM 的文件寫了能轉到它支援的每家供應商，沒有寫保真規則。Lazu 只沿著驗證過無損的邊轉換，其餘的在呼叫上游之前回傳點名功能和欄位的 `400`，所以工具呼叫或推理參數不會在路上被丟掉（[設計說明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
 
 ## 什麼時候選哪個
 
