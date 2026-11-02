@@ -26,6 +26,7 @@ describe('spend card buckets', () => {
       ],
       local(2026, 10, 27),
       local(2026, 10, 29, 23),
+      false,
     );
     expect(hourly).toBe(false);
     expect(buckets.map((bucket) => bucket.amount)).toEqual([300, 0, 50]);
@@ -38,6 +39,7 @@ describe('spend card buckets', () => {
       [{ bucket: start + 3_600, amount_microusd: 7, request_count: 1 }],
       start,
       start + 86_400,
+      true,
     );
     expect(hourly).toBe(true);
     expect(buckets[1].amount).toBe(7);

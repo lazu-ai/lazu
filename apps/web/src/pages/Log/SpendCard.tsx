@@ -22,14 +22,14 @@ const dayStart = (at: Date) =>
 const money = (micro: number) =>
   `$${(micro / 1_000_000).toFixed(Math.abs(micro) >= 10_000 || !micro ? 2 : 4)}`;
 
-/** The hourly series folded into local days (or kept by the hour for a
- *  window of a day or less), with the empty ones filled in. */
+/** The hourly series folded into local days (or kept by the hour when
+ *  `hourly`), with the empty ones filled in. */
 export function spendBuckets(
   series: UsageLogStat['series'],
   start: number,
   end: number,
+  hourly: boolean,
 ): { buckets: Bucket[]; hourly: boolean } {
-  const hourly = end - start <= 36 * HOUR;
   const buckets: Bucket[] = [];
   const index = new Map<number, Bucket>();
   const keyOf = (at: Date) =>
@@ -89,7 +89,14 @@ export function SpendCard({
             range: span,
           });
 
-  const { buckets, hourly } = spendBuckets(stat.series, range.start, range.end);
+  // 24 小时 runs from a day ago to the end of today, so its window is longer
+  // than a day; the range's own length decides, not the window's.
+  const { buckets, hourly } = spendBuckets(
+    stat.series,
+    range.start,
+    range.end,
+    preset === '24h' || range.days <= 1,
+  );
   const max = Math.max(0, ...buckets.map((bucket) => bucket.amount));
   const peak = buckets.find((bucket) => max > 0 && bucket.amount === max);
   const label = hourly ? hourLabel : dayLabel;
