@@ -6,6 +6,8 @@
  * font and radius comes from Brand tokens in /brand.generated.css.
  *
  *   chrome     56px top bar · 244px flat sidebar · Yunmu paper ground
+ *   frame      top bar, sidebar, article and outline share one 1336px frame,
+ *              centred; wider screens get equal paper on both sides
  *   endpoint   article on paper + a full-height graphite workbench column
  *   prose      single 720px column with inline ink code + right outline
  *   code       dark ink on warm paper in both themes (Shiki "lazu-ink")
@@ -17,13 +19,32 @@
   --vocs-topNav_curtainHeight: 0px !important;
   --vocs-content_horizontalPadding: 0px !important;
   --vocs-content_verticalPadding: 40px !important;
-  --vocs-content_width: calc(100vw - 244px - 300px) !important;
+  --vocs-content_width: calc(
+    100vw - 2 * var(--d-edge) - var(--d-side) - var(--d-toc)
+  ) !important;
 
   --d-top: 56px;
   --d-side: 244px;
-  --d-toc: 300px;
-  --d-bench: clamp(440px, 39vw, 620px);
+  --d-toc: 244px;
   --d-gap: 48px;
+
+  /* The frame: sidebar 244 · 64 · article 720 · 64 · outline 244. The
+     sidebar and the outline are the same width, so the article's centre is
+     the screen's centre whenever the outline shows. --d-edge is the paper
+     outside the frame on each side; the fixed gutters, the content track
+     and the top bar all measure from it. */
+  --d-frame: 1336px;
+  --d-col-gap: 64px;
+  --d-edge: max(24px, (100vw - var(--d-frame)) / 2);
+
+  /* Endpoint pages: the workbench takes everything right of a 640px article,
+     from the article's right gap to the screen edge. */
+  --d-bench: clamp(
+    440px,
+    100vw - var(--d-edge) - var(--d-side) - var(--d-col-gap) - 640px -
+      var(--d-gap),
+    720px
+  );
 
   --d-ink: var(--lazu-ink);
   --d-body: color-mix(in oklab, var(--lazu-ink) 62%, var(--lazu-text-muted));
@@ -60,11 +81,13 @@
 
 /* Endpoint pages: no outline column, the workbench takes the right side. */
 :root:has(.lazu-endpoint-examples--live) {
-  --vocs-content_width: calc(100vw - 244px) !important;
+  --d-toc: 0px;
+  --vocs-content_width: calc(100vw - var(--d-edge) - var(--d-side)) !important;
 }
 
 /* Home: no sidebar, no outline — one editorial sheet with its own column. */
 :root:has(.lazu-home) {
+  --d-toc: 0px;
   --vocs-content_width: 100vw !important;
 }
 
@@ -85,11 +108,11 @@ body {
       transparent 60%
     ),
     linear-gradient(
-        180deg,
-        var(--lazu-page-top) 0%,
-        var(--lazu-page) 52%,
-        var(--lazu-page-bottom) 100%
-      );
+      180deg,
+      var(--lazu-page-top) 0%,
+      var(--lazu-page) 52%,
+      var(--lazu-page-bottom) 100%
+    );
   /* Keep the ambient lights in the same place on short and long pages. */
   background-attachment: fixed;
   color: var(--d-ink);
@@ -170,10 +193,13 @@ a:hover {
   display: none !important;
 }
 
+/* The bar sits on the frame's columns: the lockup over the sidebar, the
+   section links from the article's left edge, search ending at the article's
+   right edge, and the extras over the outline column. */
 .vocs_DesktopTopNav {
   height: var(--d-top) !important;
-  padding: 0 20px !important;
-  gap: 22px;
+  padding: 0 var(--d-edge) 0 calc(var(--d-edge) + 20px) !important;
+  gap: 0 !important;
   align-items: center !important;
   justify-content: flex-start !important;
 }
@@ -192,6 +218,8 @@ a:hover {
 
 .vocs_DesktopTopNav_logoWrapper {
   order: 0;
+  flex: 0 0 calc(var(--d-side) + var(--d-col-gap) - 20px);
+  justify-content: flex-start !important;
   display: flex !important;
   align-items: center;
   height: var(--d-top);
@@ -296,9 +324,11 @@ a[data-lazu-models]::after {
   font-weight: 600 !important;
 }
 
+/* The right margin keeps the outline column clear before sidebar-extras.js
+   mounts the extras there, so search does not jump when they land. */
 .vocs_DesktopSearch_search {
   order: 2;
-  margin: 0 auto !important;
+  margin: 0 calc(var(--d-col-gap) + var(--d-toc)) 0 auto !important;
   width: 380px !important;
   max-width: min(380px, 30vw) !important;
   font-size: 0 !important;
@@ -360,10 +390,13 @@ a[data-lazu-models]::after {
 
 .dub-sidebar-extras--topbar {
   order: 3;
+  flex: 0 0 auto;
+  min-width: var(--d-toc);
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
-  margin: 0;
+  margin: 0 0 0 calc(-1 * var(--d-toc));
   padding: 0;
   border: 0;
 }
@@ -485,18 +518,21 @@ a[data-lazu-models]::after {
 /* ===================================================================
  * Content frame
  * =================================================================== */
-/* Vocs centres the content track and grows the left gutter to match; the
-   sidebar stays 244px and flush left, so pin the track right after it. */
+/* Vocs centres the content track and grows the left gutter to match. Here
+   the sidebar keeps 244px and moves in with the frame, and the track is the
+   space between the sidebar and the outline (--vocs-content_width), with the
+   article centred in it. */
 .vocs_DocsLayout_content_withSidebar {
-  margin-left: var(--d-side) !important;
+  margin-left: calc(var(--d-edge) + var(--d-side)) !important;
 }
 
 .vocs_DocsLayout_gutterLeft {
+  left: var(--d-edge) !important;
   width: var(--d-side) !important;
 }
 
 .vocs_DocsLayout_content {
-  padding: calc(var(--d-top) + 40px) 80px 0 96px !important;
+  padding: calc(var(--d-top) + 40px) var(--d-col-gap) 0 !important;
   box-sizing: border-box;
 }
 
@@ -504,7 +540,7 @@ a[data-lazu-models]::after {
   max-width: 720px !important;
   width: 100%;
   padding: 0 !important;
-  margin: 0 !important;
+  margin: 0 auto !important;
 }
 
 .vocs_Content > * {
@@ -947,15 +983,17 @@ html.dark .vocs_Pre span[style*="--shiki-dark"] {
  * =================================================================== */
 .vocs_DocsLayout_gutterRight {
   top: var(--d-top) !important;
+  right: var(--d-edge) !important;
+  left: auto !important;
   height: calc(100vh - var(--d-top)) !important;
   width: var(--d-toc) !important;
-  padding: 40px 60px 0 20px !important;
+  padding: 40px 0 0 !important;
   box-sizing: border-box;
 }
 
 .vocs_Outline,
 .vocs_Outline_nav {
-  width: 220px !important;
+  width: 100% !important;
   padding: 0 !important;
 }
 
@@ -1019,6 +1057,8 @@ html.dark .vocs_Pre span[style*="--shiki-dark"] {
   /* !important: Vocs' own sheet loads after this one and caps the footer at
      --vocs-content_width, which is wider than the 720px article column. */
   max-width: 720px !important;
+  width: 100%;
+  margin-inline: auto;
   padding: 56px 0 48px !important;
 }
 
@@ -1260,9 +1300,11 @@ html.dark .vocs_Pre span[style*="--shiki-dark"] {
 /* ===================================================================
  * Endpoint pages · article + graphite workbench
  * =================================================================== */
+/* The article starts where it does on prose pages (the sidebar plus one
+   column gap); the workbench runs from its right gap to the screen edge. */
 :root:has(.lazu-endpoint-examples--live) .vocs_DocsLayout_content {
   padding: calc(var(--d-top) + 40px) calc(var(--d-bench) + var(--d-gap)) 0
-    var(--d-gap) !important;
+    var(--d-col-gap) !important;
 }
 
 :root:has(.lazu-endpoint-examples--live) .vocs_Content,
@@ -1936,14 +1978,17 @@ html.dark .vocs_Pre span[style*="--shiki-dark"] {
   display: none !important;
 }
 
+/* The column starts under the lockup, at the frame's left edge. */
 :root:has(.lazu-home) .vocs_DocsLayout_content {
   margin-left: 0 !important;
   max-width: none !important;
-  padding: calc(var(--d-top) + 74px) calc(var(--d-bench) + 80px) 64px 80px !important;
+  padding: calc(var(--d-top) + 74px) calc(var(--d-bench) + 80px) 64px
+    calc(var(--d-edge) + 20px) !important;
 }
 
 :root:has(.lazu-home) .vocs_Content {
   max-width: 700px !important;
+  margin-left: 0 !important;
 }
 
 .lazu-home-eyebrow {
@@ -2568,20 +2613,25 @@ html.dark .vocs_Pre span[style*="--shiki-dark"] {
   border: 0 !important;
 }
 
+/* Vocs drops the outline at this width. The article stays where the section
+   links start, one column gap right of the sidebar, rather than centring in
+   the wider track, which would push it right of the screen's centre. */
 @media (max-width: 1280px) {
   :root {
-    --vocs-content_width: calc(100vw - 244px) !important;
+    --d-toc: 0px;
+  }
+
+  .vocs_Content,
+  .vocs_Footer,
+  .lazu-public-footer--docs {
+    margin-left: 0 !important;
   }
 }
 
 @media (max-width: 1180px) {
   :root {
     --d-bench: 420px;
-  }
-
-  .vocs_DocsLayout_content {
-    padding-left: 56px !important;
-    padding-right: 56px !important;
+    --d-col-gap: 56px;
   }
 }
 
@@ -2968,7 +3018,8 @@ html.dark .lazu-public-footer__logo--dark {
    link columns and the block keeps the column's width. */
 .lazu-public-footer--docs {
   background: transparent;
-  margin-top: 8px;
+  margin: 8px auto 0;
+  width: 100%;
   max-width: 720px;
 }
 
@@ -2988,7 +3039,8 @@ html.dark .lazu-public-footer__logo--dark {
 }
 
 @media (max-width: 1240px) {
-  .lazu-public-footer:not(.lazu-public-footer--docs) .lazu-public-footer__inner {
+  .lazu-public-footer:not(.lazu-public-footer--docs)
+    .lazu-public-footer__inner {
     padding-left: 40px;
     padding-right: 40px;
   }
