@@ -1,0 +1,57 @@
+---
+title: "Lazu compared with other LLM gateways"
+description: "Where Lazu sits next to LiteLLM, New API, one-api, Bifrost, Portkey, Helicone, Kong AI Gateway and OpenRouter: who each one is for, how it handles keys, budgets and usage records, and what is open source."
+---
+
+# Lazu compared with other LLM gateways
+
+Every project on this page puts one endpoint in front of several model providers. They differ in who they are built for and in what they do with the money. This page says what each one is for; it does not rank them. Facts were checked against each project's repository and documentation on 2 November 2026 and will drift.
+
+## What Lazu is for
+
+Lazu is a **model account** for a team, a lab or a company: every person and every agent gets a key with its own budget, and every request leaves a usage record that the key's owner can read back. It is one deployable product, with the gateway, the ledger, the console and this docs site, under AGPL-3.0. It descends from [New API](/compare/new-api), which descends from one-api; the routing, billing and usage layers were rewritten against written contracts.
+
+Pick Lazu when the question you need answered is *who spent what, on which model, and can I prove it*. Pick something else when you need a library inside your own service, a hosted key with no server to run, or a plugin for a gateway you already operate.
+
+## Side by side
+
+| | Form | Written for | Keys and budgets | Usage records | Licence |
+| --- | --- | --- | --- | --- | --- |
+| **Lazu** | Go gateway + ledger + console + docs, one Docker stack | Teams giving people and agents a model account | Users, teams, projects; per-key and per-member budgets; prepaid reservation, settled from the provider's counters | One record per request, with the source of every number and the billing lines; agent sessions; offline reconciliation script | AGPL-3.0 |
+| [LiteLLM](/compare/litellm) | Python proxy + SDK, YAML config, admin UI | Platform teams running a shared gateway for internal services | Virtual keys, users, teams, orgs; budgets per scope with reset periods | Spend tracking and logs; several reports are Enterprise | MIT; `enterprise/` directory separately licensed |
+| [New API](/compare/new-api) | Go gateway + console | Operators serving many users from one deployment | Users, groups, token quotas, subscriptions, top-ups | Usage and audit logs, cost accounting | AGPL-3.0 with attribution terms |
+| one-api | Go gateway + console | Self-hosters wanting one OpenAI-format endpoint | Users, groups, token quotas, redemption codes | Quota logs | MIT with footer attribution; last release February 2025 |
+| Bifrost | Go gateway + UI | Platform teams, with an Enterprise tier | Virtual keys, teams, customers; dollar budgets with resets | Logs, Prometheus metrics, tracing | Apache-2.0 |
+| Portkey Gateway | TypeScript gateway, per-request config | App developers; budgets, RBAC and observability live in the hosted platform | Budgets on the hosted plans | Local console shows logs; retention tiered by plan | MIT; repository quiet since May 2026 |
+| Helicone | Observability platform with a gateway in front | AI engineers who want logs and traces first | Rate limits by requests or cost; no per-key budgets documented | Every request with cost, latency and tokens | Apache-2.0 (platform) |
+| Kong AI Gateway | Plugins on Kong | Enterprises already running Kong | Token quotas and cost budgets per consumer group, Enterprise | Metering through Kong | Apache-2.0 core, Enterprise plugins proprietary |
+| OpenRouter | Hosted only | Developers who want one key and no server | Provisioned keys with credit limits | Activity page and a per-request cost endpoint | Not open source |
+
+## What happens when a budget runs out
+
+A budget is only as good as the moment it stops a request. The projects agree on the principle and differ in the mechanics.
+
+- **Lazu** reserves funds from a prepaid balance before the upstream call and settles the charge from the provider's own usage counters afterwards. A request that the key, project or account cannot cover is rejected before it reaches the provider. A failed request with no billable output releases its reservation. Where a provider reports no counters, the record says so; nothing is invented and nothing is quietly overdrawn ([billing](/billing), [billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)).
+- **LiteLLM** blocks a key, user, team or customer once it crosses `max_budget`, optionally resetting on a schedule; soft-budget alerts are Enterprise.
+- **New API** and **one-api** reject with `403 insufficient_user_quota` when a token's or user's quota is gone.
+- **Bifrost** answers `402 budget_exceeded`, with temporary overrides.
+- **Kong** blocks the request *after* the one that crossed the cost limit.
+- **Portkey** expires the key on its hosted Enterprise plan; **Helicone** rate-limits by cost per window but has no key budgets.
+
+## What a request leaves behind
+
+Lazu stores, for every completed request, the normalized token dimensions, which of them the provider measured and which were estimated locally, the billing line items and public timing; the key that made the request can fetch it by request ID ([request details](/endpoints/usage-requests)). Requests from a coding agent are grouped into sessions, and the repository ships [a script](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py) that reconciles an exported session without printing prompts. The other projects log requests and cost too; the difference is that Lazu's record is part of a documented contract and is readable by the person who paid for it, not only by the operator.
+
+## Protocols
+
+Lazu, LiteLLM, New API and Bifrost accept OpenAI, Anthropic Messages and Gemini requests natively and translate between them where the provider speaks a different format. one-api accepts OpenAI format only. Kong's open-source `ai-proxy` converts from OpenAI format or passes a native format through unchanged. Lazu adds a rule the others do not state: a translation is performed only when it is lossless, and a request that needs a feature the upstream cannot carry is refused with a `400` that names the feature, before any upstream call ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+
+## Newer projects
+
+Three self-hostable gateways appeared in 2025 and 2026 and are worth knowing: **gpt-load** (Go, MIT; channel groups and key pools behind one admin key, no per-person accounts), **AxonHub** (Go; any SDK to any provider, per-request cost tracking, RBAC) and **otari** from mozilla-ai (Python; virtual keys, budgets and usage tracking). None of them was examined beyond its README for this page.
+
+## Related
+
+- [Lazu vs LiteLLM](/compare/litellm)
+- [Lazu vs New API](/compare/new-api)
+- [How pricing works](/billing) · [Request details](/endpoints/usage-requests) · [Agent session costs](/agent-session-costs)

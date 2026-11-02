@@ -2,7 +2,7 @@
 
 # The model account for coding agents and pipelines.
 
-Code, evals and production jobs, on one key: Claude, GPT, Gemini and DeepSeek. A budget that stops, a receipt for every call, pay as you go. Connect Claude Code, Codex or any SDK.
+Code, evals and production jobs, on one key: Claude, GPT, Gemini and DeepSeek, pay as you go, with a budget and a usage record per key. Connect Claude Code, Codex or any SDK.
 
 ## One account, a key for every agent
 

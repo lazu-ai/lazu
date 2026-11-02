@@ -6,8 +6,11 @@
 export type DocsLocale = "en" | "zh" | "zh-TW" | "ja";
 
 type SidebarCopy = {
-  groups: [string, string, string, string, string, string];
+  groups: [string, string, string, string, string, string, string];
   pages: [
+    string,
+    string,
+    string,
     string,
     string,
     string,
@@ -40,6 +43,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Limits & quotas",
       "Billing",
       "Reference",
+      "Compare",
     ],
     pages: [
       "Introduction",
@@ -62,10 +66,13 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Images, video and audio",
       "Agent session costs",
       "Seedance 2.5",
+      "Other gateways",
+      "Lazu vs LiteLLM",
+      "Lazu vs New API",
     ],
   },
   zh: {
-    groups: ["开始", "模型", "接口", "限额", "计费", "参考"],
+    groups: ["开始", "模型", "接口", "限额", "计费", "参考", "对比"],
     pages: [
       "介绍",
       "快速开始",
@@ -87,10 +94,13 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "图片、视频与音频",
       "Agent 会话费用",
       "Seedance 2.5",
+      "其他网关",
+      "Lazu 与 LiteLLM",
+      "Lazu 与 New API",
     ],
   },
   "zh-TW": {
-    groups: ["開始", "模型", "端點", "限額", "計費", "參考"],
+    groups: ["開始", "模型", "端點", "限額", "計費", "參考", "比較"],
     pages: [
       "介紹",
       "快速開始",
@@ -112,6 +122,9 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "圖片、影片與音訊",
       "Agent 工作階段費用",
       "Seedance 2.5",
+      "其他閘道",
+      "Lazu 與 LiteLLM",
+      "Lazu 與 New API",
     ],
   },
   ja: {
@@ -122,6 +135,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "上限",
       "請求",
       "リファレンス",
+      "比較",
     ],
     pages: [
       "概要",
@@ -144,13 +158,17 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "画像・動画・音声",
       "Agent セッション費用",
       "Seedance 2.5",
+      "他のゲートウェイ",
+      "Lazu と LiteLLM",
+      "Lazu と New API",
     ],
   },
 };
 
 function createSidebar(prefix: string, copy: SidebarCopy) {
   const link = (route: string) => `${prefix}${route}` || "/";
-  const [start, models, endpoints, , billing, reference] = copy.groups;
+  const [start, models, endpoints, , billing, reference, compare] =
+    copy.groups;
   const p = copy.pages;
   return [
     {
@@ -201,6 +219,15 @@ function createSidebar(prefix: string, copy: SidebarCopy) {
         { link: link("/examples"), text: p[14] },
         { link: link("/api-reference"), text: p[15] },
         { link: link("/changelog"), text: p[16] },
+      ],
+    },
+    {
+      text: compare,
+      collapsed: false,
+      items: [
+        { link: link("/compare/overview"), text: p[20] },
+        { link: link("/compare/litellm"), text: p[21] },
+        { link: link("/compare/new-api"), text: p[22] },
       ],
     },
   ];

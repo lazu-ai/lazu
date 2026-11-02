@@ -1,0 +1,47 @@
+---
+title: "Lazu vs LiteLLM"
+description: "LiteLLM is a Python library and proxy that gives your services one interface to many providers. Lazu is a Go gateway that gives people and agents a model account. Where each fits, and how keys, budgets, usage records and protocols differ."
+---
+
+# Lazu vs LiteLLM
+
+[LiteLLM](https://github.com/BerriAI/litellm) is the most widely used open-source LLM gateway. It began as a Python SDK that calls a hundred providers through one function, and the proxy grew around it. Lazu is a Go gateway that ships as one product with a ledger, a console and a docs site. The two overlap on "one endpoint, many providers" and part ways on almost everything around it. Facts below were checked on 2 November 2026.
+
+## Who each one is for
+
+**LiteLLM** is built for a platform team that runs a shared gateway for its own services and wants a `config.yaml` it can version, a Python callback it can hook, and an admin UI for keys, teams and spend. The SDK is also usable without the proxy.
+
+**Lazu** is built for a team, a lab or a company that gives people and agents keys: each key has a budget, each request has a record, and the person who owns the key can read it. The operator runs upstreams, prices and users in a console; there is no config file for routing.
+
+## Side by side
+
+| | LiteLLM | Lazu |
+| --- | --- | --- |
+| Runtime | Python proxy (a Rust path is opt-in and serves a few routes); pip, Docker, Helm | Go gateway and worker, React console, Vocs docs; one Docker Compose stack |
+| Configuration | `config.yaml` plus env; admin UI | Console for upstreams, prices, users, notices; env and `config.yaml` for credentials only |
+| Accounts | Virtual keys, internal users, teams, organizations, customers | Users, teams and projects, member budgets, API keys |
+| Budgets | Per key, team, member, user, customer, with reset periods; hard block at `max_budget` | Prepaid balance; per-key caps, project and spend budgets; funds reserved before the call, settled from provider counters, released on failure |
+| Usage records | Spend tracking and logs; spend reports, team-based logging and several exports are Enterprise | One record per request with usage, measurement source and billing lines, readable by the key that made it; agent sessions; reconciliation script |
+| Routing | Router with retries and fallbacks across deployments, load balancing | Channels per model by priority and weight, health window, same-model retry; public route-health page |
+| Protocols | OpenAI, Anthropic `/v1/messages` and Gemini `generateContent` in, translated to any provider | The same three families in; translated only when lossless, otherwise a `400` naming the feature |
+| Extending | Python `CustomLogger` hooks and guardrails in `litellm_settings` | Go and web extension points compiled into a build; the core does not know the extension exists |
+| Paid tier | Enterprise licence: SSO beyond 5 users, audit logs, RBAC, tag budgets, alerts, spend reports, log export, more guardrails | None; everything in the repository runs without a licence key |
+| Licence | MIT, with `enterprise/` under its own licence | AGPL-3.0-or-later |
+
+## Money
+
+LiteLLM tracks spend per scope and blocks a scope that crosses its budget. Lazu starts earlier and ends later: before the upstream call it reserves an estimate from a prepaid balance, and after the call it settles against the usage the provider reported, marking each dimension as measured by the provider, estimated locally, or unavailable. A failed request with no billable output refunds its reservation; a request the account cannot cover never reaches the provider; an account is never silently overdrawn. The rules are written in the [billing contract](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md), with the honest caveat that a reservation is an estimate, not a cap, so a request with no output limit can cost more than was reserved.
+
+If you need budgets that reset monthly for a dozen internal services, LiteLLM has that today. If you need to hand a key to a contractor or an agent and later show exactly what it cost, Lazu is built around that.
+
+## Protocols
+
+Both accept OpenAI, Anthropic and Gemini request formats and send them to providers that speak another format. LiteLLM translates as far as it can. Lazu translates only along edges it has verified lossless and refuses the rest with a `400` that names the feature and field, before any upstream call, so a tool-call or reasoning parameter is never dropped on the way through ([design note](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)).
+
+## When to choose which
+
+- Choose **LiteLLM** when the gateway is an internal piece of your platform, you want YAML and Python hooks, or you already use the LiteLLM SDK.
+- Choose **Lazu** when the gateway *is* the product you hand to people: keys with budgets, a wallet, request records they can read, and a console that an operator who is not a programmer can run.
+- Running both is reasonable: LiteLLM as a library inside a service, Lazu as the account that service draws on.
+
+See also [Lazu vs New API](/compare/new-api) and [the overview of other gateways](/compare/overview).

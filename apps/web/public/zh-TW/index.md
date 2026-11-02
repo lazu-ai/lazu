@@ -2,7 +2,7 @@
 
 # Coding Agent 和自動化任務的模型帳戶。
 
-寫程式、跑評測、跑線上服務，一把 Key 全走：Claude、GPT、Gemini、DeepSeek 都在。預算到額就停，每次呼叫都有明細，按量付費。Claude Code、Codex 和 SDK 直接接入。
+寫程式、跑評測、跑線上服務，一把 Key 全走：Claude、GPT、Gemini、DeepSeek 都在，按量付費，每把 Key 有自己的預算和用量紀錄。Claude Code、Codex 和 SDK 直接接入。
 
 ## 一個帳戶，每個 Agent 一把 Key
 

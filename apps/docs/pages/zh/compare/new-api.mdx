@@ -1,0 +1,56 @@
+---
+title: "Lazu 与 New API"
+description: "Lazu 基于 New API。保留了什么，重写了什么（路由、计费、用量记录、协议转换），以及该跑哪一个。"
+---
+
+# Lazu 与 New API
+
+Lazu 基于 [New API](https://github.com/QuantumNous/new-api)，New API 基于 [one-api](https://github.com/songquanpeng/one-api)。这条血统按上游许可的要求保留在仓库的 NOTICE 和控制台里。这一页讲的是改了什么，不是谁更好：New API 是一个运营得很好、社区很大的项目，已经在跑它的人没有理由迁移，除非下面的区别对他重要。事实于 2026 年 11 月 2 日核对。
+
+## 共同的底子
+
+两者都是带控制台的 Go 网关。都接受 OpenAI Chat Completions 和 Responses、Anthropic Messages、Gemini `generateContent` 请求，都维护带优先级和权重的上游渠道，失败重试，管理用户、分组和带额度的 API Key，用预付余额计费。都用 Docker Compose 加 PostgreSQL 和 Redis 跑。熟悉一个控制台，另一个也不陌生。
+
+## Lazu 重写了什么
+
+**计费是合同，不是倍率。** New API 用倍率和表达式定价，令牌或用户额度用完返回 `403 insufficient_user_quota`。Lazu 把扣费路径换成了一份书面的[计费合同](https://github.com/lazu-ai/lazu/blob/main/docs/billing-contract.md)：调用前预留资金，按上游用量计数结算，请求失败且没有可计费输出时释放。每个用量维度都记录是上游测量、Lazu 估算还是不可用；不可用的数字永远不会用预留值填上，账户永远不会被悄悄透支。价格按模型、按线路列在一个 Key 自己能查的目录里。
+
+**客户自己能读的用量记录。** New API 的用量和审计日志是给运营者的。Lazu 把每个完成的请求开放给发起它的 Key：标准化用量、测量来源、计费明细和耗时，按请求 ID 取（[请求详情](/zh/endpoints/usage-requests)）。编程 Agent 的请求按会话归组，[一个脚本](https://github.com/lazu-ai/lazu/blob/main/ops/scripts/summarize-agent-session.py)可以离线核对导出的会话。
+
+**带保真规则的协议转换。** New API 在入站格式和供应商格式之间转换。Lazu 在一份不可变的请求表示上重建了这一层：每次尝试都从原始请求重新规划路径，只沿着验证过无损的边转换，请求用到上游承载不了的功能时在调用前返回点名该功能的 `400`（[设计说明](https://github.com/lazu-ai/lazu/blob/main/docs/protocol-conversion-architecture.md)）。
+
+**看得见的路由。** 按优先级和权重选渠道是共有的。Lazu 加了健康窗口，把出故障的渠道移出轮换，客户端错误不算故障，并公开一个线路健康页，用户不用问运营者就能看到每条线路的状态。
+
+**团队和项目。** New API 有用户和分组。Lazu 加了项目：成员、角色、邀请和按成员的预算，一个组织可以在一个余额上跑几个团队。
+
+**扩展点。** 部署方自己编译进去的功能通过文档化的钩子接入（[docs/EXTENSIONS.md](https://github.com/lazu-ai/lazu/blob/main/docs/EXTENSIONS.md)）；核心没有它们也能构建和运行。New API 通过 JavaScript 任务插件扩展媒体任务，其余靠改源码。
+
+**一个产品，不只是网关。** Lazu 自带公开页面、带线路和价格的模型目录，以及英文、简体中文、繁体中文、日文四种语言的文档站，从一份源码生成，附带给读文档的 Agent 用的 Markdown 和 `llms.txt`。
+
+## New API 有而 Lazu 没有的
+
+- 更大的社区、更多渠道类型、新供应商覆盖得更快。
+- 订阅和兑换码，以及 Stripe 以外的支付集成。
+- 1Panel 和宝塔的安装方式，多节点集群文档。
+
+## 并排看
+
+| | New API | Lazu |
+| --- | --- | --- |
+| 基础 | one-api | New API |
+| 许可 | AGPL-3.0 附署名条款 | AGPL-3.0-or-later；保留 New API 和 one-api 的署名 |
+| 计费 | 倍率和表达式；额度用完 `403` | 预留 → 结算 → 释放，按维度记测量来源，按模型和线路定价 |
+| 用量记录 | 运营者日志 | 按请求记录，Key 可读；Agent 会话；核对脚本 |
+| 协议转换 | 入站格式转供应商格式 | 只走无损边；否则返回点名功能的 `400` |
+| 路由 | 优先级、权重、重试、亲和 | 相同，外加健康窗口和公开的线路健康页 |
+| 组织 | 用户和分组 | 用户、团队和带成员预算的项目 |
+| 扩展 | JavaScript 任务插件；改源码 | Go 和前端扩展点 |
+| 文档 | docs.newapi.pro | lazu.ai/docs 四种语言，带 `llms.txt` |
+
+## 该跑哪一个
+
+已经在跑 New API、需要它的订阅和兑换码功能、或者想在供应商一发布就有最广的渠道覆盖，跑 **New API**。
+
+你卖的或者发出去的是一个账户：调用前就预留的预算、客户自己能读的记录、带价格的目录、公开的线路页，跑 **Lazu**。
+
+另见 [Lazu 与 LiteLLM](/zh/compare/litellm) 和[其他网关概览](/zh/compare/overview)。

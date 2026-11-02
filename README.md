@@ -3,7 +3,18 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/lazu-ai/lazu?style=social)](https://github.com/lazu-ai/lazu/stargazers)
 
-**The open-source gateway behind [lazu.ai](https://lazu.ai): the model account for coding agents and pipelines.** One key for Claude, GPT, Gemini and DeepSeek on your own upstream accounts, a budget that stops, and a receipt for every request. Code, evals and production jobs all draw on it.
+**The open-source gateway behind [lazu.ai](https://lazu.ai): the model account for coding agents and pipelines.** One OpenAI-compatible endpoint in front of your own Claude, GPT, Gemini and DeepSeek accounts, with a key, a budget and a usage record for every person and every agent that draws on them. Connect Claude Code, Codex, OpenCode or any SDK.
+
+[Self-host it](#quick-start-docker) · [API docs](https://lazu.ai/docs) · [Compared with LiteLLM, New API and other gateways](https://lazu.ai/docs/compare/overview)
+
+## What it does
+
+- **One endpoint, four protocols.** OpenAI Chat Completions and Responses, Anthropic Messages and Gemini `generateContent` are served natively. A request whose client format differs from the upstream's is bridged only when the conversion is lossless; otherwise it is rejected with a `400` that names the feature, never passed on with parameters quietly dropped ([design](./docs/protocol-conversion-architecture.md)).
+- **Accounts, keys and budgets.** Users, teams and projects; member and per-key budgets; lanes chosen per key and per model. Funds are reserved before the upstream call and settled from the provider's own usage counters, so an account cannot be charged for usage nobody measured ([billing contract](./docs/billing-contract.md)).
+- **A usage record per request.** Each completed request has a record with its normalized token dimensions, the source of every number (provider, local estimate, or unavailable), the billing line items and public timing, readable by the key that made it ([request details](https://lazu.ai/docs/endpoints/usage-requests)). Requests from a coding agent group into sessions, and [a script](./ops/scripts/summarize-agent-session.py) reconciles an exported session offline.
+- **Routing you can see.** Several upstream channels per model, picked by priority and weight; a failing channel leaves the rotation through its health window, and a failed attempt retries on the same model elsewhere. A public page shows each route's state.
+- **A console and a docs site.** Operators manage upstreams, pricing, users and notices in the console; users get keys, usage, wallet and the request log; the docs site ships in English, Chinese, Traditional Chinese and Japanese.
+- **Extension points instead of forks.** A deployment compiles its own features in through the hooks in [docs/EXTENSIONS.md](./docs/EXTENSIONS.md); the core does not know they exist.
 
 ## Quick start (Docker)
 
@@ -13,16 +24,33 @@ docker compose --env-file .env -f platform/docker/docker-compose.yml up --build 
 ```
 
 Open <http://localhost:3000> and sign in with `ROOT_USERNAME` / `ROOT_PASSWORD`
-(`root` / `change-me-local-root` if you left them empty).
-Then add an upstream under 模型运营 / Model operations, create an API key, and
-call `http://localhost:3001/v1/chat/completions` with it.
+(`root` / `change-me-local-root` if you left them empty). Add an upstream under
+模型运营 / Model operations, create an API key, and call
+`http://localhost:3001/v1/chat/completions` with it.
+
+```bash
+curl http://localhost:3001/v1/chat/completions \
+  -H "Authorization: Bearer $LAZU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"<a model id from your catalog>","messages":[{"role":"user","content":"Hello"}]}'
+```
 
 The stack runs the gateway (port `3001`), its background jobs, the web console
 (port `3000`), separate Core and Telemetry PostgreSQL stores and Redis. On first
 start the gateway creates its schema and opens its financial ledger; later
 starts leave both alone. There is no browser-based install step.
 
-Everything beyond the gateway is optional and stays off until configured:
+### Connect a client
+
+Any OpenAI SDK works with `base_url` set to `http://<your-host>:3001/v1`.
+Claude Code talks to the Anthropic Messages endpoint of the same host, Codex
+and OpenCode to the OpenAI endpoints; the [Quickstart](https://lazu.ai/docs/quickstart)
+has the exact settings per tool, with `https://api.lazu.ai` replaced by your own
+origin.
+
+### Optional integrations
+
+Everything beyond the gateway stays off until configured:
 
 | Feature | Configure |
 | --- | --- |
@@ -49,30 +77,21 @@ For the full deployment checklist, see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md
 
 ---
 
-Lazu is an AGPL-3.0-or-later OpenAI-compatible AI gateway, operations console, and developer documentation site. It provides approved model access, automatic failover, API Key policy, usage and request receipts, quota and billing controls, public Route health, and protected upstream operations.
-
-The current product boundary is the reliable gateway core. Intelligent-routing experiments may remain in the codebase, but they are deferred from default navigation and the primary product story. The canonical visual and product design reference is [`brand/`](./brand/README.md).
-
-- **API endpoint**: `https://api.lazu.ai`
-- **Public docs (users)**: [`https://lazu.ai/docs`](https://lazu.ai/docs)
-- **Maintainer notes (this repo)**: [`docs/`](./docs)
-
-Self-hosted deployments should configure their own API, web, docs, database, storage, and email settings through environment variables and backend config templates.
-
 ## Workspace
 
-| Path              | Purpose                                                                                                                                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api/`       | API server entrypoint                                                                                                                                             |
-| `apps/web/`       | Web console                                                                                                                                                       |
-| `apps/docs/`      | Active Vocs documentation source (en/zh/zh-TW/ja)                                                                                                                 |
-| `apps/worker/`    | Background jobs                                                                                                                                                   |
-| `internal/`       | Backend controllers, services, models, relay adapters, middleware, settings                                                                                       |
-| `packages/`       | Shared contracts and pure domain rules                                                                                                                            |
-| `config/`         | Backend config, env templates, seed data                                                                                                                          |
-| `ops/`            | Operational scripts and deployment helpers                                                                                                                        |
-| `docs/`           | Maintainer notes, deployment guidance, architecture notes, and glossary material                                                                                  |
-| `.local-results/` | （仅本地，已 gitignore）Playwright 截图 / trace / 报告、本地构建副本等"跑出来的产物"统一存放，约定见 [CONTRIBUTING.md](./CONTRIBUTING.md#本地产物local-artifacts) |
+| Path              | Purpose                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api/`       | API server entrypoint                                                                                                    |
+| `apps/web/`       | Web console and public pages                                                                                             |
+| `apps/docs/`      | Vocs documentation site (en/zh/zh-TW/ja)                                                                                 |
+| `apps/worker/`    | Background jobs                                                                                                          |
+| `internal/`       | Backend controllers, services, models, relay adapters, protocol codecs, middleware, settings                              |
+| `packages/`       | Shared contracts and pure domain rules                                                                                   |
+| `config/`         | Backend config, env templates, seed data                                                                                 |
+| `ops/`            | Operational scripts and deployment helpers                                                                               |
+| `docs/`           | Maintainer notes: contracts, architecture, deployment, glossary                                                          |
+| `brand/`          | Visual and product design reference                                                                                      |
+| `.local-results/` | Local only, git-ignored: Playwright screenshots, traces, reports and other build output; see [CONTRIBUTING.md](./CONTRIBUTING.md#本地产物local-artifacts) |
 
 Shared package sources:
 
@@ -118,15 +137,12 @@ are deployment or maintenance internals, not additional local startup paths.
 
 ## Docs
 
-Public docs source lives in `apps/docs/` (Vocs).
-
-Start with [the maintainer index](docs/README.md) for current contracts and
-operations.
-
-Current docs layout:
+Public docs source lives in `apps/docs/` (Vocs). Start with
+[the maintainer index](docs/README.md) for current contracts and operations.
 
 - `apps/docs/vocs.config.ts`: Vocs site configuration, sidebar, search, theme
 - `apps/docs/pages/index.mdx`: docs home (English default)
+- `apps/docs/pages/compare/`: how Lazu differs from other gateways
 - `apps/docs/pages/examples.mdx`: public code examples
 - `apps/docs/pages/changelog.mdx`: public documentation changelog
 - `apps/docs/pages/api-reference.mdx`: Scalar-rendered OpenAPI reference

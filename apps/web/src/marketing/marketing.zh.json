@@ -17,7 +17,7 @@
   "landing": {
     "meta": {
       "title": "Lazu｜编程 Agent 和自动化任务的模型账户：Claude、GPT、Gemini 一个 Key，支付宝充值",
-      "description": "一个 Key 调用 Claude、GPT、Gemini、DeepSeek，支付宝、微信、对公充值。预算到额就停，每笔请求有回执。接 Claude Code、Codex、OpenCode，跑评测、跑数据、跑线上服务。"
+      "description": "一个 Key 调用 Claude、GPT、Gemini、DeepSeek，支付宝、微信、对公充值，每把 Key 有自己的预算和用量记录。接 Claude Code、Codex、OpenCode，跑评测、跑数据、跑线上服务。"
     },
     "nav": {
       "models": "模型",
@@ -40,7 +40,7 @@
       "headlineEm": "模型账户。",
       "whatBefore": "写代码、跑评测、跑线上服务，",
       "whatBold": "一个 Key 全走",
-      "whatAfter": "：Claude、GPT、Gemini、DeepSeek 都在。预算到额就停，每笔调用有回执，支付宝或对公充值。Claude Code、Codex 和 SDK 直接接入。",
+      "whatAfter": "：Claude、GPT、Gemini、DeepSeek 都在，支付宝或对公充值，每把 Key 有自己的预算和用量记录。Claude Code、Codex 和 SDK 直接接入。",
       "ctaPrimary": "免费注册",
       "ctaSecondary": "看看界面",
       "free": "首充送 10%,最多 $10"
