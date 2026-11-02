@@ -37,6 +37,7 @@ func consoleTaskPrincipal(access model.ProjectLogAccess) model.ProjectPrincipal 
 func consoleTaskFilter(c *gin.Context, access model.ProjectLogAccess) model.MediaJobConsoleFilter {
 	filter := model.MediaJobConsoleFilter{
 		Status:    strings.TrimSpace(c.Query("status")),
+		Kind:      c.Query("kind"),
 		ModelName: c.Query("model_name"),
 		TokenID:   access.TokenID,
 		Query:     c.Query("q"),
@@ -81,6 +82,7 @@ func GetUserTasks(c *gin.Context) {
 func GetAllTasks(c *gin.Context) {
 	filter := model.MediaJobConsoleFilter{
 		Status:      strings.TrimSpace(c.Query("status")),
+		Kind:        c.Query("kind"),
 		ModelName:   c.Query("model_name"),
 		Query:       c.Query("q"),
 		AllAccounts: true,

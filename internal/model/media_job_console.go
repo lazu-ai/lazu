@@ -24,6 +24,7 @@ const (
 // MediaJobConsoleFilter narrows the Tasks view. Zero values do not filter.
 type MediaJobConsoleFilter struct {
 	Status    string // "", active, succeeded or failed
+	Kind      string // "", image or video
 	Start     int64  // unix seconds, inclusive
 	End       int64  // unix seconds, inclusive
 	ModelName string
@@ -59,6 +60,9 @@ func mediaJobConsoleQuery(principal ProjectPrincipal, filter MediaJobConsoleFilt
 		query = query.Where("status IN ?", []string{MediaJobStatusPending, MediaJobStatusRunning})
 	case MediaJobStatusSucceeded, MediaJobStatusFailed:
 		query = query.Where("status = ?", filter.Status)
+	}
+	if kind := normalizeMediaJobKind(filter.Kind); IsValidMediaJobKind(kind) {
+		query = query.Where("kind = ?", kind)
 	}
 	if filter.Start > 0 {
 		query = query.Where("created_at >= ?", time.Unix(filter.Start, 0).UTC())

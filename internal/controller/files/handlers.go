@@ -245,11 +245,32 @@ func Content(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, file.Bytes, file.MimeType, body, headers)
 }
 
+// consoleFile is a console row: the API's file object plus when it is
+// deleted and its type, for the usage page's 上传的文件 list.
+type consoleFile struct {
+	dto.FileObject
+	ExpiresAt *int64 `json:"expires_at,omitempty"`
+	MimeType  string `json:"mime_type"`
+}
+
 func ConsoleList(c *gin.Context) {
 	if !prepareConsoleFileAccess(c, "") {
 		return
 	}
-	List(c)
+	if c.Query("source") != "upload" {
+		List(c)
+		return
+	}
+	rows, err := model.ListUploadedFilesByOwner(c.GetInt("id"), parseLimit(c.Query("limit")), model.RequestResourcePrincipal(c))
+	if err != nil {
+		writeError(c, types.WrapErr(err, types.ErrorCodeInternalError))
+		return
+	}
+	data := make([]consoleFile, 0, len(rows))
+	for _, row := range rows {
+		data = append(data, consoleFile{FileObject: row.ToDTO(), ExpiresAt: row.ExpiresAt, MimeType: row.MimeType})
+	}
+	c.JSON(http.StatusOK, gin.H{"object": "list", "data": data})
 }
 
 func ConsoleDelete(c *gin.Context) {
