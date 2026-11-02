@@ -4,7 +4,7 @@ Repo-level context for AI agents (Codex, Claude Code, Cursor, and similar tools)
 
 ## What This Is
 
-Lazu is an open-source OpenAI-compatible AI gateway, operations console, and public documentation site. The product, package namespace, database and service names are all Lazu. Earlier product names are retired from product branding, code identifiers and file paths. Retain legal attribution in NOTICE and the original source copyright headers; the scanner permits only these explicit legal exceptions. CI runs `ops/scripts/check-brand-residue.sh` to enforce this.
+Lazu is an open-source OpenAI-compatible AI gateway, operations console, and public documentation site. The product, package namespace, database and service names are all Lazu. Earlier product names are retired from product branding, code identifiers and file paths. Retain legal attribution in NOTICE and the original source copyright headers; the scanner permits only these explicit legal exceptions, plus the comparison pages under `apps/docs/pages/compare/`, which name the upstream projects as third parties. CI runs `ops/scripts/check-brand-residue.sh` to enforce this.
 
 See [README.md](./README.md) for the full project structure and setup instructions.
 
