@@ -1065,12 +1065,6 @@ func searchLogs(base func() *gorm.DB, keyword string, since int64, matchType boo
 	return logs, nil
 }
 
-type Stat struct {
-	AmountMicrousd billing.MicroUSD `json:"amount_microusd"`
-	Rpm            int              `json:"rpm"`
-	Tpm            int              `json:"tpm"`
-}
-
 type TokenConsumeSummary struct {
 	RequestCount     int64            `json:"request_count"`
 	AmountMicrousd   billing.MicroUSD `json:"amount_microusd"`
@@ -1108,59 +1102,6 @@ type TokenModelUsage struct {
 type TokenConsumeLogFilter struct {
 	ModelName string
 	Keyword   string
-}
-
-func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userID int, tokenName string, channel int, group string, tokenIDs ...int) (stat Stat) {
-	tx := TelemetryDB().Table("logs").Select("COALESCE(SUM(amount_microusd), 0) amount_microusd")
-
-	// 为rpm和tpm创建单独的查询
-	rpmTpmQuery := TelemetryDB().Table("logs").Select("count(*) rpm, sum(prompt_tokens) + sum(completion_tokens) tpm")
-	if len(tokenIDs) > 0 && tokenIDs[0] > 0 {
-		tx = tx.Where("token_id = ?", tokenIDs[0])
-		rpmTpmQuery = rpmTpmQuery.Where("token_id = ?", tokenIDs[0])
-	}
-
-	if userID > 0 {
-		tx = tx.Where("user_id = ?", userID)
-		rpmTpmQuery = rpmTpmQuery.Where("user_id = ?", userID)
-	} else if username != "" {
-		tx = tx.Where("username = ?", username)
-		rpmTpmQuery = rpmTpmQuery.Where("username = ?", username)
-	}
-	if tokenName != "" {
-		tx = tx.Where("token_name = ?", tokenName)
-		rpmTpmQuery = rpmTpmQuery.Where("token_name = ?", tokenName)
-	}
-	if startTimestamp != 0 {
-		tx = tx.Where("created_at >= ?", startTimestamp)
-	}
-	if endTimestamp != 0 {
-		tx = tx.Where("created_at <= ?", endTimestamp)
-	}
-	if modelName != "" {
-		tx = tx.Where("model_name like ?", modelName)
-		rpmTpmQuery = rpmTpmQuery.Where("model_name like ?", modelName)
-	}
-	if channel != 0 {
-		tx = tx.Where("channel_id = ?", channel)
-		rpmTpmQuery = rpmTpmQuery.Where("channel_id = ?", channel)
-	}
-	if group != "" {
-		tx = tx.Where(logGroupCol+" = ?", group)
-		rpmTpmQuery = rpmTpmQuery.Where(logGroupCol+" = ?", group)
-	}
-
-	tx = tx.Where("type = ?", LogTypeConsume)
-	rpmTpmQuery = rpmTpmQuery.Where("type = ?", LogTypeConsume)
-
-	// 只统计最近60秒的rpm和tpm
-	rpmTpmQuery = rpmTpmQuery.Where("created_at >= ?", time.Now().Add(-60*time.Second).Unix())
-
-	// 执行查询
-	tx.Scan(&stat)
-	rpmTpmQuery.Scan(&stat)
-
-	return stat
 }
 
 // GetUserUsedModels returns a list of distinct model names that a user has used

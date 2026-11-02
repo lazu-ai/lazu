@@ -158,27 +158,17 @@ func GetLogByKey(c *gin.Context) {
 }
 
 func GetLogsStat(c *gin.Context) {
-	logType, _ := strconv.Atoi(c.Query("type"))
-	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
-	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	tokenName := c.Query("token_name")
-	username := c.Query("username")
+	start, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	end, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	userID, _ := strconv.Atoi(c.Query("user_id"))
-	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
-	group := c.Query("group")
-	stat := model.SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, userID, tokenName, channel, group)
-	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, "")
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data": gin.H{
-			"amount_microusd": stat.AmountMicrousd,
-			"rpm":             stat.Rpm,
-			"tpm":             stat.Tpm,
-		},
-	})
-	return
+	stat, err := model.AdminLogsRangeStat(model.AdminLogFilter{Start: start, End: end, ModelName: c.Query("model_name"), Username: c.Query("username"),
+		TokenName: c.Query("token_name"), Group: c.Query("group"), UserID: userID, Channel: channel})
+	if err != nil {
+		logFailure(c, err)
+		return
+	}
+	common.ApiSuccess(c, stat)
 }
 
 func GetLogsSelfStat(c *gin.Context) {
@@ -186,12 +176,12 @@ func GetLogsSelfStat(c *gin.Context) {
 	if !ok {
 		return
 	}
-	stat, err := model.ProjectLogsStat(access, projectLogFilter(c))
+	stat, err := model.ProjectLogsRangeStat(access, projectLogFilter(c))
 	if err != nil {
 		logFailure(c, err)
 		return
 	}
-	common.ApiSuccess(c, gin.H{"amount_microusd": stat.AmountMicrousd, "rpm": stat.Rpm, "tpm": stat.Tpm})
+	common.ApiSuccess(c, stat)
 }
 
 func DeleteHistoryLogs(c *gin.Context) {

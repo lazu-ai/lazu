@@ -28,8 +28,6 @@ type TokenUsageRecord = {
 
 type UsageStat = {
   amount_microusd?: number;
-  rpm?: number;
-  tpm?: number;
 };
 
 const useTokenSpend = (tokenID: string, ownerID: string, days: number) =>

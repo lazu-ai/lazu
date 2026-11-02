@@ -202,9 +202,12 @@ type AgentSessionQuery struct {
 	Client     string
 	TokenName  string
 	OnlyFailed bool
-	Keyword    string
-	StartIdx   int
-	Num        int
+	// Result narrows to sessions with ("failed") or without ("ok") any
+	// failed request.
+	Result   string
+	Keyword  string
+	StartIdx int
+	Num      int
 }
 
 type AgentSessionListItem struct {
@@ -214,6 +217,14 @@ type AgentSessionListItem struct {
 	Username string              `json:"username,omitempty"`
 	Models   []AgentSessionModel `json:"models"`
 	Tokens   int64               `json:"tokens"`
+	// Segments are the stretches of work, split wherever the agent sent
+	// nothing for more than two minutes (the session page's rule).
+	Segments []AgentSessionSegment `json:"segments"`
+}
+
+type AgentSessionSegment struct {
+	Start int64 `json:"start"`
+	End   int64 `json:"end"`
 }
 
 // AgentSessionListSummary is the strip above the list: every agent session
@@ -255,6 +266,12 @@ func agentSessionBaseQuery(q AgentSessionQuery) *gorm.DB {
 	}
 	if q.OnlyFailed {
 		tx = tx.Where("agent_sessions.error_count > 0 AND agent_sessions.last_error_at >= agent_sessions.last_at")
+	}
+	switch q.Result {
+	case "ok":
+		tx = tx.Where("agent_sessions.error_count = 0")
+	case "failed":
+		tx = tx.Where("agent_sessions.error_count > 0")
 	}
 	if keyword := strings.TrimSpace(q.Keyword); keyword != "" {
 		like := "%" + strings.ReplaceAll(strings.ReplaceAll(keyword, "%", "\\%"), "_", "\\_") + "%"
@@ -309,7 +326,7 @@ func ListAgentSessions(q AgentSessionQuery) ([]AgentSessionListItem, int64, Agen
 	ids := make([]uint, len(rows))
 	userIDs := make([]int, 0, len(rows))
 	for i, row := range rows {
-		items[i] = AgentSessionListItem{AgentSession: row, Tokens: row.PromptTokens + row.CompletionTokens, Models: []AgentSessionModel{}}
+		items[i] = AgentSessionListItem{AgentSession: row, Tokens: row.PromptTokens + row.CompletionTokens, Models: []AgentSessionModel{}, Segments: []AgentSessionSegment{}}
 		ids[i] = row.ID
 		userIDs = append(userIDs, row.UserID)
 	}
@@ -324,6 +341,9 @@ func ListAgentSessions(q AgentSessionQuery) ([]AgentSessionListItem, int64, Agen
 		}
 		for i := range items {
 			items[i].Models = append(items[i].Models, byPK[items[i].ID]...)
+		}
+		if err := attachAgentSessionSegments(items); err != nil {
+			return nil, 0, summary, err
 		}
 		if q.UserID == 0 {
 			var users []User
@@ -340,6 +360,69 @@ func ListAgentSessions(q AgentSessionQuery) ([]AgentSessionListItem, int64, Agen
 		}
 	}
 	return items, total, summary, nil
+}
+
+// agentSessionSegmentGap is the longest stop that still counts as one
+// stretch of work; the session page splits on the same two minutes.
+const agentSessionSegmentGap = 120
+
+// agentSessionSegmentScan bounds the log rows one list page reads for its
+// segments; past it a page's sessions show one segment each.
+const agentSessionSegmentScan = 20000
+
+// attachAgentSessionSegments reads one page's request times in one query.
+// A request runs from created_at - use_time to created_at (logs are written
+// when a request completes).
+func attachAgentSessionSegments(items []AgentSessionListItem) error {
+	if len(items) == 0 || TelemetryDB() == nil {
+		return nil
+	}
+	userIDs, sessionIDs := make([]int, 0, len(items)), make([]string, 0, len(items))
+	from, to := items[0].StartedAt, items[0].LastAt
+	for _, item := range items {
+		userIDs = append(userIDs, item.AgentSession.UserID)
+		sessionIDs = append(sessionIDs, item.SessionID)
+		from, to = min(from, item.StartedAt), max(to, item.LastAt)
+	}
+	var rows []struct {
+		UserID    int
+		SessionID string
+		CreatedAt int64
+		UseTime   int64
+	}
+	if err := TelemetryDB().Model(&Log{}).Select("user_id, session_id, created_at, use_time").
+		Where("user_id IN ? AND session_id IN ? AND type IN ? AND created_at >= ? AND created_at <= ?", userIDs, sessionIDs, []int{LogTypeConsume, LogTypeError}, from, to).
+		Order("created_at ASC").Limit(agentSessionSegmentScan + 1).Scan(&rows).Error; err != nil {
+		return err
+	}
+	type key struct {
+		user    int
+		session string
+	}
+	segments := map[key][]AgentSessionSegment{}
+	if len(rows) <= agentSessionSegmentScan {
+		for _, row := range rows {
+			k := key{row.UserID, row.SessionID}
+			start, end := row.CreatedAt-max(0, row.UseTime), row.CreatedAt
+			list := segments[k]
+			if n := len(list); n > 0 && start-list[n-1].End <= agentSessionSegmentGap {
+				list[n-1].End = max(list[n-1].End, end)
+				list[n-1].Start = min(list[n-1].Start, start)
+			} else {
+				list = append(list, AgentSessionSegment{Start: start, End: end})
+			}
+			segments[k] = list
+		}
+	}
+	for i := range items {
+		item := &items[i]
+		list := segments[key{item.AgentSession.UserID, item.SessionID}]
+		if len(list) == 0 {
+			list = []AgentSessionSegment{{Start: item.StartedAt, End: item.LastAt}}
+		}
+		item.Segments = list
+	}
+	return nil
 }
 
 type AgentSessionRequest struct {

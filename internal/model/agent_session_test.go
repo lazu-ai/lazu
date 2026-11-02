@@ -263,6 +263,15 @@ func TestAgentSessionOfficialLanesAndStatus(t *testing.T) {
 	if _, failedTotal, _, _ := ListAgentSessions(AgentSessionQuery{UserID: 7, Num: 20, OnlyFailed: true}); failedTotal != 0 {
 		t.Fatalf("only-failed matched a session that recovered")
 	}
+	if _, withFailures, _, _ := ListAgentSessions(AgentSessionQuery{UserID: 7, Num: 20, Result: "failed"}); withFailures != 1 {
+		t.Fatalf("result=failed missed a session with a failed request")
+	}
+	if _, clean, _, _ := ListAgentSessions(AgentSessionQuery{UserID: 7, Num: 20, Result: "ok"}); clean != 0 {
+		t.Fatalf("result=ok matched a session with a failed request")
+	}
+	if len(s.Segments) != 1 || s.Segments[0] != (AgentSessionSegment{Start: 100, End: 200}) {
+		t.Fatalf("calls 50 s apart are one segment: %+v", s.Segments)
+	}
 
 	detail, err := GetAgentSessionDetailPage(7, s.PublicID, 0, 0)
 	if err != nil {
@@ -360,4 +369,29 @@ func TestAgentSessionRequestPaginationAndRetentionCoverage(t *testing.T) {
 		t.Fatal("retained subset reported as complete")
 	}
 
+}
+
+func TestAgentSessionSegmentsSplitOnLongStops(t *testing.T) {
+	_, db := newLedgerTestDBs(t)
+	if err := db.AutoMigrate(&AgentSession{}, &AgentSessionThread{}, &AgentSessionModel{}, &AgentSessionMessage{}); err != nil {
+		t.Fatalf("migrate sessions: %v", err)
+	}
+	// Two calls a minute apart, then a stop of almost a day, then one more.
+	for _, at := range []struct{ created, use int }{{1000, 10}, {1060, 20}, {85000, 5}} {
+		entry := Log{UserId: 9, SessionID: "sess-gap", SessionSource: "claude-code", Type: LogTypeConsume, CreatedAt: int64(at.created), UseTime: at.use, ModelName: "m"}
+		if err := recordSessionActivity(&entry, false); err != nil {
+			t.Fatalf("record: %v", err)
+		}
+		if err := db.Create(&entry).Error; err != nil {
+			t.Fatalf("seed log: %v", err)
+		}
+	}
+	items, _, _, err := ListAgentSessions(AgentSessionQuery{UserID: 9, Num: 20})
+	if err != nil || len(items) != 1 {
+		t.Fatalf("list: %v %+v", err, items)
+	}
+	want := []AgentSessionSegment{{Start: 990, End: 1060}, {Start: 84995, End: 85000}}
+	if got := items[0].Segments; len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("segments = %+v, want %+v", got, want)
+	}
 }
