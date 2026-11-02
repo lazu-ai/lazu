@@ -56,7 +56,7 @@ export const getCommunityURL = (): string | null => {
  * shows no such column. The value is comma-separated `<model page>=<label>`
  * pairs, where the page is the path under /models, e.g.
  * `anthropic/claude-opus-5-5=Claude Opus 5.5`. Malformed entries are dropped. */
-export type FooterModel = { path: string; label: string };
+type FooterModel = { path: string; label: string };
 
 const FOOTER_MODEL_PATH = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+$/;
 
