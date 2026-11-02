@@ -107,6 +107,8 @@ ${buildExtensions.map((extension) => extension.llmsSections?.(env) ?? '').join('
 - [API Reference](${env.docsOrigin}/api-reference): interactive OpenAPI reference
 - [Examples](${env.docsOrigin}/examples): cURL / Python / JavaScript / TypeScript / Go
 - [Changelog](${env.docsOrigin}/changelog): API updates
+- [Lazu compared with other LLM gateways](${env.docsOrigin}/compare/overview): one page each for LiteLLM, OpenRouter, Portkey, Helicone, Kong, Bifrost, New API and One API; who each is for, budgets, usage records and protocols side by side
+- Every docs page as Markdown: [${env.docsOrigin}/llms.txt](${env.docsOrigin}/llms.txt), full text in [${env.docsOrigin}/llms-full.txt](${env.docsOrigin}/llms-full.txt)
 `;
 
 const llmsFull = `${llms}

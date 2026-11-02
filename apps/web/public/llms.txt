@@ -32,3 +32,5 @@
 - [API Reference](https://lazu.ai/docs/api-reference): interactive OpenAPI reference
 - [Examples](https://lazu.ai/docs/examples): cURL / Python / JavaScript / TypeScript / Go
 - [Changelog](https://lazu.ai/docs/changelog): API updates
+- [Lazu compared with other LLM gateways](https://lazu.ai/docs/compare/overview): one page each for LiteLLM, OpenRouter, Portkey, Helicone, Kong, Bifrost, New API and One API; who each is for, budgets, usage records and protocols side by side
+- Every docs page as Markdown: [https://lazu.ai/docs/llms.txt](https://lazu.ai/docs/llms.txt), full text in [https://lazu.ai/docs/llms-full.txt](https://lazu.ai/docs/llms-full.txt)
