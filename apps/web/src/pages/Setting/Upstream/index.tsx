@@ -213,6 +213,16 @@ const createSections = (
           },
         ],
       },
+      /* On by default. Kept here so an operator can turn it off without a
+         deploy if pinning sessions to one channel ever misbehaves. */
+      {
+        key: 'SessionChannelAffinityEnabled',
+        kind: 'boolean',
+        label: t('page.console.settingV2.upstream.field.sessionAffinity'),
+        description: t(
+          'page.console.settingV2.upstream.field.sessionAffinityHelp',
+        ),
+      },
       {
         key: 'global.pass_through_request_enabled',
         kind: 'boolean',

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/lazu-ai/lazu/internal/httperr"
 	"github.com/lazu-ai/lazu/internal/types"
 )
 
@@ -32,6 +33,9 @@ func writeSafeStreamOpenAIError(c *gin.Context, relayFormat types.RelayFormat, s
 		c.Header("X-Lazu-Error", openAIError.Lazu)
 	}
 	if !c.Writer.Written() {
+		if code, ok := openAIError.Code.(string); ok {
+			httperr.MarkNoRetry(c, code)
+		}
 		c.Header("Content-Type", "application/json; charset=utf-8")
 		c.AbortWithStatusJSON(status, gin.H{"error": openAIError})
 		return

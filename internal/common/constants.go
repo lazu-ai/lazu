@@ -103,6 +103,12 @@ var QuotaForNewUser billing.MicroUSD = 0
 var ChannelDisableThreshold = 5.0
 var AutomaticDisableChannelEnabled = false
 var AutomaticEnableChannelEnabled = false
+
+// SessionChannelAffinityEnabled keeps each agent session on the channel and
+// upstream key that served its previous turn (relay/router/session_affinity.go).
+// On by default; an operator can turn it off under 上游 › 重试与探活 if pinning
+// itself misbehaves.
+var SessionChannelAffinityEnabled = true
 var PreConsumedQuota = 500
 
 //var RootUserEmail = ""

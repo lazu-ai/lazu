@@ -294,7 +294,14 @@ func Distribute() func(c *gin.Context) {
 					}
 					setStructuredInputTokenEstimate(c, reqCtx, resolvedModel)
 					routeTimer := common.StartHotPathStage(common.HotPathStageRoutingSelect)
-					d, err := selectedRouter.Select(c.Request.Context(), reqCtx)
+					// A session's previous channel comes first when it is
+					// still one the router would accept; otherwise the router
+					// chooses. A Key pinned to a channel never gets here.
+					d := routeBySessionAffinity(c, reqCtx)
+					var err error
+					if d == nil {
+						d, err = selectedRouter.Select(c.Request.Context(), reqCtx)
+					}
 					routeTimer.Finish(err)
 					if err == nil {
 						decision = d
@@ -388,7 +395,11 @@ func Distribute() func(c *gin.Context) {
 				c.Set("routing_decision_id", decisionID)
 			}
 		}
-		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+		if pinned, ok := sessionAffinityPinnedKey(c, channel); ok {
+			setupContextForChannelKey(c, channel, modelRequest.Model, pinned.KeyIndex, pinned.KeyHash)
+		} else {
+			SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+		}
 		// Report the lane actually selected for every routed request. The
 		// fallback header only exists when a preferred lane fell back.
 		if finalLane := c.GetString("final_group"); finalLane != "" {
@@ -411,6 +422,7 @@ func Distribute() func(c *gin.Context) {
 		if !suppressRelayTelemetry {
 			recordChannelMetrics(c, channel)
 			recordRoutingOutcome(c, routingDecisionID)
+			recordSessionAffinity(c)
 		}
 	}
 }
@@ -1326,6 +1338,15 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 }
 
 func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, modelName string) *types.LazuError {
+	return setupContextForChannelKey(c, channel, modelName, -1, "")
+}
+
+// setupContextForChannelKey prepares the context for channel. A pinned key
+// index (>= 0) is used when that key is still enabled and is still the key
+// whose fingerprint was recorded; otherwise the channel picks its next key.
+// Retries always go through SetupContextForSelectedChannel, so a retry never
+// replays a pinned key the provider has just refused.
+func setupContextForChannelKey(c *gin.Context, channel *model.Channel, modelName string, pinnedIndex int, pinnedHash string) *types.LazuError {
 	c.Set("original_model", modelName) // for retry
 	if channel == nil {
 		return types.NewError(errors.New("channel is nil"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
@@ -1344,9 +1365,18 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	common.SetContextKey(c, constant.ContextKeyChannelModelMapping, channel.GetModelMapping())
 	common.SetContextKey(c, constant.ContextKeyChannelStatusCodeMapping, channel.GetStatusCodeMapping())
 
-	key, index, lazuErr := channel.GetNextEnabledKey()
-	if lazuErr != nil {
-		return lazuErr
+	key, index, pinned := "", 0, false
+	if pinnedIndex >= 0 {
+		if candidate, enabled := channel.EnabledKeyAt(pinnedIndex); enabled && relayrouter.AffinityKeyHash(candidate) == pinnedHash {
+			key, index, pinned = candidate, pinnedIndex, true
+		}
+	}
+	if !pinned {
+		var lazuErr *types.LazuError
+		key, index, lazuErr = channel.GetNextEnabledKey()
+		if lazuErr != nil {
+			return lazuErr
+		}
 	}
 	if channel.ChannelInfo.IsMultiKey {
 		common.SetContextKey(c, constant.ContextKeyChannelIsMultiKey, true)

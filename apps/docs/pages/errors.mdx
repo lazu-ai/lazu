@@ -60,7 +60,9 @@ Anthropic-compatible routes (`/v1/messages`) use Anthropic's shape and types:
 | `docs` | Link to the row for this number below. |
 
 Every error response also carries the `X-Lazu-Request-Id` and
-`X-Lazu-Error` headers.
+`X-Lazu-Error` headers. Errors that retrying cannot fix, such as an empty
+wallet or an exhausted budget, also carry `x-should-retry: false`, which the
+OpenAI and Anthropic SDKs obey.
 
 ## Types
 
@@ -70,7 +72,7 @@ Every error response also carries the `X-Lazu-Request-Id` and
 | `authentication_error` | 401 | Fix the API key: invalid, expired and disabled keys have their own codes. |
 | `permission_error` | 403 | The key or account may not do this: IP, model, vendor or project scope. |
 | `not_found_error` | 404 | Wrong path, model or ID. |
-| `insufficient_quota` | 429 | Balance or a budget ran out. Top up or raise the budget; retrying will not help. |
+| `insufficient_quota` | 429, 402 | Balance or a budget ran out. Top up or raise the budget; retrying will not help. `/v1/messages` answers 402 `billing_error`, as Anthropic does. |
 | `rate_limit_error` | 429 | Wait for `Retry-After`, then retry. |
 | `content_policy_violation_error` | 400 | The model refused the content. Change the content. |
 | `overloaded_error` | 503 | Busy. Retry later with backoff. |
@@ -210,12 +212,12 @@ message; the cause is recorded against the request ID.
 
 | Number | Code | HTTP | Type | What it means and what to do |
 | --- | --- | --- | --- | --- |
-| <a id="lz-3101"></a>`LZ-3101` | `insufficient_quota` | 429 | `insufficient_quota` | Your wallet balance is too low for this request. Top up to continue. |
-| <a id="lz-3201"></a>`LZ-3201` | `key_budget_exceeded` | 429 | `insufficient_quota` | This API key's budget cannot cover the request, so it was not sent. Raise the key budget or lower the output limit. |
-| <a id="lz-3202"></a>`LZ-3202` | `pre_consume_token_quota_failed` | 429 | `insufficient_quota` | This API key's remaining allowance cannot cover the request. Raise the allowance or use another key. |
-| <a id="lz-3301"></a>`LZ-3301` | `member_budget_exceeded` | 429 | `insufficient_quota` | Your monthly member budget is used up. Ask a project admin to adjust it. |
-| <a id="lz-3401"></a>`LZ-3401` | `project_budget_exceeded` | 429 | `insufficient_quota` | The project budget is used up. Ask a project admin to adjust it. |
-| <a id="lz-3501"></a>`LZ-3501` | `platform_budget_exceeded` | 429 | `insufficient_quota` | The platform spending limit has been reached. Contact the platform administrator. |
+| <a id="lz-3101"></a>`LZ-3101` | `insufficient_quota` | 429; `/v1/messages`: 402 | `insufficient_quota` | Your wallet balance is too low for this request. Top up to continue. |
+| <a id="lz-3201"></a>`LZ-3201` | `key_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | This API key's budget cannot cover the request, so it was not sent. Raise the key budget or lower the output limit. |
+| <a id="lz-3202"></a>`LZ-3202` | `pre_consume_token_quota_failed` | 429; `/v1/messages`: 402 | `insufficient_quota` | This API key's remaining allowance cannot cover the request. Raise the allowance or use another key. |
+| <a id="lz-3301"></a>`LZ-3301` | `member_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | Your monthly member budget is used up. Ask a project admin to adjust it. |
+| <a id="lz-3401"></a>`LZ-3401` | `project_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | The project budget is used up. Ask a project admin to adjust it. |
+| <a id="lz-3501"></a>`LZ-3501` | `platform_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | The platform spending limit has been reached. Contact the platform administrator. |
 | <a id="lz-3601"></a>`LZ-3601` | `pricing_not_configured` | 503 | `api_error` | This model has no price on the selected lane yet, so it can't be used. Choose another model. |
 
 ### LZ-4xxx · Models and routes

@@ -1820,6 +1820,8 @@
     "page.console.settingV2.upstream.field.passThroughHelp": "プロトコル変換をせずそのまま転送します。すべてのチャネルの方言が同じだと確認できている場合にだけ使ってください。",
     "page.console.settingV2.upstream.field.pingInterval": "ストリームのキープアライブ",
     "page.console.settingV2.upstream.field.pingIntervalHelp": "出力が長く途切れたときに空行を送って接続を保ち、プロキシに切られるのを防ぎます。",
+    "page.console.settingV2.upstream.field.sessionAffinity": "セッションのチャネル固定",
+    "page.console.settingV2.upstream.field.sessionAffinityHelp": "コーディングエージェントの同じセッションの各ターンを、前のターンを処理したチャネルと上流キーに送ります。そのチャネルが無効化された、そのモデルを提供しなくなった、または不健全なときだけ切り替えます。推論の署名とプロンプトキャッシュは上流アカウントに紐づくため、切り替えると失われます。",
     "page.console.settingV2.upstream.field.window": "ウィンドウとしきい値",
     "page.console.settingV2.upstream.field.windowHelp": "順に、ウィンドウの長さ、その中で許す総要求数、うち成功要求の上限です。",
     "page.console.settingV2.upstream.gemini.description": "Gemini 系モデルだけに効く転送パラメータです。",

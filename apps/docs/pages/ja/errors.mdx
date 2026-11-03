@@ -55,7 +55,7 @@ Anthropic 互換のルート（`/v1/messages`）は Anthropic の形式とタイ
 | `request_id` | このエラーが属するリクエスト。 |
 | `docs` | このページの該当番号へのリンク。 |
 
-すべてのエラーレスポンスには `X-Lazu-Request-Id` と `X-Lazu-Error` ヘッダーも付きます。
+すべてのエラーレスポンスには `X-Lazu-Request-Id` と `X-Lazu-Error` ヘッダーも付きます。ウォレット残高不足や予算切れなど、再試行では解決しないエラーには `x-should-retry: false` も付き、OpenAI と Anthropic の SDK はこれに従って再試行を止めます。
 
 ## エラータイプ
 
@@ -65,7 +65,7 @@ Anthropic 互換のルート（`/v1/messages`）は Anthropic の形式とタイ
 | `authentication_error` | 401 | API キーを修正してください。無効・期限切れ・無効化はそれぞれ別の code です。 |
 | `permission_error` | 403 | キーまたはアカウントにこの操作が許可されていません（IP、モデル、ベンダー、プロジェクトの範囲）。 |
 | `not_found_error` | 404 | パス、モデル、ID が正しくありません。 |
-| `insufficient_quota` | 429 | 残高または予算が尽きました。チャージするか予算を上げてください。再試行では解決しません。 |
+| `insufficient_quota` | 429, 402 | 残高または予算が尽きました。チャージするか予算を上げてください。再試行では解決しません。`/v1/messages` は Anthropic と同じく 402 `billing_error` を返します。 |
 | `rate_limit_error` | 429 | `Retry-After` の時間を待ってから再試行してください。 |
 | `content_policy_violation_error` | 400 | モデルが内容を拒否しました。内容を変更してください。 |
 | `overloaded_error` | 503 | 混雑しています。バックオフして後で再試行してください。 |
@@ -196,12 +196,12 @@ Lazu 側の問題（一時的に壊れたモデルルートなど）を表すエ
 
 | 番号 | Code | HTTP | タイプ | 意味と対処 |
 | --- | --- | --- | --- | --- |
-| <a id="lz-3101"></a>`LZ-3101` | `insufficient_quota` | 429 | `insufficient_quota` | ウォレットの残高が不足しているため、このリクエストを実行できません。チャージしてから続けてください。 |
-| <a id="lz-3201"></a>`LZ-3201` | `key_budget_exceeded` | 429 | `insufficient_quota` | この API キーの予算ではリクエストをまかなえないため、送信されませんでした。キーの予算を上げるか、出力上限を下げてください。 |
-| <a id="lz-3202"></a>`LZ-3202` | `pre_consume_token_quota_failed` | 429 | `insufficient_quota` | この API キーの残り利用枠ではリクエストをまかなえません。利用枠を増やすか、別のキーを使ってください。 |
-| <a id="lz-3301"></a>`LZ-3301` | `member_budget_exceeded` | 429 | `insufficient_quota` | 今月のメンバー予算を使い切りました。プロジェクト管理者に調整を依頼してください。 |
-| <a id="lz-3401"></a>`LZ-3401` | `project_budget_exceeded` | 429 | `insufficient_quota` | プロジェクトの予算を使い切りました。プロジェクト管理者に調整を依頼してください。 |
-| <a id="lz-3501"></a>`LZ-3501` | `platform_budget_exceeded` | 429 | `insufficient_quota` | プラットフォームの支出上限に達しました。プラットフォーム管理者に連絡してください。 |
+| <a id="lz-3101"></a>`LZ-3101` | `insufficient_quota` | 429; `/v1/messages`: 402 | `insufficient_quota` | ウォレットの残高が不足しているため、このリクエストを実行できません。チャージしてから続けてください。 |
+| <a id="lz-3201"></a>`LZ-3201` | `key_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | この API キーの予算ではリクエストをまかなえないため、送信されませんでした。キーの予算を上げるか、出力上限を下げてください。 |
+| <a id="lz-3202"></a>`LZ-3202` | `pre_consume_token_quota_failed` | 429; `/v1/messages`: 402 | `insufficient_quota` | この API キーの残り利用枠ではリクエストをまかなえません。利用枠を増やすか、別のキーを使ってください。 |
+| <a id="lz-3301"></a>`LZ-3301` | `member_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | 今月のメンバー予算を使い切りました。プロジェクト管理者に調整を依頼してください。 |
+| <a id="lz-3401"></a>`LZ-3401` | `project_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | プロジェクトの予算を使い切りました。プロジェクト管理者に調整を依頼してください。 |
+| <a id="lz-3501"></a>`LZ-3501` | `platform_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | プラットフォームの支出上限に達しました。プラットフォーム管理者に連絡してください。 |
 | <a id="lz-3601"></a>`LZ-3601` | `pricing_not_configured` | 503 | `api_error` | このモデルは選択したレーンでまだ価格が設定されていないため、利用できません。別のモデルを選んでください。 |
 
 ### LZ-4xxx · モデルとルート

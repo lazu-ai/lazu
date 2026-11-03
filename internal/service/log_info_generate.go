@@ -135,9 +135,31 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, c
 		adminInfo["is_multi_key"] = true
 		adminInfo["multi_key_index"] = common.GetContextKeyInt(ctx, constant.ContextKeyChannelMultiKeyIndex)
 	}
+	if affinity := sessionAffinityAdminInfo(ctx); affinity != nil {
+		adminInfo["session_affinity"] = affinity
+	}
 	other["admin_info"] = adminInfo
 	appendRequestPath(ctx, relayInfo, other)
 	return other
+}
+
+// sessionAffinityAdminInfo explains how session affinity routed the request:
+// result is none (no earlier turn on record), hit (sent to the previous
+// turn's channel) or rejected (that channel could not take it, for reason).
+// previous_channel_id is the channel the session's previous turn used.
+func sessionAffinityAdminInfo(ctx *gin.Context) map[string]interface{} {
+	result := common.GetContextKeyString(ctx, constant.ContextKeySessionAffinityResult)
+	if result == "" {
+		return nil
+	}
+	info := map[string]interface{}{"result": result}
+	if channelID := common.GetContextKeyInt(ctx, constant.ContextKeySessionAffinityChannel); channelID > 0 {
+		info["previous_channel_id"] = channelID
+	}
+	if reason := common.GetContextKeyString(ctx, constant.ContextKeySessionAffinityReason); reason != "" {
+		info["reason"] = reason
+	}
+	return info
 }
 
 func GenerateWssOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.RealtimeUsage, perCallPriceUSD float64) map[string]interface{} {
