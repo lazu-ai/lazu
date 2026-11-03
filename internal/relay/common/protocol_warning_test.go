@@ -2,9 +2,11 @@ package common
 
 import (
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 )
 
@@ -56,5 +58,29 @@ func TestSetProtocolWarningHeaderIsScopedToThePlan(t *testing.T) {
 	SetProtocolWarningHeader(c, &textgen.RelayPlan{Native: true})
 	if got := recorder.Header().Get(ProtocolWarningHeader); got != "" {
 		t.Fatalf("a plan without warnings must clear the header, got %q", got)
+	}
+}
+
+// A field the channel's settings keep from the upstream is named, so a client
+// asking for fast mode learns it was served at standard speed.
+func TestRemovedFieldsAreWarned(t *testing.T) {
+	body, removed, err := RemoveDisabledFieldsReporting([]byte(`{"model":"m","speed":"fast","service_tier":"auto","max_tokens":1}`), dto.ChannelOtherSettings{AllowServiceTier: true}, false)
+	if err != nil || string(body) != `{"model":"m","service_tier":"auto","max_tokens":1}` || len(removed) != 1 || removed[0] != "speed" {
+		t.Fatalf("body %s removed %v err %v", body, removed, err)
+	}
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	WarnFieldsDropped(c, &RelayInfo{ProtocolPlan: &textgen.RelayPlan{}}, removed)
+	if got := recorder.Header().Get(ProtocolWarningHeader); got != "field_dropped:speed" {
+		t.Fatalf("header = %q", got)
+	}
+}
+
+// The native Messages relay keeps top-level fields the DTO does not model,
+// Claude Code's diagnostics and output_format among them.
+func TestMergeKeepsClaudeCodeTopLevelFields(t *testing.T) {
+	merged, err := MergeUnknownTopLevelFields([]byte(`{"model":"m","diagnostics":{"cache":true},"output_format":{"type":"json_schema"}}`), []byte(`{"model":"m"}`))
+	if err != nil || !strings.Contains(string(merged), `"diagnostics":{"cache":true}`) || !strings.Contains(string(merged), `"output_format":{"type":"json_schema"}`) {
+		t.Fatalf("merged %s %v", merged, err)
 	}
 }

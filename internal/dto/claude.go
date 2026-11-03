@@ -411,6 +411,54 @@ type Thinking struct {
 	Type         string `json:"type"`
 	BudgetTokens *int   `json:"budget_tokens,omitempty"`
 	Display      string `json:"display,omitempty"`
+	// Extra holds the keys this struct does not model, which Anthropic adds
+	// over time; they go upstream as the client sent them.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+type plainThinking Thinking
+
+func (c Thinking) MarshalJSON() ([]byte, error) {
+	data, err := json.Marshal(plainThinking(c))
+	if err != nil || len(c.Extra) == 0 {
+		return data, err
+	}
+	merged := make(map[string]json.RawMessage, len(c.Extra)+3)
+	if err := json.Unmarshal(data, &merged); err != nil {
+		return nil, err
+	}
+	for key, value := range c.Extra {
+		if _, modeled := merged[key]; !modeled {
+			merged[key] = value
+		}
+	}
+	return json.Marshal(merged)
+}
+
+func (c *Thinking) UnmarshalJSON(data []byte) error {
+	var plain plainThinking
+	if err := json.Unmarshal(data, &plain); err != nil {
+		return err
+	}
+	var all map[string]json.RawMessage
+	if json.Unmarshal(data, &all) == nil {
+		delete(all, "type")
+		delete(all, "budget_tokens")
+		delete(all, "display")
+		if len(all) > 0 {
+			plain.Extra = all
+		}
+	}
+	*c = Thinking(plain)
+	return nil
+}
+
+// ExtraKeys is Extra, or nil when there is no thinking field.
+func (c *Thinking) ExtraKeys() map[string]json.RawMessage {
+	if c == nil {
+		return nil
+	}
+	return c.Extra
 }
 
 func (c *Thinking) GetBudgetTokens() int {

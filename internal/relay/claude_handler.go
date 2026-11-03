@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/common"
+	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	claudechannel "github.com/lazu-ai/lazu/internal/relay/channel/claude"
@@ -39,6 +40,14 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 	err = helper.ModelMappedHelper(c, info, request)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
+	}
+	// Claude Code reads the answering model back as the model it is talking
+	// to (its context window, /effort memory, compaction threshold), so a
+	// Messages response always names the model the client asked for, also
+	// when the upstream answered with a dated, prefixed or suffix-stripped
+	// name the channel did not map.
+	if info.OriginModelName != "" {
+		common.SetContextKey(c, constant.ContextKeyPublicModel, info.OriginModelName)
 	}
 
 	adaptor := GetAdaptor(info.ApiType)
@@ -98,10 +107,12 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		}
 
 		// remove disabled fields for Claude API
-		jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+		var dropped []string
+		jsonData, dropped, err = relaycommon.RemoveDisabledFieldsReporting(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
+		relaycommon.WarnFieldsDropped(c, info, dropped)
 
 		// apply param override
 		if len(info.ParamOverride) > 0 {

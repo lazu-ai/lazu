@@ -73,3 +73,42 @@ func TestRelayErrorReadBound(t *testing.T) {
 		t.Fatalf("wrong overload mapping: %+v", e)
 	}
 }
+
+// Claude Code acts on these by their words: it compacts on "prompt is too
+// long" and resends without a field or beta the API names.
+func TestRelayErrorHandlerClaudeCodeActionableText(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, want string
+		code             types.ErrorCode
+	}{
+		{"anthropic too long", `{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 205000 tokens > 200000 maximum"}}`, "prompt is too long: 205000 tokens > 200000 maximum", types.ErrorCodeContextLengthExceeded},
+		{"openai too long", `{"error":{"type":"invalid_request_error","message":"This model's maximum context length is 128000 tokens. However, your messages resulted in 130512 tokens. customer-message"}}`, "prompt is too long: 130512 tokens > 128000 maximum", types.ErrorCodeContextLengthExceeded},
+		{"other context wording", `{"error":{"message":"Invalid request: messages exceed maximum context customer-message"}}`, "prompt is too long", types.ErrorCodeContextLengthExceeded},
+		{"bedrock too long", `{"message":"Input is too long for requested model. customer-message"}`, "prompt is too long", types.ErrorCodeContextLengthExceeded},
+		{"extra input", `{"type":"error","error":{"type":"invalid_request_error","message":"context_management: Extra inputs are not permitted"}}`, "context_management: Extra inputs are not permitted", types.ErrorCodeBadRequestBody},
+		{"extra input with echo", `{"type":"error","error":{"type":"invalid_request_error","message":"customer-message: Extra inputs are not permitted https://private.example"}}`, "The request body is malformed", types.ErrorCodeBadRequestBody},
+		{"beta names", `{"type":"error","error":{"type":"invalid_request_error","message":"Unexpected value(s) ` + "`context-1m-2025-08-07`, `customer-message`" + ` for the ` + "`anthropic-beta`" + ` header. Please consult our documentation."}}`, "Unexpected value(s) `context-1m-2025-08-07` for the `anthropic-beta` header", types.ErrorCodeBadRequestBody},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := RelayErrorHandler(nil, &http.Response{StatusCode: 400, Body: io.NopCloser(strings.NewReader(tc.body))}, true)
+			if e == nil || e.GetErrorCode() != tc.code {
+				t.Fatalf("code = %v, want %s", e, tc.code)
+			}
+			if e.ToClaudeError().Type != types.ErrorTypeInvalidRequest {
+				t.Fatalf("type = %s", e.ToClaudeError().Type)
+			}
+			claude, _ := json.Marshal(e.ToClaudeError())
+			payload, _ := json.Marshal(e.ToOpenAIError())
+			for _, text := range []string{string(claude), string(payload)} {
+				if strings.Contains(text, "customer-message") || strings.Contains(text, "private.example") {
+					t.Fatalf("echo leaked: %s", text)
+				}
+			}
+			for _, message := range []string{e.ToClaudeError().Message, e.ToOpenAIError().Message} {
+				if !strings.Contains(message, tc.want) {
+					t.Fatalf("want %q in %q", tc.want, message)
+				}
+			}
+		})
+	}
+}

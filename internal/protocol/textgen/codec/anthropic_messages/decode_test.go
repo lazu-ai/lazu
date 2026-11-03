@@ -164,3 +164,26 @@ func TestDecodeToolResultErrorAndZeroArgumentCall(t *testing.T) {
 		t.Fatalf("result: %+v", result)
 	}
 }
+
+// Claude Code's diagnostics ask and the structured-outputs beta's
+// output_format do not make a bridge refuse the request.
+func TestDecodeDiagnosticsAndOutputFormat(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","max_tokens":10,"messages":[{"role":"user","content":"hi"}],
+		"diagnostics":{"cache":true},
+		"output_format":{"type":"json_schema","schema":{"type":"object"}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(request.Raw.UnknownFields) != 0 {
+		t.Fatalf("unknown fields: %v", keys(request.Raw.UnknownFields))
+	}
+	if request.Output.Type != "json_schema" || string(request.Output.Schema) != `{"type":"object"}` {
+		t.Fatalf("output = %+v", request.Output)
+	}
+	both, _, err := Decode([]byte(`{"model":"m","max_tokens":10,"messages":[{"role":"user","content":"hi"}],
+		"output_config":{"format":{"type":"json_schema","schema":{"type":"array"}}},
+		"output_format":{"type":"json_schema","schema":{"type":"object"}}}`))
+	if err != nil || string(both.Output.Schema) != `{"type":"array"}` {
+		t.Fatalf("output_config.format must win: %+v %v", both.Output, err)
+	}
+}

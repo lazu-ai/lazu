@@ -614,10 +614,17 @@ func channelRetryCapacity(channel *model.Channel) int {
 }
 
 func protocolBridgeLazuError(c *gin.Context, err error) *types.LazuError {
-	common.IncrementHotPathCounter(common.HotPathCounterProtocolUnsupported)
-	details := map[string]any{"reason": err.Error()}
 	var unsupported *textgen.UnsupportedFeatureError
 	if errors.As(err, &unsupported) {
+		if tokens, limit, ok := unsupported.ContextOverflow(); ok {
+			message := textgen.ContextOverflowMessage(tokens, limit)
+			return types.NewErrorWithStatusCode(errors.New(message), types.ErrorCodeContextLengthExceeded, http.StatusBadRequest,
+				types.ErrOptionWithDetails(map[string]any{"reason": message, "field": "messages"}), types.ErrOptionWithSkipRetry())
+		}
+	}
+	common.IncrementHotPathCounter(common.HotPathCounterProtocolUnsupported)
+	details := map[string]any{"reason": err.Error()}
+	if unsupported != nil {
 		details["feature"] = unsupported.Feature.String()
 		if unsupported.Path != "" {
 			details["field"] = unsupported.Path

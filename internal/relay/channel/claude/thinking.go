@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/lazu-ai/lazu/internal/common"
@@ -126,7 +127,7 @@ func ApplyAdaptiveThinking(request *dto.ClaudeRequest, effort string) {
 	if request.Thinking != nil && request.Thinking.Display != "" {
 		display = request.Thinking.Display
 	}
-	request.Thinking = &dto.Thinking{Type: "adaptive", Display: display}
+	request.Thinking = &dto.Thinking{Type: "adaptive", Display: display, Extra: request.Thinking.ExtraKeys()}
 	request.OutputConfig = setOutputConfigEffort(request.OutputConfig, effort)
 	request.Temperature = nil
 	request.TopP = 0
@@ -191,14 +192,20 @@ func NormalizeThinking(request *dto.ClaudeRequest, policy ModelPolicy) {
 		if budget == 0 {
 			budget = int(float64(request.MaxTokens) * model_setting.GetClaudeSettings().ThinkingAdapterBudgetTokensPercentage)
 		}
-		request.Thinking = &dto.Thinking{Type: "enabled", BudgetTokens: common.GetPointer[int](budget)}
+		request.Thinking = &dto.Thinking{Type: "enabled", BudgetTokens: common.GetPointer[int](budget), Extra: request.Thinking.ExtraKeys()}
 		request.OutputConfig = withoutOutputConfigEffort(request.OutputConfig)
 	case "disabled", "between_tools":
 		thinkingType, effort := model.ClaudeThinkingOff(policy.Reasoning, request.Thinking.Type, outputConfigEffort(request.OutputConfig))
 		if thinkingType == "" {
 			request.Thinking = nil
 		} else {
-			request.Thinking = &dto.Thinking{Type: thinkingType}
+			// unmodeled keys stay only when the type does: keys of the type
+			// sent may not belong to the one it became
+			var extra map[string]json.RawMessage
+			if thinkingType == request.Thinking.Type {
+				extra = request.Thinking.Extra
+			}
+			request.Thinking = &dto.Thinking{Type: thinkingType, Extra: extra}
 		}
 		if effort != "" {
 			request.OutputConfig = setOutputConfigEffort(request.OutputConfig, effort)

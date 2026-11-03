@@ -17,7 +17,7 @@ var knownTopLevel = map[string]struct{}{
 	"model": {}, "messages": {}, "system": {}, "max_tokens": {}, "stop_sequences": {},
 	"temperature": {}, "top_p": {}, "top_k": {}, "stream": {}, "tools": {}, "tool_choice": {},
 	"thinking": {}, "output_config": {}, "metadata": {}, "service_tier": {}, "speed": {},
-	"cache_control": {}, "context_management": {},
+	"cache_control": {}, "context_management": {}, "output_format": {}, "diagnostics": {},
 }
 
 // Decode is a Messages request (a Claude client's body) as the IR, beside
@@ -25,8 +25,10 @@ var knownTopLevel = map[string]struct{}{
 // does not is recorded as an unknown field at its path, so a native relay
 // passes it and a bridge refuses it by name. Two things are carried as
 // advisory and never refused: cache_control markers (they change cost, not
-// output) and thinking display (how the client shows thinking). metadata
-// is kept whole (see metadata).
+// output), thinking display (how the client shows thinking) and diagnostics
+// (Claude Code asking Anthropic to explain cache misses, which only a Messages
+// upstream answers). metadata is kept whole (see metadata). output_format is
+// the structured-outputs beta's spelling of output_config.format.
 func Decode(body []byte) (*textgen.Request, *dto.ClaudeRequest, error) {
 	var wire dto.ClaudeRequest
 	if err := json.Unmarshal(body, &wire); err != nil {
@@ -62,6 +64,7 @@ func Decode(body []byte) (*textgen.Request, *dto.ClaudeRequest, error) {
 	}
 	d.toolChoice(raw["tool_choice"])
 	d.thinking(raw["thinking"], raw["output_config"])
+	d.outputFormat(raw["output_format"])
 	d.metadata(raw["metadata"])
 	d.contextManagement(raw["context_management"])
 	request.Vendor = textgen.VendorOptions{CacheControl: present(raw["cache_control"]), Speed: present(raw["speed"])}
@@ -516,6 +519,26 @@ func (d *decoder) thinking(thinking, outputConfig json.RawMessage) {
 		r.Reasoning.Budget = textgen.Option[int]{}
 	default:
 		d.unknown("thinking.type", value)
+	}
+}
+
+// outputFormat is the structured-outputs beta's top-level output_format, read
+// as output_config.format is; output_config.format wins when both are sent.
+func (d *decoder) outputFormat(value json.RawMessage) {
+	value = present(value)
+	if value == nil {
+		return
+	}
+	var format struct {
+		Type   string          `json:"type"`
+		Schema json.RawMessage `json:"schema"`
+	}
+	if json.Unmarshal(value, &format) != nil || format.Type != "json_schema" || present(format.Schema) == nil {
+		d.unknown("output_format", value)
+		return
+	}
+	if d.request.Output.Type == "" {
+		d.request.Output = textgen.OutputConstraint{Type: "json_schema", Name: "response", Schema: present(format.Schema)}
 	}
 }
 

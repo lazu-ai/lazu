@@ -43,11 +43,26 @@ const SamplingRefusedPrefix = "sampling_refused:"
 // carries them too. Nothing happens without a plan: a request the planner
 // did not see has no warnings to add to.
 func WarnSamplingRefused(c *gin.Context, info *RelayInfo, fields []string) {
+	warnFields(c, info, SamplingRefusedPrefix, fields)
+}
+
+// FieldDroppedPrefix starts the warning for a field the channel's settings
+// keep from the upstream: "field_dropped:speed". Without it a client asking
+// for fast mode would be served at standard speed and never know.
+const FieldDroppedPrefix = "field_dropped:"
+
+// WarnFieldsDropped is WarnSamplingRefused for the fields RemoveDisabledFields
+// took out.
+func WarnFieldsDropped(c *gin.Context, info *RelayInfo, fields []string) {
+	warnFields(c, info, FieldDroppedPrefix, fields)
+}
+
+func warnFields(c *gin.Context, info *RelayInfo, prefix string, fields []string) {
 	if info == nil || info.ProtocolPlan == nil || len(fields) == 0 {
 		return
 	}
 	for _, field := range fields {
-		message := SamplingRefusedPrefix + field
+		message := prefix + field
 		already := false
 		for _, warning := range info.ProtocolPlan.Warnings {
 			if warning.Message == message {

@@ -55,11 +55,7 @@ func writeRelayError(c *gin.Context, relayFormat types.RelayFormat, ws *websocke
 		openAIError.RequestID = requestID
 		helper.WssError(c, ws, openAIError)
 	case types.RelayFormatClaude:
-		c.JSON(wire.MessagesStatus, gin.H{
-			"type":       "error",
-			"error":      lazuErr.ToClaudeError(),
-			"request_id": requestID,
-		})
+		relay.WriteClaudeError(c, wire.MessagesStatus, lazuErr)
 	default:
 		if common.GetContextKeyBool(c, constant.ContextKeyIsStream) ||
 			strings.HasPrefix(c.Writer.Header().Get("Content-Type"), "text/event-stream") {

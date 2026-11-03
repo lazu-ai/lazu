@@ -533,9 +533,17 @@ func (info *RelayInfo) HasSendResponse() bool {
 // safety_identifier: 安全标识符，用于向 OpenAI 报告违规用户（仅 OpenAI 支持，涉及用户隐私）
 // stream_options.include_obfuscation: Responses API 流混淆控制字段（默认过滤）
 func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings, channelPassThroughEnabled bool) ([]byte, error) {
+	jsonData, _, err := RemoveDisabledFieldsReporting(jsonData, channelOtherSettings, channelPassThroughEnabled)
+	return jsonData, err
+}
+
+// RemoveDisabledFieldsReporting is RemoveDisabledFields that also names the
+// fields it took out, for the caller to tell the client (WarnFieldsDropped).
+func RemoveDisabledFieldsReporting(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings, channelPassThroughEnabled bool) ([]byte, []string, error) {
 	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || channelPassThroughEnabled {
-		return jsonData, nil
+		return jsonData, nil, nil
 	}
+	var removed []string
 
 	fields := []struct {
 		path   string
@@ -559,16 +567,18 @@ func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOther
 		var err error
 		jsonData, err = sjson.DeleteBytes(jsonData, field.path)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		removed = append(removed, field.path)
 	}
 	if present != nil && !present["stream_options"] {
-		return jsonData, nil
+		return jsonData, removed, nil
 	}
 	if options := gjson.GetBytes(jsonData, "stream_options"); options.IsObject() && len(options.Map()) == 0 {
-		return sjson.DeleteBytes(jsonData, "stream_options")
+		jsonData, err := sjson.DeleteBytes(jsonData, "stream_options")
+		return jsonData, removed, err
 	}
-	return jsonData, nil
+	return jsonData, removed, nil
 }
 
 // topLevelKeys returns the keys of a JSON object body, or nil when the body
