@@ -235,11 +235,18 @@ const workText = (seconds: number, t: TFunction) =>
     ? t(`${SK}.duration.s`, { n: Math.max(1, Math.round(seconds)) })
     : durationText(seconds, t);
 
-/** A stop or a span: whole hours once it passes one. */
-const roughText = (seconds: number, t: TFunction) =>
-  seconds >= 3_600
-    ? t(`${SK}.duration.h`, { hours: Math.round(seconds / 3_600) })
-    : workText(seconds, t);
+/** A length in the list caption, kept short so it fits its column: as
+ *  work time under an hour, then hours (one decimal under ten); a span or a
+ *  stop turns to days past two. The cell's title carries the exact figures. */
+const shortText = (seconds: number, t: TFunction, days = false) => {
+  if (seconds < 3_600) return workText(seconds, t);
+  if (days && seconds >= 2 * 86_400)
+    return t(`${SK}.duration.d`, { days: Math.round(seconds / 86_400) });
+  const hours = seconds / 3_600;
+  return t(`${SK}.duration.h`, {
+    hours: hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours),
+  });
+};
 
 /** The list's mini timeline (canvas 3B): each stretch of work as a share of
  *  the session's span, and a caption that says how long it worked and how
@@ -263,24 +270,26 @@ export const sessionTimeline = (
     const left = Math.min(((segment.start - first) / span) * 100, 100 - width);
     return { left, width };
   });
-  const work = workText(
-    segments.reduce((sum, segment) => sum + (segment.end - segment.start), 0),
-    t,
+  const worked = segments.reduce(
+    (sum, segment) => sum + (segment.end - segment.start),
+    0,
   );
   const count = segments.length;
-  const caption =
+  const describe = (length: (seconds: number, gap?: boolean) => string) =>
     count === 1
-      ? t(`${SK}.timeline.one`, { work })
+      ? t(`${SK}.timeline.one`, { work: length(worked) })
       : count === 2
         ? t(`${SK}.timeline.stopped`, {
             count,
-            stop: roughText(segments[1].start - segments[0].end, t),
-            work,
+            stop: length(segments[1].start - segments[0].end, true),
+            work: length(worked),
           })
         : t(`${SK}.timeline.across`, {
             count,
-            span: roughText(span, t),
-            work,
+            span: length(span, true),
+            work: length(worked),
           });
-  return { bars, caption };
+  const caption = describe((seconds, gap) => shortText(seconds, t, gap));
+  const detail = describe((seconds) => workText(seconds, t));
+  return { bars, caption, detail };
 };

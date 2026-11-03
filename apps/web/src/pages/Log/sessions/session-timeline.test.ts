@@ -53,4 +53,38 @@ describe('session mini timeline', () => {
     expect(caption).toContain('across');
     expect(caption).toContain('{\\"hours\\":8}');
   });
+
+  it('rounds long figures for the column and keeps them exact in the title', () => {
+    const hour = 3_600;
+    const segments = [
+      { start: 0, end: 30 * hour + 48 * 60 },
+      { start: 100 * hour, end: 120 * hour + 60 },
+      { start: 567 * hour, end: 568 * hour },
+    ];
+    const { caption, detail } = sessionTimeline(
+      { last_at: 568 * hour, segments, started_at: 0 },
+      t,
+    );
+    expect(caption).toContain('{\\"hours\\":52}');
+    expect(caption).toContain('{\\"days\\":24}');
+    expect(detail).toContain('\\"hours\\":51,\\"minutes\\":49}');
+    expect(detail).toContain('\\"hours\\":568}');
+  });
+
+  it('keeps one decimal under ten hours', () => {
+    const { caption } = sessionTimeline(
+      {
+        last_at: 26 * 3_600,
+        segments: [
+          { start: 0, end: 3_600 },
+          { start: 10 * 3_600, end: 11 * 3_600 + 27 * 60 },
+          { start: 26 * 3_600 - 1, end: 26 * 3_600 },
+        ],
+        started_at: 0,
+      },
+      t,
+    );
+    expect(caption).toContain('{\\"hours\\":2.5}');
+    expect(caption).toContain('{\\"hours\\":26}');
+  });
 });

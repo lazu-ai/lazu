@@ -3077,6 +3077,7 @@
     "page.console.log.session.activity.stoppedLabel": "停了",
     "page.console.log.session.activity.subMeta": "{{n}} 次 · {{from}}–{{to}}",
     "page.console.log.session.duration.s": "{{n}} 秒",
+    "page.console.log.session.duration.d": "{{days}} 天",
     "page.console.personal.plan.zhe": "{{zhe}}折",
     "page.console.plaza.discount.officialWas": "官方",
     "page.console.settingV2.access.rateLimits.on": "已開啟",

@@ -892,7 +892,11 @@ function SessionRow({
             />
           ))}
         </span>
-        <span className='sv-sub'>{timeline.caption}</span>
+        {/* The caption rounds to fit the column; its title has the exact
+            figures. */}
+        <span className='sv-sub sv-ellipsis' title={timeline.detail}>
+          {timeline.caption}
+        </span>
       </span>
       {admin ? (
         <span className='sv-two'>
