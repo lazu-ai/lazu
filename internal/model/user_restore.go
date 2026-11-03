@@ -96,6 +96,11 @@ func RestoreDeletedUserTx(tx *gorm.DB, userID int, source RestoreSource) (*User,
 	if source == RestoreBySignIn && !DeletedAccountRestorable(&user, time.Now()) {
 		return nil, false, ErrAccountDeleted
 	}
+	// A cleared account gave up its username, address and identities, and
+	// its balance was written off; there is nothing left to restore.
+	if AccountPurged(&user) {
+		return nil, false, ErrAccountDeleted
+	}
 	if err := ensureRestoredIdentityFree(tx, &user); err != nil {
 		return nil, false, err
 	}
@@ -111,6 +116,9 @@ func RestoreDeletedUserTx(tx *gorm.DB, userID int, source RestoreSource) (*User,
 	}
 	if err := tx.Model(&Token{}).Where("user_id = ? AND status = ?", userID, common.TokenStatusEnabled).
 		Update("status", common.TokenStatusDisabled).Error; err != nil {
+		return nil, false, err
+	}
+	if err := markAccountRestoredTx(tx, userID, source, time.Now()); err != nil {
 		return nil, false, err
 	}
 	if tx.Migrator().HasTable(&Project{}) {

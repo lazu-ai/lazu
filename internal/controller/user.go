@@ -753,7 +753,19 @@ func GetUserAccountSummary(c *gin.Context) {
 		return
 	}
 
+	var deletion any
+	if user.DeletedAt.Valid {
+		record, err := model.LatestAccountDeletion(user.Id)
+		if err != nil {
+			httperr.Write(c, err)
+			return
+		}
+		if record != nil {
+			deletion = record
+		}
+	}
 	common.ApiSuccess(c, gin.H{
+		"deletion": deletion,
 		"signup": gin.H{
 			"created_at":        user.CreatedAt,
 			"created_at_source": user.CreatedAtSource,

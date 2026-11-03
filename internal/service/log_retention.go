@@ -40,6 +40,15 @@ func RunLogRetentionOnce(now time.Time) {
 	for _, failure := range model.RunExtensionRetention(now.UTC()) {
 		common.SysError(failure.Error())
 	}
+	// Deleted accounts past their restore window are cleared whatever the log
+	// retention says: the deletion dialog promises it.
+	purged, err := model.PurgeExpiredDeletedAccounts(now.UTC())
+	if err != nil {
+		common.SysError("failed to clear deleted accounts: " + err.Error())
+	}
+	if purged > 0 {
+		common.SysWarn(fmt.Sprintf("cleared %d deleted account(s) past their restore window", purged))
+	}
 	// Content retention is independent from the request-metadata/ranking window.
 	// Disabling LOG_RETENTION_DAYS must not leave another copy of prompts forever.
 	contentDays := common.RequestContentRetentionDays()

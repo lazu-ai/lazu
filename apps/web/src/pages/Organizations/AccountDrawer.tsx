@@ -441,6 +441,9 @@ export default function AccountDrawer({
   // A deleted account is only restored or removed for good; every other
   // action edits a live row.
   const deleted = Boolean(detail?.deleted_at);
+  const deletion = detail?.deletion;
+  // Cleared after its restore window: nothing is left to restore.
+  const purged = Boolean(deletion?.purged_at);
   const formatMoment = (unixSeconds?: number) =>
     unixSeconds
       ? new Date(unixSeconds * 1000).toLocaleString(i18n.language, {
@@ -764,21 +767,31 @@ export default function AccountDrawer({
                         {d('deleted.title', '账户已注销')}
                       </b>
                       <span>
-                        {detail?.restore_until
-                          ? t('page.console.orgs.drawer.deleted.restorable', {
+                        {purged
+                          ? t('page.console.orgs.drawer.deleted.purged', {
                               at: formatMoment(detail?.deleted_at),
-                              until: formatMoment(detail?.restore_until),
+                              purgedAt: formatMoment(deletion?.purged_at),
+                              username: deletion?.username || '—',
+                              email: deletion?.email || '—',
+                              amount: usd(deletion?.written_off_microusd ?? 0),
                               defaultValue:
-                                '注销于 {{at}}。{{until}} 前本人重新登录会自动恢复。',
+                                '注销于 {{at}}，{{purgedAt}} 已清除。原用户名 {{username}}，邮箱 {{email}}，作废余额 {{amount}}。',
                             })
-                          : t('page.console.orgs.drawer.deleted.expired', {
-                              at: formatMoment(detail?.deleted_at),
-                              defaultValue:
-                                '注销于 {{at}}，已过恢复期，本人不能再恢复。',
-                            })}
+                          : detail?.restore_until
+                            ? t('page.console.orgs.drawer.deleted.restorable', {
+                                at: formatMoment(detail?.deleted_at),
+                                until: formatMoment(detail?.restore_until),
+                                defaultValue:
+                                  '注销于 {{at}}。{{until}} 前本人重新登录会自动恢复。',
+                              })
+                            : t('page.console.orgs.drawer.deleted.expired', {
+                                at: formatMoment(detail?.deleted_at),
+                                defaultValue:
+                                  '注销于 {{at}}，已过恢复期，本人不能再恢复。',
+                              })}
                       </span>
                     </div>
-                    {canManage ? (
+                    {canManage && !purged ? (
                       <Button
                         size='sm'
                         variant='secondary'

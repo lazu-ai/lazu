@@ -378,6 +378,7 @@ func migrateDB() error {
 		&Ability{},
 		&RouteHealthState{},
 		&AdminAuditLog{},
+		&AccountDeletion{},
 		&OptionAuditLog{},
 		&TokenAuditLog{},
 
