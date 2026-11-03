@@ -83,12 +83,23 @@ export type AccountSignup = {
   last_request_at?: number;
 };
 
+/** One account deletion, kept after the account is cleared. */
+export type AccountDeletion = {
+  deleted_by?: string;
+  email?: string;
+  purged_at?: number;
+  username?: string;
+  written_off_microusd?: number;
+};
+
 export type AccountSummary = {
   agent_sessions?: number;
   client_breakdown?: { count: number; framework: string }[];
   countries?: { count: number; country: string }[];
   /** Unix seconds the account was deleted; 0 for a live account. */
   deleted_at?: number;
+  /** The newest deletion record of a deleted account. */
+  deletion?: AccountDeletion | null;
   display_name?: string;
   email?: string;
   id?: number;

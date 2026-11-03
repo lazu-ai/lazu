@@ -13,6 +13,10 @@ import (
 )
 
 const (
+	// Version 38 adds account_deletions (one permanent record per account
+	// deletion) and user_identities.released_at (an identity given up when a
+	// deleted account is cleared after its restore window), both by
+	// AutoMigrate.
 	// Version 37 orders log lists by created_at through a (filter, created_at)
 	// index each, adds the project one, and gives owners' project-less logs
 	// their project, so a project's logs are exactly logs.project_id.
@@ -66,7 +70,7 @@ const (
 	// Version 12 records the disputed and original charge amounts for proportional reversals.
 	// Version 11 adds payment reversal and dispute hold fields. Version 10
 	// retired startup seeders, so rollback across that floor remains unsafe.
-	SchemaVersionCurrent = 37
+	SchemaVersionCurrent = 38
 
 	schemaVersionPrimary = "primary"
 	schemaVersionLog     = "log"

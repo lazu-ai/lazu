@@ -27,7 +27,11 @@ type UserIdentity struct {
 	Email     string    `json:"-" gorm:"size:255;index"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
-	User      User      `json:"-" gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	// ReleasedAt is set when the account was cleared after its restore
+	// window: the row stays as history, with a placeholder subject, so the
+	// provider account can be linked to a new account.
+	ReleasedAt *time.Time `json:"-" gorm:"index"`
+	User       User       `json:"-" gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 // InsertWithIdentityTx creates an externally authenticated user and its first

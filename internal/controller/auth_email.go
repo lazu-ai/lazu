@@ -212,8 +212,8 @@ func authAccountDeletedMail(lang string, restoreBy time.Time) (string, string) {
 	name := common.SystemName
 	subject := common.MailText(lang, "这个邮箱的 "+name+" 账号已注销", "The "+name+" account for this email was deleted")
 	lead := common.MailText(lang,
-		"有人用这个邮箱申请了验证码、重置密码或注册，但它对应的 "+name+" 账号已经注销了。这个邮箱、用户名和它绑定过的登录方式都不能用来注册新账号。",
-		"Someone asked for a code, a password reset or a sign-up with this email, but its "+name+" account has been deleted. Its email, username and linked sign-in methods cannot be used for a new account.")
+		"有人用这个邮箱申请了验证码、重置密码或注册，但它对应的 "+name+" 账号已经注销了。账号清除前，这个邮箱、用户名和它绑定过的登录方式都不能用来注册新账号。",
+		"Someone asked for a code, a password reset or a sign-up with this email, but its "+name+" account has been deleted. Until the account is cleared, its email, username and linked sign-in methods cannot be used for a new account.")
 	blocks := []common.MailBlock{}
 	if !restoreBy.IsZero() {
 		blocks = append(blocks, common.MailBlock{Facts: []common.MailFact{
@@ -223,7 +223,7 @@ func authAccountDeletedMail(lang string, restoreBy time.Time) (string, string) {
 			"在这之前，用注销前的方式（密码、Google、GitHub 或邮箱验证码）重新登录，账号就会恢复，余额和记录都还在。",
 			"Until then, signing in again the way you used to (password, Google, GitHub or an email code) restores the account, with its balance and history.")})
 	} else {
-		lead += common.MailText(lang, "已经过了恢复期，账号不能再登录。", " The restore period is over, and the account can no longer sign in.")
+		lead += common.MailText(lang, "已经过了恢复期，账号不能再登录，很快会被清除；清除后这个邮箱就可以用来注册新账号。", " The restore period is over and the account can no longer sign in. It will be cleared shortly, after which this email can be used for a new account.")
 	}
 	blocks = append(blocks, common.MailBlock{Muted: true, Text: common.MailText(lang, "如有疑问，请联系管理员。不是你本人操作的话，忽略这封邮件即可。", "Contact an administrator if you have questions. If this wasn't you, ignore this email.")})
 	return subject, renderAuthMail(common.Mail{

@@ -23,7 +23,7 @@ import (
 func setupDeletedAccountTestDB(t *testing.T) {
 	t.Helper()
 	setupOIDCTestDB(t)
-	if err := model.CoreDB().AutoMigrate(&model.Token{}, &model.Project{}, &model.ProjectMember{}); err != nil {
+	if err := model.CoreDB().AutoMigrate(&model.Token{}, &model.Project{}, &model.ProjectMember{}, &model.AccountDeletion{}, &model.WalletLedger{}, &model.TokenCredential{}); err != nil {
 		t.Fatalf("migrate tokens and projects: %v", err)
 	}
 	model.EnsureColumnNamesInitialized()
@@ -329,5 +329,28 @@ func TestAdminRestoresAndRemovesADeletedAccount(t *testing.T) {
 	model.CoreDB().Unscoped().Model(&model.User{}).Where("id = ?", deleted.Id).Count(&count)
 	if count != 0 {
 		t.Fatal("hard delete left the row")
+	}
+}
+
+func TestAClearedAccountsGoogleIdentitySignsUpAgain(t *testing.T) {
+	setupDeletedAccountTestDB(t)
+	identity := socialIdentity{Provider: googleOAuthProvider, Subject: "google-subject-cleared", Username: "cleared", Email: "cleared@example.com"}
+	first, err := resolveSocialOAuthUser(identity, "")
+	if err != nil {
+		t.Fatalf("first sign-in: %v", err)
+	}
+	if _, err := model.DeleteSelfUser(first.Id); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	expireDeletion(t, first.Id)
+	if purged, err := model.PurgeExpiredDeletedAccounts(time.Now()); err != nil || purged != 1 {
+		t.Fatalf("purge = %d, %v", purged, err)
+	}
+	second, err := resolveSocialOAuthUser(identity, "")
+	if err != nil {
+		t.Fatalf("sign-in after the account was cleared answered %v", err)
+	}
+	if second.Id == first.Id {
+		t.Fatal("the cleared account came back instead of a new one")
 	}
 }

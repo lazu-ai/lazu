@@ -762,7 +762,7 @@ func GetUserIdentityProviders(userIDs []int) (map[int][]string, error) {
 	var rows []providerRow
 	if err := CoreDB().Model(&UserIdentity{}).
 		Select("user_id, provider").
-		Where("user_id IN ?", userIDs).
+		Where("user_id IN ? AND released_at IS NULL", userIDs).
 		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -1608,6 +1608,9 @@ func DeleteSelfUser(userID int) (*User, error) {
 		if deleted.Role == common.RoleRootUser {
 			return ErrCannotDeleteRootUser
 		}
+		if err := recordAccountDeletionTx(tx, &deleted, AccountDeletedBySelf, time.Now()); err != nil {
+			return err
+		}
 		result := tx.Delete(&deleted)
 		if result.Error != nil {
 			return result.Error
@@ -1650,6 +1653,9 @@ func DeleteUserWithExpectedRole(userID int, actorRole int, expectedRole int) (*U
 			return ErrCannotDeleteRootUser
 		}
 		if err := CheckUserManageAllowed(actorRole, "delete"); err != nil {
+			return err
+		}
+		if err := recordAccountDeletionTx(tx, &deleted, AccountDeletedByAdmin, time.Now()); err != nil {
 			return err
 		}
 		result := tx.Delete(&deleted)
