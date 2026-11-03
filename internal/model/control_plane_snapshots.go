@@ -198,11 +198,14 @@ type catalogSnapshot struct {
 	VendorDetails      map[int]PricingVendor                     `json:"vendor_details"`
 	OfficialPrices     map[string]ModelOfficialPrice             `json:"official_prices"`
 	Reasoning          map[string]ModelReasoningOptions          `json:"reasoning"`
+	// Replacements is absent in snapshots from older publishers; readers then
+	// fall back to the fixed compatibility pairs until the next publish.
+	Replacements map[string]string `json:"replacements,omitempty"`
 }
 
 // Called while updatePricingLock and modelSupportEndpointsLock are held.
-func publishCatalogSnapshot(reasoning map[string]ModelReasoningOptions, revision int64) error {
-	snapshot := catalogSnapshot{Pricing: pricingMap, Vendors: vendorsList, EndpointTypes: modelSupportEndpointTypes, EndpointInfo: modelEndpointInfoMap, SupportedEndpoints: supportedEndpointMap, Groups: modelEnableGroups, QuotaTypes: modelQuotaTypeMap, ModelVendors: modelVendorMap, VendorDetails: vendorDetailMap, OfficialPrices: modelOfficialPriceMap, Reasoning: reasoning}
+func publishCatalogSnapshot(reasoning map[string]ModelReasoningOptions, replacements map[string]string, revision int64) error {
+	snapshot := catalogSnapshot{Pricing: pricingMap, Vendors: vendorsList, EndpointTypes: modelSupportEndpointTypes, EndpointInfo: modelEndpointInfoMap, SupportedEndpoints: supportedEndpointMap, Groups: modelEnableGroups, QuotaTypes: modelQuotaTypeMap, ModelVendors: modelVendorMap, VendorDetails: vendorDetailMap, OfficialPrices: modelOfficialPriceMap, Reasoning: reasoning, Replacements: replacements}
 	for _, vendor := range vendorsList {
 		snapshot.VendorIDs = append(snapshot.VendorIDs, vendor.InternalID)
 	}
@@ -236,6 +239,7 @@ func refreshCatalogFromRedis() error {
 	modelVendorMap, vendorDetailMap, modelOfficialPriceMap = snapshot.ModelVendors, snapshot.VendorDetails, snapshot.OfficialPrices
 	modelVendorLock.Unlock()
 	setCatalogReasoningOptions(snapshot.Reasoning)
+	setCatalogReplacements(snapshot.Replacements)
 	lastGetPricingTime = time.Now()
 	return nil
 }

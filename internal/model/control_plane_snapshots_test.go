@@ -43,6 +43,7 @@ func TestControlPlaneAPIReadersUseRedisWithoutSQLIntegration(t *testing.T) {
 	oldModelVendors, oldVendorDetails, oldOfficial := modelVendorMap, vendorDetailMap, modelOfficialPriceMap
 	oldChannels, oldAbilities, oldOfferings, oldReady := channelsIDM, group2model2channels, channelOfferings, channelOfferingsReady
 	oldRouteHealth := routeHealthCache.routes
+	oldReplacements := catalogReplacements
 	oldOptionValue := GetOptionValue("ControlSnapshotTest")
 	t.Cleanup(func() {
 		client.Del(ctx, channelRoutingSnapshotKey, routeHealthSnapshotKey, optionsSnapshotKey, catalogSnapshotKey, optionsSnapshotKey+":revision")
@@ -54,6 +55,7 @@ func TestControlPlaneAPIReadersUseRedisWithoutSQLIntegration(t *testing.T) {
 		modelVendorMap, vendorDetailMap, modelOfficialPriceMap = oldModelVendors, oldVendorDetails, oldOfficial
 		channelsIDM, group2model2channels, channelOfferings, channelOfferingsReady = oldChannels, oldAbilities, oldOfferings, oldReady
 		routeHealthCache.routes = oldRouteHealth
+		setCatalogReplacements(oldReplacements)
 		common.OptionMapRWMutex.Lock()
 		if oldOptionValue == "" {
 			delete(common.OptionMap, "ControlSnapshotTest")
@@ -85,7 +87,7 @@ func TestControlPlaneAPIReadersUseRedisWithoutSQLIntegration(t *testing.T) {
 	if err := publishOptionsSnapshot([]*Option{{Key: "ControlSnapshotTest", Value: "redis-value"}}, 0); err != nil {
 		t.Fatal(err)
 	}
-	catalog := catalogSnapshot{Pricing: []Pricing{{ModelName: ability.Model}}, Vendors: []PricingVendor{{Name: "snapshot-vendor"}}, VendorIDs: []int{99}, ModelVendors: map[string]int{ability.Model: 99}, Groups: map[string][]string{ability.Model: {ChannelLaneAgent}}}
+	catalog := catalogSnapshot{Pricing: []Pricing{{ModelName: ability.Model}}, Vendors: []PricingVendor{{Name: "snapshot-vendor"}}, VendorIDs: []int{99}, ModelVendors: map[string]int{ability.Model: 99}, Groups: map[string][]string{ability.Model: {ChannelLaneAgent}}, Replacements: map[string]string{"snapshot-old-model": ability.Model}}
 	if err := publishControlSnapshot(ctx, catalogSnapshotKey, catalog, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -118,6 +120,9 @@ func TestControlPlaneAPIReadersUseRedisWithoutSQLIntegration(t *testing.T) {
 	prices := GetPricing()
 	if len(prices) != 1 || prices[0].InternalVendorID != 99 || len(prices[0].EnableGroup) != 1 || GetVendors()[0].InternalID != 99 {
 		t.Fatalf("catalog internal identities lost: %+v", prices)
+	}
+	if got := CompatibilityModelTarget("snapshot-old-model"); got != ability.Model {
+		t.Fatalf("catalog replacements lost: %q", got)
 	}
 	client.Del(ctx, catalogSnapshotKey, optionsSnapshotKey)
 	lastGetPricingTime = time.Time{}
