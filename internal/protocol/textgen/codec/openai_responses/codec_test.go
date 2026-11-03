@@ -6,6 +6,7 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
+	"github.com/lazu-ai/lazu/internal/protocol/textgen/codec/openai_chat"
 )
 
 func TestResponsesIRRoundTripPreservesExplicitFalseToolStrict(t *testing.T) {
@@ -385,6 +386,52 @@ func TestDecodeResponsesMarksUnmodeledStreamOptionNativeOnly(t *testing.T) {
 	}
 	if _, ok := request.Raw.UnknownFields["stream_options.include_obfuscation"]; !ok {
 		t.Fatalf("unmodeled stream option must remain native-only: %+v", request.Raw.UnknownFields)
+	}
+}
+
+// stream_options.include_usage is a Chat Completions key. A streamed Chat
+// request bridged onto a Responses upstream must not carry it: an upstream
+// that validates Responses bodies strictly rejects it with 400, and a
+// Responses stream reports usage in response.completed regardless.
+func TestEncodeBridgedChatStreamOmitsStreamOptions(t *testing.T) {
+	request, _, err := openai_chat.Decode([]byte(`{"model":"m","messages":[{"role":"user","content":"hi"}],"max_tokens":64,"stream":true,"stream_options":{"include_usage":true}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(body, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if value, ok := fields["stream_options"]; ok {
+		t.Fatalf("bridged Chat request leaked stream_options=%s into the Responses body: %s", value, body)
+	}
+	if string(fields["stream"]) != "true" {
+		t.Fatalf("stream must survive the bridge: %s", body)
+	}
+	if features, _ := textgen.ExtractFeatures(request); !features.Has(textgen.FeatureStreamUsage) {
+		t.Fatalf("the client's usage request must still be recorded as a feature: %v", features.Names())
+	}
+}
+
+func TestEncodeNativeResponsesKeepsStreamOptions(t *testing.T) {
+	request, _, err := Decode([]byte(`{"model":"m","input":"hello","stream":true,"stream_options":{"include_usage":true}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wire.StreamOptions == nil || !wire.StreamOptions.IncludeUsage {
+		t.Fatalf("a Responses client's own stream_options must pass through: %+v", wire.StreamOptions)
 	}
 }
 

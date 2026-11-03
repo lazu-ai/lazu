@@ -552,7 +552,11 @@ func encodeResponseConfiguration(request *textgen.Request, wire *dto.OpenAIRespo
 	if request == nil || wire == nil {
 		return nil
 	}
-	if request.Lifecycle.StreamIncludeUsage.Set {
+	// include_usage is a Chat Completions stream option. A Responses stream
+	// always reports usage in response.completed, and an upstream that
+	// validates Responses bodies strictly rejects the key, so it is passed
+	// through only when the client itself spoke Responses.
+	if request.Lifecycle.StreamIncludeUsage.Set && request.Raw.Protocol == textgen.ProtocolOpenAIResponses {
 		wire.StreamOptions = &dto.StreamOptions{IncludeUsage: request.Lifecycle.StreamIncludeUsage.Value}
 	}
 	if request.Sampling.Temperature.Set {
