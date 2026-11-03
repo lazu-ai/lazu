@@ -122,19 +122,19 @@ func OIDCLogin(c *gin.Context) {
 	next := sanitizedOIDCNext(c.Query("next"))
 	oauthConfig, _, err := oidcOAuthConfig(oidcContext(c.Request.Context()), c)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("oidc login rejected: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc login rejected: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthProviderNotConfigured, next)
 		return
 	}
 	state, err := randomOIDCString()
 	if err != nil {
-		common.SysLog(fmt.Sprintf("oidc state generation failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc state generation failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, next)
 		return
 	}
 	nonce, err := randomOIDCString()
 	if err != nil {
-		common.SysLog(fmt.Sprintf("oidc nonce generation failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc nonce generation failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, next)
 		return
 	}
@@ -145,7 +145,7 @@ func OIDCLogin(c *gin.Context) {
 		CodeVerifier: verifier,
 		Next:         next,
 	}); err != nil {
-		common.SysLog(fmt.Sprintf("oidc transaction cookie failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc transaction cookie failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, next)
 		return
 	}
@@ -158,7 +158,7 @@ func OIDCCallback(c *gin.Context) {
 	tx, err := readOIDCTransaction(c)
 	if errMessage := c.Query("error"); errMessage != "" {
 		clearOIDCTransaction(c)
-		common.SysLog(fmt.Sprintf("oidc provider returned error: %s", errMessage))
+		common.SysWarn(fmt.Sprintf("oidc provider returned error: %s", errMessage))
 		oauthLoginErrorRedirectNext(c, oauthProviderErrorCode(errMessage), tx.Next)
 		return
 	}
@@ -172,43 +172,43 @@ func OIDCCallback(c *gin.Context) {
 	ctx := oidcContext(c.Request.Context())
 	oauthConfig, verifier, err := oidcOAuthConfig(ctx, c)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("oidc callback rejected: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc callback rejected: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthProviderNotConfigured, tx.Next)
 		return
 	}
 	token, err := oauthConfig.Exchange(ctx, c.Query("code"), oauth2.VerifierOption(tx.CodeVerifier))
 	if err != nil {
-		common.SysLog(fmt.Sprintf("oidc token exchange failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc token exchange failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthExchangeFailed, tx.Next)
 		return
 	}
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
-		common.SysLog("oidc id_token missing from token response")
+		common.SysWarn("oidc id_token missing from token response")
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthIdentityInvalid, tx.Next)
 		return
 	}
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("oidc id_token verification failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc id_token verification failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthIdentityInvalid, tx.Next)
 		return
 	}
 	if idToken.Nonce != tx.Nonce {
-		common.SysLog("oidc nonce mismatch")
+		common.SysWarn("oidc nonce mismatch")
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthIdentityInvalid, tx.Next)
 		return
 	}
 	var claims map[string]any
 	if err := idToken.Claims(&claims); err != nil {
-		common.SysLog(fmt.Sprintf("oidc claims parse failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc claims parse failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthIdentityInvalid, tx.Next)
 		return
 	}
 	resolveCtx := withMailSurface(withMailLang(c.Request.Context(), requestMailLang(c)), requestHomeSurface(c))
 	user, err := resolveOIDCUser(resolveCtx, idToken.Subject, claims)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("oidc user resolution failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc user resolution failed: %v", err))
 		oauthLoginErrorRedirectNext(c, oauthRedirectCode(err), tx.Next)
 		return
 	}
@@ -217,7 +217,7 @@ func OIDCCallback(c *gin.Context) {
 		return
 	}
 	if _, err := setupSession(user, c); err != nil {
-		common.SysLog(fmt.Sprintf("oidc session setup failed: %v", err))
+		common.SysWarn(fmt.Sprintf("oidc session setup failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, tx.Next)
 		return
 	}
@@ -377,10 +377,10 @@ func resolveOIDCUser(ctx context.Context, subject string, claims map[string]any)
 		SendWelcomeEmail(user, "OIDC", mailLangFromContext(ctx), mailSurfaceFromContext(ctx))
 	}
 	if err := model.InvalidateUserCache(user.Id); err != nil {
-		common.SysLog(fmt.Sprintf("failed to invalidate oidc user cache: %v", err))
+		common.SysWarn(fmt.Sprintf("failed to invalidate oidc user cache: %v", err))
 	}
 	if err := model.InvalidateUserTokensCache(user.Id); err != nil {
-		common.SysLog(fmt.Sprintf("failed to invalidate oidc user token cache: %v", err))
+		common.SysWarn(fmt.Sprintf("failed to invalidate oidc user token cache: %v", err))
 	}
 	return user, nil
 }
@@ -542,7 +542,7 @@ func findExistingOIDCUserTx(tx *gorm.DB, issuer string, subject string, verified
 	}
 	if owner != nil {
 		if owner.DeletedAt.Valid {
-			return nil, errOAuthIdentityConflict
+			return nil, model.ErrAccountDeleted
 		}
 		return owner, nil
 	}
@@ -559,7 +559,7 @@ func findExistingOIDCUserTx(tx *gorm.DB, issuer string, subject string, verified
 	}
 	if len(users) == 1 {
 		if users[0].DeletedAt.Valid {
-			return nil, errOAuthEmailConflict
+			return nil, model.ErrAccountDeleted
 		}
 		return &users[0], nil
 	}

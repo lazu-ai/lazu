@@ -114,6 +114,12 @@ func StartEmailAuth(c *gin.Context) {
 }
 
 func dispatchEmailAuthCode(email string, lang string, invited bool) {
+	// The code would only lead to account_deleted at the verify step.
+	if model.EmailOwnedOnlyByDeletedAccount(email) {
+		subject, body := authAccountDeletedMail(lang)
+		sendAuthEmail(subject, email, body)
+		return
+	}
 	// A closed deployment still answers the mailbox owner, and only them, so an
 	// unregistered address learns registration is closed instead of waiting for
 	// a code that will never arrive. An invited address may still sign up.

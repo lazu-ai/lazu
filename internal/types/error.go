@@ -88,6 +88,7 @@ const (
 	ErrorCodeTokenIpNotAllowed         ErrorCode = "token_ip_not_allowed"
 	ErrorCodeTokenIpDenied             ErrorCode = "token_ip_denied"
 	ErrorCodeUserBanned                ErrorCode = "user_banned"
+	ErrorCodeAccountDeleted            ErrorCode = "account_deleted"
 	ErrorCodeGroupAccessDenied         ErrorCode = "group_access_denied"
 	ErrorCodeChannelSelectionDenied    ErrorCode = "channel_selection_denied"
 	ErrorCodeProjectAccessSuspended    ErrorCode = "project_access_suspended"

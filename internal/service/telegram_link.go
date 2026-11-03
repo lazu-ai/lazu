@@ -130,7 +130,21 @@ func LinkTelegram(userID int, telegramUserID int64) error {
 		var holder model.UserIdentity
 		err := tx.Where("provider = ? AND subject = ?", TelegramIdentityProvider, subject).First(&holder).Error
 		if err == nil && holder.UserID != userID {
-			return ErrTelegramLinkedElsewhere
+			// Telegram is a contact channel, not a sign-in method: a deleted
+			// account cannot use it, so it does not keep it from the person's
+			// next account.
+			var owner model.User
+			ownerErr := tx.Unscoped().Select("id", "deleted_at").First(&owner, holder.UserID).Error
+			if ownerErr != nil && !errors.Is(ownerErr, gorm.ErrRecordNotFound) {
+				return ownerErr
+			}
+			if ownerErr == nil && !owner.DeletedAt.Valid {
+				return ErrTelegramLinkedElsewhere
+			}
+			if err := tx.Delete(&holder).Error; err != nil {
+				return err
+			}
+			err = gorm.ErrRecordNotFound
 		}
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -204,7 +218,12 @@ func telegramUserFor(telegramUserID int64) (*model.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return model.GetUserById(identity.UserID, false)
+	user, err := model.GetUserById(identity.UserID, false)
+	if errors.Is(err, model.ErrUserNotFound) {
+		// A deleted account's link answers like no link.
+		return nil, nil
+	}
+	return user, err
 }
 
 var telegramLinkPhrases = map[string]map[string]string{

@@ -3466,7 +3466,7 @@
     "page.console.channelHealth.floor.restore": "重みを戻す",
     "page.console.channelHealth.floor.restored": "{{name}} の {{count}} 本のレーンの重みを元に戻しました。",
     "page.console.personal.delete.question": "アカウント {{username}} を削除しますか？",
-    "page.console.personal.delete.what": "削除するとこのアカウントにはログインできなくなり、すべての API キーがすぐに使えなくなります。",
+    "page.console.personal.delete.what": "削除するとこのアカウントにはログインできなくなり、すべての API キーがすぐに使えなくなります。残高はこのアカウントに残り、別のアカウントへは移りません。メールアドレス・ユーザー名・連携済みのサインイン方法は保持され、新しいアカウントの作成には使えません。",
     "page.console.personal.delete.final": "削除したアカウントを自分で復元することはできません。",
     "page.console.personal.delete.typeUsername": "確認のためユーザー名 {{username}} を入力",
     "page.console.personal.delete.confirmAction": "アカウントを削除",

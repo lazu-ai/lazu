@@ -57,13 +57,13 @@ func GoogleOneTapNonce(c *gin.Context) {
 	}
 	nonce, err := randomOIDCString()
 	if err != nil {
-		common.SysLog(fmt.Sprintf("google one tap nonce generation failed: %v", err))
+		common.SysWarn(fmt.Sprintf("google one tap nonce generation failed: %v", err))
 		httperr.Code(c, types.ErrorCodeOAuthLoginFailed)
 		return
 	}
 	encoded, err := googleOneTapSecureCookie().Encode(googleOneTapCookie, nonce)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("google one tap nonce cookie failed: %v", err))
+		common.SysWarn(fmt.Sprintf("google one tap nonce cookie failed: %v", err))
 		httperr.Code(c, types.ErrorCodeOAuthLoginFailed)
 		return
 	}
@@ -105,13 +105,13 @@ func GoogleOneTapLogin(c *gin.Context) {
 	defer cancel()
 	verifier, err := googleOneTapVerifier(ctx)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("google one tap verifier unavailable: %v", err))
+		common.SysWarn(fmt.Sprintf("google one tap verifier unavailable: %v", err))
 		httperr.Code(c, types.ErrorCodeOAuthProviderError)
 		return
 	}
 	identity, err := googleIdentityFromIDToken(ctx, verifier, credential, nonce)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("google one tap identity rejected: %v", err))
+		common.SysWarn(fmt.Sprintf("google one tap identity rejected: %v", err))
 		if errors.Is(err, errOAuthNoVerifiedEmail) {
 			httperr.Code(c, types.ErrorCodeOAuthEmailUnverified)
 		} else {
@@ -123,7 +123,7 @@ func GoogleOneTapLogin(c *gin.Context) {
 	identity.MailSurface = requestHomeSurface(c)
 	user, err := resolveSocialOAuthUser(identity)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("google one tap user resolution failed: %v", err))
+		common.SysWarn(fmt.Sprintf("google one tap user resolution failed: %v", err))
 		httperr.Code(c, oauthRedirectCode(err))
 		return
 	}

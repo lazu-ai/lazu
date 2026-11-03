@@ -568,6 +568,8 @@ func TokenAuth() func(c *gin.Context) {
 		}
 		if projectErr != nil {
 			switch {
+			case errors.Is(projectErr, model.ErrAccountDeleted):
+				abortWithCode(c, types.ErrorCodeAccountDeleted)
 			case errors.Is(projectErr, model.ErrProjectAccessSuspended), errors.Is(projectErr, model.ErrProjectForbidden):
 				abortWithCode(c, types.ErrorCodeProjectAccessSuspended)
 			case errors.Is(projectErr, model.ErrTokenAccessInactive):
@@ -601,6 +603,11 @@ func TokenAuth() func(c *gin.Context) {
 
 		if userCache == nil {
 			userCache, err = requestpath.Current().User(token.UserId)
+			if errors.Is(err, model.ErrUserNotFound) {
+				// The Key's row outlived its holder: the account was deleted.
+				abortWithCode(c, types.ErrorCodeAccountDeleted)
+				return
+			}
 			if err != nil {
 				abortWithCode(c, types.ErrorCodeQueryDataError)
 				return

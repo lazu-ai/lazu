@@ -42,9 +42,11 @@ func TestVerificationTreatsEmailOwnershipAsCaseInsensitiveAndUnscoped(t *testing
 	if receiver != "Owner@Example.com" {
 		t.Fatalf("account guidance sent to unexpected receiver %q", receiver)
 	}
-	wantSubject := fmt.Sprintf("这个邮箱已经有 %s 账号了", common.SystemName)
+	// The only owner is a deleted account, so the mailbox learns that rather
+	// than being told to sign in to an account that refuses it.
+	wantSubject := fmt.Sprintf("这个邮箱的 %s 账号已注销", common.SystemName)
 	if subject != wantSubject {
-		t.Fatalf("case-variant reserved email received a registration code: subject=%q", subject)
+		t.Fatalf("case-variant reserved email got the wrong guidance: subject=%q", subject)
 	}
 }
 
@@ -106,7 +108,7 @@ func TestAuthEmailTemplatesRenderFully(t *testing.T) {
 
 	for _, lang := range []string{common.MailZH, common.MailEN} {
 		rendered := authMailPreviews(lang)
-		if want := 8 + len(surfaceWelcomeMails); len(rendered) != want {
+		if want := 9 + len(surfaceWelcomeMails); len(rendered) != want {
 			t.Fatalf("expected %d identity mails, got %d", want, len(rendered))
 		}
 		for name, content := range rendered {
