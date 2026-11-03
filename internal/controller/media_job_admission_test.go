@@ -51,3 +51,15 @@ func TestMediaAdmissionErrorsPreserveRateAndCredentialSemantics(t *testing.T) {
 		})
 	}
 }
+
+// Media jobs are Lazu's own JSON API, not a vendor wire; an empty wallet keeps
+// its 402 there and, like every wire, asks clients not to retry.
+func TestMediaAdmissionInsufficientQuotaIsFinal(t *testing.T) {
+	c, w := newUserTestContext(http.MethodPost, "/v1/videos", "{}")
+	err := mediaJobAdmissionError(c, model.ErrMediaJobBillingAdmission)
+	writeControlPlaneAPIError(c, err)
+	requireUserAPIError(t, w, http.StatusPaymentRequired, types.ErrorCodeInsufficientQuota)
+	if got := w.Header().Get("x-should-retry"); got != "false" {
+		t.Fatalf("x-should-retry = %q, want false", got)
+	}
+}

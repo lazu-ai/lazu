@@ -16,7 +16,9 @@ one writer. This page is the contract for adding and reporting errors.
 | `request_id` | The request this failure belongs to. Also `X-Lazu-Request-Id`. | — |
 | `docs` | `https://lazu.ai/docs/errors#lz-####`. | — |
 
-Every error response also carries `X-Lazu-Error: LZ-####`.
+Every error response also carries `X-Lazu-Error: LZ-####`. Rows marked
+`NoClientRetry` (wallet and budgets) add `x-should-retry: false`, which the
+Anthropic and OpenAI SDKs obey ahead of the status code.
 
 ### Families
 
@@ -42,7 +44,11 @@ dialect maps them to Anthropic's own types (`insufficient_quota` becomes
 
 ## Envelopes
 
-Two envelopes exist. Both use the real HTTP status.
+Two envelopes exist. Both use the real HTTP status. A row's
+`MessagesStatus` replaces that status on `/v1/messages` where Anthropic and
+OpenAI disagree: an empty wallet is 429 `insufficient_quota` on the OpenAI
+dialect (OpenAI's pair, which Codex treats as final) and 402 `billing_error`
+on the Anthropic dialect.
 
 ```jsonc
 // /v1 (OpenAI dialect): OpenAI's four fields, then Lazu's additions

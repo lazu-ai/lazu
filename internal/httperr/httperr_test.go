@@ -122,3 +122,47 @@ func TestOperatorConsoleValidationDetailsRequireAuthenticatedRole(t *testing.T) 
 		}
 	}
 }
+
+// Errors rejected before the relay handler (auth, budgets in middleware) go
+// through WriteGatewayBody; they follow the same per-wire rule as the relay.
+func TestGatewayBodyInsufficientQuotaPerWire(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, test := range []struct {
+		path   string
+		status int
+		typ    string
+	}{
+		{"/v1/messages", http.StatusPaymentRequired, "billing_error"},
+		{"/v1/chat/completions", http.StatusTooManyRequests, "insufficient_quota"},
+		{"/v1/responses", http.StatusTooManyRequests, "insufficient_quota"},
+	} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, test.path, nil)
+		AbortGateway(c, types.NewErrorWithStatusCode(errors.New("empty"), types.ErrorCodeInsufficientQuota, http.StatusTooManyRequests))
+		if w.Code != test.status {
+			t.Fatalf("%s: status = %d, want %d", test.path, w.Code, test.status)
+		}
+		if got := w.Header().Get(HeaderShouldRetry); got != "false" {
+			t.Fatalf("%s: x-should-retry = %q, want false", test.path, got)
+		}
+		var body map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if got := errorObject(body)["type"]; got != test.typ {
+			t.Fatalf("%s: type = %v, want %s", test.path, got, test.typ)
+		}
+	}
+}
+
+func TestConsoleEnvelopeCarriesNoRetryOnlyForWalletRows(t *testing.T) {
+	w, _ := write(t, types.Err(types.ErrorCodeInsufficientQuota), false)
+	if got := w.Header().Get(HeaderShouldRetry); got != "false" {
+		t.Fatalf("wallet x-should-retry = %q, want false", got)
+	}
+	w, _ = write(t, types.Err(types.ErrorCodeInvalidRequest), false)
+	if got := w.Header().Get(HeaderShouldRetry); got != "" {
+		t.Fatalf("invalid request carries x-should-retry %q", got)
+	}
+}

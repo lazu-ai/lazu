@@ -82,8 +82,18 @@ type ErrorSpec struct {
 	// status is inherited from an upstream and would mislead a caller, such as
 	// an upstream 401 caused by Lazu's own provider key.
 	WireStatus int
-	Type       string
-	Audience   Audience
+	// MessagesStatus, when set, is the status written on the Anthropic
+	// Messages wire in place of the one every other wire gets. The two
+	// vendors disagree on a few statuses (an empty balance is 402
+	// billing_error at Anthropic and 429 insufficient_quota at OpenAI), and
+	// each vendor's clients act on that vendor's status.
+	MessagesStatus int
+	// NoClientRetry marks errors a client cannot cure by retrying. Writers
+	// add `x-should-retry: false`, which the Anthropic and OpenAI SDKs obey
+	// ahead of the status code.
+	NoClientRetry bool
+	Type          string
+	Audience      Audience
 	// Template is English. `{name}` is filled from the error's details and
 	// `{name|fallback}` falls back to the text after the bar when the detail
 	// is absent.
@@ -140,6 +150,10 @@ type WireError struct {
 	ID       string
 	Docs     string
 	Audience Audience
+	// MessagesStatus is Status for the Anthropic Messages wire.
+	MessagesStatus int
+	// NoClientRetry asks the client not to retry (`x-should-retry: false`).
+	NoClientRetry bool
 	// Known is false when the code had no catalog row and was rendered as
 	// internal_error.
 	Known bool
@@ -176,16 +190,38 @@ func RenderWire(code ErrorCode, details map[string]any, runtimeStatus int) WireE
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}
-	return WireError{
-		Status:   status,
-		Type:     pspec.Type,
-		Code:     public,
-		Message:  RenderTemplate(pspec.Template, withSiteDetails(pspec.Template, details)),
-		ID:       pspec.ID,
-		Docs:     ErrorDocsURL(pspec.ID),
-		Audience: pspec.Audience,
-		Known:    known,
+	messagesStatus := status
+	if pspec.MessagesStatus != 0 {
+		messagesStatus = pspec.MessagesStatus
 	}
+	return WireError{
+		Status:         status,
+		Type:           pspec.Type,
+		Code:           public,
+		Message:        RenderTemplate(pspec.Template, withSiteDetails(pspec.Template, details)),
+		ID:             pspec.ID,
+		Docs:           ErrorDocsURL(pspec.ID),
+		Audience:       pspec.Audience,
+		MessagesStatus: messagesStatus,
+		NoClientRetry:  pspec.NoClientRetry,
+		Known:          known,
+	}
+}
+
+// MessagesWireStatus is the Anthropic Messages status for a public code that
+// every other wire answers with status. It serves writers that hold only a
+// rendered body; writers holding a WireError read its MessagesStatus.
+func MessagesWireStatus(code ErrorCode, status int) int {
+	if spec, ok := lookupSpec(code); ok && spec.Public == "" && spec.MessagesStatus != 0 {
+		return spec.MessagesStatus
+	}
+	return status
+}
+
+// NoClientRetry reports whether a public code asks clients not to retry.
+func NoClientRetry(code ErrorCode) bool {
+	spec, ok := lookupSpec(code)
+	return ok && spec.Public == "" && spec.NoClientRetry
 }
 
 // sitePlaceholderPrefix marks placeholders the deployment fills, not the
@@ -465,28 +501,34 @@ var gatewayCatalog = map[ErrorCode]ErrorSpec{
 	},
 
 	// ── LZ-3xxx · wallet and budgets ───────────────────────────────────
+	// Retrying cannot refill a wallet or raise a budget, but a 429 reads as
+	// a rate limit and coding agents back off and retry it for minutes before
+	// printing the message. These rows keep 429 insufficient_quota where
+	// OpenAI uses it (Codex stops at once on that pair), answer 402
+	// billing_error on the Messages wire as Anthropic does, and ask every
+	// client not to retry.
 	ErrorCodeInsufficientQuota: {
-		ID: "LZ-3101", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
+		ID: "LZ-3101", HTTPStatus: http.StatusTooManyRequests, MessagesStatus: http.StatusPaymentRequired, NoClientRetry: true, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
 		Template: "Wallet balance is too low for this request. Top up{site_wallet_at|} to continue.{site_community_hint|}",
 	},
 	ErrorCodeKeyBudgetExceeded: {
-		ID: "LZ-3201", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
+		ID: "LZ-3201", HTTPStatus: http.StatusTooManyRequests, MessagesStatus: http.StatusPaymentRequired, NoClientRetry: true, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
 		Template: "API key budget cannot cover this request's reservation; check the key budget and request output limit. No upstream request was sent.",
 	},
 	ErrorCodePreConsumeTokenQuotaFailed: {
-		ID: "LZ-3202", HTTPStatus: http.StatusForbidden, WireStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
+		ID: "LZ-3202", HTTPStatus: http.StatusForbidden, WireStatus: http.StatusTooManyRequests, MessagesStatus: http.StatusPaymentRequired, NoClientRetry: true, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
 		Template: "This API key's remaining allowance cannot cover the request. Raise the key's allowance or use another key.",
 	},
 	ErrorCodeMemberBudgetExceeded: {
-		ID: "LZ-3301", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
+		ID: "LZ-3301", HTTPStatus: http.StatusTooManyRequests, MessagesStatus: http.StatusPaymentRequired, NoClientRetry: true, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
 		Template: "Member monthly budget exceeded.",
 	},
 	ErrorCodeProjectBudgetExceeded: {
-		ID: "LZ-3401", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
+		ID: "LZ-3401", HTTPStatus: http.StatusTooManyRequests, MessagesStatus: http.StatusPaymentRequired, NoClientRetry: true, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
 		Template: "Project budget exceeded.",
 	},
 	ErrorCodePlatformBudgetExceeded: {
-		ID: "LZ-3501", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
+		ID: "LZ-3501", HTTPStatus: http.StatusTooManyRequests, MessagesStatus: http.StatusPaymentRequired, NoClientRetry: true, Type: ErrorTypeInsufficientQuota, Audience: AudienceCustomer,
 		Template: "Platform spending budget exceeded.",
 	},
 	ErrorCodePricingNotConfigured: {
