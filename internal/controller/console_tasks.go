@@ -149,12 +149,16 @@ func consoleTaskViews(ctx context.Context, jobs []model.MediaJob, includeRequest
 		}
 	}
 	names, _ := model.TokenNamesByID(tokenIDs)
+	charges, err := model.MediaJobChargedAmounts(jobs)
+	if err != nil {
+		common.SysError("console tasks: read request charges: " + err.Error())
+	}
 	out := make([]dto.ConsoleTaskObject, len(jobs))
 	for i, job := range jobs {
 		fields := map[string]any{}
 		_ = common.Unmarshal(job.RequestSnapshot, &fields)
 		hold := int64(model.MediaJobHoldAmount(job))
-		charge := int64(model.MediaJobChargedAmount(job))
+		charge := int64(charges[i])
 		task := dto.ConsoleTaskObject{
 			MediaJobObject: views[i],
 			Prompt:         consoleTaskPrompt(fields),

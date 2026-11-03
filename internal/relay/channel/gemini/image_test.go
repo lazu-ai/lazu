@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/dto"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
+	"github.com/lazu-ai/lazu/internal/types"
 )
 
 func TestConvertImageRequestMapsImagenParameters(t *testing.T) {
@@ -94,5 +95,41 @@ func TestConvertImageRequestBuildsGeminiImagineRequest(t *testing.T) {
 		request.GenerationConfig.ResponseModalities[0] != "TEXT" ||
 		request.GenerationConfig.ResponseModalities[1] != "IMAGE" {
 		t.Fatalf("unexpected response modalities: %+v", request.GenerationConfig.ResponseModalities)
+	}
+}
+
+func TestGeminiImageContentHandlerClassifiesReplyWithoutImage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cases := []struct {
+		name string
+		body string
+		code types.ErrorCode
+	}{
+		{"prompt blocked", `{"promptFeedback":{"blockReason":"PROHIBITED_CONTENT"}}`, types.ErrorCodePromptBlocked},
+		{"image filtered", `{"candidates":[{"content":{"parts":[]},"finishReason":"IMAGE_SAFETY"}]}`, types.ErrorCodePromptBlocked},
+		{"text only", `{"candidates":[{"content":{"parts":[{"text":"Here is a description."}]},"finishReason":"STOP"}]}`, types.ErrorCodeBadResponseBody},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
+			resp := &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(tc.body)),
+			}
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gemini-image-test"}}
+
+			_, err := GeminiImageContentHandler(c, info, resp)
+			if err == nil {
+				t.Fatal("expected an error for a reply without an image")
+			}
+			if err.GetErrorCode() != tc.code {
+				t.Fatalf("code = %s, want %s (%v)", err.GetErrorCode(), tc.code, err)
+			}
+			if tc.code == types.ErrorCodePromptBlocked && err.StatusCode != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400", err.StatusCode)
+			}
+		})
 	}
 }

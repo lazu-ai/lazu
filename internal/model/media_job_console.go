@@ -122,14 +122,20 @@ func SummarizeMediaJobsForConsole(principal ProjectPrincipal, filter MediaJobCon
 	filter.Status = ""
 	var rows []MediaJob
 	err := mediaJobConsoleQuery(principal, filter).
-		Select("id", "status", "cost_snapshot", "ledger_input_json", "request_snapshot", "artifact_file_id", "billing_settled_at", "user_id", "project_id", "token_id", "actor_user_id", "payer_user_id").
+		Select("id", "status", "cost_snapshot", "ledger_input_json", "request_snapshot", "artifact_file_id", "billing_settled_at", "user_id", "project_id", "token_id", "actor_user_id", "payer_user_id", "request_id").
 		Order("created_at DESC, id DESC").Limit(mediaJobConsoleSummaryCap).Find(&rows).Error
 	if err != nil {
 		return MediaJobConsoleSummary{}, err
 	}
+	charges, err := MediaJobChargedAmounts(rows)
+	if err != nil {
+		// The request lookup is secondary: the strip falls back to the
+		// charges the jobs carry themselves.
+		common.SysError("console tasks summary: read request charges: " + err.Error())
+	}
 	summary := MediaJobConsoleSummary{Tasks: len(rows)}
 	artifactIDs := make([]string, 0)
-	for _, row := range rows {
+	for i, row := range rows {
 		hold := int64(MediaJobHoldAmount(row))
 		switch row.Status {
 		case MediaJobStatusPending, MediaJobStatusRunning:
@@ -139,7 +145,7 @@ func SummarizeMediaJobsForConsole(principal ProjectPrincipal, filter MediaJobCon
 			summary.Failed++
 			summary.RefundedMicrousd += hold
 		case MediaJobStatusSucceeded:
-			charge := int64(MediaJobChargedAmount(row))
+			charge := int64(charges[i])
 			summary.SpendMicrousd += charge
 			if hold > charge {
 				summary.RefundedMicrousd += hold - charge
@@ -185,6 +191,61 @@ func MediaJobChargedAmount(job MediaJob) billing.MicroUSD {
 		return 0
 	}
 	return mediaJobSnapshotCharge(job)
+}
+
+// MediaJobChargedAmounts is MediaJobChargedAmount for each job, in order. A
+// succeeded job that never settled itself (no hold, no settlement, no
+// charge in its snapshot) was billed as the ordinary gateway request it
+// records, so its charge is that request's settled financial operations for
+// the job's payer.
+func MediaJobChargedAmounts(jobs []MediaJob) ([]billing.MicroUSD, error) {
+	charges := make([]billing.MicroUSD, len(jobs))
+	requestIDs := make([]string, 0)
+	for i, job := range jobs {
+		charges[i] = MediaJobChargedAmount(job)
+		if mediaJobBilledByRequest(job, charges[i]) {
+			requestIDs = append(requestIDs, job.RequestID)
+		}
+	}
+	if len(requestIDs) == 0 || CoreDB() == nil {
+		return charges, nil
+	}
+	type requestCharge struct {
+		RequestID string
+		PayerID   int
+		Amount    int64
+	}
+	byRequest := map[string]map[int]int64{}
+	const chunk = 500
+	for start := 0; start < len(requestIDs); start += chunk {
+		var rows []requestCharge
+		if err := CoreDB().Model(&RedisLedgerOperation{}).
+			Select("request_id, payer_id, SUM(amount) AS amount").
+			Where("kind IN ? AND request_id IN ?", []string{"settle", "refund"}, requestIDs[start:min(start+chunk, len(requestIDs))]).
+			Group("request_id, payer_id").Scan(&rows).Error; err != nil {
+			return charges, err
+		}
+		for _, row := range rows {
+			if byRequest[row.RequestID] == nil {
+				byRequest[row.RequestID] = map[int]int64{}
+			}
+			byRequest[row.RequestID][row.PayerID] = row.Amount
+		}
+	}
+	for i, job := range jobs {
+		if !mediaJobBilledByRequest(job, charges[i]) {
+			continue
+		}
+		if amount := byRequest[job.RequestID][job.BillingUserID()]; amount > 0 {
+			charges[i] = billing.MicroUSD(amount)
+		}
+	}
+	return charges, nil
+}
+
+func mediaJobBilledByRequest(job MediaJob, snapshotCharge billing.MicroUSD) bool {
+	return job.Status == MediaJobStatusSucceeded && snapshotCharge == 0 && job.BillingSettledAt == 0 &&
+		job.LedgerInputJSON == "" && MediaJobBillingReservationAmount(job) == 0 && job.RequestID != ""
 }
 
 func mediaJobSnapshotCharge(job MediaJob) billing.MicroUSD {

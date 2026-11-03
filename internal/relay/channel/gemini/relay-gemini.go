@@ -153,7 +153,12 @@ func GeminiImageContentHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	}
 
 	if len(openAIResponse.Data) == 0 {
-		return nil, types.NewOpenAIError(errors.New("no images generated"), types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
+		if reason, blocked := geminiImageBlockReason(&geminiResponse); blocked {
+			// A refusal, not a broken reply: the same prompt is refused again,
+			// so the caller hears it as the content-policy error.
+			return nil, types.NewError(errors.New("no images generated: blocked by the model's safety filter ("+reason+")"), types.ErrorCodePromptBlocked)
+		}
+		return nil, types.NewOpenAIError(errors.New("no images generated"+geminiFinishReasonSuffix(&geminiResponse)), types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
 
 	jsonResponse, jsonErr := json.Marshal(openAIResponse)
@@ -184,6 +189,37 @@ func GeminiImageContentHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	geminicodec.ReconcileTotal(usage)
 
 	return usage, nil
+}
+
+// geminiImageBlockReason says whether a reply without an image was a safety
+// refusal: the prompt blocked outright (promptFeedback.blockReason), or a
+// candidate stopped by a content filter.
+func geminiImageBlockReason(response *dto.GeminiChatResponse) (string, bool) {
+	if feedback := response.PromptFeedback; feedback != nil && feedback.BlockReason != nil && *feedback.BlockReason != "" {
+		return *feedback.BlockReason, true
+	}
+	for _, candidate := range response.Candidates {
+		if candidate.FinishReason == nil {
+			continue
+		}
+		switch reason := strings.ToUpper(*candidate.FinishReason); reason {
+		case "SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII",
+			"IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT", "IMAGE_RECITATION":
+			return reason, true
+		}
+	}
+	return "", false
+}
+
+// geminiFinishReasonSuffix names how the first candidate ended, so a reply
+// without an image says why in the log.
+func geminiFinishReasonSuffix(response *dto.GeminiChatResponse) string {
+	for _, candidate := range response.Candidates {
+		if candidate.FinishReason != nil && *candidate.FinishReason != "" {
+			return " (finish reason " + *candidate.FinishReason + ")"
+		}
+	}
+	return ""
 }
 
 func GeminiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.LazuError) {
