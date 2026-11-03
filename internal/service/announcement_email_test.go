@@ -72,11 +72,19 @@ func TestSendPublishedAnnouncementEmailReachesEachReaderOnce(t *testing.T) {
 		{Id: 24, Username: "unset", Email: "unset@example.test"},
 		{Id: 25, Username: "optout", Email: "optout@example.test", Setting: `{"product_updates_off":true}`},
 		{Id: 26, Username: "noaddress"},
+		{Id: 28, Username: "disabled", Email: "disabled@example.test", Status: common.UserStatusDisabled},
+		{Id: 29, Username: "deleted", Email: "deleted@example.test"},
 	}
 	for i := range users {
+		if users[i].Status == 0 {
+			users[i].Status = common.UserStatusEnabled
+		}
 		if err := db.Create(&users[i]).Error; err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := db.Delete(&model.User{}, 29).Error; err != nil {
+		t.Fatal(err)
 	}
 
 	a := testAnnouncement("en")
@@ -113,7 +121,7 @@ func TestSendPublishedAnnouncementEmailReachesEachReaderOnce(t *testing.T) {
 
 	// Publishing again reaches nobody already claimed, and a reader who
 	// joined since gets it.
-	if err := db.Create(&model.User{Id: 27, Username: "late", Email: "late@example.test"}).Error; err != nil {
+	if err := db.Create(&model.User{Id: 27, Username: "late", Email: "late@example.test", Status: common.UserStatusEnabled}).Error; err != nil {
 		t.Fatal(err)
 	}
 	stats, err = SendPublishedAnnouncementEmail(a)

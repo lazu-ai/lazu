@@ -244,10 +244,14 @@ func resolveEmailForRecipient(rec emailRecipient) string {
 	return resolveUserEmail(user)
 }
 
+// loadRecipientsBatch pages through every account a send-all broadcast
+// reaches. A disabled account cannot sign in to read what the mail points to,
+// and a deleted one is out of scope by its deleted_at.
 func loadRecipientsBatch(offset, limit int) ([]emailRecipient, error) {
 	var users []emailRecipient
 	err := model.CoreDB().Model(&model.User{}).
 		Select("id, username, display_name, email, setting, quota").
+		Where("status = ?", common.UserStatusEnabled).
 		Order("id asc").
 		Limit(limit).
 		Offset(offset).
