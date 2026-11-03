@@ -90,7 +90,7 @@ func renderPlatformNotice(notice platformNotice, rec emailRecipient, receiver st
 	}
 	if notice.ProductUpdate {
 		blocks = append(blocks, common.MailBlock{Muted: true,
-			Text:      common.MailText(lang, "这是 Lazu 的产品更新，一年只有几封。", "This is a Lazu product update; there are only a few a year."),
+			Text:      common.MailText(lang, "这是 Lazu 的产品更新，不会频繁打扰。", "This is a Lazu product update; we will not send these often."),
 			LinkLabel: common.MailText(lang, "不再接收", "Unsubscribe"), LinkURL: MailUnsubscribeURL(rec.Id, MailOptOutProduct)})
 	}
 	rendered, err := common.RenderMail(common.Mail{
