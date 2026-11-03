@@ -1820,6 +1820,8 @@
     "page.console.settingV2.upstream.field.passThroughHelp": "开启后不做协议桥接直接转发，只在你确认所有来源方言一致时使用。",
     "page.console.settingV2.upstream.field.pingInterval": "流式心跳",
     "page.console.settingV2.upstream.field.pingIntervalHelp": "长时间无输出时向客户端发空行保活，避免代理层掐断连接。",
+    "page.console.settingV2.upstream.field.sessionAffinity": "会话固定来源",
+    "page.console.settingV2.upstream.field.sessionAffinityHelp": "同一个编程 Agent 会话的每一轮都发往上一轮成功服务它的来源和上游密钥，那个来源被停用、不再提供该模型或不健康时才换。推理签名和提示词缓存都绑定上游账号，换来源会丢掉它们。",
     "page.console.settingV2.upstream.field.window": "窗口与阈值",
     "page.console.settingV2.upstream.field.windowHelp": "依次是窗口长度、窗口内允许的总请求数、其中成功请求的上限。",
     "page.console.settingV2.upstream.gemini.description": "只影响 Gemini 系列模型的转发参数。",

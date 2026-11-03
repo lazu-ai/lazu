@@ -310,6 +310,32 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.LazuError) {
 	}
 }
 
+// EnabledKeyAt returns the key at index when it is still enabled, for a
+// caller that must reuse the exact upstream credential an earlier request
+// went out on (session affinity: an upstream account that issued a reasoning
+// signature refuses or drops it from any other account). It does not advance
+// the polling index, so pinning one session leaves rotation for the rest of
+// the traffic unchanged. A single-key channel has only index 0.
+func (channel *Channel) EnabledKeyAt(index int) (string, bool) {
+	if channel == nil || index < 0 {
+		return "", false
+	}
+	if !channel.ChannelInfo.IsMultiKey {
+		return channel.Key, index == 0
+	}
+	keys := channel.GetKeys()
+	if index >= len(keys) {
+		return "", false
+	}
+	lock := GetChannelPollingLock(channel.Id)
+	lock.Lock()
+	defer lock.Unlock()
+	if status, configured := channel.ChannelInfo.MultiKeyStatusList[index]; configured && status != common.ChannelStatusEnabled {
+		return "", false
+	}
+	return keys[index], true
+}
+
 // EnabledKeyCount reports how many distinct attempts a channel can make before
 // a retry should move to another channel. It shares the per-channel lock used
 // by key selection because key status can change concurrently after failures.

@@ -1820,6 +1820,8 @@
     "page.console.settingV2.upstream.field.passThroughHelp": "開啟後不做協定橋接直接轉發，只在你確認所有來源方言一致時使用。",
     "page.console.settingV2.upstream.field.pingInterval": "串流心跳",
     "page.console.settingV2.upstream.field.pingIntervalHelp": "長時間無輸出時向用戶端發空行保活，避免代理層切斷連線。",
+    "page.console.settingV2.upstream.field.sessionAffinity": "會話固定來源",
+    "page.console.settingV2.upstream.field.sessionAffinityHelp": "同一個程式設計 Agent 會話的每一輪都發往上一輪成功服務它的來源和上游金鑰，那個來源被停用、不再提供該模型或不健康時才換。推理簽章和提示詞快取都綁定上游帳號，換來源會失去它們。",
     "page.console.settingV2.upstream.field.window": "視窗與閾值",
     "page.console.settingV2.upstream.field.windowHelp": "依序是視窗長度、視窗內允許的總請求數、其中成功請求的上限。",
     "page.console.settingV2.upstream.gemini.description": "只影響 Gemini 系列模型的轉發參數。",

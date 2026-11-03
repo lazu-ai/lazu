@@ -147,4 +147,14 @@ const (
 	ContextKeyRequestAuthKeyHint        ContextKey = "request_auth_key_hint"
 	ContextKeyRequestAuthKeySource      ContextKey = "request_auth_key_source"
 	ContextKeyRequestAuthKeyPresent     ContextKey = "request_auth_key_present"
+
+	// Session affinity (relay/router/session_affinity.go). The key is set
+	// only for a request that takes part; the record is what routing read;
+	// result is none / hit / rejected; the channel and reason explain a
+	// rejected record in the log's admin details.
+	ContextKeySessionAffinityKey     ContextKey = "session_affinity_key"
+	ContextKeySessionAffinityRecord  ContextKey = "session_affinity_record"
+	ContextKeySessionAffinityResult  ContextKey = "session_affinity_result"
+	ContextKeySessionAffinityChannel ContextKey = "session_affinity_channel"
+	ContextKeySessionAffinityReason  ContextKey = "session_affinity_reason"
 )
