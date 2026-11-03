@@ -536,3 +536,30 @@ func TestSummaryBillsAnthropicInputBesideItsCache(t *testing.T) {
 		t.Fatalf("openai usage billed as %+v; want input 6400, cache read 12000", got)
 	}
 }
+
+func TestFactCacheInclusivePromptTokens(t *testing.T) {
+	tokens := func(name string, quantity int64) DimensionUsage {
+		return DimensionUsage{Name: name, Quantity: quantity, Unit: UnitToken}
+	}
+	for _, tc := range []struct {
+		name string
+		fact Fact
+		want int64
+	}{
+		{"anthropic adds cache reads and writes", Fact{ProviderFamily: "anthropic", PromptTokens: 2, Dimensions: []DimensionUsage{
+			tokens(DimensionInput, 2), tokens(DimensionCacheRead, 166_751), tokens(DimensionCacheWrite5m, 3_841), tokens(DimensionCacheWrite1h, 10), tokens(DimensionCacheWrite, 5),
+		}}, 2 + 166_751 + 3_841 + 10 + 5},
+		{"openai already counts the cache", Fact{ProviderFamily: "openai", PromptTokens: 10_000, Dimensions: []DimensionUsage{
+			tokens(DimensionInput, 2_000), tokens(DimensionCacheRead, 8_000),
+		}}, 10_000},
+		// Gemini's cached content overlaps its image tokens; adding the
+		// dimensions up would count the overlap twice.
+		{"gemini keeps prompt tokens", Fact{ProviderFamily: "gemini", PromptTokens: 16_717, Dimensions: []DimensionUsage{
+			tokens(DimensionCacheRead, 14_576), tokens(DimensionImageInput, 15_960),
+		}}, 16_717},
+	} {
+		if got := tc.fact.CacheInclusivePromptTokens(); got != tc.want {
+			t.Errorf("%s: got %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}

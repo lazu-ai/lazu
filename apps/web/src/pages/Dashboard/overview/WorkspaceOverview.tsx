@@ -88,7 +88,7 @@ export default function WorkspaceOverview({
   const successRate = totals?.success_rate ?? null;
   const cacheRatio =
     totals && totals.prompt_tokens > 0
-      ? totals.cached_tokens / totals.prompt_tokens
+      ? Math.min(1, totals.cached_tokens / totals.prompt_tokens)
       : null;
   const perDay = spend / rangeDays(range, data?.start, data?.end);
   const runwayDays =

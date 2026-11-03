@@ -83,7 +83,11 @@ func RollupDigestHours(from, to time.Time) error {
 		if payer <= 0 {
 			continue
 		}
-		tokens, err := checkedTelemetryInt64Total(r.PromptTokens, r.CompletionTokens)
+		prompt, err := cacheInclusivePromptTokens(r.PromptTokens, r.UsageFact)
+		if err != nil {
+			return err
+		}
+		tokens, err := checkedTelemetryInt64Total(prompt, r.CompletionTokens)
 		if err != nil {
 			return err
 		}

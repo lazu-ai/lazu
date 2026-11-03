@@ -7,10 +7,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   SK,
   type SessionLane,
+  cacheRatio,
   officialSaving,
   pct,
   rangeLabel,
-  ratio,
   sessionClient,
   sessionLanes,
   sessionState,
@@ -431,7 +431,7 @@ export default function SessionsView({ admin, t }: Props) {
   const items = list.data?.items ?? [];
   const total = list.data?.total ?? 0;
   const hit = summary
-    ? ratio(summary.cached_tokens, summary.prompt_tokens)
+    ? cacheRatio(summary.cached_tokens, summary.prompt_tokens)
     : null;
 
   /* The row has the status (全部 / 成功 / 有失败), the search and 筛选; Agent,
@@ -855,7 +855,7 @@ function SessionRow({
   const navigate = useNavigate();
   const client = sessionClient(session);
   const status = sessionStatus(session, t);
-  const hit = ratio(session.cached_tokens, session.prompt_tokens);
+  const hit = cacheRatio(session.cached_tokens, session.prompt_tokens);
   const href = sessionDetailHref(session.id, admin);
   const lanes = sessionLanes(session.models);
   const [firstModel, ...otherModels] = session.models;

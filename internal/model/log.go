@@ -780,7 +780,7 @@ func attachRoutingOutcomeUsageSnapshot(c *gin.Context, params RecordConsumeLogPa
 		)
 	}
 	snapshot := RoutingOutcomeUsageSnapshot{
-		ActualInputTokens: usageFact.PromptTokens,
+		ActualInputTokens: int(usageFact.CacheInclusivePromptTokens()),
 		CachedInputTokens: dimensionQuantity(usageFact, usagepkg.DimensionCacheRead),
 		CacheWriteTokens: dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite) +
 			dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite5m) +

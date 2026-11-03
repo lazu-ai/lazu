@@ -102,3 +102,15 @@ func validateTelemetryUsageFactNumbers(raw string) error {
 	}
 	return nil
 }
+
+// cacheInclusivePromptTokens is a log's prompt tokens with its cached input
+// counted in (usage.Fact.CacheInclusivePromptTokens). Anthropic rows log
+// fresh input only; rollups that sum prompt tokens across providers, or set
+// cache reads against them, need every row in the same form.
+func cacheInclusivePromptTokens(prompt int64, rawFact string) (int64, error) {
+	fact, ok := usagepkg.ParseFact(rawFact)
+	if !ok {
+		return prompt, nil
+	}
+	return checkedTelemetryInt64Total(prompt, fact.CacheInclusivePromptTokens()-int64(fact.PromptTokens))
+}

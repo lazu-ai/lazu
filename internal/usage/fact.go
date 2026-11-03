@@ -345,6 +345,27 @@ func (f Fact) Normalize() Fact {
 	return f
 }
 
+// CacheInclusivePromptTokens is the request's input with the cached tokens
+// counted in, the way OpenAI-style usage reports prompt_tokens. Anthropic's
+// input_tokens leaves cache reads and writes out, and the settled usage (and
+// so the log's prompt_tokens) keeps that form; summing it beside other
+// providers' prompt_tokens, or dividing cache reads by it, mixes the two.
+func (f Fact) CacheInclusivePromptTokens() int64 {
+	prompt := int64(f.PromptTokens)
+	if normalizeProviderFamily(ProviderFamily(f.ProviderFamily)) != ProviderFamilyAnthropic {
+		return prompt
+	}
+	for _, dimension := range f.Dimensions {
+		switch dimension.Name {
+		case DimensionCacheRead, DimensionCacheWrite, DimensionCacheWrite5m, DimensionCacheWrite1h:
+			if dimension.Quantity > 0 {
+				prompt += dimension.Quantity
+			}
+		}
+	}
+	return prompt
+}
+
 func (f Fact) IsZero() bool {
 	return f.PromptTokens == 0 &&
 		f.CompletionTokens == 0 &&

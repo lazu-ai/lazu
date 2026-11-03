@@ -522,6 +522,7 @@ func GetAgentSessionDetailPage(userID int, publicID string, afterTime int64, aft
 				request.Kind = "main"
 			}
 			if fact, ok := usagepkg.ParseFact(log.UsageFact); ok {
+				request.PromptTokens += int(fact.CacheInclusivePromptTokens()) - fact.PromptTokens
 				request.CachedTokens = dimensionQuantity(fact, usagepkg.DimensionCacheRead)
 			}
 			if request.Failed {

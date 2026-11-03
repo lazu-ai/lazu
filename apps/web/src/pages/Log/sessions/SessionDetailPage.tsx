@@ -8,11 +8,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   SK,
   type SessionLane,
+  cacheRatio,
   clockSecondsText,
   durationText,
   officialSaving,
   pct,
-  ratio,
   sessionClient,
   sessionLanes,
   shortSessionId,
@@ -400,7 +400,7 @@ function DetailKpis({
   const paidShare = saving ? Math.max(0, 100 - saving.pct) : null;
   const status = session ? sessionStatus(session, t) : null;
   const hit = session
-    ? ratio(session.cached_tokens, session.prompt_tokens)
+    ? cacheRatio(session.cached_tokens, session.prompt_tokens)
     : null;
   const subagentAmount = (detail?.threads ?? [])
     .filter((thread) => thread.thread_id)
