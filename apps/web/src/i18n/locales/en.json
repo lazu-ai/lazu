@@ -1820,6 +1820,8 @@
     "page.console.settingV2.upstream.field.passThroughHelp": "Forwards the body without protocol bridging. Only use it when every channel speaks the same dialect.",
     "page.console.settingV2.upstream.field.pingInterval": "Stream keep-alive",
     "page.console.settingV2.upstream.field.pingIntervalHelp": "Sends a blank line to the client during long silences so a proxy does not cut the connection.",
+    "page.console.settingV2.upstream.field.sessionAffinity": "Session channel affinity",
+    "page.console.settingV2.upstream.field.sessionAffinityHelp": "Sends every turn of a coding-agent session to the channel and upstream key that served its previous turn, and moves only when that channel is disabled, stops serving the model or is unhealthy. Reasoning signatures and prompt caches belong to the upstream account, so moving loses them.",
     "page.console.settingV2.upstream.field.window": "Window & thresholds",
     "page.console.settingV2.upstream.field.windowHelp": "In order: the window length, the requests allowed within it, and the ceiling on successful ones.",
     "page.console.settingV2.upstream.gemini.description": "Forwarding parameters for Gemini models only.",
