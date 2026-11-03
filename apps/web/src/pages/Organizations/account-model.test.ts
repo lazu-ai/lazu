@@ -3,6 +3,8 @@ import {
   accountKeyOperationalState,
   adjacentAccountTarget,
   buildDailySpendSeries,
+  isDeleted,
+  toAccount,
 } from './account-model';
 
 describe('customer account daily spend series', () => {
@@ -87,5 +89,29 @@ describe('customer account adjacent navigation', () => {
       null,
     );
     expect(adjacentAccountTarget(rows, 'acct-22', 1, 20, 2, 'next')).toBe(null);
+  });
+});
+
+describe('deleted accounts in the list', () => {
+  it('reads the deletion time and restore deadline from a list row', () => {
+    const account = toAccount({
+      id: 'usr_1',
+      username: 'gone',
+      DeletedAt: '2026-11-01T08:00:00Z',
+      restore_until: 1_794_384_000,
+    });
+    expect(account.deleted_at).toBe(Date.parse('2026-11-01T08:00:00Z') / 1000);
+    expect(account.restore_until).toBe(1_794_384_000);
+    expect(isDeleted(account)).toBe(true);
+  });
+
+  it('treats a null DeletedAt as a live account', () => {
+    const account = toAccount({
+      id: 'usr_2',
+      username: 'here',
+      DeletedAt: null,
+    });
+    expect(account.deleted_at).toBeUndefined();
+    expect(isDeleted(account)).toBe(false);
   });
 });

@@ -204,21 +204,57 @@ func authAccountExistsMail(lang string) (string, string) {
 	})
 }
 
-// authAccountDeletedMail answers a code or reset request for an address whose
-// account was deleted. The row keeps the address, so a code would only lead
-// to a refusal and a reset link would never arrive.
-func authAccountDeletedMail(lang string) (string, string) {
+// authAccountDeletedMail answers a code, reset or sign-up request for an
+// address whose account was deleted. Inside the restore window it says how to
+// bring the account back (restoreBy is that deadline); past it, restoreBy is
+// zero and the mail says the account is gone.
+func authAccountDeletedMail(lang string, restoreBy time.Time) (string, string) {
 	name := common.SystemName
 	subject := common.MailText(lang, "这个邮箱的 "+name+" 账号已注销", "The "+name+" account for this email was deleted")
+	lead := common.MailText(lang,
+		"有人用这个邮箱申请了验证码、重置密码或注册，但它对应的 "+name+" 账号已经注销了。这个邮箱、用户名和它绑定过的登录方式都不能用来注册新账号。",
+		"Someone asked for a code, a password reset or a sign-up with this email, but its "+name+" account has been deleted. Its email, username and linked sign-in methods cannot be used for a new account.")
+	blocks := []common.MailBlock{}
+	if !restoreBy.IsZero() {
+		blocks = append(blocks, common.MailBlock{Facts: []common.MailFact{
+			{Label: common.MailText(lang, "可恢复至", "Restorable until"), Value: restoreBy.Format("2006-01-02 15:04 MST")},
+		}})
+		blocks = append(blocks, common.MailBlock{Text: common.MailText(lang,
+			"在这之前，用注销前的方式（密码、Google、GitHub 或邮箱验证码）重新登录，账号就会恢复，余额和记录都还在。",
+			"Until then, signing in again the way you used to (password, Google, GitHub or an email code) restores the account, with its balance and history.")})
+	} else {
+		lead += common.MailText(lang, "已经过了恢复期，账号不能再登录。", " The restore period is over, and the account can no longer sign in.")
+	}
+	blocks = append(blocks, common.MailBlock{Muted: true, Text: common.MailText(lang, "如有疑问，请联系管理员。不是你本人操作的话，忽略这封邮件即可。", "Contact an administrator if you have questions. If this wasn't you, ignore this email.")})
 	return subject, renderAuthMail(common.Mail{
 		Lang: lang, Eyebrow: "ACCOUNT",
-		Preheader: common.MailText(lang, "已注销的账号不能再登录", "A deleted account cannot sign in"),
+		Preheader: common.MailText(lang, "这个邮箱对应的账号已注销", "The account for this email was deleted"),
 		Title:     common.MailText(lang, "这个账号已注销", "This account was deleted"),
+		Lead:      lead,
+		Blocks:    blocks,
+	})
+}
+
+// authAccountRestoredMail tells the owner a deleted account came back because
+// someone signed in to it, so a restore they did not make surfaces at once.
+func authAccountRestoredMail(lang, account string, restoredAt time.Time) (string, string) {
+	name := common.SystemName
+	subject := common.MailText(lang, "你的 "+name+" 账号已恢复", "Your "+name+" account was restored")
+	return subject, renderAuthMail(common.Mail{
+		Lang: lang, Eyebrow: "SECURITY",
+		Preheader: common.MailText(lang, "注销已撤销，API Key 需要重新启用", "The deletion was undone; API Keys need turning back on"),
+		Title:     common.MailText(lang, "你的账号已恢复", "Your account was restored"),
 		Lead: common.MailText(lang,
-			"有人用这个邮箱申请了验证码或重置密码，但它对应的 "+name+" 账号已经注销了。已注销的账号不能再登录，这个邮箱和它绑定过的登录方式也不能用来注册新账号。",
-			"Someone asked for a code or a password reset with this email, but its "+name+" account has been deleted. A deleted account cannot sign in, and its email and linked sign-in methods cannot be used for a new account."),
+			"有人在注销后的恢复期内重新登录了这个账号，注销已撤销。余额和记录都还在。为了安全，原来的 API Key 都已停用，需要用的话请在控制台重新启用。",
+			"Someone signed in to this account during its restore period, so the deletion was undone. Its balance and history are intact. For safety, its API Keys were turned off; turn them back on in the console if you need them."),
 		Blocks: []common.MailBlock{
-			{Muted: true, Text: common.MailText(lang, "如有疑问，请联系管理员。不是你本人操作的话，忽略这封邮件即可。", "Contact an administrator if you have questions. If this wasn't you, ignore this email.")},
+			{Facts: []common.MailFact{
+				{Label: common.MailText(lang, "账号", "Account"), Value: account, Mono: true},
+				{Label: common.MailText(lang, "时间", "Time"), Value: restoredAt.Format("2006-01-02 15:04 MST")},
+			}},
+			{Text: common.MailText(lang, "不是你本人？", "Not you?"),
+				LinkLabel: common.MailText(lang, "立即重置密码", "Reset your password"), LinkURL: authEmailBaseURL() + "/reset",
+				TextAfter: common.MailText(lang, " 重置后其他设备会全部退出登录。", " Resetting signs out every other device.")},
 		},
 	})
 }
@@ -424,7 +460,9 @@ func authMailPreviews(lang string) map[string]string {
 		"password_changed":    pick(authPasswordChangedMail(lang, "grace", time.Now(), "Chrome · macOS · 101.80.0.1")),
 		"password_not_used":   pick(authPasswordNotUsedMail(lang, "GitHub")),
 		"account_exists":      pick(authAccountExistsMail(lang)),
-		"account_deleted":     pick(authAccountDeletedMail(lang)),
+		"account_deleted":     pick(authAccountDeletedMail(lang, time.Now().Add(model.AccountRestoreWindow))),
+		"account_gone":        pick(authAccountDeletedMail(lang, time.Time{})),
+		"account_restored":    pick(authAccountRestoredMail(lang, "grace", time.Now())),
 		"registration_closed": pick(authRegistrationClosedMail(lang)),
 	}
 	for surface, welcome := range surfaceWelcomeMails {

@@ -114,9 +114,11 @@ func StartEmailAuth(c *gin.Context) {
 }
 
 func dispatchEmailAuthCode(email string, lang string, invited bool) {
-	// The code would only lead to account_deleted at the verify step.
-	if model.EmailOwnedOnlyByDeletedAccount(email) {
-		subject, body := authAccountDeletedMail(lang)
+	// Past its restore window a deleted account's code would only lead to
+	// account_deleted at the verify step. Inside it, the code is sent: signing
+	// in with it restores the account.
+	if deleted := model.DeletedAccountByEmail(email); deleted != nil && !model.DeletedAccountRestorable(deleted, time.Now()) {
+		subject, body := authAccountDeletedMail(lang, time.Time{})
 		sendAuthEmail(subject, email, body)
 		return
 	}
@@ -173,6 +175,10 @@ func VerifyEmailAuth(c *gin.Context) {
 	}
 	common.ClearVerificationFailures(email, common.EmailAuthPurpose)
 
+	if err := restoreDeletedOwnerBeforeSignIn("", "", email, requestMailLang(c)); err != nil {
+		httperr.Write(c, err)
+		return
+	}
 	invited := model.ProjectInviteOpensSignup(strings.TrimSpace(request.Invite), email, time.Now())
 	user, created, err := resolveEmailAuthUserFor(email, invited)
 	if err != nil {

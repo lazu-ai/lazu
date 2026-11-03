@@ -149,18 +149,12 @@ func checkUserProjectDeletionTx(tx *gorm.DB, userID int, hard bool) error {
 	return nil
 }
 func finishUserProjectDeletionTx(tx *gorm.DB, userID int, hard bool) error {
-	if err := runUserDeletingHooks(tx, userID); err != nil {
-		return err
-	}
-	if err := deleteUserAttributionTx(tx, userID); err != nil {
-		return err
-	}
-	if CoreDB() == TelemetryDB() {
-		if err := deleteUserSessionContentTx(tx, userID); err != nil {
-			return err
-		}
-	} else {
-		if err := tx.Create(&TelemetryCleanupJob{UserID: userID}).Error; err != nil {
+	// A soft delete can be undone by signing in again inside the restore
+	// window, so it erases nothing a restored account would miss: where the
+	// account came from, its session transcripts and the extensions' rows all
+	// stay until the account is removed for good.
+	if hard {
+		if err := eraseUserHistoryTx(tx, userID); err != nil {
 			return err
 		}
 	}
@@ -174,4 +168,19 @@ func finishUserProjectDeletionTx(tx *gorm.DB, userID int, hard bool) error {
 		return tx.Where("owner_user_id = ?", userID).Delete(&Project{}).Error
 	}
 	return tx.Model(&ProjectMember{}).Where("user_id = ?", userID).Updates(map[string]interface{}{"status": ProjectMemberRemoved, "removed_at": time.Now().Unix(), "version": gorm.Expr("version + 1")}).Error
+}
+
+// eraseUserHistoryTx removes what an account leaves behind outside its own
+// rows: the extensions' data, its signup attribution and its session content.
+func eraseUserHistoryTx(tx *gorm.DB, userID int) error {
+	if err := runUserDeletingHooks(tx, userID); err != nil {
+		return err
+	}
+	if err := deleteUserAttributionTx(tx, userID); err != nil {
+		return err
+	}
+	if CoreDB() == TelemetryDB() {
+		return deleteUserSessionContentTx(tx, userID)
+	}
+	return tx.Create(&TelemetryCleanupJob{UserID: userID}).Error
 }

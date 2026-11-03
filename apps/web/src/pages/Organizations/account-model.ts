@@ -10,6 +10,8 @@ export type ClientTop = {
 export type Account = {
   balance_microusd?: number;
   client_top?: ClientTop | null;
+  /** Unix seconds the account was deleted; absent for a live account. */
+  deleted_at?: number;
   email?: string;
   has_topped_up?: boolean;
   id: number | string;
@@ -25,6 +27,8 @@ export type Account = {
   recent_spend_days?: number;
   recent_spend_microusd?: number | null;
   request_count_recent?: number | null;
+  /** Unix seconds until which signing in restores a deleted account. */
+  restore_until?: number;
   role?: number;
   rpm_limit?: number;
   status?: number;
@@ -83,6 +87,8 @@ export type AccountSummary = {
   agent_sessions?: number;
   client_breakdown?: { count: number; framework: string }[];
   countries?: { count: number; country: string }[];
+  /** Unix seconds the account was deleted; 0 for a live account. */
+  deleted_at?: number;
   display_name?: string;
   email?: string;
   id?: number;
@@ -96,6 +102,8 @@ export type AccountSummary = {
   recent_spend_microusd?: number;
   remark?: string;
   request_count_recent?: number;
+  /** Unix seconds until which signing in restores it; 0 when not restorable. */
+  restore_until?: number;
   role?: number;
   settlement_failures?: { open: number };
   signup?: AccountSignup;
@@ -109,6 +117,8 @@ export type AccountSummary = {
 
 export type PlatformSummary = {
   active_30d?: number;
+  /** Soft-deleted accounts of every role. */
+  deleted?: number;
   disabled?: number;
   low_balance_active?: number;
   on_price_plan?: number;
@@ -277,8 +287,20 @@ export const toAccount = (row: Record<string, unknown>): Account => {
       ? row.login_providers.map(String)
       : undefined,
     client_top: clientTop,
+    deleted_at: deletedAtSeconds(row.DeletedAt),
+    restore_until: Number(row.restore_until ?? 0) || undefined,
   };
 };
+
+/** The list carries gorm's DeletedAt: an RFC 3339 time, or null when live. */
+const deletedAtSeconds = (value: unknown): number | undefined => {
+  if (typeof value !== 'string' || !value) return undefined;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : undefined;
+};
+
+export const isDeleted = (account: Pick<Account, 'deleted_at'>) =>
+  Boolean(account.deleted_at);
 
 /** Days-to-empty estimate: balance ÷ daily burn over the recent window.
  *  Returns null when there is no measurable burn (never billed / no spend). */

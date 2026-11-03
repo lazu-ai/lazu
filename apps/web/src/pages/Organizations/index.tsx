@@ -15,6 +15,7 @@ import {
   daysToEmpty,
   initials,
   int,
+  isDeleted,
   isFrozen,
   isZeroBalance,
   providerLabel,
@@ -71,7 +72,7 @@ type AccountFilters = {
   // Server-side lifecycle/quota filter driven by the facts strip.
   quick: string;
   status: string;
-  /** Views that are not a lifecycle filter: '' | 'plan' | 'admin'. */
+  /** Views that are not a lifecycle filter: '' | 'plan' | 'admin' | 'deleted'. */
   view: string;
 };
 
@@ -343,8 +344,16 @@ export default function OrganizationsPage() {
           : request.filters.provider,
       // The plan count (on_price_plan) spans every role, so its view does
       // too; 管理员 is role 100; every other view is customers.
-      role: view === 'plan' ? undefined : view === 'admin' ? '100' : '1',
-      exclude_deleted: 'true',
+      // 已注销 lists deleted accounts of every role; every other view lists
+      // live ones only.
+      role:
+        view === 'plan' || view === 'deleted'
+          ? undefined
+          : view === 'admin'
+            ? '100'
+            : '1',
+      exclude_deleted: view === 'deleted' ? undefined : 'true',
+      deleted: view === 'deleted' ? 'only' : undefined,
       with_usage: 'true',
     });
     const response = await API.get(`${endpoint}?${query}`);
@@ -783,6 +792,17 @@ export default function OrganizationsPage() {
       status: 'disabled',
       interactive: true,
     },
+    {
+      key: 'deleted',
+      label: t('page.console.orgs.fact.deleted.label', {
+        defaultValue: '已注销',
+      }),
+      value: summary.deleted,
+      quick: '',
+      status: 'all',
+      view: 'deleted',
+      interactive: true,
+    },
   ];
 
   const activeView = filters.view
@@ -876,7 +896,13 @@ export default function OrganizationsPage() {
                 >
                   <strong>{account.name}</strong>
                 </button>
-                {frozen ? (
+                {isDeleted(account) ? (
+                  <Badge variant='neutral'>
+                    {t('page.console.orgs.status.deleted', {
+                      defaultValue: '已注销',
+                    })}
+                  </Badge>
+                ) : frozen ? (
                   <Badge variant='danger'>
                     {t('page.console.orgs.status.frozen', {
                       defaultValue: '已冻结',

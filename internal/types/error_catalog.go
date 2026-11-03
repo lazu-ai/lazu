@@ -506,7 +506,7 @@ var gatewayCatalog = map[ErrorCode]ErrorSpec{
 	// outage or a mix-up with someone else's account.
 	ErrorCodeAccountDeleted: {
 		ID: "LZ-2308", HTTPStatus: http.StatusForbidden, Type: ErrorTypePermission, Audience: AudienceCustomer,
-		Template: "This account has been deleted.",
+		Template: "This account has been deleted. Signing in again within 30 days of the deletion restores it.",
 	},
 
 	// ── LZ-3xxx · wallet and budgets ───────────────────────────────────
