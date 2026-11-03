@@ -35,6 +35,7 @@ func writeControlPlaneAPIErrorWithLog(c *gin.Context, err error, logged bool) {
 	if body.Lazu != "" {
 		c.Header(httperr.HeaderLazuError, body.Lazu)
 	}
+	httperr.MarkNoRetry(c, body.Code)
 	c.JSON(status, gin.H{"error": body})
 }
 

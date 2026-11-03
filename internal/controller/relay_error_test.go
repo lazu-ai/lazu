@@ -183,3 +183,81 @@ func TestRelayStubAndUnknownRouteRemainDistinct(t *testing.T) {
 		}
 	}
 }
+
+// An empty wallet must reach the client as a final answer: Claude Code and
+// the Anthropic SDK stop on 402 or `x-should-retry: false`, Codex stops on
+// 429 insufficient_quota, and the OpenAI SDKs obey the header.
+func TestWriteRelayErrorInsufficientQuotaPerWire(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, test := range []struct {
+		name   string
+		format types.RelayFormat
+		path   string
+		stream bool
+		status int
+	}{
+		{"anthropic messages", types.RelayFormatClaude, "/v1/messages", false, http.StatusPaymentRequired},
+		{"anthropic messages stream", types.RelayFormatClaude, "/v1/messages", true, http.StatusPaymentRequired},
+		{"openai chat", types.RelayFormatOpenAI, "/v1/chat/completions", false, http.StatusTooManyRequests},
+		{"openai chat stream", types.RelayFormatOpenAI, "/v1/chat/completions", true, http.StatusTooManyRequests},
+		{"openai responses", types.RelayFormatOpenAIResponses, "/v1/responses", false, http.StatusTooManyRequests},
+		{"openai responses stream", types.RelayFormatOpenAIResponses, "/v1/responses", true, http.StatusTooManyRequests},
+		{"gemini", types.RelayFormatGemini, "/v1beta/models/gemini-2.5-pro:generateContent", false, http.StatusTooManyRequests},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodPost, test.path, nil)
+			if test.stream {
+				common.SetContextKey(c, constant.ContextKeyIsStream, true)
+			}
+			err := types.NewErrorWithStatusCode(errors.New("insufficient account balance"),
+				types.ErrorCodeInsufficientQuota, http.StatusTooManyRequests, types.ErrOptionWithSkipRetry())
+			writeRelayError(c, test.format, nil, err)
+
+			if recorder.Code != test.status {
+				t.Fatalf("status = %d, want %d", recorder.Code, test.status)
+			}
+			if got := recorder.Header().Get("x-should-retry"); got != "false" {
+				t.Fatalf("x-should-retry = %q, want false", got)
+			}
+			var body struct {
+				Error struct {
+					Type    string `json:"type"`
+					Code    string `json:"code"`
+					Message string `json:"message"`
+				} `json:"error"`
+			}
+			if decodeErr := json.Unmarshal(recorder.Body.Bytes(), &body); decodeErr != nil {
+				t.Fatalf("decode %q: %v", recorder.Body.String(), decodeErr)
+			}
+			wantType := "insufficient_quota"
+			if test.format == types.RelayFormatClaude {
+				wantType = "billing_error"
+			}
+			if body.Error.Type != wantType || body.Error.Code != "insufficient_quota" {
+				t.Fatalf("error type/code = %q/%q, want %q/insufficient_quota", body.Error.Type, body.Error.Code, wantType)
+			}
+			if body.Error.Message == "" {
+				t.Fatal("message missing")
+			}
+		})
+	}
+}
+
+func TestWriteRelayErrorRateLimitStaysRetryable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, format := range []types.RelayFormat{types.RelayFormatClaude, types.RelayFormatOpenAI} {
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+		err := types.NewErrorWithStatusCode(errors.New("rpm"), types.ErrorCodeRequestRateLimitExceeded, http.StatusTooManyRequests)
+		writeRelayError(c, format, nil, err)
+		if recorder.Code != http.StatusTooManyRequests {
+			t.Fatalf("%s: status = %d, want 429", format, recorder.Code)
+		}
+		if got := recorder.Header().Get("x-should-retry"); got != "" {
+			t.Fatalf("%s: rate limit carries x-should-retry %q", format, got)
+		}
+	}
+}

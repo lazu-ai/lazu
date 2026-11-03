@@ -140,8 +140,12 @@ func render(l locale, copyByCode map[string]string) (string, error) {
 			if !ok {
 				return "", fmt.Errorf("%s: no %s copy for %s", l.page, l.lang, code)
 			}
-			fmt.Fprintf(&b, "| <a id=\"%s\"></a>`%s` | `%s` | %d | `%s` | %s |\n",
-				strings.ToLower(w.ID), w.ID, code, w.Status, w.Type, cell(meaning))
+			status := fmt.Sprint(w.Status)
+			if w.MessagesStatus != w.Status {
+				status = fmt.Sprintf("%d; `/v1/messages`: %d", w.Status, w.MessagesStatus)
+			}
+			fmt.Fprintf(&b, "| <a id=\"%s\"></a>`%s` | `%s` | %s | `%s` | %s |\n",
+				strings.ToLower(w.ID), w.ID, code, status, w.Type, cell(meaning))
 		}
 	}
 	b.WriteString("\n" + endMarker)

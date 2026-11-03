@@ -27,6 +27,9 @@ func writeRelayError(c *gin.Context, relayFormat types.RelayFormat, ws *websocke
 	if wire.ID != "" {
 		c.Header("X-Lazu-Error", wire.ID)
 	}
+	if wire.NoClientRetry {
+		c.Header(httperr.HeaderShouldRetry, "false")
+	}
 	if wire.Audience != types.AudienceCustomer {
 		// Operator and internal causes are answered with a neutral sentence;
 		// keep the precise one next to the request ID for whoever reads logs.
@@ -52,7 +55,7 @@ func writeRelayError(c *gin.Context, relayFormat types.RelayFormat, ws *websocke
 		openAIError.RequestID = requestID
 		helper.WssError(c, ws, openAIError)
 	case types.RelayFormatClaude:
-		c.JSON(wire.Status, gin.H{
+		c.JSON(wire.MessagesStatus, gin.H{
 			"type":       "error",
 			"error":      lazuErr.ToClaudeError(),
 			"request_id": requestID,

@@ -55,7 +55,7 @@ Anthropic 兼容接口（`/v1/messages`）使用 Anthropic 的结构和类型：
 | `request_id` | 这个错误所属的请求。 |
 | `docs` | 指向本页对应编号的链接。 |
 
-每个错误响应还带有 `X-Lazu-Request-Id` 和 `X-Lazu-Error` 响应头。
+每个错误响应还带有 `X-Lazu-Request-Id` 和 `X-Lazu-Error` 响应头。重试解决不了的错误（如钱包余额不足、预算用完）还带有 `x-should-retry: false`，OpenAI 和 Anthropic 的 SDK 会照此停止重试。
 
 ## 错误类型
 
@@ -65,7 +65,7 @@ Anthropic 兼容接口（`/v1/messages`）使用 Anthropic 的结构和类型：
 | `authentication_error` | 401 | 修正 API Key：无效、过期、停用各有自己的 code。 |
 | `permission_error` | 403 | Key 或账号不允许这个操作：IP、模型、供应商或项目范围。 |
 | `not_found_error` | 404 | 路径、模型或 ID 不对。 |
-| `insufficient_quota` | 429 | 余额或某项预算用完。充值或调高预算，重试无效。 |
+| `insufficient_quota` | 429, 402 | 余额或某项预算用完。充值或调高预算，重试无效。`/v1/messages` 与 Anthropic 一致，返回 402 `billing_error`。 |
 | `rate_limit_error` | 429 | 等待 `Retry-After` 后再试。 |
 | `content_policy_violation_error` | 400 | 模型拒绝了内容，需要修改内容。 |
 | `overloaded_error` | 503 | 繁忙，稍后退避重试。 |
@@ -196,12 +196,12 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 
 | 编号 | Code | HTTP | 类型 | 含义与处理 |
 | --- | --- | --- | --- | --- |
-| <a id="lz-3101"></a>`LZ-3101` | `insufficient_quota` | 429 | `insufficient_quota` | 钱包余额不足，无法完成这次请求。请充值后继续。 |
-| <a id="lz-3201"></a>`LZ-3201` | `key_budget_exceeded` | 429 | `insufficient_quota` | 这把 API Key 的预算不够覆盖本次请求，请求没有发出。请调高 Key 预算或降低输出上限。 |
-| <a id="lz-3202"></a>`LZ-3202` | `pre_consume_token_quota_failed` | 429 | `insufficient_quota` | 这把 API Key 的剩余额度不够本次请求。请调高额度或换用其他 Key。 |
-| <a id="lz-3301"></a>`LZ-3301` | `member_budget_exceeded` | 429 | `insufficient_quota` | 你本月的成员预算已用完。请联系项目管理员调整。 |
-| <a id="lz-3401"></a>`LZ-3401` | `project_budget_exceeded` | 429 | `insufficient_quota` | 项目预算已用完。请联系项目管理员调整。 |
-| <a id="lz-3501"></a>`LZ-3501` | `platform_budget_exceeded` | 429 | `insufficient_quota` | 平台支出已达到上限。请联系平台管理员。 |
+| <a id="lz-3101"></a>`LZ-3101` | `insufficient_quota` | 429; `/v1/messages`: 402 | `insufficient_quota` | 钱包余额不足，无法完成这次请求。请充值后继续。 |
+| <a id="lz-3201"></a>`LZ-3201` | `key_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | 这把 API Key 的预算不够覆盖本次请求，请求没有发出。请调高 Key 预算或降低输出上限。 |
+| <a id="lz-3202"></a>`LZ-3202` | `pre_consume_token_quota_failed` | 429; `/v1/messages`: 402 | `insufficient_quota` | 这把 API Key 的剩余额度不够本次请求。请调高额度或换用其他 Key。 |
+| <a id="lz-3301"></a>`LZ-3301` | `member_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | 你本月的成员预算已用完。请联系项目管理员调整。 |
+| <a id="lz-3401"></a>`LZ-3401` | `project_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | 项目预算已用完。请联系项目管理员调整。 |
+| <a id="lz-3501"></a>`LZ-3501` | `platform_budget_exceeded` | 429; `/v1/messages`: 402 | `insufficient_quota` | 平台支出已达到上限。请联系平台管理员。 |
 | <a id="lz-3601"></a>`LZ-3601` | `pricing_not_configured` | 503 | `api_error` | 这个模型在所选线路上还没有定价，暂时无法使用。请换用其他模型。 |
 
 ### LZ-4xxx · 模型与线路

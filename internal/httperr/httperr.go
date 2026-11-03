@@ -27,6 +27,18 @@ import (
 // HeaderLazuError carries the LZ number of an error response.
 const HeaderLazuError = "X-Lazu-Error"
 
+// HeaderShouldRetry tells a client whether retrying can help. The Anthropic
+// and OpenAI SDKs read it before the status code.
+const HeaderShouldRetry = "x-should-retry"
+
+// MarkNoRetry adds `x-should-retry: false` when the public code asks clients
+// not to retry (an empty wallet, an exhausted budget).
+func MarkNoRetry(c *gin.Context, code string) {
+	if types.NoClientRetry(types.ErrorCode(code)) {
+		c.Header(HeaderShouldRetry, "false")
+	}
+}
+
 // Body is the error object shared by both envelopes.
 type Body struct {
 	Message   string `json:"message"`
@@ -146,6 +158,7 @@ func setHeaders(c *gin.Context, body Body) {
 	if body.Lazu != "" {
 		c.Header(HeaderLazuError, body.Lazu)
 	}
+	MarkNoRetry(c, body.Code)
 }
 
 // Write sends err in the console envelope.
@@ -196,6 +209,7 @@ func WriteGatewayBody(c *gin.Context, status int, body Body) {
 	setHeaders(c, body)
 	path := c.Request.URL.Path
 	if path == "/v1/messages" || strings.HasPrefix(path, "/v1/messages/") {
+		status = types.MessagesWireStatus(types.ErrorCode(body.Code), status)
 		c.JSON(status, gin.H{
 			"type": "error",
 			"error": types.ClaudeError{
