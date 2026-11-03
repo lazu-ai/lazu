@@ -228,6 +228,12 @@ const renderAlternates = (route) =>
     )}" />`,
   ].join('\n    ');
 
+// Site-wide share image. The query string is the first ten hex digits of the
+// PNG's SHA-256, so link previews that cache by image URL pick up a new image.
+// Keep in step with internal/publicsite OGImagePath (checked by its tests).
+const OG_IMAGE_PATH = '/og-image.png?v=ebfcc2f182';
+const OG_IMAGE_ALT = 'The model account for coding agents and pipelines.';
+
 const renderHead = (route) => {
   const canonical = `${env.siteOrigin}${route.path}`;
   const robots = env.publicIndexing ? 'index, follow' : 'noindex, follow';
@@ -244,9 +250,10 @@ const renderHead = (route) => {
     <meta property="og:url" content="${htmlEscape(canonical)}" />
     <meta property="og:title" content="${htmlEscape(route.title)}" />
     <meta property="og:description" content="${htmlEscape(route.description)}" />
-    <meta property="og:image" content="${htmlEscape(env.siteOrigin)}/og-image.png" />
+    <meta property="og:image" content="${htmlEscape(env.siteOrigin)}${OG_IMAGE_PATH}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="${htmlEscape(OG_IMAGE_ALT)}" />
     <meta property="og:site_name" content="${htmlEscape(brandName)}" />
     <meta property="og:locale" content="${htmlEscape(ogLocaleFor(route.locale))}" />
 
@@ -255,7 +262,8 @@ const renderHead = (route) => {
     <meta name="twitter:url" content="${htmlEscape(canonical)}" />
     <meta name="twitter:title" content="${htmlEscape(route.title)}" />
     <meta name="twitter:description" content="${htmlEscape(route.description)}" />
-    <meta name="twitter:image" content="${htmlEscape(env.siteOrigin)}/og-image.png" />
+    <meta name="twitter:image" content="${htmlEscape(env.siteOrigin)}${OG_IMAGE_PATH}" />
+    <meta name="twitter:image:alt" content="${htmlEscape(OG_IMAGE_ALT)}" />
 
     <script id="marketing-jsonld" type="application/ld+json">${JSON.stringify(jsonLdFor(route))}</script>`;
 };

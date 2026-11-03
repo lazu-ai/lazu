@@ -52,6 +52,29 @@ type Meta struct {
 	JSONLD       template.JS
 }
 
+// OGImagePath is the site-wide share image. The query string is the first
+// ten hex digits of the PNG's SHA-256: link previews (X, Telegram, Slack,
+// Facebook) cache by image URL, so a new image needs a new URL to show up.
+// apps/web and apps/docs emit the same path; TestShareImageVersion keeps the
+// three in step with apps/web/public/og-image.png.
+const OGImagePath = "/og-image.png?v=ebfcc2f182"
+
+// OGImageAlt describes the share image for og:image:alt and twitter:image:alt.
+const OGImageAlt = "The model account for coding agents and pipelines."
+
+// ImageAlt is the og:image:alt / twitter:image:alt text: the page's own when
+// it set one, the site card's when the page kept the site card, else none (a
+// page that swaps in its own image without alt text gets no stale caption).
+func (m Meta) ImageAlt() string {
+	if m.OGImageAlt != "" {
+		return m.OGImageAlt
+	}
+	if m.OGImage == SiteOrigin+OGImagePath {
+		return OGImageAlt
+	}
+	return ""
+}
+
 // NewMeta fills the locale-derived fields.
 func NewMeta(locale, section, barePath, title, description string) Meta {
 	meta := Meta{
@@ -63,7 +86,7 @@ func NewMeta(locale, section, barePath, title, description string) Meta {
 		Canonical:   SiteOrigin + LocalizedPath(barePath, locale),
 		Robots:      "index, follow",
 		OGType:      "website",
-		OGImage:     SiteOrigin + "/og-image.png",
+		OGImage:     SiteOrigin + OGImagePath,
 		OGImageW:    1200,
 		OGImageH:    630,
 		OGLocale:    OGLocale(locale),

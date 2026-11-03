@@ -28,8 +28,8 @@
     <meta property="og:image:width" content="{{.Meta.OGImageW}}" />
     <meta property="og:image:height" content="{{.Meta.OGImageH}}" />
     {{- end}}
-    {{- if .Meta.OGImageAlt}}
-    <meta property="og:image:alt" content="{{.Meta.OGImageAlt}}" />
+    {{- with .Meta.ImageAlt}}
+    <meta property="og:image:alt" content="{{.}}" />
     {{- end}}
     <meta property="og:site_name" content="Lazu" />
     <meta property="og:locale" content="{{.Meta.OGLocale}}" />
@@ -38,6 +38,9 @@
     <meta name="twitter:title" content="{{.Meta.Title}}" />
     <meta name="twitter:description" content="{{.Meta.Description}}" />
     <meta name="twitter:image" content="{{.Meta.OGImage}}" />
+    {{- with .Meta.ImageAlt}}
+    <meta name="twitter:image:alt" content="{{.}}" />
+    {{- end}}
     <script type="application/ld+json">{{.Meta.JSONLD}}</script>
     {{- if .Meta.MediaOrigin}}
     <link rel="preconnect" href="{{.Meta.MediaOrigin}}" />
