@@ -71,7 +71,8 @@ func oauthRedirectCode(err error) types.ErrorCode {
 	case types.ErrorCodeOAuthEmailUnverified,
 		types.ErrorCodeOAuthEmailConflict,
 		types.ErrorCodeOAuthIdentityConflict,
-		types.ErrorCodeRegistrationClosed:
+		types.ErrorCodeRegistrationClosed,
+		types.ErrorCodeAccountDeleted:
 		return code
 	}
 	return types.ErrorCodeOAuthLoginFailed
@@ -136,19 +137,19 @@ func SocialOAuthLogin(c *gin.Context) {
 	next := c.Query("next")
 	oauthConfig, _, err := socialOAuthConfig(c.Request.Context(), c, provider)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("social oauth login rejected for provider %q: %v", provider, err))
+		common.SysWarn(fmt.Sprintf("social oauth login rejected for provider %q: %v", provider, err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthProviderNotConfigured, next)
 		return
 	}
 	state, err := randomOIDCString()
 	if err != nil {
-		common.SysLog(fmt.Sprintf("social oauth state generation failed: %v", err))
+		common.SysWarn(fmt.Sprintf("social oauth state generation failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, next)
 		return
 	}
 	nonce, err := randomOIDCString()
 	if err != nil {
-		common.SysLog(fmt.Sprintf("social oauth nonce generation failed: %v", err))
+		common.SysWarn(fmt.Sprintf("social oauth nonce generation failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, next)
 		return
 	}
@@ -161,7 +162,7 @@ func SocialOAuthLogin(c *gin.Context) {
 		Next:         sanitizedOIDCNext(next),
 	}
 	if err := setSocialOAuthTransaction(c, tx); err != nil {
-		common.SysLog(fmt.Sprintf("social oauth transaction cookie failed: %v", err))
+		common.SysWarn(fmt.Sprintf("social oauth transaction cookie failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, next)
 		return
 	}
@@ -183,7 +184,7 @@ func SocialOAuthCallback(c *gin.Context) {
 	tx, err := readSocialOAuthTransaction(c)
 	if errMessage := strings.TrimSpace(c.Query("error")); errMessage != "" {
 		clearSocialOAuthTransaction(c)
-		common.SysLog(fmt.Sprintf("social oauth provider %q returned error: %s", provider, errMessage))
+		common.SysWarn(fmt.Sprintf("social oauth provider %q returned error: %s", provider, errMessage))
 		oauthLoginErrorRedirectNext(c, oauthProviderErrorCode(errMessage), tx.Next)
 		return
 	}
@@ -200,13 +201,13 @@ func SocialOAuthCallback(c *gin.Context) {
 	defer cancel()
 	oauthConfig, verifier, err := socialOAuthConfig(ctx, c, provider)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("social oauth callback rejected for provider %q: %v", provider, err))
+		common.SysWarn(fmt.Sprintf("social oauth callback rejected for provider %q: %v", provider, err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthProviderNotConfigured, tx.Next)
 		return
 	}
 	token, err := oauthConfig.Exchange(ctx, c.Query("code"), oauth2.VerifierOption(tx.CodeVerifier))
 	if err != nil {
-		common.SysLog(fmt.Sprintf("social oauth code exchange failed for provider %q: %v", provider, err))
+		common.SysWarn(fmt.Sprintf("social oauth code exchange failed for provider %q: %v", provider, err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthExchangeFailed, tx.Next)
 		return
 	}
@@ -219,7 +220,7 @@ func SocialOAuthCallback(c *gin.Context) {
 		identity, err = githubIdentityFromToken(ctx, oauthConfig, token)
 	}
 	if err != nil {
-		common.SysLog(fmt.Sprintf("social oauth identity fetch failed for provider %q: %v", provider, err))
+		common.SysWarn(fmt.Sprintf("social oauth identity fetch failed for provider %q: %v", provider, err))
 		if errors.Is(err, errOAuthNoVerifiedEmail) {
 			oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthEmailUnverified, tx.Next)
 		} else {
@@ -231,7 +232,7 @@ func SocialOAuthCallback(c *gin.Context) {
 	identity.MailSurface = requestHomeSurface(c)
 	user, err := resolveSocialOAuthUser(identity)
 	if err != nil {
-		common.SysLog(fmt.Sprintf("social oauth user resolution failed for provider %q: %v", provider, err))
+		common.SysWarn(fmt.Sprintf("social oauth user resolution failed for provider %q: %v", provider, err))
 		oauthLoginErrorRedirectNext(c, oauthRedirectCode(err), tx.Next)
 		return
 	}
@@ -240,7 +241,7 @@ func SocialOAuthCallback(c *gin.Context) {
 		return
 	}
 	if _, err := setupSession(user, c); err != nil {
-		common.SysLog(fmt.Sprintf("social oauth session setup failed: %v", err))
+		common.SysWarn(fmt.Sprintf("social oauth session setup failed: %v", err))
 		oauthLoginErrorRedirectNext(c, types.ErrorCodeOAuthLoginFailed, tx.Next)
 		return
 	}
@@ -473,7 +474,7 @@ func resolveSocialOAuthUser(identity socialIdentity, _ ...string) (*model.User, 
 		SendWelcomeEmail(user, socialProviderLabel(identity.Provider), common.MailLang(identity.MailLang), identity.MailSurface)
 	}
 	if err := model.InvalidateUserCache(user.Id); err != nil {
-		common.SysLog(fmt.Sprintf("failed to invalidate oauth user cache: %v", err))
+		common.SysWarn(fmt.Sprintf("failed to invalidate oauth user cache: %v", err))
 	}
 	return user, nil
 }
@@ -603,10 +604,16 @@ func compactSortedInts(values []int) []int {
 func resolveSocialOAuthUserLocked(db *gorm.DB, identity socialIdentity) (*model.User, bool, error) {
 
 	var storedIdentity model.UserIdentity
-	err := db.Preload("User").Where("provider = ? AND subject = ?", identity.Provider, identity.Subject).First(&storedIdentity).Error
+	// The owner is loaded whether or not it was deleted: a deleted account
+	// keeps its identity rows, and the person signing in is owed that answer
+	// rather than the "no user" a scoped preload would leave behind.
+	err := db.Preload("User", func(tx *gorm.DB) *gorm.DB { return tx.Unscoped() }).Where("provider = ? AND subject = ?", identity.Provider, identity.Subject).First(&storedIdentity).Error
 	if err == nil {
 		if storedIdentity.User.Id == 0 {
 			return nil, false, errors.New("oauth identity has no user")
+		}
+		if storedIdentity.User.DeletedAt.Valid {
+			return nil, false, model.ErrAccountDeleted
 		}
 		if err := refreshSocialOAuthUser(db, &storedIdentity.User, identity); err != nil {
 			return nil, false, err
@@ -676,8 +683,9 @@ func findUserByVerifiedEmail(db *gorm.DB, email string) (*model.User, error) {
 	if len(users) == 1 {
 		if users[0].DeletedAt.Valid {
 			// Soft deletion intentionally reserves usernames and addresses. Do not
-			// let an OAuth callback silently recreate or take over that account.
-			return nil, errOAuthEmailConflict
+			// let an OAuth callback silently recreate or take over that account,
+			// and say why instead of reporting a conflict that is not there.
+			return nil, model.ErrAccountDeleted
 		}
 		if err := db.Model(&model.User{}).Where("id = ?", users[0].Id).Update("verified_email", strings.ToLower(strings.TrimSpace(email))).Error; err != nil {
 			return nil, err

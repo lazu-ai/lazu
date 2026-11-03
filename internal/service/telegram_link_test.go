@@ -220,3 +220,27 @@ func TestAccountContextOnlyForLinkedUsers(t *testing.T) {
 		t.Fatalf("context = %q", got)
 	}
 }
+
+func TestTelegramLinkOfADeletedAccountMovesToTheNextAccount(t *testing.T) {
+	bot := telegramLinkFixture(t, "tg_link_deleted_owner")
+	if err := LinkTelegram(1, 556); err != nil {
+		t.Fatal(err)
+	}
+	if err := model.CoreDB().Delete(&model.User{Id: 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if user, err := telegramUserFor(556); err != nil || user != nil {
+		t.Fatalf("a deleted account's link still answers for it: user=%v err=%v", user, err)
+	}
+	telegram.Dispatch(context.Background(), startMessage(556, "/start link_"+linkToken(t, 2), "private"))
+	id, linked, err := TelegramUserID(2)
+	if err != nil || !linked || id != 556 {
+		t.Fatalf("bob did not take over the deleted account's Telegram: %d, %v, %v", id, linked, err)
+	}
+	if _, linked, _ := TelegramUserID(1); linked {
+		t.Fatal("the deleted account kept its Telegram link")
+	}
+	if sent := bot.messages(); len(sent) != 1 || !strings.Contains(sent[0]["text"].(string), "Linked to the account bob") {
+		t.Fatalf("reply = %v", sent)
+	}
+}

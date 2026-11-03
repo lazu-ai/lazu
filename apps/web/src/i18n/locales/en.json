@@ -3466,7 +3466,7 @@
     "page.console.channelHealth.floor.restore": "Restore weights",
     "page.console.channelHealth.floor.restored": "Restored the weights of {{name}} on {{count}} lanes.",
     "page.console.personal.delete.question": "Delete account {{username}}?",
-    "page.console.personal.delete.what": "You can no longer sign in to this account, and all your API keys stop working at once.",
+    "page.console.personal.delete.what": "You can no longer sign in to this account, and all your API keys stop working at once. Any balance stays with this account and does not move to another one. Its email, username and linked sign-in methods stay reserved and cannot be used for a new account.",
     "page.console.personal.delete.final": "Once deleted, you cannot restore the account yourself.",
     "page.console.personal.delete.typeUsername": "Type your username {{username}} to confirm",
     "page.console.personal.delete.confirmAction": "Delete account",

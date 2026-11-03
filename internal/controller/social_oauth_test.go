@@ -373,7 +373,7 @@ func TestSocialRegistrationRollsBackUserWhenIdentityConflicts(t *testing.T) {
 	}
 }
 
-func TestSocialOAuthRejectsSoftDeletedEmail(t *testing.T) {
+func TestSocialOAuthAnswersSoftDeletedEmailAsDeleted(t *testing.T) {
 	setupOIDCTestDB(t)
 	deleted := model.User{Username: "deleted-social", Password: "password123", Email: "deleted@example.com", Status: common.UserStatusEnabled}
 	if err := deleted.Insert(0); err != nil {
@@ -388,8 +388,11 @@ func TestSocialOAuthRejectsSoftDeletedEmail(t *testing.T) {
 		Username: "deleted-social",
 		Email:    "Deleted@example.com",
 	}, "")
-	if !errors.Is(err, errOAuthEmailConflict) {
-		t.Fatalf("soft-deleted email should remain reserved, got %v", err)
+	if !errors.Is(err, model.ErrAccountDeleted) {
+		t.Fatalf("soft-deleted email should remain reserved and say why, got %v", err)
+	}
+	if code := oauthRedirectCode(err); code != types.ErrorCodeAccountDeleted {
+		t.Fatalf("redirect collapsed account_deleted into %q", code)
 	}
 }
 

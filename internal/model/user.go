@@ -946,6 +946,43 @@ func GetUserAccountUsageAggregate(userID int, since int64) (UserAccountUsageAggr
 // compares by code, so errors.Is(err, ErrUserNotFound) holds for any copy.
 var ErrUserNotFound = types.Err(types.ErrorCodeUserNotFound)
 
+// ErrAccountDeleted answers every door an account its owner or an
+// administrator deleted still reaches: the row is kept, so its credentials,
+// address and linked identities still resolve to it.
+var ErrAccountDeleted = types.Err(types.ErrorCodeAccountDeleted)
+
+// userSoftDeleted reports whether the row exists only as a deleted account.
+// Callers ask it on a path that has already refused, never on the way in, so
+// a live account pays nothing for it.
+func userSoftDeleted(db *gorm.DB, userID int) (bool, error) {
+	if db == nil || userID <= 0 {
+		return false, nil
+	}
+	var count int64
+	if err := db.Unscoped().Model(&User{}).Where("id = ? AND deleted_at IS NOT NULL", userID).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// EmailOwnedOnlyByDeletedAccount reports whether the address belongs to a
+// deleted account and to no live one. Mail sent to such an address says the
+// account was deleted instead of offering a code or a reset that cannot work.
+func EmailOwnedOnlyByDeletedAccount(email string) bool {
+	email = strings.TrimSpace(email)
+	if CoreDB() == nil || email == "" {
+		return false
+	}
+	var live, all int64
+	if err := CoreDB().Model(&User{}).Where("LOWER(email) = LOWER(?)", email).Count(&live).Error; err != nil || live > 0 {
+		return false
+	}
+	if err := CoreDB().Unscoped().Model(&User{}).Where("LOWER(email) = LOWER(?)", email).Count(&all).Error; err != nil {
+		return false
+	}
+	return all > 0
+}
+
 // userLookupErr names a missing account; any other failure passes through.
 func userLookupErr(err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1644,6 +1681,17 @@ func (user *User) ValidateAndFill() (err error) {
 	}
 	// find buy username or email
 	CoreDB().Where("username = ? OR email = ?", username, username).First(user)
+	if user.Id == 0 {
+		// Only a deleted account is looked for here, and only to answer
+		// truthfully once the password proves the caller owns it. A wrong
+		// password gets the same answer as an unknown name.
+		var deleted User
+		if err := CoreDB().Unscoped().Where("(username = ? OR email = ?) AND deleted_at IS NOT NULL", username, username).First(&deleted).Error; err == nil &&
+			common.ValidatePasswordAndHash(password, deleted.Password) {
+			return ErrAccountDeleted
+		}
+		return types.Err(types.ErrorCodeInvalidCredentials)
+	}
 	okay := common.ValidatePasswordAndHash(password, user.Password)
 	if !okay || user.Status != common.UserStatusEnabled {
 		return types.Err(types.ErrorCodeInvalidCredentials)

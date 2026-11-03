@@ -186,6 +186,11 @@ func (snapshot *IdentitySnapshot) Validate(now time.Time) error {
 	if snapshot.Token.Status == common.TokenStatusExhausted {
 		return ErrTokenBudgetExhausted
 	}
+	// The projection joins only live users, so a Key whose holder deleted the
+	// account carries an empty actor. Say so before the project-state answer.
+	if snapshot.Actor.Id == 0 && snapshot.Token.UserId > 0 && !snapshot.playgroundIdentity {
+		return ErrAccountDeleted
+	}
 	if snapshot.PaymentRiskHold || snapshot.MemberStatus != ProjectMemberActive || snapshot.Token.RemovalOperationID != "" || snapshot.Actor.Status != common.UserStatusEnabled || snapshot.Payer.Status != common.UserStatusEnabled || !snapshot.ProjectUpgraded && snapshot.Actor.Id != snapshot.Payer.Id {
 		return ErrProjectAccessSuspended
 	}

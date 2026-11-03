@@ -3466,7 +3466,7 @@
     "page.console.channelHealth.floor.restore": "恢復權重",
     "page.console.channelHealth.floor.restored": "已恢復 {{name}} 在 {{count}} 條通道上的權重。",
     "page.console.personal.delete.question": "刪除帳號 {{username}}？",
-    "page.console.personal.delete.what": "刪除後你無法再登入這個帳號，名下所有 API Key 立即停止運作。",
+    "page.console.personal.delete.what": "刪除後你無法再登入這個帳號，名下所有 API Key 立即停止運作。帳號裡的餘額會留在這個帳號上，不會轉到其他帳號；它的電子郵件、使用者名稱和已綁定的登入方式會一直保留，不能用來註冊新帳號。",
     "page.console.personal.delete.final": "帳號刪除後，你無法自行恢復。",
     "page.console.personal.delete.typeUsername": "輸入使用者名稱 {{username}} 以確認",
     "page.console.personal.delete.confirmAction": "刪除帳號",

@@ -96,6 +96,15 @@ func ResolveProjectPrincipal(db *gorm.DB, tokenID int, now time.Time) (ProjectPr
 		want = 1
 	}
 	if enabled != want {
+		// A Key whose own holder deleted the account stops for that reason,
+		// not for a project state the holder is told to ask an admin about.
+		deleted, err := userSoftDeleted(db, memberID)
+		if err != nil {
+			return identity, err
+		}
+		if deleted {
+			return identity, ErrAccountDeleted
+		}
 		return identity, ErrProjectAccessSuspended
 	}
 	switch member.Status {

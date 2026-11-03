@@ -52,6 +52,21 @@ func TestIdentitySnapshotKeepsAuthIDsAndOmitsCredential(t *testing.T) {
 	}
 }
 
+// The projection joins only live users, so a deleted holder's Key arrives
+// with an empty actor and must say the account was deleted, not that the
+// project is suspended.
+func TestIdentitySnapshotNamesADeletedHolder(t *testing.T) {
+	now := time.Now()
+	snapshot := &IdentitySnapshot{Token: &Token{Id: 42, UserId: 7, ProjectID: 12, Status: common.TokenStatusEnabled, ExpiredTime: -1, UnlimitedQuota: true}, Actor: &UserBase{}, Payer: &UserBase{}, Principal: ProjectPrincipal{ProjectID: 12, PayerUserID: 7, ActorUserID: 7, TokenID: 42}, MemberStatus: ProjectMemberRemoved, ProjectUpgraded: true}
+	if err := snapshot.Validate(now); !errors.Is(err, ErrAccountDeleted) {
+		t.Fatalf("deleted holder answered %v", err)
+	}
+	snapshot.Actor, snapshot.Payer = &UserBase{Id: 7, Status: common.UserStatusDisabled}, &UserBase{Id: 7, Status: common.UserStatusDisabled}
+	if err := snapshot.Validate(now); !errors.Is(err, ErrProjectAccessSuspended) {
+		t.Fatalf("a disabled, undeleted holder is not a deleted one: %v", err)
+	}
+}
+
 func identityRedisTest(t *testing.T) *redis.Client {
 	t.Helper()
 	url := os.Getenv("TEST_REDIS_URL")

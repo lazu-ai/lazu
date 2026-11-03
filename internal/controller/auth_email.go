@@ -204,6 +204,25 @@ func authAccountExistsMail(lang string) (string, string) {
 	})
 }
 
+// authAccountDeletedMail answers a code or reset request for an address whose
+// account was deleted. The row keeps the address, so a code would only lead
+// to a refusal and a reset link would never arrive.
+func authAccountDeletedMail(lang string) (string, string) {
+	name := common.SystemName
+	subject := common.MailText(lang, "这个邮箱的 "+name+" 账号已注销", "The "+name+" account for this email was deleted")
+	return subject, renderAuthMail(common.Mail{
+		Lang: lang, Eyebrow: "ACCOUNT",
+		Preheader: common.MailText(lang, "已注销的账号不能再登录", "A deleted account cannot sign in"),
+		Title:     common.MailText(lang, "这个账号已注销", "This account was deleted"),
+		Lead: common.MailText(lang,
+			"有人用这个邮箱申请了验证码或重置密码，但它对应的 "+name+" 账号已经注销了。已注销的账号不能再登录，这个邮箱和它绑定过的登录方式也不能用来注册新账号。",
+			"Someone asked for a code or a password reset with this email, but its "+name+" account has been deleted. A deleted account cannot sign in, and its email and linked sign-in methods cannot be used for a new account."),
+		Blocks: []common.MailBlock{
+			{Muted: true, Text: common.MailText(lang, "如有疑问，请联系管理员。不是你本人操作的话，忽略这封邮件即可。", "Contact an administrator if you have questions. If this wasn't you, ignore this email.")},
+		},
+	})
+}
+
 func authRegistrationClosedMail(lang string) (string, string) {
 	name := common.SystemName
 	subject := common.MailText(lang, name+" 暂未开放注册", name+" isn't open for sign-up yet")
@@ -405,6 +424,7 @@ func authMailPreviews(lang string) map[string]string {
 		"password_changed":    pick(authPasswordChangedMail(lang, "grace", time.Now(), "Chrome · macOS · 101.80.0.1")),
 		"password_not_used":   pick(authPasswordNotUsedMail(lang, "GitHub")),
 		"account_exists":      pick(authAccountExistsMail(lang)),
+		"account_deleted":     pick(authAccountDeletedMail(lang)),
 		"registration_closed": pick(authRegistrationClosedMail(lang)),
 	}
 	for surface, welcome := range surfaceWelcomeMails {

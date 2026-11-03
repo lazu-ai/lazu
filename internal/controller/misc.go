@@ -180,6 +180,11 @@ func SendEmailVerification(c *gin.Context) {
 }
 
 func dispatchEmailVerification(email string, lang string) {
+	if model.EmailOwnedOnlyByDeletedAccount(email) {
+		subject, body := authAccountDeletedMail(lang)
+		sendAuthEmail(subject, email, body)
+		return
+	}
 	if model.IsEmailAlreadyTaken(email) {
 		// The response is identical to the unregistered case: telling the
 		// requester which addresses already exist hands an attacker a free
@@ -222,7 +227,14 @@ func SendPasswordResetEmail(c *gin.Context) {
 // content differences back to the requester.
 func dispatchPasswordResetEmail(email string, requestLang string) {
 	user, err := model.GetUserByEmail(email)
-	if err != nil || user == nil {
+	if err != nil {
+		return
+	}
+	if user == nil {
+		if model.EmailOwnedOnlyByDeletedAccount(email) {
+			subject, body := authAccountDeletedMail(requestLang)
+			sendAuthEmail(subject, email, body)
+		}
 		return
 	}
 	canonicalEmail := strings.TrimSpace(user.Email)

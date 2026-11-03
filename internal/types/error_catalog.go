@@ -499,6 +499,15 @@ var gatewayCatalog = map[ErrorCode]ErrorSpec{
 		ID: "LZ-2307", HTTPStatus: http.StatusForbidden, Type: ErrorTypePermission, Audience: AudienceCustomer,
 		Template: "This API address is not enabled for your account.",
 	},
+	// One answer for an account its owner or an administrator deleted, at
+	// every door: the sign-in routes, the email routes and the gateway. The
+	// row is kept, so its address, username and linked sign-in methods stay
+	// reserved; saying so is what keeps the next attempt from looking like an
+	// outage or a mix-up with someone else's account.
+	ErrorCodeAccountDeleted: {
+		ID: "LZ-2308", HTTPStatus: http.StatusForbidden, Type: ErrorTypePermission, Audience: AudienceCustomer,
+		Template: "This account has been deleted.",
+	},
 
 	// ── LZ-3xxx · wallet and budgets ───────────────────────────────────
 	// Retrying cannot refill a wallet or raise a budget, but a 429 reads as

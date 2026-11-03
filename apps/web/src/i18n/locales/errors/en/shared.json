@@ -27,6 +27,7 @@
   "access_denied": "You don't have permission to do this. Ask an administrator for access.",
   "ip_not_allowed": "This API key does not accept requests from your current IP address. Check the key's IP restrictions.",
   "user_banned": "This account has been disabled. Contact an administrator if you have questions.",
+  "account_deleted": "This account has been deleted. It can no longer sign in or use API keys, and its email, username and linked sign-in methods cannot be used for a new account. Contact an administrator if you have questions.",
   "group_access_denied": "This account cannot use the requested lane. Choose another lane.",
   "channel_selection_denied": "Only administrators can pin a request to a specific channel.",
   "project_access_suspended": "Your access to this project is suspended. Contact a project admin.",

@@ -3466,7 +3466,7 @@
     "page.console.channelHealth.floor.restore": "恢复权重",
     "page.console.channelHealth.floor.restored": "已恢复 {{name}} 在 {{count}} 条通道上的权重。",
     "page.console.personal.delete.question": "删除账号 {{username}}？",
-    "page.console.personal.delete.what": "删除后你不能再登录这个账号，名下所有 API Key 立即停止工作。",
+    "page.console.personal.delete.what": "删除后你不能再登录这个账号，名下所有 API Key 立即停止工作。账号里的余额会留在这个账号上，不会转到其他账号；它的邮箱、用户名和已绑定的登录方式会一直保留，不能用来注册新账号。",
     "page.console.personal.delete.final": "账号删除后，你无法自己恢复它。",
     "page.console.personal.delete.typeUsername": "输入用户名 {{username}} 以确认",
     "page.console.personal.delete.confirmAction": "删除账号",
