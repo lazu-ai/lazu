@@ -263,3 +263,52 @@ func TestAdminTasksListEveryAccountWithItsUser(t *testing.T) {
 		t.Fatalf("user filter = %+v", one.Data)
 	}
 }
+
+func TestConsoleTasksReadTheChargeOfAJobBilledAsItsRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupMediaJobControllerTestDB(t)
+	if err := db.AutoMigrate(&model.RedisLedgerOperation{}); err != nil {
+		t.Fatal(err)
+	}
+	user := model.User{Id: 604, Username: "image-owner"}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	// An image whose call settled as an ordinary gateway request: the job
+	// holds nothing and keeps no charge of its own.
+	seedConsoleTask(t, db, user.Id, nil, "req-image-paid", model.MediaJobStatusSucceeded,
+		`{"prompt":"a lighthouse at dusk"}`, `{}`, "", now.Add(-time.Minute))
+	// Another account paid for this one; its owner was charged nothing.
+	seedConsoleTask(t, db, user.Id, nil, "req-image-other-payer", model.MediaJobStatusSucceeded,
+		`{"prompt":"a red kite"}`, `{}`, "", now.Add(-2*time.Minute))
+	// A failed job is never charged, whatever its request settled.
+	seedConsoleTask(t, db, user.Id, nil, "req-image-failed", model.MediaJobStatusFailed,
+		`{"prompt":"a blue kite"}`, `{}`, "", now.Add(-3*time.Minute))
+	for _, op := range []model.RedisLedgerOperation{
+		{ID: "settle:req-image-paid", RequestID: "req-image-paid", Kind: "settle", PayerID: user.Id, ActorID: user.Id, Amount: 5145, CreatedAt: now},
+		{ID: "settle:req-image-other-payer", RequestID: "req-image-other-payer", Kind: "settle", PayerID: 1, ActorID: 1, Amount: 34348, CreatedAt: now},
+		{ID: "settle:req-image-failed", RequestID: "req-image-failed", Kind: "settle", PayerID: user.Id, ActorID: user.Id, Amount: 999, CreatedAt: now},
+	} {
+		if err := db.Create(&op).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	body := getConsoleTasks(t, user.Id, "")
+	if len(body.Data.Items) != 3 {
+		t.Fatalf("items = %+v", body.Data.Items)
+	}
+	if paid := body.Data.Items[0]; paid.Charge != 5145 || paid.Refund != 0 {
+		t.Fatalf("request-billed row = %+v", paid)
+	}
+	if other := body.Data.Items[1]; other.Charge != 0 {
+		t.Fatalf("row paid by another account = %+v", other)
+	}
+	if failed := body.Data.Items[2]; failed.Charge != 0 {
+		t.Fatalf("failed row = %+v", failed)
+	}
+	if s := body.Data.Summary; s.SpendMicrousd != 5145 || s.RefundedMicrousd != 0 {
+		t.Fatalf("summary = %+v", s)
+	}
+}
