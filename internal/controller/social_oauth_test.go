@@ -382,6 +382,7 @@ func TestSocialOAuthAnswersSoftDeletedEmailAsDeleted(t *testing.T) {
 	if err := model.CoreDB().Delete(&deleted).Error; err != nil {
 		t.Fatalf("soft delete user: %v", err)
 	}
+	expireDeletion(t, deleted.Id)
 	_, err := resolveSocialOAuthUser(socialIdentity{
 		Provider: googleOAuthProvider,
 		Subject:  "deleted-email-subject",

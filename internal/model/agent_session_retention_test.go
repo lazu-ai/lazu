@@ -47,7 +47,7 @@ func TestSessionContentRetentionPreservesAccountingAndBoundary(t *testing.T) {
 	}
 }
 
-func TestAccountDeletionClearsOnlyOwnersSessionContent(t *testing.T) {
+func TestPermanentAccountDeletionClearsOnlyOwnersSessionContent(t *testing.T) {
 	db := withPricingTestDB(t, "delete_session_content")
 	if err := db.AutoMigrate(&AgentSession{}, &AgentSessionMessage{}); err != nil {
 		t.Fatal(err)
@@ -61,7 +61,16 @@ func TestAccountDeletionClearsOnlyOwnersSessionContent(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// A soft delete can be undone, so the transcripts stay.
 	if err := db.Transaction(func(tx *gorm.DB) error { return finishUserProjectDeletionTx(tx, 10, false) }); err != nil {
+		t.Fatal(err)
+	}
+	var kept int64
+	db.Model(&AgentSessionMessage{}).Count(&kept)
+	if kept != 2 {
+		t.Fatalf("soft delete left %d messages, want 2", kept)
+	}
+	if err := db.Transaction(func(tx *gorm.DB) error { return finishUserProjectDeletionTx(tx, 10, true) }); err != nil {
 		t.Fatal(err)
 	}
 	var owner, other AgentSession

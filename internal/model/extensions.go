@@ -33,7 +33,8 @@ type TopUpCompletingHook func(tx *gorm.DB, topUp *TopUp) error
 // TopUpReversedHook runs inside the transaction that reverses a top-up.
 type TopUpReversedHook func(tx *gorm.DB, topUpID int) error
 
-// UserDeletingHook runs inside the transaction that deletes a user's data.
+// UserDeletingHook runs inside the transaction that removes a user for good.
+// A soft delete, which the owner can undo by signing in again, does not run it.
 type UserDeletingHook func(tx *gorm.DB, userID int) error
 
 // FileDeletingHook runs inside the transaction that deletes a stored file.

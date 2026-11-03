@@ -345,6 +345,9 @@ func resolveOIDCUser(ctx context.Context, subject string, claims map[string]any)
 		lockEmail = identitySubject
 	}
 
+	if err := restoreDeletedOwnerBeforeSignIn(oidcIdentityProvider, identitySubject, verifiedEmail, mailLangFromContext(ctx)); err != nil {
+		return nil, err
+	}
 	var user *model.User
 	created := false
 	err := withSocialOAuthResolutionLock(model.CoreDB().WithContext(ctx), socialIdentity{

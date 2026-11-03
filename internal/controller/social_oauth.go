@@ -456,6 +456,9 @@ func resolveSocialOAuthUser(identity socialIdentity, _ ...string) (*model.User, 
 	if identity.Provider == "" || identity.Subject == "" || identity.Email == "" {
 		return nil, errors.New("oauth identity is incomplete")
 	}
+	if err := restoreDeletedOwnerBeforeSignIn(identity.Provider, identity.Subject, identity.Email, common.MailLang(identity.MailLang)); err != nil {
+		return nil, err
+	}
 	var user *model.User
 	created := false
 	err := withSocialOAuthResolutionLock(model.CoreDB(), identity, func(tx *gorm.DB) error {

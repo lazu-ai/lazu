@@ -180,8 +180,8 @@ func SendEmailVerification(c *gin.Context) {
 }
 
 func dispatchEmailVerification(email string, lang string) {
-	if model.EmailOwnedOnlyByDeletedAccount(email) {
-		subject, body := authAccountDeletedMail(lang)
+	if deleted := model.DeletedAccountByEmail(email); deleted != nil {
+		subject, body := authAccountDeletedMail(lang, accountRestoreDeadline(deleted))
 		sendAuthEmail(subject, email, body)
 		return
 	}
@@ -231,8 +231,8 @@ func dispatchPasswordResetEmail(email string, requestLang string) {
 		return
 	}
 	if user == nil {
-		if model.EmailOwnedOnlyByDeletedAccount(email) {
-			subject, body := authAccountDeletedMail(requestLang)
+		if deleted := model.DeletedAccountByEmail(email); deleted != nil {
+			subject, body := authAccountDeletedMail(requestLang, accountRestoreDeadline(deleted))
 			sendAuthEmail(subject, email, body)
 		}
 		return

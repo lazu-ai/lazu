@@ -66,6 +66,19 @@ func Login(c *gin.Context) {
 		Password: password,
 	}
 	err = user.ValidateAndFill()
+	if errors.Is(err, model.ErrAccountDeleted) && user.Id > 0 {
+		// The password proved the caller owns the deleted account: inside the
+		// restore window, signing in brings it back.
+		restored, restoreErr := restoreDeletedAccountForSignIn(c, &user)
+		if restoreErr != nil {
+			httperr.Write(c, restoreErr)
+			return
+		}
+		user, err = *restored, nil
+		if user.Status != common.UserStatusEnabled {
+			err = types.Err(types.ErrorCodeInvalidCredentials)
+		}
+	}
 	if err != nil {
 		if types.IsErrCode(err, types.ErrorCodeInvalidCredentials) {
 			recordLoginFailure(username)
@@ -355,6 +368,7 @@ func userListOptions(c *gin.Context) (model.UserListOptions, bool) {
 		PricePlan:      c.Query("price_plan"),
 		Filter:         c.Query("filter"),
 		ExcludeDeleted: c.Query("exclude_deleted") == "true",
+		DeletedOnly:    c.Query("deleted") == "only",
 	}
 	return opts, c.Query("with_usage") == "true"
 }
@@ -436,8 +450,11 @@ type userWithInternalID struct {
 	LastRequestAt     int64            `json:"last_request_at"`
 	FirstTopupAt      int64            `json:"first_topup_at"`
 	DeletedAt         gorm.DeletedAt   `json:"DeletedAt"`
-	Remark            string           `json:"remark,omitempty"`
-	needsPassword     bool
+	// RestoreUntil is when a deleted account stops being restorable by its
+	// owner signing in; 0 for a live account or one past its window.
+	RestoreUntil  int64  `json:"restore_until,omitempty"`
+	Remark        string `json:"remark,omitempty"`
+	needsPassword bool
 	// TokenCount / RecentSpend are only populated when the caller asks
 	// for them with ?with_usage=true; the pointers keep them absent
 	// otherwise so a client can tell "no data requested" from "zero".
@@ -484,11 +501,29 @@ func withInternalUserIDs(users []*model.User) []userWithInternalID {
 			LastRequestAt:     user.LastRequestAt,
 			FirstTopupAt:      user.FirstTopupAt,
 			DeletedAt:         user.DeletedAt,
+			RestoreUntil:      restoreUntilUnix(user),
 			Remark:            user.Remark,
 			needsPassword:     user.NeedsPassword,
 		})
 	}
 	return items
+}
+
+// deletedAtUnix is when the account was deleted, or 0 for a live one.
+func deletedAtUnix(user *model.User) int64 {
+	if user == nil || !user.DeletedAt.Valid {
+		return 0
+	}
+	return user.DeletedAt.Time.Unix()
+}
+
+// restoreUntilUnix is when a deleted account stops being restorable by its
+// owner signing in, or 0.
+func restoreUntilUnix(user *model.User) int64 {
+	if !model.DeletedAccountRestorable(user, time.Now()) {
+		return 0
+	}
+	return model.AccountRestoreDeadline(user.DeletedAt.Time).Unix()
 }
 
 func loginProvidersForUser(identityProviders []string, email string, needsPassword bool) []string {
@@ -627,7 +662,9 @@ func resolveAdminTargetUser(c *gin.Context) (*model.User, bool) {
 		httperr.Write(c, err)
 		return nil, false
 	}
-	user, err := model.GetUserById(id, false)
+	// The drawer's views are read-only, so they open a deleted account too:
+	// an administrator restoring or removing it sees what it holds first.
+	user, err := model.GetUserByIdIncludingDeleted(id)
 	if err != nil {
 		httperr.Write(c, err)
 		return nil, false
@@ -728,6 +765,8 @@ func GetUserAccountSummary(c *gin.Context) {
 		"id":                    user.PublicID,
 		"internal_id":           user.Id,
 		"username":              user.Username,
+		"deleted_at":            deletedAtUnix(user),
+		"restore_until":         restoreUntilUnix(user),
 		"display_name":          user.DisplayName,
 		"email":                 user.Email,
 		"role":                  user.Role,
@@ -1510,7 +1549,8 @@ func DeleteUser(c *gin.Context) {
 		httperr.Write(c, err)
 		return
 	}
-	originUser, err := model.GetUserById(id, false)
+	// A deleted account can still be removed for good.
+	originUser, err := model.GetUserByIdIncludingDeleted(id)
 	if err != nil {
 		httperr.Write(c, err)
 		return
@@ -1676,7 +1716,28 @@ func ManageUser(c *gin.Context) {
 		return
 	}
 	beforeUser := user
+	if user.DeletedAt.Valid && req.Action != "restore" {
+		// Every other action edits a live row; a deleted account is restored
+		// first or removed for good.
+		httperr.Code(c, types.ErrorCodeAccountDeleted)
+		return
+	}
 	switch req.Action {
+	case "restore":
+		if !user.DeletedAt.Valid {
+			httperr.Invalid(c, "action")
+			return
+		}
+		if myRole <= user.Role {
+			httperr.Code(c, types.ErrorCodeUserManageForbidden, types.D{"action": "restore"})
+			return
+		}
+		restored, _, err := model.RestoreDeletedUser(user.Id, model.RestoreByAdmin)
+		if err != nil {
+			httperr.Write(c, err)
+			return
+		}
+		user = *restored
 	case "disable":
 		user.Status = common.UserStatusDisabled
 		if user.Role == common.RoleRootUser {
@@ -1719,7 +1780,7 @@ func ManageUser(c *gin.Context) {
 		return
 	}
 
-	if req.Action != "delete" {
+	if req.Action != "delete" && req.Action != "restore" {
 		var role *int
 		var status *int
 		if req.Action == "promote" || req.Action == "demote" {

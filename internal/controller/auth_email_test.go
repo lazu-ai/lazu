@@ -108,7 +108,7 @@ func TestAuthEmailTemplatesRenderFully(t *testing.T) {
 
 	for _, lang := range []string{common.MailZH, common.MailEN} {
 		rendered := authMailPreviews(lang)
-		if want := 9 + len(surfaceWelcomeMails); len(rendered) != want {
+		if want := 11 + len(surfaceWelcomeMails); len(rendered) != want {
 			t.Fatalf("expected %d identity mails, got %d", want, len(rendered))
 		}
 		for name, content := range rendered {

@@ -198,6 +198,9 @@ type UserListOptions struct {
 	// the scoped summary facts while preserving legacy admin-list behavior
 	// for callers that omit this option.
 	ExcludeDeleted bool
+	// DeletedOnly lists only soft-deleted accounts (the console's 已注销
+	// view). It wins over ExcludeDeleted.
+	DeletedOnly bool
 	// Filter is "" (none) or one of the console's account cohorts:
 	// "active_30d", "topped_up", "low_balance_active",
 	// "zero_topped_up", "never_called".
@@ -416,6 +419,9 @@ func getActiveUsersPage(startIdx, num int, opts UserListOptions, buildQuery func
 }
 
 func userListBaseQuery(tx *gorm.DB, opts UserListOptions) *gorm.DB {
+	if opts.DeletedOnly {
+		return tx.Unscoped().Model(&User{}).Where("users.deleted_at IS NOT NULL")
+	}
 	if opts.ExcludeDeleted {
 		return tx.Model(&User{})
 	}
@@ -789,6 +795,8 @@ type UserSummaryStats struct {
 	ZeroToppedUp     int64 `json:"zero_topped_up"`
 	Disabled         int64 `json:"disabled"`
 	OnPricePlan      int64 `json:"on_price_plan"`
+	// Deleted counts soft-deleted accounts of every role.
+	Deleted int64 `json:"deleted"`
 }
 
 // GetUserSummaryStats computes the account census over the whole table. The
@@ -812,6 +820,9 @@ func GetUserSummaryStats(activeSince int64) (UserSummaryStats, error) {
 		return stats, err
 	}
 	if err := CoreDB().Model(&User{}).Where("price_plan_id > 0").Count(&stats.OnPricePlan).Error; err != nil {
+		return stats, err
+	}
+	if err := CoreDB().Unscoped().Model(&User{}).Where("deleted_at IS NOT NULL").Count(&stats.Deleted).Error; err != nil {
 		return stats, err
 	}
 
@@ -965,24 +976,6 @@ func userSoftDeleted(db *gorm.DB, userID int) (bool, error) {
 	return count > 0, nil
 }
 
-// EmailOwnedOnlyByDeletedAccount reports whether the address belongs to a
-// deleted account and to no live one. Mail sent to such an address says the
-// account was deleted instead of offering a code or a reset that cannot work.
-func EmailOwnedOnlyByDeletedAccount(email string) bool {
-	email = strings.TrimSpace(email)
-	if CoreDB() == nil || email == "" {
-		return false
-	}
-	var live, all int64
-	if err := CoreDB().Model(&User{}).Where("LOWER(email) = LOWER(?)", email).Count(&live).Error; err != nil || live > 0 {
-		return false
-	}
-	if err := CoreDB().Unscoped().Model(&User{}).Where("LOWER(email) = LOWER(?)", email).Count(&all).Error; err != nil {
-		return false
-	}
-	return all > 0
-}
-
 // userLookupErr names a missing account; any other failure passes through.
 func userLookupErr(err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1008,6 +1001,18 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 	} else {
 		err = CoreDB().Omit("password").First(&user, "id = ?", id).Error
 	}
+	return &user, userLookupErr(err)
+}
+
+// GetUserByIdIncludingDeleted is GetUserById for administrator views and
+// actions that must also reach a soft-deleted account. The password is never
+// loaded.
+func GetUserByIdIncludingDeleted(id int) (*User, error) {
+	if id == 0 {
+		return nil, ErrUserNotFound
+	}
+	var user User
+	err := CoreDB().Unscoped().Omit("password").First(&user, "id = ?", id).Error
 	return &user, userLookupErr(err)
 }
 
@@ -1615,6 +1620,7 @@ func DeleteSelfUser(userID int) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
+	recordAccountDeletedLog(&deleted)
 	if err := errors.Join(invalidateUserCache(userID), InvalidateUserTokensCache(userID)); err != nil {
 		return nil, fmt.Errorf("user deletion committed but credential cache invalidation failed: %w", err)
 	}
@@ -1658,10 +1664,22 @@ func DeleteUserWithExpectedRole(userID int, actorRole int, expectedRole int) (*U
 	if err != nil {
 		return nil, err
 	}
+	recordAccountDeletedLog(&deleted)
 	if err := errors.Join(invalidateUserCache(userID), InvalidateUserTokensCache(userID)); err != nil {
 		return nil, err
 	}
 	return &deleted, nil
+}
+
+// recordAccountDeletedLog notes the deletion on the account's own log, where
+// it stays visible if the account is restored.
+func recordAccountDeletedLog(user *User) {
+	// The row is already deleted, so the log carries the name it had.
+	log := accountLog(user.Id, LogTypeSystem, fmt.Sprintf("账号已注销，%d 天内重新登录可以恢复", int(AccountRestoreWindow/(24*time.Hour))))
+	log.Username = user.Username
+	if err := publishConsumeLogEvent(log); err != nil {
+		common.SysLog("failed to record log: " + err.Error())
+	}
 }
 
 func (user *User) HardDelete() error { return HardDeleteUserById(user.Id) }
@@ -1682,12 +1700,14 @@ func (user *User) ValidateAndFill() (err error) {
 	// find buy username or email
 	CoreDB().Where("username = ? OR email = ?", username, username).First(user)
 	if user.Id == 0 {
-		// Only a deleted account is looked for here, and only to answer
-		// truthfully once the password proves the caller owns it. A wrong
-		// password gets the same answer as an unknown name.
+		// Only a deleted account is looked for here, and only once the
+		// password proves the caller owns it. The row comes back with
+		// ErrAccountDeleted so the caller can restore it; a wrong password gets
+		// the same answer as an unknown name.
 		var deleted User
 		if err := CoreDB().Unscoped().Where("(username = ? OR email = ?) AND deleted_at IS NOT NULL", username, username).First(&deleted).Error; err == nil &&
 			common.ValidatePasswordAndHash(password, deleted.Password) {
+			*user = deleted
 			return ErrAccountDeleted
 		}
 		return types.Err(types.ErrorCodeInvalidCredentials)

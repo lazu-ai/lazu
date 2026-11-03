@@ -334,7 +334,7 @@ export default function AccountDrawer({
       action,
       target,
     }: {
-      action: 'disable' | 'enable' | 'promote' | 'demote';
+      action: 'disable' | 'enable' | 'promote' | 'demote' | 'restore';
       target: { id: number | string; name: string };
     }) => {
       unwrap(await API.post('/api/user/manage', { id: target.id, action }));
@@ -359,6 +359,13 @@ export default function AccountDrawer({
                 setRoleOrStatus.mutate({ action: reverse, target }),
             },
           },
+        );
+      } else if (action === 'restore') {
+        showSuccess(
+          d(
+            'deleted.restored',
+            '账户已恢复，它的 API Key 停用中，需本人重新启用',
+          ),
         );
       } else {
         showSuccess(d('success.action', '已操作'));
@@ -431,6 +438,16 @@ export default function AccountDrawer({
   const canManage = (currentAccount.role ?? 1) < callerRole;
   const isSelf = String(account.id) === String(callerId ?? '');
   const canDelete = canManage && !isSelf;
+  // A deleted account is only restored or removed for good; every other
+  // action edits a live row.
+  const deleted = Boolean(detail?.deleted_at);
+  const formatMoment = (unixSeconds?: number) =>
+    unixSeconds
+      ? new Date(unixSeconds * 1000).toLocaleString(i18n.language, {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        })
+      : '';
   // One admin role: any 管理员 may grant or revoke it, never on themselves.
   const canToggleAdmin = callerRole >= ROLE_ADMIN && !isSelf;
   const targetIsAdmin = (currentAccount.role ?? 1) >= ROLE_ADMIN;
@@ -644,6 +661,28 @@ export default function AccountDrawer({
     </div>
   );
 
+  const deleteRow = (
+    <div className='orgs__danger'>
+      <div>
+        <b className='orgs__danger-title'>
+          {d('actions.deleteTitle', '永久删除')}
+        </b>
+        <span>{d('actions.deleteHint', '硬删除，登录凭据一并清除')}</span>
+      </div>
+      <Button
+        size='sm'
+        variant='soft-danger'
+        onClick={() =>
+          onRequestDelete({
+            ...currentAccount,
+            username: detail?.username || account.username,
+          })
+        }
+      >
+        {d('actions.delete', '删除')}
+      </Button>
+    </div>
+  );
   const adminToggleRow = canToggleAdmin ? (
     <div className='orgs__danger'>
       <div>
@@ -718,6 +757,47 @@ export default function AccountDrawer({
               </div>
             ) : (
               <>
+                {deleted ? (
+                  <div className='orgs__danger' role='status'>
+                    <div>
+                      <b className='orgs__danger-title'>
+                        {d('deleted.title', '账户已注销')}
+                      </b>
+                      <span>
+                        {detail?.restore_until
+                          ? t('page.console.orgs.drawer.deleted.restorable', {
+                              at: formatMoment(detail?.deleted_at),
+                              until: formatMoment(detail?.restore_until),
+                              defaultValue:
+                                '注销于 {{at}}。{{until}} 前本人重新登录会自动恢复。',
+                            })
+                          : t('page.console.orgs.drawer.deleted.expired', {
+                              at: formatMoment(detail?.deleted_at),
+                              defaultValue:
+                                '注销于 {{at}}，已过恢复期，本人不能再恢复。',
+                            })}
+                      </span>
+                    </div>
+                    {canManage ? (
+                      <Button
+                        size='sm'
+                        variant='secondary'
+                        loading={setRoleOrStatus.isPending}
+                        onClick={() =>
+                          setRoleOrStatus.mutate({
+                            action: 'restore',
+                            target: {
+                              id: account.id,
+                              name: currentAccount.name,
+                            },
+                          })
+                        }
+                      >
+                        {d('deleted.restore', '恢复账户')}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className='acc-strip'>
                   <div>
                     <span>{d('metric.balance', '余额')}</span>
@@ -1192,7 +1272,15 @@ export default function AccountDrawer({
                 {/* 动作 */}
                 <div className='acc-sec' data-section='actions'>
                   {sectionTitle(d('actions.title', '动作'))}
-                  {canManage ? (
+                  {canManage && deleted ? (
+                    canDelete ? (
+                      deleteRow
+                    ) : (
+                      <div className='acc-empty'>
+                        {d('deleted.noActions', '已注销的账户只能恢复。')}
+                      </div>
+                    )
+                  ) : canManage ? (
                     <>
                       <div className='orgs__balance'>
                         <div className='orgs__balance-current'>
@@ -1382,33 +1470,7 @@ export default function AccountDrawer({
                         </Button>
                       </div>
                       {adminToggleRow}
-                      {canDelete ? (
-                        <div className='orgs__danger'>
-                          <div>
-                            <b className='orgs__danger-title'>
-                              {d('actions.deleteTitle', '永久删除')}
-                            </b>
-                            <span>
-                              {d(
-                                'actions.deleteHint',
-                                '硬删除，登录凭据一并清除',
-                              )}
-                            </span>
-                          </div>
-                          <Button
-                            size='sm'
-                            variant='soft-danger'
-                            onClick={() =>
-                              onRequestDelete({
-                                ...currentAccount,
-                                username: detail?.username || account.username,
-                              })
-                            }
-                          >
-                            {d('actions.delete', '删除')}
-                          </Button>
-                        </div>
-                      ) : null}
+                      {canDelete ? deleteRow : null}
                     </>
                   ) : (
                     // Another 管理员: balance and freezing stay off, but the
