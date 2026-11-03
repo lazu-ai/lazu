@@ -158,8 +158,16 @@ export const timeRangeText = (
   return `${dayText(start, t)} ${clockText(start)} – ${dayText(end, t)} ${clockText(end)}`;
 };
 
-export const ratio = (part: number, whole: number) =>
+const ratio = (part: number, whole: number) =>
   whole > 0 ? part / whole : null;
+
+/** Share of input served from cache. Sessions folded before prompt tokens
+ *  counted Anthropic cache reads can hold more cache reads than input, so
+ *  the share is capped at 100%. */
+export const cacheRatio = (cached: number, prompt: number) => {
+  const value = ratio(cached, prompt);
+  return value === null ? null : Math.min(1, value);
+};
 
 export const pct = (value: number | null) =>
   value === null ? '—' : `${Math.round(value * 100)}%`;

@@ -102,7 +102,11 @@ func recordIncrementalBatchTx(tx *gorm.DB, logs []Log) error {
 					return err
 				}
 			} else {
-				tokens, err := checkedTelemetryTokenTotal(row.PromptTokens, row.CompletionTokens)
+				prompt, err := cacheInclusivePromptTokens(int64(row.PromptTokens), row.UsageFact)
+				if err != nil {
+					return err
+				}
+				tokens, err := checkedTelemetryInt64Total(prompt, int64(row.CompletionTokens))
 				if err != nil {
 					return err
 				}
@@ -169,7 +173,11 @@ func recordSessionBatchTx(tx *gorm.DB, logs []Log) error {
 			item = &AgentSession{UserID: log.UserId, SessionID: log.SessionID, ProjectID: log.ProjectID, TokenID: log.TokenId, TokenName: log.TokenName, Source: log.SessionSource, Client: log.ClientFramework, ClientVersion: log.ClientVersion, StartedAt: at, LastAt: at, StatsVersion: 1}
 			sessions[key] = item
 		}
-		if err := addTelemetryCounters(telemetryDelta{&item.RequestCount, 1}, telemetryDelta{&item.PromptTokens, int64(log.PromptTokens)}, telemetryDelta{&item.CompletionTokens, int64(log.CompletionTokens)}, telemetryDelta{&item.AmountMicrousd, log.AmountMicrousd.Int64()}); err != nil {
+		prompt, err := cacheInclusivePromptTokens(int64(log.PromptTokens), log.UsageFact)
+		if err != nil {
+			return err
+		}
+		if err := addTelemetryCounters(telemetryDelta{&item.RequestCount, 1}, telemetryDelta{&item.PromptTokens, prompt}, telemetryDelta{&item.CompletionTokens, int64(log.CompletionTokens)}, telemetryDelta{&item.AmountMicrousd, log.AmountMicrousd.Int64()}); err != nil {
 			return err
 		}
 		if log.UpstreamCostMicrousd != nil {
@@ -263,7 +271,11 @@ func recordSessionBatchTx(tx *gorm.DB, logs []Log) error {
 			thread = &AgentSessionThread{SessionPK: session.ID, ThreadID: log.ThreadID, ParentThreadID: log.ParentThreadID, Kind: kind, StartedAt: at, LastAt: at}
 			threads[key] = thread
 		}
-		if err := addTelemetryCounters(telemetryDelta{&thread.RequestCount, 1}, telemetryDelta{&thread.PromptTokens, int64(log.PromptTokens)}, telemetryDelta{&thread.CompletionTokens, int64(log.CompletionTokens)}, telemetryDelta{&thread.AmountMicrousd, log.AmountMicrousd.Int64()}); err != nil {
+		prompt, err := cacheInclusivePromptTokens(int64(log.PromptTokens), log.UsageFact)
+		if err != nil {
+			return err
+		}
+		if err := addTelemetryCounters(telemetryDelta{&thread.RequestCount, 1}, telemetryDelta{&thread.PromptTokens, prompt}, telemetryDelta{&thread.CompletionTokens, int64(log.CompletionTokens)}, telemetryDelta{&thread.AmountMicrousd, log.AmountMicrousd.Int64()}); err != nil {
 			return err
 		}
 		if log.Type == LogTypeError {
@@ -289,7 +301,7 @@ func recordSessionBatchTx(tx *gorm.DB, logs []Log) error {
 				item = &AgentSessionModel{SessionPK: session.ID, ModelName: log.ModelName}
 				models[key] = item
 			}
-			tokens, err := checkedTelemetryTokenTotal(log.PromptTokens, log.CompletionTokens)
+			tokens, err := checkedTelemetryInt64Total(prompt, int64(log.CompletionTokens))
 			if err != nil {
 				return err
 			}

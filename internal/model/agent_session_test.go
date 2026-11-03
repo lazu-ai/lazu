@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	usagepkg "github.com/lazu-ai/lazu/internal/usage"
 	"github.com/lazu-ai/lazu/pkg/billing"
+	"gorm.io/gorm"
 )
 
 func TestRecordSessionActivityFoldsRequestsThreadsAndErrorsIntoOneSession(t *testing.T) {
@@ -393,5 +395,82 @@ func TestAgentSessionSegmentsSplitOnLongStops(t *testing.T) {
 	want := []AgentSessionSegment{{Start: 990, End: 1060}, {Start: 84995, End: 85000}}
 	if got := items[0].Segments; len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("segments = %+v, want %+v", got, want)
+	}
+}
+
+// Anthropic usage logs prompt tokens without the cache, other providers with
+// it. A session that mixes them still sums input the same way, so its cache
+// reads never exceed its input.
+func TestRecordSessionActivityCountsAnthropicCacheInPromptTokens(t *testing.T) {
+	db := withPricingTestDB(t, "agent_session_cache_mix")
+	if err := db.AutoMigrate(&AgentSession{}, &AgentSessionThread{}, &AgentSessionModel{}, &AgentSessionMessage{}); err != nil {
+		t.Fatalf("migrate session tables: %v", err)
+	}
+	previousLogDB := telemetryDB
+	telemetryDB = db
+	t.Cleanup(func() { telemetryDB = previousLogDB })
+	owner := User{Username: "cache-mix-owner"}
+	if err := db.Create(&owner).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	tokens := func(name string, quantity int64) usagepkg.DimensionUsage {
+		return usagepkg.DimensionUsage{Name: name, Quantity: quantity, Unit: usagepkg.UnitToken}
+	}
+	base := Log{UserId: owner.Id, SessionID: "sess-cache-mix", SessionSource: "claude-code", Type: LogTypeConsume}
+	claude := base
+	claude.RequestID, claude.CreatedAt, claude.ModelName = "req-claude", 1_000, "claude-opus"
+	claude.PromptTokens, claude.CompletionTokens = 2, 376
+	claude.UsageFact = usagepkg.Fact{ProviderFamily: "anthropic", PromptTokens: 2, CompletionTokens: 376, Dimensions: []usagepkg.DimensionUsage{
+		tokens(usagepkg.DimensionInput, 2), tokens(usagepkg.DimensionCacheRead, 166_751), tokens(usagepkg.DimensionCacheWrite5m, 3_841), tokens(usagepkg.DimensionOutput, 376),
+	}}.JSONString()
+	openai := base
+	openai.RequestID, openai.CreatedAt, openai.ModelName = "req-openai", 1_060, "gpt-5"
+	openai.PromptTokens, openai.CompletionTokens = 10_000, 100
+	openai.ThreadID, openai.RequestKind = "agent-1", "subagent"
+	openai.UsageFact = usagepkg.Fact{ProviderFamily: "openai", PromptTokens: 10_000, CompletionTokens: 100, Dimensions: []usagepkg.DimensionUsage{
+		tokens(usagepkg.DimensionInput, 2_000), tokens(usagepkg.DimensionCacheRead, 8_000), tokens(usagepkg.DimensionOutput, 100),
+	}}.JSONString()
+	logs := []Log{claude, openai}
+	if err := telemetryDB.Transaction(func(tx *gorm.DB) error { return recordSessionBatchTx(tx, logs) }); err != nil {
+		t.Fatalf("fold session batch: %v", err)
+	}
+	if err := telemetryDB.Create(&logs).Error; err != nil {
+		t.Fatalf("seed logs: %v", err)
+	}
+
+	const claudeInput = 2 + 166_751 + 3_841
+	var s AgentSession
+	if err := db.First(&s).Error; err != nil {
+		t.Fatalf("load session: %v", err)
+	}
+	if s.PromptTokens != claudeInput+10_000 || s.CachedTokens != 166_751+8_000 || s.CompletionTokens != 476 {
+		t.Fatalf("session tokens: prompt=%d cached=%d completion=%d", s.PromptTokens, s.CachedTokens, s.CompletionTokens)
+	}
+	if s.CachedTokens > s.PromptTokens {
+		t.Fatalf("cache reads %d exceed input %d", s.CachedTokens, s.PromptTokens)
+	}
+	var threads []AgentSessionThread
+	if err := db.Order("thread_id").Find(&threads).Error; err != nil {
+		t.Fatalf("load threads: %v", err)
+	}
+	if len(threads) != 2 || threads[0].PromptTokens != claudeInput || threads[1].PromptTokens != 10_000 {
+		t.Fatalf("threads: %+v", threads)
+	}
+	var models []AgentSessionModel
+	if err := db.Order("model_name").Find(&models).Error; err != nil {
+		t.Fatalf("load models: %v", err)
+	}
+	if len(models) != 2 || models[0].Tokens != claudeInput+376 || models[1].Tokens != 10_100 {
+		t.Fatalf("models: %+v", models)
+	}
+
+	detail, err := GetAgentSessionDetailPage(owner.Id, s.PublicID, 0, 0)
+	if err != nil {
+		t.Fatalf("detail: %v", err)
+	}
+	if len(detail.Requests) != 2 || detail.Requests[0].PromptTokens != claudeInput || detail.Requests[0].CachedTokens != 166_751 ||
+		detail.Requests[1].PromptTokens != 10_000 || detail.Requests[1].CachedTokens != 8_000 {
+		t.Fatalf("detail requests: %+v", detail.Requests)
 	}
 }
