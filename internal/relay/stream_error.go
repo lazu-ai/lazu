@@ -64,3 +64,24 @@ func writeSafeStreamOpenAIError(c *gin.Context, relayFormat types.RelayFormat, s
 	c.Writer.Flush()
 	c.Abort()
 }
+
+// WriteClaudeError answers a Messages request with Anthropic's error envelope:
+// a JSON body while nothing is written, and an `event: error` frame once a
+// keep-alive ping has committed the stream. Raw JSON inside an SSE body is not
+// an event, so a Messages client would see the stream end with no error and
+// could neither retry nor compact on it.
+func WriteClaudeError(c *gin.Context, status int, err *types.LazuError) {
+	payload := gin.H{
+		"type":       "error",
+		"error":      err.ToClaudeError(),
+		"request_id": c.GetString(common.RequestIdKey),
+	}
+	if !c.Writer.Written() {
+		c.JSON(status, payload)
+		return
+	}
+	data, _ := json.Marshal(payload)
+	fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", data)
+	c.Writer.Flush()
+	c.Abort()
+}

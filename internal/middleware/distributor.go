@@ -494,6 +494,12 @@ func setStructuredInputTokenEstimate(c *gin.Context, reqCtx *relayrouter.Request
 }
 
 func abortProtocolUnsupported(c *gin.Context, unsupported *textgen.UnsupportedFeatureError) {
+	if tokens, limit, ok := unsupported.ContextOverflow(); ok {
+		abortWithCode(c, types.ErrorCodeContextLengthExceeded, types.D{
+			"reason": textgen.ContextOverflowMessage(tokens, limit), "field": "messages",
+		})
+		return
+	}
 	common.IncrementHotPathCounter(common.HotPathCounterProtocolUnsupported)
 	details := types.D{}
 	if unsupported != nil {

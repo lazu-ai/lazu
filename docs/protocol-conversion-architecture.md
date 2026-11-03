@@ -302,6 +302,7 @@ Claude 客户端的映射以真实录制的 Claude Code 请求为准（`testdata
 - Claude 客户端不做降级：native 路径发的是客户端原始字节，Messages 也没有 json_object 可替代；被拒绝的 schema 在发出前拒绝。`thinking: disabled` 只在模型能关闭推理时发 effort none。
 - thinking 预算按档位映射为 effort（`textgen.EffortForBudget`，与 `model.EffortBudgetTokens` 反向同表），Chat 和 Responses 同一张表；Chat 客户端的 `reasoning.max_tokens` 到 Responses 也不再拒绝。目录未声明会推理的模型，桥接时不发 thinking（Claude Code 每个请求都带），与旧转换一致。
 - `context_management` 只有 `clear_thinking_*` 时是提示性的；其它编辑、`mcp_servers`、Anthropic 自己执行的工具和 `server_tool_use` 历史，桥接时按字段路径拒绝，native 不受影响。
+- `diagnostics`（Claude Code 请 Anthropic 解释缓存未命中）是提示性的，只有 Messages 上游会回答，桥接时不发、不拒绝（2026-11-03）。结构化输出 beta 的顶层 `output_format` 与 `output_config.format` 同义，进 IR 的 `Output`，两者都发时以 `output_config.format` 为准。
 
 回退开关 `global.legacy_claude_client_conversion` 和请求方向的旧转换 `ClaudeToOpenAIRequest` 已删除（2026-10-26）：`/v1/messages` 总是解析、规划，OpenAI 和 Gemini 渠道走 Chat 桥接，Anthropic 渠道走 native。旧转换在它做对的用例上的输出存为 `internal/service/testdata/claude_bridge/`，由 `TestClaudeToChatMatchesTheGoldenFiles` 守住。响应方向的 `StreamResponseOpenAI2Claude`、`ResponseOpenAI2Claude` 随 Gemini 渠道接入 codec 一起删除（2026-10-26）。
 

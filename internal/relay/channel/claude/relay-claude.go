@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,8 @@ import (
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func stopReasonClaude2OpenAI(reason string) string {
@@ -261,18 +264,21 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 	}
 	if info.RelayFormat == types.RelayFormatClaude {
 		FormatClaudeResponseInfo(requestMode, &claudeResponse, nil, claudeInfo)
+		// The upstream's own frame goes out, not a re-encoding of the parsed
+		// one: fields the DTO does not model (diagnostics, stop_details, new
+		// usage keys) reach the client. Only usage counts the upstream left
+		// out are filled in.
+		frame := compactClaudeFrame(data)
 		if requestMode != RequestModeCompletion {
-			if claudeResponse.Type == "message_start" {
+			if claudeResponse.Type == "message_start" && claudeResponse.Message != nil {
 				info.UpstreamModelName = claudeResponse.Message.Model
-				if claudeResponse.Message != nil {
-					claudeResponse.Message.Usage = fillClaudeUsageFromAccumulated(claudeResponse.Message.Usage, claudeInfo.Usage)
-				}
+				frame = fillClaudeFrameUsage(frame, "message.usage", fillClaudeUsageFromAccumulated(claudeResponse.Message.Usage, claudeInfo.Usage))
 			}
 			if claudeResponse.Type == "message_delta" {
-				claudeResponse.Usage = fillClaudeUsageFromAccumulated(claudeResponse.Usage, claudeInfo.Usage)
+				frame = fillClaudeFrameUsage(frame, "usage", fillClaudeUsageFromAccumulated(claudeResponse.Usage, claudeInfo.Usage))
 			}
 		}
-		helper.ClaudeData(c, claudeResponse)
+		helper.ClaudeFrame(c, claudeResponse.Type, frame)
 	} else if requestMode == RequestModeCompletion {
 		response := completionStreamChunk(&claudeResponse)
 		if !FormatClaudeResponseInfo(requestMode, &claudeResponse, response, claudeInfo) {
@@ -449,4 +455,57 @@ func ClaudeHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayI
 		return nil, handleErr
 	}
 	return claudeInfo.Usage, nil
+}
+
+// compactClaudeFrame keeps a stream frame on one SSE data line.
+func compactClaudeFrame(data string) []byte {
+	frame := []byte(data)
+	if bytes.ContainsAny(frame, "\r\n") {
+		var compacted bytes.Buffer
+		if json.Compact(&compacted, frame) == nil {
+			return compacted.Bytes()
+		}
+	}
+	return frame
+}
+
+// fillClaudeFrameUsage writes into the frame's usage object, at path, the
+// counts the upstream left out or sent as zero and lazu knows from earlier
+// frames. A frame with no usage object gets the whole filled one.
+func fillClaudeFrameUsage(frame []byte, path string, usage *dto.ClaudeUsage) []byte {
+	if usage == nil {
+		return frame
+	}
+	if existing := gjson.GetBytes(frame, path); !existing.IsObject() {
+		if patched, err := sjson.SetBytes(frame, path, usage); err == nil {
+			return patched
+		}
+		return frame
+	}
+	counts := []usageCount{
+		{"input_tokens", usage.InputTokens},
+		{"output_tokens", usage.OutputTokens},
+		{"cache_read_input_tokens", usage.CacheReadInputTokens},
+		{"cache_creation_input_tokens", usage.CacheCreationInputTokens},
+	}
+	if usage.CacheCreation != nil {
+		counts = append(counts,
+			usageCount{"cache_creation.ephemeral_5m_input_tokens", usage.CacheCreation.Ephemeral5mInputTokens},
+			usageCount{"cache_creation.ephemeral_1h_input_tokens", usage.CacheCreation.Ephemeral1hInputTokens})
+	}
+	for _, count := range counts {
+		key := path + "." + count.key
+		if count.value == 0 || gjson.GetBytes(frame, key).Int() != 0 {
+			continue
+		}
+		if patched, err := sjson.SetBytes(frame, key, count.value); err == nil {
+			frame = patched
+		}
+	}
+	return frame
+}
+
+type usageCount struct {
+	key   string
+	value int
 }

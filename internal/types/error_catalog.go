@@ -333,7 +333,7 @@ var gatewayCatalog = map[ErrorCode]ErrorSpec{
 	},
 	ErrorCodeContextLengthExceeded: {
 		ID: "LZ-1005", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
-		Template:    "The input exceeds this model's context window. Shorten the conversation or choose a model with a longer context.",
+		Template:    "{reason|prompt is too long: the input exceeds this model's context window. Shorten the conversation or choose a model with a longer context.}",
 		FallbackCat: FallbackContextWindow,
 	},
 	ErrorCodeProtocolBridgeUnsupported: {

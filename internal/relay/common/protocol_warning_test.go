@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 )
 
@@ -56,5 +57,20 @@ func TestSetProtocolWarningHeaderIsScopedToThePlan(t *testing.T) {
 	SetProtocolWarningHeader(c, &textgen.RelayPlan{Native: true})
 	if got := recorder.Header().Get(ProtocolWarningHeader); got != "" {
 		t.Fatalf("a plan without warnings must clear the header, got %q", got)
+	}
+}
+
+// A field the channel's settings keep from the upstream is named, so a client
+// asking for fast mode learns it was served at standard speed.
+func TestRemovedFieldsAreWarned(t *testing.T) {
+	body, removed, err := RemoveDisabledFieldsReporting([]byte(`{"model":"m","speed":"fast","service_tier":"auto","max_tokens":1}`), dto.ChannelOtherSettings{AllowServiceTier: true}, false)
+	if err != nil || string(body) != `{"model":"m","service_tier":"auto","max_tokens":1}` || len(removed) != 1 || removed[0] != "speed" {
+		t.Fatalf("body %s removed %v err %v", body, removed, err)
+	}
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	WarnFieldsDropped(c, &RelayInfo{ProtocolPlan: &textgen.RelayPlan{}}, removed)
+	if got := recorder.Header().Get(ProtocolWarningHeader); got != "field_dropped:speed" {
+		t.Fatalf("header = %q", got)
 	}
 }

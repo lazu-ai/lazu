@@ -63,16 +63,12 @@ func SetEventStreamHeaders(c *gin.Context) {
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 }
 
-func ClaudeData(c *gin.Context, resp dto.ClaudeResponse) error {
-	jsonData, err := common.Marshal(resp)
-	if err != nil {
-		common.SysError("error marshalling stream response: " + err.Error())
-	} else {
-		c.Render(-1, CustomEvent{Data: fmt.Sprintf("event: %s\n", resp.Type)})
-		c.Render(-1, CustomEvent{Data: "data: " + string(service.RestorePublicModel(c, jsonData))})
-	}
+// ClaudeFrame writes one Messages stream event: the upstream's frame as it
+// came, with the answering model renamed to the one the client asked for.
+func ClaudeFrame(c *gin.Context, eventType string, frame []byte) {
+	c.Render(-1, CustomEvent{Data: fmt.Sprintf("event: %s\n", eventType)})
+	c.Render(-1, CustomEvent{Data: "data: " + string(service.RestorePublicModel(c, frame))})
 	_ = FlushWriter(c)
-	return nil
 }
 
 func ResponseChunkData(c *gin.Context, resp dto.ResponsesStreamResponse, data string) {

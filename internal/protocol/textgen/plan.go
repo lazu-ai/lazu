@@ -143,6 +143,25 @@ type UnsupportedFeatureError struct {
 	Feature FeatureID
 	Path    string
 	Reason  string
+	// Tokens and Limit are set when the input outgrew the context window:
+	// the estimated input and the channel's limit.
+	Tokens int64
+	Limit  int64
+}
+
+// ContextOverflow reports the estimated input and the limit it exceeded when
+// this refusal is a context-window one.
+func (e *UnsupportedFeatureError) ContextOverflow() (tokens, limit int64, ok bool) {
+	if e == nil || e.Feature != FeatureInputText || e.Limit <= 0 {
+		return 0, 0, false
+	}
+	return e.Tokens, e.Limit, true
+}
+
+// ContextOverflowMessage words a context-window refusal as Anthropic does,
+// which Claude Code compacts on.
+func ContextOverflowMessage(tokens, limit int64) string {
+	return fmt.Sprintf("prompt is too long: %d tokens > %d maximum", tokens, limit)
 }
 
 func (e *UnsupportedFeatureError) Error() string {
@@ -304,6 +323,8 @@ func requireConstraints(snapshot CapabilitySnapshot, request *Request, inputToke
 				Feature: FeatureInputText,
 				Path:    "input",
 				Reason:  fmt.Sprintf("estimated input tokens %d exceed channel context limit %d", inputTokens, constraint.Max),
+				Tokens:  int64(inputTokens),
+				Limit:   constraint.Max,
 			}
 		}
 	}

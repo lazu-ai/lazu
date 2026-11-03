@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/logger"
+	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/types"
 )
 
@@ -72,7 +73,7 @@ func StreamErrorCode(upstreamError *types.OpenAIError) (types.ErrorCode, bool) {
 	// same words are treated alike.
 	case strings.Contains(text, "context_length_exceeded") || strings.Contains(text, "context length") || strings.Contains(text, "context window") ||
 		strings.Contains(text, "maximum context") || strings.Contains(text, "prompt is too long") ||
-		strings.Contains(text, "sequence too long"):
+		strings.Contains(text, "input is too long") || strings.Contains(text, "sequence too long"):
 		return types.ErrorCodeContextLengthExceeded, true
 	case strings.Contains(text, "invalid_request") || strings.Contains(text, "invalid request"):
 		return types.ErrorCodeBadRequestBody, true
@@ -104,6 +105,10 @@ func StreamFailureFrame(code types.ErrorCode, upstreamError *types.OpenAIError) 
 	if upstreamError != nil && w.Audience == types.AudienceCustomer {
 		if value := strings.TrimSpace(upstreamError.Message); value != "" {
 			frame.Message = common.MaskSensitiveInfo(value)
+		}
+		if code == types.ErrorCodeContextLengthExceeded {
+			// worded as Anthropic does, which Claude Code compacts on
+			frame.Message = service.ContextLengthMessage(upstreamError.Message)
 		}
 	}
 	return frame, frame.Message
