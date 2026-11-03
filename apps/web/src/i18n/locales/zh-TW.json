@@ -163,6 +163,7 @@
     "ID": "ID",
     "announcements.confirmPublish": "確認發布公告",
     "announcements.publishHint": "發布後會立即出現在用戶的公告列表中。",
+    "announcements.sendEmail": "同時以電子郵件通知所有用戶（依各自語言發送，已收到的不會重發）",
     "channel.provider.custom": "自訂通道",
     "common.back": "返回設定",
     "common.cancel": "取消",

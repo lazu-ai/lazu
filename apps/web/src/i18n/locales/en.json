@@ -163,6 +163,7 @@
     "ID": "ID",
     "announcements.confirmPublish": "Publish announcement?",
     "announcements.publishHint": "Publishing makes this announcement visible to users immediately.",
+    "announcements.sendEmail": "Also email every user (in their own language; anyone already mailed is skipped)",
     "channel.provider.custom": "Custom channel",
     "common.back": "Back to settings",
     "common.cancel": "Cancel",
