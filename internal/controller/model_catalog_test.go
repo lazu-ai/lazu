@@ -1024,3 +1024,85 @@ func TestDeepSeekCatalogHidesAliasesWithoutUnpublishingRequests(t *testing.T) {
 		})
 	}
 }
+
+// An operator retires a name by pointing it at a replacement. The old name
+// leaves the listings beside its replacement and stays requestable by name.
+func TestCatalogReplacementHidesAliasFromListingsAndStillRetrieves(t *testing.T) {
+	cleanup := setupUserModelsClassifiedTestDB(t)
+	defer cleanup()
+	names := []string{"new-model", "old-model"}
+	for _, name := range names {
+		in := 0.5
+		replacement := ""
+		if name == "old-model" {
+			replacement = "new-model"
+		}
+		for _, row := range []interface{}{
+			&model.Model{ModelName: name, Status: 1, NameRule: model.NameRuleExact, ReplacementModel: replacement},
+			&model.Ability{Group: model.ChannelLaneDirect, Model: name, ChannelId: 955, Enabled: true},
+			&model.ModelSellPrice{ModelName: name, ChannelGroup: model.ChannelLaneDirect, Active: true, InputPerMtok: &in, PricingVersion: 1},
+		} {
+			if err := model.CoreDB().Create(row).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := model.CoreDB().Create(&model.Channel{Id: 955, Type: constant.ChannelTypeOpenAI, Key: "test", Status: common.ChannelStatusEnabled, Models: strings.Join(names, ","), Group: model.ChannelLaneDirect}).Error; err != nil {
+		t.Fatal(err)
+	}
+	model.RefreshPricing()
+	if got := getPublicModelDiscoveryNames(); !reflect.DeepEqual(got, []string{"new-model"}) {
+		t.Fatalf("public discovery = %v", got)
+	}
+	var priced []string
+	for _, row := range model.ListedPricing(model.GetPricing()) {
+		priced = append(priced, row.ModelName)
+	}
+	if !reflect.DeepEqual(priced, []string{"new-model"}) {
+		t.Fatalf("public pricing = %v", priced)
+	}
+	if !model.IsModelRequestable("old-model") {
+		t.Fatal("alias is no longer requestable")
+	}
+	for _, tt := range []struct{ allowed, want []string }{
+		{[]string{"new-model", "old-model"}, []string{"new-model"}},
+		{[]string{"old-model"}, []string{"old-model"}},
+	} {
+		t.Run(strings.Join(tt.allowed, ","), func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest("GET", "/v1/models", nil)
+			c.Set("token_id", 1)
+			common.SetContextKey(c, constant.ContextKeyUsingGroup, model.ChannelLaneDirect)
+			common.SetContextKey(c, constant.ContextKeyTokenGroup, model.ChannelLaneDirect)
+			common.SetContextKey(c, constant.ContextKeyTokenModelLimitEnabled, true)
+			common.SetContextKey(c, constant.ContextKeyTokenModelLimit, stringSet(tt.allowed))
+			ListModels(c, constant.ChannelTypeOpenAI)
+			var response dto.ModelCatalogResponse
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &response) != nil {
+				t.Fatalf("model discovery failed: %d %s", w.Code, w.Body.String())
+			}
+			var accessible []string
+			for _, item := range response.Data {
+				if item.Accessible != nil && *item.Accessible {
+					accessible = append(accessible, item.ID)
+				}
+			}
+			if !reflect.DeepEqual(accessible, tt.want) {
+				t.Fatalf("GET /v1/models accessible=%v want=%v", accessible, tt.want)
+			}
+		})
+	}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/v1/models/old-model", nil)
+	c.Params = gin.Params{{Key: "model", Value: "old-model"}}
+	c.Set("token_id", 1)
+	common.SetContextKey(c, constant.ContextKeyUsingGroup, model.ChannelLaneDirect)
+	common.SetContextKey(c, constant.ContextKeyTokenGroup, model.ChannelLaneDirect)
+	RetrieveModel(c, constant.ChannelTypeOpenAI)
+	var item dto.ModelCatalogItem
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &item) != nil || item.ID != "old-model" {
+		t.Fatalf("retrieve alias: %d %s", w.Code, w.Body.String())
+	}
+}

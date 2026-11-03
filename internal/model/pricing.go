@@ -535,6 +535,8 @@ func updatePricingFromCore() error {
 		}
 	}
 	setCatalogReasoningOptions(declaredEfforts)
+	replacements := catalogReplacementTargets(metaMap)
+	setCatalogReplacements(replacements)
 
 	modelNames := make([]string, 0, len(pricingMap))
 	for _, p := range pricingMap {
@@ -544,7 +546,7 @@ func updatePricingFromCore() error {
 		_ = EnsureModelMetadataForNames(modelNames)
 	}
 	if CoreDB().Dialector.Name() == "postgres" {
-		if err := publishCatalogSnapshot(declaredEfforts, revision); err != nil {
+		if err := publishCatalogSnapshot(declaredEfforts, replacements, revision); err != nil {
 			return err
 		}
 	}
