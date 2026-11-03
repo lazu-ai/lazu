@@ -395,7 +395,10 @@ copy(primaryPaperRaster, resolve(webPublicDir, "lazu-email-logo-paper.png"));
 copy(primaryPaperRaster, resolve(packagePngDir, "lazu-primary-paper-1280w.png"));
 
 // The share image is designed in social/lazu-og-1200x630.html and rendered to
-// PNG by hand (see that file); this script only distributes the committed PNG.
+// PNG by hand (see that file). After replacing it, set the new ?v= hash in
+// internal/publicsite OGImagePath, apps/web/scripts/generate-static-pages.mjs
+// and apps/docs/scripts/postbuild-geo.ts (TestShareImageVersion checks them).
+// This script only distributes the committed PNG.
 const ogRaster = resolve(socialDir, "lazu-og-1200x630.png");
 copy(ogRaster, resolve(webPublicDir, "og-image.png"));
 copy(ogRaster, resolve(packagePngDir, "lazu-og-1200x630.png"));
