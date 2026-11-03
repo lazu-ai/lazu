@@ -66,8 +66,12 @@ func SetEventStreamHeaders(c *gin.Context) {
 // ClaudeFrame writes one Messages stream event: the upstream's frame as it
 // came, with the answering model renamed to the one the client asked for.
 func ClaudeFrame(c *gin.Context, eventType string, frame []byte) {
+	if eventType == "message_start" {
+		// the only Messages event that names the model
+		frame = service.RestorePublicModel(c, frame)
+	}
 	c.Render(-1, CustomEvent{Data: fmt.Sprintf("event: %s\n", eventType)})
-	c.Render(-1, CustomEvent{Data: "data: " + string(service.RestorePublicModel(c, frame))})
+	c.Render(-1, CustomEvent{Data: "data: " + string(frame)})
 	_ = FlushWriter(c)
 }
 

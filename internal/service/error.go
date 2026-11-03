@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -45,6 +46,11 @@ func RelayErrorHandler(c *gin.Context, resp *http.Response, _ bool) (lazuErr *ty
 		detail["channel_type"] = channelType
 	}
 	reason := safeUpstreamErrorReason(responseBody)
+	if code == types.ErrorCodeContextLengthExceeded && !strings.HasPrefix(reason.Message, "prompt is too long") {
+		// classified by words the reason does not render ("sequence too
+		// long", "maximum context"): still said as Claude Code compacts on
+		reason = upstreamErrorReason{Message: ContextLengthMessage(""), Field: "messages"}
+	}
 	if reason.Field != "" {
 		detail["field"] = reason.Field
 	}

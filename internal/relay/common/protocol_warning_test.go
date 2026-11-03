@@ -2,6 +2,7 @@ package common
 
 import (
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -72,5 +73,14 @@ func TestRemovedFieldsAreWarned(t *testing.T) {
 	WarnFieldsDropped(c, &RelayInfo{ProtocolPlan: &textgen.RelayPlan{}}, removed)
 	if got := recorder.Header().Get(ProtocolWarningHeader); got != "field_dropped:speed" {
 		t.Fatalf("header = %q", got)
+	}
+}
+
+// The native Messages relay keeps top-level fields the DTO does not model,
+// Claude Code's diagnostics and output_format among them.
+func TestMergeKeepsClaudeCodeTopLevelFields(t *testing.T) {
+	merged, err := MergeUnknownTopLevelFields([]byte(`{"model":"m","diagnostics":{"cache":true},"output_format":{"type":"json_schema"}}`), []byte(`{"model":"m"}`))
+	if err != nil || !strings.Contains(string(merged), `"diagnostics":{"cache":true}`) || !strings.Contains(string(merged), `"output_format":{"type":"json_schema"}`) {
+		t.Fatalf("merged %s %v", merged, err)
 	}
 }

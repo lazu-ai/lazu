@@ -64,3 +64,20 @@ func TestClaudeStreamForwardsUpstreamFrames(t *testing.T) {
 		}
 	}
 }
+
+// A message_start without usage still gives the client a usage object.
+func TestClaudeStreamFillsMissingUsageObject(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	info := &relaycommon.RelayInfo{RelayFormat: types.RelayFormatClaude, ChannelMeta: &relaycommon.ChannelMeta{}}
+	state := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+	if err := HandleStreamResponseData(c, info, state, `{"type":"message_start","message":{"id":"msg_1","model":"m","usage":null}}`, RequestModeMessage); err != nil {
+		t.Fatal(err)
+	}
+	_, data, _ := strings.Cut(recorder.Body.String(), "data: ")
+	if usage := gjson.Get(data, "message.usage"); !usage.IsObject() || !usage.Get("input_tokens").Exists() || !usage.Get("output_tokens").Exists() {
+		t.Fatalf("usage = %s", data)
+	}
+}

@@ -83,6 +83,7 @@ func TestRelayErrorHandlerClaudeCodeActionableText(t *testing.T) {
 	}{
 		{"anthropic too long", `{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 205000 tokens > 200000 maximum"}}`, "prompt is too long: 205000 tokens > 200000 maximum", types.ErrorCodeContextLengthExceeded},
 		{"openai too long", `{"error":{"type":"invalid_request_error","message":"This model's maximum context length is 128000 tokens. However, your messages resulted in 130512 tokens. customer-message"}}`, "prompt is too long: 130512 tokens > 128000 maximum", types.ErrorCodeContextLengthExceeded},
+		{"other context wording", `{"error":{"message":"Invalid request: messages exceed maximum context customer-message"}}`, "prompt is too long", types.ErrorCodeContextLengthExceeded},
 		{"bedrock too long", `{"message":"Input is too long for requested model. customer-message"}`, "prompt is too long", types.ErrorCodeContextLengthExceeded},
 		{"extra input", `{"type":"error","error":{"type":"invalid_request_error","message":"context_management: Extra inputs are not permitted"}}`, "context_management: Extra inputs are not permitted", types.ErrorCodeBadRequestBody},
 		{"extra input with echo", `{"type":"error","error":{"type":"invalid_request_error","message":"customer-message: Extra inputs are not permitted https://private.example"}}`, "The request body is malformed", types.ErrorCodeBadRequestBody},
