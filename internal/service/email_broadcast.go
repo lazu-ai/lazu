@@ -182,7 +182,11 @@ func dispatchEmails(notice platformNotice, userIDs []int, sendAll bool, batchSiz
 		if err != nil {
 			return stats, err
 		}
-		return sendEmailsToRecipients(notice, recipients, run)
+		stats, err = sendEmailsToRecipients(notice, recipients, run)
+		if err == nil {
+			logBulkSendStats(notice, stats)
+		}
+		return stats, err
 	}
 
 	if !sendAll {
@@ -209,7 +213,20 @@ func dispatchEmails(notice platformNotice, userIDs []int, sendAll bool, batchSiz
 		offset += batchSize
 	}
 
+	logBulkSendStats(notice, stats)
 	return stats, nil
+}
+
+// logBulkSendStats records the outcome of a finished run. The routes that
+// start a run answer only when it ends, which at the paced rate can be long
+// after a client or proxy gave up waiting; the log keeps the result.
+func logBulkSendStats(notice platformNotice, stats EmailSendStats) {
+	line := fmt.Sprintf("bulk email %q: attempted %d, sent %d, failed %d, skipped %d, unsent %d",
+		notice.Title, stats.Attempted, stats.Sent, stats.Failed, stats.Skipped, stats.Unsent)
+	if stats.Stopped != "" {
+		line += ", stopped: " + stats.Stopped
+	}
+	common.SysLog(line)
 }
 
 func sendEmailsToRecipients(notice platformNotice, recipients []emailRecipient, run *bulkMailRun) (EmailSendStats, error) {
