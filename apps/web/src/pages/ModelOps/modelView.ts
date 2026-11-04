@@ -11,6 +11,8 @@ import {
   indexSellPrices,
   LANE_ORDER,
   laneHasAnyPrice,
+  laneTitle,
+  type LaneNames,
 } from './formatters';
 import {
   normalizeLaneSlug,
@@ -82,6 +84,7 @@ export const laneOfRecord = (
 
 export function buildModelViews({
   poolsLoading,
+  laneNames = {},
   lanes,
   pools,
   records,
@@ -93,6 +96,8 @@ export function buildModelViews({
   /** Registered lane slugs. Defaults to the two builtins so a caller that has
    *  not loaded the registry yet still renders. */
   lanes?: string[];
+  /** Names from 线路设置, so a block reason names the lane as the page does. */
+  laneNames?: LaneNames;
   pools: ModelOpsPools;
   poolsLoading: boolean;
   records: ModelRecord[];
@@ -136,13 +141,10 @@ export function buildModelViews({
         (entry) => entry.enabled && entry.channel_status === 1,
       )
     ) {
-      blockReason = hasDirectPrice
-        ? t(`${ns}.models.blockedNoStablePool`, {
-            defaultValue: '稳定档没有已启用的来源，当前无法路由请求',
-          })
-        : t(`${ns}.models.blockedNoCheapPool`, {
-            defaultValue: 'Agent 专线没有已启用的来源，当前无法路由请求',
-          });
+      blockReason = t(`${ns}.models.blockedNoLanePool`, {
+        defaultValue: '{{lane}}没有已启用的来源，当前无法路由请求',
+        lane: laneTitle(hasDirectPrice ? 'direct' : 'cheap', laneNames, t),
+      });
     }
 
     return {

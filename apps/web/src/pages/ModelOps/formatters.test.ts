@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { formatRate, poolCostBasis } from './formatters';
+import {
+  formatRate,
+  laneNamesOf,
+  laneShortName,
+  laneTitle,
+  poolCostBasis,
+} from './formatters';
 import type { ModelOpsPoolEntry } from '../../hooks/models/useModelOpsQuery';
+import type { TFunction } from 'i18next';
 
 const entry = (
   weight: number,
@@ -73,5 +80,32 @@ describe('formatRate', () => {
     expect(formatRate(0.9997)).toBe('100.0%');
     expect(formatRate(0.155)).toBe('15.5%');
     expect(formatRate(null)).toBe('—');
+  });
+});
+
+describe('lane names', () => {
+  // Echoes defaultValue with {{name}} filled, as i18next does for a missing key.
+  const t = ((_key: string, options: { defaultValue: string; name?: string }) =>
+    options.defaultValue.replace('{{name}}', options.name ?? '')) as TFunction;
+  const names = laneNamesOf([
+    { slug: 'direct', name: '稳定' },
+    { slug: 'cheap', name: 'Agent 专线' },
+    { slug: 'blank', name: '  ' },
+  ]);
+
+  it('titles a lane from 线路设置 without doubling 线路', () => {
+    expect(laneTitle('direct', names, t)).toBe('稳定线路');
+    expect(laneTitle('cheap', names, t)).toBe('Agent 专线');
+  });
+
+  it('falls back to the builtin copy before the registry loads', () => {
+    expect(laneTitle('direct', {}, t)).toBe('稳定线路');
+    expect(laneTitle('cheap', {}, t)).toBe('Agent 专线');
+    expect(laneTitle('blank', names, t)).toBe('blank线路');
+    expect(laneShortName('cheap', {}, t)).toBe('Agent');
+  });
+
+  it('labels a lane row with the registry name alone', () => {
+    expect(laneShortName('cheap', names, t)).toBe('Agent 专线');
   });
 });

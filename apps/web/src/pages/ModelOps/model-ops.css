@@ -655,17 +655,6 @@
   margin-left: auto;
 }
 
-.mo-lanes {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.mo-lanes .mo-lanes__row {
-  gap: 10px;
-  justify-content: flex-start;
-}
-
 .mo-ledger__row > span.mo-rowbtns {
   align-items: center;
   display: flex;
