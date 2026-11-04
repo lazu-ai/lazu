@@ -7,7 +7,7 @@ import { expectRouteReady, setupMockedApp, fail } from './helpers/mock-app';
    their assertion strength: the key-reveal path, the filter query state and the
    admin-only guard all still have to hold. */
 
-test('模型 tab renders tiers, pool health and 30-day revenue from real fields', async ({
+test('模型 tab renders both lanes and pooled source health from real fields', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -23,11 +23,10 @@ test('模型 tab renders tiers, pool health and 30-day revenue from real fields'
   // Both lane prices remain visible in the approved compact table.
   await expect(row).toContainText('0.15 / 0.6');
   await expect(page.getByRole('columnheader', { name: /稳定/ })).toBeVisible();
-  await expect(page.getByRole('columnheader', { name: /便宜/ })).toBeVisible();
+  await expect(
+    page.getByRole('columnheader', { name: 'Agent 专线' }),
+  ).toBeVisible();
   await expect(row).toContainText('0.09 / 0.36');
-
-  // 30 日 comes from the exact-page spend endpoint (208.11 USD = 208_110_000 µUSD).
-  await expect(row).toContainText('$208.11');
 
   // Route health is now aggregated from source records; absent observations
   // remain unknown rather than labelling a source abnormal.
@@ -41,16 +40,14 @@ test('模型 tab renders tiers, pool health and 30-day revenue from real fields'
     }),
   ).toBeVisible();
 
-  // Both tiers are still priced; the second one lives in the row expander,
-  // together with the description the row no longer repeats.
-  await row.getByRole('button', { name: '编辑' }).click();
-  await page
-    .locator('.mo-inspector')
-    .getByRole('tab', { name: '定价', exact: true })
-    .click();
-  const expanded = page.locator('.mo-inspector');
-  await expect(expanded).toContainText('稳定');
-  await expect(expanded).toContainText('便宜');
+  // The row opens the model's dialog on 定价与来源, with both lanes priced.
+  await row.locator('.mo-name').first().click();
+  const expanded = page.getByRole('dialog');
+  await expect(
+    expanded.getByRole('tab', { name: '定价与来源', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true');
+  await expect(expanded).toContainText('稳定档');
+  await expect(expanded).toContainText('便宜档');
 
   await app.expectNoUnexpectedErrors();
 });
@@ -87,7 +84,7 @@ test('上架 toggle is disabled when the priced stable tier has no enabled sourc
     .locator('.mo-ledger__row', { hasText: 'priced-without-stable-pool' })
     .first();
   await expect(row.getByRole('switch')).toHaveAccessibleName(
-    '稳定档没有已启用的来源，当前无法路由请求',
+    '稳定线路没有已启用的来源，当前无法路由请求',
   );
   await expect(row.getByRole('switch')).toBeDisabled();
 
@@ -105,25 +102,22 @@ test('expanding a model reveals both tier cards with their pools and weights', a
   const row = page
     .locator('.mo-ledger__row', { hasText: 'gpt-4o-mini' })
     .first();
-  await row.getByRole('button', { name: '编辑' }).click();
-  await page
-    .locator('.mo-inspector')
-    .getByRole('tab', { name: '定价', exact: true })
-    .click();
+  await row.locator('.mo-name').first().click();
 
-  const expanded = page.locator('.mo-inspector');
+  const expanded = page.getByRole('dialog');
   await expect(expanded).toBeVisible();
-  await expect(expanded).toContainText('稳定档');
-  await expect(expanded).toContainText('便宜档');
-  // Cost basis exists for this pool, so a margin is shown instead of "—".
-  await expect(expanded).toContainText('综合成本');
-  // Both tiers have cost rows, so both show a real margin rather than "—".
-  await expect(expanded.getByText('毛利估算')).toHaveCount(2);
+  const stable = expanded.getByRole('row', { name: /稳定档/ });
+  const cheap = expanded.getByRole('row', { name: /便宜档/ });
+  // Cost basis exists for both pools, so each shows a real margin, not "—".
   // Matches the router's weight+10 smoothing: 0.11 @ 80 and 0.62 @ 15.
-  await expect(expanded).toContainText('综合成本 $0.1905 / $0.7495');
-  // Pool-local weights are editable per source.
+  await expect(stable).toContainText('$0.1905');
+  await expect(stable).toContainText('-25.3%');
+  await expect(cheap).toContainText('$0.06');
+  await expect(cheap).toContainText('33.3%');
+  // Pool-local weights are editable per source, behind the source count.
+  await stable.getByRole('button', { name: '2 个来源' }).click();
   await expect(
-    expanded.getByLabel('OpenAI smoke channel 在本档位的权重'),
+    expanded.getByLabel('OpenAI smoke channel 在本线路的权重'),
   ).toHaveValue('70');
 
   await app.expectNoUnexpectedErrors();
@@ -152,23 +146,16 @@ test('saving both tiers sends one atomic row request', async ({ page }) => {
   const row = page
     .locator('.mo-ledger__row', { hasText: 'gpt-4o-mini' })
     .first();
-  await row.getByRole('button', { name: '编辑' }).click();
-  await page
-    .locator('.mo-inspector')
-    .getByRole('tab', { name: '定价', exact: true })
-    .click();
-  const expanded = page.locator('.mo-inspector');
-  await expanded.getByLabel('OpenAI smoke channel 在本档位的权重').fill('71');
-  await expanded.getByLabel('Budget smoke channel 在本档位的权重').fill('31');
-  await expanded
-    .getByRole('button', { name: '保存档位配置', exact: true })
-    .click();
+  await row.locator('.mo-name').first().click();
+  const expanded = page.getByRole('dialog');
+  await expanded.getByRole('button', { name: '2 个来源' }).click();
+  await expanded.getByRole('button', { name: '1 个来源' }).click();
+  await expanded.getByLabel('OpenAI smoke channel 在本线路的权重').fill('71');
+  await expanded.getByLabel('Budget smoke channel 在本线路的权重').fill('31');
+  await expanded.getByRole('button', { name: '保存', exact: true }).click();
 
   expect(requests).toHaveLength(0);
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: '确认保存' })
-    .click();
+  await page.getByRole('button', { name: '确认保存' }).click();
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0].pathname).toBe('/api/model_ops/models/tier_config');
   expect(requests[0].payload).toMatchObject({
@@ -555,36 +542,31 @@ test('inspector tabs have keyboard navigation and ledger rows stay one line on m
   await expectRouteReady(page, '/console/model-ops');
   await page
     .locator('.mo-ledger__row', { hasText: 'gpt-4o-mini' })
-    .getByRole('button', { name: '编辑' })
+    .locator('.mo-name')
+    .first()
     .click();
-  const info = page
-    .locator('.mo-inspector')
-    .getByRole('tab', { name: '信息', exact: true });
+  const dialog = page.getByRole('dialog');
+  const info = dialog.getByRole('tab', { name: '资料', exact: true });
   await info.focus();
-  // 定价 · 资料 · 信息 · 折扣: left of 信息 is the models.dev facts page.
+  // 定价与来源 · 资料: left of 资料 is the pricing page.
   await page.keyboard.press('ArrowLeft');
-  await expect(
-    page
-      .locator('.mo-inspector')
-      .getByRole('tab', { name: '资料', exact: true }),
-  ).toBeFocused();
+  const pricing = dialog.getByRole('tab', { name: '定价与来源', exact: true });
+  await expect(pricing).toBeFocused();
+  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
-  await expect(
-    page.locator('.mo-inspector').getByRole('tabpanel'),
-  ).toBeVisible();
+  await expect(info).toHaveAttribute('aria-selected', 'true');
   await page.screenshot({
     path: '../../.local-results/screenshots/model-ops-feedback/inspector.png',
     fullPage: true,
   });
+  // On a phone the dialog takes the whole screen rather than overflowing it.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect
-    .poll(async () => (await page.locator('.mo-inspector').boundingBox())?.y)
-    .toBe(56);
+    .poll(async () => (await dialog.boundingBox())?.width)
+    .toBeLessThanOrEqual(390);
   await expect
-    .poll(
-      async () => (await page.locator('.mo-inspector').boundingBox())?.height,
-    )
-    .toBeLessThan(750);
+    .poll(async () => (await dialog.boundingBox())?.height)
+    .toBeLessThanOrEqual(844);
   await page.screenshot({
     path: '../../.local-results/screenshots/model-ops-feedback/inspector-mobile.png',
     fullPage: true,
