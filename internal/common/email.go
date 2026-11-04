@@ -68,6 +68,10 @@ type MailMeta struct {
 	// NotAnAlert keeps an ops mail away from chat sinks: the test mail checks
 	// mail delivery, not the alert channels.
 	NotAnAlert bool
+	// RateLimitRetries is how many more times a send refused for the
+	// transport's rate limit (not its quota) is tried, with backoff. Zero
+	// tries once. The archive records only the final outcome.
+	RateLimitRetries int
 }
 
 // MailRecord is what the archive receives after every send attempt.
@@ -87,7 +91,11 @@ var MailRecorder func(MailRecord)
 // SendMail sends one mail with its archive metadata and optional headers.
 func SendMail(meta MailMeta, subject string, receiver string, content string) error {
 	meta.Headers = withReplyTo(meta.Headers, meta.ReplyTo)
-	providerID, err := sendEmail(subject, receiver, content, nil, meta.Headers)
+	providerID, err := mailTransport(subject, receiver, content, nil, meta.Headers)
+	for attempt := 0; attempt < meta.RateLimitRetries && errors.Is(err, ErrMailRateLimited); attempt++ {
+		mailRetrySleep(mailRetryDelay(attempt, err))
+		providerID, err = mailTransport(subject, receiver, content, nil, meta.Headers)
+	}
 	if meta.Kind == "" {
 		meta.Kind = MailKindOther
 	}
@@ -128,13 +136,18 @@ func EmailTransportConfigured() bool {
 		strings.TrimSpace(SMTPToken) != ""
 }
 
+// mailTransport is the one call that hands a mail to the transport; tests
+// replace it.
+var mailTransport = sendEmail
+
 func sendEmail(subject string, receiver string, content string, attachments []EmailAttachment, headers map[string]string) (string, error) {
 	// Prefer the Resend API
 	if AppConfig.Resend.APIKey != "" {
-		return sendEmailViaResend(subject, receiver, content, attachments, headers)
+		providerID, err := sendEmailViaResend(subject, receiver, content, attachments, headers)
+		return providerID, classifyMailError(err)
 	}
 	// Fall back to SMTP (attachments not supported for SMTP fallback)
-	return "", sendEmailViaSMTP(subject, receiver, content, headers)
+	return "", classifyMailError(sendEmailViaSMTP(subject, receiver, content, headers))
 }
 
 // ResendEmailStatus reads the last delivery event Resend recorded for a mail

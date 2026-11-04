@@ -115,6 +115,12 @@ email_notifications:
   from_name: Lazu
   # Max emails per broadcast batch; tune to stay under provider throughput limits
   batch_size: 200
+  # Broadcast and announcement mails handed to the transport per second,
+  # across all bulk sends in one process. Keep it under the transport's own
+  # per-second limit so sign-in codes and resets sent meanwhile get through.
+  # A send refused for that limit is retried with backoff; one refused for an
+  # exhausted daily or monthly quota stops the run.
+  bulk_send_rate_per_second: 5
   # Operational alerts (disk, error rate, payment documents, backups) go here.
   admin_email: "${ADMIN_EMAIL}"
   # Mail when an operator adjusts a balance or completes a top-up by hand.

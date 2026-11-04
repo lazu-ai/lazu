@@ -96,6 +96,9 @@ type AppConfigStruct struct {
 		AdminEmail    string                `yaml:"admin_email"`
 		BalanceChange EmailSwitchConfig     `yaml:"balance_change"`
 		LowBalance    LowBalanceEmailConfig `yaml:"low_balance"`
+		// BulkSendRatePerSecond caps how many broadcast mails are handed to
+		// the transport per second.
+		BulkSendRatePerSecond float64 `yaml:"bulk_send_rate_per_second"`
 	} `yaml:"email_notifications"`
 
 	// Site names this deployment: where its web console and gateway are
@@ -318,6 +321,7 @@ func defaultConfig() AppConfigStruct {
 	// Email notifications defaults
 	c.EmailNotifications.FromName = "Lazu"
 	c.EmailNotifications.BatchSize = 200
+	c.EmailNotifications.BulkSendRatePerSecond = 5
 	c.EmailNotifications.BalanceChange = EmailSwitchConfig{Enable: true}
 	c.EmailNotifications.LowBalance = LowBalanceEmailConfig{
 		Enable:       true,
@@ -665,6 +669,11 @@ func loadConfigFile(found string) {
 			AppConfig.EmailNotifications.BatchSize = v
 		} else if vFloat, ok := section["batch_size"].(float64); ok && vFloat > 0 {
 			AppConfig.EmailNotifications.BatchSize = int(vFloat)
+		}
+		if v, ok := section["bulk_send_rate_per_second"].(float64); ok && v > 0 {
+			AppConfig.EmailNotifications.BulkSendRatePerSecond = v
+		} else if vInt, ok := section["bulk_send_rate_per_second"].(int); ok && vInt > 0 {
+			AppConfig.EmailNotifications.BulkSendRatePerSecond = float64(vInt)
 		}
 		if v, ok := section["admin_email"].(string); ok && v != "" {
 			AppConfig.EmailNotifications.AdminEmail = v
