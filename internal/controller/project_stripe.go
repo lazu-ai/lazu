@@ -120,11 +120,11 @@ func requestProjectStripePay(c *gin.Context, req *StripePayRequest) {
 	priceParams := &stripe.PriceParams{}
 	priceParams.Context = c.Request.Context()
 	price, err := api.Prices.Get(order.StripePriceID, priceParams)
-	if err != nil || price.Currency != stripe.CurrencyUSD || price.UnitAmount != 100 || price.Recurring != nil {
+	if err != nil || price.Currency != stripe.CurrencyUSD || price.UnitAmount != 100 || price.Recurring != nil || price.Product == nil || price.Product.ID == "" {
 		projectPaymentUnavailable(c, order)
 		return
 	}
-	params := projectCheckoutParams(pc.Project, order, customerID, req.Surface)
+	params := projectCheckoutParams(pc.Project, order, customerID, req.Surface, price.Product.ID)
 	params.Context = c.Request.Context()
 	result, err := api.CheckoutSessions.New(params)
 	if err != nil {
@@ -208,7 +208,11 @@ func projectCheckoutReturnURLs(project model.Project, order model.TopUp, surface
 		base + "/console/wallet?project_id=" + project.PublicID
 }
 
-func projectCheckoutParams(project model.Project, order model.TopUp, customerID string, surface string) *stripe.CheckoutSessionParams {
+// projectCheckoutParams charges the order as one line of its whole amount, so
+// Checkout, the receipt and the invoice show the total rather than a count of
+// one-dollar units. The line keeps the configured price's product, whose name
+// and description are what the payer sees.
+func projectCheckoutParams(project model.Project, order model.TopUp, customerID string, surface string, productID string) *stripe.CheckoutSessionParams {
 	metadata := map[string]string{"lazu_top_up_reference": order.TradeNo, "lazu_project_id": project.PublicID}
 	shared := project.UpgradedAt != nil // Existing pending orders predate the snapshot column.
 	if order.StripeProjectShared != nil {
@@ -225,9 +229,11 @@ func projectCheckoutParams(project model.Project, order model.TopUp, customerID 
 	successURL, cancelURL := projectCheckoutReturnURLs(project, order, surface)
 	params := &stripe.CheckoutSessionParams{
 		ClientReferenceID: stripe.String(order.TradeNo), Customer: stripe.String(customerID), Mode: stripe.String("payment"),
-		SuccessURL:               stripe.String(successURL),
-		CancelURL:                stripe.String(cancelURL),
-		LineItems:                []*stripe.CheckoutSessionLineItemParams{{Price: stripe.String(order.StripePriceID), Quantity: stripe.Int64(order.Amount)}},
+		SuccessURL: stripe.String(successURL),
+		CancelURL:  stripe.String(cancelURL),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{{Quantity: stripe.Int64(1), PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+			Currency: stripe.String(string(stripe.CurrencyUSD)), Product: stripe.String(productID), UnitAmount: stripe.Int64(order.Amount * 100),
+		}}},
 		AllowPromotionCodes:      stripe.Bool(order.StripePromotionCodes),
 		BillingAddressCollection: stripe.String("auto"), Metadata: metadata,
 		InvoiceCreation:   &stripe.CheckoutSessionInvoiceCreationParams{Enabled: stripe.Bool(true), InvoiceData: &stripe.CheckoutSessionInvoiceCreationInvoiceDataParams{Metadata: metadata, Description: stripe.String(invoiceDescription)}},
