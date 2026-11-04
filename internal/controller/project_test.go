@@ -552,7 +552,7 @@ func TestProjectCheckoutOwnerAndAdminBillingBoundaries(t *testing.T) {
 	project := model.Project{ID: 1, PublicID: "prj_checkout", OwnerUserID: 11, StripeCustomerID: "cus_project"}
 	personal := false
 	order := model.TopUp{StripeProjectName: "Original project", StripeProjectShared: &personal, PublicID: "top_checkout", TradeNo: "ref_checkout", PaidByUserID: 12, Amount: 25, StripePriceID: "price_original", StripeReturnBase: "https://example.com", StripePromotionCodes: true}
-	admin := projectCheckoutParams(project, order, "cus_project", "")
+	admin := projectCheckoutParams(project, order, "cus_project", "", "prod_credit")
 	if *admin.Customer != "cus_project" || *admin.CustomerUpdate.Name != "never" || *admin.CustomerUpdate.Address != "never" || admin.TaxIDCollection != nil {
 		t.Fatal("admin checkout can overwrite saved project billing details")
 	}
@@ -574,22 +574,26 @@ func TestProjectCheckoutOwnerAndAdminBillingBoundaries(t *testing.T) {
 	if got := *admin.CancelURL; got != "https://example.com/console/wallet?project_id=prj_checkout" {
 		t.Fatalf("cancelled checkout should return to wallet: %s", got)
 	}
-	if *admin.LineItems[0].Price != "price_original" || *admin.LineItems[0].Quantity != 25 || admin.IdempotencyKey == nil {
+	if len(admin.LineItems) != 1 || admin.IdempotencyKey == nil {
 		t.Fatal("checkout retry lost original order terms")
 	}
+	line := admin.LineItems[0]
+	if line.Price != nil || line.PriceData == nil || *line.Quantity != 1 || *line.PriceData.Currency != "usd" || *line.PriceData.Product != "prod_credit" || *line.PriceData.UnitAmount != 2500 {
+		t.Fatal("checkout must charge the order as one line of its whole amount on the configured product")
+	}
 	project.Name = "Renamed after timeout"
-	if replay := projectCheckoutParams(project, order, "cus_project", ""); *replay.InvoiceCreation.InvoiceData.Description != *admin.InvoiceCreation.InvoiceData.Description {
+	if replay := projectCheckoutParams(project, order, "cus_project", "", "prod_credit"); *replay.InvoiceCreation.InvoiceData.Description != *admin.InvoiceCreation.InvoiceData.Description {
 		t.Fatal("rename changed Stripe idempotency parameters")
 	}
 	at := time.Now().Unix()
 	project.UpgradedAt = &at
-	if replay := projectCheckoutParams(project, order, "cus_project", ""); *replay.InvoiceCreation.InvoiceData.Description != *admin.InvoiceCreation.InvoiceData.Description {
+	if replay := projectCheckoutParams(project, order, "cus_project", "", "prod_credit"); *replay.InvoiceCreation.InvoiceData.Description != *admin.InvoiceCreation.InvoiceData.Description {
 		t.Fatal("project upgrade changed Stripe idempotency parameters")
 	}
 	order.PaidByUserID = 11
 	shared := true
 	order.StripeProjectShared = &shared
-	owner := projectCheckoutParams(project, order, "cus_project", "")
+	owner := projectCheckoutParams(project, order, "cus_project", "", "prod_credit")
 	if *owner.CustomerUpdate.Name != "auto" || *owner.CustomerUpdate.Address != "auto" || owner.TaxIDCollection == nil || !*owner.TaxIDCollection.Enabled {
 		t.Fatal("owner cannot set project billing details")
 	}
