@@ -6,7 +6,7 @@ import LanesDialog from './LanesDialog';
 import ModelOpsNav from './ModelOpsNav';
 import { ObservationDialog } from './ObservationDialog';
 import SourceForm, { type SourceStep } from './SourceForm';
-import SourceLedger from './SourceLedger';
+import SourceLedger, { sourceTypeName } from './SourceLedger';
 import SourceTypeBadge from './SourceTypeBadge';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -47,8 +47,12 @@ export default function SourcesPage() {
   const ops = useModelOpsMutations(t);
 
   const [keyword, setKeyword] = useState('');
-  /* One row of chips: all, a lane, watched, or failing. */
-  const [view, setView] = useState('all');
+  /* Two filters that combine: which lane (a segmented switch, one at a
+     time) and which state (watched or failing, a toggle each). */
+  const [laneView, setLaneView] = useState<string | null>(null);
+  const [statusView, setStatusView] = useState<'bad' | 'observing' | null>(
+    null,
+  );
   /* Lanes are user-managed now, so every list of them comes from the registry:
      a hard-coded pair would hide whatever an operator added. */
   const lanesQuery = useChannelLanesQuery();
@@ -83,17 +87,17 @@ export default function SourcesPage() {
           `${source.name} ${source.endpoint} ${source.type_name} ${(source.model_names || []).join(' ')}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
-      if (view === 'observing') return Boolean(source.observation);
-      if (view === 'bad') {
+      if (laneView && source.lane !== laneView) return false;
+      if (statusView === 'observing') return Boolean(source.observation);
+      if (statusView === 'bad') {
         return (
           source.status !== 2 &&
           healthTone(source.health, source.status) === 'bad'
         );
       }
-      if (view.startsWith('lane:')) return source.lane === view.slice(5);
       return true;
     });
-  }, [keyword, sources, view]);
+  }, [keyword, laneView, sources, statusView]);
 
   const selectedIndex = rows.findIndex(
     (source) => String(source.id) === selectedId,
@@ -114,6 +118,10 @@ export default function SourcesPage() {
           source.status !== 2 &&
           healthTone(source.health, source.status) === 'bad',
       ).length,
+      lanes: sources.reduce<Record<string, number>>((counts, source) => {
+        if (source.lane) counts[source.lane] = (counts[source.lane] ?? 0) + 1;
+        return counts;
+      }, {}),
       observing: sources.filter((source) => source.observation).length,
     }),
     [sources],
@@ -154,12 +162,11 @@ export default function SourcesPage() {
   return (
     <ConsolePage
       appearance='review'
-      className='model-ops-page--compact'
+      className='model-ops-page--compact mo-sources-page'
       title={t(`${ns}.title`, { defaultValue: '模型运营' })}
       tabs={<ModelOpsNav t={t} />}
       actions={
         <>
-          <LanesDialog t={t} />
           <Button
             loading={ops.testAllSourcesMutation.isPending}
             size='sm'
@@ -196,60 +203,96 @@ export default function SourcesPage() {
             onChange={(event) => setKeyword(event.target.value)}
           />
         </span>
-        <div
-          aria-label={t(`${ns}.sources.view`, { defaultValue: '视图' })}
-          className='mo-chips'
-          role='group'
-        >
-          {(
-            [
-              ['all', t(`${ns}.sources.all`, { defaultValue: '全部' }), null],
-              ...lanes.map(
-                (lane) =>
-                  [
-                    `lane:${lane.slug}`,
-                    t(`${ns}.price.laneName`, {
-                      defaultValue: '{{name}}线路',
-                      name: lane.name,
-                    }),
-                    null,
-                  ] as const,
-              ),
-              ...(tally.observing
-                ? [
-                    [
-                      'observing',
-                      t(`${ns}.sources.statusObserving`, {
-                        defaultValue: '观察中',
-                      }),
-                      tally.observing,
-                    ] as const,
-                  ]
-                : []),
-              ...(tally.bad
-                ? [
-                    [
-                      'bad',
-                      t(`${ns}.sources.statusBad`, { defaultValue: '异常' }),
-                      tally.bad,
-                    ] as const,
-                  ]
-                : []),
-            ] as Array<readonly [string, string, number | null]>
-          ).map(([key, label, count]) => (
+        <div className='mo-toolbar__lanes'>
+          <div
+            aria-label={t(`${ns}.sources.laneFilter`, {
+              defaultValue: '线路',
+            })}
+            className='mo-chips'
+            role='group'
+          >
             <Button
-              aria-pressed={view === key}
-              className={`mo-chip${view === key ? ' is-on' : ''}`}
-              key={key}
+              aria-pressed={laneView === null}
+              className={`mo-chip${laneView === null ? ' is-on' : ''}`}
               size='sm'
               variant='secondary'
-              onClick={() => setView(key)}
+              onClick={() => setLaneView(null)}
             >
-              {label}
-              {count ? <span className='mo-chip__n'>{count}</span> : null}
+              {t(`${ns}.sources.allLanes`, { defaultValue: '全部线路' })}
             </Button>
-          ))}
+            {lanes.map((lane) => (
+              <Button
+                aria-pressed={laneView === lane.slug}
+                className={`mo-chip${laneView === lane.slug ? ' is-on' : ''}`}
+                key={lane.slug}
+                size='sm'
+                variant='secondary'
+                onClick={() =>
+                  setLaneView(laneView === lane.slug ? null : lane.slug)
+                }
+              >
+                <span
+                  aria-hidden='true'
+                  className={`mo-dot mo-dot--lane-${lane.color || 'info'}`}
+                />
+                {lane.name}
+                <span className='mo-chip__n'>
+                  {tally.lanes[lane.slug] ?? 0}
+                </span>
+              </Button>
+            ))}
+          </div>
+          <LanesDialog t={t} trigger='icon' />
         </div>
+        {tally.observing || tally.bad ? (
+          <>
+            <span aria-hidden='true' className='mo-toolbar__rule' />
+            <div
+              aria-label={t(`${ns}.sources.statusFilter`, {
+                defaultValue: '状态',
+              })}
+              className='mo-pills'
+              role='group'
+            >
+              {(
+                [
+                  [
+                    'observing',
+                    t(`${ns}.sources.statusObserving`, {
+                      defaultValue: '观察中',
+                    }),
+                    tally.observing,
+                  ],
+                  [
+                    'bad',
+                    t(`${ns}.sources.statusBad`, { defaultValue: '异常' }),
+                    tally.bad,
+                  ],
+                ] as const
+              )
+                .filter(([, , count]) => count > 0)
+                .map(([key, label, count]) => (
+                  <Button
+                    aria-pressed={statusView === key}
+                    className={`mo-pill${statusView === key ? ' is-on' : ''}`}
+                    key={key}
+                    size='sm'
+                    variant='secondary'
+                    onClick={() =>
+                      setStatusView(statusView === key ? null : key)
+                    }
+                  >
+                    {label}
+                    <span
+                      className={`mo-pill__n${key === 'bad' ? ' is-bad' : ''}`}
+                    >
+                      {count}
+                    </span>
+                  </Button>
+                ))}
+            </div>
+          </>
+        ) : null}
       </div>
 
       <>
@@ -290,7 +333,6 @@ export default function SourcesPage() {
           </div>
         ) : (
           <SourceLedger
-            narrow={false}
             selectedId={creating ? null : selectedId}
             sources={rows}
             t={t}
@@ -330,6 +372,7 @@ export default function SourcesPage() {
                   <>
                     <span className='mo-name'>{selected?.name}</span>
                     <SourceTypeBadge
+                      hint={false}
                       t={t}
                       value={selected?.source_type || 'unclassified'}
                     />
@@ -350,7 +393,7 @@ export default function SourcesPage() {
               {!creating ? (
                 <div className='mo-sub'>
                   {[
-                    selected?.type_name,
+                    selected ? sourceTypeName(selected, t) : null,
                     selected?.key_fingerprint
                       ? t(`${ns}.sources.credential`, {
                           defaultValue: '凭据 #{{fingerprint}}',

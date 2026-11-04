@@ -17,9 +17,12 @@ export const sourceTypeLabel = (value: ModelOpsSourceType, t: TFunction) =>
 /** 来源类型 badge. Carries a text label, never colour alone — the four types are
  *  a taxonomy an operator has to read, not a severity. */
 export default function SourceTypeBadge({
+  hint = true,
   t,
   value,
 }: {
+  /** false where the badge already sits in the editor the hint points to. */
+  hint?: boolean;
   t: TFunction;
   value: ModelOpsSourceType;
 }) {
@@ -28,7 +31,7 @@ export default function SourceTypeBadge({
     <span
       className={`model-ops__srctype model-ops__srctype--${known}`}
       title={
-        known === 'unclassified'
+        hint && known === 'unclassified'
           ? t(`${ns}.unclassifiedHint`, {
               defaultValue:
                 '尚未分类。系统不会替你猜来源类型，请在编辑里指定。',

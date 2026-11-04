@@ -80,7 +80,7 @@ export const formatLatency = (ms: number | null | undefined) => {
 
 export const formatRate = (rate: number | null | undefined) => {
   if (rate === null || rate === undefined || !Number.isFinite(rate)) return '—';
-  return `${(rate * 100).toFixed(rate >= 0.999 ? 2 : 1)}%`;
+  return `${(rate * 100).toFixed(1)}%`;
 };
 
 /** A lane is on sale when an active sell-price row carries any price at all. */

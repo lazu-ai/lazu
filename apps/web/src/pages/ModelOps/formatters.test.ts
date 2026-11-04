@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { poolCostBasis } from './formatters';
+import { formatRate, poolCostBasis } from './formatters';
 import type { ModelOpsPoolEntry } from '../../hooks/models/useModelOpsQuery';
 
 const entry = (
@@ -63,5 +63,15 @@ describe('poolCostBasis', () => {
       disabled,
     ]);
     expect(result.input).toBe(1);
+  });
+});
+
+describe('formatRate', () => {
+  it('prints every rate with one decimal, so a column lines up', () => {
+    expect(formatRate(0.931)).toBe('93.1%');
+    expect(formatRate(1)).toBe('100.0%');
+    expect(formatRate(0.9997)).toBe('100.0%');
+    expect(formatRate(0.155)).toBe('15.5%');
+    expect(formatRate(null)).toBe('—');
   });
 });

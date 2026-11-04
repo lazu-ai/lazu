@@ -1352,3 +1352,385 @@ body:has(.console-review)
   gap: 5px;
   white-space: nowrap;
 }
+
+/* ---- source cards ------------------------------------------------------
+   来源 is a list of cards, not a table (canvas 1C): the name and its type
+   share one column that takes whatever the record and the cost leave, so
+   no width of window ever squeezes the name out. */
+.mo-cards {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mo-card {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 10px;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: grid;
+  gap: 0 16px;
+  grid-template-columns:
+    36px minmax(240px, 1.2fr) minmax(260px, 1fr) 130px var(
+      --mo-card-state,
+      112px
+    )
+    40px;
+  min-height: 78px;
+  padding: 12px 14px 12px 16px;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.mo-card:hover {
+  border-color: var(--lazu-border-strong);
+}
+
+.mo-card.is-selected {
+  background: var(--lazu-surface-selected);
+}
+
+.mo-card:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+/* Being watched before it goes live: a warm rule down the left edge,
+   drawn inside the border so the card keeps its size (canvas 2D). */
+.mo-card.is-observing {
+  box-shadow: inset 3px 0 0 var(--lazu-warning);
+}
+
+.mo-card.is-observing:focus-visible {
+  box-shadow:
+    inset 3px 0 0 var(--lazu-warning),
+    var(--ui-focus-ring);
+}
+
+.mo-card.is-undo-pending {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.mo-card.is-undo-pending .mo-card__name {
+  text-decoration: line-through;
+}
+
+.mo-card__logo {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.mo-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mo-card__title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mo-card__name {
+  font-family: var(--lazu-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mo-card__watch {
+  background: var(--lazu-warning-soft);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-warning-strong);
+  flex: none;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.mo-card__meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mo-card__meta .model-ops__srctype {
+  flex: none;
+  font-weight: 500;
+  padding: 1px 7px;
+}
+
+.mo-card__meta .model-ops__srctype--unclassified {
+  padding: 0 6px;
+}
+
+.mo-card__lane {
+  align-items: center;
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-pill);
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  flex: none;
+  font-size: 11.5px;
+  gap: 5px;
+  padding: 0 7px 0 5px;
+  white-space: nowrap;
+}
+
+.mo-card__lane .mo-dot {
+  height: 6px;
+  width: 6px;
+}
+
+.mo-card__sub {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mo-card__sub .mo-obs-link {
+  font-size: 12px;
+}
+
+.mo-card__progress {
+  align-items: center;
+  color: var(--lazu-text-faint);
+  display: inline-flex;
+  flex: none;
+  font-size: 12px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mo-card__progress-track {
+  background: var(--lazu-border);
+  border-radius: 3px;
+  display: inline-block;
+  height: 5px;
+  overflow: hidden;
+  width: 72px;
+}
+
+.mo-card__progress-fill {
+  background: var(--lazu-warning);
+  display: block;
+  height: 5px;
+}
+
+.mo-card__problems {
+  align-items: center;
+  color: var(--lazu-warning-strong);
+  cursor: help;
+  display: inline-flex;
+  flex: none;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.mo-card__health {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mo-card__bars {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mo-card__bars > .lazu-status-bars {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Probes, not traffic: the same bars in a paler green, so a watched
+   source's clean record never passes for real use. */
+.mo-card__bars.is-probe .lazu-status-bar--ok {
+  opacity: 0.4;
+}
+
+.mo-card__rate {
+  flex: none;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  width: 48px;
+}
+
+.mo-card__rate.is-ok {
+  color: var(--lazu-success);
+}
+
+.mo-card__rate.is-warn {
+  color: var(--lazu-warning-strong);
+}
+
+.mo-card__rate.is-bad {
+  color: var(--lazu-danger);
+}
+
+.mo-card__rate.is-idle {
+  color: var(--lazu-text-faint);
+}
+
+.mo-card__figures {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mo-card__cost {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mo-card__cost-value {
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mo-card__cost-value.is-empty {
+  color: var(--lazu-text-faint);
+}
+
+.mo-card__cost-label {
+  color: var(--lazu-text-faint);
+  font-size: 11px;
+}
+
+.mo-card__state {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.mo-card__state--wide {
+  grid-column: span 2;
+  justify-content: flex-end;
+}
+
+.mo-card__more {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* A narrower list: the record and the cost drop under the name. */
+@container (max-width: 980px) {
+  .mo-card {
+    gap: 10px 14px;
+    grid-template-columns: 36px minmax(0, 1fr) var(--mo-card-state, 112px) 40px;
+  }
+  .mo-card__logo {
+    align-self: start;
+    grid-row: span 2;
+  }
+  .mo-card__main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .mo-card__state {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .mo-card__more {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .mo-card__state--wide {
+    grid-column: 3 / span 2;
+  }
+  .mo-card__health {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .mo-card__cost {
+    grid-column: 3 / span 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+}
+
+@container (max-width: 520px) {
+  .mo-card {
+    grid-template-columns: 28px minmax(0, 1fr) auto 32px;
+    padding: 12px;
+  }
+  .mo-card__logo {
+    grid-row: span 3;
+  }
+  .mo-card__health {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+  .mo-card__cost {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 6px;
+    grid-column: 2 / -1;
+    grid-row: 3;
+    justify-self: start;
+  }
+  .mo-card__meta {
+    flex-wrap: wrap;
+  }
+}
+
+/* On a phone the go-live check is too wide to sit beside the name: it
+   drops under the record, before the cost. */
+@container (max-width: 520px) {
+  .mo-card.is-observing .mo-card__state {
+    grid-column: 2 / -1;
+    grid-row: 3;
+    justify-content: flex-start;
+  }
+  .mo-card.is-observing .mo-card__cost {
+    grid-row: 4;
+  }
+  .mo-card.is-observing .mo-card__logo {
+    grid-row: span 4;
+  }
+}
