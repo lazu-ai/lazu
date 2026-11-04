@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- Source of the GitHub repository social preview (1280×640).
+     Render from this directory (needs network for Geist / IBM Plex Mono):
+       chrome --headless=new --hide-scrollbars --force-device-scale-factor=1 \
+         --allow-file-access-from-files --window-size=1280,640 \
+         --virtual-time-budget=6000 --screenshot=lazu-github-social-1280x640.png \
+         file://$PWD/lazu-github-social-1280x640.html
+     then upload the PNG in the repository settings (General → Social preview).
+     The site share image is lazu-og-1200x630.html; keep the two in step.
+     Design canvas: "Lazu OG" option K (2026-11-03). Brand tokens: dark ground
+     #0F0F11, paper #F8F8F6, teal #4FB3AD / #175855; the card has a hairline,
+     no shadow. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lazu share image</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=block" rel="stylesheet">
+<style>
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:block;src:url("../../../../apps/web/src/styles/fonts/instrument-serif-latin-400.woff2") format("woff2")}
+@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:block;src:url("../../../../apps/web/src/styles/fonts/instrument-serif-latin-400-italic.woff2") format("woff2")}
+html,body{margin:0;width:1280px;height:640px;overflow:hidden;-webkit-font-smoothing:antialiased}
+.mono{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<div style="width: 1280px; height: 640px; box-sizing: border-box; position: relative; overflow: hidden; background-color: #0F0F11; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 42px 42px; font-family: Geist, sans-serif; color: #ECECEE">
+
+<svg width="760" height="760" viewBox="0 0 1024 1024" aria-hidden="true" style="position: absolute; right: -200px; top: -70px"><circle cx="512" cy="512" r="512" fill="#1C1C21"></circle><circle cx="656" cy="368" r="80" fill="#4FB3AD"></circle></svg>
+
+<div style="position: absolute; left: 72px; top: 60px; display: flex; align-items: center; gap: 14px">
+<svg width="52" height="52" viewBox="0 0 1024 1024" aria-hidden="true"><circle cx="512" cy="512" r="512" fill="#f8f8f6"></circle><g transform="scale(16)" fill="#20201d"><path d="M18 17h10v20h18v10H18z"></path><circle cx="41" cy="23" r="5"></circle></g></svg>
+<span style="font-family: 'Instrument Serif', serif; font-size: 46px; line-height: 1">Lazu</span>
+</div>
+
+<h1 style="position: absolute; left: 72px; top: 170px; width: 640px; margin: 0; font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 84px; line-height: 1.0; letter-spacing: -0.02em">The model account<br>for <span style="font-style: italic; color: #4FB3AD">coding agents</span><br>and pipelines.</h1>
+
+<div style="position: absolute; left: 72px; bottom: 58px; display: flex; align-items: center; gap: 18px; font-size: 21px; color: #9B9DA4" class="mono">
+<span style="color: #ECECEE">github.com/lazu-ai/lazu</span>
+<span style="width: 6px; height: 6px; border-radius: 50%; background-color: #4FB3AD"></span>
+<span>Open source</span>
+</div>
+
+<div style="position: absolute; right: 76px; top: 150px; width: 400px; box-sizing: border-box; padding: 24px 26px 22px; border-radius: 20px; background-color: #F8F8F6; color: #14161C; transform: rotate(-3deg); border: 1px solid rgba(20,22,28,0.1); display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<span style="font-family: 'Instrument Serif', serif; font-size: 30px; line-height: 1">One request</span>
+<span class="mono" style="font-size: 14px; color: #5C5F68">usage record</span>
+</div>
+<div class="mono" style="display: flex; flex-direction: column; gap: 10px; font-size: 17px; color: #3A3D45">
+<div style="display: flex; justify-content: space-between"><span style="color: #8A8D96">key</span><span>ci-runner</span></div>
+<div style="display: flex; justify-content: space-between"><span style="color: #8A8D96">model</span><span>claude-opus-5-5</span></div>
+<div style="display: flex; justify-content: space-between"><span style="color: #8A8D96">tokens</span><span>41,208 in · 1,930 out</span></div>
+<div style="display: flex; justify-content: space-between"><span style="color: #8A8D96">cost</span><span style="color: #175855">$0.1374</span></div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1.5px dashed rgba(20,22,28,0.25)">
+<span style="font-size: 17px; font-weight: 600">Budget left</span>
+<span class="mono" style="font-size: 15px">$18.60 of $50</span>
+</div>
+</div>
+
+</div>
+</body>
+</html>

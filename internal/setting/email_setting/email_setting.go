@@ -23,6 +23,12 @@ type EmailSetting struct {
 	// keeps working on its own.
 	LowBalanceRunwayDays int    `json:"low_balance_runway_days"`
 	AdminEmail           string `json:"admin_email"`
+	// BulkSendRatePerSecond caps how many broadcast and announcement mails
+	// are handed to the transport per second, across all bulk runs in this
+	// process. Keep it below the transport's own per-second limit so
+	// one-off mails (sign-in codes, password resets) still get through
+	// while a broadcast runs.
+	BulkSendRatePerSecond float64 `json:"bulk_send_rate_per_second"`
 }
 
 var emailSetting = EmailSetting{
@@ -34,7 +40,12 @@ var emailSetting = EmailSetting{
 	LowBalanceRemindDays:   []int{1, 3, 7, 15, 30},
 	LowBalanceRunwayDays:   DefaultLowBalanceRunwayDays,
 	AdminEmail:             "",
+	BulkSendRatePerSecond:  DefaultBulkSendRatePerSecond,
 }
+
+// DefaultBulkSendRatePerSecond leaves room under the common transport limit
+// of ten requests per second for mail sent outside a broadcast.
+const DefaultBulkSendRatePerSecond = 5
 
 // DefaultLowBalanceRunwayDays is the runway under which the balance alert
 // fires when no deployment sets its own.
@@ -63,6 +74,9 @@ func LoadFromAppConfig(app common.AppConfigStruct) {
 	}
 	if app.EmailNotifications.BatchSize > 0 {
 		emailSetting.BatchSize = app.EmailNotifications.BatchSize
+	}
+	if app.EmailNotifications.BulkSendRatePerSecond > 0 {
+		emailSetting.BulkSendRatePerSecond = app.EmailNotifications.BulkSendRatePerSecond
 	}
 	emailSetting.BalanceChangeEnabled = app.EmailNotifications.BalanceChange.Enable
 
