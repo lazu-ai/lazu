@@ -223,22 +223,26 @@
 }
 
 .mo-lanes {
-  display: flex;
-  flex-direction: column;
+  /* One grid for every lane of the row, so the labels share a column that
+     fits the longest name from 线路设置 (up to 64px, then ellipsis). */
+  align-items: center;
+  display: grid;
   gap: 6px;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) 44px 24px;
   min-width: 0;
 }
 
 .mo-lanes__row {
-  align-items: center;
-  display: grid;
-  gap: 6px;
-  grid-template-columns: 24px minmax(0, 1fr) 44px 24px;
+  display: contents;
 }
 
 .mo-lanes__label {
   color: var(--lazu-text-muted);
   font-size: var(--lazu-health-label-text);
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mo-lanes__uptime {

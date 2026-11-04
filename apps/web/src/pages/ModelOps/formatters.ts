@@ -6,6 +6,9 @@ import type {
   ModelOpsPoolEntry,
   ModelOpsSourceType,
 } from '../../hooks/models/useModelOpsQuery';
+import type { TFunction } from 'i18next';
+
+const ns = 'page.console.modelOps';
 
 /** Shared read-only derivations for the 模型运营 page. Everything here reduces a
  *  real backend field to something displayable — none of it invents values. */
@@ -209,3 +212,48 @@ export const indexSellPrices = (rows: SellPriceRow[]) => {
   });
   return map;
 };
+
+/** Lane slug → the name set in 线路设置. Empty until the registry loads. */
+export type LaneNames = Record<string, string>;
+
+export const laneNamesOf = (
+  lanes: readonly { name?: string; slug: string }[],
+): LaneNames =>
+  Object.fromEntries(
+    lanes
+      .filter((lane) => lane.name?.trim())
+      .map((lane) => [lane.slug, String(lane.name).trim()]),
+  );
+
+/* A registry name that already says "lane" (Agent 专线) is used as it is;
+   any other (稳定) gets the locale's "{{name}}线路". */
+const NAMES_A_LANE = /线|線|lane|レーン/i;
+
+/** A lane as a heading reads it: 稳定线路, Agent 专线. */
+export function laneTitle(slug: string, names: LaneNames, t: TFunction) {
+  const name = names[slug];
+  if (name) {
+    return NAMES_A_LANE.test(name)
+      ? name
+      : t(`${ns}.price.laneName`, { defaultValue: '{{name}}线路', name });
+  }
+  if (slug === 'direct') {
+    return t(`${ns}.price.stableLane`, { defaultValue: '稳定线路' });
+  }
+  if (slug === 'cheap') {
+    return t(`${ns}.price.cheapLane`, { defaultValue: 'Agent 专线' });
+  }
+  return t(`${ns}.price.laneName`, {
+    defaultValue: '{{name}}线路',
+    name: slug,
+  });
+}
+
+/** A lane as a row label reads it: the registry name alone. */
+export function laneShortName(slug: string, names: LaneNames, t: TFunction) {
+  if (names[slug]) return names[slug];
+  if (slug === 'direct')
+    return t(`${ns}.tier.stable`, { defaultValue: '稳定' });
+  if (slug === 'cheap') return t(`${ns}.tier.cheap`, { defaultValue: 'Agent' });
+  return slug;
+}

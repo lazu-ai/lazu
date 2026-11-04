@@ -6,6 +6,9 @@ import {
   formatRate,
   healthTone,
   LANE_ORDER,
+  laneShortName,
+  laneTitle,
+  type LaneNames,
 } from './formatters';
 import { laneHasAnyPrice } from './formatters';
 import {
@@ -52,6 +55,8 @@ type ModelLedgerProps = {
   /** A model deleted a moment ago: the row reads 删除中 until the undo
    *  countdown ends, and offers nothing to click. */
   isUndoPending?: (view: ModelView) => boolean;
+  /** Names from 线路设置; headers and lane rows follow a rename there. */
+  laneNames: LaneNames;
   /** Each lane's default ratio, percent of the official price. */
   laneRatios: Record<string, number>;
   onSelect: (id: string | null) => void;
@@ -134,6 +139,7 @@ function LaneCell({
 /** 模型账簿 — one row per model, 40px tall, scanned top to bottom. */
 export default function ModelLedger({
   isUndoPending,
+  laneNames,
   laneRatios,
   onSelect,
   onToggleListed,
@@ -186,11 +192,9 @@ export default function ModelLedger({
         <span className={optional} role='columnheader'>
           {t(`${ns}.price.official`, { defaultValue: '官方价 $/M' })}
         </span>
-        <span role='columnheader'>
-          {t(`${ns}.price.stableLane`, { defaultValue: '稳定线路' })}
-        </span>
+        <span role='columnheader'>{laneTitle('direct', laneNames, t)}</span>
         <span className={optional} role='columnheader'>
-          {t(`${ns}.price.cheapLane`, { defaultValue: 'Agent 专线' })}
+          {laneTitle('cheap', laneNames, t)}
         </span>
         <span className={`${optional} mo-col-compact`} role='columnheader'>
           {t(`${ns}.models.colLaneHealth`, { defaultValue: '线路健康' })}
@@ -368,21 +372,20 @@ export default function ModelLedger({
                 const pooled = aggregatePoolHealth(entries);
                 const tone = healthTone(pooled);
                 const pooledSlices = foldBuckets(poolBuckets(entries), 2);
-                const laneLabel =
-                  lane === 'cheap'
-                    ? t(`${ns}.tier.cheap`, { defaultValue: 'Agent' })
-                    : t(`${ns}.tier.stable`, { defaultValue: '稳定' });
+                const laneLabel = laneShortName(lane, laneNames, t);
                 return (
                   <span className='mo-lanes__row' key={lane}>
-                    <span className='mo-lanes__label'>{laneLabel}</span>
+                    <span className='mo-lanes__label' title={laneLabel}>
+                      {laneLabel}
+                    </span>
                     <ModelOpsBars
                       buckets={
                         pooledSlices.length ? pooledSlices : emptyBuckets(24)
                       }
                       height={8}
                       label={t(`${ns}.models.laneBarsLabel`, {
-                        defaultValue: '{{name}} {{lane}}线路的来源合并记录',
-                        lane: laneLabel,
+                        defaultValue: '{{name}} {{lane}}的来源合并记录',
+                        lane: laneTitle(lane, laneNames, t),
                         name: view.name,
                       })}
                     />

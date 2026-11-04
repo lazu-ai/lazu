@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ListOrdered, Plus, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { laneHasAnyPrice } from './formatters';
+import { laneHasAnyPrice, laneNamesOf } from './formatters';
 import LanesDialog from './LanesDialog';
 import MakerOrderDialog from './MakerOrderDialog';
 import ModelInspector, {
@@ -98,6 +98,7 @@ export default function ModelOpsPage() {
     () => lanes.filter((lane) => lane.enabled).map((lane) => lane.slug),
     [lanes],
   );
+  const laneNames = useMemo(() => laneNamesOf(lanes), [lanes]);
   const laneRatios = useMemo(
     () =>
       Object.fromEntries(
@@ -181,6 +182,7 @@ export default function ModelOpsPage() {
   const views = useMemo(
     () =>
       buildModelViews({
+        laneNames,
         lanes: laneSlugs,
         pools: poolsQuery.data || {},
         poolsLoading: poolsQuery.isLoading,
@@ -191,6 +193,8 @@ export default function ModelOpsPage() {
         vendorMap: models.vendorMap,
       }),
     [
+      laneNames,
+      laneSlugs,
       models.models,
       models.vendorMap,
       poolsQuery.data,
@@ -207,6 +211,7 @@ export default function ModelOpsPage() {
     if (!selectedDetailQuery.data) return null;
     return (
       buildModelViews({
+        laneNames,
         lanes: laneSlugs,
         pools: poolsQuery.data || {},
         poolsLoading: poolsQuery.isLoading,
@@ -218,6 +223,8 @@ export default function ModelOpsPage() {
       })[0] || null
     );
   }, [
+    laneNames,
+    laneSlugs,
     models.vendorMap,
     poolsQuery.data,
     poolsQuery.isLoading,
@@ -703,6 +710,7 @@ export default function ModelOpsPage() {
           ) : (
             <ModelLedger
               isUndoPending={isUndoPending}
+              laneNames={laneNames}
               laneRatios={laneRatios}
               pendingRelease={pendingRelease}
               poolsLoading={poolsQuery.isLoading}

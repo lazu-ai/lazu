@@ -22,9 +22,13 @@ test('模型 tab renders both lanes and pooled source health from real fields', 
 
   // Both lane prices remain visible in the approved compact table.
   await expect(row).toContainText('0.15 / 0.6');
-  await expect(page.getByRole('columnheader', { name: /稳定/ })).toBeVisible();
+  // Headers carry the names set in 线路设置 (the mock calls them 稳定档 and
+  // 便宜档), not fixed copy.
   await expect(
-    page.getByRole('columnheader', { name: 'Agent 专线' }),
+    page.getByRole('columnheader', { name: '稳定档线路', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('columnheader', { name: '便宜档线路', exact: true }),
   ).toBeVisible();
   await expect(row).toContainText('0.09 / 0.36');
 
@@ -35,7 +39,7 @@ test('模型 tab renders both lanes and pooled source health from real fields', 
   ).toBeVisible();
   await expect(
     row.getByRole('group', {
-      name: 'gpt-4o-mini 稳定线路的来源合并记录',
+      name: 'gpt-4o-mini 稳定档线路的来源合并记录',
       exact: true,
     }),
   ).toBeVisible();
@@ -84,9 +88,73 @@ test('上架 toggle is disabled when the priced stable tier has no enabled sourc
     .locator('.mo-ledger__row', { hasText: 'priced-without-stable-pool' })
     .first();
   await expect(row.getByRole('switch')).toHaveAccessibleName(
-    '稳定线路没有已启用的来源，当前无法路由请求',
+    '稳定档线路没有已启用的来源，当前无法路由请求',
   );
   await expect(row.getByRole('switch')).toBeDisabled();
+
+  await app.expectNoUnexpectedErrors();
+});
+
+/* The registry's own seed names. A name that already says 专线 is not given a
+   second 线路, in the ledger or in the dialog. */
+test('模型 tab follows a lane renamed in 线路设置', async ({ page }) => {
+  const lane = (slug, name, sort) => ({
+    slug,
+    name,
+    enabled: true,
+    builtin: true,
+    ever_enabled: true,
+    sort,
+    sources: 1,
+    priced: 1,
+  });
+  const app = await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: (url) =>
+      new URL(url).pathname === '/api/model_ops/lanes'
+        ? {
+            success: true,
+            message: '',
+            data: {
+              items: [
+                lane('direct', '官方直连', 0),
+                lane('cheap', 'Agent 专线', 1),
+              ],
+            },
+          }
+        : undefined,
+  });
+  await expectRouteReady(page, '/console/model-ops');
+
+  await expect(
+    page.getByRole('columnheader', { name: '官方直连线路', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('columnheader', { name: 'Agent 专线', exact: true }),
+  ).toBeVisible();
+
+  const gpt = page
+    .locator('.mo-ledger__row', { hasText: 'gpt-4o-mini' })
+    .first();
+  await expect(gpt.locator('.mo-lanes__label').first()).toHaveText('官方直连');
+  await expect(
+    gpt.getByRole('group', {
+      name: 'gpt-4o-mini Agent 专线的来源合并记录',
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const blocked = page
+    .locator('.mo-ledger__row', { hasText: 'priced-without-stable-pool' })
+    .first();
+  await expect(blocked.getByRole('switch')).toHaveAccessibleName(
+    '官方直连线路没有已启用的来源，当前无法路由请求',
+  );
+
+  await gpt.locator('.mo-name').first().click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Agent 专线');
+  await expect(dialog).not.toContainText('专线线路');
 
   await app.expectNoUnexpectedErrors();
 });

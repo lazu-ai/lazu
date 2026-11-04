@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { formatPerMtok } from './formatters';
+import { formatPerMtok, laneNamesOf, laneTitle } from './formatters';
 import LanePricing from './LanePricing';
 import ModelInfoPanel from './ModelInfoPanel';
 import ModelMetaForm from './ModelMetaForm';
@@ -108,14 +108,8 @@ export default function ModelInspector({
     // 稳定 leads and is always present: the router falls back to it.
     return ['direct', ...enabled.filter((slug) => slug !== 'direct')];
   }, [lanes]);
-  const laneName = (slug: string) => {
-    const lane = lanes.find((item) => item.slug === slug);
-    const name = lane?.name || slug;
-    return t(`${ns}.price.laneName`, {
-      defaultValue: '{{name}}线路',
-      name,
-    });
-  };
+  const laneNames = useMemo(() => laneNamesOf(lanes), [lanes]);
+  const laneName = (slug: string) => laneTitle(slug, laneNames, t);
   const laneRatio = (slug: string) =>
     Number(lanes.find((item) => item.slug === slug)?.price_ratio) || 100;
 
