@@ -184,7 +184,9 @@ Two things change the wait after an attempt's headers have arrived:
 Set the source value for an upstream that answers headers at once and then
 reasons before its first event, or lower it for one that tends to stall after
 its headers. The wait for headers is always the request deadline. Keep-alive
-comments do not extend either wait.
+comments do not extend either wait. `STREAMING_TIMEOUT` still ends a stream
+that sends no line at all for that long, so a source value above it holds only
+while the upstream sends keep-alive lines.
 
 ### Source account failures
 
