@@ -1,8 +1,9 @@
-import { Plus } from 'lucide-react';
+import { Plus, SlidersVertical } from 'lucide-react';
 import { useState } from 'react';
 import LaneForm from './LaneForm';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
+import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { Modal } from '../../components/ui/modal';
 import { PendingBlock } from '../../components/ui/pending';
@@ -26,7 +27,14 @@ type View = { kind: 'list' } | { kind: 'lane'; slug: string } | { kind: 'new' };
  * the lanes themselves. Models follow their lane's ratio unless they set
  * their own, so changing one number here reprices every model that follows.
  */
-export default function LanesDialog({ t }: { t: TFunction }) {
+export default function LanesDialog({
+  t,
+  trigger = 'button',
+}: {
+  t: TFunction;
+  /** "icon": a settings button beside the lane switch it configures. */
+  trigger?: 'button' | 'icon';
+}) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>({ kind: 'list' });
   const [ratios, setRatios] = useState<Record<string, string>>({});
@@ -280,9 +288,22 @@ export default function LanesDialog({ t }: { t: TFunction }) {
         ) : undefined
       }
     >
-      <Button size='sm' variant='secondary' onClick={() => setOpen(true)}>
-        {t(`${ns}.lanes.title`, { defaultValue: '线路' })}
-      </Button>
+      {trigger === 'icon' ? (
+        <IconButton
+          aria-label={t(`${ns}.lanes.settings`, { defaultValue: '线路设置' })}
+          className='mo-lane-settings'
+          size='sm'
+          title={t(`${ns}.lanes.settings`, { defaultValue: '线路设置' })}
+          variant='secondary'
+          onClick={() => setOpen(true)}
+        >
+          <SlidersVertical size={14} />
+        </IconButton>
+      ) : (
+        <Button size='sm' variant='secondary' onClick={() => setOpen(true)}>
+          {t(`${ns}.lanes.title`, { defaultValue: '线路' })}
+        </Button>
+      )}
     </Modal>
   );
 }

@@ -45,7 +45,7 @@ type Tone = 'ok' | 'warn' | 'bad' | 'wait';
 
 /** "claude-haiku-4-5-20251001" → "haiku-4-5": the ledger line names models
  *  in a few characters; the dialog prints them whole. */
-export const shortModelName = (name: string) =>
+const shortModelName = (name: string) =>
   name.replace(/^claude-/, '').replace(/-\d{8}$/, '');
 
 const pad = (value: number) => String(value).padStart(2, '0');

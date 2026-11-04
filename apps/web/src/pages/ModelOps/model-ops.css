@@ -1126,3 +1126,354 @@
   flex-direction: column;
   gap: 4px;
 }
+
+/* ---- 来源 toolbar (canvas 5C) -------------------------------------------
+   Search, then the lane switch with its settings beside it, a rule, then
+   the two state filters as pills that toggle on their own. */
+.mo-sources-page .mo-toolbar {
+  gap: 12px;
+}
+
+.model-ops-page--compact.mo-sources-page .mo-toolbar__search {
+  flex: 0 1 280px;
+  min-width: min(240px, 100%);
+  width: 280px;
+}
+
+.model-ops-page--compact.mo-sources-page .mo-toolbar__search input {
+  height: 36px;
+}
+
+.mo-toolbar__lanes {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.mo-sources-page .mo-chips {
+  flex-wrap: nowrap;
+}
+
+.console-page-shell.console-review .mo-sources-page .lazu-button.mo-chip,
+.console-page-shell.console-review.mo-sources-page .lazu-button.mo-chip {
+  font-size: 12.5px;
+  font-weight: 450;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+}
+
+.console-page-shell.console-review.mo-sources-page .lazu-button.mo-chip.is-on {
+  font-weight: 500;
+}
+
+.mo-chips .mo-chip .mo-dot {
+  height: 6px;
+  width: 6px;
+}
+
+.mo-sources-page .mo-chip__n {
+  color: var(--lazu-text-faint);
+  margin-left: 0;
+}
+
+.mo-lane-settings.lazu-icon-button {
+  height: 34px;
+  width: 34px;
+}
+
+.mo-toolbar__rule {
+  background: var(--lazu-border);
+  height: 24px;
+  width: 1px;
+}
+
+.mo-pills {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.console-page-shell.console-review .lazu-button.mo-pill {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: var(--lazu-radius-pill);
+  box-shadow: none;
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  font-weight: 450;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+}
+
+.console-page-shell.console-review .lazu-button.mo-pill:hover {
+  color: var(--lazu-ink);
+}
+
+.console-page-shell.console-review .lazu-button.mo-pill.is-on {
+  background: var(--lazu-ink);
+  border-color: var(--lazu-ink);
+  color: var(--lazu-surface-solid);
+}
+
+.mo-pill__n {
+  color: var(--lazu-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.mo-pill__n.is-bad {
+  color: var(--lazu-danger);
+  font-weight: 500;
+}
+
+.lazu-button.mo-pill.is-on .mo-pill__n {
+  color: inherit;
+}
+
+@media (max-width: 640px) {
+  .mo-toolbar__rule {
+    display: none;
+  }
+  .mo-toolbar__lanes {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* ---- source dialog ------------------------------------------------------
+   One height for every tab, so switching tabs never resizes the dialog. The
+   body holds a scroller; on 线路 an anchor list sits beside it (canvas 3B). */
+.lazu-modal-content.mo-dialog:has(.mo-source-body) {
+  height: min(640px, calc(100dvh - 48px));
+}
+
+.mo-dialog__body.mo-source-body {
+  flex-direction: row;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.mo-source-body__scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  overflow: auto;
+  padding: 20px 24px;
+}
+
+.mo-source-body.is-split .mo-source-body__scroll {
+  gap: 24px;
+}
+
+.mo-source-nav {
+  border-right: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+  width: 150px;
+}
+
+.mo-source-nav__item {
+  align-items: baseline;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 13px;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.mo-source-nav__item:hover {
+  background: var(--lazu-surface-muted);
+  color: var(--lazu-ink);
+}
+
+.mo-source-nav__item.is-active {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+.mo-source-nav__item:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.mo-source-nav__note {
+  color: var(--lazu-text-faint);
+  font-size: 11.5px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.mo-form[hidden] {
+  display: none;
+}
+
+.mo-source-body.is-split .mo-form {
+  gap: 24px;
+}
+
+.mo-form-sect {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scroll-margin-top: 4px;
+}
+
+.mo-form-sect__title {
+  align-items: baseline;
+  color: var(--lazu-ink);
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
+  margin: 0;
+}
+
+.mo-form-sect__note {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.mo-form__grid.mo-form__grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mo-lane-option {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.mo-lane-option .mo-dot {
+  height: 7px;
+  width: 7px;
+}
+
+/* A label with its ⓘ: the stored name is in the tip, not the label. */
+.mo-field-label {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mo-field-label .lazu-label.is-muted {
+  color: var(--lazu-text-faint);
+}
+
+.mo-field-label__hint {
+  color: var(--lazu-text-faint);
+  font-weight: 400;
+}
+
+.mo-field-label__info {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: var(--lazu-text-faint);
+  cursor: help;
+  display: inline-flex;
+  flex: none;
+  height: 18px;
+  justify-content: center;
+  padding: 0;
+  width: 18px;
+}
+
+.mo-field-label__info:hover {
+  color: var(--lazu-ink);
+}
+
+.mo-field-label__info:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
+}
+
+.lazu-tooltip-content.mo-field-tip {
+  background: var(--lazu-ink);
+  border-color: var(--lazu-ink);
+  border-radius: 8px;
+  color: var(--lazu-surface-solid);
+  line-height: 1.5;
+  max-width: 280px;
+  padding: 8px 10px;
+}
+
+.mo-field-tip__code {
+  color: color-mix(in srgb, var(--lazu-success) 35%, white);
+  font-family: var(--lazu-font-mono);
+}
+
+/* 成本明细's example, printed as a block that wraps inside the dialog. */
+.mo-example-label {
+  color: var(--lazu-text-faint);
+  font-size: 12px;
+}
+
+.mo-example {
+  background: var(--lazu-surface-muted);
+  border-radius: 8px;
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+}
+
+/* Waiting for the saved record (canvas 6A): the form's outline, not inputs
+   showing defaults that would be saved over the real values. */
+.mo-form-skeleton {
+  align-content: start;
+  display: grid;
+  gap: 16px 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mo-form-skeleton__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mo-form-skeleton .lazu-skeleton {
+  background: var(--lazu-surface-muted);
+  border-radius: 8px;
+}
+
+.mo-form-skeleton__field > .lazu-skeleton:first-child {
+  background: var(--lazu-border);
+  border-radius: 5px;
+}
+
+@media (max-width: 720px) {
+  .mo-source-nav {
+    display: none;
+  }
+  .mo-form__grid.mo-form__grid--3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .mo-source-body__scroll {
+    padding-inline: 16px;
+  }
+}
