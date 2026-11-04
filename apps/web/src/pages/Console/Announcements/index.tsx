@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import './announcements.css';
 import { Button } from '../../../components/ui/button';
+import { Checkbox } from '../../../components/ui/checkbox';
 import ConsolePage from '../../../components/ui/console-page';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Input } from '../../../components/ui/input';
@@ -51,6 +52,15 @@ const KINDS = [
 ] as const;
 
 type KindKey = (typeof KINDS)[number]['key'];
+
+/* Kinds that can be mailed to every user when published. Release notes go out
+   with every deploy and stay in the console. */
+const MAILABLE_KINDS: ReadonlySet<KindKey> = new Set([
+  'model_update',
+  'operational',
+  'maintenance',
+  'incident',
+]);
 
 const KIND_TONE: Record<string, string> = Object.fromEntries(
   KINDS.map((kind) => [kind.key, kind.tone]),
@@ -248,6 +258,7 @@ const AnnouncementsPage = ({
   const [activeLocale, setActiveLocale] = useState<LocaleCode>('zh');
   const [preview, setPreview] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
+  const [sendEmail, setSendEmail] = useState(false);
   const [modelEntryOpen, setModelEntryOpen] = useState(false);
   const [modelEntry, setModelEntry] = useState('');
   const draftSessionRef = useRef(0);
@@ -402,6 +413,9 @@ const AnnouncementsPage = ({
       // is merely saved. Publishing and the dedicated unpublish endpoint are
       // the only state transitions.
       if (publish || draft.id === null) payload.published = publish;
+      if (publish && sendEmail && MAILABLE_KINDS.has(draft.kind)) {
+        payload.send_email = true;
+      }
       setSaving(true);
       try {
         const saved = unwrap<SavedAnnouncement | undefined>(
@@ -436,7 +450,7 @@ const AnnouncementsPage = ({
         setSaving(false);
       }
     },
-    [draft, load, t],
+    [draft, load, sendEmail, t],
   );
 
   const unpublish = useCallback(
@@ -906,7 +920,10 @@ const AnnouncementsPage = ({
             </Button>
             <Button
               loading={saving}
-              onClick={() => setPublishConfirm(true)}
+              onClick={() => {
+                setSendEmail(false);
+                setPublishConfirm(true);
+              }}
               size='sm'
               variant='primary'
             >
@@ -936,6 +953,18 @@ const AnnouncementsPage = ({
                 defaultValue: '发布后会立即出现在用户的公告列表中。',
               })}
             </p>
+            {MAILABLE_KINDS.has(draft.kind) && (
+              <Checkbox
+                checked={sendEmail}
+                disabled={saving}
+                onCheckedChange={(checked) => setSendEmail(checked === true)}
+              >
+                {t('announcements.sendEmail', {
+                  defaultValue:
+                    '同时邮件通知所有用户（按各自语言发送，已收到的不会重发）',
+                })}
+              </Checkbox>
+            )}
           </div>
         }
         footer={

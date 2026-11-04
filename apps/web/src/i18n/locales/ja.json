@@ -163,6 +163,7 @@
     "ID": "ID",
     "announcements.confirmPublish": "お知らせを公開しますか？",
     "announcements.publishHint": "公開するとユーザーのお知らせ一覧に直ちに表示されます。",
+    "announcements.sendEmail": "全ユーザーにメールでも通知する（各自の言語で送信、送信済みの人には再送しません）",
     "channel.provider.custom": "カスタムチャネル",
     "common.back": "設定に戻る",
     "common.cancel": "キャンセル",

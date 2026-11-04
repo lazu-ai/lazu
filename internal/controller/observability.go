@@ -422,6 +422,9 @@ type announcementPayload struct {
 	Audiences      *[]string          `json:"audiences"`
 	APIChanges     *[]model.APIChange `json:"api_changes"`
 	PublishedAt    *string            `json:"published_at"`
+	// SendEmail mails the announcement to every reader when this request
+	// publishes it. Readers already mailed for it are skipped.
+	SendEmail bool `json:"send_email"`
 }
 
 // The editor sends a plain calendar day, while the admin list returns RFC3339.
@@ -500,6 +503,24 @@ func saveAdminAnnouncement(c *gin.Context, id uint) {
 		}
 		publishedAt = &parsed
 	}
+	if req.SendEmail {
+		if c.GetInt("role") < common.RoleRootUser {
+			httperr.Code(c, types.ErrorCodeAccessDenied)
+			return
+		}
+		if !published {
+			httperr.Invalid(c, "send_email", types.D{"reason": "an announcement is mailed only by the request that publishes it"})
+			return
+		}
+		if !workerservice.AnnouncementMailable(req.Kind) {
+			httperr.Invalid(c, "send_email", types.D{"reason": "only model update, operational, maintenance and incident announcements are mailed"})
+			return
+		}
+		if !common.EmailTransportConfigured() {
+			httperr.Invalid(c, "send_email", types.D{"reason": "email delivery is not configured on this deployment"})
+			return
+		}
+	}
 	effectiveDate, effectiveDateSet, err := parseAnnouncementEffectiveDate(req.EffectiveDate)
 	if err != nil {
 		httperr.Write(c, err)
@@ -536,6 +557,17 @@ func saveAdminAnnouncement(c *gin.Context, id uint) {
 		return
 	}
 	invalidateChangelogCache()
+	if req.SendEmail {
+		announcement := *row
+		common.SafeGo("announcement-email", func() {
+			stats, err := workerservice.SendPublishedAnnouncementEmail(announcement)
+			if err != nil {
+				common.SysError(fmt.Sprintf("mail announcement %d: %v", announcement.ID, err))
+				return
+			}
+			common.SysLog(fmt.Sprintf("mailed announcement %d: attempted %d, sent %d, skipped %d", announcement.ID, stats.Attempted, stats.Sent, stats.Skipped))
+		})
+	}
 	common.ApiSuccess(c, row.ToView(requestLocale(c), nil))
 }
 

@@ -142,16 +142,29 @@ type platformNotice struct {
 	// ProductUpdate marks an announcement: readers who turned product
 	// updates off are skipped and the mail carries a one-click opt-out.
 	ProductUpdate bool
+	// Localize, when set, writes the title and body in the reader's own
+	// language (the raw value from their settings) instead of Title and Body.
+	Localize func(language string) (string, template.HTML)
+	// RefKey, when set, makes the mail go to each reader at most once: the
+	// archive row is claimed under the reader's key before anything is sent,
+	// and a reader whose key is already taken is skipped.
+	RefKey   func(rec emailRecipient) string
+	Template string
 }
 
 // noticePlaceholders are the personal fields a broadcast body may use.
 func renderPlatformNotice(notice platformNotice, rec emailRecipient, receiver string) (string, string, error) {
-	lang := common.MailLang((&model.User{Setting: rec.Setting}).GetSetting().Language)
+	language := (&model.User{Setting: rec.Setting}).GetSetting().Language
+	lang := common.MailLang(language)
 	name := strings.TrimSpace(rec.DisplayName)
 	if name == "" {
 		name = rec.Username
 	}
-	body := string(notice.Body)
+	title, body := notice.Title, string(notice.Body)
+	if notice.Localize != nil {
+		localizedTitle, localizedBody := notice.Localize(language)
+		title, body = localizedTitle, string(localizedBody)
+	}
 	for key, value := range map[string]string{
 		"{{display_name}}": name, "{{username}}": rec.Username, "{{email}}": receiver,
 		"{{balance}}": common.MailUSD(rec.Quota.Dollars()),
@@ -169,9 +182,9 @@ func renderPlatformNotice(notice platformNotice, rec emailRecipient, receiver st
 	}
 	rendered, err := common.RenderMail(common.Mail{
 		Lang: lang, Tier: common.MailPaper, Eyebrow: "NOTICE",
-		Preheader: notice.Title, Title: notice.Title, Blocks: blocks,
+		Preheader: title, Title: title, Blocks: blocks,
 	})
-	return notice.Title, rendered, err
+	return title, rendered, err
 }
 
 func dispatchEmails(notice platformNotice, userIDs []int, sendAll bool, batchSize int) (EmailSendStats, error) {
@@ -264,6 +277,28 @@ func sendEmailsToRecipients(notice platformNotice, recipients []emailRecipient, 
 			stats.Unsent += len(recipients) - i
 			break
 		}
+		lang := common.MailLang((&model.User{Setting: r.Setting}).GetSetting().Language)
+		var deliveryID uint64
+		if notice.RefKey != nil {
+			// Claimed only once a slot is free and the run is still going, so
+			// a stopped run leaves no claimed row behind unsent.
+			key := notice.RefKey(r)
+			row := &model.MailDelivery{Kind: common.MailKindNotice, UserID: r.Id, Receiver: email, RefKey: &key,
+				Template: notice.Template, Lang: lang}
+			claimed, err := model.ClaimMailDelivery(row)
+			if err != nil {
+				<-sem
+				common.SysError(fmt.Sprintf("claim notice email for user %d: %v", r.Id, err))
+				atomic.AddInt32(&skipped, 1)
+				continue
+			}
+			if !claimed {
+				<-sem
+				atomic.AddInt32(&skipped, 1)
+				continue
+			}
+			deliveryID = row.ID
+		}
 		bulkMailPacer.wait(ratePerSecond)
 		stats.Attempted++
 		wg.Add(1)
@@ -275,14 +310,25 @@ func sendEmailsToRecipients(notice platformNotice, recipients []emailRecipient, 
 			if err != nil {
 				atomic.AddInt32(&failed, 1)
 				common.SysError("render platform notice: " + err.Error())
+				if deliveryID != 0 {
+					_ = model.FailMailDelivery(deliveryID, err)
+				}
 				return
+			}
+			if deliveryID != 0 {
+				// A claimed row is updated by the archive, not re-created, and
+				// that update keeps no body; store it first.
+				if err := model.SaveMailDeliveryContent(deliveryID, subj, body, ""); err != nil {
+					common.SysError(fmt.Sprintf("archive notice email for user %d: %v", rec.Id, err))
+				}
 			}
 			kind := common.MailKindNotice
 			var headers map[string]string
 			if notice.ProductUpdate {
 				headers = MailUnsubscribeHeaders(rec.Id, MailOptOutProduct)
 			}
-			meta := common.MailMeta{Kind: kind, UserID: rec.Id, Headers: headers, RateLimitRetries: bulkMailRateLimitRetries}
+			meta := common.MailMeta{Kind: kind, UserID: rec.Id, Headers: headers, DeliveryID: deliveryID, Template: notice.Template, Lang: lang,
+				RateLimitRetries: bulkMailRateLimitRetries}
 			if err := sendNoticeMail(meta, subj, receiver, body); err == nil {
 				atomic.AddInt32(&sent, 1)
 			} else {
@@ -316,10 +362,14 @@ func resolveEmailForRecipient(rec emailRecipient) string {
 	return resolveUserEmail(user)
 }
 
+// loadRecipientsBatch pages through every account a send-all broadcast
+// reaches. A disabled account cannot sign in to read what the mail points to,
+// and a deleted one is out of scope by its deleted_at.
 func loadRecipientsBatch(offset, limit int) ([]emailRecipient, error) {
 	var users []emailRecipient
 	err := model.CoreDB().Model(&model.User{}).
 		Select("id, username, display_name, email, setting, quota").
+		Where("status = ?", common.UserStatusEnabled).
 		Order("id asc").
 		Limit(limit).
 		Offset(offset).
@@ -350,7 +400,12 @@ func SendAnnouncementEmail(payload AnnouncementEmail, userIDs []int, sendAll boo
 	}
 	// Announcement text comes from the console's announcement list: plain
 	// text, so it is escaped and its line breaks kept.
-	body := strings.ReplaceAll(html.EscapeString(payload.Content), "\n", "<br>")
-	notice := platformNotice{Title: payload.Title, Body: template.HTML(body), Link: payload.Link, ProductUpdate: true}
+	notice := platformNotice{Title: payload.Title, Body: plainTextMailBody(payload.Content), Link: payload.Link, ProductUpdate: true}
 	return dispatchEmails(notice, userIDs, sendAll, batchSize)
+}
+
+// plainTextMailBody escapes plain text for a mail body and keeps its line
+// breaks.
+func plainTextMailBody(text string) template.HTML {
+	return template.HTML(strings.ReplaceAll(html.EscapeString(text), "\n", "<br>"))
 }
