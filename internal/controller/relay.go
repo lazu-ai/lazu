@@ -287,6 +287,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		addUsedChannel(c, channel.Id)
+		relayInfo.StreamFirstEventWait = relayStreamFirstEventWait(relayInfo.IsStream, attemptFirstEventTimeoutSeconds(c), channelSwitchesUsed)
 		if channelID := c.GetInt("channel_id"); channelID > 0 {
 			c.Header("X-Lazu-Channel-Id", strconv.Itoa(channelID))
 		}
@@ -385,6 +386,16 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			strings.Trim(strings.Join(strings.Fields(fmt.Sprint(c.GetStringSlice("use_channel"))), "->"), "[]"),
 			time.Since(relayStartedAt).Round(time.Millisecond)))
 	}
+}
+
+// attemptFirstEventTimeoutSeconds reads first_event_timeout_seconds from the
+// settings of the channel this attempt was set up for.
+func attemptFirstEventTimeoutSeconds(c *gin.Context) int {
+	settings, ok := common.GetContextKeyType[dto.ChannelOtherSettings](c, constant.ContextKeyChannelOtherSetting)
+	if !ok {
+		return 0
+	}
+	return settings.FirstEventTimeoutSeconds
 }
 
 // upstreamRetryAfter reads the Retry-After hint the last attempt recorded.
@@ -684,7 +695,7 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 	logger.LogError(c, fmt.Sprintf("relay error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, err.Error()))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
-	if service.ShouldDisableChannel(channelError.ChannelId, err) && channelError.AutoBan {
+	if service.ShouldDisableChannel(channelError.ChannelType, err) && channelError.AutoBan {
 		common.SafeCtxGo(c.Request.Context(), "disable-channel-after-relay-error", func() {
 			service.DisableChannel(channelError, err.Error())
 		})

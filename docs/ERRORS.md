@@ -168,6 +168,37 @@ is one successful customer request but still a failed provider attempt. Local
 validation, auth, quota and capacity rejections are not upstream health failures.
 Probe-only health must not invent request throughput or completed job success.
 
+### Stream start deadline
+
+A streamed request waits at most 90 seconds from arrival, across all of its
+attempts, for an upstream to start: its response headers, then its first data
+event. Past that the attempt ends with `upstream_timeout` and is not retried.
+Two things change the wait after an attempt's headers have arrived:
+
+| Case | Wait for the first data event |
+| --- | --- |
+| The source sets `first_event_timeout_seconds` (console: First event wait) | That many seconds from the headers, longer or shorter than the deadline (0 to 3600) |
+| The request has already switched sources once | Up to `STREAMING_TIMEOUT`, because nothing can follow this attempt |
+| Otherwise | The 90-second request deadline |
+
+Set the source value for an upstream that answers headers at once and then
+reasons before its first event, or lower it for one that tends to stall after
+its headers. The wait for headers is always the request deadline. Keep-alive
+comments do not extend either wait. `STREAMING_TIMEOUT` still ends a stream
+that sends no line at all for that long, so a source value above it holds only
+while the upstream sends keep-alive lines.
+
+### Source account failures
+
+An upstream that reports our own account there cannot pay
+(`upstream_billing_failed`, usually a 402) refuses every request until someone
+tops it up. With automatic disabling on, such a failure disables the source (or,
+on a multi-key source, the key) like a rejected key does, so requests stop
+spending an attempt and their one source switch on it. A source with automatic
+disabling turned off stays in rotation. The scheduled source test re-enables an
+automatically disabled source once a test request succeeds, when automatic
+enabling is on.
+
 The existing performance guard samples host CPU/memory and the selected data
 filesystem every 10 seconds; it is not a container quota or latency SLA. Current
 default thresholds are CPU 90%, memory 90%, disk 95%; active-connection rejection

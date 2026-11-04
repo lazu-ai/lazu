@@ -2932,6 +2932,8 @@
     "page.console.overview.needs": "需要處理",
     "page.console.channel.form.field.costPercent": "成本折扣",
     "page.console.channel.form.help.costPercent": "按官方價的百分之幾進貨，30 就是三折。沒單獨配成本價的模型按這個算上游成本和毛利；留空按官方價。",
+    "page.console.channel.form.field.firstEventTimeout": "首個事件等待（秒）",
+    "page.console.channel.form.help.firstEventTimeout": "串流請求收到上游回應標頭後，最多等多久第一個資料事件。上游先回標頭、再思考很久才出字的，調大；回了標頭常卡住不出字的，調小。留空按請求的起流時限（90 秒；已換過渠道時放寬到 STREAMING_TIMEOUT）。",
     "page.console.channel.form.help.costTier": "這條來源按長上下文加價時才填 context_tier_*：輸入（含快取）超過門檻，整單按分檔成本算。不填就按基礎成本算；官方價兜底行會自動帶上官方分檔。",
     "page.console.overview.needs.drafts": "{{count}} 條公告待發布",
     "page.console.log.session.list.noTitle": "（沒有記錄到首條訊息）",

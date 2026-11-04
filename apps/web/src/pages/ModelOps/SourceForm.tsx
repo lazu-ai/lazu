@@ -132,25 +132,65 @@ function readCostPercent(settings: string | undefined): string {
   }
 }
 
-function writeCostPercent(
+/* Sets or removes one key of the settings JSON. null means the JSON in the
+   box is not an object, so the field leaves it for the operator to fix. */
+function writeSettingsKey(
   settings: string | undefined,
-  percent: string,
+  key: string,
+  value: number | undefined,
 ): string | null {
   let parsed: Record<string, unknown> = {};
   if (settings?.trim()) {
     try {
-      const value = JSON.parse(settings) as unknown;
-      if (!value || typeof value !== 'object' || Array.isArray(value))
+      const current = JSON.parse(settings) as unknown;
+      if (!current || typeof current !== 'object' || Array.isArray(current))
         return null;
-      parsed = value as Record<string, unknown>;
+      parsed = current as Record<string, unknown>;
     } catch {
       return null;
     }
   }
-  const number = Number(percent);
-  if (percent.trim() && number > 0) parsed.cost_multiplier = number / 100;
-  else delete parsed.cost_multiplier;
+  if (value === undefined) delete parsed[key];
+  else parsed[key] = value;
   return Object.keys(parsed).length ? JSON.stringify(parsed, null, 2) : '';
+}
+
+function writeCostPercent(
+  settings: string | undefined,
+  percent: string,
+): string | null {
+  const number = Number(percent);
+  return writeSettingsKey(
+    settings,
+    'cost_multiplier',
+    percent.trim() && number > 0 ? number / 100 : undefined,
+  );
+}
+
+/* first_event_timeout_seconds: how long a streamed attempt on this source
+   waits for its first data event after the upstream's headers. Empty keeps
+   the request's stream start deadline. */
+function readFirstEventTimeout(settings: string | undefined): string {
+  if (!settings?.trim()) return '';
+  try {
+    const parsed = JSON.parse(settings) as Record<string, unknown>;
+    const seconds = Number(parsed?.first_event_timeout_seconds);
+    return seconds > 0 ? String(seconds) : '';
+  } catch {
+    return '';
+  }
+}
+
+function writeFirstEventTimeout(
+  settings: string | undefined,
+  seconds: string,
+): string | null {
+  const number = Math.trunc(Number(seconds));
+  return writeSettingsKey(
+    settings,
+    'first_event_timeout_seconds',
+    seconds.trim() && number > 0 ? number : undefined,
+  );
 }
 
 const buildChannelFormSchema = (t: TFunction, isEdit: boolean) =>
@@ -971,6 +1011,45 @@ export default function SourceForm({
                     {t(`${ns}.help.costPercent`, {
                       defaultValue:
                         '按官方价的百分之几进货，30 就是三折。没单独配成本价的模型按这个算上游成本和毛利；留空按官方价。',
+                    })}
+                  </FieldMessage>
+                </Field>
+                <Field>
+                  <label
+                    className='lazu-label'
+                    htmlFor='channel-first-event-timeout'
+                  >
+                    {t(`${ns}.field.firstEventTimeout`, {
+                      defaultValue: '首个事件等待（秒）',
+                    })}{' '}
+                    <code className='mo-code'>first_event_timeout_seconds</code>
+                  </label>
+                  <Input
+                    disabled={loading}
+                    id='channel-first-event-timeout'
+                    inputMode='numeric'
+                    min='0'
+                    max='3600'
+                    step='1'
+                    type='number'
+                    placeholder='90'
+                    value={readFirstEventTimeout(values.settings)}
+                    onChange={(event) => {
+                      const next = writeFirstEventTimeout(
+                        form.getValues('settings'),
+                        event.target.value,
+                      );
+                      if (next === null) return;
+                      form.setValue('settings', next, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }}
+                  />
+                  <FieldMessage>
+                    {t(`${ns}.help.firstEventTimeout`, {
+                      defaultValue:
+                        '流式请求收到上游响应头后，最多等多久第一个数据事件。上游先回响应头、再思考很久才出字的，调大；回了头常卡住不出字的，调小。留空按请求的起流时限（90 秒；已换过渠道时放宽到 STREAMING_TIMEOUT）。',
                     })}
                   </FieldMessage>
                 </Field>

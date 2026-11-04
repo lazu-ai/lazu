@@ -87,11 +87,17 @@ type RelayInfo struct {
 	isFirstResponse           bool
 	// StreamStartDeadline is when a streamed request stops waiting for an
 	// upstream to start answering, across all of its attempts: the response
-	// headers, and then the first data event. Once an attempt has delivered
+	// headers, and then the first data event (unless StreamFirstEventWait
+	// says otherwise for the attempt). Once an attempt has delivered
 	// one, only the idle timeout applies to it. Zero means unbounded, which is
 	// every non-streamed request (its headers arrive with the whole answer)
 	// and every call that does not come through the relay loop.
 	StreamStartDeadline time.Time
+	// StreamFirstEventWait, when positive, replaces StreamStartDeadline for
+	// the wait between this attempt's response headers and its first data
+	// event: the attempt then waits this long from the headers. It is set per
+	// attempt, from the channel the attempt goes to. Zero keeps the deadline.
+	StreamFirstEventWait time.Duration
 	// FirstOutputTime is when the first event carrying output arrived. It is
 	// what time-to-first-token means, and it is kept apart from
 	// FirstResponseTime because a stream usually opens with a metadata frame —

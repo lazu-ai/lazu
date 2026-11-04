@@ -183,12 +183,18 @@ func streamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 
 	// Headers alone do not start a stream: an upstream can answer 200 and
 	// then send nothing but keep-alive comments until it reports a failure.
-	// Until the first data event the stream start deadline still applies;
-	// after it, only the idle timeout does.
+	// Until the first data event the stream start deadline still applies,
+	// or the attempt's own post-header wait when it has one; after it, only
+	// the idle timeout does. The post-header wait is counted from here, the
+	// moment the headers have been handed over. Unlike the idle timeout it is
+	// not reset by keep-alive comments.
 	var startDeadline <-chan time.Time
 	startTimer := time.NewTimer(0)
 	startTimer.Stop()
-	if !info.StreamStartDeadline.IsZero() {
+	if wait := info.StreamFirstEventWait; wait > 0 {
+		startTimer.Reset(wait)
+		startDeadline = startTimer.C
+	} else if !info.StreamStartDeadline.IsZero() {
 		startTimer.Reset(time.Until(info.StreamStartDeadline))
 		startDeadline = startTimer.C
 	}

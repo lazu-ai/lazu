@@ -1069,6 +1069,9 @@ func (channel *Channel) ValidateSettings() error {
 			}
 			return types.WrapErr(err, types.ErrorCodeChannelSettingsInvalid, types.D{"field": field})
 		}
+		if err := other.ValidateStreamSettings(); err != nil {
+			return types.WrapErr(err, types.ErrorCodeChannelSettingsInvalid, types.D{"field": "first_event_timeout_seconds"})
+		}
 	}
 	channelParams := &dto.ChannelSettings{}
 	if channel.Setting != nil && *channel.Setting != "" {

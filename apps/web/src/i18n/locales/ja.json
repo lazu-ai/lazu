@@ -2932,6 +2932,8 @@
     "page.console.overview.needs": "要対応",
     "page.console.channel.form.field.costPercent": "原価の割引",
     "page.console.channel.form.help.costPercent": "公式価格の何パーセントで仕入れるか。30 なら 7 割引です。個別の原価が未設定のモデルは、この値で上流原価と粗利を計算します。空欄なら公式価格。",
+    "page.console.channel.form.field.firstEventTimeout": "最初のイベントの待ち時間（秒）",
+    "page.console.channel.form.help.firstEventTimeout": "ストリーミングのリクエストで、このソースが応答ヘッダーを返してから最初のデータイベントを待つ時間。ヘッダーはすぐ返して考えてから出力する上流は長めに、ヘッダーの後で止まりがちな上流は短めに。空欄ならリクエストの開始期限（90 秒。ソースを切り替えた後は STREAMING_TIMEOUT）に従います。",
     "page.console.channel.form.help.costTier": "このソースが長文脈の加算料金を課す場合だけ context_tier_* を入力します。入力（キャッシュ含む）がしきい値を超えると、リクエスト全体が段階コストで計算されます。空欄なら基本コスト、公式価格のフォールバック行には公式の段階が自動で付きます。",
     "page.console.overview.needs.drafts": "公開待ちのお知らせ {{count}} 件",
     "page.console.log.session.list.noTitle": "（最初のメッセージは記録されていません）",

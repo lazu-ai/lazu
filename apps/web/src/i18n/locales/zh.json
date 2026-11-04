@@ -2932,6 +2932,8 @@
     "page.console.overview.needs": "需要处理",
     "page.console.channel.form.field.costPercent": "成本折扣",
     "page.console.channel.form.help.costPercent": "按官方价的百分之几进货，30 就是三折。没单独配成本价的模型按这个算上游成本和毛利；留空按官方价。",
+    "page.console.channel.form.field.firstEventTimeout": "首个事件等待（秒）",
+    "page.console.channel.form.help.firstEventTimeout": "流式请求收到上游响应头后，最多等多久第一个数据事件。上游先回响应头、再思考很久才出字的，调大；回了头常卡住不出字的，调小。留空按请求的起流时限（90 秒；已换过渠道时放宽到 STREAMING_TIMEOUT）。",
     "page.console.channel.form.help.costTier": "这条来源按长上下文加价时才填 context_tier_*：输入（含缓存）超过阈值，整单按分档成本算。不填就按基础成本算；官方价兜底行会自动带上官方分档。",
     "page.console.overview.needs.drafts": "{{count}} 条公告待发布",
     "page.console.log.session.list.noTitle": "（没有记录到首条消息）",
