@@ -53,6 +53,14 @@ func ShouldDisableChannel(channelType int, err *types.LazuError) bool {
 	if types.IsChannelError(err) {
 		return true
 	}
+	// The provider account behind this channel cannot pay (prepaid credit
+	// used up, billing suspended). It will refuse every request until someone
+	// tops it up, so keeping it in rotation only spends an attempt, and often
+	// the request's one channel switch, on a certain failure. The scheduled
+	// channel test re-enables it once a test request succeeds again.
+	if err.GetErrorCode() == types.ErrorCodeUpstreamBillingFailed {
+		return true
+	}
 	if types.IsSkipRetryError(err) {
 		return false
 	}

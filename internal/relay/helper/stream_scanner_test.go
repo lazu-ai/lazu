@@ -469,3 +469,64 @@ func TestStreamStartDeadlineDoesNotCutAStartedStream(t *testing.T) {
 		t.Fatalf("result=%+v events=%d, want a completed stream of 2 events", got, events)
 	}
 }
+
+// An attempt with its own post-header wait outlives a request deadline that
+// has already passed: the upstream answered its headers at once and is
+// thinking before its first event.
+func TestStreamFirstEventWaitOutlivesTheStartDeadline(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	reader, writer := io.Pipe()
+	go func() {
+		defer writer.Close()
+		for i := 0; i < 5; i++ {
+			_, _ = io.WriteString(writer, ": keep-alive\n\n")
+			time.Sleep(50 * time.Millisecond)
+		}
+		_, _ = io.WriteString(writer, "data: {\"choices\":[]}\n\ndata: [DONE]\n\n")
+	}()
+	info := &relaycommon.RelayInfo{
+		IsStream:             true,
+		StreamStartDeadline:  time.Now().Add(50 * time.Millisecond),
+		StreamFirstEventWait: 2 * time.Second,
+	}
+	var events int
+	got := StreamScannerHandler(c, &http.Response{Body: reader}, info, func(string) bool { events++; return true })
+	if got.Err != nil || !got.Done || events != 1 {
+		t.Fatalf("result=%+v events=%d, want a completed stream past the start deadline", got, events)
+	}
+}
+
+// A post-header wait shorter than the request deadline ends a stalled stream
+// sooner, and keep-alive comments do not extend it.
+func TestStreamFirstEventWaitEndsAStalledStream(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	reader, writer := io.Pipe()
+	defer writer.Close()
+	go func() {
+		for i := 0; i < 100; i++ {
+			if _, err := io.WriteString(writer, ": keep-alive\n\n"); err != nil {
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}()
+	info := &relaycommon.RelayInfo{
+		IsStream:             true,
+		StreamStartDeadline:  time.Now().Add(time.Minute),
+		StreamFirstEventWait: 100 * time.Millisecond,
+	}
+	result := make(chan StreamScanResult, 1)
+	go func() {
+		result <- StreamScannerHandler(c, &http.Response{Body: reader}, info, func(string) bool { return true })
+	}()
+	select {
+	case got := <-result:
+		if !errors.Is(got.Err, relaycommon.ErrStreamStartDeadline) || got.Done {
+			t.Fatalf("result=%+v, want the post-header wait to end the stream", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("keep-alive comments held the stream past its post-header wait")
+	}
+}

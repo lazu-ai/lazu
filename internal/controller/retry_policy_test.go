@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/types"
@@ -423,5 +424,51 @@ func TestPreflightSwitchObeysLaneAndBudget(t *testing.T) {
 	used, pick = 0, pickSameChannel
 	if planSwitchOnly(newCtx(model.ChannelLaneDirect), err, 0, relayFirstByteBudget, &used, &pick) {
 		t.Fatal("pre-flight switch ignored the first-byte budget")
+	}
+}
+
+// The post-header wait: a channel's own setting wins, a request that has used
+// its channel switches waits up to STREAMING_TIMEOUT, and anything else keeps
+// the request deadline.
+func TestRelayStreamFirstEventWait(t *testing.T) {
+	previous := constant.StreamingTimeout
+	t.Cleanup(func() { constant.StreamingTimeout = previous })
+	constant.StreamingTimeout = 600
+
+	cases := []struct {
+		name     string
+		stream   bool
+		channel  int
+		switches int
+		want     time.Duration
+	}{
+		{"default keeps the deadline", true, 0, 0, 0},
+		{"channel setting", true, 180, 0, 180 * time.Second},
+		{"channel setting shorter than the deadline", true, 20, 0, 20 * time.Second},
+		{"channel setting wins after a switch", true, 30, relayMaxChannelSwitches, 30 * time.Second},
+		{"switches spent", true, 0, relayMaxChannelSwitches, 600 * time.Second},
+		{"not streamed", false, 180, relayMaxChannelSwitches, 0},
+	}
+	for _, tc := range cases {
+		if got := relayStreamFirstEventWait(tc.stream, tc.channel, tc.switches); got != tc.want {
+			t.Errorf("%s: wait=%s want %s", tc.name, got, tc.want)
+		}
+	}
+
+	constant.StreamingTimeout = 0
+	if got := relayStreamFirstEventWait(true, 0, relayMaxChannelSwitches); got != time.Duration(constant.DefaultStreamingTimeoutSeconds)*time.Second {
+		t.Errorf("unset STREAMING_TIMEOUT: wait=%s want the default", got)
+	}
+}
+
+// The post-header wait is read from the channel the attempt was set up for.
+func TestAttemptFirstEventTimeoutSecondsReadsTheChannelSettings(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	if got := attemptFirstEventTimeoutSeconds(c); got != 0 {
+		t.Fatalf("no channel settings: got %d", got)
+	}
+	common.SetContextKey(c, constant.ContextKeyChannelOtherSetting, dto.ChannelOtherSettings{FirstEventTimeoutSeconds: 240})
+	if got := attemptFirstEventTimeoutSeconds(c); got != 240 {
+		t.Fatalf("got %d want 240", got)
 	}
 }

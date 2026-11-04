@@ -28,3 +28,22 @@ func TestChannelCompatibilitySettingsValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestChannelFirstEventTimeoutValidation(t *testing.T) {
+	for _, tc := range []struct {
+		settings string
+		valid    bool
+	}{
+		{`{"first_event_timeout_seconds":0}`, true},
+		{`{"first_event_timeout_seconds":180}`, true},
+		{`{"first_event_timeout_seconds":3600}`, true},
+		{`{"first_event_timeout_seconds":3601}`, false},
+		{`{"first_event_timeout_seconds":-1}`, false},
+		{`{"first_event_timeout_seconds":"180"}`, false},
+	} {
+		channel := Channel{OtherSettings: tc.settings}
+		if err := channel.ValidateSettings(); (err == nil) != tc.valid {
+			t.Errorf("settings=%s error=%v", tc.settings, err)
+		}
+	}
+}

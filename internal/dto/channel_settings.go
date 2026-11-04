@@ -51,6 +51,14 @@ type ChannelOtherSettings struct {
 	// source has no cost row of its own for a model. 0 means unset (1.0).
 	CostMultiplier float64 `json:"cost_multiplier,omitempty"`
 
+	// FirstEventTimeoutSeconds is how long a streamed attempt on this source
+	// waits for its first data event once the upstream's response headers have
+	// arrived. 0 keeps the request's stream start deadline, which also bounds
+	// the wait for headers. Set it longer for an upstream that answers headers
+	// at once and then thinks before the first event, or shorter for one that
+	// tends to stall after its headers.
+	FirstEventTimeoutSeconds int `json:"first_event_timeout_seconds,omitempty"`
+
 	// Restrict this source to Codex Responses requests and forward their original session headers.
 	CodexClientOnly bool `json:"codex_client_only,omitempty"`
 
@@ -107,6 +115,18 @@ type ChannelOtherSettings struct {
 	VideoStatusURLTemplate  string               `json:"video_status_url_template,omitempty"`
 	VideoContentURLTemplate string               `json:"video_content_url_template,omitempty"`
 	Capabilities            *ChannelCapabilities `json:"capabilities,omitempty"` // 路由能力声明，nil = 视为全能；详见 ChannelCapabilities
+}
+
+// MaxFirstEventTimeoutSeconds bounds FirstEventTimeoutSeconds. A stream that
+// has said nothing for an hour is not starting.
+const MaxFirstEventTimeoutSeconds = 3600
+
+// ValidateStreamSettings checks the streamed-attempt timing settings.
+func (s ChannelOtherSettings) ValidateStreamSettings() error {
+	if s.FirstEventTimeoutSeconds < 0 || s.FirstEventTimeoutSeconds > MaxFirstEventTimeoutSeconds {
+		return fmt.Errorf("first_event_timeout_seconds must be between 0 and %d", MaxFirstEventTimeoutSeconds)
+	}
+	return nil
 }
 
 var claudeCompatModelID = regexp.MustCompile(`^claude-[a-zA-Z0-9][a-zA-Z0-9._:-]*$`)

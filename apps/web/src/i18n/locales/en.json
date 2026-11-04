@@ -2932,6 +2932,8 @@
     "page.console.overview.needs": "Needs attention",
     "page.console.channel.form.field.costPercent": "Cost discount",
     "page.console.channel.form.help.costPercent": "Percent of the official list price this source costs; 30 means 70% off. Models without their own cost price use it for upstream cost and margin. Leave empty for list price.",
+    "page.console.channel.form.field.firstEventTimeout": "First event wait (seconds)",
+    "page.console.channel.form.help.firstEventTimeout": "How long a streamed request waits for its first data event after this source sends response headers. Raise it for an upstream that answers headers at once and then thinks before the first token; lower it for one that tends to stall after its headers. Empty keeps the request start deadline (90 s, or STREAMING_TIMEOUT once the request has switched sources).",
     "page.console.channel.form.help.costTier": "Fill context_tier_* only when this source charges a long-context surcharge: once input (cache included) passes the threshold, the whole request costs the tier prices. Left empty, the base cost applies; the list-price fallback row takes the lab's official tier automatically.",
     "page.console.overview.needs.drafts": "{{count}} announcement drafts to publish",
     "page.console.log.session.list.noTitle": "(no first message recorded)",

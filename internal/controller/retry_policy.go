@@ -41,7 +41,8 @@ const (
 	// error belongs to the client, whose own reconnect logic is better placed to
 	// decide what to do with it. No retry starts past it, and a streamed
 	// attempt still waiting for its upstream's headers or first data event is
-	// abandoned at it (RelayInfo.StreamStartDeadline).
+	// abandoned at it (RelayInfo.StreamStartDeadline), unless the attempt's
+	// post-header wait says otherwise (relayStreamFirstEventWait).
 	relayFirstByteBudget = 90 * time.Second
 
 	// relayMaxRetryAfter bounds how long an upstream may push us out via
@@ -123,6 +124,40 @@ func relayStreamStartDeadline(stream bool, started time.Time) time.Time {
 		return time.Time{}
 	}
 	return started.Add(relayFirstByteBudget)
+}
+
+// relayStreamFirstEventWait is how long a streamed attempt waits for its first
+// data event once its upstream's headers are in; zero leaves that wait to the
+// request's stream start deadline.
+//
+// A channel's own first_event_timeout_seconds wins: the operator knows that
+// upstream answers headers at once and then thinks, or that it stalls after
+// them. Otherwise, once the request has used its channel switches, the attempt
+// waits up to STREAMING_TIMEOUT. A stream that has started but not produced its
+// first event is never retried (a timeout is not retryable, and the budget is
+// spent at that moment anyway), so cutting it off at the deadline can only
+// turn a slow answer into a certain failure. Before a switch is spent the
+// deadline stays, so a stalled upstream still fails fast for the client.
+func relayStreamFirstEventWait(stream bool, channelTimeoutSeconds int, channelSwitchesUsed int) time.Duration {
+	if !stream {
+		return 0
+	}
+	if channelTimeoutSeconds > 0 {
+		return time.Duration(channelTimeoutSeconds) * time.Second
+	}
+	if channelSwitchesUsed >= relayMaxChannelSwitches {
+		return relayStreamingTimeout()
+	}
+	return 0
+}
+
+// relayStreamingTimeout is STREAMING_TIMEOUT, the longest a stream may go
+// without a line from its upstream.
+func relayStreamingTimeout() time.Duration {
+	if constant.StreamingTimeout > 0 {
+		return time.Duration(constant.StreamingTimeout) * time.Second
+	}
+	return time.Duration(constant.DefaultStreamingTimeoutSeconds) * time.Second
 }
 
 // waitRelayRetry paces the next attempt against an unhealthy upstream without
