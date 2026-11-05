@@ -36,7 +36,7 @@ const (
 	upstreamSyncMassGoneMin = 3
 )
 
-var errUpstreamListEmpty = errors.New("上游返回的模型列表是空的")
+var errUpstreamListEmpty = errors.New("upstream returned an empty model list")
 
 // upstreamSyncSummary is the slice of the state the source list shows.
 type upstreamSyncSummary struct {
@@ -296,7 +296,7 @@ func sortedKeys(set map[string]bool) []string {
 // upstreamCheckError is the one line the log shows for a failed read.
 func upstreamCheckError(err error) string {
 	if errors.Is(err, errUpstreamListEmpty) {
-		return err.Error()
+		return "上游返回的模型列表是空的"
 	}
 	var statusErr *upstreamStatusError
 	if errors.As(err, &statusErr) {
