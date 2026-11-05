@@ -342,6 +342,7 @@ test('default create form fits a laptop viewport', async ({ page }) => {
     modal.getByRole('button', { name: '创建并接入', exact: true }),
   ).toBeInViewport();
   const box = await modal.boundingBox();
+  if (!box) throw new Error('create dialog has no box');
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(720 + 1);
   await modal.locator('.tok-create__more').scrollIntoViewIfNeeded();
