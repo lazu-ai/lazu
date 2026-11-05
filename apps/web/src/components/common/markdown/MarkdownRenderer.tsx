@@ -591,16 +591,15 @@ function _MarkdownContent(props: MarkdownContentProps) {
           <blockquote
             {...props}
             style={{
-              borderLeft: isUserMessage
-                ? '4px solid rgba(255, 255, 255, 0.5)'
-                : '4px solid var(--ui-accent)',
-              paddingLeft: '16px',
+              border: isUserMessage
+                ? '1px solid rgba(255, 255, 255, 0.35)'
+                : '1px solid var(--ui-border)',
               margin: '12px 0',
               backgroundColor: isUserMessage
                 ? 'rgba(255, 255, 255, 0.1)'
                 : 'var(--ui-surface-muted)',
               padding: '8px 16px',
-              borderRadius: '0 4px 4px 0',
+              borderRadius: '6px',
               fontStyle: 'italic',
               color: isUserMessage ? 'white' : 'inherit',
             }}

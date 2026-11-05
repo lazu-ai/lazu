@@ -1404,18 +1404,6 @@ body:has(.console-review)
   outline: none;
 }
 
-/* Being watched before it goes live: a warm rule down the left edge,
-   drawn inside the border so the card keeps its size (canvas 2D). */
-.mo-card.is-observing {
-  box-shadow: inset 3px 0 0 var(--lazu-warning);
-}
-
-.mo-card.is-observing:focus-visible {
-  box-shadow:
-    inset 3px 0 0 var(--lazu-warning),
-    var(--ui-focus-ring);
-}
-
 .mo-card.is-undo-pending {
   cursor: default;
   opacity: 0.55;

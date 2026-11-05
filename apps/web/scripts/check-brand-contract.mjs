@@ -28,6 +28,14 @@ const forbidden = [
     reason: 'Semi CSS variables are not part of the Brand contract',
   },
   {
+    // A coloured bar down one edge of a card, row, panel, callout or quote.
+    // 1px dividers are fine; anything 2px or wider on a single side is not.
+    pattern:
+      /border-(?:left|right|inline-start|inline-end)(?:-width)?\s*:\s*[2-9]px|border(?:Left|Right|InlineStart|InlineEnd)\s*:\s*['"`][2-9]px|inset\s+-?[2-9]px\s+0(?:px)?\s+0/g,
+    reason:
+      'accent stripes are not part of the Brand contract (color-system.md rule 3)',
+  },
+  {
     pattern: /(?:Inter Tight|JetBrains Mono)/g,
     reason: 'use --lazu-font-sans or --lazu-font-mono',
     // fonts.css registers the assets; brand.generated.css is generated from
