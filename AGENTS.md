@@ -108,6 +108,9 @@ These rules come from [CONTRIBUTING.md](./CONTRIBUTING.md) and should be treated
 - new `any` types; use `unknown` or concrete types
 - `// @ts-ignore`; if unavoidable, use `// @ts-expect-error` with a reason
 - new `.jsx` or `.js` business files; use `.tsx` or `.ts`
+- accent stripes: a coloured bar down one edge of a card, row, panel, callout
+  or quote, for selection or for status
+  ([color-system.md](brand/foundations/color-system.md) rule 3)
 
 ### Loading And Waiting
 

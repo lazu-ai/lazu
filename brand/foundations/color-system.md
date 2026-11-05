@@ -18,6 +18,13 @@ product code or introduce a separate palette for a route.
    page hero eyebrow and the headline's emphasis.
 3. Selection uses background, weight and foreground — never rails or arrows.
    The current navigation item is a teal wash with teal type.
+   No accent stripes, anywhere: a card, row, panel, callout or quote is never
+   marked by a coloured bar down one edge (`border-left: 3px`,
+   `box-shadow: inset 3px 0 0`, a `::before` bar). This covers status as well
+   as selection. State is shown by a badge or text, by the item's place in the
+   list (its own group), by a status column, or by a neutral tint of the whole
+   row. Hairline borders on every side and 1px dividers between columns are
+   not stripes. `apps/web` runs `brand:check`, which rejects the common forms.
 4. Charts use teal (`--lazu-chart-1`) for the primary measure and neutral
    auxiliary series. Legacy orange data tokens do not authorize orange chart
    defaults.

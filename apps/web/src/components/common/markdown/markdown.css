@@ -49,7 +49,7 @@
 
 .user-message blockquote {
   color: white !important;
-  border-left-color: rgba(255, 255, 255, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
@@ -385,34 +385,34 @@ pre:hover .copy-code-button {
 /* 警告块样式 */
 .markdown-body .warning {
   background-color: var(--ui-warning-soft);
-  border-left: 4px solid var(--ui-warning);
+  border: 1px solid color-mix(in srgb, var(--ui-warning) 35%, transparent);
   padding: 12px 16px;
   margin: 12px 0;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
 }
 
 .markdown-body .info {
   background-color: var(--ui-info-soft);
-  border-left: 4px solid var(--ui-info);
+  border: 1px solid color-mix(in srgb, var(--ui-info) 35%, transparent);
   padding: 12px 16px;
   margin: 12px 0;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
 }
 
 .markdown-body .success {
   background-color: var(--ui-success-soft);
-  border-left: 4px solid var(--ui-success);
+  border: 1px solid color-mix(in srgb, var(--ui-success) 35%, transparent);
   padding: 12px 16px;
   margin: 12px 0;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
 }
 
 .markdown-body .danger {
   background-color: var(--ui-danger-soft);
-  border-left: 4px solid var(--ui-danger);
+  border: 1px solid color-mix(in srgb, var(--ui-danger) 35%, transparent);
   padding: 12px 16px;
   margin: 12px 0;
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
 }
 
 @keyframes fade-in {
