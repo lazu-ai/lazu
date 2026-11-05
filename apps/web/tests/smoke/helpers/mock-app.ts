@@ -181,6 +181,7 @@ const modelOpsSources = [
     cost_request_usd: 0.02,
     cost_second_usd: 0.003,
     cost_row_count: 3,
+    upstream_sync: { interval_hours: 6, new: 1, gone: 1 },
     health: {
       request_count: 400,
       error_count: 1,
@@ -253,6 +254,29 @@ const modelOpsSources = [
     },
   },
 ];
+
+/* The upstream check for a source page (internal/controller/upstream_sync.go
+   shape): one model listed upstream but not served, one served but gone. */
+const mockedUpstream = {
+  next_check_at: Math.floor(Date.now() / 1000) + 6 * 3600,
+  requests_7d: { 'gpt-4o-mini': 120 },
+  settings: { interval_hours: 6, on_new: 'review', on_gone: 'stop' },
+  state: {
+    checked_at: Math.floor(Date.now() / 1000) - 600,
+    listed_at: Math.floor(Date.now() / 1000) - 600,
+    upstream: ['gpt-5-preview', 'text-embedding-3-large'],
+    new: ['gpt-5-preview'],
+    gone: ['gpt-4o-mini'],
+    log: [
+      {
+        at: Math.floor(Date.now() / 1000) - 600,
+        listed: 2,
+        new: ['gpt-5-preview'],
+        gone: ['gpt-4o-mini'],
+      },
+    ],
+  },
+};
 
 const modelOpsPools = {
   'gpt-4o-mini': {
@@ -980,6 +1004,27 @@ function payloadFor(
   if (/^\/api\/channel\/\d+\/key$/.test(pathname)) {
     return ok({ key: 'sk-smoke-channel-key' });
   }
+  // One source read back for its own page.
+  const channelDetail = /^\/api\/channel\/(\d+)$/.exec(pathname);
+  if (channelDetail) {
+    const found = [channel, cheapChannel].find(
+      (candidate) => String(candidate.id) === channelDetail[1],
+    );
+    if (found) {
+      return ok({
+        ...found,
+        base_url: 'https://api.openai.com',
+        settings: JSON.stringify({
+          protocol_dialect: 'openai',
+          upstream_sync: {
+            interval_hours: 6,
+            on_new: 'review',
+            on_gone: 'stop',
+          },
+        }),
+      });
+    }
+  }
   if (pathname.startsWith('/api/channel')) return page([channel, cheapChannel]);
 
   if (pathname === '/api/price-plans') return ok([]);
@@ -1019,6 +1064,9 @@ function payloadFor(
         },
       ],
     });
+  }
+  if (/^\/api\/model_ops\/sources\/[^/]+\/upstream$/.test(pathname)) {
+    return ok(mockedUpstream);
   }
   if (pathname === '/api/model_ops/sources') {
     return ok({

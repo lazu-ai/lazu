@@ -133,6 +133,17 @@ const pick = (toolId: ConnectToolId, extra = {}) =>
 const idsOf = (result: ReturnType<typeof pick>) => result.all;
 
 describe('what the picker offers', () => {
+  it('reads `*` with `-id` entries as every model except those', () => {
+    const facts = [fact('gpt-6-astra'), fact('gpt-6-nova'), fact('gpt-5.5')];
+    expect(
+      buildPicker({ allowed: ['*', '-gpt-6-nova'], facts, toolId: 'codex' })
+        .all,
+    ).toEqual(expect.arrayContaining(['gpt-6-astra', 'gpt-5.5']));
+    expect(
+      buildPicker({ allowed: ['*', '-gpt-6-nova'], facts, toolId: 'codex' })
+        .all,
+    ).not.toContain('gpt-6-nova');
+  });
   it('excludes decision endpoints and decision output from chat tools', () => {
     const facts = [
       fact('gpt-6-astra'),

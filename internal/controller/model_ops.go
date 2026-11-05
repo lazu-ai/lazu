@@ -102,6 +102,9 @@ type modelOpsSource struct {
 	// Observation is present while any of this source's routes is being
 	// watched before going live; see route_observation.go.
 	Observation *observationView `json:"observation,omitempty"`
+	// UpstreamSync is the upstream check's summary; absent while the check
+	// is off and has never run.
+	UpstreamSync *upstreamSyncSummary `json:"upstream_sync,omitempty"`
 }
 
 type modelOpsSourceRules struct {
@@ -218,6 +221,7 @@ func GetModelOpsSources(c *gin.Context) {
 			CostRowCount:        cost.rows,
 			Health:              sourceHealth,
 			Observation:         observation.view,
+			UpstreamSync:        newUpstreamSyncSummary(channel),
 		})
 	}
 

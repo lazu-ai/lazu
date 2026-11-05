@@ -242,7 +242,7 @@ test('saving both tiers sends one atomic row request', async ({ page }) => {
   await app.expectNoUnexpectedErrors();
 });
 
-test('来源 cards show the record, the cost with its units and one control', async ({
+test('来源 list is a table with state, upstream change and health columns', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -250,83 +250,77 @@ test('来源 cards show the record, the cost with its units and one control', as
   });
   await expectRouteReady(page, '/console/model-ops/sources');
 
-  const bad = page.locator('.mo-card', { hasText: 'google-2' });
-  await expect(bad).toContainText('google-2');
-  // Status is never colour-only: the card states the failure in words.
+  const table = page.getByRole('table', { name: '来源' });
+  await expect(table.getByRole('columnheader')).toContainText([
+    '来源',
+    '状态',
+    '上游变化',
+    '模型',
+  ]);
+  const bad = page.getByRole('row', { name: 'google-2' });
+  // Status is never colour-only: the row states the failure in words.
   await expect(bad).toContainText('80.0%');
-  await expect(bad).toContainText('均值 9.2s');
   await expect(bad).toContainText('未分类');
-  await expect(bad.getByRole('switch')).toBeVisible();
+  await expect(bad).toContainText('正式');
 
-  // Every cost figure carries its unit; the per-call and per-second ones
-  // sit in the title when the card has room for one.
-  const healthy = page
-    .locator('.mo-card', { hasText: 'OpenAI smoke channel' })
-    .first();
-  await expect(healthy.locator('.mo-card__cost-value')).toHaveText(
-    '$0.11 / $0.44',
-  );
-  await expect(healthy.locator('.mo-card__cost')).toHaveAttribute(
-    'title',
-    /\$0\.02 \/ 次 · \$0\.003 \/ 秒/,
-  );
-  // The default lane goes unlabelled; another lane is named on the card.
-  await expect(healthy.locator('.mo-card__lane')).toHaveCount(0);
+  const healthy = page.getByRole('row', { name: 'OpenAI smoke channel' });
+  await expect(healthy).toContainText('+1');
+  await expect(healthy).toContainText('−1');
+  await expect(healthy).toContainText('待核对');
+  // The default lane goes unlabelled; another lane is named on the row.
   await expect(
-    page.locator('.mo-card', { hasText: 'Budget smoke channel' }),
+    page.getByRole('row', { name: 'Budget smoke channel' }),
   ).toContainText('便宜档');
 
-  // 编辑 / 测试 / 删除 live behind ⋯.
+  // 编辑 / 测试 / 停用 / 删除 live behind ⋯.
   await healthy
     .getByRole('button', { name: '更多操作 OpenAI smoke channel' })
     .click();
   await expect(page.getByRole('menuitem', { name: '编辑' })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: '测试' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: '停用' })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: '删除' })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  // The card itself opens the editor, its head filled from the list.
-  await healthy.locator('.mo-card__name').click();
-  const detail = page.getByRole('dialog');
-  await expect(detail).toContainText('api.openai.com');
-  // Credentials stay masked — only a fingerprint, never the key.
-  await expect(detail).toContainText('凭据 #02d9');
+  // The row opens the source's own page.
+  await healthy.click();
+  await expect(page).toHaveURL(/\/console\/model-ops\/sources\/1$/);
   await expect(page.locator('body')).not.toContainText('sk-smoke-channel-key');
 
   await app.expectNoUnexpectedErrors();
 });
 
-test('来源 filters combine a lane with a state', async ({ page }) => {
+test('来源 filters by state and searches names, models and lanes', async ({
+  page,
+}) => {
   const app = await setupMockedApp(page, {
     consoleScope: 'platform:operations',
   });
   await expectRouteReady(page, '/console/model-ops/sources');
 
-  const cards = page.locator('.mo-card');
-  await expect(cards).toHaveCount(3);
-  const lanes = page.getByRole('group', { name: '线路' });
-  await expect(lanes.getByRole('button', { name: '全部线路' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await lanes.getByRole('button', { name: /稳定档/ }).click();
-  await expect(cards).toHaveCount(2);
+  const rows = page.locator('.src-srow:not(.src-srow--head)');
+  await expect(rows).toHaveCount(3);
   await page
     .getByRole('group', { name: '状态' })
-    .getByRole('button', { name: /异常/ })
+    .getByRole('button', { name: /上游有变化/ })
     .click();
-  await expect(cards).toHaveCount(1);
-  await expect(cards).toContainText('google-2');
-  // The gear beside the switch opens the lanes dialog.
-  await page.getByRole('button', { name: '线路设置' }).click();
-  await expect(page.getByRole('dialog')).toContainText(
-    '模型默认按线路比例定价',
-  );
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText('OpenAI smoke channel');
+  await page
+    .getByRole('group', { name: '状态' })
+    .getByRole('button', { name: /全部/ })
+    .click();
+  await page.getByLabel('搜索来源', { exact: true }).fill('gemini-image-4');
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText('google-2');
+  await page.getByLabel('搜索来源', { exact: true }).fill('便宜档');
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText('Budget smoke channel');
 
   await app.expectNoUnexpectedErrors();
 });
 
-test('a watched source carries a stripe, its progress and the go-live check', async ({
+test('a watched source shows its badge, progress and problems in the status column', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -408,92 +402,49 @@ test('a watched source carries a stripe, its progress and the go-live check', as
   });
   await expectRouteReady(page, '/console/model-ops/sources');
 
-  const card = page.locator('.mo-card', { hasText: 'Watched smoke channel' });
-  await expect(card).toHaveClass(/is-observing/);
-  await expect(card).toContainText('观察中');
-  await expect(card).toContainText('3/7 天');
-  await expect(card).toContainText('3 个有问题');
-  await expect(card).toContainText('抽测 194/194');
-  await expect(card.getByRole('switch')).toHaveCount(0);
-  await expect(
-    card.getByRole('button', { name: '上线检查 · 4' }),
-  ).toBeVisible();
+  const row = page.getByRole('row', { name: 'Watched smoke channel' });
+  // The state is a badge in its own column, never a stripe down the row.
+  await expect(row).toContainText('观察中');
+  await expect(row).toContainText('3/7 天');
+  await expect(row).toContainText('3 个有问题');
+  await expect(row).toContainText('抽测 194/194');
+  await expect(row.getByRole('img', { name: '观察进度 3/7 天' })).toBeVisible();
 
   await app.expectNoUnexpectedErrors();
 });
 
-test('source model search filters the cards and keeps an open editor', async ({
+test('来源 page: models with the upstream diff, then 线路 and 同步 tabs', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
     consoleScope: 'platform:operations',
   });
-  await expectRouteReady(page, '/console/model-ops/sources');
-  await page
-    .locator('.mo-card', { hasText: 'OpenAI smoke channel' })
-    .locator('.mo-card__name')
-    .click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await page.getByLabel('搜索来源', { exact: true }).fill('gemini-image-4');
-  await expect(page.locator('.mo-card')).toHaveCount(1);
-  await expect(page.locator('.mo-card')).toContainText('google-2');
-  await app.expectNoUnexpectedErrors();
-});
+  await expectRouteReady(page, '/console/model-ops/sources/1');
 
-test('来源 dialog: skeleton until the record arrives, then the 线路 anchors', async ({
-  page,
-}) => {
-  let release = () => {};
-  const held = new Promise((resolve) => {
-    release = resolve;
-  });
-  const app = await setupMockedApp(page, {
-    consoleScope: 'platform:operations',
-    payloadFor: async (url, request) => {
-      const { pathname } = new URL(url);
-      if (pathname === '/api/channel/1' && request.method() === 'GET') {
-        await held;
-        return {
-          success: true,
-          message: '',
-          data: {
-            id: 1,
-            name: 'OpenAI smoke channel',
-            type: 1,
-            status: 1,
-            group: 'cheap',
-            source_type: 'official',
-            models: 'gpt-4o-mini',
-            priority: 1,
-            weight: 70,
-            base_url: 'https://api.openai.com',
-            settings: '{"protocol_dialect":"openai"}',
-          },
-        };
-      }
-      return undefined;
-    },
-  });
-  await expectRouteReady(page, '/console/model-ops/sources');
-  await page
-    .locator('.mo-card', { hasText: 'OpenAI smoke channel' })
-    .locator('.mo-card__name')
-    .click();
-  const dialog = page.getByRole('dialog');
-  // The head shows what the list already knew; the body waits in outline.
-  await expect(dialog).toContainText('OpenAI smoke channel');
+  await expect(page.locator('h1')).toContainText('OpenAI smoke channel');
+  const banner = page.getByRole('status').filter({ hasText: '上游有变化' });
+  await expect(banner).toContainText('新出现 1 个');
+  await expect(banner).toContainText('已不列 1 个');
+
+  const models = page.getByRole('table', { name: '模型' });
+  const gone = models.getByRole('row').filter({ hasText: 'gpt-4o-mini' });
+  await expect(gone).toHaveClass(/is-gone/);
+  await expect(gone).toContainText('已不列');
   await expect(
-    dialog.getByRole('status', { name: '正在读取来源详情' }),
-  ).toBeVisible();
-  await expect(dialog.getByRole('button', { name: '保存来源' })).toBeDisabled();
-  release();
-  await expect(dialog.locator('#channel-name')).toHaveValue(
-    'OpenAI smoke channel',
-  );
+    gone.getByRole('switch', { name: '供货 gpt-4o-mini' }),
+  ).toBeChecked();
+  const fresh = models.getByRole('row').filter({ hasText: 'gpt-5-preview' });
+  await expect(fresh).toContainText('新出现');
+  await expect(
+    fresh.getByRole('switch', { name: '供货 gpt-5-preview' }),
+  ).not.toBeChecked();
 
-  await dialog.getByRole('tab', { name: '线路' }).click();
-  const nav = dialog.getByRole('navigation', { name: '线路设置分段' });
+  await page.getByRole('button', { name: '看新出现的' }).click();
+  await expect(models.getByRole('row')).toHaveCount(2);
+
+  await page.getByRole('tab', { name: '线路' }).click();
+  await expect(page).toHaveURL(/tab=routing/);
+  const nav = page.getByRole('navigation', { name: '线路设置分段' });
   await expect(nav.getByRole('button')).toHaveText([
     '线路与权重',
     /限流\s*未限制/,
@@ -501,25 +452,62 @@ test('来源 dialog: skeleton until the record arrives, then the 线路 anchors'
     '成本基准',
     '厂商高级设置',
   ]);
-  // Lanes read by name, never by slug.
-  await expect(dialog.getByLabel('线路', { exact: true })).toContainText(
-    '便宜档',
+
+  await page.getByRole('tab', { name: '同步' }).click();
+  await expect(page.getByRole('button', { name: '每 6 小时' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
   );
-  // Field names live behind ⓘ, not beside the label.
-  await expect(dialog.locator('.mo-code')).toHaveCount(0);
   await expect(
-    dialog.getByRole('button', { name: '字段说明：weight' }),
-  ).toBeVisible();
-  // The 启用 switch is the card's, not the form's.
-  await expect(dialog.getByRole('switch', { name: '启用' })).toHaveCount(0);
-  await nav.getByRole('button', { name: '成本基准' }).click();
-  await expect(dialog.locator('pre.mo-example')).toContainText(
-    '"model_name": "gpt-5.5"',
+    page.getByLabel('先不供货，进「上游新增」等我核对'),
+  ).toBeChecked();
+  await page.getByLabel('忽略', { exact: true }).fill('text-embedding-*');
+  await expect(page.locator('.src-sync')).toContainText(
+    'text-embedding-3-large',
   );
-  await expect(nav.getByRole('button', { name: '成本基准' })).toHaveAttribute(
-    'aria-current',
-    'location',
-  );
+
+  await app.expectNoUnexpectedErrors();
+});
+
+test('新建来源 is a page: type, connection test, then models to serve', async ({
+  page,
+}) => {
+  const created = [];
+  const app = await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: (url, request) => {
+      const { pathname } = new URL(url);
+      if (pathname === '/api/channel/fetch_models') {
+        return {
+          success: true,
+          message: '',
+          data: ['gpt-4o-mini', 'gpt-5-preview'],
+        };
+      }
+      if (pathname === '/api/channel/' && request.method() === 'POST') {
+        created.push(request.postDataJSON());
+        return { success: true, message: '', data: { ids: ['9'] } };
+      }
+      return undefined;
+    },
+  });
+  await expectRouteReady(page, '/console/model-ops/sources/new');
+
+  await expect(page.locator('h1')).toContainText('新建来源');
+  await expect(page.getByRole('radio', { name: 'OpenAI 兼容' })).toBeChecked();
+  const submit = page.getByRole('button', { name: /创建来源并供货/ });
+  await expect(submit).toBeDisabled();
+
+  await page.getByPlaceholder('生产 OpenAI 池').fill('Smoke new source');
+  await page
+    .getByPlaceholder('https://api.example.com')
+    .fill('https://api.example.com');
+  await page.getByPlaceholder('sk-…').fill('sk-smoke-new');
+  await page.getByRole('button', { name: '测试连接' }).click();
+  await expect(page.locator('body')).toContainText('上游列出 2 个模型');
+
+  await page.getByRole('checkbox', { name: 'gpt-5-preview' }).check();
+  await expect(submit).toHaveText(/创建来源并供货 1 个/);
 
   await app.expectNoUnexpectedErrors();
 });
@@ -692,13 +680,7 @@ test('来源表单 edits request overrides and keeps the stored ones on save', a
       return undefined;
     },
   });
-  await expectRouteReady(page, '/console/model-ops/sources');
-  await page
-    .locator('.mo-card', { hasText: 'OpenAI smoke channel' })
-    .first()
-    .locator('.mo-card__name')
-    .click();
-  await page.getByRole('tab', { name: '线路' }).click();
+  await expectRouteReady(page, '/console/model-ops/sources/1?tab=routing');
   await page
     .getByRole('navigation', { name: '线路设置分段' })
     .getByRole('button', { name: '厂商高级设置' })

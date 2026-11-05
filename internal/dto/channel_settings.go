@@ -3,6 +3,7 @@ package dto
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 type ChannelSettings struct {
@@ -115,6 +116,98 @@ type ChannelOtherSettings struct {
 	VideoStatusURLTemplate  string               `json:"video_status_url_template,omitempty"`
 	VideoContentURLTemplate string               `json:"video_content_url_template,omitempty"`
 	Capabilities            *ChannelCapabilities `json:"capabilities,omitempty"` // 路由能力声明，nil = 视为全能；详见 ChannelCapabilities
+
+	// UpstreamSync is how often the gateway re-reads this source's upstream
+	// model list and what it does about the difference. nil means never.
+	UpstreamSync *UpstreamSyncSettings `json:"upstream_sync,omitempty"`
+	// UpstreamSyncState is written by the gateway only. Channel.Update keeps
+	// the stored copy whatever a save sends, so a console form that loaded
+	// the record an hour ago cannot roll the last check back.
+	UpstreamSyncState *UpstreamSyncState `json:"upstream_sync_state,omitempty"`
+}
+
+// What to do with a model the upstream starts listing that this source does
+// not serve yet.
+const (
+	UpstreamOnNewReview = "review" // hold it for the operator (default)
+	UpstreamOnNewAuto   = "auto"   // start serving it
+)
+
+// What to do with a model this source serves that the upstream stops listing.
+const (
+	UpstreamOnGoneStop = "stop" // stop serving it and keep a record (default)
+	UpstreamOnGoneKeep = "keep" // keep serving it and only flag it
+)
+
+// UpstreamSyncSettings is the operator's half of the upstream check.
+type UpstreamSyncSettings struct {
+	// IntervalHours between checks; 0 turns the check off.
+	IntervalHours int    `json:"interval_hours,omitempty"`
+	OnNew         string `json:"on_new,omitempty"`
+	OnGone        string `json:"on_gone,omitempty"`
+	// Ignore lists upstream model IDs that never count as new: one pattern per
+	// entry, * as a wildcard, or a regular expression after "re:".
+	Ignore []string `json:"ignore,omitempty"`
+	// NotifyOps sends an ops alert when a check finds a change or fails.
+	NotifyOps bool `json:"notify_ops,omitempty"`
+}
+
+// MaxUpstreamSyncIntervalHours bounds IntervalHours to a week.
+const MaxUpstreamSyncIntervalHours = 24 * 7
+
+// Normalized fills the defaults a stored or submitted value may leave out.
+func (s *UpstreamSyncSettings) Normalized() UpstreamSyncSettings {
+	if s == nil {
+		return UpstreamSyncSettings{OnNew: UpstreamOnNewReview, OnGone: UpstreamOnGoneStop}
+	}
+	out := *s
+	if out.IntervalHours < 0 {
+		out.IntervalHours = 0
+	}
+	if out.IntervalHours > MaxUpstreamSyncIntervalHours {
+		out.IntervalHours = MaxUpstreamSyncIntervalHours
+	}
+	if out.OnNew != UpstreamOnNewAuto {
+		out.OnNew = UpstreamOnNewReview
+	}
+	if out.OnGone != UpstreamOnGoneKeep {
+		out.OnGone = UpstreamOnGoneStop
+	}
+	return out
+}
+
+// UpstreamSyncState is what the last checks found.
+type UpstreamSyncState struct {
+	// CheckedAt is the Unix time of the last attempt, successful or not.
+	CheckedAt int64 `json:"checked_at,omitempty"`
+	// Error is the last attempt's failure; empty after a successful one.
+	Error string `json:"error,omitempty"`
+	// ListedAt is the Unix time of the last successful read, and Upstream the
+	// model IDs it returned.
+	ListedAt int64    `json:"listed_at,omitempty"`
+	Upstream []string `json:"upstream,omitempty"`
+	// New holds upstream IDs that appeared since an earlier check and wait for
+	// the operator; Gone holds served models the upstream no longer lists and
+	// that are still served; Stopped holds the ones a check stopped serving.
+	New     []string `json:"new,omitempty"`
+	Gone    []string `json:"gone,omitempty"`
+	Stopped []string `json:"stopped,omitempty"`
+	// Log is the most recent checks, newest first.
+	Log []UpstreamSyncLogEntry `json:"log,omitempty"`
+}
+
+// UpstreamSyncLogEntry records one check.
+type UpstreamSyncLogEntry struct {
+	At      int64    `json:"at"`
+	Manual  bool     `json:"manual,omitempty"`
+	Error   string   `json:"error,omitempty"`
+	Listed  int      `json:"listed,omitempty"`
+	New     []string `json:"new,omitempty"`
+	Gone    []string `json:"gone,omitempty"`
+	Added   []string `json:"added,omitempty"`   // started serving (on_new auto)
+	Stopped []string `json:"stopped,omitempty"` // stopped serving (on_gone stop)
+	// Note explains a check that held back, such as too many models gone at once.
+	Note string `json:"note,omitempty"`
 }
 
 // MaxFirstEventTimeoutSeconds bounds FirstEventTimeoutSeconds. A stream that
@@ -127,6 +220,71 @@ func (s ChannelOtherSettings) ValidateStreamSettings() error {
 		return fmt.Errorf("first_event_timeout_seconds must be between 0 and %d", MaxFirstEventTimeoutSeconds)
 	}
 	return nil
+}
+
+// ValidateUpstreamSync checks the upstream check settings.
+func (s ChannelOtherSettings) ValidateUpstreamSync() error {
+	if s.UpstreamSync == nil {
+		return nil
+	}
+	if s.UpstreamSync.IntervalHours < 0 || s.UpstreamSync.IntervalHours > MaxUpstreamSyncIntervalHours {
+		return fmt.Errorf("upstream_sync.interval_hours must be between 0 and %d", MaxUpstreamSyncIntervalHours)
+	}
+	if len(s.UpstreamSync.Ignore) > maxUpstreamIgnorePatterns {
+		return fmt.Errorf("upstream_sync.ignore takes at most %d patterns", maxUpstreamIgnorePatterns)
+	}
+	_, err := CompileUpstreamIgnore(s.UpstreamSync.Ignore)
+	return err
+}
+
+const (
+	maxUpstreamIgnorePatterns = 100
+	maxUpstreamIgnoreLength   = 200
+)
+
+// UpstreamIgnore matches upstream model IDs against the ignore patterns.
+type UpstreamIgnore []*regexp.Regexp
+
+// CompileUpstreamIgnore turns ignore patterns into matchers: "re:" starts a
+// regular expression, anything else is matched whole with * as a wildcard.
+// Blank entries are skipped.
+func CompileUpstreamIgnore(patterns []string) (UpstreamIgnore, error) {
+	out := make(UpstreamIgnore, 0, len(patterns))
+	for _, raw := range patterns {
+		pattern := strings.TrimSpace(raw)
+		if pattern == "" {
+			continue
+		}
+		if len(pattern) > maxUpstreamIgnoreLength {
+			return nil, fmt.Errorf("upstream_sync.ignore pattern is longer than %d characters", maxUpstreamIgnoreLength)
+		}
+		expr := ""
+		if strings.HasPrefix(pattern, "re:") {
+			expr = strings.TrimSpace(strings.TrimPrefix(pattern, "re:"))
+		} else {
+			parts := strings.Split(pattern, "*")
+			for i, part := range parts {
+				parts[i] = regexp.QuoteMeta(part)
+			}
+			expr = "^" + strings.Join(parts, ".*") + "$"
+		}
+		re, err := regexp.Compile(expr)
+		if err != nil {
+			return nil, fmt.Errorf("upstream_sync.ignore pattern %q is not a valid regular expression", pattern)
+		}
+		out = append(out, re)
+	}
+	return out, nil
+}
+
+// Match reports whether any pattern matches the upstream model ID.
+func (m UpstreamIgnore) Match(id string) bool {
+	for _, re := range m {
+		if re.MatchString(id) {
+			return true
+		}
+	}
+	return false
 }
 
 var claudeCompatModelID = regexp.MustCompile(`^claude-[a-zA-Z0-9][a-zA-Z0-9._:-]*$`)

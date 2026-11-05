@@ -1,14 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, ChevronRight, CircleAlert, Copy, Search } from 'lucide-react';
+import { Check, ChevronRight, CircleAlert, Copy } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { classifyTier } from './connect/modelPicker';
-import { modelFamily } from './connect/tools';
+import ModelScopeTable, { scopeModeOf } from './ModelScopeTable';
 import { isLegacyKey, shortKeyLabel } from './tokenKeyLabel';
 import { Button } from '../../components/ui/button';
-import { Checkbox } from '../../components/ui/checkbox';
 import { DatePicker } from '../../components/ui/date-picker';
 import {
   EFFORT_LEVELS,
@@ -562,413 +561,12 @@ function laneSampleModel(facts: TokenModelFact[]): string {
   return (flagship || ranked[0])?.model || '';
 }
 
-const perMtok = (fact?: TokenModelFact) => {
-  if (!fact || fact.inputPerMtok === undefined) return '';
-  const output =
-    fact.outputPerMtok === undefined ? '' : ` / $${fact.outputPerMtok}`;
-  return `$${fact.inputPerMtok}${output}`;
-};
-
-/** What a Key's model scope comes to, in one line: the vendors taken whole
- *  and the models named one by one. A vendor counts as a vendor, not as its
- *  current model tally — ticking it also covers what it ships later. */
-function modelScopeSummary(
-  t: TFunction,
-  values: Pick<
-    TokenFormInput,
-    'model_limits' | 'model_limits_enabled' | 'model_scope_vendors'
-  >,
-) {
-  if (!values.model_limits_enabled) {
-    return t('page.console.token.scope.allHint', {
-      defaultValue: '全部模型都能调，包括之后上新的',
-    });
-  }
-  const vendors = Array.isArray(values.model_scope_vendors)
-    ? values.model_scope_vendors.length
-    : 0;
-  const models = Array.isArray(values.model_limits)
-    ? values.model_limits.length
-    : 0;
-  const parts = [
-    vendors
-      ? t('page.console.token.scope.summaryVendors', {
-          count: vendors,
-          defaultValue: '{{count}} 个厂商整家',
-        })
-      : '',
-    models
-      ? t('page.console.token.scope.summaryModels', {
-          count: models,
-          defaultValue: '{{count}} 个单选模型',
-        })
-      : '',
-  ].filter(Boolean);
-  return parts.length
-    ? parts.join(' · ')
-    : t('page.console.token.scope.summaryNone', { defaultValue: '还没选' });
-}
-
-/** The tree a Key's model scope is really shaped like, laid out as two panes.
- *
- *  Two questions look like one: "which vendors may this Key reach" and "which
- *  models inside them". A flat checklist can only answer the second, so a Key
- *  meant to cover a vendor had to be re-edited every time that vendor shipped
- *  a model. The left pane answers the first — its box takes a vendor whole —
- *  and the right pane the second, for whichever vendor is open. The two
- *  compose as a union at request time. */
-function ModelScopeField({
-  form,
-  t,
-  tokens,
-  values,
-}: {
-  form: TokenForm;
-  t: TFunction;
-  tokens: Pick<TokenFormServices, 'modelOptions' | 'vendorOptions'>;
-  values: TokenFormInput;
-}) {
-  const [query, setQuery] = useState('');
-  const [tier, setTier] = useState<'' | 'flagship' | 'balanced' | 'light'>('');
-  const [activeVendor, setActiveVendor] = useState('');
-  const selectedModels = Array.isArray(values.model_limits)
-    ? values.model_limits.map(String)
-    : [];
-  const selectedVendors = Array.isArray(values.model_scope_vendors)
-    ? values.model_scope_vendors.map(String)
-    : [];
-  const enabled = Boolean(values.model_limits_enabled);
-
-  const vendorName = useMemo(
-    () =>
-      new Map(
-        tokens.vendorOptions.vendors.map((vendor: TokenVendorRecord) => [
-          String(vendor.id),
-          String(vendor.name || ''),
-        ]),
-      ),
-    [tokens.vendorOptions.vendors],
-  );
-
-  /* Grouped by the vendor the catalog records, not by a guess from the model
-     name: scoping stores a vendor id, so a row whose id we invented would tick
-     a vendor the gateway will never match. */
-  const groups = useMemo(() => {
-    const factByModel = new Map(
-      tokens.vendorOptions.models.map((fact: TokenModelFact) => [
-        fact.model,
-        fact,
-      ]),
-    );
-    const needle = query.trim().toLowerCase();
-    const byVendor = new Map<
-      string,
-      {
-        id: string;
-        label: string;
-        models: Array<{ fact?: TokenModelFact; name: string }>;
-        scopable: boolean;
-      }
-    >();
-    tokens.modelOptions.forEach((option: { label: string; value: string }) => {
-      const name = String(option.value);
-      const fact = factByModel.get(name);
-      if (tier && (!fact || classifyTier(fact) !== tier)) return;
-      /* A model the catalog records no vendor for still has to be selectable,
-         so it falls back to the family its name implies. Those groups tick
-         their models by name rather than storing a vendor: there is no vendor
-         id to store, and inventing one would scope the Key to a vendor the
-         gateway has never heard of. */
-      const vendorID = String(fact?.vendorID || '');
-      const id = vendorID || `family:${modelFamily(name) || 'other'}`;
-      const label = vendorID
-        ? vendorName.get(vendorID) || vendorID
-        : modelFamily(name) || 'Other';
-      // The search matches a vendor's name as well as a model's, so typing
-      // "google" lands on the Google row rather than an empty pane.
-      if (
-        needle &&
-        !name.toLowerCase().includes(needle) &&
-        !label.toLowerCase().includes(needle)
-      ) {
-        return;
-      }
-      const group = byVendor.get(id) || {
-        id,
-        label,
-        models: [],
-        scopable: Boolean(vendorID),
-      };
-      group.models.push({ fact, name });
-      byVendor.set(id, group);
-    });
-    return [...byVendor.values()].sort((a, b) =>
-      a.label.localeCompare(b.label),
-    );
-  }, [
-    query,
-    tier,
-    tokens.modelOptions,
-    tokens.vendorOptions.models,
-    vendorName,
-  ]);
-
-  const setModels = (next: string[]) =>
-    form.setValue('model_limits', [...new Set(next)], { shouldDirty: true });
-  const setVendors = (next: string[]) =>
-    form.setValue('model_scope_vendors', [...new Set(next)], {
-      shouldDirty: true,
-    });
-
-  const toggleModel = (name: string) =>
-    setModels(
-      selectedModels.includes(name)
-        ? selectedModels.filter((item) => item !== name)
-        : [...selectedModels, name],
-    );
-
-  const vendorState = (group: (typeof groups)[number]) => {
-    if (selectedVendors.includes(group.id)) return 'all';
-    const chosen = group.models.filter((model) =>
-      selectedModels.includes(model.name),
-    ).length;
-    if (chosen === 0) return 'none';
-    return chosen === group.models.length ? 'all' : 'some';
-  };
-
-  /** A box that is fully on turns the vendor off; any other state — empty or
-   *  partly ticked — takes it whole. */
-  const toggleVendor = (group: (typeof groups)[number]) => {
-    const names = group.models.map((model) => model.name);
-    if (vendorState(group) === 'all') {
-      setVendors(selectedVendors.filter((id) => id !== group.id));
-      setModels(selectedModels.filter((name) => !names.includes(name)));
-      return;
-    }
-    // Taking the vendor wholesale makes its individually named models
-    // redundant, and leaving them behind would freeze the scope at today's
-    // catalog — the opposite of what ticking the vendor asked for.
-    if (!group.scopable) {
-      setModels([...selectedModels, ...names]);
-      return;
-    }
-    setVendors([...selectedVendors, group.id]);
-    setModels(selectedModels.filter((name) => !names.includes(name)));
-  };
-
-  if (!enabled) return null;
-
-  /* The pane opens on the vendor asked for, else the first one this Key
-     already reaches into, else the first in the list. */
-  const active =
-    groups.find((group) => group.id === activeVendor) ||
-    groups.find((group) => vendorState(group) !== 'none') ||
-    groups[0];
-  const activeState = active ? vendorState(active) : 'none';
-  const activeChosen = active
-    ? active.models.filter(
-        (model) => activeState === 'all' || selectedModels.includes(model.name),
-      ).length
-    : 0;
-  const nothingPicked = !selectedModels.length && !selectedVendors.length;
-  const invalid = Boolean(form.formState.errors.model_limits);
-
-  return (
-    <div className='tok-scope'>
-      <div className='tok-scope__filters'>
-        <span className='tok-scope__search'>
-          <Search aria-hidden='true' className='tok-scope__icon' size={16} />
-          <Input
-            aria-label={t('page.console.token.scope.search', {
-              defaultValue: '搜索模型',
-            })}
-            className='tok-scope__input'
-            placeholder={t('page.console.token.scope.search', {
-              defaultValue: '搜索模型',
-            })}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </span>
-        <div
-          className='tokv2-seg tok-scope__tiers'
-          role='group'
-          aria-label={t('page.console.token.scope.tierLabel', {
-            defaultValue: '按档位筛选',
-          })}
-        >
-          {(
-            [
-              [
-                'flagship',
-                t('page.console.token.scope.tier.flagship', {
-                  defaultValue: '旗舰',
-                }),
-              ],
-              [
-                'balanced',
-                t('page.console.token.scope.tier.balanced', {
-                  defaultValue: '均衡',
-                }),
-              ],
-              [
-                'light',
-                t('page.console.token.scope.tier.light', {
-                  defaultValue: '轻量',
-                }),
-              ],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type='button'
-              data-owns-chrome='true'
-              aria-pressed={tier === key}
-              className={cn('tokv2-seg__btn', tier === key && 'is-on')}
-              onClick={() => setTier(tier === key ? '' : key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {groups.length && active ? (
-        <div className='tok-scope__panes'>
-          <div className='tok-scope__vendors'>
-            {groups.map((group) => {
-              const state = vendorState(group);
-              const chosen = group.models.filter(
-                (model) =>
-                  state === 'all' || selectedModels.includes(model.name),
-              ).length;
-              const isActive = group.id === active.id;
-              return (
-                <div
-                  className={cn(
-                    'tok-scope__vrow',
-                    isActive && 'is-active',
-                    state !== 'none' && 'is-on',
-                  )}
-                  key={group.id}
-                >
-                  <Checkbox
-                    aria-label={t('page.console.token.scope.selectVendor', {
-                      defaultValue: '选择 {{vendor}} 的全部模型',
-                      vendor: group.label,
-                    })}
-                    checked={state === 'all'}
-                    indeterminate={state === 'some'}
-                    onCheckedChange={() => toggleVendor(group)}
-                  />
-                  <button
-                    type='button'
-                    data-owns-chrome='true'
-                    aria-pressed={isActive}
-                    className='tok-scope__vpick'
-                    onClick={() => setActiveVendor(group.id)}
-                  >
-                    <span className='tok-scope__vname'>{group.label}</span>
-                    <span className='tok-scope__vcount'>
-                      {state === 'all' && group.scopable
-                        ? t('page.console.token.scope.vendorAll', {
-                            defaultValue: '全部',
-                          })
-                        : `${chosen}/${group.models.length}`}
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className='tok-scope__models'>
-            <div className='tok-scope__mhead'>
-              <b className='tok-scope__mtitle'>{active.label}</b>
-              <span className='tokv2-hint'>
-                {t('page.console.token.scope.chosenOf', {
-                  chosen: activeChosen,
-                  defaultValue: '已选 {{chosen}} / {{total}}',
-                  total: active.models.length,
-                })}
-              </span>
-              <Checkbox
-                checked={activeState === 'all'}
-                labelClassName='tok-scope__whole'
-                onCheckedChange={() => toggleVendor(active)}
-              >
-                {active.scopable
-                  ? t('page.console.token.scope.wholeVendor', {
-                      defaultValue: '整家纳入',
-                    })
-                  : t('page.console.token.scope.selectAll', {
-                      defaultValue: '全选',
-                    })}
-              </Checkbox>
-            </div>
-            <div className='tok-scope__mlist'>
-              {active.models.map((model) => (
-                <Checkbox
-                  checked={
-                    activeState === 'all' || selectedModels.includes(model.name)
-                  }
-                  disabled={selectedVendors.includes(active.id)}
-                  key={model.name}
-                  labelClassName='tok-scope__mrow'
-                  onCheckedChange={() => toggleModel(model.name)}
-                >
-                  <span className='tok-scope__mname'>{model.name}</span>
-                  {perMtok(model.fact) ? (
-                    <span className='tok-scope__price'>
-                      {perMtok(model.fact)}
-                    </span>
-                  ) : null}
-                </Checkbox>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className='tok-scope__empty'>
-          {t('legacy.i18n.no_results_found.3f5746269e')}
-        </div>
-      )}
-
-      {/* Switched on with nothing ticked cannot be saved (the schema refuses
-          it, since the gateway would read it as no scope at all). Say so
-          before the Save press rather than after it. */}
-      {nothingPicked ? (
-        <div
-          className={cn('tok-scope__warn', invalid && 'is-error')}
-          role={invalid ? 'alert' : 'status'}
-        >
-          <CircleAlert aria-hidden='true' size={16} />
-          <span>
-            {t('page.console.token.scope.emptyWarning', {
-              defaultValue:
-                '还没勾选。至少勾一个厂商或模型才能保存；不想限制就把开关关上。',
-            })}
-          </span>
-        </div>
-      ) : null}
-
-      <span className='tokv2-hint'>
-        {t('page.console.token.scope.vendorHint', {
-          defaultValue:
-            '勾左边的厂商 = 整家纳入，之后上新的模型也自动加入；点厂商名在右边单选模型。',
-        })}
-      </span>
-    </div>
-  );
-}
-
 /** Fields that live behind 更多设置. A validation error on any of them has
  *  nowhere to render while the section is collapsed. */
 const ADVANCED_FIELDS = new Set([
   'allow_ips',
   'ip_blacklist',
   'metadata',
-  'model_limits',
   'rpm_limit',
   'tokenCount',
   'tpm_limit',
@@ -1208,56 +806,6 @@ export function TokenFormDrawer({
    *  sections would be a second page; nine one-line headers is a menu. */
   const advanced = (
     <div className='tok-more'>
-      <MoreSection
-        title={t('page.console.token.form.modelScope', {
-          defaultValue: '模型范围',
-        })}
-        hint={modelScopeSummary(t, values)}
-        control={
-          <>
-            {values.model_limits_enabled &&
-            ((values.model_limits || []).length ||
-              (values.model_scope_vendors || []).length) ? (
-              <button
-                type='button'
-                className='tokv2-editlink tok-scope__clear'
-                onClick={() => {
-                  form.setValue('model_limits', [], { shouldDirty: true });
-                  form.setValue('model_scope_vendors', [], {
-                    shouldDirty: true,
-                  });
-                }}
-              >
-                {t('page.console.token.scope.clear', {
-                  defaultValue: '清空',
-                })}
-              </button>
-            ) : null}
-            <Switch
-              aria-label={t('page.console.token.form.modelScope', {
-                defaultValue: '模型范围',
-              })}
-              checked={Boolean(values.model_limits_enabled)}
-              onCheckedChange={(next) => {
-                form.setValue('model_limits_enabled', next, {
-                  shouldDirty: true,
-                });
-                if (!next) {
-                  form.setValue('model_limits', [], { shouldDirty: true });
-                  form.setValue('model_scope_vendors', [], {
-                    shouldDirty: true,
-                  });
-                }
-              }}
-            />
-          </>
-        }
-        open={Boolean(values.model_limits_enabled)}
-      >
-        {/* The empty-scope error is spoken by the picker's own notice. */}
-        <ModelScopeField form={form} t={t} tokens={tokens} values={values} />
-      </MoreSection>
-
       <MoreSection
         title={t('page.console.token.form.rateLimitLabel', {
           defaultValue: '限流',
@@ -1826,6 +1374,33 @@ export function TokenFormDrawer({
             </FieldMessage>
           </>
         ) : null}
+      </div>
+
+      <div className='tok-create__field'>
+        <ModelScopeTable
+          facts={tokens.vendorOptions.models}
+          invalid={Boolean(form.formState.errors.model_limits)}
+          limits={(values.model_limits || []).map(String)}
+          mode={scopeModeOf(
+            Boolean(values.model_limits_enabled),
+            (values.model_limits || []).map(String),
+          )}
+          models={tokens.modelOptions}
+          t={t}
+          vendors={(values.model_scope_vendors || []).map(String)}
+          onChange={(next) => {
+            form.setValue('model_limits_enabled', next.mode !== 'all', {
+              shouldDirty: true,
+            });
+            form.setValue('model_limits', next.limits, { shouldDirty: true });
+            form.setValue('model_scope_vendors', next.vendors, {
+              shouldDirty: true,
+            });
+            if (form.formState.errors.model_limits) {
+              void form.trigger('model_limits');
+            }
+          }}
+        />
       </div>
 
       {tokenLaneVendors.length ? (

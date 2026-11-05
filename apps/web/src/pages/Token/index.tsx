@@ -740,6 +740,29 @@ const Token = () => {
               </span>
             );
           }
+          /* "*,-a,-b": everything but a and b. */
+          if (models.includes('*')) {
+            const left = models
+              .filter((model) => model.startsWith('-'))
+              .map((model) => model.slice(1));
+            return (
+              <span
+                className='tok-scopecell'
+                title={left.length ? left.join(', ') : undefined}
+              >
+                <span className='tok-scopecell__chip'>
+                  {left.length
+                    ? t('page.console.token.scope.exceptChip', {
+                        count: left.length,
+                        defaultValue: '全部，除了 {{count}} 个',
+                      })
+                    : t('page.console.token.form.allModels', {
+                        defaultValue: '全部模型',
+                      })}
+                </span>
+              </span>
+            );
+          }
           const chips = [
             ...vendors.map((id) => ({
               key: `v:${id}`,

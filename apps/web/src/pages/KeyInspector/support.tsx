@@ -213,8 +213,14 @@ export function KeyIdentityCard({
   token: InspectorToken;
 }) {
   const modelLimitsEnabled = Boolean(token.model_limits_enabled);
-  const allowedModels = modelLimitsEnabled
+  const limitKeys = modelLimitsEnabled
     ? Object.keys(token.model_limits || {})
+    : [];
+  // `*` with `-id` entries is the everything-except shape.
+  const exceptMode = limitKeys.includes('*');
+  const allowedModels = exceptMode ? [] : limitKeys;
+  const excludedModels = exceptMode
+    ? limitKeys.filter((id) => id.startsWith('-')).map((id) => id.slice(1))
     : [];
   const now = dayjs().unix();
   const expired = Boolean(token.expires_at) && Number(token.expires_at) < now;
@@ -264,12 +270,23 @@ export function KeyIdentityCard({
             defaultValue: '可调用模型',
           })}
         >
-          {!modelLimitsEnabled ? (
+          {!modelLimitsEnabled || (exceptMode && !excludedModels.length) ? (
             <Badge variant='info'>
               {t('page.keyInspector.allModels', {
                 defaultValue: '不限 · 全部模型',
               })}
             </Badge>
+          ) : exceptMode ? (
+            <div className='flex flex-wrap items-center gap-1'>
+              <span>
+                {t('page.keyInspector.allModelsExcept', {
+                  defaultValue: '全部，除了',
+                })}
+              </span>
+              {excludedModels.map((model) => (
+                <Tag key={model}>{model}</Tag>
+              ))}
+            </div>
           ) : allowedModels.length ? (
             <div className='flex flex-wrap gap-1'>
               {allowedModels.map((model) => (

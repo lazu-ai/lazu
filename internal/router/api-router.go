@@ -463,6 +463,9 @@ func SetApiRouter(router *gin.Engine) {
 			modelOpsRoute.POST("/sources/:id/go_live", controller.GoLiveModelOpsSource)
 			modelOpsRoute.GET("/sources/:id/observation", controller.GetModelOpsSourceObservation)
 			modelOpsRoute.POST("/sources/:id/remove_models", controller.RemoveModelOpsSourceModels)
+			modelOpsRoute.GET("/sources/:id/upstream", controller.GetModelOpsSourceUpstream)
+			modelOpsRoute.POST("/sources/:id/upstream/check", controller.CheckModelOpsSourceUpstream)
+			modelOpsRoute.POST("/sources/:id/upstream/resolve", controller.ResolveModelOpsSourceUpstream)
 			// 档位 are edited from 模型运营, alongside the prices they carry.
 			modelOpsRoute.GET("/lanes", controller.GetChannelLanes)
 			modelOpsRoute.POST("/lanes", middleware.RootAuth(), controller.SaveChannelLane)

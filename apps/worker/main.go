@@ -160,6 +160,7 @@ func buildWorkerTasks(resources *workerResources, oneShot bool) []worker.Task {
 			worker.NewRouteHealthRollupTask(),      // hourly route health rows the health pages read
 			worker.NewRouteHealthRollupWatchTask(), // mails when that rollup stops advancing
 			worker.NewUpstreamAccountWatchTask(),   // mails when an upstream refuses a channel's billing or key
+			worker.NewUpstreamSyncTask(),           // re-reads each source's upstream model list on its own interval
 			worker.NewSlowQueryReportTask("jobs"),  // mails this process's slow SQL, at most hourly
 		)
 		configuredTasks = append(configuredTasks, worker.ExtensionTasks()...)
