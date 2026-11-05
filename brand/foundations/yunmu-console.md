@@ -50,15 +50,6 @@ describe the console's composition, not a second colour system.
    wallet, client and audit contracts; irreversible or permission-changing
    actions still require an explicit confirmation modal. This exception does
    not reintroduce drawers as a general page pattern.
-   Refined 2026-11-06: an object whose editing centres on a long table gets a
-   page of its own instead of a modal. 模型运营 › 来源 is the case: a source
-   serves dozens to hundreds of upstream models, each a row with a switch,
-   and the settings around them (connection, routing, upstream sync) are
-   tabs on that page. Creating one is a page too, with its parts top to
-   bottom and each greyed until the one above it is done. The page keeps the
-   console's head (breadcrumb above the title, actions on the right, tabs on
-   the head's rule) and one 保存 for every tab. Short edits, and long forms
-   without a table at their centre, still use a centered modal.
 8. Motion remains direct and restrained, and respects reduced-motion settings.
 9. Silent scroll (locked 2026-08-22). Scroll containers paint no scrollbar —
    no thumb, no track, no reserved gutter. A grey rail running down a floating

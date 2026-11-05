@@ -54,6 +54,53 @@ test('a key row expands into its own usage instead of opening the editor', async
   await app.expectNoUnexpectedErrors();
 });
 
+// The list hands each Key over with model_limits already split into an
+// array; the usage panel's scope line must read that shape, and the
+// everything-except one, without throwing.
+for (const [limits, line] of [
+  ['gpt-4o-mini,claude-sonnet-4-6', '2 个模型'],
+  ['*,-gpt-4o-mini', '全部，除了 1 个'],
+]) {
+  test(`a scoped Key's usage panel reads ${limits}`, async ({ page }) => {
+    const app = await setupMockedApp(page, {
+      payloadFor: (url, request) => {
+        const { pathname } = new URL(url);
+        if (pathname !== '/api/token/' || request.method() !== 'GET') return;
+        return {
+          success: true,
+          message: '',
+          data: {
+            items: [
+              {
+                id: 1,
+                name: 'Scoped token',
+                key: 'sk-scoped',
+                status: 1,
+                unlimited_quota: true,
+                used_quota: 0,
+                remain_quota: 0,
+                created_time: 1735689600,
+                model_limits_enabled: true,
+                model_limits: limits,
+                model_scope_vendors: [],
+              },
+            ],
+            page: 1,
+            page_size: 10,
+            total: 1,
+          },
+        };
+      },
+    });
+    await expectRouteReady(page, '/console/token');
+    await page.locator('tbody tr').first().getByText('Scoped token').click();
+    const panel = page.locator('.tok-usage');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText(line);
+    await app.expectNoUnexpectedErrors();
+  });
+}
+
 test('Keys with the same name keep their spend isolated by ID', async ({
   page,
 }) => {

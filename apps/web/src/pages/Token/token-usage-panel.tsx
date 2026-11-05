@@ -19,7 +19,7 @@ type TokenUsageRecord = {
   last_used_at?: number;
   created_time?: number;
   expired_time?: number;
-  model_limits?: string;
+  model_limits?: string | string[];
   model_limits_enabled?: boolean;
   name?: string;
   remain_quota?: unknown;
@@ -58,10 +58,14 @@ const spendLabel = (stat: UsageStat | undefined, loading: boolean) => {
 
 /** 模型范围 in one line: every model, all but some, or only some. */
 const modelScopeLine = (
-  record: { model_limits?: string; model_limits_enabled?: boolean },
+  record: { model_limits?: string | string[]; model_limits_enabled?: boolean },
   t: TFunction,
 ) => {
-  const limits = (record.model_limits || '').split(',').filter(Boolean);
+  // The list query hands the Key over with model_limits already split.
+  const raw = record.model_limits;
+  const limits = (Array.isArray(raw) ? raw : String(raw || '').split(','))
+    .map((name) => String(name).trim())
+    .filter(Boolean);
   if (!record.model_limits_enabled || !limits.length) {
     return t('legacy.i18n.all_models.688facc5f5');
   }
