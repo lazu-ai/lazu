@@ -336,17 +336,16 @@ test('default create form fits a laptop viewport', async ({ page }) => {
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '创建密钥', exact: true }).click();
   const modal = page.locator('.tok-create-modal');
+  // The model table sits in the form, so the body may scroll, but the dialog
+  // itself and its footer stay inside a laptop screen.
+  await expect(
+    modal.getByRole('button', { name: '创建并接入', exact: true }),
+  ).toBeInViewport();
+  const box = await modal.boundingBox();
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(720 + 1);
+  await modal.locator('.tok-create__more').scrollIntoViewIfNeeded();
   await expect(modal.locator('.tok-create__more')).toBeInViewport();
-  const body = modal.locator('.lazu-modal-body');
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../../.local-results/pr228-review/fixed-create.png',
-  });
-  const dimensions = await body.evaluate((element) => ({
-    scroll: element.scrollHeight,
-    client: element.clientHeight,
-  }));
-  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
 });
 
 /* The chat entry point was one item of the row's "…" menu, and that menu is
@@ -357,7 +356,7 @@ test('default create form fits a laptop viewport', async ({ page }) => {
  * chat gets an entry point again, its safety is already asserted. */
 
 for (const allowAll of [true, false]) {
-  test(`empty restricted scope blocks saving until ${allowAll ? 'switching scope back off' : 'selecting a model'}`, async ({
+  test(`empty restricted scope blocks saving until ${allowAll ? 'switching scope back to 全部' : 'selecting a model'}`, async ({
     page,
   }) => {
     await setupConnection(page);
@@ -365,14 +364,8 @@ for (const allowAll of [true, false]) {
     await page.getByRole('button', { name: '创建密钥', exact: true }).click();
     const modal = page.locator('.tok-create-modal');
     await modal.locator('#token-name').fill('Restricted regression');
-    await modal.locator('.tok-create__more').click();
-    // Scope is a section switch now, not a button that swaps the field: the
-    // question "is this Key narrowed" reads the same as every other question
-    // behind 更多设置.
-    const scopeSection = modal.locator('.tok-more__sec', {
-      hasText: '模型范围',
-    });
-    await scopeSection.locator('.tok-more__switch .lazu-switch').click();
+    const scope = modal.locator('.tok-scope2');
+    await scope.getByRole('radio', { name: '只允许勾选的' }).click();
     const create = modal.getByRole('button', {
       name: '创建并接入',
       exact: true,
@@ -388,18 +381,14 @@ for (const allowAll of [true, false]) {
     // Narrowed but empty is the one state that must not save: it would read
     // as "everything" at the gateway while the editor says otherwise.
     await create.click();
-    await expect(modal.locator('.tok-scope__warn.is-error')).toBeVisible();
+    await expect(scope.getByRole('alert')).toBeVisible();
     expect(writes).toHaveLength(0);
 
     if (allowAll) {
-      await scopeSection.locator('.tok-more__switch .lazu-switch').click();
+      await scope.getByRole('radio', { name: '全部', exact: true }).click();
     } else {
-      // Search rather than guess which vendor holds the model: the model
-      // pane opens on the first vendor the search leaves.
-      await scopeSection
-        .getByRole('textbox', { name: /搜索模型/ })
-        .fill('gpt-6-astra');
-      await modal.getByRole('checkbox', { name: /^gpt-6-astra\b/ }).click();
+      await scope.getByRole('textbox', { name: '搜模型' }).fill('gpt-6-astra');
+      await scope.getByRole('checkbox', { name: 'gpt-6-astra' }).click();
     }
     const requestPromise = page.waitForRequest(
       (request) =>
@@ -413,26 +402,22 @@ for (const allowAll of [true, false]) {
   });
 }
 
-/* Naming a vendor is a standing decision, not a snapshot of today's catalog:
- * it is the whole reason the picker is a tree rather than a list. It has to
- * reach the server as the vendor, or the Key silently freezes at whatever the
- * vendor happened to ship on the day it was created. */
-test('scoping a Key to a whole vendor sends the vendor, not its models', async ({
+/* 全部，除了勾选的 is a standing rule, not a snapshot of today's catalog:
+ * models added later stay callable. It reaches the server as `*` followed
+ * by the excluded names. */
+test('excluding a model sends the everything-except scope', async ({
   page,
 }) => {
   await setupConnection(page);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '创建密钥', exact: true }).click();
   const modal = page.locator('.tok-create-modal');
-  await modal.locator('#token-name').fill('Vendor scope');
-  await modal.locator('.tok-create__more').click();
-  const scopeSection = modal.locator('.tok-more__sec', { hasText: '模型范围' });
-  await scopeSection.locator('.tok-more__switch .lazu-switch').click();
-
-  await scopeSection
-    .locator('.tok-scope__vendors .lazu-checkbox')
-    .first()
-    .click();
+  await modal.locator('#token-name').fill('Except scope');
+  const scope = modal.locator('.tok-scope2');
+  await scope.getByRole('radio', { name: '全部，除了勾选的' }).click();
+  await scope.getByRole('textbox', { name: '搜模型' }).fill('gpt-6-astra');
+  await scope.getByRole('checkbox', { name: 'gpt-6-astra' }).click();
+  await expect(scope).toContainText('之后上新的也能调');
 
   const requestPromise = page.waitForRequest(
     (request) =>
@@ -442,8 +427,8 @@ test('scoping a Key to a whole vendor sends the vendor, not its models', async (
   await modal.getByRole('button', { name: '创建并接入', exact: true }).click();
   const payload = (await requestPromise).postDataJSON();
   expect(payload.model_limits_enabled).toBe(true);
-  expect(payload.model_scope_vendors).toEqual(['1']);
-  expect(payload.model_limits).toBe('');
+  expect(payload.model_limits).toBe('*,-gpt-6-astra');
+  expect(payload.model_scope_vendors ?? []).toEqual([]);
 });
 
 test('external import keeps the dialog open and retries without stale saves', async ({

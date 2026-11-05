@@ -10,6 +10,7 @@ import { buildQuotaDisplay } from '../../helpers/quotaDisplay';
 import { unwrap } from '../../lib/api-error';
 import { formatTimestamp } from '../../lib/date';
 import './token-usage-panel.css';
+import type { TFunction } from 'i18next';
 
 /** Per-Key totals use its immutable public ID and an owner-checked endpoint. */
 
@@ -53,6 +54,30 @@ const spendLabel = (stat: UsageStat | undefined, loading: boolean) => {
   if (loading) return '…';
   if (!stat || stat.amount_microusd == null) return '—';
   return formatMoney(asMicroUSD(stat.amount_microusd));
+};
+
+/** 模型范围 in one line: every model, all but some, or only some. */
+const modelScopeLine = (
+  record: { model_limits?: string; model_limits_enabled?: boolean },
+  t: TFunction,
+) => {
+  const limits = (record.model_limits || '').split(',').filter(Boolean);
+  if (!record.model_limits_enabled || !limits.length) {
+    return t('legacy.i18n.all_models.688facc5f5');
+  }
+  if (limits.includes('*')) {
+    const left = limits.filter((name) => name.startsWith('-')).length;
+    return left
+      ? t('page.console.token.usage.exceptCount', {
+          count: left,
+          defaultValue: '全部，除了 {{count}} 个',
+        })
+      : t('legacy.i18n.all_models.688facc5f5');
+  }
+  return (
+    limits.length +
+    t('page.console.token.usage.modelCount', { defaultValue: ' 个模型' })
+  );
 };
 
 export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
@@ -107,10 +132,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
     ],
     [
       t('page.console.token.usage.models', { defaultValue: '模型范围' }),
-      record.model_limits_enabled && record.model_limits
-        ? record.model_limits.split(',').filter(Boolean).length +
-          t('page.console.token.usage.modelCount', { defaultValue: ' 个模型' })
-        : t('legacy.i18n.all_models.688facc5f5'),
+      modelScopeLine(record, t),
     ],
     [
       t('page.console.tables.create'),

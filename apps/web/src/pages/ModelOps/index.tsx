@@ -534,7 +534,7 @@ export default function ModelOpsPage() {
           <Button
             size='sm'
             variant='primary'
-            onClick={() => navigate('/console/model-ops/sources?new=1')}
+            onClick={() => navigate('/console/model-ops/sources/new')}
           >
             <Plus size={14} />
             {t(`${ns}.action.connectSource`, { defaultValue: '新增来源' })}

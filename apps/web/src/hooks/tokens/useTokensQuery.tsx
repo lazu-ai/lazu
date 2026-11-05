@@ -83,6 +83,8 @@ export type TokenModelLaneFact = {
 
 /** One catalog row, as the model-scope picker needs it. */
 export type TokenModelFact = {
+  /** Context window in tokens, when the catalog records one. */
+  contextLength?: number;
   /** Protocols this model answers on (openai, anthropic, gemini, embeddings…),
    *  straight from the pricing catalog. An empty list means the deployment
    *  did not say, and the model is treated as usable everywhere. */
@@ -101,7 +103,11 @@ export type TokenModelFact = {
   outputPerMtok?: number;
   /** Unix seconds. The connect dialog orders each vendor's models by it. */
   releasedAt?: number;
+  /** Calls tools (function calling): what a coding agent needs. */
+  tools?: boolean;
   vendorID?: string;
+  /** Reads images. */
+  vision?: boolean;
 };
 
 type TokenVendorOptions = {
@@ -589,6 +595,8 @@ export async function fetchTokenVendorOptions(): Promise<TokenVendorOptions> {
   const models = (Array.isArray(payload.data) ? payload.data : [])
     .filter(isRecord)
     .map((row) => ({
+      contextLength:
+        Number(row.context_length) > 0 ? Number(row.context_length) : undefined,
       endpointTypes: Array.isArray(row.supported_endpoint_types)
         ? row.supported_endpoint_types.map(String)
         : [],
@@ -611,7 +619,16 @@ export async function fetchTokenVendorOptions(): Promise<TokenVendorOptions> {
         row.released_at != null && Number.isFinite(Number(row.released_at))
           ? Number(row.released_at)
           : undefined,
+      tools: Boolean(
+        isRecord(row.capabilities) &&
+        row.capabilities.supports_function_calling,
+      ),
       vendorID: row.vendor_id ? String(row.vendor_id) : undefined,
+      vision: Boolean(
+        (isRecord(row.capabilities) && row.capabilities.supports_vision) ||
+        (Array.isArray(row.modality_input) &&
+          row.modality_input.map(String).includes('image')),
+      ),
     }))
     .filter((row) => row.model);
   return {

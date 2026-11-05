@@ -26,6 +26,9 @@ import (
 // keyNameMaxLength is the longest Key name the console accepts.
 const keyNameMaxLength = 30
 
+// tokenModelLimitsMaxLength is the model_limits column's width.
+const tokenModelLimitsMaxLength = 1024
+
 // writeDomainFailure answers a Key, usage or log route. A missing row becomes
 // notFound when one is given; catalog errors (the project model's sentinels
 // included) are written as they are; anything else is logged and answered as
@@ -665,7 +668,12 @@ func AddToken(c *gin.Context) {
 	if len(input.ProjectModelLimits) > 0 {
 		var names []string
 		if err := json.Unmarshal(input.ProjectModelLimits, &names); err == nil {
+			names = model.NormalizeTokenModelLimits(names)
 			token.ModelLimits = strings.Join(names, ",")
+			if len(token.ModelLimits) > tokenModelLimitsMaxLength {
+				httperr.Invalid(c, "model_limits")
+				return
+			}
 			token.ModelLimitsEnabled = len(names) > 0 || (token.ModelLimitsEnabled && len(token.ModelScopeVendors) > 0)
 		} else if err := json.Unmarshal(input.ProjectModelLimits, &token.ModelLimits); err != nil {
 			httperr.Invalid(c, "model_limits")
@@ -811,7 +819,12 @@ func UpdateToken(c *gin.Context) {
 	if len(input.ProjectModelLimits) > 0 {
 		var names []string
 		if err := json.Unmarshal(input.ProjectModelLimits, &names); err == nil {
+			names = model.NormalizeTokenModelLimits(names)
 			token.ModelLimits = strings.Join(names, ",")
+			if len(token.ModelLimits) > tokenModelLimitsMaxLength {
+				httperr.Invalid(c, "model_limits")
+				return
+			}
 			token.ModelLimitsEnabled = len(names) > 0 || (token.ModelLimitsEnabled && len(token.ModelScopeVendors) > 0)
 		} else if err := json.Unmarshal(input.ProjectModelLimits, &token.ModelLimits); err != nil {
 			httperr.Invalid(c, "model_limits")

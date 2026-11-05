@@ -50,6 +50,7 @@ const ChannelHealthPage = lazy(() => import('./pages/ChannelHealth'));
 const OrganizationsPage = lazy(() => import('./pages/Organizations'));
 const ModelOpsPage = lazy(() => import('./pages/ModelOps'));
 const ModelOpsSourcesPage = lazy(() => import('./pages/ModelOps/SourcesPage'));
+const ModelOpsSourcePage = lazy(() => import('./pages/ModelOps/SourcePage'));
 const PricePlansPage = lazy(() => import('./pages/ModelOps/PricePlansPage'));
 const PricePlanEditorPage = lazy(
   () => import('./pages/ModelOps/PricePlanEditorPage'),
@@ -178,6 +179,18 @@ function App() {
             <RootRoute>
               <Suspense fallback={<Loading></Loading>} key={location.pathname}>
                 <ModelOpsSourcesPage />
+              </Suspense>
+            </RootRoute>
+          }
+        />
+        {/* One source, or a new one: a page each, so the model table has
+            the width and the settings sit in tabs. */}
+        <Route
+          path='/console/model-ops/sources/:id'
+          element={
+            <RootRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <ModelOpsSourcePage />
               </Suspense>
             </RootRoute>
           }

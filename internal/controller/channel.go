@@ -634,9 +634,14 @@ func AddChannel(c *gin.Context) {
 		"channels": channels,
 	})
 	service.ResetProxyClientCache()
+	ids := make([]string, 0, len(channels))
+	for _, channel := range channels {
+		ids = append(ids, channel.PublicID)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
+		"data":    gin.H{"ids": ids},
 	})
 	return
 }

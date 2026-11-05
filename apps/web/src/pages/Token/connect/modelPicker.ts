@@ -305,7 +305,8 @@ const byRecency = (left: PickerModel, right: PickerModel): number => {
 };
 
 export type BuildArgs = {
-  /** Model ids the Key may call; empty means every model. */
+  /** Model ids the Key may call; empty means every model. `*` followed by
+   *  `-id` entries means every model except those ids. */
   allowed?: string[];
   /** Vendor ids the Key refuses. */
   blockedVendors?: Set<string>;
@@ -338,7 +339,14 @@ export function buildPicker(args: BuildArgs): PickerResult {
     toolId,
     vendorNames,
   } = args;
-  const scope = new Set((allowed || []).filter(Boolean));
+  const entries = (allowed || []).filter(Boolean);
+  const exceptMode = entries.includes('*');
+  const scope = new Set(exceptMode ? [] : entries);
+  const excluded = new Set(
+    exceptMode
+      ? entries.filter((id) => id.startsWith('-')).map((id) => id.slice(1))
+      : [],
+  );
   const hidden: HiddenCounts = {
     audio: 0,
     embedding: 0,
@@ -353,6 +361,7 @@ export function buildPicker(args: BuildArgs): PickerResult {
 
   const inScope = facts.filter((fact) => {
     if (scope.size && !scope.has(fact.model)) return false;
+    if (excluded.has(fact.model)) return false;
     if (fact.vendorID && blockedVendors?.has(fact.vendorID)) return false;
     return true;
   });

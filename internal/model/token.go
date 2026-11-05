@@ -1115,18 +1115,75 @@ func (token *Token) GetModelLimitsMap() map[string]bool {
 	return limitsMap
 }
 
+// TokenModelLimitAll and TokenModelLimitExcludePrefix give model_limits its
+// second shape. A list holding "*" admits every model except the ones written
+// with a leading "-": "*,-gpt-5.5" is everything but gpt-5.5, including models
+// added later. A list without "*" is the allowlist it has always been.
+const (
+	TokenModelLimitAll           = "*"
+	TokenModelLimitExcludePrefix = "-"
+)
+
+// TokenModelLimitsExclude reports whether a model_limits list is the
+// everything-except shape.
+func TokenModelLimitsExclude(limits map[string]bool) bool {
+	return limits[TokenModelLimitAll]
+}
+
 func TokenModelLimitAllows(limits map[string]bool, modelName string) bool {
 	if len(limits) == 0 {
 		return false
 	}
+	normalizedModelName := NormalizePricingModelName(modelName)
+	if TokenModelLimitsExclude(limits) {
+		return !limits[TokenModelLimitExcludePrefix+modelName] &&
+			!limits[TokenModelLimitExcludePrefix+normalizedModelName]
+	}
 	if limits[modelName] {
 		return true
 	}
-	normalizedModelName := NormalizePricingModelName(modelName)
 	if limits[normalizedModelName] {
 		return true
 	}
 	return false
+}
+
+// NormalizeTokenModelLimits trims a submitted model_limits list, drops blanks
+// and repeats, and keeps the "*" marker first so the stored string reads as
+// it means. Excluded names only make sense next to "*", so an allowlist
+// drops them.
+func NormalizeTokenModelLimits(names []string) []string {
+	seen := map[string]bool{}
+	all := false
+	out := []string{}
+	for _, raw := range names {
+		name := strings.TrimSpace(raw)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		if name == TokenModelLimitAll {
+			all = true
+			continue
+		}
+		out = append(out, name)
+	}
+	if !all {
+		kept := out[:0]
+		for _, name := range out {
+			if !strings.HasPrefix(name, TokenModelLimitExcludePrefix) {
+				kept = append(kept, name)
+			}
+		}
+		return kept
+	}
+	excluded := []string{TokenModelLimitAll}
+	for _, name := range out {
+		if strings.HasPrefix(name, TokenModelLimitExcludePrefix) && len(name) > 1 {
+			excluded = append(excluded, name)
+		}
+	}
+	return excluded
 }
 
 // GetModelScopeVendorSet is the vendor half of a Key's model scope, as a set.
@@ -1147,6 +1204,11 @@ func (token *Token) GetModelScopeVendorSet() map[int]struct{} {
 // that one whatever its vendor. A Key that has neither admits nothing, which is
 // the same deny-all TokenModelLimitAllows has always meant.
 func TokenModelScopeAllows(limits map[string]bool, vendors map[int]struct{}, modelName string) bool {
+	// Everything-except already covers every vendor; a vendor in scope must
+	// not bring back a model the list excludes.
+	if TokenModelLimitsExclude(limits) {
+		return TokenModelLimitAllows(limits, modelName)
+	}
 	if TokenModelLimitAllows(limits, modelName) {
 		return true
 	}

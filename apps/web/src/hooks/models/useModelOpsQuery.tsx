@@ -9,6 +9,7 @@ import {
   unwrap,
 } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
+import type { UpstreamSyncSummary } from './useSourceUpstream';
 import type { SellPriceRow } from '../../pages/ModelOps/sellPrices';
 import type { AxiosResponse } from 'axios';
 import type { TFunction } from 'i18next';
@@ -170,6 +171,8 @@ export type ModelOpsSource = {
   test_time: number;
   type: number;
   type_name: string;
+  /** The upstream check's summary; absent while it is off and never ran. */
+  upstream_sync?: UpstreamSyncSummary;
   weight: number;
 };
 

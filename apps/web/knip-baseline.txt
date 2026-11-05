@@ -74,7 +74,6 @@ exports src/pages/Log/sessions/session-format.ts dayText
 exports src/pages/Log/sessions/session-format.ts timeRangeText
 exports src/pages/ModelOps/ModelLedger.tsx lanePriceText
 exports src/pages/ModelOps/ObservationDialog.tsx reasonShort
-exports src/pages/ModelOps/SourceLedger.tsx isObservingSource
 exports src/pages/ModelOps/formatters.ts HEALTH_DEGRADED
 exports src/pages/ModelOps/formatters.ts HEALTH_OUTAGE
 exports src/pages/ModelOps/formatters.ts formatUsd

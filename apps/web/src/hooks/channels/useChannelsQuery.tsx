@@ -219,6 +219,7 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
       : [DEFAULT_CHANNEL_GROUP],
     key: '',
     models: splitListValue(data.models),
+    model_mapping: modelMappingText(data.model_mapping),
     name: data.name || '',
     observe_new_routes: settings.observe_new_routes === true,
     claude_code_client_only: settings.claude_code_client_only === true,
@@ -237,7 +238,7 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
     param_override: overrideFormText(data.param_override),
     header_override: overrideFormText(data.header_override),
     status_code_mapping: overrideFormText(data.status_code_mapping),
-    settings: JSON.stringify(settings),
+    settings: JSON.stringify(settingsForBox(settings)),
     source_type: normalizeSourceType(data.source_type),
     status: data.status === undefined ? true : Number(data.status) === 1,
     tag: data.tag || '',
@@ -252,6 +253,38 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
     video_family: String(settings.video_family || ''),
     video_status_url_template: String(settings.video_status_url_template || ''),
     weight: Number(data.weight ?? 0),
+    ...upstreamSyncFormValues(settings.upstream_sync),
+  };
+};
+
+/** The settings JSON as the 高级 box shows it. The upstream check has its
+ *  own tab, and its state is the gateway's record, so neither is edited
+ *  there. */
+const settingsForBox = (settings: LooseRecord) => {
+  const rest = { ...settings };
+  delete rest.upstream_sync;
+  delete rest.upstream_sync_state;
+  return rest;
+};
+
+/** model_mapping arrives as a JSON string, or as nothing. An empty mapping
+ *  is kept as "" so a save of an unmapped source sends nothing to clear. */
+const modelMappingText = (value: unknown) => {
+  const mapping = readChannelSettings(value);
+  return Object.keys(mapping).length ? JSON.stringify(mapping) : '';
+};
+
+/** The 同步 tab's fields, read from settings.upstream_sync. */
+const upstreamSyncFormValues = (value: unknown) => {
+  const sync = readChannelSettings(value);
+  return {
+    upstream_sync_ignore: Array.isArray(sync.ignore)
+      ? sync.ignore.map(String).join('\n')
+      : '',
+    upstream_sync_interval: Number(sync.interval_hours ?? 0) || 0,
+    upstream_sync_notify_ops: sync.notify_ops === true,
+    upstream_sync_on_gone: sync.on_gone === 'keep' ? 'keep' : 'stop',
+    upstream_sync_on_new: sync.on_new === 'auto' ? 'auto' : 'review',
   };
 };
 
@@ -343,7 +376,39 @@ const normalizeChannelPayload = (
     delete settings.claude_code_client_only;
     delete settings.claude_code_user_agent;
   }
+  // The check's state is the gateway's record; it keeps its own copy.
+  delete settings.upstream_sync_state;
+  const interval = Math.max(0, Number(values.upstream_sync_interval || 0));
+  const ignore = String(values.upstream_sync_ignore || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const onNew = values.upstream_sync_on_new === 'auto' ? 'auto' : 'review';
+  const onGone = values.upstream_sync_on_gone === 'keep' ? 'keep' : 'stop';
+  if (
+    interval ||
+    ignore.length ||
+    onNew !== 'review' ||
+    onGone !== 'stop' ||
+    values.upstream_sync_notify_ops
+  ) {
+    settings.upstream_sync = {
+      interval_hours: interval,
+      on_new: onNew,
+      on_gone: onGone,
+      ...(ignore.length ? { ignore } : {}),
+      ...(values.upstream_sync_notify_ops ? { notify_ops: true } : {}),
+    };
+  } else {
+    delete settings.upstream_sync;
+  }
   payload.settings = JSON.stringify(settings);
+  // Sent only when the form holds one, so a save never clears a mapping it
+  // did not load; "{}" clears one the operator emptied.
+  if (values.model_mapping !== undefined) {
+    const mapping = readChannelSettings(values.model_mapping);
+    payload.model_mapping = JSON.stringify(mapping);
+  }
   const capacity = readChannelSettings(values.setting);
   capacity.decision_dialect = String(values.decision_dialect ?? '');
   capacity.cf_account_id = String(values.cf_account_id ?? '');
@@ -375,8 +440,12 @@ export function getDefaultChannelFormValues() {
     auto_ban: 1,
     group: DEFAULT_CHANNEL_GROUP,
     // A new source is watched for a week before it carries traffic, unless
-    // the operator says otherwise on the routing step.
-    settings: { observe_new_routes: true },
+    // the operator says otherwise on the routing step. Its upstream list is
+    // checked every six hours; what appears waits for the operator.
+    settings: {
+      observe_new_routes: true,
+      upstream_sync: { interval_hours: 6, on_gone: 'stop', on_new: 'review' },
+    },
     source_type: DEFAULT_SOURCE_TYPE,
     status: 1,
     type: 1,

@@ -1968,283 +1968,204 @@ body:has(.console-review)
   text-overflow: ellipsis;
 }
 
-/* --- editor: model scope, two panes ------------------------------------ */
+/* --- editor: 能调哪些模型, one table ---------------------------------- */
 
-/* Vendors on the left, the open vendor's models on the right. The left box
-   takes a vendor whole; the name opens it. One click per question, instead
-   of a checkbox and a caret sharing one row. */
-.tok-scope {
+.tok-scope2 {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
-.tok-scope__filters {
+.tok-scope2__modes {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.tok-scope__search {
-  align-items: center;
-  display: flex;
-  flex: 1;
-  min-width: 0;
+.tok-scope2__seg {
+  border: 1px solid rgb(20 22 28 / 14%);
+  border-radius: 6px;
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.tok-scope2__mode {
+  background: var(--lazu-surface);
+  border: 0;
+  border-right: 1px solid rgb(20 22 28 / 10%);
+  color: var(--lazu-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  height: 28px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.tok-scope2__mode:last-child {
+  border-right: 0;
+}
+
+.tok-scope2__mode.is-on {
+  background: var(--lazu-evidence-soft);
+  color: var(--lazu-evidence-strong);
+  font-weight: 600;
+}
+
+.tok-scope2__mode:focus-visible,
+.tok-scope2__chip:focus-visible {
+  box-shadow: var(--ui-focus-ring);
+  outline: none;
   position: relative;
 }
 
-.tok-scope__icon {
-  color: var(--lazu-text-faint);
-  left: 14px;
+.tok-scope2__summary {
+  margin-left: auto;
+}
+
+.tok-scope2__table {
+  border: 1px solid rgb(20 22 28 / 12%);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tok-scope2__tools {
+  align-items: center;
+  border-bottom: 1px solid rgb(20 22 28 / 8%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.tok-scope2__search {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  position: relative;
+  width: 150px;
+}
+
+.tok-scope2__search svg {
+  left: 8px;
   pointer-events: none;
   position: absolute;
 }
 
-.tok-scope .tok-scope__input {
-  min-height: 44px;
-  padding-left: 40px;
-  width: 100%;
+.tok-scope2__search .lazu-input {
+  height: 28px;
+  padding-left: 26px;
 }
 
-.tok-scope__tiers {
-  flex: none;
-}
-
-.tok-scope__panes {
-  border: 1px solid var(--lazu-border-strong);
-  border-radius: 14px;
-  display: grid;
-  grid-template-columns: minmax(200px, 272px) minmax(0, 1fr);
-  height: 400px;
-  overflow: hidden;
-}
-
-.tok-scope__vendors {
-  background: var(--lazu-surface-muted);
-  border-right: 1px solid var(--lazu-border);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 6px;
-}
-
-.tok-scope__vrow {
-  align-items: center;
-  border-radius: 10px;
-  display: flex;
-  flex: none;
-  gap: 10px;
-  min-height: 46px;
-  padding-left: 10px;
-}
-
-.tok-scope__vrow:hover {
-  background: var(--lazu-surface-selected);
-}
-
-/* The open vendor is a sheet lifted off the rail — whole-row fill, never a
-   side bar. */
-.tok-scope__vrow.is-active {
-  background: var(--lazu-surface-solid);
-  box-shadow: inset 0 0 0 1px var(--lazu-border);
-}
-
-.tok-scope__vpick {
-  align-items: center;
-  align-self: stretch;
-  background: transparent;
-  border: 0;
+.tok-scope2__chip {
+  background: var(--lazu-surface);
+  border: 1px solid rgb(20 22 28 / 16%);
+  border-radius: 999px;
   color: var(--lazu-ink);
   cursor: pointer;
-  display: flex;
-  flex: 1;
   font: inherit;
-  gap: 8px;
-  min-width: 0;
-  padding: 0 10px 0 0;
-  text-align: left;
-}
-
-.tok-scope__vpick:focus-visible {
-  border-radius: 8px;
-  outline: 2px solid var(--lazu-evidence);
-  outline-offset: -2px;
-}
-
-.tok-scope__vname {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 500;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 12.5px;
+  height: 26px;
+  padding: 0 10px;
   white-space: nowrap;
 }
 
-.tok-scope__vrow.is-active .tok-scope__vname {
-  font-weight: 600;
+.tok-scope2__chip.is-on {
+  background: var(--lazu-action);
+  border-color: var(--lazu-action);
+  color: var(--lazu-on-action);
 }
 
-.tok-scope__vcount {
-  color: var(--lazu-text-faint);
-  flex: none;
-  font-family: var(--lazu-font-mono);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.tok-scope__vrow.is-on .tok-scope__vcount {
-  color: var(--lazu-evidence-strong);
-}
-
-.tok-scope__models {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-}
-
-.tok-scope__mhead {
+.tok-scope2__row {
   align-items: center;
-  border-bottom: 1px solid var(--lazu-border);
-  display: flex;
-  flex: none;
-  gap: 10px;
-  padding: 12px 16px;
-}
-
-.tok-scope__mtitle {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.tok-scope__mhead .tokv2-hint {
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-/* The edit dialog is wide and tall enough to give the panes their full
-   height; the compact create dialog keeps 400px so its button stays near. */
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-scope__panes {
-  height: 540px;
-}
-
-.tok-scope .tok-scope__whole {
-  border: 1px solid var(--lazu-border-strong);
-  border-radius: 10px;
+  border-bottom: 1px solid rgb(20 22 28 / 5%);
   cursor: pointer;
-  font-size: 13px;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 84px 110px 64px 96px;
   height: 36px;
-  margin-left: auto;
-  padding: 0 12px;
-  white-space: nowrap;
-}
-
-.tok-scope__mlist {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 6px 8px;
-}
-
-.tok-scope__mrow {
-  align-items: center;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  gap: 12px;
-  min-height: 44px;
   padding: 0 10px;
 }
 
-.tok-scope__mrow:hover {
-  background: var(--lazu-surface-muted);
+.tok-scope2__row--head {
+  background: rgb(20 22 28 / 2.5%);
+  border-bottom-color: rgb(20 22 28 / 10%);
+  cursor: default;
+  height: 30px;
 }
 
-/* The shared checkbox label wraps its text in one span; here that span is
-   the name and the price, spread across the row. */
-.tok-scope__mrow > span:last-child {
-  align-items: center;
-  display: flex;
-  flex: 1;
-  gap: 12px;
-  min-width: 0;
+.tok-scope2__row.is-in {
+  background: color-mix(in srgb, var(--lazu-evidence) 5%, transparent);
 }
 
-.tok-scope__mname {
+/* Left out of an "all but" scope: the whole row reads as struck. */
+.tok-scope2__row.is-out {
+  background: color-mix(in srgb, var(--lazu-danger) 4%, transparent);
+  color: var(--lazu-danger);
+}
+
+.tok-scope2__row.is-out .tok-scope2__name {
+  text-decoration: line-through;
+}
+
+.tok-scope2__box--out[data-checked] {
+  background: var(--lazu-danger);
+  border-color: var(--lazu-danger);
+}
+
+.tok-scope2__rows {
+  max-height: 288px;
+  overflow-y: auto;
+}
+
+.tok-scope2__th {
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.tok-scope2__name {
   font-family: var(--lazu-font-mono);
-  font-size: 13px;
-  min-width: 0;
+  font-size: 12.5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tok-scope__price {
-  color: var(--lazu-text-faint);
-  flex: none;
+.tok-scope2__mono {
   font-family: var(--lazu-font-mono);
   font-size: 12px;
-  margin-left: auto;
-  white-space: nowrap;
 }
 
-.tok-scope__empty {
-  border: 1px solid var(--lazu-border);
-  border-radius: 14px;
-  color: var(--lazu-text-faint);
+.tok-scope2 .is-num {
+  text-align: right;
+}
+
+.tok-scope2__empty {
+  color: var(--lazu-text-muted);
   font-size: 13px;
-  padding: 28px 12px;
+  padding: 20px 10px;
   text-align: center;
 }
 
-.tok-scope__warn {
-  align-items: center;
-  background: var(--lazu-warning-soft);
-  border-radius: var(--lazu-radius-control);
-  color: var(--lazu-ink);
-  display: flex;
-  font-size: 14px;
-  gap: 12px;
-  padding: 14px 16px;
-}
-
-.tok-scope__warn.is-error {
-  background: var(--lazu-danger-soft);
-}
-
-.tok-scope__warn.is-error svg {
+.tok-scope2__error {
   color: var(--lazu-danger);
-}
-
-.tok-scope__warn svg {
-  color: var(--lazu-warning-strong);
-  flex: none;
-}
-
-.tok-scope__clear {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 12.5px;
 }
 
 @media (max-width: 720px) {
-  .tok-scope__filters {
-    flex-wrap: wrap;
+  .tok-scope2__row {
+    grid-template-columns: 30px minmax(0, 1fr) 96px;
   }
 
-  .tok-scope__panes {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 200px minmax(0, 1fr);
-  }
-
-  .tok-scope__vendors {
-    border-bottom: 1px solid var(--lazu-border);
-    border-right: 0;
+  .tok-scope2__row > :nth-child(3),
+  .tok-scope2__row > :nth-child(5),
+  .tok-scope2__row > :nth-child(6) {
+    display: none;
   }
 }
 

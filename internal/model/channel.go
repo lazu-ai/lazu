@@ -17,6 +17,7 @@ import (
 
 	"github.com/samber/lo"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -557,6 +558,7 @@ func BatchInsertChannels(channels []Channel) error {
 		}
 	}()
 
+	offset := 0
 	for _, chunk := range lo.Chunk(channels, 50) {
 		storageChunk := make([]Channel, 0, len(chunk))
 		for i := range chunk {
@@ -575,6 +577,12 @@ func BatchInsertChannels(channels []Channel) error {
 			tx.Rollback()
 			return err
 		}
+		// Hand the new IDs back so the caller can name what it created.
+		for i := range storageChunk {
+			channels[offset+i].Id = storageChunk[i].Id
+			channels[offset+i].PublicID = storageChunk[i].PublicID
+		}
+		offset += len(storageChunk)
 		for _, channel_ := range storageChunk {
 			if err := channel_.AddAbilities(tx); err != nil {
 				tx.Rollback()
@@ -674,6 +682,9 @@ func (channel *Channel) Update() error {
 		return err
 	}
 	if err := initializeMissingProtocolDialect(channel, &existingIdentity); err != nil {
+		return err
+	}
+	if err := keepStoredUpstreamSyncState(channel, existingIdentity.OtherSettings); err != nil {
 		return err
 	}
 	// If this is a multi-key channel, recalculate MultiKeySize based on the current key list to avoid inconsistency after editing keys
@@ -1072,6 +1083,9 @@ func (channel *Channel) ValidateSettings() error {
 		if err := other.ValidateStreamSettings(); err != nil {
 			return types.WrapErr(err, types.ErrorCodeChannelSettingsInvalid, types.D{"field": "first_event_timeout_seconds"})
 		}
+		if err := other.ValidateUpstreamSync(); err != nil {
+			return types.WrapErr(err, types.ErrorCodeChannelSettingsInvalid, types.D{"field": "upstream_sync"})
+		}
 	}
 	channelParams := &dto.ChannelSettings{}
 	if channel.Setting != nil && *channel.Setting != "" {
@@ -1224,4 +1238,86 @@ func CountAllTags() (int64, error) {
 	var total int64
 	err := CoreDB().Model(&Channel{}).Where("tag is not null AND tag != ''").Distinct("tag").Count(&total).Error
 	return total, err
+}
+
+// upstreamSyncStateKey is the settings key only the gateway writes.
+const upstreamSyncStateKey = "upstream_sync_state"
+
+// keepStoredUpstreamSyncState puts the stored upstream check state back into
+// settings a save is about to write. The console sends back whatever settings
+// it loaded, which may be older than the last check; the state is the
+// gateway's record, not something a form edits. A save that sends no
+// settings at all leaves the column alone anyway.
+func keepStoredUpstreamSyncState(channel *Channel, stored string) error {
+	if strings.TrimSpace(channel.OtherSettings) == "" {
+		return nil
+	}
+	incoming := map[string]json.RawMessage{}
+	if err := common.Unmarshal([]byte(channel.OtherSettings), &incoming); err != nil {
+		return nil // ValidateSettings reports malformed settings
+	}
+	var kept json.RawMessage
+	if strings.TrimSpace(stored) != "" {
+		previous := map[string]json.RawMessage{}
+		if err := common.Unmarshal([]byte(stored), &previous); err == nil {
+			kept = previous[upstreamSyncStateKey]
+		}
+	}
+	_, had := incoming[upstreamSyncStateKey]
+	if kept == nil && !had {
+		return nil
+	}
+	if kept == nil {
+		delete(incoming, upstreamSyncStateKey)
+	} else {
+		incoming[upstreamSyncStateKey] = kept
+	}
+	body, err := common.Marshal(incoming)
+	if err != nil {
+		return err
+	}
+	channel.OtherSettings = string(body)
+	return nil
+}
+
+// SaveUpstreamSyncState writes the upstream check state of one channel and
+// nothing else, under a row lock so two checks cannot interleave.
+func SaveUpstreamSyncState(channelID int, mutate func(settings *dto.ChannelOtherSettings) error) error {
+	return CoreDB().Transaction(func(tx *gorm.DB) error {
+		var row Channel
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id, settings").First(&row, "id = ?", channelID).Error; err != nil {
+			return err
+		}
+		raw := map[string]json.RawMessage{}
+		if strings.TrimSpace(row.OtherSettings) != "" {
+			if err := common.Unmarshal([]byte(row.OtherSettings), &raw); err != nil {
+				return err
+			}
+		}
+		// Not row.GetOtherSettings: on a parse failure that saves the row, and
+		// this row was read with two columns.
+		var settings dto.ChannelOtherSettings
+		if strings.TrimSpace(row.OtherSettings) != "" {
+			if err := common.Unmarshal([]byte(row.OtherSettings), &settings); err != nil {
+				return err
+			}
+		}
+		if err := mutate(&settings); err != nil {
+			return err
+		}
+		if settings.UpstreamSyncState == nil {
+			delete(raw, upstreamSyncStateKey)
+		} else {
+			body, err := common.Marshal(settings.UpstreamSyncState)
+			if err != nil {
+				return err
+			}
+			raw[upstreamSyncStateKey] = body
+		}
+		body, err := common.Marshal(raw)
+		if err != nil {
+			return err
+		}
+		return tx.Model(&Channel{}).Where("id = ?", channelID).Update("settings", string(body)).Error
+	})
 }

@@ -455,6 +455,10 @@ func tokenCanUseModel(token *model.Token, modelName string) bool {
 	if !token.IsModelLimitsEnabled() {
 		return true
 	}
+	limits := token.GetModelLimitsMap()
+	if model.TokenModelLimitsExclude(limits) {
+		return model.TokenModelLimitAllows(limits, modelName)
+	}
 	for _, limitedModel := range token.GetModelLimits() {
 		if strings.EqualFold(strings.TrimSpace(limitedModel), modelName) {
 			return true
