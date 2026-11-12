@@ -1905,16 +1905,6 @@ func GetUserUsedQuota(id int) (quota billing.MicroUSD, err error) {
 	return user.UsedQuota, err
 }
 
-func GetUserEmail(id int) (email string, err error) {
-	err = CoreDB().Model(&User{}).Where("id = ?", id).Select("email").Find(&email).Error
-	return email, err
-}
-
-//func GetRootUserEmail() (email string) {
-//	CoreDB().Model(&User{}).Where("role = ?", common.RoleRootUser).Select("email").Find(&email)
-//	return email
-//}
-
 // GetRootUser returns the oldest administrator. Several accounts can hold the
 // administrator role, so the lookup is ordered to stay deterministic.
 func GetRootUser() (user *User) {

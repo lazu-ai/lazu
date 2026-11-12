@@ -7,7 +7,6 @@ from config import load_config, parse_args
 
 args = parse_args('测试 Chat API')
 api_base, api_key, profile = load_config(args.profile)
-model = args.model or 'gemini-3-flash-preview'
 model = args.model or 'claude-opus-4-8'
 
 print(f"\n[{profile}] 测试 Chat API: {api_base}")

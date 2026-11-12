@@ -9,34 +9,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	gormsqlite "github.com/glebarez/sqlite"
-	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/setting"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/webhook"
-	"gorm.io/gorm"
 )
-
-func setupStripeControllerTestDB(t *testing.T) func() {
-	t.Helper()
-
-	previousDB := model.CoreDB()
-	db, err := gorm.Open(gormsqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("failed to open sqlite: %v", err)
-	}
-	model.SetCoreDB(db)
-
-	if err := db.AutoMigrate(&model.TopUp{}); err != nil {
-		t.Fatalf("failed to migrate topups: %v", err)
-	}
-
-	return func() {
-		sqlDB, _ := db.DB()
-		_ = sqlDB.Close()
-		model.SetCoreDB(previousDB)
-	}
-}
 
 func newJSONContext(method string, body string) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()

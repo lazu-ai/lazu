@@ -29,9 +29,6 @@ type fakeRouter struct {
 	Calls             []string
 }
 
-func (f *fakeRouter) Name() string    { return "fake" }
-func (f *fakeRouter) Version() string { return "v1" }
-
 func (f *fakeRouter) Select(ctx context.Context, req *relayrouter.RequestContext) (*relayrouter.Decision, error) {
 	f.Calls = append(f.Calls, req.ResolvedModel)
 	if f.UnsupportedModels[req.ResolvedModel] {
