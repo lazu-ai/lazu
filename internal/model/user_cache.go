@@ -270,18 +270,6 @@ func getUserNameCache(userId int) (string, error) {
 	return cache.Username, nil
 }
 
-// New functions for individual field updates
-func updateUserStatusCache(userId int, status bool) error {
-	if !common.RedisEnabled {
-		return nil
-	}
-	statusInt := common.UserStatusEnabled
-	if !status {
-		statusInt = common.UserStatusDisabled
-	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Status", fmt.Sprintf("%d", statusInt))
-}
-
 func updateUserQuotaCache(userId int, quota billing.MicroUSD) error {
 	if !common.RedisEnabled {
 		return nil

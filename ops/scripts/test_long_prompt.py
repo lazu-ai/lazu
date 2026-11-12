@@ -19,7 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import sys
 import time
 import uuid
@@ -30,7 +29,7 @@ except ImportError:
     print("请先安装依赖：pip install requests", file=sys.stderr)
     sys.exit(1)
 
-from config import load_config, parse_args
+from config import load_config
 
 
 # 加个 run salt 避免跟上次缓存撞车（但同一次运行内的两发保持一致）

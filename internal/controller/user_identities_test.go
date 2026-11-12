@@ -98,10 +98,3 @@ func TestExternalIdentityUnlinkAlwaysFailsClosed(t *testing.T) {
 		t.Fatalf("an identity was removed despite fail-closed unlink, count=%d", count)
 	}
 }
-
-func containsJSONMessage(payload []byte, want string) bool {
-	var response struct {
-		Message string `json:"message"`
-	}
-	return json.Unmarshal(payload, &response) == nil && response.Message == want
-}
