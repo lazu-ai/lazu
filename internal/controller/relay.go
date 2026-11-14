@@ -747,18 +747,20 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 
 		// 同时写入错误日志文件（复用上面获取的 clientIp，避免重复数据库查询）
 		service.RecordErrorLogToFile(service.ErrorLogEntry{
-			UserId:    userId,
-			Username:  username,
-			ChannelId: channelId,
-			ModelName: modelName,
-			TokenName: tokenName,
-			TokenId:   tokenId,
-			Content:   err.MaskSensitiveError(),
-			UseTime:   int(service.RequestDurationMS(c) / 1000),
-			IsStream:  common.GetContextKeyBool(c, constant.ContextKeyIsStream),
-			Group:     userGroup,
-			Ip:        clientIp,
-			Other:     other,
+			ErrorCode:         err.GetErrorCode(),
+			ProviderAttempted: common.GetContextKeyBool(c, constant.ContextKeyAnyProviderAttempted),
+			UserId:            userId,
+			Username:          username,
+			ChannelId:         channelId,
+			ModelName:         modelName,
+			TokenName:         tokenName,
+			TokenId:           tokenId,
+			Content:           err.MaskSensitiveError(),
+			UseTime:           int(service.RequestDurationMS(c) / 1000),
+			IsStream:          common.GetContextKeyBool(c, constant.ContextKeyIsStream),
+			Group:             userGroup,
+			Ip:                clientIp,
+			Other:             other,
 		})
 		// 标记已记录，避免在 defer 中重复记录. A retried attempt deliberately
 		// leaves the DB row unwritten, so the deferred writer must stay free to

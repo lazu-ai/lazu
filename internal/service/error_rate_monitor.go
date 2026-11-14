@@ -9,6 +9,7 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/types"
 )
 
 // ErrorRateMonitor 监控错误率并在超过阈值时发送告警邮件
@@ -60,7 +61,7 @@ func GetErrorRateMonitor() *ErrorRateMonitor {
 
 // RecordError 记录一个错误并检查是否需要告警
 func (m *ErrorRateMonitor) RecordError(entry ErrorLogEntry) {
-	if !constant.ErrorLogEnabled {
+	if !constant.ErrorLogEnabled || isCustomerBudgetRejection(entry) {
 		return
 	}
 
@@ -168,5 +169,22 @@ func (m *ErrorRateMonitor) sendAlertEmail(errorCount int64, windowStart time.Tim
 		Preheader: fmt.Sprintf("阈值 %d / %s", m.threshold, window), Blocks: blocks,
 	}); err != nil {
 		common.SysError("error rate alert: " + err.Error())
+	}
+}
+
+// Customer admission failures remain in the request and file logs, but do not
+// count as operational failures. Preserve provider billing errors and platform
+// budget exhaustion: those still need the operator's attention.
+func isCustomerBudgetRejection(entry ErrorLogEntry) bool {
+	if entry.ProviderAttempted {
+		return false
+	}
+	switch entry.ErrorCode {
+	case types.ErrorCodeInsufficientQuota, types.ErrorCodeKeyBudgetExceeded,
+		types.ErrorCodePreConsumeTokenQuotaFailed, types.ErrorCodeMemberBudgetExceeded,
+		types.ErrorCodeProjectBudgetExceeded:
+		return true
+	default:
+		return false
 	}
 }

@@ -8,23 +8,26 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/types"
 )
 
 // ErrorLogEntry 错误日志条目结构
 type ErrorLogEntry struct {
-	Timestamp string                 `json:"timestamp"`
-	UserId    int                    `json:"user_id"`
-	Username  string                 `json:"username"`
-	ChannelId int                    `json:"channel_id"`
-	ModelName string                 `json:"model_name"`
-	TokenName string                 `json:"token_name"`
-	TokenId   int                    `json:"token_id"`
-	Content   string                 `json:"content"`
-	UseTime   int                    `json:"use_time"`
-	IsStream  bool                   `json:"is_stream"`
-	Group     string                 `json:"group"`
-	Ip        string                 `json:"ip,omitempty"`
-	Other     map[string]interface{} `json:"other,omitempty"`
+	ErrorCode         types.ErrorCode        `json:"error_code,omitempty"`
+	ProviderAttempted bool                   `json:"provider_attempted"`
+	Timestamp         string                 `json:"timestamp"`
+	UserId            int                    `json:"user_id"`
+	Username          string                 `json:"username"`
+	ChannelId         int                    `json:"channel_id"`
+	ModelName         string                 `json:"model_name"`
+	TokenName         string                 `json:"token_name"`
+	TokenId           int                    `json:"token_id"`
+	Content           string                 `json:"content"`
+	UseTime           int                    `json:"use_time"`
+	IsStream          bool                   `json:"is_stream"`
+	Group             string                 `json:"group"`
+	Ip                string                 `json:"ip,omitempty"`
+	Other             map[string]interface{} `json:"other,omitempty"`
 }
 
 const maxErrorLogFileSize = 128 << 20 // 128 MiB

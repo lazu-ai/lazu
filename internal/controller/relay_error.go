@@ -120,16 +120,18 @@ func recordRelayRejection(c *gin.Context, lazuErr *types.LazuError) {
 		return
 	}
 	service.RecordErrorLogToFile(service.ErrorLogEntry{
-		UserId:    userId,
-		Username:  username,
-		ChannelId: 0,
-		ModelName: modelName,
-		TokenName: tokenName,
-		TokenId:   tokenId,
-		Content:   lazuErr.Error(),
-		UseTime:   int(service.RequestDurationMS(c) / 1000),
-		IsStream:  common.GetContextKeyBool(c, constant.ContextKeyIsStream),
-		Group:     userGroup,
+		ErrorCode:         lazuErr.GetErrorCode(),
+		ProviderAttempted: common.GetContextKeyBool(c, constant.ContextKeyAnyProviderAttempted),
+		UserId:            userId,
+		Username:          username,
+		ChannelId:         0,
+		ModelName:         modelName,
+		TokenName:         tokenName,
+		TokenId:           tokenId,
+		Content:           lazuErr.Error(),
+		UseTime:           int(service.RequestDurationMS(c) / 1000),
+		IsStream:          common.GetContextKeyBool(c, constant.ContextKeyIsStream),
+		Group:             userGroup,
 		// Use the real client IP from our trusted proxy chain;
 		// c.ClientIP() returns the proxy peer address, which is
 		// useless for triage.
