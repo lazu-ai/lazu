@@ -95,16 +95,18 @@ func abortWithGatewayError(c *gin.Context, statusCode int, body httperr.Body, in
 		}
 
 		service.RecordErrorLogToFile(service.ErrorLogEntry{
-			UserId:    userId,
-			Username:  c.GetString("username"),
-			ChannelId: 0,
-			ModelName: modelName,
-			TokenName: c.GetString("token_name"),
-			TokenId:   c.GetInt("token_id"),
-			Content:   message,
-			UseTime:   int(service.RequestDurationMS(c) / 1000),
-			IsStream:  false,
-			Group:     c.GetString("group"),
+			ErrorCode:         internalCode,
+			ProviderAttempted: false,
+			UserId:            userId,
+			Username:          c.GetString("username"),
+			ChannelId:         0,
+			ModelName:         modelName,
+			TokenName:         c.GetString("token_name"),
+			TokenId:           c.GetInt("token_id"),
+			Content:           message,
+			UseTime:           int(service.RequestDurationMS(c) / 1000),
+			IsStream:          false,
+			Group:             c.GetString("group"),
 			// Use the real client IP from the trusted proxy chain; c.ClientIP()
 			// returns the proxy peer address, which is useless for triage.
 			Ip:    common.GetRealClientIP(c),
