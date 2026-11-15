@@ -102,6 +102,9 @@ func countRequestTokens(c *gin.Context, meta *types.TokenCountMeta, info *relayc
 		return 0, errors.New("token count meta is nil")
 	}
 
+	if meta.AdmissionTokenFloor > 0 {
+		return 0, errors.New("local usage unavailable for this media request")
+	}
 	model := common.GetContextKeyString(c, constant.ContextKeyOriginalModel)
 	if model == "" {
 		model = info.OriginModelName
@@ -157,6 +160,9 @@ func EstimateRequestTPMTokens(meta *types.TokenCountMeta, info *relaycommon.Rela
 		return 0, errors.New("token count meta is nil")
 	}
 
+	if meta.AdmissionTokenFloor > 0 {
+		return meta.AdmissionTokenFloor, nil
+	}
 	tokens := estimateTextBytes(meta.CombineText)
 	if meta.TokenType == types.TokenTypeTextNumber {
 		tokens = utf8.RuneCountInString(meta.CombineText)

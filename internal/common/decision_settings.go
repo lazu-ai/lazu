@@ -37,10 +37,31 @@ func DecisionModelSupportsDialect(model, dialect string) bool {
 	case model == OpenAIDecisionModel:
 		return dialect == "openai"
 	case strings.HasPrefix(model, "jev-"):
-		return dialect == "typesafe" || dialect == "openrouter" || dialect == "cloudflare_gateway"
+		// The legacy Cloudflare gateway transport fixes its model to typesafe/jev;
+		// it cannot promise a newly requested fixed version or moving alias.
+		return dialect == "typesafe" || dialect == "openrouter" || (dialect == "cloudflare_gateway" && model == "jev-1.13")
 	case model == "clef" || model == "clef-flash":
 		return dialect == "cloudflare_workers_ai"
 	default:
 		return false
 	}
+}
+
+// DecisionUpstreamModel applies only when the channel has no explicit mapping.
+// Fixed public versions stay pinned; latest remains an opt-in moving alias.
+func DecisionUpstreamModel(model, dialect string) string {
+	switch dialect {
+	case "typesafe":
+		switch model {
+		case "jev-1.13", "jev-1.14":
+			return model + ".0"
+		}
+	case "openrouter":
+		if !strings.HasPrefix(model, "typesafe/") {
+			return "typesafe/" + model
+		}
+	case "openai":
+		return "gpt-6-luna"
+	}
+	return model
 }

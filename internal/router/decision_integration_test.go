@@ -2,10 +2,14 @@ package router
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,7 +26,7 @@ import (
 var decisionFixtureSequence atomic.Int32
 
 func TestDecisionIntegration(t *testing.T) {
-	for _, scenario := range []string{"native", "explicit-precedence", "generated", "invalid-generation", "native-failure", "invalid-native", "generator-forbidden", "ephemeral-forbidden", "generator-capability", "budget-denied", "native-fallback", "validation", "disabled"} {
+	for _, scenario := range []string{"native", "image-native", "image-fallback", "image-low-balance", "image-missing-usage", "explicit-precedence", "generated", "invalid-generation", "native-failure", "invalid-native", "generator-forbidden", "ephemeral-forbidden", "generator-capability", "budget-denied", "native-fallback", "validation", "disabled"} {
 		t.Run(scenario, func(t *testing.T) {
 			// Rate-limit state survives individual database fixtures and -count.
 			fixtureID := 10_000 + int(decisionFixtureSequence.Add(10))
@@ -67,22 +71,31 @@ func TestDecisionIntegration(t *testing.T) {
 					if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 						t.Error(err)
 					}
-					if string(request["model"]) != `"jev-1.13.0"` {
+					if string(request["model"]) != `"jev-1.14.0"` {
 						t.Errorf("model mapping=%s", request["model"])
+					}
+					if strings.HasPrefix(scenario, "image-") {
+						if r.Header.Get("TypeSafe-Danger-Zone-Images") != "true" || !bytes.Contains(request["assets"], []byte("photo-ref")) || string(request["state"]) != `{"photo":"photo-ref","n":9007199254740993}` {
+							t.Error("image reference or state lost")
+						}
 					}
 					if _, leaked := request["question_generation"]; leaked {
 						t.Error("gateway control leaked")
 					}
-					if scenario == "invalid-native" {
-						io.WriteString(w, `{"model":"jev-1.13.0","answers":{},"usage":{"input_tokens":457,"output_tokens":70}}`)
+					if scenario == "image-missing-usage" {
+						io.WriteString(w, `{"model":"jev-1.14.0","answers":{"urgent":{"type":"noul","noul":0.98}}}`)
 						return
 					}
-					if scenario == "native-failure" || (scenario == "native-fallback" && nativeCalls.Load() == 1) {
+					if scenario == "invalid-native" {
+						io.WriteString(w, `{"model":"jev-1.14.0","answers":{},"usage":{"input_tokens":457,"output_tokens":70}}`)
+						return
+					}
+					if scenario == "native-failure" || ((scenario == "native-fallback" || scenario == "image-fallback") && nativeCalls.Load() == 1) {
 						w.WriteHeader(503)
 						io.WriteString(w, `{"error":{"message":"busy"}}`)
 						return
 					}
-					io.WriteString(w, `{"model":"jev-1.13.0","answers":{"urgent":{"type":"noul","noul":0.98,"confidence":0.91}},"usage":{"input_tokens":457,"output_tokens":70}}`)
+					io.WriteString(w, `{"model":"jev-1.14.0","answers":{"urgent":{"type":"noul","noul":0.98,"confidence":0.91}},"usage":{"input_tokens":457,"output_tokens":70}}`)
 					return
 				}
 				if r.URL.Path == "/v1/responses" {
@@ -110,14 +123,17 @@ func TestDecisionIntegration(t *testing.T) {
 			if scenario == "budget-denied" {
 				key.RemainQuota = 1
 			}
+			if scenario == "image-low-balance" {
+				key.RemainQuota = 100
+			}
 			if scenario == "generator-forbidden" {
 				key.ModelLimitsEnabled = true
-				key.ModelLimits = "jev-1.13"
+				key.ModelLimits = "jev-1.14"
 			}
 			if err := key.Insert(); err != nil {
 				t.Fatal(err)
 			}
-			for i, name := range []string{"jev-1.13", "gpt-6-luna"} {
+			for i, name := range []string{"jev-1.14", "gpt-6-luna"} {
 				priority, noBan := int64(10), 0
 				setting := `{"decision_dialect":"typesafe","max_in_flight":4}`
 				other := `{"protocol_dialect":"openai","capabilities":{"supports_responses":true,"supports_vision":true}}`
@@ -143,14 +159,14 @@ func TestDecisionIntegration(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if scenario == "native-fallback" {
+			if scenario == "native-fallback" || scenario == "image-fallback" {
 				priority, noBan := int64(5), 0
 				setting, base := `{"decision_dialect":"typesafe","max_in_flight":4}`, upstream.URL
-				ch := model.Channel{Id: fixtureID + 2, Type: constant.ChannelTypeOpenAI, Key: "fixture-backup", Status: common.ChannelStatusEnabled, Name: "backup", Models: "jev-1.13", Group: model.ChannelLaneDirect, BaseURL: &base, Priority: &priority, AutoBan: &noBan, Setting: &setting}
+				ch := model.Channel{Id: fixtureID + 2, Type: constant.ChannelTypeOpenAI, Key: "fixture-backup", Status: common.ChannelStatusEnabled, Name: "backup", Models: "jev-1.14", Group: model.ChannelLaneDirect, BaseURL: &base, Priority: &priority, AutoBan: &noBan, Setting: &setting}
 				if err := model.CoreDB().Create(&ch).Error; err != nil {
 					t.Fatal(err)
 				}
-				if err := model.CoreDB().Create(&model.Ability{ChannelId: ch.Id, Group: model.ChannelLaneDirect, Model: "jev-1.13", Enabled: true, Priority: &priority}).Error; err != nil {
+				if err := model.CoreDB().Create(&model.Ability{ChannelId: ch.Id, Group: model.ChannelLaneDirect, Model: "jev-1.14", Enabled: true, Priority: &priority}).Error; err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -158,18 +174,26 @@ func TestDecisionIntegration(t *testing.T) {
 			engine := gin.New()
 			engine.Use(middleware.RequestId())
 			SetRelayRouter(engine)
-			body := `{"model":"jev-1.13","state":"服务器宕机，需要立即修复。","questions":{"urgent":{"type":"noul","instructions":"是否紧急？"}}}`
-			if scenario != "native" && scenario != "explicit-precedence" && scenario != "validation" && scenario != "disabled" {
-				body = `{"model":"jev-1.13","state":"服务器宕机，需要立即修复。","question_generation":{"enabled":true,"model":"gpt-6-luna"}}`
+			body := `{"model":"jev-1.14","state":"服务器宕机，需要立即修复。","questions":{"urgent":{"type":"noul","instructions":"是否紧急？"}}}`
+			if !strings.HasPrefix(scenario, "image-") && scenario != "native" && scenario != "explicit-precedence" && scenario != "validation" && scenario != "disabled" {
+				body = `{"model":"jev-1.14","state":"服务器宕机，需要立即修复。","question_generation":{"enabled":true,"model":"gpt-6-luna"}}`
 			}
 			if scenario == "validation" {
-				body = `{"model":"jev-1.13","state":"x","questions":{"urgent":{"type":"noul","instructions":"x"}},"stream":true}`
+				body = `{"model":"jev-1.14","state":"x","questions":{"urgent":{"type":"noul","instructions":"x"}},"stream":true}`
 			}
+			if strings.HasPrefix(scenario, "image-") {
+				var picture bytes.Buffer
+				if err := png.Encode(&picture, image.NewRGBA(image.Rect(0, 0, 280, 280))); err != nil {
+					t.Fatal(err)
+				}
+				body = `{"model":"jev-1.14","state":{"photo":"photo-ref","n":9007199254740993},"assets":{"photo-ref":{"format":"png","data_base64":"` + base64.StdEncoding.EncodeToString(picture.Bytes()) + `"}},"questions":{"urgent":{"type":"noul","instructions":"Does photo show a red alert?"}}}`
+			}
+
 			request := httptest.NewRequest(http.MethodPost, "/v1/decisions", bytes.NewBufferString(body))
 			request.Header.Set("Content-Type", "application/json")
 			if scenario != "disabled" {
 				if scenario == "ephemeral-forbidden" {
-					credential, err := model.IssueEphemeralCredential(model.IssueEphemeralCredentialInput{UserID: fixtureID, TokenID: fixtureID, Models: []string{"jev-1.13"}})
+					credential, err := model.IssueEphemeralCredential(model.IssueEphemeralCredentialInput{UserID: fixtureID, TokenID: fixtureID, Models: []string{"jev-1.14"}})
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -182,7 +206,7 @@ func TestDecisionIntegration(t *testing.T) {
 			engine.ServeHTTP(result, request)
 			want := 200
 			switch scenario {
-			case "invalid-generation", "native-failure", "invalid-native":
+			case "invalid-generation", "native-failure", "invalid-native", "image-missing-usage":
 				want = 502
 			case "generator-forbidden", "ephemeral-forbidden":
 				want = 403
@@ -223,14 +247,18 @@ func TestDecisionIntegration(t *testing.T) {
 				if err := model.CoreDB().First(&updated, key.Id).Error; err != nil {
 					t.Fatal(err)
 				}
-				if scenario != "native-failure" && scenario != "invalid-native" {
+				if scenario != "native-failure" && scenario != "invalid-native" && scenario != "image-missing-usage" {
 					break
 				}
 				var settledUser model.User
 				if err := model.CoreDB().First(&settledUser, user.Id).Error; err != nil {
 					t.Fatal(err)
 				}
-				if key.RemainQuota-updated.RemainQuota == 120 && user.Quota-settledUser.Quota == 120 {
+				expectedCharge := billing.MicroUSD(120)
+				if scenario == "image-missing-usage" {
+					expectedCharge = 0
+				}
+				if key.RemainQuota-updated.RemainQuota == expectedCharge && user.Quota-settledUser.Quota == expectedCharge {
 					break
 				}
 				if time.Now().After(deadline) {
@@ -249,8 +277,16 @@ func TestDecisionIntegration(t *testing.T) {
 				t.Fatalf("key charged %d logsum %d logs%+v", key.RemainQuota-updated.RemainQuota, charged, logs)
 			}
 			switch scenario {
-			case "native", "explicit-precedence":
-				if nativeCalls.Load() != 1 || len(logs) != 1 || charged != 19 {
+			case "image-missing-usage":
+				if charged != 0 || generatorCalls.Load() != 0 || nativeCalls.Load() == 0 {
+					t.Fatalf("missing usage billed reservation: charge=%d calls=%d", charged, nativeCalls.Load())
+				}
+			case "native", "explicit-precedence", "image-native", "image-fallback", "image-low-balance":
+				expectedCalls := int32(1)
+				if scenario == "image-fallback" {
+					expectedCalls = 2
+				}
+				if nativeCalls.Load() != expectedCalls || len(logs) != 1 || charged != 19 {
 					t.Fatalf("native billing/calls=%d charged=%d logs=%+v", nativeCalls.Load(), charged, logs)
 				}
 				if generatorCalls.Load() != 0 {
@@ -264,7 +300,7 @@ func TestDecisionIntegration(t *testing.T) {
 				}
 			case "generated", "native-fallback":
 				expectedNative := int32(1)
-				if scenario == "native-fallback" {
+				if scenario == "native-fallback" || scenario == "image-fallback" {
 					expectedNative = 2
 				}
 				if len(logs) != 2 || generatorCalls.Load() != 1 || nativeCalls.Load() != expectedNative {

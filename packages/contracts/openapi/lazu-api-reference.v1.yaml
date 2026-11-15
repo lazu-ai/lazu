@@ -3839,7 +3839,7 @@ components:
       properties:
         model:
           type: string
-          examples: [jev-1.13, clef, clef-flash, gpt-6-luna-decisions]
+          examples: [jev-1.14, jev-1.13, clef, clef-flash, gpt-6-luna-decisions]
         state:
           type: [string, object, array]
           description: Material to judge. Empty state is allowed only with valid embedded images.
@@ -3851,10 +3851,25 @@ components:
             pattern: '^[A-Za-z0-9_.-]{1,100}$'
           additionalProperties:
             $ref: '#/components/schemas/DecisionQuestion'
+        assets:
+          type: object
+          maxProperties: 4
+          description: Jev only. Explicit questions required. Keys are references in string values of state, instructions or criteria, never object keys. Every asset must be referenced. Cannot combine with images. PNG/JPEG, 280–1568 pixels each side, 4 MiB/file, 8 MiB total decoded or repeated image-file bytes, 13 MiB request. Reserves 65536 input tokens; bills only provider usage. No multipart, remote URLs, Box or long context.
+          propertyNames:
+            minLength: 1
+            maxLength: 1024
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required: [format, data_base64]
+            properties:
+              type: {type: string, const: image}
+              format: {type: string, enum: [png, jpg, jpeg]}
+              data_base64: {type: string, contentEncoding: base64, description: Standard padded base64 image bytes without a data URL prefix.}
         images:
           type: array
           maxItems: 4
-          description: Clef or the OpenAI alias's legacy bridge. PNG/JPEG/WebP inline data URLs; at most 4 MiB and 16 million pixels per image, 8 MiB total decoded, 13 MiB total encoded request. Remote URLs, file IDs, audio and video are unsupported.
+          description: Shared images for Jev, Clef or the OpenAI alias's legacy bridge. Jev accepts PNG/JPEG only, each side 280–1568 pixels, and wraps upstream state as {state, images}; cannot combine with assets. Jev image requests reserve 65536 input tokens and settle only provider usage. PNG/JPEG/WebP inline data URLs; at most 4 MiB and 16 million pixels per image, 8 MiB total decoded, 13 MiB total encoded request. Remote URLs, file IDs, audio and video are unsupported.
           items:
             oneOf:
               - type: string
