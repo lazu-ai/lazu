@@ -133,39 +133,44 @@ func (r *DecisionRequest) validateAssets(caps *DecisionCapabilities) error {
 	return nil
 }
 
+// Walk the validated JSON once. Re-unmarshalling every nested RawMessage
+// would make deeply nested state quadratic in its encoded size.
 func countAssetReferences(raw json.RawMessage, refs map[string]int) {
-	raw = bytes.TrimSpace(raw)
-	if len(raw) == 0 {
-		return
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	_ = countAssetReferenceValue(decoder, refs)
+}
+
+func countAssetReferenceValue(decoder *json.Decoder, refs map[string]int) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return err
 	}
-	switch raw[0] {
-	case '"':
-		var value string
-		if json.Unmarshal(raw, &value) == nil {
-			// Whole values take precedence over substring matches, as in TypeSafe.
-			if _, ok := refs[value]; ok {
-				refs[value]++
-				return
+	switch value := token.(type) {
+	case string:
+		// Whole values take precedence over substring matches, as in TypeSafe.
+		if _, ok := refs[value]; ok {
+			refs[value]++
+			return nil
+		}
+		for ref := range refs {
+			refs[ref] += strings.Count(value, ref)
+		}
+	case json.Delim:
+		for decoder.More() {
+			if value == '{' {
+				// Object keys are never image references.
+				if _, err := decoder.Token(); err != nil {
+					return err
+				}
 			}
-			for ref := range refs {
-				refs[ref] += strings.Count(value, ref)
+			if err := countAssetReferenceValue(decoder, refs); err != nil {
+				return err
 			}
 		}
-	case '{':
-		var values map[string]json.RawMessage
-		if json.Unmarshal(raw, &values) == nil {
-			for _, value := range values {
-				countAssetReferences(value, refs)
-			}
-		}
-	case '[':
-		var values []json.RawMessage
-		if json.Unmarshal(raw, &values) == nil {
-			for _, value := range values {
-				countAssetReferences(value, refs)
-			}
-		}
+		_, err = decoder.Token()
 	}
+	return err
 }
 
 // Limits checked against https://docs.typesafe.ai/images (2026-11-15).

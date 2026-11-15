@@ -119,3 +119,12 @@ func TestJevSharedImagesDoNotMutateRequest(t *testing.T) {
 		t.Fatal("payload conversion mutated request")
 	}
 }
+
+func TestAssetReferencesInDeepJSONAndEscapedStrings(t *testing.T) {
+	refs := map[string]int{"image-ref": 0, "key-only": 0}
+	raw := strings.Repeat("[", 1000) + `{"key-only":["image-ref","look at image-ref","image\u002dref",9007199254740993]}` + strings.Repeat("]", 1000)
+	countAssetReferences(json.RawMessage(raw), refs)
+	if refs["image-ref"] != 3 || refs["key-only"] != 0 {
+		t.Fatalf("reference walk = %v", refs)
+	}
+}
