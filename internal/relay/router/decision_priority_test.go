@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
 )
 
@@ -46,5 +47,29 @@ func TestDecisionRoutingRejectsOtherProviderDialects(t *testing.T) {
 				t.Fatalf("selected %v, want channel %d", selected, test.id)
 			}
 		})
+	}
+}
+
+func TestJevImageRoutingExcludesTextOnlyChannel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cleanup := setupRouterTestDB(t)
+	defer cleanup()
+	for index, dialect := range []string{"cloudflare_gateway", "typesafe"} {
+		setting := `{"decision_dialect":"` + dialect + `","cf_account_id":"fixture"}`
+		priority := int64(100 - index)
+		ch := model.Channel{Id: 9900 + index, Type: constant.ChannelTypeOpenAI, Key: "fixture", Status: common.ChannelStatusEnabled, Models: "jev-1.13", Group: model.ChannelLaneDirect, Setting: &setting, Priority: &priority}
+		if err := model.CoreDB().Create(&ch).Error; err != nil {
+			t.Fatal(err)
+		}
+		if err := model.CoreDB().Create(&model.Ability{ChannelId: ch.Id, Group: model.ChannelLaneDirect, Model: "jev-1.13", Enabled: true, Priority: &priority}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1/decisions", nil)
+	c.Set("decision_request", &dto.DecisionRequest{Model: "jev-1.13", Assets: map[string]dto.DecisionAsset{"fixture": {Format: "png"}}})
+	selected, _, err := SelectProtocolCompatibleChannel(c, model.ChannelLaneDirect, "jev-1.13", nil)
+	if err != nil || selected == nil || selected.Id != 9901 {
+		t.Fatalf("image request routed to incompatible channel: %v %v", selected, err)
 	}
 }

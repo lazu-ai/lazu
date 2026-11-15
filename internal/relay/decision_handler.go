@@ -39,16 +39,7 @@ func DecisionHelper(c *gin.Context, info *relaycommon.RelayInfo) (resultErr *typ
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
 	}
 	if !info.IsModelMapped {
-		switch adapter.Dialect {
-		case "typesafe":
-			if request.Model == "jev-1.13" {
-				request.Model = "jev-1.13.0"
-			}
-		case "openrouter":
-			request.Model = "typesafe/" + request.Model
-		case "openai":
-			request.Model = "gpt-6-luna"
-		}
+		request.Model = common.DecisionUpstreamModel(request.Model, adapter.Dialect)
 		info.UpstreamModelName = request.Model
 	}
 	timeout := 5 * time.Second

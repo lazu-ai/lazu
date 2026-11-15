@@ -724,6 +724,9 @@ func buildModelCatalogItemsWithOptions(modelNames []string, options catalogBuild
 			}
 			item.InputModalities, item.OutputModalities = item.Modality.Input, item.Modality.Output
 			item.SupportedParameters = []string{"state", "questions", "images", "question_generation"}
+			if caps.SupportsAssets {
+				item.SupportedParameters = append(item.SupportedParameters, "assets")
+			}
 			if modelName == common.OpenAIDecisionModel {
 				item.RequestModel = common.OpenAIDecisionRequestModel
 				item.SupportedParameters = []string{"input", "questions"}

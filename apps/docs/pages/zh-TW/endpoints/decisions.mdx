@@ -23,10 +23,22 @@ Lazu 首發限制為輸入與問題合計 8192 個估算文字 token、64 題、
 
 ```json
 {
-  "model": "jev-1.13",
+  "model": "jev-1.14",
   "state": {"ticket": "服务中断，需要立即处理。"},
   "questions": {"urgent": {"type": "noul", "instructions": "是否需要立即处理？"}}
 }
 ```
 
 完整參數、圖片限制、自動產生、獨立計費與錯誤重試請參閱 [英文協定文件](/endpoints/decisions)。Clef 目前限制 state 為保守的 2000 UTF-8 位元組；圖片僅接受內嵌 PNG/JPEG/WebP，不支援串流。
+
+## Jev 1.14 與圖片 assets
+
+`jev-1.14` 映射到 `jev-1.14.0`，`jev-1.13` 保留固定版本。營運者設定模型、管道與價格後才會出現在目錄；範本為 `ops/references/jev-114-listing.json`。若目錄提供 `jev-latest`，它會隨供應商更新，已調整信心閾值的應用建議使用固定版本。管道測試與實際呼叫使用相同映射，明確設定優先。
+
+Jev 1.13/1.14 支援實驗性 PNG/JPEG `assets`，在 state、instructions 或 criteria 的字串值中參照圖片名稱，保留原位置。物件鍵不算參照，每個資源必須被使用，建議採用隨機唯一名稱。TypeSafe 和 OpenRouter 支援此格式，不支援圖片的管道不參與圖片路由。
+
+資源為 `{"format":"png","data_base64":"<PNG_BASE64>"}`，可選 `type:"image"`；format 也接受 jpg/jpeg，base64 不含 data URL 前綴。必須提供明確 questions；暫不支援 assets 自動產生問題、multipart、遠端 URL、Box、長上下文或完整官方 SDK 相容。
+
+最多 4 張，單張解碼後 4 MiB、總計 8 MiB、完整請求 13 MiB；每邊 280–1568 像素。重複參照的圖片檔案位元組也計入 8 MiB 展開限制。拒絕 WebP、動畫 PNG、損壞圖片，不自動縮放。供應商另行檢查重新編碼後的大小。既有 `images` 仍可使用，但不能與 assets 混用；其上游 state 包裝為 `{"state":原始內容,"images":[產生的參照]}`。
+
+圖片 token 無官方估算公式，以完整 65,536 輸入 token 估算預算與 TPM；金額預留仍遵循既有剩餘餘額截斷規則，最後僅按上游 usage 結算；缺少有效圖片輸入 usage 的回應失敗並釋放預留。完整範例見 [英文協定](/endpoints/decisions)。供應商規則核對日期：2026-11-15。

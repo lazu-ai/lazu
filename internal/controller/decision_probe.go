@@ -55,14 +55,7 @@ func testDecisionChannel(c *gin.Context, info *relaycommon.RelayInfo, record boo
 		return
 	}
 	if !info.IsModelMapped {
-		switch adapter.Dialect {
-		case "typesafe":
-			request.Model = "jev-1.13.0"
-		case "openrouter":
-			request.Model = "typesafe/" + request.Model
-		case "openai":
-			request.Model = "gpt-6-luna"
-		}
+		request.Model = common.DecisionUpstreamModel(request.Model, adapter.Dialect)
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()

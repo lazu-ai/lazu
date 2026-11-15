@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	textgenruntime "github.com/lazu-ai/lazu/internal/protocol/textgen/runtime"
@@ -136,7 +137,11 @@ func selectProtocolCompatibleChannel(c *gin.Context, group, modelName string, ex
 			settings := channel.GetSetting()
 			dialect := settings.DecisionDialect
 			compatibleModel := common.DecisionModelSupportsDialect(modelName, dialect)
-			if settings.ValidateDecisionSettings() == nil && compatibleModel && decision.GetAdaptor(dialect) != nil {
+			adapter := decision.GetAdaptor(dialect)
+			value, _ := c.Get("decision_request")
+			request, _ := value.(*dto.DecisionRequest)
+			compatibleInput := request == nil || (adapter != nil && adapter.SupportsRequest(request))
+			if settings.ValidateDecisionSettings() == nil && compatibleModel && adapter != nil && compatibleInput {
 				nativeCompatible = append(nativeCompatible, candidate)
 			}
 			continue

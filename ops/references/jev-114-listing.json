@@ -1,0 +1,78 @@
+{
+  "purpose": "Administrative template only; never loaded at startup. Preserve existing fixed versions. Supply credentials and sell prices in the operator session.",
+  "publication_order": [
+    "Resolve and bind the canonical TypeSafe vendor internal_id, then register jev-1.14.",
+    "Create or update a TypeSafe source while preserving existing models and mappings; keep new routing disabled until tested.",
+    "Save provider costs through the source update endpoint; set an explicit sell price through the pricing API.",
+    "Probe jev-1.14 and a PNG asset request with reported usage, then enable routing and verify discovery."
+  ],
+  "model_registration": {
+    "model_name": "jev-1.14",
+    "name_rule": 0,
+    "description_en": "Jev 1.14: multilingual noul, choice and score decisions with experimental PNG/JPEG assets. Box and long context are not supported by this gateway.",
+    "description_zh": "Jev 1.14：多语言概率、选择和评分判别，支持实验性 PNG/JPEG assets；网关暂不支持 Box 和长上下文。",
+    "maker": "typesafe",
+    "family": "jev",
+    "source": "manual",
+    "sync_official": 0,
+    "info_locked": true,
+    "context_length": 65536,
+    "input_limit": 32768,
+    "official_input_price": 4.2e-08,
+    "official_output_price": 0,
+    "modalities": {
+      "input": [
+        "text",
+        "image"
+      ],
+      "output": [
+        "decision"
+      ]
+    },
+    "capabilities": {
+      "supports_vision": true
+    },
+    "tags": "decisions,beta"
+  },
+  "channel_configuration_without_credentials": {
+    "type": 1,
+    "name": "Jev 1.14",
+    "source_type": "official",
+    "status": 2,
+    "base_url": "https://api.typesafe.ai",
+    "models": "jev-1.14",
+    "group": "direct",
+    "test_model": "jev-1.14",
+    "model_mapping": "{\"jev-1.14\":\"jev-1.14.0\"}",
+    "setting": "{\"decision_dialect\":\"typesafe\",\"decision_timeout_ms\":5000}"
+  },
+  "channel_provider_cost_prices": [
+    {
+      "model_name": "jev-1.14",
+      "provider": "typesafe",
+      "input_per_mtok": 0.042,
+      "output_per_mtok": 0,
+      "source": "manual"
+    }
+  ],
+  "wire_model": "jev-1.14.0",
+  "optional_alias": {
+    "model": "jev-latest",
+    "typesafe_upstream_model": "jev-latest",
+    "policy": "Register and price separately only to intentionally follow TypeSafe releases. Never remap fixed versions to latest. Validate other providers separately."
+  },
+  "required_bindings": {
+    "model_registration.vendor_id": "Resolve the canonical TypeSafe vendor internal_id.",
+    "sell_price": "Set the intended customer price; provider cost does not define the sell price.",
+    "channel_capacity": "Set channel and shared account RPS/in-flight limits from the account allocation, sharing the existing account group where appropriate."
+  },
+  "price_units": {
+    "model_registration.official_input_price": "USD/token; 0.000000042 = USD 0.042 per million tokens.",
+    "channel_provider_cost_prices.input_per_mtok": "USD per million input tokens, including images in provider usage.input_tokens."
+  },
+  "sources": [
+    "https://docs.typesafe.ai/models",
+    "https://docs.typesafe.ai/images"
+  ],
+  "verified_on": "2026-11-15"
+}

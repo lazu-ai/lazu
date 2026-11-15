@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
 )
 
@@ -208,5 +209,38 @@ func TestOfficialDecisionListingPriceUnitsAndDimensions(t *testing.T) {
 				t.Fatalf("%s: missing or wrong price %v", scenario.name, price)
 			}
 		}
+	}
+}
+
+func TestJevImageCatalogContract(t *testing.T) {
+	for _, name := range []string{"jev-1.13", "jev-1.14", "jev-latest"} {
+		caps := dto.DecisionCapabilitiesForModel(name)
+		if caps == nil || !caps.SupportsAssets || caps.MaxImages != 4 {
+			t.Fatalf("missing image capabilities for %s", name)
+		}
+		params := decisionCatalogParameters(name)
+		if params["assets"].Type != "object" || strings.Contains(params["images"].Description, "WebP") {
+			t.Fatalf("wrong image contract for %s: %+v", name, params)
+		}
+	}
+	if _, ok := decisionCatalogParameters("clef")["assets"]; ok {
+		t.Fatal("assets advertised for unsupported model")
+	}
+	var listing struct {
+		Registration struct {
+			ModelName string  `json:"model_name"`
+			Input     float64 `json:"official_input_price"`
+		} `json:"model_registration"`
+		WireModel string `json:"wire_model"`
+	}
+	raw, err := os.ReadFile("../../ops/references/jev-114-listing.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &listing); err != nil {
+		t.Fatal(err)
+	}
+	if listing.Registration.ModelName != "jev-1.14" || listing.WireModel != "jev-1.14.0" || listing.Registration.Input != .042/1e6 {
+		t.Fatal("wrong fixed version or price units")
 	}
 }

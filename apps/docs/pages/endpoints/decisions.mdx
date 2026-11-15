@@ -43,7 +43,7 @@ curl https://api.lazu.ai/v1/decisions \
   -H "Authorization: Bearer $LAZU_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "jev-1.13",
+    "model": "jev-1.14",
     "state": {"ticket": "The checkout service is down."},
     "questions": {
       "urgent": {"type": "noul", "instructions": "Does this need immediate attention?"},
@@ -57,9 +57,36 @@ curl https://api.lazu.ai/v1/decisions \
 
 ## Images
 
-`clef` and `clef-flash` accept `images` containing PNG, JPEG or WebP data URLs, either as strings or `{ "url": "data:image/png;base64,..." }`. State must still be supplied; it may be empty when images are valid. Remote URLs, uploaded file IDs, audio and video are unsupported. Jev accepts text and JSON.
+`clef` and `clef-flash` accept `images` containing PNG, JPEG or WebP data URLs, either as strings or `{ "url": "data:image/png;base64,..." }`. State must still be supplied; it may be empty when images are valid. Remote URLs, uploaded file IDs, audio and video are unsupported.
 
 Each image may contain at most 4 MiB decoded data and 16 million pixels. At most 4 images and 8 MiB total decoded data are allowed; the entire encoded upstream request may not exceed 13 MiB. Clef currently applies a **conservative 2000 UTF-8 byte limit to state**, in addition to token estimates, to prevent silent upstream truncation. Check `max_state_bytes` and token limits in the catalog.
+
+### Jev 1.14 and image assets
+
+`jev-1.14` maps to TypeSafe `jev-1.14.0`; `jev-1.13` stays pinned to `jev-1.13.0`. Models appear after an operator registers their source and price. If offered in your catalog, `jev-latest` follows the provider's releases; use a fixed version for reproducible evaluation and confidence thresholds. The credential-free listing template is `ops/references/jev-114-listing.json`. Explicit source mappings override defaults, including during channel tests.
+
+Jev 1.13 and 1.14 accept experimental PNG/JPEG `assets`. Each asset is referenced by its key in string values in `state`, question `instructions` or `criteria`; object keys are not references. Use unique references unlikely to occur in ordinary text. All assets must be used. Reference positions and business JSON are preserved through TypeSafe and OpenRouter sources; unsupported image channels are excluded from routing. Lazu sets TypeSafe's image opt-in header for image requests.
+
+```json
+{
+  "model": "jev-1.14",
+  "state": {"photo": "img-7db21"},
+  "assets": {
+    "img-7db21": {"type": "image", "format": "png", "data_base64": "<PNG_BASE64>"}
+  },
+  "questions": {
+    "red": {"type": "noul", "instructions": "Does the photo contain a red object?"}
+  }
+}
+```
+
+Replace `<PNG_BASE64>` with standard base64 file bytes, without a data URL prefix. `type` is optional; `format` is `png`, `jpg` or `jpeg`. Supply explicit questions with assets; automatic generation is unsupported for this form. Multipart, remote URLs, Box and long context are unsupported in this release. This is not full TypeSafe SDK transport compatibility.
+
+Jev also accepts the shared `images` convenience array, with PNG/JPEG only. It cannot be combined with `assets`. Its upstream state is wrapped as `{"state": <original state>, "images": [<generated references>]}`; questions should refer to that envelope, or use explicit assets to retain the original state shape.
+
+Lazu permits 4 images, 4 MiB per decoded file, 8 MiB total decoded image bytes and 13 MiB per encoded request. Each Jev image side must be 280–1568 pixels; animated PNG, damaged files and WebP are rejected, not resized or converted. Repeated asset references also count toward an 8 MiB expanded image-file budget. TypeSafe applies its own re-encoding and expanded-request limits, so local validation does not guarantee upstream acceptance. See the [TypeSafe image contract](https://docs.typesafe.ai/images), checked November 15, 2026.
+
+There is no published Jev image-token estimator. Image requests therefore **use the full 65,536 input-token context as the budget and TPM estimate**. Existing remaining-balance clamping still applies to monetary reservations; TPM uses the full estimate. Settlement uses only provider `usage.input_tokens` (text and images together); the reservation is never reported or billed as measured usage. Image responses missing valid input usage fail and release their reservation.
 
 ## Optional question generation
 
@@ -67,7 +94,7 @@ Question generation is disabled by default. When your operator enables it, opt i
 
 ```json
 {
-  "model": "jev-1.13",
+  "model": "jev-1.14",
   "state": "Checkout is down. Customers cannot pay.",
   "question_generation": {"enabled": true, "model": "gpt-6-luna"}
 }

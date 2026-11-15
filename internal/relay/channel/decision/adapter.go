@@ -52,8 +52,17 @@ func (a *Adaptor) BuildRequest(ctx context.Context, base, account, key, upstream
 		return nil, fmt.Errorf("invalid decision base URL")
 	}
 	path := strings.TrimRight(u.Path, "/")
+	if !a.SupportsRequest(r) {
+		return nil, types.NewError(fmt.Errorf("decision provider does not support this image input"), types.ErrorCodeUnsupportedDecisionInput, types.ErrOptionWithSkipRetry())
+	}
 	payload := map[string]interface{}{"model": upstreamModel, "state": r.State, "questions": r.Questions}
-	if len(r.ImageInfo) > 0 {
+	if len(r.ImageInfo) > 0 && (a.Dialect == "typesafe" || a.Dialect == "openrouter") {
+		state, assets, err := r.JevImagePayload()
+		if err != nil {
+			return nil, err
+		}
+		payload["state"], payload["assets"] = state, assets
+	} else if len(r.ImageInfo) > 0 {
 		if a.Dialect != "cloudflare_workers_ai" && a.Dialect != "openai" {
 			return nil, types.NewError(fmt.Errorf("this provider does not accept images"), types.ErrorCodeUnsupportedDecisionInput, types.ErrOptionWithSkipRetry())
 		}
@@ -104,6 +113,9 @@ func (a *Adaptor) BuildRequest(ctx context.Context, base, account, key, upstream
 	if err != nil {
 		return nil, err
 	}
+	if len(r.ImageInfo) > 0 && a.Dialect == "typesafe" {
+		req.Header.Set("TypeSafe-Danger-Zone-Images", "true")
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+key)
 	return req, nil
@@ -124,7 +136,11 @@ func (a *Adaptor) ParseDecisionResponse(body []byte, request *dto.DecisionReques
 	if a.Dialect == "openai" {
 		return parseOpenAIResponse(body, request)
 	}
-	return a.ParseResponse(body, request.Questions)
+	result, err := a.ParseResponse(body, request.Questions)
+	if err == nil && len(request.ImageInfo) > 0 && (a.Dialect == "typesafe" || a.Dialect == "openrouter") && (result.Usage == nil || result.Usage.InputTokens <= 0) {
+		return nil, invalidResponse()
+	}
+	return result, err
 }
 
 func (a *Adaptor) ParseResponse(body []byte, questions map[string]json.RawMessage) (*Result, error) {
@@ -188,4 +204,18 @@ func (a *Adaptor) ParseResponse(body []byte, questions map[string]json.RawMessag
 
 func invalidResponse() error {
 	return types.NewError(fmt.Errorf("invalid upstream decision response"), types.ErrorCodeUpstreamDecisionInvalid)
+}
+
+// SupportsRequest is shared by candidate selection and the last pre-send guard.
+func (a *Adaptor) SupportsRequest(r *dto.DecisionRequest) bool {
+	if r == nil {
+		return false
+	}
+	if len(r.Assets) > 0 {
+		return a.Dialect == "typesafe" || a.Dialect == "openrouter"
+	}
+	if len(r.ImageInfo) > 0 || len(r.Images) > 0 {
+		return a.Dialect != "cloudflare_gateway"
+	}
+	return true
 }

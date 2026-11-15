@@ -17,7 +17,12 @@ func decisionCatalogParameters(name string) map[string]dto.CatalogParam {
 			"questions": {Type: "array", Required: true, Description: "1 to 64 ordered predicate, choice or score questions. Names are optional; choice values retain string or boolean types. Score levels form an ordered rubric."},
 		}
 	}
-	return map[string]dto.CatalogParam{"model": {Type: "string", Required: true}, "state": {Type: "string | object | array", Required: true, Description: "Material to evaluate. Clef currently has a conservative 2000 UTF-8 byte state limit."}, "questions": {Type: "object", Description: "1 to 64 keyed noul, choice or score questions; required unless question generation is enabled."}, "images": {Type: "array", Description: "Clef only: up to 4 inline PNG, JPEG or WebP data URLs."}, "question_generation": {Type: "object", Description: "Optional enabled and model fields; disabled by default."}}
+	params := map[string]dto.CatalogParam{"model": {Type: "string", Required: true}, "state": {Type: "string | object | array", Required: true, Description: "Material to evaluate. Clef currently has a conservative 2000 UTF-8 byte state limit."}, "questions": {Type: "object", Description: "1 to 64 keyed noul, choice or score questions; required unless question generation is enabled."}, "images": {Type: "array", Description: "Clef only: up to 4 inline PNG, JPEG or WebP data URLs."}, "question_generation": {Type: "object", Description: "Optional enabled and model fields; disabled by default."}}
+	if caps := dto.DecisionCapabilitiesForModel(name); caps != nil && caps.SupportsAssets {
+		params["images"] = dto.CatalogParam{Type: "array", Description: "Up to 4 shared inline PNG/JPEG data URLs. Each side must be 280–1568 pixels. Cannot be combined with assets."}
+		params["assets"] = dto.CatalogParam{Type: "object", Description: "Up to 4 PNG/JPEG assets keyed by references in state, instructions or criteria. JSON format and data_base64 fields; explicit questions required. 4 MiB/file, 8 MiB decoded or repeated image bytes, 13 MiB request. Image requests reserve 65536 input tokens; only provider usage is billed."}
+	}
+	return params
 }
 
 func officialDecisionCatalogUsage(pricing dto.ModelCatalogPricing) dto.ModelCatalogUsageCapabilities {

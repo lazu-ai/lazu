@@ -42,11 +42,13 @@ type DecisionGenerationResult struct {
 
 type DecisionRequest struct {
 	nativeModelOverride string
+	assetImages         map[string]DecisionImage
 	OpenAI              *OpenAIDecisionRequest      `json:"-"`
 	GenerationEnabled   bool                        `json:"-"`
 	Model               string                      `json:"model"`
 	State               json.RawMessage             `json:"state"`
 	Questions           map[string]json.RawMessage  `json:"questions,omitempty"`
+	Assets              map[string]DecisionAsset    `json:"assets,omitempty"`
 	Images              []json.RawMessage           `json:"images,omitempty"`
 	QuestionGeneration  *DecisionQuestionGeneration `json:"question_generation,omitempty"`
 	Stream              bool                        `json:"stream,omitempty"`
@@ -88,6 +90,7 @@ type DecisionCapabilities struct {
 	MaxStateTokens int      `json:"max_state_tokens"`
 	MaxStateBytes  int      `json:"max_state_bytes,omitempty"`
 	MaxInputTokens int      `json:"max_input_tokens"`
+	SupportsAssets bool     `json:"supports_assets"`
 	Streaming      bool     `json:"streaming"`
 }
 
@@ -101,6 +104,7 @@ func DecisionCapabilitiesForModel(model string) *DecisionCapabilities {
 		c.MaxImages, c.MaxStateTokens, c.MaxInputTokens, c.MaxStateBytes = 4, 2000, 65536, 2000
 	case strings.HasPrefix(model, "jev-"):
 		c.MaxStateTokens, c.MaxInputTokens = 32768, 65536
+		c.MaxImages, c.SupportsAssets = 4, true
 	default:
 		return nil
 	}
@@ -124,7 +128,7 @@ func ParseDecisionRequest(body []byte) (*DecisionRequest, error) {
 	}
 	for key := range fields {
 		switch key {
-		case "model", "state", "questions", "images", "question_generation", "stream":
+		case "model", "state", "questions", "images", "assets", "question_generation", "stream":
 		case "audio", "videos":
 			return nil, decisionError(types.ErrorCodeUnsupportedDecisionInput, key+" is not supported yet")
 		default:
@@ -206,6 +210,9 @@ func (r *DecisionRequest) Validate(requireQuestions bool) error {
 	if caps == nil {
 		return decisionError(types.ErrorCodeUnsupportedDecisionInput, "model does not support decisions")
 	}
+	if err := r.validateAssets(caps); err != nil {
+		return err
+	}
 	if len(r.Images) > caps.MaxImages {
 		return decisionError(types.ErrorCodeUnsupportedDecisionInput, "model does not support this number of images")
 	}
@@ -215,6 +222,11 @@ func (r *DecisionRequest) Validate(requireQuestions bool) error {
 			img, err := ParseDecisionImage(raw)
 			if err != nil {
 				return err
+			}
+			if caps.SupportsAssets {
+				if err := validateJevImage(img); err != nil {
+					return err
+				}
 			}
 			total += img.Bytes
 			if total > 8<<20 {
@@ -336,6 +348,11 @@ func (r *DecisionRequest) GetTokenCountMeta() *types.TokenCountMeta {
 	meta := &types.TokenCountMeta{CombineText: string(r.State) + "\n" + string(questions)}
 	if r.OpenAI != nil {
 		meta.CombineText = r.InputText() + "\n" + strings.Join(r.QuestionTexts(), "\n")
+	}
+	if caps := DecisionCapabilitiesForModel(r.Model); caps != nil && caps.SupportsAssets && len(r.ImageInfo) > 0 {
+		// No published Jev image tokenizer: reserve the whole supported context.
+		// This is admission only, never a billable usage estimate.
+		meta.AdmissionTokenFloor = caps.MaxInputTokens
 	}
 	for _, img := range r.ImageInfo {
 		detail := img.Detail
