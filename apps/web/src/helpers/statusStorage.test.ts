@@ -13,9 +13,11 @@ const createStorage = (value: string | null) => {
 
 describe('readStoredStatus', () => {
   it('returns a saved status object', () => {
-    const { storage } = createStorage('{"email_verification":true}');
+    const { storage } = createStorage('{"email_code_auth_enabled":true}');
 
-    expect(readStoredStatus(storage)).toEqual({ email_verification: true });
+    expect(readStoredStatus(storage)).toEqual({
+      email_code_auth_enabled: true,
+    });
   });
 
   it('returns undefined when no status is saved', () => {

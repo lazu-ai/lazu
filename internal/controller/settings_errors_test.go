@@ -136,9 +136,6 @@ func TestEmailHandlersAnswerWithCatalogCodes(t *testing.T) {
 		`{"subject":"s","content":"c"}`, SendBroadcastEmail)
 	expectSettingsError(t, recorder, body, http.StatusBadRequest, "email_recipients_required")
 
-	recorder, body = serveSettingsRequest(t, http.MethodGet, "/api/verification", "/api/verification?email=not-an-email",
-		"", SendEmailVerification)
-	expectSettingsError(t, recorder, body, http.StatusBadRequest, "invalid_request")
 }
 
 func TestPublicChangelogRejectsABadLimitWithItsField(t *testing.T) {

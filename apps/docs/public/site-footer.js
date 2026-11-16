@@ -158,7 +158,7 @@
         [
           [sitePath("/models", locale), t.models],
           [sitePath("/faq", locale), t.faq],
-          ["/register", t.start],
+          ["/login", t.start],
         ],
       ],
       [

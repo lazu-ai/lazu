@@ -5,6 +5,14 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 
 # 更新日志
 
+## 尚未发布 — 账户安全清理
+
+- 新账户使用邮箱验证码或已启用的第三方登录。用户名／密码注册和 `/register` 已删除；老用户仍可使用密码登录。
+- 邮箱绑定改为登录后调用 `POST /api/user/email/bind/start` 和 `POST /api/user/email/bind`。换绑需验证新旧两个邮箱。旧的 `GET /api/verification` 和 GET 绑定接口已删除。
+- 删除无实际功能的 `POST /api/user/reset`；密码重置继续使用 `/api/user/reset/v2`。
+- 删除 `/api/log/token`、`/api/user/used-models`、`/api/user/models/classified`、`/api/user/self/stripe/pay` 和 `/api/user/stripe/amount`。请使用 `/api/log/self`、模型目录和 `/api/user/stripe/pay`。
+- 删除从未实现的 `/v1/fine-tunes*`、`/v1/images/variations` 和 `DELETE /v1/models/:model`。以上删除取代此前公告的退役日期，不保留兼容重定向。
+
 ## 2026-11-02 — 用量与日志改版，移除月度报告
 
 - 控制台“用量与日志”里的“月度报告”标签和它使用的 `/api/reports/monthly*` 接口已移除，这些接口现在返回 404。月度报告从未发送过邮件或生成 PDF；每月花费请在总览或 API 调用里按 30 天、90 天或自定义时间范围查看。

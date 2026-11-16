@@ -13,7 +13,6 @@
   "email_alias_not_allowed": "Addresses with “+” or “.” before the @ are not accepted. Use your plain address.",
   "password_invalid": "The password must be 8 to 64 characters and no more than 72 bytes. Choose another password.",
   "password_reset_link_invalid": "This reset link is invalid or has expired. Request a new one.",
-  "password_reset_client_upgrade_required": "This page is out of date and your link has not been used. Reload the page and set the password again.",
   "mail_not_found": "The archived mail was not found.",
   "mail_resend_failed": "The archived mail could not be resent. Check the delivery details.",
   "admin_email_missing": "Add an email address to your account before sending a preview.",

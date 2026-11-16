@@ -68,6 +68,7 @@ const notificationSchema = z.object({
 const emailSchema = z.object({
   email: z.string().email(),
   code: z.string().min(1),
+  currentCode: z.string().optional(),
 });
 
 const passwordByteCount = (value: string) =>
@@ -402,7 +403,7 @@ const PersonalSetting = () => {
   });
   const emailForm = useForm({
     resolver: zodResolver(emailSchema),
-    defaultValues: { email: '', code: '' },
+    defaultValues: { email: '', code: '', currentCode: '' },
   });
   const passwordForm = useForm({
     resolver: zodResolver(passwordSchema),
@@ -527,10 +528,12 @@ const PersonalSetting = () => {
     Error,
     z.infer<typeof emailSchema>
   >({
-    mutationFn: async ({ email, code }) => {
+    mutationFn: async ({ email, code, currentCode }) => {
       unwrap(
-        await API.get('/api/user/email/bind', {
-          params: { email, code },
+        await API.post('/api/user/email/bind', {
+          email,
+          code,
+          current_code: currentCode,
         }),
       );
       return email;
@@ -547,7 +550,7 @@ const PersonalSetting = () => {
 
   const sendCodeMutation = useMutation<void, Error, string>({
     mutationFn: async (email) => {
-      unwrap(await API.get('/api/verification', { params: { email } }));
+      unwrap(await API.post('/api/user/email/bind/start', { email }));
     },
     onSuccess: () => notify.success(t(`${ns}.email.codeSent`)),
     onError: apiErrorHandler,
@@ -976,6 +979,24 @@ const PersonalSetting = () => {
                             : hint('emailCode', '验证码 10 分钟内有效。')}
                       </div>
                     </div>
+                    {user.email ? (
+                      <div>
+                        <label
+                          className='set-ed__lb'
+                          htmlFor='bind-current-email-code'
+                        >
+                          {t(`${ns}.email.currentCode`)}
+                        </label>
+                        <Input
+                          className='set-ed__field'
+                          id='bind-current-email-code'
+                          inputMode='numeric'
+                          autoComplete='one-time-code'
+                          {...emailForm.register('currentCode')}
+                        />
+                        <p>{t(`${ns}.email.changeHint`)}</p>
+                      </div>
+                    ) : null}
                     <div className='set-ed__actions'>
                       <Button
                         loading={bindEmailMutation.isPending}

@@ -33,7 +33,6 @@ const mockedStatus = {
   docs_link: '',
   user_agreement_enabled: true,
   privacy_policy_enabled: true,
-  email_verification: true,
 };
 
 const mockedStatusResponse = {
@@ -155,11 +154,6 @@ test('configured Google and GitHub providers appear on login and registration', 
   });
 
   await page.goto('/login');
-  await expect(page.getByRole('button', { name: /Google/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /GitHub/ })).toBeVisible();
-  await expect(page.locator('.auth-divider')).toHaveCount(1);
-
-  await page.goto('/register');
   await expect(page.getByRole('button', { name: /Google/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /GitHub/ })).toBeVisible();
   await expect(page.locator('.auth-divider')).toHaveCount(1);
@@ -681,11 +675,19 @@ test('auth pages recover from malformed saved status data', async ({
   await expect(page.locator('.auth-title')).toHaveCount(0);
 
   await page.evaluate(() => localStorage.setItem('status', '[]'));
-  await page.goto('/register');
+  await page.goto('/login');
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: '进入 Lazu' })).toBeAttached();
   await expect(page.locator('.auth-title')).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: '邮箱' })).toBeVisible();
 
   expect(pageErrors).toEqual([]);
+});
+
+test('removed password signup page does not redirect to login', async ({
+  page,
+}) => {
+  await page.goto('/register');
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByRole('textbox', { name: '邮箱' })).toHaveCount(0);
 });

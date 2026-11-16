@@ -13,7 +13,6 @@
   "email_alias_not_allowed": "不接受 @ 前带有「+」或「.」的邮箱地址。请使用不带别名的邮箱。",
   "password_invalid": "密码需为 8 到 64 个字符，且不超过 72 字节。请换一个密码。",
   "password_reset_link_invalid": "重置链接无效或已过期。请重新申请一封重置邮件。",
-  "password_reset_client_upgrade_required": "页面版本过旧，重置链接尚未使用。请刷新页面后重新设置密码。",
   "mail_not_found": "未找到归档邮件。",
   "mail_resend_failed": "归档邮件重发失败，请查看投递详情。",
   "admin_email_missing": "发送预览前，请先为账户添加邮箱。",

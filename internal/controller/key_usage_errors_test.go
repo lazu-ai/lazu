@@ -86,11 +86,6 @@ func TestGetTokenUsageWithoutBearerIsInvalidAPIKey(t *testing.T) {
 	assertKeyUsageError(t, w, body, http.StatusUnauthorized, "invalid_api_key", true)
 }
 
-func TestGetLogByKeyWithoutSessionIsSessionRequired(t *testing.T) {
-	w, body := serveKeyUsage(t, http.MethodGet, "/api/log/token", "/api/log/token?key=sk-x", nil, GetLogByKey)
-	assertKeyUsageError(t, w, body, http.StatusUnauthorized, "session_required", true)
-}
-
 func TestDeleteHistoryLogsRequiresTargetTimestamp(t *testing.T) {
 	w, body := serveKeyUsage(t, http.MethodDelete, "/api/log/", "/api/log/", nil, DeleteHistoryLogs)
 	assertKeyUsageError(t, w, body, http.StatusBadRequest, "invalid_request", true)

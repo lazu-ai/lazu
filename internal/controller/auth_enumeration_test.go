@@ -49,40 +49,6 @@ func TestPasswordResetRequestDoesNotRevealAccountExistence(t *testing.T) {
 	}
 }
 
-func TestVerificationRequestDoesNotRevealAccountExistence(t *testing.T) {
-	setupOIDCTestDB(t)
-	defer waitForAuthEmailDeliveries()
-	gin.SetMode(gin.TestMode)
-
-	existing := model.User{
-		Username: "verify-known",
-		Password: "password123",
-		Email:    "taken@example.com",
-		Status:   common.UserStatusEnabled,
-	}
-	if err := existing.Insert(0); err != nil {
-		t.Fatalf("seed user: %v", err)
-	}
-
-	engine := gin.New()
-	engine.GET("/verification", SendEmailVerification)
-
-	taken := httptest.NewRecorder()
-	engine.ServeHTTP(taken, httptest.NewRequest(http.MethodGet, "/verification?email=taken@example.com", nil))
-	unknown := httptest.NewRecorder()
-	engine.ServeHTTP(unknown, httptest.NewRequest(http.MethodGet, "/verification?email=unknown@example.com", nil))
-
-	if !strings.Contains(taken.Body.String(), `"success":true`) {
-		t.Fatalf("taken address must not be reported back to the requester, got %s", taken.Body.String())
-	}
-	if taken.Body.String() != unknown.Body.String() {
-		t.Fatalf("verification response leaks account existence: taken=%s unknown=%s", taken.Body.String(), unknown.Body.String())
-	}
-	if strings.Contains(taken.Body.String(), "已被占用") {
-		t.Fatalf("response still names the address as taken: %s", taken.Body.String())
-	}
-}
-
 func TestResetUserPasswordTokenBindsCanonicalOwnerAndSessionVersion(t *testing.T) {
 	setupOIDCTestDB(t)
 	previousRedisVerification := common.RedisVerificationCodeEnabled
@@ -505,7 +471,7 @@ func TestDedicatedUserFieldUpdatesPreserveExistingCallsites(t *testing.T) {
 	if err := model.UpdateUserAccessToken(user.Id, "12345678901234567890123456789012"); err != nil {
 		t.Fatalf("update access token: %v", err)
 	}
-	if err := model.UpdateUserEmail(user.Id, "after@example.com"); err != nil {
+	if err := model.CoreDB().Model(&model.User{}).Where("id = ?", user.Id).Updates(map[string]interface{}{"email": "after@example.com", "verified_email": "after@example.com"}).Error; err != nil {
 		t.Fatalf("update email: %v", err)
 	}
 	var stored model.User
@@ -742,7 +708,6 @@ func TestEnumerationLookupsRunOutsideRequestPath(t *testing.T) {
 		path    string
 		handler gin.HandlerFunc
 	}{
-		{name: "registration", path: "/verification?email=known@example.com", handler: SendEmailVerification},
 		{name: "password reset", path: "/reset_password?email=known@example.com", handler: SendPasswordResetEmail},
 	}
 	for _, test := range tests {

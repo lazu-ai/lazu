@@ -47,9 +47,6 @@ GET /privacy.md  # browser: public page or its Markdown copy, linked from server
 GET /terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /v1/dashboard/billing/subscription  # pending: deprecated OpenAI dashboard alias with no removal date yet
 GET /v1/dashboard/billing/usage  # pending: deprecated OpenAI dashboard alias with no removal date yet
-GET /v1/fine-tunes  # external-api: OpenAI-compatible endpoint SDK clients call
-GET /v1/fine-tunes/:id  # external-api: OpenAI-compatible endpoint SDK clients call
-GET /v1/fine-tunes/:id/events  # external-api: OpenAI-compatible endpoint SDK clients call
 GET /v1/media/jobs  # external-api: OpenAI-compatible endpoint SDK clients call
 GET /v1/media/jobs/:id  # external-api: OpenAI-compatible endpoint SDK clients call
 GET /v1/realtime  # external-api: OpenAI-compatible endpoint SDK clients call
@@ -105,13 +102,9 @@ POST /api/stripe/webhook  # webhook: called by the payment or chat provider
 POST /api/telegram/webhook  # webhook: called by the payment or chat provider
 POST /api/upload/run  # pending: no caller in this repository; the route table decides
 POST /api/upload/single  # pending: no caller in this repository; the route table decides
-POST /api/user/register  # pending: no caller in this repository; the route table decides
-POST /api/user/reset  # pending: no caller in this repository; the route table decides
 POST /api/workers/channel-test  # pending: no caller in this repository; the route table decides
 POST /v1/edits  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/engines/:model/embeddings  # external-api: OpenAI-compatible endpoint SDK clients call
-POST /v1/fine-tunes  # external-api: OpenAI-compatible endpoint SDK clients call
-POST /v1/fine-tunes/:id/cancel  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/media/jobs  # external-api: OpenAI-compatible endpoint SDK clients call
 POST /v1/moderations  # external-api: OpenAI-compatible endpoint SDK clients call
 PUT /api/channel/tag  # pending: no caller in this repository; the route table decides

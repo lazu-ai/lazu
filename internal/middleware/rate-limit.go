@@ -42,7 +42,6 @@ var (
 	// trips. Per IP; each account also has its own failure cap (login_guard.go).
 	loginPolicy = rateLimitPolicy{name: "login", limit: 30, window: 20 * time.Minute}
 	// New accounts carry a sign-up credit, so creating them is its own budget.
-	registerPolicy = rateLimitPolicy{name: "register", limit: 20, window: 20 * time.Minute}
 	// Requests that send mail. Per IP here; each recipient is also capped
 	// (mail_guard.go) so one address cannot be flooded from many IPs.
 	mailSendPolicy = rateLimitPolicy{name: "mail", limit: 10, window: 10 * time.Minute}
@@ -268,7 +267,6 @@ func shouldBypassAPIRateLimit(c *gin.Context) bool {
 }
 
 func LoginRateLimit() gin.HandlerFunc               { return loginPolicy.byIP() }
-func RegisterRateLimit() gin.HandlerFunc            { return registerPolicy.byIP() }
 func MailSendRateLimit() gin.HandlerFunc            { return mailSendPolicy.byIP() }
 func LookupRateLimit() gin.HandlerFunc              { return lookupPolicy.byIP() }
 func EphemeralCredentialRateLimit() gin.HandlerFunc { return ephemeralCredentialPolicy.byIP() }

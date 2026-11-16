@@ -5,7 +5,6 @@ export type StatusPayload =
       SidebarModulesAdmin?: string;
       announcements_enabled?: boolean;
       docs_link?: string;
-      email_verification?: boolean;
       enable_stripe_topup?: boolean;
       pay_methods?: Array<{ name: string; status?: string; type: string }>;
       privacy_link?: string;

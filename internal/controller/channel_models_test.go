@@ -58,7 +58,7 @@ func TestModelOwnedByUsesCatalogBrandRules(t *testing.T) {
 }
 
 func TestModelOwnershipUsesConfiguredCatalogVendor(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	vendor := model.Vendor{Name: "Configured Vendor"}
 	if err := model.CoreDB().Create(&vendor).Error; err != nil {

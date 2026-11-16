@@ -47,15 +47,6 @@ func validStripeTopupAmount(amount int64) bool {
 	return amount >= getStripeMinTopup() && amount <= getStripeMaxTopup()
 }
 
-func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
-	if !validStripeTopupAmount(req.Amount) {
-		writeInvalidTopupAmount(c)
-		return
-	}
-	// Checkout sells $1 units of one Price; the amount is the quantity.
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": strconv.FormatInt(req.Amount, 10)})
-}
-
 func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	if req.PaymentMethod != PaymentMethodStripe {
 		httperr.Invalid(c, "payment_method")
@@ -67,15 +58,6 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	}
 
 	requestProjectStripePay(c, req)
-}
-
-func RequestStripeAmount(c *gin.Context) {
-	var req StripePayRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httperr.Invalid(c, "amount")
-		return
-	}
-	stripeAdaptor.RequestAmount(c, &req)
 }
 
 func RequestStripePay(c *gin.Context) {

@@ -126,7 +126,7 @@ func TestBuildCatalogVideoEndpointUsesAsyncVideosPath(t *testing.T) {
 
 func TestGetAccessibleModelNamesFiltersByRoutingGroup(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 
 	channels := []model.Channel{
@@ -208,7 +208,7 @@ func TestGetCatalogBaseGroupsKeepsExplicitLaneWithoutToken(t *testing.T) {
 }
 
 func TestCatalogProjectionGroupsScopesVendorLaneToCurrentModel(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	previousMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -237,7 +237,7 @@ func TestCatalogProjectionGroupsScopesVendorLaneToCurrentModel(t *testing.T) {
 
 func TestTextgenEndpointModesScopesPinnedTokenToSpecificChannel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	previousMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -268,7 +268,7 @@ func TestTextgenEndpointModesScopesPinnedTokenToSpecificChannel(t *testing.T) {
 // list, or default to, a request shape the model rejects.
 func TestProjectProtocolEndpointsLeavesEmbeddingModelsWithoutChat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	previousMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -306,7 +306,7 @@ func TestProjectProtocolEndpointsLeavesEmbeddingModelsWithoutChat(t *testing.T) 
 
 func TestTextgenEndpointModesUsesFirstRoutableLaneBeforeDirectFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	previousMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -335,7 +335,7 @@ func TestTextgenEndpointModesUsesFirstRoutableLaneBeforeDirectFallback(t *testin
 
 func TestGetAccessibleModelNamesIncludesVendorRoutedCheapLane(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 
 	vendors := []model.Vendor{
@@ -780,7 +780,7 @@ func assertStringSliceContains(t *testing.T, values []string, want string) {
 }
 
 func TestCatalogIncludesCodexResponsesSourceForGet(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	old := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -808,7 +808,7 @@ func TestCatalogIncludesCodexResponsesSourceForGet(t *testing.T) {
 // both directions, or the connect dialog and the gateway would disagree about
 // where a request goes.
 func TestCatalogProjectionGroupsPrefersModelPinOverVendorDefault(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	previousMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -873,7 +873,7 @@ func TestCatalogDiscountScalesEveryRateLikeBilling(t *testing.T) {
 }
 
 func TestCatalogDoesNotRestoreLegacyListingDate(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	previousMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -956,7 +956,7 @@ func TestVideoCatalogExampleShowsTheWholeAsyncFlow(t *testing.T) {
 }
 
 func TestDeepSeekCatalogHidesAliasesWithoutUnpublishingRequests(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	names := []string{"deepseek-flash", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
 	for _, name := range names {
@@ -1028,7 +1028,7 @@ func TestDeepSeekCatalogHidesAliasesWithoutUnpublishingRequests(t *testing.T) {
 // An operator retires a name by pointing it at a replacement. The old name
 // leaves the listings beside its replacement and stays requestable by name.
 func TestCatalogReplacementHidesAliasFromListingsAndStillRetrieves(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	names := []string{"new-model", "old-model"}
 	for _, name := range names {

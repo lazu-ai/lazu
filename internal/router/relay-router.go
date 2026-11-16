@@ -207,15 +207,6 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/moderations", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
-
-		// not implemented
-		httpRouter.POST("/images/variations", retiring(userSunset, ""), controller.RelayNotImplemented)
-		httpRouter.POST("/fine-tunes", retiring(userSunset, ""), controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes", retiring(userSunset, ""), controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes/:id", retiring(userSunset, ""), controller.RelayNotImplemented)
-		httpRouter.POST("/fine-tunes/:id/cancel", retiring(userSunset, ""), controller.RelayNotImplemented)
-		httpRouter.GET("/fine-tunes/:id/events", retiring(userSunset, ""), controller.RelayNotImplemented)
-		httpRouter.DELETE("/models/:model", retiring(userSunset, ""), controller.RelayNotImplemented)
 	}
 
 	relayGeminiRouter := router.Group("/v1beta")

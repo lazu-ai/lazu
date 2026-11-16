@@ -74,7 +74,6 @@ const CARD_PRO_PAGES = [
 const AUTH_SHELL_ROUTES = [
   '/login',
   '/login/password',
-  '/register',
   '/reset',
   '/user/reset',
   '/auth/oidc/callback',
@@ -84,7 +83,6 @@ const AUTH_SHELL_ROUTES = [
 const AUTH_SHELL_OWNED_CONTROLS_ROUTES = [
   '/login',
   '/login/password',
-  '/register',
   '/reset',
   '/user/reset',
   '/auth/oidc/callback',

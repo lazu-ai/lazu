@@ -50,11 +50,11 @@ func assertConsoleError(t *testing.T, w *httptest.ResponseRecorder, status int, 
 	return body
 }
 
-func TestRequestStripeAmount_InvalidJSON(t *testing.T) {
+func TestRequestStripePay_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, w := newJSONContext(http.MethodPost, "{invalid")
 
-	RequestStripeAmount(c)
+	RequestStripePay(c)
 
 	body := assertConsoleError(t, w, http.StatusBadRequest, "invalid_request")
 	if body["param"] != "amount" {
@@ -62,11 +62,11 @@ func TestRequestStripeAmount_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestRequestStripeAmount_RejectsAmountBelowMin(t *testing.T) {
+func TestRequestStripePay_RejectsAmountBelowMin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, w := newJSONContext(http.MethodPost, `{"amount":0,"payment_method":"stripe"}`)
 
-	RequestStripeAmount(c)
+	RequestStripePay(c)
 
 	assertConsoleError(t, w, http.StatusBadRequest, "invalid_amount")
 }

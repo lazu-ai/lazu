@@ -87,7 +87,7 @@ const PublicFooter = ({ pathnameOverride }: PublicFooterProps = {}) => {
       items: [
         { href: at('/models'), label: t('footer.models') },
         { href: at('/faq'), label: t('footer.faq'), internal: true },
-        { href: '/register', label: t('footer.start'), internal: true },
+        { href: '/login', label: t('footer.start'), internal: true },
       ],
     },
     ...(footerModels.length

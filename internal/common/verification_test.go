@@ -61,11 +61,11 @@ func TestVerificationAttemptsExpireInMemory(t *testing.T) {
 func TestVerificationCodeMemoryFallbackIsOneTime(t *testing.T) {
 	resetVerificationTestState(t)
 
-	RegisterVerificationCodeWithKey("user@example.com", "123456", EmailVerificationPurpose)
-	if !VerifyCodeWithKey("user@example.com", "123456", EmailVerificationPurpose) {
+	RegisterVerificationCodeWithKey("user@example.com", "123456", "test-verification")
+	if !VerifyCodeWithKey("user@example.com", "123456", "test-verification") {
 		t.Fatal("expected verification code to pass")
 	}
-	if VerifyCodeWithKey("user@example.com", "123456", EmailVerificationPurpose) {
+	if VerifyCodeWithKey("user@example.com", "123456", "test-verification") {
 		t.Fatal("expected verification code to be one-time")
 	}
 }
@@ -99,11 +99,11 @@ func TestVerificationCodeMemoryFallbackIsAtomicallyConsumed(t *testing.T) {
 func TestVerificationCodeMemorySurvivesWrongAttempt(t *testing.T) {
 	resetVerificationTestState(t)
 
-	RegisterVerificationCodeWithKey("user@example.com", "123456", EmailVerificationPurpose)
-	if VerifyCodeWithKey("user@example.com", "000000", EmailVerificationPurpose) {
+	RegisterVerificationCodeWithKey("user@example.com", "123456", "test-verification")
+	if VerifyCodeWithKey("user@example.com", "000000", "test-verification") {
 		t.Fatal("expected wrong verification code to fail")
 	}
-	if !VerifyCodeWithKey("user@example.com", "123456", EmailVerificationPurpose) {
+	if !VerifyCodeWithKey("user@example.com", "123456", "test-verification") {
 		t.Fatal("expected verification code to remain valid after a wrong attempt")
 	}
 }
@@ -149,7 +149,7 @@ func TestVerificationCodeRedisErrorDoesNotAcceptMemoryFallback(t *testing.T) {
 func TestVerificationRedisKeyDoesNotExposeEmail(t *testing.T) {
 	resetVerificationTestState(t)
 
-	key := verificationRedisKey("User@Example.com", EmailVerificationPurpose)
+	key := verificationRedisKey("User@Example.com", "test-verification")
 	if key == "" || key == "User@Example.com" {
 		t.Fatalf("unexpected redis key: %q", key)
 	}

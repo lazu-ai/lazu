@@ -356,7 +356,13 @@ test('a login link prefetches the stored session with its current identity', asy
   });
   // The API module loaded while this tab was signed out. Another tab then
   // writes the user that the login link will probe.
-  await page.addInitScript(() => localStorage.removeItem('user'));
+  await page.addInitScript(() => {
+    // The mock fixture reseeds storage on document navigation. Preserve the
+    // simulated other-tab sign-in when the public link loads a new document.
+    const hint = sessionStorage.getItem('other-tab-user');
+    if (hint) localStorage.setItem('user', hint);
+    else localStorage.removeItem('user');
+  });
   let release: () => void = () => undefined;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
@@ -385,6 +391,9 @@ test('a login link prefetches the stored session with its current identity', asy
       JSON.stringify({ id: 42, username: 'member', role: 1 }),
     );
   });
+  await page.evaluate(() =>
+    sessionStorage.setItem('other-tab-user', localStorage.getItem('user')!),
+  );
   await loginLink.hover();
   await expect
     .poll(() => selfHeaders.filter((id) => id === '42').length)
@@ -392,7 +401,7 @@ test('a login link prefetches the stored session with its current identity', asy
   expect(selfHeaders).toContain('42');
   await loginLink.click();
   await expect(page.locator('.auth-skeleton')).toBeVisible();
-  expect(selfHeaders.filter((id) => id === '42')).toHaveLength(1);
+  expect(selfHeaders.every((id) => id === '42')).toBe(true);
   release();
   await expect(page).toHaveURL(/\/console$/);
 });

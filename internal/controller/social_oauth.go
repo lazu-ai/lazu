@@ -515,17 +515,6 @@ func externalUsernameAllocationLockKey(username string) string {
 	return "oauth-username:" + username
 }
 
-// withPasswordRegistrationLock participates in the same verified-email lock
-// as every external-auth resolver. Without this shared lock, a verified
-// password registration and a first OAuth callback can both observe no owner
-// and commit two active users for one mailbox.
-func withPasswordRegistrationLock(db *gorm.DB, email string, username string, fn func(*gorm.DB) error) error {
-	return withAccountResolutionLocks(db, []string{
-		verifiedEmailOwnershipLockKey(email),
-		"password-username:" + strings.ToLower(strings.TrimSpace(username)),
-	}, fn)
-}
-
 func withAccountResolutionLocks(db *gorm.DB, keys []string, fn func(*gorm.DB) error) error {
 	if db == nil {
 		return errors.New("database is not initialized")

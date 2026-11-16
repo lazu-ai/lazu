@@ -18,7 +18,7 @@
     <p class="lazu-model__lede">{{$m.Lede}}</p>
     {{- if $m.Description}}<p class="lazu-model__desc">{{$m.Description}}</p>{{end}}
     <div class="lazu-model__actions">
-      <a class="lazu-btn lazu-btn--ink" href="/register">{{t "model.getKey"}}</a>
+      <a class="lazu-btn lazu-btn--ink" href="/login">{{t "model.getKey"}}</a>
       {{- range $m.Actions}}
       <a class="lazu-btn lazu-btn--line" href="{{.Href}}">{{.Label}}</a>
       {{- end}}
@@ -131,7 +131,7 @@
 
   <section class="lazu-cta">
     <h2 class="lazu-site-display lazu-cta__title">{{t "cta.title"}}</h2>
-    <a class="lazu-btn lazu-btn--ink" href="/register">{{t "cta.start"}}</a>
+    <a class="lazu-btn lazu-btn--ink" href="/login">{{t "cta.start"}}</a>
     <a class="lazu-btn lazu-btn--line" href="{{$m.DocsHref}}">{{t "cta.docs"}}</a>
   </section>
 </main>

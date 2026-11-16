@@ -46,7 +46,6 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /auth/
 Disallow: /login
-Disallow: /register
 
 # AI crawlers — explicitly allowed for AI search citation
 User-agent: GPTBot
@@ -71,7 +70,6 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /auth/
 Disallow: /login
-Disallow: /register
 
 Sitemap: ${env.siteOrigin}/sitemap.xml
 `;

@@ -165,7 +165,6 @@ func TestRelayStubAndUnknownRouteRemainDistinct(t *testing.T) {
 		status  int
 		code    string
 	}{
-		{RelayNotImplemented, http.StatusNotImplemented, "not_implemented"},
 		{RelayNotFound, http.StatusNotFound, "endpoint_not_supported"},
 	} {
 		w := httptest.NewRecorder()

@@ -44,9 +44,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/community/stats", retiring(userSunset, ""), controller.GetCommunityStats)
 		apiRouter.GET("/v1/models/info", controller.GetPublicModelList)
 		apiRouter.POST("/community/export", retiring(userSunset, ""), middleware.RootAuth(), controller.ExportCommunityModels)
-		apiRouter.GET("/verification", middleware.MailSendRateLimit(), controller.SendEmailVerification)
 		apiRouter.GET("/reset_password", middleware.MailSendRateLimit(), controller.SendPasswordResetEmail)
-		apiRouter.POST("/user/reset", middleware.LoginRateLimit(), controller.ResetPassword)
 		apiRouter.POST("/user/reset/v2", middleware.LoginRateLimit(), controller.ResetPasswordV2)
 		apiRouter.POST("/stripe/webhook", controller.StripeWebhook)
 		apiRouter.POST("/telegram/webhook", controller.TelegramWebhook)
@@ -127,7 +125,6 @@ func SetApiRouter(router *gin.Engine) {
 
 		userRoute := apiRouter.Group("/user")
 		{
-			userRoute.POST("/register", middleware.RegisterRateLimit(), controller.Register)
 			userRoute.POST("/login", middleware.LoginRateLimit(), controller.Login)
 			userRoute.GET("/logout", controller.Logout)
 
@@ -142,7 +139,6 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/self", controller.GetSelf)
 				selfRoute.GET("/models", controller.GetUserModels)
 				selfRoute.GET("/models/catalog", controller.ListUserModelCatalog)
-				selfRoute.GET("/models/classified", retiring(userSunset, "/api/user/models/catalog"), controller.GetUserModelsClassified)
 				selfRoute.PUT("/self", controller.UpdateSelf)
 				selfRoute.PUT("/self/language", controller.UpdateSelfLanguage)
 				selfRoute.PUT("/self/timezone", controller.UpdateSelfTimezone)
@@ -155,14 +151,12 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/payments/:topup_id", controller.GetOwnPaymentRecord)
 				selfRoute.GET("/wallet/ledger", controller.GetUserWalletLedger)
 				selfRoute.POST("/stripe/pay", middleware.AccountActionRateLimit(), controller.RequestStripePay)
-				selfRoute.POST("/self/stripe/pay", retiring(userSunset, "/api/user/stripe/pay"), middleware.AccountActionRateLimit(), controller.RequestStripePay)
-				selfRoute.POST("/stripe/amount", retiring(userSunset, ""), controller.RequestStripeAmount)
 				selfRoute.PUT("/setting", controller.UpdateUserSetting)
 				selfRoute.GET("/telegram", controller.GetSelfTelegram)
 				selfRoute.POST("/telegram/link", middleware.AccountActionRateLimit(), controller.CreateSelfTelegramLink)
 				selfRoute.DELETE("/telegram", controller.DeleteSelfTelegram)
-				selfRoute.GET("/used-models", retiring(userSunset, ""), controller.GetUserUsedModels)
-				selfRoute.GET("/email/bind", middleware.AccountActionRateLimit(), controller.EmailBind)
+				selfRoute.POST("/email/bind/start", middleware.AccountActionRateLimit(), middleware.MailSendRateLimit(), controller.StartEmailBinding)
+				selfRoute.POST("/email/bind", middleware.AccountActionRateLimit(), controller.EmailBind)
 				selfRoute.POST("/support/report", middleware.AccountActionRateLimit(), controller.SubmitSupportReport)
 
 			}
@@ -381,7 +375,6 @@ func SetApiRouter(router *gin.Engine) {
 		dataRoute.GET("/dashboard/self", middleware.UserAuth(), controller.GetSelfDashboardUsage)
 		dataRoute.GET("/export", middleware.UserAuth(), controller.ExportUserUsage)
 
-		logRoute.GET("/token", retiring(userSunset, "/api/log/self"), middleware.UserAuth(), controller.GetLogByKey)
 		groupRoute := apiRouter.Group("/group")
 		groupRoute.Use(middleware.RootAuth())
 		{

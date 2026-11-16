@@ -537,6 +537,8 @@ function VerifyInviteEmail({
     nsMode: 'fallback',
   });
   const [code, setCode] = useState('');
+  const [currentCode, setCurrentCode] = useState('');
+  const [needsCurrentCode, setNeedsCurrentCode] = useState(false);
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -556,12 +558,12 @@ function VerifyInviteEmail({
     setSending(true);
     setError('');
     try {
-      unwrap(
-        await API.get('/api/verification', {
-          params: { email: invite.email },
+      const result = unwrap<{ current_email_required: boolean }>(
+        await API.post('/api/user/email/bind/start', { email: invite.email }, {
           skipErrorHandler: true,
         } as never),
       );
+      setNeedsCurrentCode(result.current_email_required);
       setSentAt(Date.now());
       setClock(Date.now());
     } catch (failure) {
@@ -576,10 +578,15 @@ function VerifyInviteEmail({
     setError('');
     try {
       unwrap(
-        await API.get('/api/user/email/bind', {
-          params: { email: invite.email, code: code.trim() },
-          skipErrorHandler: true,
-        } as never),
+        await API.post(
+          '/api/user/email/bind',
+          {
+            email: invite.email,
+            code: code.trim(),
+            current_code: currentCode.trim(),
+          },
+          { skipErrorHandler: true } as never,
+        ),
       );
       await onVerified();
     } catch (failure) {
@@ -636,6 +643,21 @@ function VerifyInviteEmail({
               if (code.trim().length > 0) void verify();
             }}
           >
+            {needsCurrentCode ? (
+              <div>
+                <label htmlFor='pj-current-code'>
+                  {t('page.console.personal.email.currentCode')}
+                </label>
+                <Input
+                  id='pj-current-code'
+                  inputMode='numeric'
+                  autoComplete='one-time-code'
+                  value={currentCode}
+                  onChange={(event) => setCurrentCode(event.target.value)}
+                />
+                <p>{t('page.console.personal.email.changeHint')}</p>
+              </div>
+            ) : null}
             <label className='pj-sub' htmlFor='pj-accept-code'>
               {withAddress(
                 t('projects.acceptPage.codeSentTo', { email: invite.email }),

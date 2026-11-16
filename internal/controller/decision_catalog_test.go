@@ -16,7 +16,7 @@ import (
 )
 
 func TestOfficialDecisionCatalogDoesNotReplaceTextModel(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	previousMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false

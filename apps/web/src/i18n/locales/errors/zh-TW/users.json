@@ -2,8 +2,6 @@
   "password_login_disabled": "密碼登入已關閉。請改用其他登入方式。",
   "invalid_credentials": "使用者名稱或密碼錯誤，或帳號已停用。請檢查後再試。",
   "registration_closed": "目前不開放註冊新帳號。如需帳號，請聯絡管理員。",
-  "password_registration_disabled": "已關閉密碼註冊。請用電子郵件驗證碼或第三方帳號註冊。",
-  "email_verification_required": "註冊需要驗證電子郵件。請填寫電子郵件地址和驗證碼。",
   "verification_code_invalid": "驗證碼錯誤或已過期。請檢查，或重新取得。",
   "verification_code_attempts_exhausted": "驗證碼錯誤次數過多，已失效。請重新取得驗證碼。",
   "email_code_auth_disabled": "電子郵件驗證碼登入已關閉。請改用其他登入方式。",

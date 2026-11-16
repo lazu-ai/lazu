@@ -48,7 +48,6 @@ func GetStatus(c *gin.Context) {
 	data := gin.H{
 		"version":                  common.Version,
 		"start_time":               common.StartTime,
-		"email_verification":       common.EmailVerificationEnabled,
 		"system_name":              common.SystemName,
 		"logo":                     common.Logo,
 		"footer_html":              common.Footer,
@@ -152,52 +151,6 @@ func GetHomePageContent(c *gin.Context) {
 		"data":    common.OptionMap["HomePageContent"],
 	})
 	return
-}
-
-func SendEmailVerification(c *gin.Context) {
-	email := c.Query("email")
-	// The same address policy as the email-code door: shape, domain allowlist
-	// and alias restriction, each with its own code.
-	if err := validateEmailForAuth(email); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	if !allowMailTo(c, email) {
-		return
-	}
-
-	// Account lookup, token issuance and mail delivery all stay off the request
-	// path. Moving only SMTP out of band still leaks registered addresses through
-	// the synchronous database branch.
-	lang := requestMailLang(c)
-	enqueueAuthEmailJob("auth-verification-request", func() {
-		dispatchEmailVerification(email, lang)
-	})
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-}
-
-func dispatchEmailVerification(email string, lang string) {
-	if deleted := model.DeletedAccountByEmail(email); deleted != nil {
-		subject, body := authAccountDeletedMail(lang, accountRestoreDeadline(deleted))
-		sendAuthEmail(subject, email, body)
-		return
-	}
-	if model.IsEmailAlreadyTaken(email) {
-		// The response is identical to the unregistered case: telling the
-		// requester which addresses already exist hands an attacker a free
-		// account-enumeration oracle. Only the mailbox owner learns the truth,
-		// and they get a route back in instead of a dead end.
-		subject, body := authAccountExistsMail(lang)
-		sendAuthEmail(subject, email, body)
-		return
-	}
-	code := common.GenerateVerificationCode(6)
-	common.RegisterVerificationCodeWithKey(email, code, common.EmailVerificationPurpose)
-	subject, body := authVerificationMail(lang, code)
-	sendAuthEmail(subject, email, body)
 }
 
 func SendPasswordResetEmail(c *gin.Context) {
@@ -310,12 +263,6 @@ func validatePasswordResetRequest(req PasswordResetRequest) error {
 		return types.Err(types.ErrorCodePasswordInvalid, types.D{"field": "password", "rule": passwordRuleMaxBytes, "limit": 72})
 	}
 	return nil
-}
-
-func ResetPassword(c *gin.Context) {
-	// Cached v1 clients do not submit a user-selected password. Fail without
-	// consuming the token so users can refresh onto the v2 form safely.
-	httperr.Code(c, types.ErrorCodePasswordResetClientUpgradeRequired)
 }
 
 func ResetPasswordV2(c *gin.Context) {

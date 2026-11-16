@@ -1104,16 +1104,6 @@ type TokenConsumeLogFilter struct {
 	Keyword   string
 }
 
-// GetUserUsedModels returns a list of distinct model names that a user has used
-func GetUserUsedModels(userId int) ([]string, error) {
-	var models []string
-	err := TelemetryDB().Model(&Log{}).
-		Where("user_id = ? AND type = ? AND model_name != ''", userId, LogTypeConsume).
-		Distinct("model_name").
-		Pluck("model_name", &models).Error
-	return models, err
-}
-
 func GetConsumeLogByRequestIDForTokenContext(ctx context.Context, userID int, tokenID int, requestID string, principals ...ProjectPrincipal) (*Log, error) {
 	// A receipt belongs to one logical Key and its human actor.
 	var log Log
