@@ -11,7 +11,6 @@ const APP_PATTERNS = [
   '/invite/:token',
   '/login',
   '/login/password',
-  '/register',
   '/reset',
   '/quickstart',
   '/keyusage',

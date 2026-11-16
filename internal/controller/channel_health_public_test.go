@@ -227,7 +227,7 @@ func TestMergePublicChannelHealthRowsHandlesUnknownAndLegacyMetrics(t *testing.T
 
 func TestProjectChannelHealthMergesMemberLanesWithoutMutatingAdminSnapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	if err := model.CoreDB().Create(&model.Channel{Id: 1, Type: constant.ChannelTypeOpenAI, Key: "test", Status: common.ChannelStatusEnabled, Models: "gpt-member", Group: model.ChannelLaneDirect}).Error; err != nil {
 		t.Fatal(err)

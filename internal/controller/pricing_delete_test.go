@@ -10,7 +10,7 @@ import (
 )
 
 func TestDeleteModelSellPriceAuditsAllRows(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	if err := model.CoreDB().AutoMigrate(&model.AdminAuditLog{}); err != nil {
 		t.Fatal(err)

@@ -32,8 +32,6 @@ const boolField = z.boolean().optional();
  */
 export const accessDefaults = {
   RegisterEnabled: true,
-  PasswordRegisterEnabled: true,
-  EmailVerificationEnabled: false,
   EmailCodeAuthEnabled: false,
   EmailDomainRestrictionEnabled: false,
   EmailDomainWhitelist: '',
@@ -46,8 +44,6 @@ export const accessDefaults = {
 
 export const accessSchema = z.object({
   RegisterEnabled: boolField,
-  PasswordRegisterEnabled: boolField,
-  EmailVerificationEnabled: boolField,
   EmailCodeAuthEnabled: boolField,
   EmailDomainRestrictionEnabled: boolField,
   EmailDomainWhitelist: stringField,

@@ -257,8 +257,7 @@ func TestCodeAndResetMailsTellADeletedAddressItWasDeleted(t *testing.T) {
 	// restores the account; sign-up and reset still say it was deleted.
 	dispatchPasswordResetEmail("Mail-Deleted@example.com", common.MailZH)
 	dispatchEmailAuthCode("mail-deleted@example.com", common.MailZH, false)
-	dispatchEmailVerification("mail-deleted@example.com", common.MailZH)
-	if len(*mail) != 3 || (*mail)[0] != want || (*mail)[2] != want || strings.Contains((*mail)[1], "注销") {
+	if len(*mail) != 2 || (*mail)[0] != want || strings.Contains((*mail)[1], "注销") {
 		t.Fatalf("inside the window got %q", *mail)
 	}
 
@@ -266,8 +265,7 @@ func TestCodeAndResetMailsTellADeletedAddressItWasDeleted(t *testing.T) {
 	*mail = nil
 	dispatchPasswordResetEmail("Mail-Deleted@example.com", common.MailZH)
 	dispatchEmailAuthCode("mail-deleted@example.com", common.MailZH, false)
-	dispatchEmailVerification("mail-deleted@example.com", common.MailZH)
-	if len(*mail) != 3 {
+	if len(*mail) != 2 {
 		t.Fatalf("expected one mail per door, got %q", *mail)
 	}
 	for i, subject := range *mail {

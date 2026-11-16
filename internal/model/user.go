@@ -45,7 +45,6 @@ type User struct {
 	Role             int              `json:"role" gorm:"type:int;default:1"`   // admin, common
 	Status           int              `json:"status" gorm:"type:int;default:1"` // enabled, disabled
 	Email            string           `json:"email" gorm:"index" validate:"max=50"`
-	VerificationCode string           `json:"verification_code" gorm:"-:all"`                                    // this field is only for Email verification, don't save it to database!
 	AccessToken      *string          `json:"access_token" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
 	Quota            billing.MicroUSD `json:"quota" gorm:"type:bigint;default:0"`
 	UsedQuota        billing.MicroUSD `json:"used_quota" gorm:"type:bigint;default:0;column:used_quota"` // used quota
@@ -1508,16 +1507,6 @@ func UpdateUserAccessToken(userID int, accessToken string) error {
 	// ValidateAccessToken reads the database directly, so the previous access
 	// token cannot survive this write. Clear the general user projection too so
 	// callers never retain a pre-update snapshot.
-	return invalidateUserCache(userID)
-}
-
-func UpdateUserEmail(userID int, email string) error {
-	if userID <= 0 || strings.TrimSpace(email) == "" {
-		return types.Err(types.ErrorCodeInvalidRequest, types.D{"field": "email"})
-	}
-	if err := CoreDB().Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{"email": strings.TrimSpace(email), "verified_email": strings.ToLower(strings.TrimSpace(email))}).Error; err != nil {
-		return err
-	}
 	return invalidateUserCache(userID)
 }
 

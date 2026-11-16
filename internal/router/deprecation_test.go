@@ -75,14 +75,9 @@ func TestRetiringRoutesAnnounceDeprecationAndSunset(t *testing.T) {
 		successor          string
 		body               string
 	}{
-		{"POST", "/api/user/self/stripe/pay", session, "Mon, 01 Feb 2027 00:00:00 GMT", "/api/user/stripe/pay", ""},
-		{"POST", "/api/user/stripe/amount", session, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
-		{"GET", "/api/user/used-models", session, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
-		{"GET", "/api/user/models/classified", session, "Mon, 01 Feb 2027 00:00:00 GMT", "/api/user/models/catalog", ""},
 		{"PUT", "/api/user/7/has_topped_up", session, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
 		{"GET", "/api/data/self", session, "Mon, 01 Feb 2027 00:00:00 GMT", "/api/data/dashboard/self", ""},
 		{"GET", "/api/data/", session, "Tue, 01 Dec 2026 00:00:00 GMT", "", ""},
-		{"GET", "/api/log/token", session, "Mon, 01 Feb 2027 00:00:00 GMT", "/api/log/self", ""},
 		{"GET", "/api/usage/token/", apiKey, "Mon, 01 Feb 2027 00:00:00 GMT", "/api/usage/summary", ""},
 		{"GET", "/api/log/self/in_flight", session, "Mon, 01 Feb 2027 00:00:00 GMT", "/api/log/self/tasks", ""},
 		{"GET", "/api/log/self/tasks/1", session, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
@@ -104,9 +99,6 @@ func TestRetiringRoutesAnnounceDeprecationAndSunset(t *testing.T) {
 		{"POST", "/pg/chat/completions", session, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
 		{"GET", "/dashboard/billing/subscription", apiKey, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
 		{"GET", "/v1/dashboard/billing/usage", apiKey, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
-		{"POST", "/v1/fine-tunes", apiKey, "Mon, 01 Feb 2027 00:00:00 GMT", "", `{"model":"retire-gpt"}`},
-		{"POST", "/v1/images/variations", apiKey, "Mon, 01 Feb 2027 00:00:00 GMT", "", `{"model":"retire-gpt"}`},
-		{"DELETE", "/v1/models/retire-gpt", apiKey, "Mon, 01 Feb 2027 00:00:00 GMT", "", ""},
 	}
 	wantDeprecation := fmt.Sprintf("@%d", retirementNotice.Unix())
 	for _, tc := range cases {

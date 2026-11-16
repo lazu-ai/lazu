@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,41 +13,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/setting/system_setting"
 )
-
-func TestVerificationTreatsEmailOwnershipAsCaseInsensitiveAndUnscoped(t *testing.T) {
-	setupOIDCTestDB(t)
-	owner := model.User{
-		Username: "reserved-email-owner",
-		Password: "placeholder-password",
-		Email:    "owner@example.com",
-	}
-	if err := model.CoreDB().Create(&owner).Error; err != nil {
-		t.Fatalf("seed email owner: %v", err)
-	}
-	if err := model.CoreDB().Delete(&owner).Error; err != nil {
-		t.Fatalf("soft-delete email owner: %v", err)
-	}
-
-	previousDeliver := deliverAuthEmail
-	var subject, receiver string
-	deliverAuthEmail = func(gotSubject string, gotReceiver string, _ string) error {
-		subject = gotSubject
-		receiver = gotReceiver
-		return nil
-	}
-	t.Cleanup(func() { deliverAuthEmail = previousDeliver })
-
-	dispatchEmailVerification("Owner@Example.com", common.MailZH)
-	if receiver != "Owner@Example.com" {
-		t.Fatalf("account guidance sent to unexpected receiver %q", receiver)
-	}
-	// The only owner is a deleted account, so the mailbox learns that rather
-	// than being told to sign in to an account that refuses it.
-	wantSubject := fmt.Sprintf("这个邮箱的 %s 账号已注销", common.SystemName)
-	if subject != wantSubject {
-		t.Fatalf("case-variant reserved email got the wrong guidance: subject=%q", subject)
-	}
-}
 
 func TestWaitForAuthEmailDeliveriesDrainsAcceptedJobs(t *testing.T) {
 	started := make(chan struct{})

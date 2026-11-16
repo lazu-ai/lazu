@@ -13,7 +13,6 @@ const mockedStatus = {
   docs_link: 'https://lazu.ai/docs',
   user_agreement_enabled: false,
   privacy_policy_enabled: false,
-  email_verification: true,
   enable_data_export: true,
   micro_usd_per_usd: 1000000,
   ...extensionStatus,

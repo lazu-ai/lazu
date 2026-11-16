@@ -23,9 +23,16 @@ import type { GoogleOneTapOptions } from './googleOneTapClient';
 type GoogleOneTapProps = {
   /** Where a sign-in lands; checked like every other post-login path. */
   next: string;
+  /** Optional product-specific completion for document routes or cached data. */
+  onSignedIn?: GoogleOneTapOptions['onSignedIn'];
+  beforeSubmit?: GoogleOneTapOptions['beforeSubmit'];
 };
 
-export default function GoogleOneTap({ next }: GoogleOneTapProps) {
+export default function GoogleOneTap({
+  next,
+  onSignedIn,
+  beforeSubmit,
+}: GoogleOneTapProps) {
   const { t, i18n } = useTranslation();
   const { status } = useAuthStatus();
   const { user, signIn } = useSession();
@@ -38,20 +45,33 @@ export default function GoogleOneTap({ next }: GoogleOneTapProps) {
     if (!clientId || signedIn || readStoredSessionHint()) return undefined;
     const options: GoogleOneTapOptions = {
       clientId,
+      beforeSubmit,
       // The welcome mail for a new account is written in this language.
       headers: language ? { 'Accept-Language': language } : undefined,
       onError: (code) => showError({ error: { code } }),
-      onSignedIn: (data) => {
-        signIn(data);
-        setUserData(data);
-        updateAPI();
-        notify.success(t('page.public.auth.loginSuccess'));
-        navigate(postLoginDestination(next, data.role), { replace: true });
-      },
+      onSignedIn:
+        onSignedIn ??
+        ((data) => {
+          signIn(data);
+          setUserData(data);
+          updateAPI();
+          notify.success(t('page.public.auth.loginSuccess'));
+          navigate(postLoginDestination(next, data.role), { replace: true });
+        }),
     };
     startGoogleOneTap(options);
     return () => stopGoogleOneTap(options);
-  }, [clientId, language, navigate, next, signIn, signedIn, t]);
+  }, [
+    beforeSubmit,
+    clientId,
+    language,
+    navigate,
+    next,
+    onSignedIn,
+    signIn,
+    signedIn,
+    t,
+  ]);
 
   return null;
 }

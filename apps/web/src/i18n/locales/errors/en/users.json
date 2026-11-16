@@ -2,8 +2,6 @@
   "password_login_disabled": "Password sign-in is turned off. Use another sign-in method.",
   "invalid_credentials": "The username or password is incorrect, or the account is disabled. Check them and try again.",
   "registration_closed": "New registrations are closed. Contact the administrator if you need an account.",
-  "password_registration_disabled": "Signing up with a password is turned off. Sign up with an email code or a linked account.",
-  "email_verification_required": "A verified email address is required. Enter your email and its verification code.",
   "verification_code_invalid": "The verification code is incorrect or has expired. Check it, or request a new one.",
   "verification_code_attempts_exhausted": "Too many incorrect attempts, so this code no longer works. Request a new code.",
   "email_code_auth_disabled": "Email code sign-in is turned off. Use another sign-in method.",

@@ -13,7 +13,6 @@
   "email_alias_not_allowed": "不接受 @ 前帶有「+」或「.」的電子郵件地址。請使用不帶別名的地址。",
   "password_invalid": "密碼需為 8 到 64 個字元，且不超過 72 位元組。請換一組密碼。",
   "password_reset_link_invalid": "重設連結無效或已過期。請重新申請一封重設郵件。",
-  "password_reset_client_upgrade_required": "頁面版本過舊，重設連結尚未使用。請重新整理頁面後重新設定密碼。",
   "mail_not_found": "找不到封存郵件。",
   "mail_resend_failed": "封存郵件重發失敗，請查看投遞詳情。",
   "admin_email_missing": "傳送預覽前，請先為帳戶新增電子郵件地址。",

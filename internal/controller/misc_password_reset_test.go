@@ -1,14 +1,10 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/types"
 )
 
@@ -162,38 +158,5 @@ func TestValidatePasswordResetRequest(t *testing.T) {
 				t.Fatalf("validatePasswordResetRequest() = %q, want %q", got, test.want)
 			}
 		})
-	}
-}
-
-func TestResetPasswordLegacyRequiresClientUpgrade(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/reset", http.NoBody)
-
-	ResetPassword(c)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
-	var response struct {
-		Error struct {
-			Code string `json:"code"`
-			Lazu string `json:"lazu"`
-		} `json:"error"`
-		Data    *string `json:"data"`
-		Success bool    `json:"success"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if response.Success {
-		t.Fatalf("expected legacy reset to fail safely, got %#v", response)
-	}
-	if response.Error.Code != string(types.ErrorCodePasswordResetClientUpgradeRequired) || response.Error.Lazu != "LZ-7415" {
-		t.Fatalf("expected upgrade code, got %#v", response.Error)
-	}
-	if response.Data != nil {
-		t.Fatalf("legacy response must not contain plaintext password data: %#v", response)
 	}
 }

@@ -103,9 +103,8 @@ func TestSetApiRouter_RegistersCriticalRoutes(t *testing.T) {
 		{method: "GET", path: "/api/auth/oauth/:provider/callback"},
 		{method: "GET", path: "/api/auth/google/one-tap"},
 		{method: "POST", path: "/api/auth/google/one-tap"},
-		{method: "POST", path: "/api/user/reset"},
 		{method: "POST", path: "/api/user/reset/v2"},
-		{method: "GET", path: "/api/user/email/bind"},
+		{method: "POST", path: "/api/user/email/bind"},
 	}
 
 	for _, item := range criticalRoutes {
@@ -578,5 +577,40 @@ func TestRouterDatabaseFixturesAreIsolated(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatal("router fixture reused another test's live database")
+	}
+}
+
+func TestPasswordRegistrationRouteIsAbsent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	SetApiRouter(engine)
+	if hasRoute(engine.Routes(), http.MethodPost, "/api/user/register") {
+		t.Fatal("password registration must not be exposed")
+	}
+	for _, path := range []string{"/api/auth/email/start", "/api/auth/email/verify", "/api/user/login"} {
+		if !hasRoute(engine.Routes(), http.MethodPost, path) {
+			t.Fatalf("missing retained authentication route %s", path)
+		}
+	}
+}
+
+func TestRemovedAccountRoutesHaveNoCompatibilityHandlers(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	SetApiRouter(engine)
+	for _, route := range []struct{ method, path string }{
+		{"GET", "/api/verification"}, {"GET", "/api/user/email/bind"},
+		{"POST", "/api/user/reset"}, {"GET", "/api/log/token"},
+		{"POST", "/api/user/self/stripe/pay"}, {"POST", "/api/user/stripe/amount"},
+		{"GET", "/api/user/used-models"}, {"GET", "/api/user/models/classified"},
+	} {
+		if hasRoute(engine.Routes(), route.method, route.path) {
+			t.Errorf("retired route still registered: %s %s", route.method, route.path)
+		}
+	}
+	for _, path := range []string{"/api/user/email/bind/start", "/api/user/email/bind", "/api/user/reset/v2"} {
+		if !hasRoute(engine.Routes(), "POST", path) {
+			t.Errorf("missing replacement: %s", path)
+		}
 	}
 }

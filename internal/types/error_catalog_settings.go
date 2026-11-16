@@ -8,27 +8,26 @@ const (
 	// ErrorCodeSettingInvalid covers every rejected setting value. Details:
 	// field (the setting key), rule (what the value broke), and when they
 	// apply index (1-based list item), item (the item's attribute) and limit.
-	ErrorCodeSettingInvalid                     ErrorCode = "setting_invalid"
-	ErrorCodeContentLimitExceeded               ErrorCode = "content_limit_exceeded"
-	ErrorCodeAnnouncementNotFound               ErrorCode = "announcement_not_found"
-	ErrorCodeEmailTestFailed                    ErrorCode = "email_test_failed"
-	ErrorCodeEmailTestRecipientMissing          ErrorCode = "email_test_recipient_missing"
-	ErrorCodeEmailRecipientsRequired            ErrorCode = "email_recipients_required"
-	ErrorCodeAnnouncementEmailContentMissing    ErrorCode = "announcement_email_content_missing"
-	ErrorCodeTranslationTokenMissing            ErrorCode = "translation_token_missing"
-	ErrorCodeFeedbackRequestNotFound            ErrorCode = "feedback_request_not_found"
-	ErrorCodeDatabaseUnreachable                ErrorCode = "database_unreachable"
-	ErrorCodeEmailDomainNotAllowed              ErrorCode = "email_domain_not_allowed"
-	ErrorCodeEmailAliasNotAllowed               ErrorCode = "email_alias_not_allowed"
-	ErrorCodePasswordInvalid                    ErrorCode = "password_invalid"
-	ErrorCodePasswordResetLinkInvalid           ErrorCode = "password_reset_link_invalid"
-	ErrorCodePasswordResetClientUpgradeRequired ErrorCode = "password_reset_client_upgrade_required"
-	ErrorCodeUUIDCollision                      ErrorCode = "uuid_collision"
-	ErrorCodeTelegramNotConfigured              ErrorCode = "telegram_not_configured"
-	ErrorCodeTelegramSendFailed                 ErrorCode = "telegram_send_failed"
-	ErrorCodeTelegramMuteInvalid                ErrorCode = "telegram_mute_invalid"
-	ErrorCodeTelegramLinkUnavailable            ErrorCode = "telegram_link_unavailable"
-	ErrorCodeTelegramNotLinked                  ErrorCode = "telegram_not_linked"
+	ErrorCodeSettingInvalid                  ErrorCode = "setting_invalid"
+	ErrorCodeContentLimitExceeded            ErrorCode = "content_limit_exceeded"
+	ErrorCodeAnnouncementNotFound            ErrorCode = "announcement_not_found"
+	ErrorCodeEmailTestFailed                 ErrorCode = "email_test_failed"
+	ErrorCodeEmailTestRecipientMissing       ErrorCode = "email_test_recipient_missing"
+	ErrorCodeEmailRecipientsRequired         ErrorCode = "email_recipients_required"
+	ErrorCodeAnnouncementEmailContentMissing ErrorCode = "announcement_email_content_missing"
+	ErrorCodeTranslationTokenMissing         ErrorCode = "translation_token_missing"
+	ErrorCodeFeedbackRequestNotFound         ErrorCode = "feedback_request_not_found"
+	ErrorCodeDatabaseUnreachable             ErrorCode = "database_unreachable"
+	ErrorCodeEmailDomainNotAllowed           ErrorCode = "email_domain_not_allowed"
+	ErrorCodeEmailAliasNotAllowed            ErrorCode = "email_alias_not_allowed"
+	ErrorCodePasswordInvalid                 ErrorCode = "password_invalid"
+	ErrorCodePasswordResetLinkInvalid        ErrorCode = "password_reset_link_invalid"
+	ErrorCodeUUIDCollision                   ErrorCode = "uuid_collision"
+	ErrorCodeTelegramNotConfigured           ErrorCode = "telegram_not_configured"
+	ErrorCodeTelegramSendFailed              ErrorCode = "telegram_send_failed"
+	ErrorCodeTelegramMuteInvalid             ErrorCode = "telegram_mute_invalid"
+	ErrorCodeTelegramLinkUnavailable         ErrorCode = "telegram_link_unavailable"
+	ErrorCodeTelegramNotLinked               ErrorCode = "telegram_not_linked"
 )
 
 func init() {
@@ -94,10 +93,6 @@ func init() {
 		ErrorCodePasswordResetLinkInvalid: {
 			ID: "LZ-7414", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
 			Template: "The password reset link is invalid or has expired. Request a new one.",
-		},
-		ErrorCodePasswordResetClientUpgradeRequired: {
-			ID: "LZ-7415", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
-			Template: "This page is out of date. Reload it and set the password again; the reset link has not been used.",
 		},
 		ErrorCodeTelegramNotConfigured: {
 			ID: "LZ-7431", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceOperator,

@@ -212,8 +212,8 @@ func TestEmailAuthCodesDoNotCrossPurposes(t *testing.T) {
 	setupOIDCTestDB(t)
 	email := "purpose@example.com"
 	code := common.GenerateVerificationCode(6)
-	common.RegisterVerificationCodeWithKey(email, code, common.EmailVerificationPurpose)
-	t.Cleanup(func() { common.DeleteKey(email, common.EmailVerificationPurpose) })
+	common.RegisterVerificationCodeWithKey(email, code, emailBindingPurpose)
+	t.Cleanup(func() { common.DeleteKey(email, emailBindingPurpose) })
 
 	if common.VerifyCodeWithKey(email, code, common.EmailAuthPurpose) {
 		t.Fatal("an address-verification code must not sign anyone in")

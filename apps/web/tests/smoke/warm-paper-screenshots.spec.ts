@@ -26,7 +26,6 @@ const PAGES = [
   { group: 'public', name: 'pricing', route: '/pricing' },
   { group: 'public', name: 'models', route: '/models' },
   { group: 'auth', name: 'login', route: '/login' },
-  { group: 'auth', name: 'register', route: '/register' },
   { group: 'auth', name: 'reset', route: '/reset' },
   { group: 'console', name: 'dashboard', route: '/console' },
   { group: 'console', name: 'token', route: '/console/token' },

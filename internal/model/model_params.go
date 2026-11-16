@@ -15,12 +15,6 @@ type ParamConstraint struct {
 	Max     int      `json:"max,omitempty"`     // type=range: maximum
 }
 
-// ModelClassifiedItem is the per-model entry returned by the classified API.
-type ModelClassifiedItem struct {
-	ModelName    string             `json:"model_name"`
-	ParamsSchema *ModelParamsSchema `json:"params_schema,omitempty"`
-}
-
 // GetModelParamsSchema returns parameter constraints for the given model,
 // or nil if the model has no special constraints.
 func GetModelParamsSchema(modelName string) *ModelParamsSchema {

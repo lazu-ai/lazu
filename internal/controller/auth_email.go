@@ -108,7 +108,7 @@ func renderAuthMail(m common.Mail) string {
 	return body
 }
 
-func authVerificationMail(lang, code string) (string, string) {
+func authEmailBindingMail(lang, code, target string) (string, string) {
 	name := common.SystemName
 	minutes := strconv.Itoa(common.VerificationValidMinutes)
 	subject := common.MailText(lang, name+" 验证码 "+code, "Your "+name+" verification code: "+code)
@@ -116,7 +116,7 @@ func authVerificationMail(lang, code string) (string, string) {
 		Lang: lang, Eyebrow: "VERIFY EMAIL",
 		Preheader: common.MailText(lang, "验证码 "+minutes+" 分钟内有效", "The code expires in "+minutes+" minutes"),
 		Title:     common.MailText(lang, "验证你的邮箱", "Verify your email"),
-		Lead:      common.MailText(lang, "输入下面的验证码，完成 "+name+" 邮箱验证。", "Enter this code to verify your email for "+name+"."),
+		Lead:      common.MailText(lang, "你正在将 "+name+" 账户邮箱绑定为 "+target+"。输入下面的验证码以确认此操作。", "You are setting your "+name+" account email to "+target+". Enter this code to approve this change."),
 		Blocks: []common.MailBlock{
 			{Code: code},
 			{Muted: true, Text: common.MailText(lang,
@@ -453,7 +453,7 @@ func truncateRunes(value string, limit int) string {
 func authMailPreviews(lang string) map[string]string {
 	pick := func(_ string, body string) string { return body }
 	previews := map[string]string{
-		"verification":        pick(authVerificationMail(lang, "482913")),
+		"verification":        pick(authEmailBindingMail(lang, "482913", "new@example.com")),
 		"login_code":          pick(authLoginCodeMail(lang, "482913")),
 		"welcome":             pick(authWelcomeMail(lang, "Grace", "GitHub")),
 		"password_reset":      pick(authPasswordResetMail(lang, authEmailBaseURL()+"/user/reset?email=user%40example.com&token=rk_7f2c1d")),

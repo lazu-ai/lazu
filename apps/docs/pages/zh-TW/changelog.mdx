@@ -5,6 +5,14 @@ description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序�
 
 # 更新日誌
 
+## 尚未發布 — 帳戶安全清理
+
+- 新帳戶使用信箱驗證碼或已啟用的第三方登入。使用者名稱／密碼註冊和 `/register` 已移除；既有使用者仍可用密碼登入。
+- 信箱綁定改為登入後呼叫 `POST /api/user/email/bind/start` 和 `POST /api/user/email/bind`。換綁須驗證新舊信箱。舊的 `GET /api/verification` 和 GET 綁定介面已移除。
+- 移除沒有實際功能的 `POST /api/user/reset`；密碼重設繼續使用 `/api/user/reset/v2`。
+- 移除 `/api/log/token`、`/api/user/used-models`、`/api/user/models/classified`、`/api/user/self/stripe/pay` 和 `/api/user/stripe/amount`。請使用 `/api/log/self`、模型目錄和 `/api/user/stripe/pay`。
+- 移除未實作的 `/v1/fine-tunes*`、`/v1/images/variations` 和 `DELETE /v1/models/:model`。以上移除取代先前公告的退役日期，不保留相容重新導向。
+
 ## 2026-10-29 — 移除搜尋介面
 
 - `POST /v1/search` 與 `/api/search/backends*` 已提前於原定的 2026-11-01 移除，下列控制台頁面、狀態頁搜尋列與 API 金鑰搜尋欄位也一併移除。這兩個介面現在回傳 404 `endpoint_not_supported`（LZ-1010）。

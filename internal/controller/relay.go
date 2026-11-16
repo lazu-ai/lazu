@@ -772,10 +772,6 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 
 }
 
-func RelayNotImplemented(c *gin.Context) {
-	httperr.WriteOpenAI(c, types.Err(types.ErrorCodeNotImplemented))
-}
-
 func RelayNotFound(c *gin.Context) {
 	httperr.WriteOpenAI(c, types.Err(types.ErrorCodeEndpointNotSupported, types.D{"path": c.Request.Method + " " + c.Request.URL.Path}))
 }

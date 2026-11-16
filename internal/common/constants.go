@@ -49,8 +49,6 @@ var ItemsPerPage = 10
 var MaxRecentItems = 100
 
 var PasswordLoginEnabled = true
-var PasswordRegisterEnabled = true
-var EmailVerificationEnabled = false
 
 // EmailCodeAuthEnabled is deliberately independent from RegisterEnabled and
 // password registration. SSO-only deployments must opt into mailbox-based

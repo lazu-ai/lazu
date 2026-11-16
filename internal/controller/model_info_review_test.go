@@ -15,7 +15,7 @@ import (
 )
 
 func TestAcceptFirstRunRejectsSupersededBrowserIDs(t *testing.T) {
-	cleanup := setupUserModelsClassifiedTestDB(t)
+	cleanup := setupModelCatalogTestDB(t)
 	defer cleanup()
 	if err := model.CoreDB().AutoMigrate(&model.ModelInfoReview{}); err != nil {
 		t.Fatal(err)

@@ -138,7 +138,7 @@ test('cold door exits carry their layout before auth CSS arrives', async ({
   );
   await page.route('**/api/status', (route) =>
     route.fulfill({
-      json: { success: true, data: { email_verification: true } },
+      json: { success: true, data: { email_code_auth: true } },
     }),
   );
   try {

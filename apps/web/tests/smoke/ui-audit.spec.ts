@@ -45,7 +45,6 @@ const PAGES = [
   { group: 'public', name: 'faq', route: '/faq' },
   { group: 'public', name: 'models', route: '/models' },
   { group: 'auth', name: 'login', route: '/login' },
-  { group: 'auth', name: 'register', route: '/register' },
   { group: 'console', name: 'console', route: '/console' },
   { group: 'console', name: 'console-models', route: '/console/models' },
   { group: 'console', name: 'console-channel', route: '/console/channel' },

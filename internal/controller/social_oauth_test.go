@@ -11,8 +11,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -165,89 +163,6 @@ func TestConcurrentSocialRegistrationsConvergeOnOneUser(t *testing.T) {
 	}
 }
 
-func TestConcurrentPasswordAndSocialRegistrationShareEmailOwner(t *testing.T) {
-	setupOIDCTestDB(t)
-	defer waitForAuthEmailDeliveries()
-	gin.SetMode(gin.TestMode)
-
-	previousRegisterEnabled := common.RegisterEnabled
-	previousPasswordRegisterEnabled := common.PasswordRegisterEnabled
-	previousEmailVerificationEnabled := common.EmailVerificationEnabled
-	previousRedisVerificationEnabled := common.RedisVerificationCodeEnabled
-	previousRedisEnabled := common.RedisEnabled
-	previousGenerateDefaultToken := constant.GenerateDefaultToken
-	common.RegisterEnabled = true
-	common.PasswordRegisterEnabled = true
-	common.EmailVerificationEnabled = true
-	common.RedisVerificationCodeEnabled = false
-	common.RedisEnabled = false
-	constant.GenerateDefaultToken = false
-	t.Cleanup(func() {
-		common.RegisterEnabled = previousRegisterEnabled
-		common.PasswordRegisterEnabled = previousPasswordRegisterEnabled
-		common.EmailVerificationEnabled = previousEmailVerificationEnabled
-		common.RedisVerificationCodeEnabled = previousRedisVerificationEnabled
-		common.RedisEnabled = previousRedisEnabled
-		constant.GenerateDefaultToken = previousGenerateDefaultToken
-	})
-
-	const passwordEmail = "Race@Example.com"
-	const verificationCode = "123456"
-	common.RegisterVerificationCodeWithKey(passwordEmail, verificationCode, common.EmailVerificationPurpose)
-	engine := gin.New()
-	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("password-social-race-session-secret"))))
-	engine.POST("/register", Register)
-
-	start := make(chan struct{})
-	var registerBody string
-	var socialUser *model.User
-	var socialErr error
-	var wait sync.WaitGroup
-	wait.Add(2)
-	go func() {
-		defer wait.Done()
-		<-start
-		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(
-			`{"username":"password-racer","password":"password123","email":"Race@Example.com","verification_code":"123456"}`,
-		))
-		request.Header.Set("Content-Type", "application/json")
-		engine.ServeHTTP(recorder, request)
-		registerBody = recorder.Body.String()
-	}()
-	go func() {
-		defer wait.Done()
-		<-start
-		socialUser, socialErr = resolveSocialOAuthUser(socialIdentity{
-			Provider: githubOAuthProvider,
-			Subject:  "password-social-race-subject",
-			Username: "social-racer",
-			Email:    "race@example.com",
-		}, "")
-	}()
-	close(start)
-	wait.Wait()
-
-	if socialErr != nil {
-		t.Fatalf("social registration failed: %v (password response %s)", socialErr, registerBody)
-	}
-	if socialUser == nil || socialUser.Id <= 0 {
-		t.Fatalf("social registration returned no owner: %+v", socialUser)
-	}
-	var userCount, identityCount int64
-	if err := model.CoreDB().Model(&model.User{}).Where("LOWER(email) = ?", "race@example.com").Count(&userCount).Error; err != nil {
-		t.Fatalf("count normalized email owners: %v", err)
-	}
-	if err := model.CoreDB().Model(&model.UserIdentity{}).
-		Where("provider = ? AND subject = ?", githubOAuthProvider, "password-social-race-subject").
-		Count(&identityCount).Error; err != nil {
-		t.Fatalf("count social identity: %v", err)
-	}
-	if userCount != 1 || identityCount != 1 {
-		t.Fatalf("concurrent password/social registration split email ownership: users=%d identities=%d password=%s", userCount, identityCount, registerBody)
-	}
-}
-
 func TestSocialRegistrationDefaultTokenFailureIsBestEffort(t *testing.T) {
 	setupOIDCTestDB(t)
 	previousRegisterEnabled := common.RegisterEnabled
@@ -292,54 +207,6 @@ func TestSocialRegistrationDefaultTokenFailureIsBestEffort(t *testing.T) {
 	}
 	if userCount != 1 || identityCount != 1 {
 		t.Fatalf("best-effort default-token failure corrupted core identity state: users=%d identities=%d", userCount, identityCount)
-	}
-}
-
-func TestPasswordRegistrationDefaultTokenKeyGenerationFailureIsBestEffort(t *testing.T) {
-	setupOIDCTestDB(t)
-	gin.SetMode(gin.TestMode)
-
-	previousRegisterEnabled := common.RegisterEnabled
-	previousPasswordRegisterEnabled := common.PasswordRegisterEnabled
-	previousEmailVerificationEnabled := common.EmailVerificationEnabled
-	previousRedisEnabled := common.RedisEnabled
-	previousGenerateDefaultToken := constant.GenerateDefaultToken
-	previousGenerateDefaultTokenKey := generateDefaultTokenKey
-	common.RegisterEnabled = true
-	common.PasswordRegisterEnabled = true
-	common.EmailVerificationEnabled = false
-	common.RedisEnabled = false
-	constant.GenerateDefaultToken = true
-	generateDefaultTokenKey = func() (string, error) {
-		return "", errors.New("entropy source unavailable")
-	}
-	t.Cleanup(func() {
-		common.RegisterEnabled = previousRegisterEnabled
-		common.PasswordRegisterEnabled = previousPasswordRegisterEnabled
-		common.EmailVerificationEnabled = previousEmailVerificationEnabled
-		common.RedisEnabled = previousRedisEnabled
-		constant.GenerateDefaultToken = previousGenerateDefaultToken
-		generateDefaultTokenKey = previousGenerateDefaultTokenKey
-	})
-
-	engine := gin.New()
-	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("default-token-best-effort-test-secret"))))
-	engine.POST("/register", Register)
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(
-		http.MethodPost,
-		"/register",
-		strings.NewReader(`{"username":"keygen-failure","password":"password123"}`),
-	)
-	request.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(recorder, request)
-
-	if !strings.Contains(recorder.Body.String(), `"success":true`) {
-		t.Fatalf("post-commit key generation failure rejected password registration: %s", recorder.Body.String())
-	}
-	var created model.User
-	if err := model.CoreDB().Where("username = ?", "keygen-failure").First(&created).Error; err != nil {
-		t.Fatalf("registered user was not committed: %v", err)
 	}
 }
 

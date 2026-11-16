@@ -25,7 +25,7 @@ class RoutePatternTest(unittest.TestCase):
         self.assertFalse(self.matches(route, "'/api/channel/42/keys'"))
 
     def test_query_string_counts(self):
-        self.assertTrue(self.matches('/api/user/register', "'/api/user/register?turnstile=' + token"))
+        self.assertTrue(self.matches('/api/auth/email/start', "'/api/auth/email/start?next=' + target"))
 
 
 class MainTest(unittest.TestCase):

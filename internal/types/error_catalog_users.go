@@ -10,8 +10,6 @@ const (
 	ErrorCodePasswordLoginDisabled             ErrorCode = "password_login_disabled"
 	ErrorCodeInvalidCredentials                ErrorCode = "invalid_credentials"
 	ErrorCodeRegistrationClosed                ErrorCode = "registration_closed"
-	ErrorCodePasswordRegistrationDisabled      ErrorCode = "password_registration_disabled"
-	ErrorCodeEmailVerificationRequired         ErrorCode = "email_verification_required"
 	ErrorCodeVerificationCodeInvalid           ErrorCode = "verification_code_invalid"
 	ErrorCodeVerificationCodeAttemptsExhausted ErrorCode = "verification_code_attempts_exhausted"
 	ErrorCodeEmailCodeAuthDisabled             ErrorCode = "email_code_auth_disabled"
@@ -56,14 +54,6 @@ func init() {
 		ErrorCodeRegistrationClosed: {
 			ID: "LZ-2203", HTTPStatus: http.StatusForbidden, Type: ErrorTypePermission, Audience: AudienceCustomer,
 			Template: "New account registration is closed on this deployment.",
-		},
-		ErrorCodePasswordRegistrationDisabled: {
-			ID: "LZ-2204", HTTPStatus: http.StatusForbidden, Type: ErrorTypePermission, Audience: AudienceCustomer,
-			Template: "Registration with a password is turned off. Sign up with an email code or a linked account.",
-		},
-		ErrorCodeEmailVerificationRequired: {
-			ID: "LZ-2205", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,
-			Template: "This deployment requires a verified email address. Enter the address and its verification code.",
 		},
 		ErrorCodeVerificationCodeInvalid: {
 			ID: "LZ-2206", HTTPStatus: http.StatusBadRequest, Type: ErrorTypeInvalidRequest, Audience: AudienceCustomer,

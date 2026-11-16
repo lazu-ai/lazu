@@ -27,23 +27,6 @@ const createSections = (
         danger: true,
       },
       {
-        key: 'PasswordRegisterEnabled',
-        kind: 'boolean',
-        indent: true,
-        label: t('page.console.settingV2.access.field.passwordRegister'),
-        description: t(
-          'page.console.settingV2.access.field.passwordRegisterHelp',
-        ),
-      },
-      {
-        key: 'EmailVerificationEnabled',
-        kind: 'boolean',
-        label: t('page.console.settingV2.access.field.emailVerification'),
-        description: t(
-          'page.console.settingV2.access.field.emailVerificationHelp',
-        ),
-      },
-      {
         key: 'EmailCodeAuthEnabled',
         kind: 'boolean',
         label: t('page.console.settingV2.access.field.emailCodeAuth'),

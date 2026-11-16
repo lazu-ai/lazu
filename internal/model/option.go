@@ -117,8 +117,6 @@ func initializeOptionMapDefaults() {
 
 	// Seed runtime-adjustable settings. Secrets and startup credentials stay in env/yaml.
 	common.OptionMap["PasswordLoginEnabled"] = strconv.FormatBool(common.PasswordLoginEnabled)
-	common.OptionMap["PasswordRegisterEnabled"] = strconv.FormatBool(common.PasswordRegisterEnabled)
-	common.OptionMap["EmailVerificationEnabled"] = strconv.FormatBool(common.EmailVerificationEnabled)
 	common.OptionMap["EmailCodeAuthEnabled"] = strconv.FormatBool(common.EmailCodeAuthEnabled)
 	common.OptionMap["RegisterEnabled"] = strconv.FormatBool(common.RegisterEnabled)
 	common.OptionMap["UsageDigestEnabled"] = strconv.FormatBool(common.UsageDigestEnabled)
@@ -319,12 +317,8 @@ func updateOptionMap(key string, value string) (err error) {
 	if strings.HasSuffix(key, "Enabled") {
 		boolValue := value == "true"
 		switch key {
-		case "PasswordRegisterEnabled":
-			common.PasswordRegisterEnabled = boolValue
 		case "PasswordLoginEnabled":
 			common.PasswordLoginEnabled = boolValue
-		case "EmailVerificationEnabled":
-			common.EmailVerificationEnabled = boolValue
 		case "EmailCodeAuthEnabled":
 			common.EmailCodeAuthEnabled = boolValue
 		case "RegisterEnabled":

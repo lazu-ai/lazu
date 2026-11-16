@@ -19,10 +19,9 @@ type verificationValue struct {
 }
 
 const (
-	EmailVerificationPurpose = "v"
-	PasswordResetPurpose     = "r"
+	PasswordResetPurpose = "r"
 	// EmailAuthPurpose backs the one code that both signs in and signs up.
-	// It is deliberately a separate purpose from EmailVerificationPurpose: a
+	// It is deliberately a separate purpose from email binding: a
 	// code minted to prove a new address must not also open an existing
 	// session, and vice versa.
 	EmailAuthPurpose = "a"

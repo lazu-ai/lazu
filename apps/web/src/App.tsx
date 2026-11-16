@@ -361,15 +361,6 @@ function App() {
           }
         />
         <Route
-          path='/register'
-          element={
-            <Navigate
-              to={{ pathname: '/login', search: location.search }}
-              replace
-            />
-          }
-        />
-        <Route
           path='/reset'
           element={
             <Suspense fallback={<Loading></Loading>} key={location.pathname}>

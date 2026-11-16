@@ -3,12 +3,10 @@ package controller
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/httperr"
 	"github.com/lazu-ai/lazu/internal/model"
-	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -96,67 +94,6 @@ func SearchUserLogs(c *gin.Context) {
 	common.ApiSuccess(c, items)
 }
 
-func GetLogByKey(c *gin.Context) {
-	userID := c.GetInt("id")
-	if userID <= 0 {
-		httperr.Code(c, types.ErrorCodeSessionRequired)
-		return
-	}
-
-	key := normalizeTokenInputKey(c.Query("key"))
-	if key == "" {
-		httperr.Invalid(c, "key")
-		return
-	}
-
-	token, err := model.GetTokenByKey(key, false)
-	if err != nil {
-		credentialFailure(c, err)
-		return
-	}
-	access, ok := projectLogAccess(c)
-	if !ok {
-		return
-	}
-	if _, err := model.ResolveTokenCredential(token.Id, key, time.Now().UTC()); err != nil {
-		credentialFailure(c, err)
-		return
-	}
-	if access.Viewer.Status == model.ProjectMemberSuspended {
-		if token.ProjectID != access.Project.ID || token.UserId != userID {
-			keyFailure(c, model.ErrProjectForbidden)
-			return
-		}
-	} else if _, err := model.CheckProjectTokenAction(model.CoreDB(), access.Project.ID, userID, token.Id, model.ProjectReadPersonalResource); err != nil {
-		keyFailure(c, err)
-		return
-	}
-	access.TokenID = token.Id
-
-	pageInfo := common.GetPageQuery(c)
-	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
-	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	rows, total, err := model.ListProjectLogsContext(c.Request.Context(), access,
-		model.ProjectLogFilter{Type: model.LogTypeConsume, Start: startTimestamp, End: endTimestamp}, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
-	if err != nil {
-		logFailure(c, err)
-		return
-	}
-	logs, err := model.ProjectLogViews(access.Project, rows)
-	if err != nil {
-		logFailure(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success":   true,
-		"message":   "",
-		"data":      logs,
-		"total":     total,
-		"page":      pageInfo.GetPage(),
-		"page_size": pageInfo.GetPageSize(),
-	})
-}
-
 func GetLogsStat(c *gin.Context) {
 	start, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	end, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
@@ -201,18 +138,4 @@ func DeleteHistoryLogs(c *gin.Context) {
 		"data":    count,
 	})
 	return
-}
-
-func GetUserUsedModels(c *gin.Context) {
-	userId := c.GetInt("id")
-	models, err := model.GetUserUsedModels(userId)
-	if err != nil {
-		logFailure(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    models,
-	})
 }

@@ -164,8 +164,6 @@ message; the cause is recorded against the request ID.
 | <a id="lz-2201"></a>`LZ-2201` | `password_login_disabled` | 403 | `permission_error` | Password sign-in is turned off. Use another sign-in method. |
 | <a id="lz-2202"></a>`LZ-2202` | `invalid_credentials` | 401 | `authentication_error` | The username or password is incorrect, or the account is disabled. Check them and try again. |
 | <a id="lz-2203"></a>`LZ-2203` | `registration_closed` | 403 | `permission_error` | New registrations are closed. Contact the administrator if you need an account. |
-| <a id="lz-2204"></a>`LZ-2204` | `password_registration_disabled` | 403 | `permission_error` | Signing up with a password is turned off. Sign up with an email code or a linked account. |
-| <a id="lz-2205"></a>`LZ-2205` | `email_verification_required` | 400 | `invalid_request_error` | A verified email address is required. Enter your email and its verification code. |
 | <a id="lz-2206"></a>`LZ-2206` | `verification_code_invalid` | 400 | `invalid_request_error` | The verification code is incorrect or has expired. Check it, or request a new one. |
 | <a id="lz-2207"></a>`LZ-2207` | `verification_code_attempts_exhausted` | 429 | `rate_limit_error` | Too many incorrect attempts, so this code no longer works. Request a new code. |
 | <a id="lz-2210"></a>`LZ-2210` | `email_code_auth_disabled` | 403 | `permission_error` | Email code sign-in is turned off. Use another sign-in method. |
@@ -339,7 +337,6 @@ message; the cause is recorded against the request ID.
 | <a id="lz-7412"></a>`LZ-7412` | `email_alias_not_allowed` | 400 | `invalid_request_error` | Addresses with “+” or “.” before the @ are not accepted. Use your plain address. |
 | <a id="lz-7413"></a>`LZ-7413` | `password_invalid` | 400 | `invalid_request_error` | The password must be 8 to 64 characters and no more than 72 bytes. Choose another password. |
 | <a id="lz-7414"></a>`LZ-7414` | `password_reset_link_invalid` | 400 | `invalid_request_error` | This reset link is invalid or has expired. Request a new one. |
-| <a id="lz-7415"></a>`LZ-7415` | `password_reset_client_upgrade_required` | 400 | `invalid_request_error` | This page is out of date and your link has not been used. Reload the page and set the password again. |
 | <a id="lz-7416"></a>`LZ-7416` | `support_report_invalid` | 400 | `invalid_request_error` | The report was not sent: \{\{reason\}\}. |
 | <a id="lz-7417"></a>`LZ-7417` | `support_unavailable` | 409 | `conflict_error` | This site has no support address to send reports to. Use the email link instead. |
 | <a id="lz-7418"></a>`LZ-7418` | `support_report_rate_limited` | 429 | `rate_limit_error` | You have sent several reports in the last hour. Please wait a while before sending another. |
