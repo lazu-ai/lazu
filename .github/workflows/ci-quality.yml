@@ -225,7 +225,8 @@ jobs:
   web:
     needs: changes
     if: needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-latest
+    # Keep browser dependencies on the OS supported by the pinned Playwright.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/web
