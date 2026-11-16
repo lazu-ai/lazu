@@ -1,9 +1,9 @@
 module github.com/lazu-ai/lazu
 
-go 1.26.10
+go 1.26.11
 
 require (
-	github.com/andybalholm/brotli v1.1.1
+	github.com/andybalholm/brotli v1.2.7
 	github.com/anknown/ahocorasick v0.0.0-20190904063843-d75dbd5169c0
 	github.com/aws/aws-sdk-go-v2 v1.47.4
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.10
@@ -37,12 +37,12 @@ require (
 	github.com/tiktoken-go/tokenizer v0.6.2
 	github.com/xuri/excelize/v2 v2.11.1-0.20261003002531-6258dcebc4e2
 	github.com/yuin/goldmark v1.7.17
-	golang.org/x/crypto v0.57.0
+	golang.org/x/crypto v0.58.0
 	golang.org/x/image v0.45.0
-	golang.org/x/net v0.60.0
+	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sync v0.23.0
-	golang.org/x/sys v0.48.0
+	golang.org/x/sync v0.24.0
+	golang.org/x/sys v0.49.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.7
@@ -104,7 +104,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/arch v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
