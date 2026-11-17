@@ -84,6 +84,7 @@ const sliceFormatters = (locale?: string) => {
 
 export type StatusBarSlice = {
   tone: StatusBarTone;
+  probe?: boolean;
   /** The slice's time range, e.g. "9月28日 14:00 – 16:00". */
   when: string;
   /** The verdict line: "正常 · 可用 100%". */
@@ -99,6 +100,7 @@ type StatusBarsProps = {
   /** Bar height in px; 12 matches the health page. */
   height?: number;
   className?: string;
+  onSelectSlice?: (index: number) => void;
 };
 
 export function StatusBars({
@@ -106,6 +108,7 @@ export function StatusBars({
   label,
   height = 12,
   className,
+  onSelectSlice,
 }: StatusBarsProps) {
   const [hoverIndex, setHoverIndex] = useState(-1);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -171,7 +174,9 @@ export function StatusBars({
               .join(' · ')}
             className={cn(
               'lazu-status-bar',
-              `lazu-status-bar--${slice.tone}`,
+              slice.probe && slice.tone === 'ok'
+                ? 'lazu-status-bar--probe'
+                : `lazu-status-bar--${slice.tone}`,
               hoverIndex === index && 'is-hovered',
             )}
             data-index={index}
@@ -183,6 +188,7 @@ export function StatusBars({
               // slice must not also open what the card opens.
               event.stopPropagation();
               setHoverIndex(index);
+              onSelectSlice?.(index);
             }}
             onFocus={() => {
               setFocusIndex(index);
@@ -222,7 +228,7 @@ export function StatusBarsLegend({
   caption,
   className,
 }: {
-  items: { tone: StatusBarTone; label: string }[];
+  items: { tone: StatusBarTone; label: string; probe?: boolean }[];
   caption?: string;
   className?: string;
 }) {
@@ -232,10 +238,18 @@ export function StatusBarsLegend({
         <span className='lazu-status-legend__caption'>{caption}</span>
       ) : null}
       {items.map((item) => (
-        <span className='lazu-status-legend__item' key={item.tone}>
+        <span
+          className='lazu-status-legend__item'
+          key={`${item.tone}-${item.probe ? 'probe' : 'live'}`}
+        >
           <i
             aria-hidden='true'
-            className={`lazu-status-bar lazu-status-bar--${item.tone}`}
+            className={cn(
+              'lazu-status-bar',
+              item.probe && item.tone === 'ok'
+                ? 'lazu-status-bar--probe'
+                : `lazu-status-bar--${item.tone}`,
+            )}
           />
           {item.label}
         </span>

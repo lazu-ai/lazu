@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -12,7 +13,9 @@ import {
   serveUpstreamIds,
   suggestPublicName,
 } from './sourceModels';
-import SourceModelsTable from './SourceModelsTable';
+import SourceModelsTable, {
+  type SourceModelStatusView,
+} from './SourceModelsTable';
 import SourceSyncPanel from './SourceSyncPanel';
 import { sourceTypeLabel } from './SourceTypeBadge';
 import { Button } from '../../components/ui/button';
@@ -20,6 +23,7 @@ import { Checkbox } from '../../components/ui/checkbox';
 import { Field, FieldMessage } from '../../components/ui/field';
 import { InlineNotice } from '../../components/ui/inline-notice';
 import { Input } from '../../components/ui/input';
+import { ProviderLogo } from '../../components/ui/provider-icons';
 import { Select, SelectItem } from '../../components/ui/select';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Switch } from '../../components/ui/switch';
@@ -45,7 +49,7 @@ import {
   useChannelsQuery,
 } from '../../hooks/channels/useChannelsQuery';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
-import { makerLabel } from '../../lib/model-makers';
+import { groupByMaker, makerBrand, makerLabel } from '../../lib/model-makers';
 import type { UpstreamSyncView } from '../../hooks/models/useSourceUpstream';
 import type { TFunction } from 'i18next';
 import type { UseFormProps } from 'react-hook-form';
@@ -400,12 +404,14 @@ type SourceFormProps = {
   catalog: SourceCatalog;
   channels: ChannelsQuery;
   editingChannel: ChannelRecord | null;
+  initialModelView?: SourceModelStatusView;
   /** create: the one-page 新建来源. page: one tab of a source's page. */
   layout: 'create' | 'page';
   onCancel: () => void;
   onResolve?: (body: { gone?: string[]; new?: string[] }) => void;
   /** Called with the public ids the save returned (one when creating). */
   onSaved: (ids: string[]) => Promise<void> | void;
+  onServedCountChange?: (count: number) => void;
   onTabChange?: (tab: SourceTab) => void;
   resolving?: boolean;
   tab?: SourceTab;
@@ -431,10 +437,12 @@ export default function SourceForm({
   catalog,
   channels,
   editingChannel,
+  initialModelView,
   layout,
   onCancel,
   onResolve,
   onSaved,
+  onServedCountChange,
   onTabChange,
   resolving,
   tab = 'models',
@@ -666,6 +674,15 @@ export default function SourceForm({
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const [pickQuery, setPickQuery] = useState('');
   const [pickMaker, setPickMaker] = useState<string | null>(null);
+  const [pickFolded, setPickFolded] = useState<Record<string, boolean>>({});
+  const servedModelsCount = Array.isArray(values.models)
+    ? values.models.length
+    : 0;
+  useEffect(() => {
+    if (isEdit && detailQuery.data) {
+      onServedCountChange?.(servedModelsCount);
+    }
+  }, [detailQuery.data, isEdit, onServedCountChange, servedModelsCount]);
   /* A test holds for the connection it ran against; changing the type,
      address or key greys the model list until it runs again. */
   const connectionAs = `${values.type}|${String(values.base_url || '').trim()}|${String(values.key || '').trim()}`;
@@ -693,6 +710,15 @@ export default function SourceForm({
   const pickChips = makerChips(
     pickRows.map((row) => row.name),
     catalog,
+  );
+  const pickGroups = useMemo(
+    () =>
+      groupByMaker(
+        pickShown,
+        (row) => catalog.maker(row.name),
+        (row) => catalog.makerRank(catalog.maker(row.name)),
+      ),
+    [catalog, pickShown],
   );
   const pickedCount = tested
     ? pickRows.filter((row) => picked.has(row.id)).length + manualNames.length
@@ -1565,12 +1591,11 @@ export default function SourceForm({
           <div className='src-step__head'>
             <span className='src-step__num'>3</span>
             <span className='src-step__title'>
-              {t(`${ns}.create.models`, { defaultValue: '供货哪些模型' })}
+              {t(`${ns}.create.models`, { defaultValue: '供货模型' })}
             </span>
             <span className='src-hint'>
               {t(`${ns}.create.modelsHint`, {
-                defaultValue:
-                  '上游列出的模型都在下面，一个都没选；选中的才会接流量',
+                defaultValue: '候选默认不勾选，勾中的才接流量',
               })}
             </span>
             <span className='src-mono src-step__aside'>
@@ -1635,7 +1660,7 @@ export default function SourceForm({
                 >
                   {t(`${ns}.create.pickShown`, {
                     count: pickShown.length,
-                    defaultValue: '全选筛出的 {{count}} 个',
+                    defaultValue: '全选 ({{count}})',
                   })}
                 </Button>
                 <Button
@@ -1648,75 +1673,180 @@ export default function SourceForm({
                   {t(`${ns}.create.clear`, { defaultValue: '清空' })}
                 </Button>
               </div>
-              <div className='src-pickrow src-pickrow--head'>
-                <span />
-                <span className='src-th'>
-                  {t(`${ns}.create.colId`, {
-                    defaultValue: '上游模型 ID → 对外名',
-                  })}
-                </span>
-                <span className='src-th'>
-                  {t(`${ns}.create.colMaker`, { defaultValue: '厂商' })}
-                </span>
-                <span className='src-th is-num'>
-                  {t(`${ns}.create.colPrice`, { defaultValue: '目录价 入/出' })}
-                </span>
-                <span className='src-th is-num'>
-                  {t(`${ns}.create.colCatalog`, { defaultValue: '目录' })}
-                </span>
-              </div>
-              <div className='src-pick__rows'>
-                {pickShown.map((row) => {
-                  const on = picked.has(row.id);
-                  const known = catalog.names.has(row.name);
-                  const maker = catalog.maker(row.name);
+              <div className='src-pick__rows src-mgroups'>
+                {pickGroups.map((group) => {
+                  const gKey = group.maker || '__other__';
+                  const gLabel = makerLabel(group.maker, t);
+                  const pickedInGroup = group.rows.filter((r) =>
+                    picked.has(r.id),
+                  ).length;
+                  const allOn =
+                    group.rows.length > 0 &&
+                    pickedInGroup === group.rows.length;
+                  const someOn = pickedInGroup > 0 && !allOn;
+                  const isOpen =
+                    Boolean(pickNeedle) ||
+                    pickMaker !== null ||
+                    !pickFolded[gKey];
+
                   return (
-                    <label
-                      className={`src-pickrow${on ? ' is-on' : ''}`}
-                      key={row.id}
-                    >
-                      <Checkbox
-                        aria-label={row.id}
-                        checked={on}
-                        onCheckedChange={(checked: boolean) =>
-                          setPicked((previous) => {
-                            const next = new Set(previous);
-                            if (checked) next.add(row.id);
-                            else next.delete(row.id);
-                            return next;
-                          })
-                        }
-                      />
-                      <span className='src-mono src-pickrow__id'>
-                        {row.id}
-                        {row.name !== row.id ? (
-                          <span className='src-soft'>{`  →  ${row.name}`}</span>
-                        ) : null}
-                      </span>
-                      <span className='src-hint'>
-                        {maker ? makerLabel(maker, t) : '—'}
-                      </span>
-                      <span className='src-mono is-num'>
-                        {catalog.price(row.name)}
-                      </span>
-                      <span
-                        className={`src-pickrow__catalog is-num${known ? '' : ' is-new'}`}
-                      >
-                        {known
-                          ? t(`${ns}.create.inCatalog`, {
-                              defaultValue: '已收录',
+                    <div className='src-mgroup' key={gKey}>
+                      <div className='src-mgroup__head'>
+                        <Checkbox
+                          aria-label={gLabel}
+                          checked={allOn}
+                          indeterminate={someOn}
+                          onCheckedChange={(checked: boolean) =>
+                            setPicked((previous) => {
+                              const next = new Set(previous);
+                              for (const row of group.rows) {
+                                if (checked) next.add(row.id);
+                                else next.delete(row.id);
+                              }
+                              return next;
                             })
-                          : t(`${ns}.create.notInCatalog`, {
-                              defaultValue: '未收录 · 创建时补资料',
-                            })}
-                      </span>
-                    </label>
+                          }
+                        />
+                        <button
+                          aria-expanded={isOpen}
+                          className='src-mgroup__toggle'
+                          data-owns-chrome=''
+                          type='button'
+                          onClick={() =>
+                            setPickFolded((prev) => ({
+                              ...prev,
+                              [gKey]: !prev[gKey],
+                            }))
+                          }
+                        >
+                          <ProviderLogo
+                            brand={makerBrand(
+                              group.maker,
+                              group.rows[0] ? { name: group.rows[0].name } : {},
+                            )}
+                            decorative
+                            size={18}
+                          />
+                          <span className='src-mgroup__name'>{gLabel}</span>
+                          <span className='src-num src-mgroup__count'>
+                            {`${pickedInGroup} / ${group.rows.length}`}
+                          </span>
+                          <ChevronDown
+                            aria-hidden='true'
+                            className={`src-mgroup__chev${isOpen ? ' is-open' : ''}`}
+                            size={14}
+                          />
+                        </button>
+                      </div>
+                      {isOpen ? (
+                        <div className='src-mgroup__grid'>
+                          {group.rows.map((row) => {
+                            const on = picked.has(row.id);
+                            const known = catalog.names.has(row.name);
+                            const price = catalog.price(row.name);
+                            const ctx = catalog.context(row.name);
+                            return (
+                              <div
+                                className={`src-mcard${on ? ' is-served' : ''}`}
+                                key={row.id}
+                                role='row'
+                                tabIndex={0}
+                                onClick={(event) => {
+                                  if (
+                                    (
+                                      event.target as HTMLElement | null
+                                    )?.closest('button, input, label')
+                                  ) {
+                                    return;
+                                  }
+                                  setPicked((previous) => {
+                                    const next = new Set(previous);
+                                    if (on) next.delete(row.id);
+                                    else next.add(row.id);
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(event) => {
+                                  if (
+                                    (
+                                      event.target as HTMLElement | null
+                                    )?.closest('button, input, label')
+                                  ) {
+                                    return;
+                                  }
+                                  if (
+                                    event.key === 'Enter' ||
+                                    event.key === ' '
+                                  ) {
+                                    event.preventDefault();
+                                    setPicked((previous) => {
+                                      const next = new Set(previous);
+                                      if (on) next.delete(row.id);
+                                      else next.add(row.id);
+                                      return next;
+                                    });
+                                  }
+                                }}
+                              >
+                                <span className='src-mcard__box' role='cell'>
+                                  <Checkbox
+                                    aria-label={row.id}
+                                    checked={on}
+                                    onCheckedChange={(checked: boolean) =>
+                                      setPicked((previous) => {
+                                        const next = new Set(previous);
+                                        if (checked) next.add(row.id);
+                                        else next.delete(row.id);
+                                        return next;
+                                      })
+                                    }
+                                  />
+                                </span>
+                                <span className='src-mcard__body' role='cell'>
+                                  <span className='src-mcard__top'>
+                                    <span className='src-mcard__id'>
+                                      {row.id}
+                                    </span>
+                                    {!known ? (
+                                      <span className='src-status is-unknown'>
+                                        {t(`${ns}.create.notInCatalogShort`, {
+                                          defaultValue: '新收录',
+                                        })}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  <span className='src-mcard__sub'>
+                                    <span>
+                                      {[
+                                        price !== '—'
+                                          ? price
+                                          : t(`${ns}.create.unpriced`, {
+                                              defaultValue: '待补定价',
+                                            }),
+                                        ctx,
+                                      ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                    </span>
+                                    {row.name !== row.id ? (
+                                      <span className='src-mcard__map'>
+                                        {` · → ${row.name}`}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
                 {pickShown.length === 0 ? (
                   <div className='src-empty'>
                     {t(`${ns}.create.noMatch`, {
-                      defaultValue: '没有符合筛选的模型',
+                      defaultValue: '无匹配模型',
                     })}
                   </div>
                 ) : null}
@@ -1727,9 +1857,7 @@ export default function SourceForm({
             <div className='src-pick__manual'>
               <label className='lazu-label' htmlFor='channel-manual-models'>
                 {t(`${ns}.create.manual`, {
-                  defaultValue: tested
-                    ? '再加上游列表里没有的模型'
-                    : '手动填要供货的模型名',
+                  defaultValue: tested ? '补充手动模型' : '手动填写模型名',
                 })}
               </label>
               <Textarea
@@ -1749,8 +1877,7 @@ export default function SourceForm({
         <div className='src-create__foot'>
           <span className='src-hint'>
             {t(`${ns}.create.footHint`, {
-              defaultValue:
-                '创建后默认每 6 小时检查上游；新出现的模型先不供货，等你核对。可在详情页「同步」里改。',
+              defaultValue: '进入 7 天观察期 · 每 6h 自动检查上游',
             })}
           </span>
           {form.formState.errors.models ? (
@@ -1816,6 +1943,7 @@ export default function SourceForm({
             catalog={catalog}
             disabled={loading || detailMissing}
             form={form}
+            initialView={initialModelView}
             resolving={resolving}
             t={t}
             upstream={upstream}

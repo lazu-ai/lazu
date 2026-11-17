@@ -330,23 +330,42 @@ test('connection saves only changed fields with the opened version', async ({
   await expect(page.locator('.tok-connect')).toHaveCount(0);
 });
 
-test('default create form fits a laptop viewport', async ({ page }) => {
+test('default create form fits a laptop viewport and keeps 640px width on scope expand', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await setupConnection(page);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '创建密钥', exact: true }).click();
   const modal = page.locator('.tok-create-modal');
-  // The model table sits in the form, so the body may scroll, but the dialog
-  // itself and its footer stay inside a laptop screen.
   await expect(
     modal.getByRole('button', { name: '创建并接入', exact: true }),
   ).toBeInViewport();
+  await expect(modal.locator('#token-quota')).toHaveValue('100');
+  await expect(
+    modal.getByRole('button', { name: '$100', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    modal.getByRole('button', { name: '$10', exact: true }),
+  ).toBeVisible();
+  await expect(
+    modal.getByRole('button', { name: '不限', exact: true }),
+  ).toBeVisible();
+
+  await expect
+    .poll(async () => Math.round((await modal.boundingBox())?.width ?? 0))
+    .toBe(640);
   const box = await modal.boundingBox();
   if (!box) throw new Error('create dialog has no box');
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(720 + 1);
   await modal.locator('.tok-create__more').scrollIntoViewIfNeeded();
   await expect(modal.locator('.tok-create__more')).toBeInViewport();
+
+  await modal.getByRole('switch', { name: '限制模型' }).click();
+  await expect(modal.locator('.tok-scope2')).toBeVisible();
+  const expandedBox = await modal.boundingBox();
+  expect(Math.round(expandedBox!.width)).toBe(640);
 });
 
 /* The chat entry point was one item of the row's "…" menu, and that menu is
@@ -357,7 +376,7 @@ test('default create form fits a laptop viewport', async ({ page }) => {
  * chat gets an entry point again, its safety is already asserted. */
 
 for (const allowAll of [true, false]) {
-  test(`empty restricted scope blocks saving until ${allowAll ? 'switching scope back to 全部' : 'selecting a model'}`, async ({
+  test(`empty restricted scope blocks saving until ${allowAll ? 'turning off 限制模型' : 'selecting a model'}`, async ({
     page,
   }) => {
     await setupConnection(page);
@@ -365,8 +384,9 @@ for (const allowAll of [true, false]) {
     await page.getByRole('button', { name: '创建密钥', exact: true }).click();
     const modal = page.locator('.tok-create-modal');
     await modal.locator('#token-name').fill('Restricted regression');
+    const scopeSwitch = modal.getByRole('switch', { name: '限制模型' });
+    await scopeSwitch.click();
     const scope = modal.locator('.tok-scope2');
-    await scope.getByRole('radio', { name: '只允许勾选的' }).click();
     const create = modal.getByRole('button', {
       name: '创建并接入',
       exact: true,
@@ -386,7 +406,7 @@ for (const allowAll of [true, false]) {
     expect(writes).toHaveLength(0);
 
     if (allowAll) {
-      await scope.getByRole('radio', { name: '全部', exact: true }).click();
+      await scopeSwitch.click();
     } else {
       await scope.getByRole('textbox', { name: '搜模型' }).fill('gpt-6-astra');
       await scope.getByRole('checkbox', { name: 'gpt-6-astra' }).click();
@@ -403,7 +423,7 @@ for (const allowAll of [true, false]) {
   });
 }
 
-/* 全部，除了勾选的 is a standing rule, not a snapshot of today's catalog:
+/* 排除 is a standing rule, not a snapshot of today's catalog:
  * models added later stay callable. It reaches the server as `*` followed
  * by the excluded names. */
 test('excluding a model sends the everything-except scope', async ({
@@ -414,11 +434,12 @@ test('excluding a model sends the everything-except scope', async ({
   await page.getByRole('button', { name: '创建密钥', exact: true }).click();
   const modal = page.locator('.tok-create-modal');
   await modal.locator('#token-name').fill('Except scope');
+  await modal.getByRole('switch', { name: '限制模型' }).click();
   const scope = modal.locator('.tok-scope2');
-  await scope.getByRole('radio', { name: '全部，除了勾选的' }).click();
+  await scope.getByRole('radio', { name: '排除' }).click();
   await scope.getByRole('textbox', { name: '搜模型' }).fill('gpt-6-astra');
   await scope.getByRole('checkbox', { name: 'gpt-6-astra' }).click();
-  await expect(scope).toContainText('之后上新的也能调');
+  await expect(scope).toContainText('新模型默认可调');
 
   const requestPromise = page.waitForRequest(
     (request) =>

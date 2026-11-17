@@ -643,7 +643,7 @@ async function fetchTokenDetail(id: TokenId): Promise<TokenFormValues> {
   return normalizeTokenDetail(isRecord(detail) ? detail : {});
 }
 
-const DEFAULT_TOKEN_QUOTA_USD = 50;
+const DEFAULT_TOKEN_QUOTA_USD = 100;
 
 export function getDefaultTokenFormValues(): TokenFormValues {
   return {

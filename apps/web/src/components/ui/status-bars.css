@@ -34,6 +34,10 @@
   background: color-mix(in srgb, var(--lazu-success) 82%, transparent);
 }
 
+.lazu-status-bar--probe {
+  background: color-mix(in srgb, var(--lazu-success) 42%, transparent);
+}
+
 .lazu-status-bar--warn {
   background: color-mix(in srgb, var(--lazu-warning) 85%, transparent);
 }
@@ -63,6 +67,10 @@
 
 .lazu-status-bar--ok.is-hovered {
   background: var(--lazu-success);
+}
+
+.lazu-status-bar--probe.is-hovered {
+  background: color-mix(in srgb, var(--lazu-success) 68%, transparent);
 }
 
 .lazu-status-bar--warn.is-hovered {
@@ -120,7 +128,8 @@
   color: color-mix(in srgb, var(--lazu-warning) 70%, var(--lazu-surface-solid));
 }
 
-.lazu-status-bars__verdict--ok {
+.lazu-status-bars__verdict--ok,
+.lazu-status-bars__verdict--probe {
   color: color-mix(in srgb, var(--lazu-success) 60%, var(--lazu-surface-solid));
 }
 
