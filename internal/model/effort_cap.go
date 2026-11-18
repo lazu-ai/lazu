@@ -3,6 +3,8 @@ package model
 import (
 	"strings"
 	"sync"
+
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 // The reasoning-effort ladder every vendor is mapped onto. A cap is one rung:
@@ -178,7 +180,18 @@ func CanDisableReasoning(name string) bool {
 	if strings.HasPrefix(m, "gpt-") && (strings.Contains(m, "-pro") || strings.Contains(m, "codex")) {
 		return false
 	}
-	return strings.HasPrefix(m, "claude") || strings.HasPrefix(m, "deepseek") || strings.HasPrefix(m, "kimi") || strings.HasPrefix(m, "moonshot") || strings.HasPrefix(m, "glm") || strings.HasPrefix(m, "gpt-5.") || strings.HasPrefix(m, "gpt-6") || strings.HasPrefix(m, "grok-4.3")
+	if common.IsGPT6Model(m) {
+		return common.ChatToolsNeedReasoningOff(m)
+	}
+	return strings.HasPrefix(m, "claude") || strings.HasPrefix(m, "deepseek") || strings.HasPrefix(m, "kimi") || strings.HasPrefix(m, "moonshot") || strings.HasPrefix(m, "glm") || strings.HasPrefix(m, "gpt-5.") || strings.HasPrefix(m, "grok-4.3")
+}
+
+// ChatToolsNeedReasoningOff reports whether name is a gpt-6 model that refuses
+// function tools on Chat Completions while reasoning and accepts
+// reasoning_effort "none" to disable it, honouring the live catalog when
+// synced and falling back to common.ChatToolsNeedReasoningOff otherwise.
+func ChatToolsNeedReasoningOff(name string) bool {
+	return common.IsGPT6Model(name) && CanDisableReasoning(name)
 }
 
 // Empty Key caps inherit the membership; explicit caps may only narrow it.

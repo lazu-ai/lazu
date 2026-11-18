@@ -25,3 +25,25 @@ func TestIsEmbeddingModel(t *testing.T) {
 		}
 	}
 }
+
+func TestChatToolsNeedReasoningOff(t *testing.T) {
+	for name, want := range map[string]bool{
+		"gpt-6-luna":        true,
+		"gpt-6-sol":         true,
+		"gpt-6.1-terra":     true,
+		"openai/gpt-6-luna": true,
+		"gpt-6-astra":       false,
+		"gpt-6.2-astra":     false,
+		"gpt-6-cyber":       false,
+		"gpt-6.1-sol":       false,
+		"gpt-6.2-sol":       false,
+		"openai/gpt-6.1-sol": false,
+		"gpt-5.6-sol":       false,
+		"claude-sonnet-5-5": false,
+		"":                  false,
+	} {
+		if got := ChatToolsNeedReasoningOff(name); got != want {
+			t.Errorf("ChatToolsNeedReasoningOff(%q) = %t, want %t", name, got, want)
+		}
+	}
+}

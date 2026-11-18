@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	modelpkg "github.com/lazu-ai/lazu/internal/model"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/tidwall/gjson"
@@ -54,7 +54,7 @@ func convertNativeRequestReference(a *Adaptor, body []byte, info *relaycommon.Re
 		}
 		model := info.UpstreamModelName
 		if info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.UpstreamProtocol.Dialect == "openai" &&
-			common.ChatToolsNeedReasoningOff(model) && gjson.GetBytes(body, "reasoning_effort").Str == "" &&
+			modelpkg.ChatToolsNeedReasoningOff(model) && gjson.GetBytes(body, "reasoning_effort").Str == "" &&
 			!gjson.GetBytes(body, "reasoning").Exists() && gjson.GetBytes(body, "tools.#").Int() > 0 &&
 			gjson.GetBytes(body, "tool_choice").Str != "none" {
 			set("reasoning_effort", "none")

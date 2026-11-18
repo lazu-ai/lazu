@@ -55,3 +55,26 @@ func TestNormalizeEffortCap(t *testing.T) {
 		t.Fatal("valid")
 	}
 }
+
+func TestChatToolsNeedReasoningOffHonoursCatalogAndFallback(t *testing.T) {
+	defer setCatalogReasoningOptions(nil)
+	setCatalogReasoningOptions(nil)
+	if !ChatToolsNeedReasoningOff("gpt-6-sol") || !ChatToolsNeedReasoningOff("gpt-6.1-terra") {
+		t.Fatal("expected none-capable gpt-6 models to disable reasoning for Chat tools")
+	}
+	for _, reasoningOnly := range []string{"gpt-6-astra", "gpt-6-cyber", "gpt-6.1-sol", "gpt-6.2-sol", "gpt-6.2-astra"} {
+		if ChatToolsNeedReasoningOff(reasoningOnly) || CanDisableReasoning(reasoningOnly) {
+			t.Fatalf("%s starts at low and must not inject effort none", reasoningOnly)
+		}
+	}
+	setCatalogReasoningOptions(map[string]ModelReasoningOptions{
+		"gpt-6.3-terra": {Efforts: []string{"low", "medium", "high"}},
+		"gpt-6.3-luna":  {Efforts: []string{"none", "low", "medium", "high"}},
+	})
+	if ChatToolsNeedReasoningOff("gpt-6.3-terra") {
+		t.Fatal("catalog entry without none must not inject effort none")
+	}
+	if !ChatToolsNeedReasoningOff("gpt-6.3-luna") {
+		t.Fatal("catalog entry with none must disable reasoning for Chat tools")
+	}
+}
