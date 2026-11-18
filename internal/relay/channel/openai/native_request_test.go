@@ -57,24 +57,28 @@ func TestNativeChatKeepsExistingGPT5PolicyAndStreamUsage(t *testing.T) {
 }
 
 func TestNativeGPT6ChatToolsReasoningDefaultPreservesCallerFields(t *testing.T) {
-	base := `{ "model" : "gpt-6-sol", "messages":[{"role":"user","content":"weather?"}], "tools":[{"type":"function","function":{"name":"weather"}}], "vendor_number":9007199254740993, "vendor_escape":"a\/b"`
 	for _, tc := range []struct {
-		name, suffix, dialect string
-		responses             bool
-		wantDefault           bool
+		name, model, suffix, dialect string
+		responses                    bool
+		wantDefault                  bool
 	}{
-		{"default", `}`, "openai", false, true},
-		{"client effort kept", `, "reasoning_effort":"high"}`, "openai", false, false},
-		{"explicit reasoning kept", `, "reasoning":{"effort":"high"}}`, "openai", false, false},
-		{"tools disabled", `, "tool_choice":"none"}`, "openai", false, false},
-		{"reseller untouched", `}`, "openai_chat_compatible", false, false},
-		{"responses untouched", `}`, "openai", true, false},
+		{"default", "gpt-6-sol", `}`, "openai", false, true},
+		{"gpt-6.1-terra default", "gpt-6.1-terra", `}`, "openai", false, true},
+		{"gpt-6.1-sol untouched", "gpt-6.1-sol", `}`, "openai", false, false},
+		{"gpt-6.2-sol untouched", "gpt-6.2-sol", `}`, "openai", false, false},
+		{"gpt-6-astra untouched", "gpt-6-astra", `}`, "openai", false, false},
+		{"client effort kept", "gpt-6-sol", `, "reasoning_effort":"high"}`, "openai", false, false},
+		{"explicit reasoning kept", "gpt-6-sol", `, "reasoning":{"effort":"high"}}`, "openai", false, false},
+		{"tools disabled", "gpt-6-sol", `, "tool_choice":"none"}`, "openai", false, false},
+		{"reseller untouched", "gpt-6-sol", `}`, "openai_chat_compatible", false, false},
+		{"responses untouched", "gpt-6-sol", `}`, "openai", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			base := `{ "model" : "` + tc.model + `", "messages":[{"role":"user","content":"weather?"}], "tools":[{"type":"function","function":{"name":"weather"}}], "vendor_number":9007199254740993, "vendor_escape":"a\/b"`
 			input := []byte(base + tc.suffix)
 			original := bytes.Clone(input)
 			info := &relaycommon.RelayInfo{
-				ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeOpenAI, UpstreamModelName: "gpt-6-sol"},
+				ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeOpenAI, UpstreamModelName: tc.model},
 				ProtocolPlan: &textgen.RelayPlan{
 					Native:           true,
 					UpstreamProtocol: textgen.Protocol{Dialect: tc.dialect},

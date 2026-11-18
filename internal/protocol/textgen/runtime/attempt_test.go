@@ -329,8 +329,11 @@ func TestPrepareAttemptTurnsReasoningOffForGPT6ChatTools(t *testing.T) {
 		want    string
 	}{
 		{"native", official, "gpt-6-sol", "", "", "none"},
+		{"terra native", official, "gpt-6.1-terra", "", "", "none"},
 		{"bridge", responsesOnly, "gpt-6-sol", "", "", "none"},
 		{"astra has no none effort", responsesOnly, "gpt-6-astra", "", "", ""},
+		{"gpt-6.1-sol has no none effort", official, "gpt-6.1-sol", "", "", ""},
+		{"gpt-6.2-sol has no none effort", official, "gpt-6.2-sol", "", "", ""},
 		{"client effort kept", official, "gpt-6-sol", "high", "", "high"},
 		{"tool_choice none", official, "gpt-6-sol", "", "none", ""},
 		{"reseller untouched", reseller, "gpt-6-sol", "", "", ""},
@@ -663,6 +666,21 @@ func TestPrepareAttemptKeepsExplicitClaudeReasoningOnResponses(t *testing.T) {
 	}
 	if attempt.Request.Reasoning.Effort == "none" {
 		t.Fatalf("the asked reasoning was dropped: %+v", attempt.Request.Reasoning)
+	}
+
+	adaptiveParsed, err := Parse(textgen.ProtocolAnthropic, []byte(`{"model":"gpt-6.1-sol","max_tokens":100,"thinking":{"type":"adaptive"},"tools":[{"name":"Read","input_schema":{"type":"object"}}],"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	adaptiveAttempt, err := PrepareAttempt(adaptiveParsed, openai, "gpt-6.1-sol")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adaptiveAttempt.Plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIResponses {
+		t.Fatalf("gpt-6.1-sol cannot take tools on Chat and must replan onto Responses, got %+v", adaptiveAttempt.Plan.UpstreamProtocol)
+	}
+	if adaptiveAttempt.Request.Reasoning.Effort == "none" {
+		t.Fatalf("gpt-6.1-sol rejects effort none: %+v", adaptiveAttempt.Request.Reasoning)
 	}
 }
 

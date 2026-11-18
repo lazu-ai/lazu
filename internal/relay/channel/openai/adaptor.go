@@ -16,6 +16,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
+	modelpkg "github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
@@ -280,7 +281,7 @@ func chatToolsNeedReasoningOff(info *relaycommon.RelayInfo, request *dto.General
 	if choice, ok := request.ToolChoice.(string); ok && choice == "none" {
 		return false
 	}
-	return common.ChatToolsNeedReasoningOff(info.UpstreamModelName)
+	return modelpkg.ChatToolsNeedReasoningOff(info.UpstreamModelName)
 }
 
 func (a *Adaptor) ConvertRerankRequest(c *gin.Context, relayMode int, request dto.RerankRequest) (any, error) {

@@ -130,7 +130,7 @@ func PrepareAttempt(parsed *textgen.ParsedRequest, channel *model.Channel, model
 		effective.Reasoning = textgen.ReasoningOptions{}
 	}
 	if !plan.Native && client.Family == textgen.ProtocolAnthropic && plan.UpstreamProtocol.Family == textgen.ProtocolOpenAIChat &&
-		len(effective.Tools) > 0 && effective.ToolPolicy.Mode != "none" && common.ChatToolsNeedReasoningOff(modelName) {
+		len(effective.Tools) > 0 && effective.ToolPolicy.Mode != "none" && model.ChatToolsNeedReasoningOff(modelName) {
 		// a model that takes tools on Chat only with reasoning off: a
 		// Claude client's tool call goes without thinking (the legacy
 		// conversion sent none), as a Chat client's does
@@ -227,15 +227,18 @@ func instructionPrefix(before, after *textgen.Request) string {
 }
 
 // chatToolsLoseExplicitReasoning says whether a Claude client's request,
-// planned onto Chat, would lose reasoning it asked for by name (an effort
-// or a budget, not thinking left adaptive) to a model that takes tools on
-// Chat only with reasoning off.
+// planned onto Chat, would either lose reasoning it asked for by name (an
+// effort or a budget, not thinking left adaptive) or hit a gpt-6 model that
+// refuses function tools on Chat altogether because it has no "none" effort.
 func chatToolsLoseExplicitReasoning(client textgen.Protocol, plan *textgen.RelayPlan, request *textgen.Request, modelName string) bool {
 	if plan.Native || client.Family != textgen.ProtocolAnthropic || plan.UpstreamProtocol.Family != textgen.ProtocolOpenAIChat {
 		return false
 	}
-	if len(request.Tools) == 0 || request.ToolPolicy.Mode == "none" || !common.ChatToolsNeedReasoningOff(modelName) {
+	if len(request.Tools) == 0 || request.ToolPolicy.Mode == "none" {
 		return false
+	}
+	if !model.ChatToolsNeedReasoningOff(modelName) {
+		return common.IsGPT6Model(modelName)
 	}
 	effort := strings.ToLower(strings.TrimSpace(request.Reasoning.Effort))
 	return request.Reasoning.Budget.Set || (effort != "" && effort != "none")
@@ -260,7 +263,7 @@ func hasNestedUnknownField(request *textgen.Request) bool {
 // upstream's refusal of it reaches the client.
 func chatToolsNeedReasoningOff(request *textgen.Request, modelName string) bool {
 	if request.Reasoning.Effort != "" || len(request.Tools) == 0 || request.ToolPolicy.Mode == "none" ||
-		!common.ChatToolsNeedReasoningOff(modelName) {
+		!model.ChatToolsNeedReasoningOff(modelName) {
 		return false
 	}
 	if _, set := request.Raw.TopLevel["reasoning"]; set {

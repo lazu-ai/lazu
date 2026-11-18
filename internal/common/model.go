@@ -38,15 +38,39 @@ func IsOpenAIResponseOnlyModel(modelName string) bool {
 	return false
 }
 
+// IsGPT6Model reports whether modelName belongs to the gpt-6 family, which
+// refuses function tools on /v1/chat/completions while reasoning.
+func IsGPT6Model(modelName string) bool {
+	name := strings.ToLower(strings.TrimSpace(modelName))
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	return strings.HasPrefix(name, "gpt-6")
+}
+
 // ChatToolsNeedReasoningOff reports whether a model refuses function tools on
 // Chat Completions while it reasons and accepts reasoning_effort "none" as the
 // way out. gpt-6 answers such a request with a 400 naming two exits —
 // /v1/responses, or effort "none" — on every upstream, official included.
-// gpt-6-astra takes only low through max, so for it Responses is the only exit
-// and the request is left to fail with that instruction.
+// Reasoning-only members of the family (astra, cyber, and the gpt-6.1/6.2-sol
+// line, which start at "low") reject "none", so for them Responses is the only
+// exit and Chat Completions is left untouched.
 func ChatToolsNeedReasoningOff(modelName string) bool {
 	name := strings.ToLower(strings.TrimSpace(modelName))
-	return strings.HasPrefix(name, "gpt-6") && !strings.Contains(name, "astra")
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	if !strings.HasPrefix(name, "gpt-6") {
+		return false
+	}
+	if strings.Contains(name, "astra") || strings.Contains(name, "cyber") ||
+		strings.Contains(name, "-pro") || strings.Contains(name, "codex") {
+		return false
+	}
+	if strings.HasPrefix(name, "gpt-6.") && strings.Contains(name, "-sol") {
+		return false
+	}
+	return true
 }
 
 // IsEmbeddingModel reports whether a model's name says it produces vectors:

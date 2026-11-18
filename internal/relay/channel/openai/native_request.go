@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
+	modelpkg "github.com/lazu-ai/lazu/internal/model"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/tidwall/gjson"
@@ -59,7 +59,7 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 		}
 		model := info.UpstreamModelName
 		if info.ProtocolPlan != nil && info.ProtocolPlan.Native && info.ProtocolPlan.UpstreamProtocol.Dialect == "openai" &&
-			common.ChatToolsNeedReasoningOff(model) && get("reasoning_effort").Str == "" &&
+			modelpkg.ChatToolsNeedReasoningOff(model) && get("reasoning_effort").Str == "" &&
 			!get("reasoning").Exists() && get("tools.#").Int() > 0 &&
 			get("tool_choice").Str != "none" {
 			set("reasoning_effort", "none")
