@@ -7,12 +7,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Load the single local development environment file.
+# shellcheck source=ops/scripts/lib/compose.sh
+source "${SCRIPT_DIR}/lib/compose.sh"
+
+# Load the single local development environment file (falling back to the main
+# git working tree's .env when invoked inside a linked worktree).
 # Production uses .env.production through the production compose/deploy path.
-if [[ -f "${ROOT_DIR}/.env" ]]; then
+ENV_FILE="${LAZU_ENV_FILE:-$(resolve_local_env_file "${ROOT_DIR}" || true)}"
+if [[ -n "${ENV_FILE}" && -f "${ENV_FILE}" ]]; then
   set -a
   # shellcheck disable=SC1090
-  source "${ROOT_DIR}/.env"
+  source "${ENV_FILE}"
   set +a
 fi
 
@@ -24,10 +29,8 @@ RUNTIME_TMP_DIR="${RUNTIME_DIR}/tmp"
 FRONTEND_PORT="${LAZU_FRONTEND_PORT:-5173}"
 DOCS_PORT="${LAZU_DOCS_PORT:-3002}"
 
-# shellcheck source=ops/scripts/lib/compose.sh
-source "${SCRIPT_DIR}/lib/compose.sh"
 set_compose_file "${ROOT_DIR}"
-set_compose_env_file "${ROOT_DIR}/.env"
+set_compose_env_file "${ENV_FILE:-${ROOT_DIR}/.env}"
 
 echo "=========================================="
 echo "  Lazu - Local Development Stack"
@@ -314,7 +317,7 @@ echo "[dev:docs] Starting Vocs docs app (apps/docs) at http://localhost:${DOCS_P
   cd "${DOCS_DIR}"
   if [[ ! -d node_modules ]]; then
     echo "[dev:docs] Installing docs dependencies in apps/docs..."
-    npm install --silent --no-audit --fund=false
+    npm ci --silent --no-audit --fund=false
   fi
   npm run --silent dev -- --port "${DOCS_PORT}"
 ) &

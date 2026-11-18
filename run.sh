@@ -15,7 +15,8 @@ dependencies. Use ./rebuild.sh when dependencies or build caches need a clean
 reset.
 
 Environment:
-  .env              local development configuration
+  .env              local development configuration (or the main git working
+                    tree's .env when running inside a linked git worktree)
   .env.production   production configuration for the production stack only
 EOF
 }
@@ -33,15 +34,21 @@ case "${1:-}" in
     ;;
 esac
 
-if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
-  echo "[run] Missing ${SCRIPT_DIR}/.env. Create the local development environment file first." >&2
+# shellcheck source=ops/scripts/lib/compose.sh
+source "${SCRIPT_DIR}/ops/scripts/lib/compose.sh"
+
+ENV_FILE="$(resolve_local_env_file "${SCRIPT_DIR}" || true)"
+if [[ -z "${ENV_FILE}" ]]; then
+  echo "[run] Missing ${SCRIPT_DIR}/.env. Copy .env.example to .env first." >&2
   exit 1
 fi
+
+export LAZU_ENV_FILE="${ENV_FILE}"
 
 echo "=========================================="
 echo "  Lazu - Quick Local Start"
 echo "=========================================="
-echo "[run] Environment: .env"
+echo "[run] Environment: ${ENV_FILE}"
 echo "[run] Tip: use ./rebuild.sh for a clean dependency/cache rebuild."
 echo ""
 

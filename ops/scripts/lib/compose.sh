@@ -52,6 +52,30 @@ set_compose_env_file() {
   COMPOSE_ENV_FILE="$1"
 }
 
+# Resolve the local development .env file. Prefer ${root_dir}/.env, and when
+# running inside a linked git worktree without its own .env, fall back to the
+# main working tree's .env so worktrees can run ./run.sh without copying .env.
+resolve_local_env_file() {
+  local root_dir="$1"
+  if [[ -f "${root_dir}/.env" ]]; then
+    printf '%s\n' "${root_dir}/.env"
+    return 0
+  fi
+
+  local common_git_dir=""
+  common_git_dir="$(git -C "${root_dir}" rev-parse --git-common-dir 2>/dev/null || true)"
+  if [[ -n "${common_git_dir}" ]]; then
+    local main_root=""
+    main_root="$(cd "${root_dir}" && cd "${common_git_dir}/.." 2>/dev/null && pwd || true)"
+    if [[ -n "${main_root}" && -f "${main_root}/.env" ]]; then
+      printf '%s\n' "${main_root}/.env"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
 compose_cmd_label() {
   resolve_compose_cmd
   if [[ -n "${COMPOSE_SUBCMD}" ]]; then
