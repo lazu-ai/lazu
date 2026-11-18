@@ -292,6 +292,8 @@ func mergeInputDetails(base *dto.InputTokenDetails, update dto.InputTokenDetails
 	mergeCount(&base.CachedTokensDetails.AudioTokens, update.CachedTokensDetails.AudioTokens)
 	mergeCount(&base.CachedTokensDetails.ImageTokens, update.CachedTokensDetails.ImageTokens)
 	mergeCount(&base.CacheWriteTokens, update.CacheWriteTokens)
+	mergeCount(&base.CacheWrite30mTokens, update.CacheWrite30mTokens)
+	mergeCount(&base.CacheWrite12hTokens, update.CacheWrite12hTokens)
 	mergeCount(&base.CacheMissTokens, update.CacheMissTokens)
 	mergeCount(&base.CachedCreationTokens, update.CachedCreationTokens)
 	mergeCount(&base.CachedCreation5mTokens, update.CachedCreation5mTokens)

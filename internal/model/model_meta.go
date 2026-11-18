@@ -98,24 +98,26 @@ type Model struct {
 	InfoSources       ModelInfoSources       `json:"info_sources" gorm:"type:text"`
 	InfoLocked        bool                   `json:"info_locked" gorm:"default:false"`
 
-	BoundChannels       []BoundChannel `json:"bound_channels,omitempty" gorm:"-"`
-	EnableGroups        []string       `json:"enable_groups,omitempty" gorm:"-"`
-	QuotaTypes          []int          `json:"quota_types,omitempty" gorm:"-"`
-	QuotaType           *int           `json:"quota_type,omitempty" gorm:"-"`
-	InputPerMtok        *float64       `json:"input_per_mtok,omitempty" gorm:"-"`
-	OutputPerMtok       *float64       `json:"output_per_mtok,omitempty" gorm:"-"`
-	CacheReadPerMtok    *float64       `json:"cache_read_per_mtok,omitempty" gorm:"-"`
-	CacheWrite5mPerMtok *float64       `json:"cache_write_5m_per_mtok,omitempty" gorm:"-"`
-	CacheWrite1hPerMtok *float64       `json:"cache_write_1h_per_mtok,omitempty" gorm:"-"`
-	AudioInputPerMtok   *float64       `json:"audio_input_per_mtok,omitempty" gorm:"-"`
-	AudioOutputPerMtok  *float64       `json:"audio_output_per_mtok,omitempty" gorm:"-"`
-	ImageInputPerMtok   *float64       `json:"image_input_per_mtok,omitempty" gorm:"-"`
-	ImageOutputPerMtok  *float64       `json:"image_output_per_mtok,omitempty" gorm:"-"`
-	RequestUSD          *float64       `json:"request_usd,omitempty" gorm:"-"`
-	SecondUSD           *float64       `json:"second_usd,omitempty" gorm:"-"`
-	PricingVersion      int64          `json:"pricing_version,omitempty" gorm:"-"`
-	Lanes               []PricingLane  `json:"lanes,omitempty" gorm:"-"`
-	NameRule            int            `json:"name_rule" gorm:"default:0"`
+	BoundChannels        []BoundChannel `json:"bound_channels,omitempty" gorm:"-"`
+	EnableGroups         []string       `json:"enable_groups,omitempty" gorm:"-"`
+	QuotaTypes           []int          `json:"quota_types,omitempty" gorm:"-"`
+	QuotaType            *int           `json:"quota_type,omitempty" gorm:"-"`
+	InputPerMtok         *float64       `json:"input_per_mtok,omitempty" gorm:"-"`
+	OutputPerMtok        *float64       `json:"output_per_mtok,omitempty" gorm:"-"`
+	CacheReadPerMtok     *float64       `json:"cache_read_per_mtok,omitempty" gorm:"-"`
+	CacheWrite5mPerMtok  *float64       `json:"cache_write_5m_per_mtok,omitempty" gorm:"-"`
+	CacheWrite30mPerMtok *float64       `json:"cache_write_30m_per_mtok,omitempty" gorm:"-"`
+	CacheWrite12hPerMtok *float64       `json:"cache_write_12h_per_mtok,omitempty" gorm:"-"`
+	CacheWrite1hPerMtok  *float64       `json:"cache_write_1h_per_mtok,omitempty" gorm:"-"`
+	AudioInputPerMtok    *float64       `json:"audio_input_per_mtok,omitempty" gorm:"-"`
+	AudioOutputPerMtok   *float64       `json:"audio_output_per_mtok,omitempty" gorm:"-"`
+	ImageInputPerMtok    *float64       `json:"image_input_per_mtok,omitempty" gorm:"-"`
+	ImageOutputPerMtok   *float64       `json:"image_output_per_mtok,omitempty" gorm:"-"`
+	RequestUSD           *float64       `json:"request_usd,omitempty" gorm:"-"`
+	SecondUSD            *float64       `json:"second_usd,omitempty" gorm:"-"`
+	PricingVersion       int64          `json:"pricing_version,omitempty" gorm:"-"`
+	Lanes                []PricingLane  `json:"lanes,omitempty" gorm:"-"`
+	NameRule             int            `json:"name_rule" gorm:"default:0"`
 
 	// MakerResolved is the maker the catalog groups this model under — the
 	// stored maker, else inferred from the name or vendor.
@@ -323,6 +325,8 @@ func (mi *Model) applyModelSellPrice(sellPrice ModelSellPrice) {
 	mi.OutputPerMtok = sellPrice.OutputPerMtok
 	mi.CacheReadPerMtok = sellPrice.CacheReadPerMtok
 	mi.CacheWrite5mPerMtok = sellPrice.CacheWrite5mPerMtok
+	mi.CacheWrite30mPerMtok = sellPrice.CacheWrite30mPerMtok
+	mi.CacheWrite12hPerMtok = sellPrice.CacheWrite12hPerMtok
 	mi.CacheWrite1hPerMtok = sellPrice.CacheWrite1hPerMtok
 	mi.AudioInputPerMtok = sellPrice.AudioInputPerMtok
 	mi.AudioOutputPerMtok = sellPrice.AudioOutputPerMtok
@@ -348,6 +352,8 @@ func hasTokenPrice(sellPrice ModelSellPrice) bool {
 		sellPrice.OutputPerMtok != nil ||
 		sellPrice.CacheReadPerMtok != nil ||
 		sellPrice.CacheWrite5mPerMtok != nil ||
+		sellPrice.CacheWrite30mPerMtok != nil ||
+		sellPrice.CacheWrite12hPerMtok != nil ||
 		sellPrice.CacheWrite1hPerMtok != nil ||
 		sellPrice.AudioInputPerMtok != nil ||
 		sellPrice.AudioOutputPerMtok != nil ||

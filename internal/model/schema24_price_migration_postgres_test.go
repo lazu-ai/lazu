@@ -128,10 +128,10 @@ func TestPostgresSchema24PriceUpgradePreservesFollowingFieldsAndMoney(t *testing
 		var rows []string
 		projection := "to_jsonb(row)"
 		if table == "model_sell_prices" {
-			// Schemas 28 and 35 add nullable image and video price sheets.
+			// Schemas 28, 36 and 39 add nullable image/video sheets and cache lifetimes.
 			// Compare all historical fields exactly, and assert the new fields
 			// stay NULL separately.
-			projection = "(to_jsonb(row) - 'image_pricing' - 'video_pricing')"
+			projection = "(to_jsonb(row) - ARRAY['image_pricing', 'video_pricing', 'cache_write30m_per_mtok', 'cache_write12h_per_mtok', 'context_tier_cache_write30m_per_mtok', 'context_tier_cache_write12h_per_mtok'])"
 		}
 		if err := db.Raw("SELECT " + projection + "::text FROM " + table + " row ORDER BY id").Scan(&rows).Error; err != nil {
 			t.Fatal(err)
@@ -157,6 +157,12 @@ func TestPostgresSchema24PriceUpgradePreservesFollowingFieldsAndMoney(t *testing
 		var videoPriceCount int64
 		if err := db.Table("model_sell_prices").Where("video_pricing IS NOT NULL").Count(&videoPriceCount).Error; err != nil || videoPriceCount != 0 {
 			t.Fatalf("upgrade attempt %d added video prices to historical rows: count=%d err=%v", attempt, videoPriceCount, err)
+		}
+		for _, table := range []string{"model_sell_prices", "provider_cost_prices"} {
+			var count int64
+			if err := db.Table(table).Where("cache_write30m_per_mtok IS NOT NULL OR cache_write12h_per_mtok IS NOT NULL OR context_tier_cache_write30m_per_mtok IS NOT NULL OR context_tier_cache_write12h_per_mtok IS NOT NULL").Count(&count).Error; err != nil || count != 0 {
+				t.Fatalf("upgrade attempt %d populated new cache prices in %s: count=%d err=%v", attempt, table, count, err)
+			}
 		}
 		if after := readRows("wallet_ledgers"); !reflect.DeepEqual(after, ledgerBefore) {
 			t.Fatalf("upgrade attempt %d changed historical wallet facts", attempt)

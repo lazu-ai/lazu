@@ -720,6 +720,8 @@ const lineItemLabel = (dimension: unknown, t: TFunction) => {
     cache_read: t('page.console.log.detail.cacheRead'),
     cache_write: t('page.console.log.detail.cacheWrite'),
     cache_write_5m: t('page.console.log.detail.cacheWrite5m'),
+    cache_write_30m: t('page.console.log.detail.cacheWrite30m'),
+    cache_write_12h: t('page.console.log.detail.cacheWrite12h'),
     cache_write_1h: t('page.console.log.detail.cacheWrite1h'),
     image_input: t('page.console.log.detail.imageInput'),
     image_output: t('page.console.log.detail.imageOutput'),
@@ -774,6 +776,8 @@ const LEDGER_ORDER: Record<string, number> = {
   cache_write: 3,
   cache_write_5m: 3,
   cache_write_1h: 4,
+  cache_write_30m: 3,
+  cache_write_12h: 4,
   audio_input: 5,
   output: 6,
   image_output: 7,
@@ -788,6 +792,8 @@ const LEDGER_TONE: Record<string, LedgerTone> = {
   cache_write: 'cacheWrite',
   cache_write_5m: 'cacheWrite',
   cache_write_1h: 'cacheWrite1h',
+  cache_write_30m: 'cacheWrite',
+  cache_write_12h: 'cacheWrite1h',
   image_input: 'image',
   image_output: 'image',
   audio_input: 'audio',
@@ -888,6 +894,10 @@ function buildLedgerRows(record: LogRecord, t: TFunction): LedgerRow[] {
 }
 
 const ledgerLabel = (dimension: string, t: TFunction) => {
+  if (dimension === 'cache_write_30m')
+    return t('page.console.log.m3.cacheWrite30m');
+  if (dimension === 'cache_write_12h')
+    return t('page.console.log.m3.cacheWrite12h');
   if (dimension === 'cache_write_5m')
     return t('page.console.log.m3.cacheWrite5m');
   if (dimension === 'cache_write_1h')

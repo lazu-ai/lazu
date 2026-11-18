@@ -18,6 +18,8 @@ export type LanePrice = {
   video_pricing?: VideoPricing | null;
   cache_read_per_mtok?: number | null;
   cache_write_5m_per_mtok?: number | null;
+  cache_write_30m_per_mtok?: number | null;
+  cache_write_12h_per_mtok?: number | null;
   cache_write_1h_per_mtok?: number | null;
   billing_mode?: BillingMode;
   enabled?: boolean;
@@ -34,6 +36,8 @@ export type LanePrice = {
   context_tier_output_per_mtok?: number | null;
   context_tier_cache_read_per_mtok?: number | null;
   context_tier_cache_write_5m_per_mtok?: number | null;
+  context_tier_cache_write_30m_per_mtok?: number | null;
+  context_tier_cache_write_12h_per_mtok?: number | null;
   context_tier_cache_write_1h_per_mtok?: number | null;
   /** The lane is priced as a percent of the official price (see
    *  ratioPricing.ts); price_ratio null = the lane's default ratio. */
@@ -121,6 +125,8 @@ export const toLane = (row: SellPriceRow): LanePrice => ({
   output_per_million: row.output_per_mtok ?? row.output_per_million ?? null,
   cache_read_per_mtok: row.cache_read_per_mtok,
   cache_write_5m_per_mtok: row.cache_write_5m_per_mtok,
+  cache_write_30m_per_mtok: row.cache_write_30m_per_mtok,
+  cache_write_12h_per_mtok: row.cache_write_12h_per_mtok,
   cache_write_1h_per_mtok: row.cache_write_1h_per_mtok,
   peak_hours_utc: row.peak_hours_utc ?? null,
   peak_multiplier: row.peak_multiplier ?? null,
@@ -133,6 +139,10 @@ export const toLane = (row: SellPriceRow): LanePrice => ({
     row.context_tier_cache_read_per_mtok ?? null,
   context_tier_cache_write_5m_per_mtok:
     row.context_tier_cache_write_5m_per_mtok ?? null,
+  context_tier_cache_write_30m_per_mtok:
+    row.context_tier_cache_write_30m_per_mtok ?? null,
+  context_tier_cache_write_12h_per_mtok:
+    row.context_tier_cache_write_12h_per_mtok ?? null,
   context_tier_cache_write_1h_per_mtok:
     row.context_tier_cache_write_1h_per_mtok ?? null,
   follow_official: Boolean(row.follow_official),
@@ -176,6 +186,12 @@ export const editedFields = (
   ...(value.cache_write_5m_per_mtok !== undefined
     ? { cache_write_5m_per_mtok: value.cache_write_5m_per_mtok }
     : {}),
+  ...(value.cache_write_30m_per_mtok !== undefined
+    ? { cache_write_30m_per_mtok: value.cache_write_30m_per_mtok }
+    : {}),
+  ...(value.cache_write_12h_per_mtok !== undefined
+    ? { cache_write_12h_per_mtok: value.cache_write_12h_per_mtok }
+    : {}),
   ...(value.cache_write_1h_per_mtok !== undefined
     ? { cache_write_1h_per_mtok: value.cache_write_1h_per_mtok }
     : {}),
@@ -206,6 +222,12 @@ export const contextTierFields = (
     ),
     context_tier_cache_write_5m_per_mtok: keep(
       value.context_tier_cache_write_5m_per_mtok,
+    ),
+    context_tier_cache_write_30m_per_mtok: keep(
+      value.context_tier_cache_write_30m_per_mtok,
+    ),
+    context_tier_cache_write_12h_per_mtok: keep(
+      value.context_tier_cache_write_12h_per_mtok,
     ),
     context_tier_cache_write_1h_per_mtok: keep(
       value.context_tier_cache_write_1h_per_mtok,

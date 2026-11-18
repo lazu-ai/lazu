@@ -13,6 +13,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
+	usagepkg "github.com/lazu-ai/lazu/internal/usage"
 	"github.com/lazu-ai/lazu/pkg/billing"
 )
 
@@ -1105,4 +1106,17 @@ func TestCatalogReplacementHidesAliasFromListingsAndStillRetrieves(t *testing.T)
 	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &item) != nil || item.ID != "old-model" {
 		t.Fatalf("retrieve alias: %d %s", w.Code, w.Body.String())
 	}
+}
+
+func TestCatalogExplicitCacheLifetimes(t *testing.T) {
+	short, long := 2.5, 5.0
+	p := buildCatalogPricingWithAdjustment(true, model.Pricing{InputPerMtok: &short, CacheWrite30mPerMtok: &short, CacheWrite12hPerMtok: &long, ContextTier: &model.ContextTierPrice{Threshold: 272000, CacheWrite30mPerMtok: &long}}, 1)
+	if p.CacheWrite30m == nil || *p.CacheWrite30m != 2.5 || p.CacheWrite12h == nil || *p.CacheWrite12h != 5 || p.CacheWrite5m != nil {
+		t.Fatalf("wrong public TTL prices: %+v", p)
+	}
+	if p.ContextTier == nil || p.ContextTier.CacheWrite30m == nil || *p.ContextTier.CacheWrite30m != 5 {
+		t.Fatalf("tier missing: %+v", p.ContextTier)
+	}
+	fields := buildCatalogUsageResponseFields("openai", []string{usagepkg.DimensionCacheWrite30m, usagepkg.DimensionCacheWrite12h})
+	assertStringSliceContains(t, fields["openai_compatible"], "usage.input_tokens_details.cache_write_tokens_details.ttl_12h_tokens")
 }

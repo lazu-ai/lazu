@@ -46,7 +46,7 @@ func publicCatalog() (publicsite.Catalog, error) {
 		officialCache[pricing.ModelName] = [2]float64{pricing.OfficialCacheReadPerMtok, pricing.OfficialCacheWritePerMtok}
 		if tier := pricing.OfficialContextTier; tier != nil && tier.Threshold > 0 {
 			officialTiers[pricing.ModelName] = &publicsite.ContextTier{Threshold: tier.Threshold, Input: tier.InputPerMtok,
-				Output: tier.OutputPerMtok, CacheRead: tier.CacheReadPerMtok, CacheWrite5m: tier.CacheWrite5mPerMtok}
+				Output: tier.OutputPerMtok, CacheRead: tier.CacheReadPerMtok, CacheWrite5m: tier.CacheWrite5mPerMtok, CacheWrite30m: tier.CacheWrite30mPerMtok, CacheWrite12h: tier.CacheWrite12hPerMtok}
 		}
 		// Official prices are USD per million tokens; anything under a
 		// thousandth of a dollar is a per-token figure that slipped through

@@ -12,6 +12,8 @@ const (
 	DimensionCacheWrite      = "cache_write"
 	DimensionCacheWrite5m    = "cache_write_5m"
 	DimensionCacheWrite1h    = "cache_write_1h"
+	DimensionCacheWrite30m   = "cache_write_30m"
+	DimensionCacheWrite12h   = "cache_write_12h"
 	DimensionCacheMiss       = "cache_miss"
 	DimensionAudioInput      = "audio_input"
 	DimensionAudioOutput     = "audio_output"
@@ -39,22 +41,24 @@ type DimensionUsage struct {
 }
 
 type Summary struct {
-	PromptTokens       int
-	CompletionTokens   int
-	TotalTokens        int
-	InputTokens        int
-	OutputTokens       int
-	CacheReadTokens    int
-	CacheWriteTokens   int
-	CacheWrite5mTokens int
-	CacheWrite1hTokens int
-	CacheMissTokens    int
-	AudioInputTokens   int
-	AudioOutputTokens  int
-	ImageInputTokens   int
-	ImageOutputTokens  int
-	ReasoningTokens    int
-	Dimensions         []DimensionUsage
+	PromptTokens        int
+	CompletionTokens    int
+	TotalTokens         int
+	InputTokens         int
+	OutputTokens        int
+	CacheReadTokens     int
+	CacheWriteTokens    int
+	CacheWrite5mTokens  int
+	CacheWrite1hTokens  int
+	CacheWrite30mTokens int
+	CacheWrite12hTokens int
+	CacheMissTokens     int
+	AudioInputTokens    int
+	AudioOutputTokens   int
+	ImageInputTokens    int
+	ImageOutputTokens   int
+	ReasoningTokens     int
+	Dimensions          []DimensionUsage
 }
 
 func NormalizeDTOUsageFields(usage *dto.Usage) {
@@ -95,14 +99,15 @@ func SummaryFromDTO(usage *dto.Usage) Summary {
 	details := usage.PromptTokensDetails
 	cacheWrite5m := details.CachedCreation5mTokens
 	cacheWrite1h := details.CachedCreation1hTokens
+	cacheWrite30m, cacheWrite12h := details.CacheWrite30mTokens, details.CacheWrite12hTokens
 	cacheWriteTotal := details.CacheWriteTokens
 	if cacheWriteTotal == 0 {
 		cacheWriteTotal = details.CachedCreationTokens
 	}
 	if cacheWriteTotal == 0 {
-		cacheWriteTotal = cacheWrite5m + cacheWrite1h
+		cacheWriteTotal = cacheWrite5m + cacheWrite1h + cacheWrite30m + cacheWrite12h
 	}
-	cacheWriteUnknown := cacheWriteTotal - cacheWrite5m - cacheWrite1h
+	cacheWriteUnknown := cacheWriteTotal - cacheWrite5m - cacheWrite1h - cacheWrite30m - cacheWrite12h
 	if cacheWriteUnknown < 0 {
 		cacheWriteUnknown = 0
 	}
@@ -119,21 +124,23 @@ func SummaryFromDTO(usage *dto.Usage) Summary {
 		outputTokens = 0
 	}
 	summary := Summary{
-		PromptTokens:       usage.PromptTokens,
-		CompletionTokens:   usage.CompletionTokens,
-		TotalTokens:        usage.TotalTokens,
-		InputTokens:        inputTokens,
-		OutputTokens:       outputTokens,
-		CacheReadTokens:    details.CachedTokens,
-		CacheWriteTokens:   cacheWriteTotal,
-		CacheWrite5mTokens: cacheWrite5m,
-		CacheWrite1hTokens: cacheWrite1h,
-		CacheMissTokens:    details.CacheMissTokens,
-		AudioInputTokens:   audioInputTokens,
-		AudioOutputTokens:  usage.CompletionTokenDetails.AudioTokens,
-		ImageInputTokens:   imageInputTokens,
-		ImageOutputTokens:  usage.CompletionTokenDetails.ImageTokens,
-		ReasoningTokens:    usage.CompletionTokenDetails.ReasoningTokens,
+		PromptTokens:        usage.PromptTokens,
+		CompletionTokens:    usage.CompletionTokens,
+		TotalTokens:         usage.TotalTokens,
+		InputTokens:         inputTokens,
+		OutputTokens:        outputTokens,
+		CacheReadTokens:     details.CachedTokens,
+		CacheWriteTokens:    cacheWriteTotal,
+		CacheWrite5mTokens:  cacheWrite5m,
+		CacheWrite1hTokens:  cacheWrite1h,
+		CacheWrite30mTokens: cacheWrite30m,
+		CacheWrite12hTokens: cacheWrite12h,
+		CacheMissTokens:     details.CacheMissTokens,
+		AudioInputTokens:    audioInputTokens,
+		AudioOutputTokens:   usage.CompletionTokenDetails.AudioTokens,
+		ImageInputTokens:    imageInputTokens,
+		ImageOutputTokens:   usage.CompletionTokenDetails.ImageTokens,
+		ReasoningTokens:     usage.CompletionTokenDetails.ReasoningTokens,
 	}
 	addTokenDimension := func(name string, quantity int) {
 		if quantity > 0 {
@@ -145,6 +152,8 @@ func SummaryFromDTO(usage *dto.Usage) Summary {
 	addTokenDimension(DimensionCacheWrite, cacheWriteUnknown)
 	addTokenDimension(DimensionCacheWrite5m, cacheWrite5m)
 	addTokenDimension(DimensionCacheWrite1h, cacheWrite1h)
+	addTokenDimension(DimensionCacheWrite30m, cacheWrite30m)
+	addTokenDimension(DimensionCacheWrite12h, cacheWrite12h)
 	addTokenDimension(DimensionCacheMiss, details.CacheMissTokens)
 	addTokenDimension(DimensionAudioInput, audioInputTokens)
 	addTokenDimension(DimensionImageInput, imageInputTokens)
@@ -204,20 +213,22 @@ func billableInputModalities(details dto.InputTokenDetails) (int, int) {
 func BillingUsageFromSummary(summary Summary) billing.Usage {
 	cacheWrite5m := summary.CacheWrite5mTokens
 	cacheWrite1h := summary.CacheWrite1hTokens
-	cacheWriteUnknown := summary.CacheWriteTokens - cacheWrite5m - cacheWrite1h
+	cacheWriteUnknown := summary.CacheWriteTokens - cacheWrite5m - cacheWrite1h - summary.CacheWrite30mTokens - summary.CacheWrite12hTokens
 	if cacheWriteUnknown > 0 {
 		cacheWrite5m += cacheWriteUnknown
 	}
 	return billing.Usage{
-		InputTokens:        int64(summary.InputTokens),
-		OutputTokens:       int64(summary.OutputTokens),
-		CacheReadTokens:    int64(summary.CacheReadTokens),
-		CacheWrite5mTokens: int64(cacheWrite5m),
-		CacheWrite1hTokens: int64(cacheWrite1h),
-		AudioInputTokens:   int64(summary.AudioInputTokens),
-		AudioOutputTokens:  int64(summary.AudioOutputTokens),
-		ImageInputTokens:   int64(summary.ImageInputTokens),
-		ImageOutputTokens:  int64(summary.ImageOutputTokens),
+		InputTokens:         int64(summary.InputTokens),
+		OutputTokens:        int64(summary.OutputTokens),
+		CacheReadTokens:     int64(summary.CacheReadTokens),
+		CacheWrite5mTokens:  int64(cacheWrite5m),
+		CacheWrite1hTokens:  int64(cacheWrite1h),
+		CacheWrite30mTokens: int64(summary.CacheWrite30mTokens),
+		CacheWrite12hTokens: int64(summary.CacheWrite12hTokens),
+		AudioInputTokens:    int64(summary.AudioInputTokens),
+		AudioOutputTokens:   int64(summary.AudioOutputTokens),
+		ImageInputTokens:    int64(summary.ImageInputTokens),
+		ImageOutputTokens:   int64(summary.ImageOutputTokens),
 	}
 }
 
@@ -233,6 +244,12 @@ func mergeInputTokenDetails(target *dto.InputTokenDetails, source dto.InputToken
 	}
 	if target.CachedTokensDetails.ImageTokens == 0 {
 		target.CachedTokensDetails.ImageTokens = source.CachedTokensDetails.ImageTokens
+	}
+	if target.CacheWrite30mTokens == 0 {
+		target.CacheWrite30mTokens = source.CacheWrite30mTokens
+	}
+	if target.CacheWrite12hTokens == 0 {
+		target.CacheWrite12hTokens = source.CacheWrite12hTokens
 	}
 	if target.CacheWriteTokens == 0 {
 		target.CacheWriteTokens = source.CacheWriteTokens
@@ -286,10 +303,10 @@ func normalizeInputTokenDetails(details *dto.InputTokenDetails) {
 		if details.CachedCreationTokens > 0 {
 			details.CacheWriteTokens = details.CachedCreationTokens
 		} else {
-			details.CacheWriteTokens = details.CachedCreation5mTokens + details.CachedCreation1hTokens
+			details.CacheWriteTokens = details.CachedCreation5mTokens + details.CachedCreation1hTokens + details.CacheWrite30mTokens + details.CacheWrite12hTokens
 		}
 	}
 	if details.CachedCreationTokens == 0 {
-		details.CachedCreationTokens = details.CachedCreation5mTokens + details.CachedCreation1hTokens
+		details.CachedCreationTokens = details.CachedCreation5mTokens + details.CachedCreation1hTokens + details.CacheWrite30mTokens + details.CacheWrite12hTokens
 	}
 }

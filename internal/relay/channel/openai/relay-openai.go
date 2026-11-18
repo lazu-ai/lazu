@@ -1042,6 +1042,8 @@ func accumulateRealtimeUsage(target *dto.RealtimeUsage, source *dto.RealtimeUsag
 	target.InputTokenDetails.CachedTokensDetails.AudioTokens += source.InputTokenDetails.CachedTokensDetails.AudioTokens
 	target.InputTokenDetails.CachedTokensDetails.ImageTokens += source.InputTokenDetails.CachedTokensDetails.ImageTokens
 	target.InputTokenDetails.CacheWriteTokens += source.InputTokenDetails.CacheWriteTokens
+	target.InputTokenDetails.CacheWrite30mTokens += source.InputTokenDetails.CacheWrite30mTokens
+	target.InputTokenDetails.CacheWrite12hTokens += source.InputTokenDetails.CacheWrite12hTokens
 	target.InputTokenDetails.CacheMissTokens += source.InputTokenDetails.CacheMissTokens
 	target.InputTokenDetails.CachedCreationTokens += source.InputTokenDetails.CachedCreationTokens
 	target.InputTokenDetails.CachedCreation5mTokens += source.InputTokenDetails.CachedCreation5mTokens

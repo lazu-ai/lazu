@@ -142,6 +142,8 @@ func isPerCallSellPrice(price model.ModelSellPrice) bool {
 		price.OutputPerMtok == nil &&
 		price.CacheReadPerMtok == nil &&
 		price.CacheWrite5mPerMtok == nil &&
+		price.CacheWrite30mPerMtok == nil &&
+		price.CacheWrite12hPerMtok == nil &&
 		price.CacheWrite1hPerMtok == nil &&
 		price.AudioInputPerMtok == nil &&
 		price.AudioOutputPerMtok == nil &&

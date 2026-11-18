@@ -193,11 +193,13 @@ func stripTags(value string) string {
 // ModelJSON is the /models/<maker>/<id>.json document.
 func ModelJSON(catalog Catalog, model Model) ([]byte, error) {
 	type tierDoc struct {
-		ThresholdTokens  int64    `json:"threshold_tokens"`
-		InputPerMillion  *float64 `json:"input_per_million,omitempty"`
-		OutputPerMillion *float64 `json:"output_per_million,omitempty"`
-		CacheReadPerM    *float64 `json:"cache_read_per_million,omitempty"`
-		CacheWrite5mPerM *float64 `json:"cache_write_5m_per_million,omitempty"`
+		ThresholdTokens   int64    `json:"threshold_tokens"`
+		InputPerMillion   *float64 `json:"input_per_million,omitempty"`
+		OutputPerMillion  *float64 `json:"output_per_million,omitempty"`
+		CacheReadPerM     *float64 `json:"cache_read_per_million,omitempty"`
+		CacheWrite5mPerM  *float64 `json:"cache_write_5m_per_million,omitempty"`
+		CacheWrite30mPerM *float64 `json:"cache_write_30m_per_million,omitempty"`
+		CacheWrite12hPerM *float64 `json:"cache_write_12h_per_million,omitempty"`
 	}
 	tierOf := func(tier *ContextTier, base ListPrice, read, write *float64) *tierDoc {
 		if tier == nil || tier.Threshold <= 0 {
@@ -205,19 +207,21 @@ func ModelJSON(catalog Catalog, model Model) ([]byte, error) {
 		}
 		input, output, cacheRead, cacheWrite := TierPrices(tier, base, read, write)
 		return &tierDoc{ThresholdTokens: tier.Threshold, InputPerMillion: input, OutputPerMillion: output,
-			CacheReadPerM: cacheRead, CacheWrite5mPerM: cacheWrite}
+			CacheReadPerM: cacheRead, CacheWrite5mPerM: cacheWrite, CacheWrite30mPerM: tier.CacheWrite30m, CacheWrite12hPerM: tier.CacheWrite12h}
 	}
 	type laneDoc struct {
-		Lane             string   `json:"lane"`
-		Available        bool     `json:"available"`
-		InputPerMillion  *float64 `json:"input_per_million,omitempty"`
-		OutputPerMillion *float64 `json:"output_per_million,omitempty"`
-		CacheReadPerM    *float64 `json:"cache_read_per_million,omitempty"`
-		CacheWrite5mPerM *float64 `json:"cache_write_5m_per_million,omitempty"`
-		PerCall          *float64 `json:"per_call,omitempty"`
-		PerSecond        *float64 `json:"per_second,omitempty"`
-		Availability7d   *float64 `json:"availability_7d,omitempty"`
-		Status           string   `json:"status,omitempty"`
+		Lane              string   `json:"lane"`
+		Available         bool     `json:"available"`
+		InputPerMillion   *float64 `json:"input_per_million,omitempty"`
+		OutputPerMillion  *float64 `json:"output_per_million,omitempty"`
+		CacheReadPerM     *float64 `json:"cache_read_per_million,omitempty"`
+		CacheWrite5mPerM  *float64 `json:"cache_write_5m_per_million,omitempty"`
+		CacheWrite30mPerM *float64 `json:"cache_write_30m_per_million,omitempty"`
+		CacheWrite12hPerM *float64 `json:"cache_write_12h_per_million,omitempty"`
+		PerCall           *float64 `json:"per_call,omitempty"`
+		PerSecond         *float64 `json:"per_second,omitempty"`
+		Availability7d    *float64 `json:"availability_7d,omitempty"`
+		Status            string   `json:"status,omitempty"`
 		// ContextTier: past threshold input tokens (cache included) the whole
 		// request is billed at these per-million prices.
 		ContextTier *tierDoc `json:"context_tier,omitempty"`
@@ -258,6 +262,14 @@ func ModelJSON(catalog Catalog, model Model) ([]byte, error) {
 		entry := laneDoc{Lane: lane.Key, Available: LaneOn(lane), InputPerMillion: list.Input, OutputPerMillion: list.Output,
 			CacheReadPerM: read, CacheWrite5mPerM: write, PerCall: list.PerCall, PerSecond: list.PerSecond,
 			Status: LaneStatus(lane.Health), ContextTier: tierOf(LaneTier(lane, model), list, read, write)}
+		p := lane.Pricing
+		if p == nil && lane.Key == "stable" {
+			p = model.Pricing
+		}
+		if p != nil {
+			entry.CacheWrite30mPerM = p.CacheWrite30m
+			entry.CacheWrite12hPerM = p.CacheWrite12h
+		}
 		if lane.Health != nil {
 			entry.Availability7d = lane.Health.Availability
 		}

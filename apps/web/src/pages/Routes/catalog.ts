@@ -48,6 +48,8 @@ export type ContextTier = {
   cache_read?: number;
   cache_write_1h?: number;
   cache_write_5m?: number;
+  cache_write_30m?: number;
+  cache_write_12h?: number;
   input?: number;
   output?: number;
   threshold: number;
@@ -66,7 +68,11 @@ export type CatalogPricing = {
   cache_write_1h?: number;
   cache_write_1h_per_million?: number;
   cache_write_5m?: number;
+  cache_write_30m?: number;
+  cache_write_12h?: number;
   cache_write_5m_per_million?: number;
+  cache_write_30m_per_million?: number;
+  cache_write_12h_per_million?: number;
   image_input?: number;
   image_output?: number;
   input?: number;
@@ -490,6 +496,8 @@ export const laneContextTiers = (
     output: scale(tier.output ?? price?.output),
     cache_read: scale(tier.cache_read ?? price?.cache_read),
     cache_write_5m: scale(tier.cache_write_5m ?? price?.cache_write_5m),
+    cache_write_30m: scale(tier.cache_write_30m ?? price?.cache_write_30m),
+    cache_write_12h: scale(tier.cache_write_12h ?? price?.cache_write_12h),
     cache_write_1h: scale(tier.cache_write_1h ?? price?.cache_write_1h),
   }));
 };

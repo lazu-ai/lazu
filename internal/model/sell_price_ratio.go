@@ -137,6 +137,8 @@ func DeriveFollowingSellPrice(row ModelSellPrice, official ModelOfficialPrice) M
 			out.ContextTierCacheReadPerMtok = nil
 			out.ContextTierCacheWrite5mPerMtok = nil
 			out.ContextTierCacheWrite1hPerMtok = nil
+			out.ContextTierCacheWrite30mPerMtok = nil
+			out.ContextTierCacheWrite12hPerMtok = nil
 		} else {
 			scale := func(list *float64) *float64 {
 				if list == nil || *list < 0 {
@@ -151,6 +153,8 @@ func DeriveFollowingSellPrice(row ModelSellPrice, official ModelOfficialPrice) M
 			out.ContextTierCacheReadPerMtok = scale(tier.CacheReadPerMtok)
 			out.ContextTierCacheWrite5mPerMtok = scale(tier.CacheWrite5mPerMtok)
 			out.ContextTierCacheWrite1hPerMtok = scale(tier.CacheWrite1hPerMtok)
+			out.ContextTierCacheWrite30mPerMtok = scale(tier.CacheWrite30mPerMtok)
+			out.ContextTierCacheWrite12hPerMtok = scale(tier.CacheWrite12hPerMtok)
 		}
 	}
 	return out
@@ -170,12 +174,16 @@ func SellPriceDerivedFieldsEqual(a, b ModelSellPrice) bool {
 		sellPriceValuesEqual(a.OutputPerMtok, b.OutputPerMtok) &&
 		sellPriceValuesEqual(a.CacheReadPerMtok, b.CacheReadPerMtok) &&
 		sellPriceValuesEqual(a.CacheWrite5mPerMtok, b.CacheWrite5mPerMtok) &&
+		sellPriceValuesEqual(a.CacheWrite30mPerMtok, b.CacheWrite30mPerMtok) &&
+		sellPriceValuesEqual(a.CacheWrite12hPerMtok, b.CacheWrite12hPerMtok) &&
 		sellPriceValuesEqual(a.CacheWrite1hPerMtok, b.CacheWrite1hPerMtok) &&
 		a.ContextTierThreshold == b.ContextTierThreshold &&
 		sellPriceValuesEqual(a.ContextTierInputPerMtok, b.ContextTierInputPerMtok) &&
 		sellPriceValuesEqual(a.ContextTierOutputPerMtok, b.ContextTierOutputPerMtok) &&
 		sellPriceValuesEqual(a.ContextTierCacheReadPerMtok, b.ContextTierCacheReadPerMtok) &&
 		sellPriceValuesEqual(a.ContextTierCacheWrite5mPerMtok, b.ContextTierCacheWrite5mPerMtok) &&
+		sellPriceValuesEqual(a.ContextTierCacheWrite30mPerMtok, b.ContextTierCacheWrite30mPerMtok) &&
+		sellPriceValuesEqual(a.ContextTierCacheWrite12hPerMtok, b.ContextTierCacheWrite12hPerMtok) &&
 		sellPriceValuesEqual(a.ContextTierCacheWrite1hPerMtok, b.ContextTierCacheWrite1hPerMtok)
 }
 

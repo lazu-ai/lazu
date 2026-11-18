@@ -275,3 +275,25 @@ describe('contextTierFields', () => {
     ).toBe(0);
   });
 });
+
+it('keeps explicit OpenAI cache lifetime prices across a lane edit', () => {
+  const current: SellPriceRow = {
+    model_name: 'cache-model',
+    channel_group: 'direct',
+    active: true,
+    input_per_mtok: 2,
+    output_per_mtok: 10,
+    cache_write_30m_per_mtok: 2.5,
+    cache_write_12h_per_mtok: 5,
+    context_tier_threshold: 272000,
+    context_tier_cache_write_30m_per_mtok: 5,
+    context_tier_cache_write_12h_per_mtok: 10,
+  };
+  const models = groupSellPrices([current]);
+  models[0].stable!.input_per_million = 3;
+  const payload = lanePayload(models[0], 'stable', current);
+  expect(payload.cache_write_30m_per_mtok).toBe(2.5);
+  expect(payload.cache_write_12h_per_mtok).toBe(5);
+  expect(payload.context_tier_cache_write_30m_per_mtok).toBe(5);
+  expect(payload.context_tier_cache_write_12h_per_mtok).toBe(10);
+});
