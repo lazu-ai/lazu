@@ -266,7 +266,6 @@ test('来源 list is a table with state, upstream change and health columns', as
   const healthy = page.getByRole('row', { name: 'OpenAI smoke channel' });
   await expect(healthy).toContainText('+1');
   await expect(healthy).toContainText('−1');
-  await expect(healthy).toContainText('待核对');
   // The default lane goes unlabelled; another lane is named on the row.
   await expect(
     page.getByRole('row', { name: 'Budget smoke channel' }),
@@ -282,9 +281,11 @@ test('来源 list is a table with state, upstream change and health columns', as
   await expect(page.getByRole('menuitem', { name: '删除' })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  // The row opens the source's own page.
+  // The row opens a centered dialog over the sources list without leaving it.
   await healthy.click();
   await expect(page).toHaveURL(/\/console\/model-ops\/sources\/1$/);
+  await expect(page.getByRole('dialog')).toContainText('OpenAI smoke channel');
+  await expect(page.locator('.src-list')).toBeVisible();
   await expect(page.locator('body')).not.toContainText('sk-smoke-channel-key');
 
   await app.expectNoUnexpectedErrors();
@@ -413,7 +414,7 @@ test('a watched source shows its badge, progress and problems in the status colu
   await app.expectNoUnexpectedErrors();
 });
 
-test('来源 page: models with the upstream diff, then 线路 and 同步 tabs', async ({
+test('来源 dialog: maker-grouped models with upstream diff, then 线路 and 同步 tabs', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -421,30 +422,31 @@ test('来源 page: models with the upstream diff, then 线路 and 同步 tabs', 
   });
   await expectRouteReady(page, '/console/model-ops/sources/1');
 
-  await expect(page.locator('h1')).toContainText('OpenAI smoke channel');
-  const banner = page.getByRole('status').filter({ hasText: '上游有变化' });
-  await expect(banner).toContainText('新出现 1 个');
-  await expect(banner).toContainText('已不列 1 个');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('OpenAI smoke channel');
+  const banner = dialog.getByRole('status').filter({ hasText: '上游变化' });
+  await expect(banner).toContainText('新增 1 个');
+  await expect(banner).toContainText('下架 1 个');
 
-  const models = page.getByRole('table', { name: '模型' });
+  const models = dialog.getByRole('table', { name: '模型' });
   const gone = models.getByRole('row').filter({ hasText: 'gpt-4o-mini' });
   await expect(gone).toHaveClass(/is-gone/);
-  await expect(gone).toContainText('已不列');
+  await expect(gone).toContainText('下架');
   await expect(
-    gone.getByRole('switch', { name: '供货 gpt-4o-mini' }),
+    gone.getByRole('checkbox', { name: '供货 gpt-4o-mini' }),
   ).toBeChecked();
   const fresh = models.getByRole('row').filter({ hasText: 'gpt-5-preview' });
-  await expect(fresh).toContainText('新出现');
+  await expect(fresh).toContainText('新增');
   await expect(
-    fresh.getByRole('switch', { name: '供货 gpt-5-preview' }),
+    fresh.getByRole('checkbox', { name: '供货 gpt-5-preview' }),
   ).not.toBeChecked();
 
-  await page.getByRole('button', { name: '看新出现的' }).click();
-  await expect(models.getByRole('row')).toHaveCount(2);
+  await dialog.getByRole('button', { name: /看新增/ }).click();
+  await expect(models.getByRole('row')).toHaveCount(1);
 
-  await page.getByRole('tab', { name: '线路' }).click();
+  await dialog.getByRole('tab', { name: '线路' }).click();
   await expect(page).toHaveURL(/tab=routing/);
-  const nav = page.getByRole('navigation', { name: '线路设置分段' });
+  const nav = dialog.getByRole('navigation', { name: '线路设置分段' });
   await expect(nav.getByRole('button')).toHaveText([
     '线路与权重',
     /限流\s*未限制/,
@@ -453,23 +455,22 @@ test('来源 page: models with the upstream diff, then 线路 and 同步 tabs', 
     '厂商高级设置',
   ]);
 
-  await page.getByRole('tab', { name: '同步' }).click();
-  await expect(page.getByRole('button', { name: '每 6 小时' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await dialog.getByRole('tab', { name: '同步' }).click();
   await expect(
-    page.getByLabel('先不供货，进「上游新增」等我核对'),
+    dialog.getByRole('button', { name: '每 6 小时' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    dialog.getByLabel('先不供货，进「上游新增」等我核对'),
   ).toBeChecked();
-  await page.getByLabel('忽略', { exact: true }).fill('text-embedding-*');
-  await expect(page.locator('.src-sync')).toContainText(
+  await dialog.getByLabel('忽略', { exact: true }).fill('text-embedding-*');
+  await expect(dialog.locator('.src-sync')).toContainText(
     'text-embedding-3-large',
   );
 
   await app.expectNoUnexpectedErrors();
 });
 
-test('新建来源 is a page: type, connection test, then models to serve', async ({
+test('新建来源 opens a centered dialog: type, connection test, then maker-grouped models', async ({
   page,
 }) => {
   const created = [];
@@ -493,20 +494,23 @@ test('新建来源 is a page: type, connection test, then models to serve', asyn
   });
   await expectRouteReady(page, '/console/model-ops/sources/new');
 
-  await expect(page.locator('h1')).toContainText('新建来源');
-  await expect(page.getByRole('radio', { name: 'OpenAI 兼容' })).toBeChecked();
-  const submit = page.getByRole('button', { name: /创建来源并供货/ });
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('新建来源');
+  await expect(
+    dialog.getByRole('radio', { name: 'OpenAI 兼容' }),
+  ).toBeChecked();
+  const submit = dialog.getByRole('button', { name: /创建来源并供货/ });
   await expect(submit).toBeDisabled();
 
-  await page.getByPlaceholder('生产 OpenAI 池').fill('Smoke new source');
-  await page
+  await dialog.getByPlaceholder('生产 OpenAI 池').fill('Smoke new source');
+  await dialog
     .getByPlaceholder('https://api.example.com')
     .fill('https://api.example.com');
-  await page.getByPlaceholder('sk-…').fill('sk-smoke-new');
-  await page.getByRole('button', { name: '测试连接' }).click();
-  await expect(page.locator('body')).toContainText('上游列出 2 个模型');
+  await dialog.getByPlaceholder('sk-…').fill('sk-smoke-new');
+  await dialog.getByRole('button', { name: '测试连接' }).click();
+  await expect(dialog).toContainText('上游列出 2 个模型');
 
-  await page.getByRole('checkbox', { name: 'gpt-5-preview' }).check();
+  await dialog.getByRole('checkbox', { name: 'gpt-5-preview' }).check();
   await expect(submit).toHaveText(/创建来源并供货 1 个/);
 
   await app.expectNoUnexpectedErrors();

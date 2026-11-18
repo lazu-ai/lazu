@@ -1,11 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, ChevronRight, CircleAlert, Copy } from 'lucide-react';
+import { Check, ChevronDown, CircleAlert, Copy } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { classifyTier } from './connect/modelPicker';
-import ModelScopeTable, { scopeModeOf } from './ModelScopeTable';
+import ModelScopeTable, {
+  scopeLimits,
+  scopeModeOf,
+  scopeNames,
+  type ScopeMode,
+} from './ModelScopeTable';
 import { isLegacyKey, shortKeyLabel } from './tokenKeyLabel';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
@@ -19,6 +23,7 @@ import { FieldMessage } from '../../components/ui/field';
 import { Input } from '../../components/ui/input';
 import { Modal } from '../../components/ui/modal';
 import { PendingBlock } from '../../components/ui/pending';
+import { ProviderLogo } from '../../components/ui/provider-icons';
 import { Select, SelectItem } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { compactNumber, formatUnixTime } from '../../components/ui/table-tools';
@@ -36,11 +41,11 @@ import {
   useTokenDetailQuery,
   useTokensQuery,
   type CreatedSecret,
-  type TokenModelFact,
   type TokenRecord,
 } from '../../hooks/tokens/useTokensQuery';
 import { errorMessage } from '../../lib/api-error';
 import { cn } from '../../lib/cn';
+import { makerBrand } from '../../lib/model-makers';
 import './rate-limit-slider.css';
 import './token-page.css';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -549,17 +554,11 @@ function RateLimitFields({
   );
 }
 
-/** The example model a lane row names: that vendor's newest flagship, so the
- *  row illustrates itself rather than borrowing another vendor's model. */
-function laneSampleModel(facts: TokenModelFact[]): string {
-  const ranked = [...facts].sort((left, right) => {
-    const byDate = (right.releasedAt ?? -1) - (left.releasedAt ?? -1);
-    if (byDate !== 0) return byDate;
-    return left.model.localeCompare(right.model);
-  });
-  const flagship = ranked.find((fact) => classifyTier(fact) === 'flagship');
-  return (flagship || ranked[0])?.model || '';
-}
+const FAMILY_TO_MAKER: Record<TokenLaneVendorFamily, string> = {
+  claude: 'anthropic',
+  gemini: 'google',
+  openai: 'openai',
+};
 
 /** Fields that live behind 更多设置. A validation error on any of them has
  *  nowhere to render while the section is collapsed. */
@@ -642,6 +641,9 @@ export function TokenFormDrawer({
   });
   const values = form.watch();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [lastRestrictedMode, setLastRestrictedMode] = useState<
+    'only' | 'except'
+  >('only');
   /* Closing with unsaved changes — 取消, 关闭, Escape, a tap outside or a
      swipe down — turns the footer into 「有 N 处修改还没保存」 instead. */
   const [discardAsk, setDiscardAsk] = useState(false);
@@ -649,7 +651,7 @@ export function TokenFormDrawer({
     'never' | '30' | '90' | 'custom'
   >('never');
   /** The amounts most Keys are created with; anything else is typed. */
-  const quotaPresets = team ? [20, 50, 100] : [10, 50, 200];
+  const quotaPresets = team ? [20, 50, 100] : [10, 100];
   const setQuota = (amount: number) => {
     form.setValue('unlimited_quota', false, { shouldDirty: true });
     form.setValue('remain_quota', amount, { shouldDirty: true });
@@ -684,12 +686,17 @@ export function TokenFormDrawer({
         ...editValues,
       } as TokenFormInput);
       setExpiryChoice(editValues.expires_never ? 'never' : 'custom');
+      const editLimits = Array.isArray(editValues.model_limits)
+        ? editValues.model_limits.map(String)
+        : [];
+      setLastRestrictedMode(editLimits.includes('*') ? 'except' : 'only');
       return;
     }
     if (!isEdit) {
       form.reset(defaultValues as TokenFormInput);
       setMoreOpen(false);
       setExpiryChoice('never');
+      setLastRestrictedMode('only');
     }
   }, [defaultValues, editValues, form, isEdit, open]);
 
@@ -791,6 +798,54 @@ export function TokenFormDrawer({
       delete nextVendorGroups[vendorId];
     }
     form.setValue('vendor_groups', nextVendorGroups, { shouldDirty: true });
+  };
+
+  const agentMakers = useMemo(() => {
+    const set = new Set<string>();
+    for (const vendor of tokenLaneVendors) {
+      const vid = String(vendor.id || '').trim();
+      if (vid && vendorGroups[vid] === 'cheap') {
+        set.add(FAMILY_TO_MAKER[vendor.laneFamily]);
+      }
+    }
+    return set;
+  }, [tokenLaneVendors, vendorGroups]);
+
+  const rawLimits = (values.model_limits || []).map(String);
+  const rawScopeVendors = (values.model_scope_vendors || []).map(String);
+  const currentScopeMode: ScopeMode = scopeModeOf(
+    Boolean(values.model_limits_enabled),
+    rawLimits,
+  );
+  const scopeOpen = currentScopeMode !== 'all';
+  const activeRestrictedMode: 'only' | 'except' =
+    currentScopeMode === 'all' ? lastRestrictedMode : currentScopeMode;
+  const pickedScopeNames = scopeNames(rawLimits);
+  const pickedScopeCount =
+    activeRestrictedMode === 'only' && rawScopeVendors.length > 0
+      ? new Set([
+          ...pickedScopeNames,
+          ...tokens.vendorOptions.models
+            .filter(
+              (fact) =>
+                fact.vendorID &&
+                rawScopeVendors.includes(String(fact.vendorID)),
+            )
+            .map((fact) => fact.model),
+        ]).size
+      : pickedScopeNames.length;
+
+  const toggleScopeOpen = (nextOpen: boolean) => {
+    form.setValue('model_limits_enabled', nextOpen, { shouldDirty: true });
+    if (nextOpen) {
+      form.setValue(
+        'model_limits',
+        scopeLimits(activeRestrictedMode, pickedScopeNames),
+        { shouldDirty: true },
+      );
+    } else if (form.formState.errors.model_limits) {
+      form.clearErrors('model_limits');
+    }
   };
 
   const quotaDisplay = isEdit
@@ -1095,7 +1150,7 @@ export function TokenFormDrawer({
             team
               ? t('projects.key.form.namePlaceholder')
               : t('page.console.token.create.namePlaceholder', {
-                  defaultValue: '例如 claude-code · Mac',
+                  defaultValue: '例如 claude-code',
                 })
           }
           {...form.register('name')}
@@ -1124,13 +1179,13 @@ export function TokenFormDrawer({
           <span className='tok-create__hint'>
             {isEdit && !team && quotaDisplay
               ? t('page.console.token.form.quotaUsedHint', {
-                  defaultValue: '已用 {{used}} · 用完自动停用',
+                  defaultValue: '已用 {{used}} · 用完即停',
                   used: formatMoney(quotaDisplay.used),
                 })
               : team
                 ? null
                 : t('page.console.token.create.quotaHint', {
-                    defaultValue: '用完自动停用，之后随时可以加',
+                    defaultValue: '用完即停',
                   })}
           </span>
         </div>
@@ -1302,59 +1357,96 @@ export function TokenFormDrawer({
         ) : null}
       </div>
 
-      <div className='tok-create__field'>
-        <span className='tok-create__label' id='token-expiry-label'>
-          {t('page.console.token.create.expiry', { defaultValue: '到期' })}
-          {changedTag('expiry')}
-        </span>
-        <div
-          className='tokv2-seg tok-create__seg'
-          role='radiogroup'
-          aria-labelledby='token-expiry-label'
-        >
-          {(
-            [
-              ['never', t('legacy.i18n.never_expires.0070ca2601')],
+      <div className='tok-create__split-row'>
+        <div className='tok-create__field'>
+          <span className='tok-create__label' id='token-expiry-label'>
+            {t('page.console.token.create.expiry', { defaultValue: '到期' })}
+            {changedTag('expiry')}
+          </span>
+          <div
+            className='tokv2-seg tok-create__seg'
+            role='radiogroup'
+            aria-labelledby='token-expiry-label'
+          >
+            {(
               [
-                '30',
-                t('page.console.token.create.days', {
-                  count: 30,
-                  defaultValue: '{{count}} 天',
-                }),
-              ],
-              [
-                '90',
-                t('page.console.token.create.days', {
-                  count: 90,
-                  defaultValue: '{{count}} 天',
-                }),
-              ],
-              [
-                'custom',
-                t('page.console.token.create.custom', {
-                  defaultValue: '自定义',
-                }),
-              ],
-            ] as const
-          ).map(([choice, label]) => (
-            <button
-              key={choice}
-              type='button'
-              role='radio'
-              aria-checked={expiryChoice === choice}
-              data-owns-chrome='true'
-              className={cn(
-                'tokv2-seg__btn',
-                expiryChoice === choice && 'is-on',
-              )}
-              onClick={() => chooseExpiry(choice)}
-            >
-              {label}
-            </button>
-          ))}
+                ['never', t('legacy.i18n.never_expires.0070ca2601')],
+                [
+                  '30',
+                  t('page.console.token.create.days', {
+                    count: 30,
+                    defaultValue: '{{count}} 天',
+                  }),
+                ],
+                [
+                  '90',
+                  t('page.console.token.create.days', {
+                    count: 90,
+                    defaultValue: '{{count}} 天',
+                  }),
+                ],
+                [
+                  'custom',
+                  t('page.console.token.create.custom', {
+                    defaultValue: '自定义',
+                  }),
+                ],
+              ] as const
+            ).map(([choice, label]) => (
+              <button
+                key={choice}
+                type='button'
+                role='radio'
+                aria-checked={expiryChoice === choice}
+                data-owns-chrome='true'
+                className={cn(
+                  'tokv2-seg__btn',
+                  expiryChoice === choice && 'is-on',
+                )}
+                onClick={() => chooseExpiry(choice)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <div className='tok-create__field'>
+          <div className='tok-create__head'>
+            <span className='tok-create__label' id='tok-effort-label'>
+              {t('page.console.token.create.effort', {
+                defaultValue: '思考深度',
+              })}
+            </span>
+            {team &&
+            effortRank(team.memberEffortCap) < EFFORT_LEVELS.length - 1 ? (
+              <span className='tok-create__hint'>
+                {t('page.console.token.create.effortMemberCap', {
+                  defaultValue: '{{name}} 的上限 ≤ {{cap}}',
+                  name: team.memberName ?? '',
+                  cap: team.memberEffortCap,
+                })}
+              </span>
+            ) : null}
+          </div>
+          <EffortCapControl
+            aria-label={t('page.console.token.create.effort', {
+              defaultValue: '思考深度',
+            })}
+            ceiling={team?.memberEffortCap}
+            onChange={(next) =>
+              form.setValue('reasoning_effort_cap', next, { shouldDirty: true })
+            }
+            size='md'
+            value={lowerEffortCap(
+              String(values.reasoning_effort_cap || ''),
+              team?.memberEffortCap,
+            )}
+          />
+        </div>
+
         {expiryChoice === 'custom' ? (
-          <>
+          <div className='tok-create__split-full'>
             <Controller
               control={form.control}
               name='expired_time'
@@ -1372,35 +1464,8 @@ export function TokenFormDrawer({
             <FieldMessage error>
               {String(form.formState.errors.expired_time?.message || '')}
             </FieldMessage>
-          </>
+          </div>
         ) : null}
-      </div>
-
-      <div className='tok-create__field'>
-        <ModelScopeTable
-          facts={tokens.vendorOptions.models}
-          invalid={Boolean(form.formState.errors.model_limits)}
-          limits={(values.model_limits || []).map(String)}
-          mode={scopeModeOf(
-            Boolean(values.model_limits_enabled),
-            (values.model_limits || []).map(String),
-          )}
-          models={tokens.modelOptions}
-          t={t}
-          vendors={(values.model_scope_vendors || []).map(String)}
-          onChange={(next) => {
-            form.setValue('model_limits_enabled', next.mode !== 'all', {
-              shouldDirty: true,
-            });
-            form.setValue('model_limits', next.limits, { shouldDirty: true });
-            form.setValue('model_scope_vendors', next.vendors, {
-              shouldDirty: true,
-            });
-            if (form.formState.errors.model_limits) {
-              void form.trigger('model_limits');
-            }
-          }}
-        />
       </div>
 
       {tokenLaneVendors.length ? (
@@ -1413,8 +1478,7 @@ export function TokenFormDrawer({
               {team
                 ? t('projects.key.form.laneHint')
                 : t('page.console.token.create.laneHint', {
-                    defaultValue:
-                      'Agent 专线由第三方订阅池提供，不是官方 API，会带预设上下文，价格低很多；只建议在对应的 Agent 工具里用：Claude 配 Claude Code，GPT 配 Codex，Gemini 配 Antigravity',
+                    defaultValue: 'Agent 仅限对应编程客户端',
                   })}
             </span>
           </div>
@@ -1422,18 +1486,16 @@ export function TokenFormDrawer({
             {tokenLaneVendors.map((vendor) => {
               const vendorId = String(vendor.id);
               const lane = vendorGroups[vendorId] || 'direct';
-              const sample = laneSampleModel(
-                tokens.vendorOptions.models.filter(
-                  (fact) => fact.vendorID === vendorId,
-                ),
-              );
+              const makerKey = FAMILY_TO_MAKER[vendor.laneFamily];
               return (
                 <div className='tok-create__lane' key={vendorId}>
                   <span className='tok-create__lane-name'>
-                    {vendor.laneLabel}
-                    {sample ? (
-                      <span className='tok-create__hint'>{sample}</span>
-                    ) : null}
+                    <ProviderLogo
+                      brand={makerBrand(makerKey)}
+                      decorative
+                      size={18}
+                    />
+                    <span>{vendor.laneLabel}</span>
                   </span>
                   <div
                     className='tokv2-seg'
@@ -1470,66 +1532,113 @@ export function TokenFormDrawer({
         </div>
       ) : null}
 
-      <div className='tok-create__field'>
-        <div className='tok-create__head'>
-          <span className='tok-create__label' id='tok-effort-label'>
-            {t('page.console.token.create.effort', {
-              defaultValue: '思考深度',
-            })}
-          </span>
-          {team &&
-          effortRank(team.memberEffortCap) < EFFORT_LEVELS.length - 1 ? (
-            <span className='tok-create__hint'>
-              {t('page.console.token.create.effortMemberCap', {
-                defaultValue: '{{name}} 的上限 ≤ {{cap}}',
-                name: team.memberName ?? '',
-                cap: team.memberEffortCap,
+      <div className='tok-disclosure'>
+        <div className='tok-disclosure__head'>
+          <button
+            className='tok-disclosure__trigger'
+            data-owns-chrome='true'
+            type='button'
+            onClick={() => toggleScopeOpen(!scopeOpen)}
+          >
+            <span className='tok-disclosure__title'>
+              {t('page.console.token.scope.title', {
+                defaultValue: '限制模型',
               })}
             </span>
-          ) : null}
+            <span className='tok-disclosure__caption'>
+              {scopeOpen
+                ? activeRestrictedMode === 'except'
+                  ? t('page.console.token.scope.captionExcept', {
+                      count: pickedScopeCount,
+                      defaultValue: '排除 {{count}} 个',
+                    })
+                  : t('page.console.token.scope.captionOnly', {
+                      count: pickedScopeCount,
+                      defaultValue: '已选 {{count}} 个',
+                    })
+                : t('page.console.token.scope.captionAll', {
+                    defaultValue: '默认全部可用',
+                  })}
+            </span>
+          </button>
+          <span className='tok-disclosure__end'>
+            <Switch
+              aria-label={t('page.console.token.scope.title', {
+                defaultValue: '限制模型',
+              })}
+              checked={scopeOpen}
+              onCheckedChange={toggleScopeOpen}
+            />
+          </span>
         </div>
-        <EffortCapControl
-          aria-label={t('page.console.token.create.effort', {
-            defaultValue: '思考深度',
-          })}
-          ceiling={team?.memberEffortCap}
-          onChange={(next) =>
-            form.setValue('reasoning_effort_cap', next, { shouldDirty: true })
-          }
-          size='lg'
-          value={lowerEffortCap(
-            String(values.reasoning_effort_cap || ''),
-            team?.memberEffortCap,
-          )}
-        />
-        <span className='tok-create__hint tok-create__hint--below'>
-          {t('page.console.token.create.effortHint', {
-            defaultValue:
-              '点一档就是上限：这把 Key 最多用到这一档，写得更高的请求按上限执行并记在日志里。这些词就是 Codex / Claude Code 里的词。',
-          })}
-        </span>
+        <div className={cn('tok-collapse', scopeOpen && 'is-open')}>
+          <div className='tok-collapse__inner'>
+            <ModelScopeTable
+              agentMakers={agentMakers}
+              facts={tokens.vendorOptions.models}
+              invalid={Boolean(form.formState.errors.model_limits)}
+              limits={rawLimits}
+              mode={activeRestrictedMode}
+              models={tokens.modelOptions}
+              t={t}
+              vendors={rawScopeVendors}
+              onChange={(next) => {
+                if (next.mode !== 'all') setLastRestrictedMode(next.mode);
+                form.setValue('model_limits_enabled', next.mode !== 'all', {
+                  shouldDirty: true,
+                });
+                form.setValue('model_limits', next.limits, {
+                  shouldDirty: true,
+                });
+                form.setValue('model_scope_vendors', next.vendors, {
+                  shouldDirty: true,
+                });
+                if (form.formState.errors.model_limits) {
+                  void form.trigger('model_limits');
+                }
+              }}
+            />
+          </div>
+        </div>
       </div>
 
-      <button
-        type='button'
-        data-owns-chrome='true'
-        className={cn('tok-create__more', moreOpen && 'is-open')}
-        aria-expanded={moreOpen}
-        aria-controls='token-create-advanced'
-        onClick={() => setMoreOpen((current) => !current)}
-      >
-        <ChevronRight size={14} aria-hidden='true' />
-        {t('page.console.token.create.more', { defaultValue: '更多设置' })}
-        {!team && (
-          <span className='tok-create__more-hint'>
-            {t('page.console.token.create.moreHint', {
-              defaultValue: '模型范围 · 限流 · 用量提醒 · IP · 备注',
-            })}
+      <div className='tok-disclosure'>
+        <button
+          type='button'
+          data-owns-chrome='true'
+          className={cn(
+            'tok-create__more tok-disclosure__btn',
+            moreOpen && 'is-open',
+          )}
+          aria-expanded={moreOpen}
+          aria-controls='token-create-advanced'
+          onClick={() => setMoreOpen((current) => !current)}
+        >
+          <span className='tok-disclosure__title'>
+            {t('page.console.token.create.more', { defaultValue: '更多设置' })}
           </span>
-        )}
-      </button>
+          {!team && (
+            <span className='tok-disclosure__caption tok-create__more-hint'>
+              {t('page.console.token.create.moreHint', {
+                defaultValue: '限流 · 预警 · IP · 备注',
+              })}
+            </span>
+          )}
+          <ChevronDown
+            size={15}
+            aria-hidden='true'
+            className={cn('tok-disclosure__chev', moreOpen && 'is-open')}
+          />
+        </button>
+        <div
+          className={cn('tok-collapse', moreOpen && 'is-open')}
+          id='token-create-advanced'
+        >
+          <div className='tok-collapse__inner'>{advanced}</div>
+        </div>
+      </div>
+
       <FieldMessage error>{form.formState.errors.root?.message}</FieldMessage>
-      {moreOpen ? <div id='token-create-advanced'>{advanced}</div> : null}
     </form>
   );
 
@@ -1591,12 +1700,7 @@ export function TokenFormDrawer({
               </span>
             )}
           </>
-        ) : team ? undefined : (
-          t('page.console.token.create.description', {
-            defaultValue:
-              '一个名字就能建。额度、到期、线路都有默认值，创建后直接进接入。',
-          })
-        )
+        ) : undefined
       }
       body={
         team && isEdit && !editValues ? (
@@ -1638,15 +1742,9 @@ export function TokenFormDrawer({
           </div>
         ) : (
           <div className='tok-modal-foot'>
-            {isEdit ? null : (
-              <span className='tok-modal-foot__hint'>
-                {team
-                  ? team.countLabel
-                  : t('page.console.token.create.footHint', {
-                      defaultValue: '创建后直接打开接入窗口，可在里面选工具',
-                    })}
-              </span>
-            )}
+            {!isEdit && team ? (
+              <span className='tok-modal-foot__hint'>{team.countLabel}</span>
+            ) : null}
             <Button
               type='button'
               variant='secondary'

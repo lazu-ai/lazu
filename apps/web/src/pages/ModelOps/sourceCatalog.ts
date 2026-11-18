@@ -16,6 +16,7 @@ const shortPrice = (value: number | undefined) =>
 /** What the catalog knows about the names a source serves: which ones it
  *  has registered, and for those on sale their maker and list price. */
 export type SourceCatalog = {
+  context: (name: string) => string;
   fact: (name: string) => TokenModelFact | undefined;
   /** The maker key of a name, from the catalog or, failing that, the name. */
   maker: (name: string) => string;
@@ -23,6 +24,14 @@ export type SourceCatalog = {
   makerRank: (maker: string) => number;
   names: ReadonlySet<string>;
   price: (name: string) => string;
+};
+
+const shortContext = (tokens: number | undefined) => {
+  if (!tokens) return '';
+  if (tokens >= 1_000_000) {
+    return `${Number((tokens / 1_000_000).toFixed(1))}M`;
+  }
+  return `${Math.round(tokens / 1000)}K`;
 };
 
 export function useSourceCatalog(registered: Array<{ value: string }>) {
@@ -52,6 +61,7 @@ export function useSourceCatalog(registered: Array<{ value: string }>) {
     const maker = (name: string) =>
       makerOf(facts.get(name)?.maker, { name }) || '';
     return {
+      context: (name) => shortContext(facts.get(name)?.contextLength),
       fact: (name) => facts.get(name),
       maker,
       makerRank: (key) => ranks.get(key) ?? 1000,

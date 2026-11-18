@@ -553,12 +553,47 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 /* --- create: one screen ------------------------------------------------ */
 
 .tok-create-modal.lazu-modal-content {
-  max-width: min(92vw, 560px);
+  max-width: min(92vw, 640px);
+}
+
+@media (min-width: 721px) {
+  body:has(.console-review)
+    .tok-create-modal.lazu-modal-content:not(.tok-create-modal--team):not(
+      .whats-new-panel
+    ):not(.lazu-modal-content--wide):not(.lazu-modal-content--xwide) {
+    max-width: calc(100vw - 32px);
+    width: min(640px, calc(100vw - 32px));
+  }
+
+  body:has(.console-review)
+    .tok-create-modal.lazu-modal-content:not(.tok-create-modal--team):not(
+      .whats-new-panel
+    )
+    .lazu-modal-header {
+    border-bottom: 0;
+    padding: 18px 24px 8px;
+  }
+
+  body:has(.console-review)
+    .tok-create-modal.lazu-modal-content:not(.tok-create-modal--team):not(
+      .whats-new-panel
+    )
+    .lazu-modal-body {
+    padding: 8px 24px 16px;
+  }
+
+  body:has(.console-review)
+    .tok-create-modal.lazu-modal-content:not(.tok-create-modal--team):not(
+      .whats-new-panel
+    )
+    .lazu-modal-footer {
+    padding: 12px 24px 16px;
+  }
 }
 
 .tok-create-modal .lazu-modal-title {
-  font-size: 18px;
-  font-weight: 720;
+  font-size: 17px;
+  font-weight: 650;
 }
 
 .tok-create {
@@ -575,9 +610,9 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 }
 
 .tok-create__label {
-  color: var(--lazu-text-muted);
-  font-size: 11px;
-  font-weight: 550;
+  color: var(--lazu-ink);
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .tok-create .lazu-input {
@@ -636,7 +671,7 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 14px 16px;
+  padding: 11px 14px;
 }
 
 .tok-create__head {
@@ -644,15 +679,17 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 10px;
+  justify-content: space-between;
 }
 
 .tok-create__quota-label {
-  font-size: 12px;
-  font-weight: 650;
+  color: var(--lazu-ink);
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .tok-create__hint {
-  color: var(--lazu-text-faint);
+  color: var(--lazu-text-muted);
   font-size: 11.5px;
   font-weight: 400;
 }
@@ -664,58 +701,105 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 }
 
 .tok-create__presets .tokv2-chip {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 7px;
+  color: var(--lazu-ink);
   cursor: pointer;
-  font-size: 12px;
-  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  height: 32px;
+  padding: 0 12px;
+}
+
+.tok-create__presets .tokv2-chip.tokv2-chip--evi {
+  background: var(--lazu-evidence-soft);
+  border-color: var(--lazu-evidence);
+  color: var(--lazu-evidence-strong);
+  font-weight: 600;
 }
 
 .tok-create__quota .tok-create__money {
-  flex: 0 0 168px;
+  flex: 0 0 144px;
 }
 
 .tok-create__quota .lazu-input {
   background: var(--lazu-surface-solid);
-  font-size: 20px;
+  font-family: var(--lazu-font-mono);
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  min-height: 44px;
-  padding-left: 28px;
+  letter-spacing: -0.01em;
+  min-height: 34px;
+  padding-left: 24px;
 }
 
 .tok-create__quota .tok-create__money > span {
-  font-size: 16px;
-  left: 12px;
+  font-family: var(--lazu-font-mono);
+  font-size: 13.5px;
+  left: 10px;
 }
 
-/* One row per vendor: the lane choice is a default, not an advanced knob. */
+.tok-create__split-row {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.tok-create__split-row .lazu-effort {
+  padding-top: 3px;
+  width: 100%;
+}
+
+.tok-create__split-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .tok-create__split-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Three vendor cards side-by-side: OpenAI, Claude, Gemini. */
 .tok-create__lanes {
-  border: 1px solid var(--lazu-border);
-  border-radius: var(--lazu-radius-control);
-  background: var(--lazu-surface);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tok-create__lane {
   align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
   display: flex;
-  gap: 12px;
+  gap: 6px;
   justify-content: space-between;
-  padding: 6px 8px 6px 12px;
+  min-width: 0;
+  padding: 6px 8px;
 }
 
-.tok-create__lane + .tok-create__lane {
-  border-top: 1px solid var(--lazu-border);
+.tok-create__lane .tokv2-seg__btn {
+  font-size: 11.5px;
+  height: 24px;
+  padding: 0 7px;
 }
 
 .tok-create__lane-name {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 12.5px;
-  font-weight: 600;
-  gap: 8px;
+  align-items: center;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 550;
+  gap: 6px;
   min-width: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .tok-create__lanes {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .tok-create__row {
@@ -1968,12 +2052,125 @@ body:has(.console-review)
   text-overflow: ellipsis;
 }
 
-/* --- editor: 能调哪些模型, one table ---------------------------------- */
+/* --- smooth disclosures & grouped model scope picker (v3) ------------- */
+
+.tok-disclosure {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: var(--lazu-radius-control);
+  padding: 9px 12px;
+}
+
+.tok-disclosure__head,
+.tok-disclosure__btn.tok-create__more {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  min-height: 22px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.tok-disclosure__trigger {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.tok-disclosure__title {
+  color: var(--lazu-ink);
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tok-disclosure__caption {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-disclosure__end {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.tok-disclosure__chev {
+  color: var(--lazu-text-muted);
+  flex: none;
+  margin-left: auto;
+  transform: rotate(-90deg);
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tok-disclosure__btn.tok-create__more.is-open .tok-disclosure__chev {
+  transform: rotate(0deg);
+}
+
+.tok-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    grid-template-rows 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease,
+    visibility 0s linear 250ms;
+  visibility: hidden;
+}
+
+.tok-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+  transition:
+    grid-template-rows 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease,
+    visibility 0s linear 0s;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tok-collapse,
+  .tok-collapse.is-open,
+  .tok-disclosure__chev {
+    transition: none;
+  }
+}
+
+.tok-collapse__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tok-collapse__inner > .tok-scope2,
+.tok-collapse__inner > .tok-more {
+  padding-top: 10px;
+}
 
 .tok-scope2 {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -1981,134 +2178,238 @@ body:has(.console-review)
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
-.tok-scope2__seg {
-  border: 1px solid rgb(20 22 28 / 14%);
-  border-radius: 6px;
-  display: inline-flex;
-  overflow: hidden;
+.tok-scope2__reach {
+  font-size: 11.5px;
 }
 
-.tok-scope2__mode {
-  background: var(--lazu-surface);
-  border: 0;
-  border-right: 1px solid rgb(20 22 28 / 10%);
+.tok-scope2__reach-num {
   color: var(--lazu-ink);
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  height: 28px;
-  padding: 0 10px;
-  white-space: nowrap;
-}
-
-.tok-scope2__mode:last-child {
-  border-right: 0;
-}
-
-.tok-scope2__mode.is-on {
-  background: var(--lazu-evidence-soft);
-  color: var(--lazu-evidence-strong);
   font-weight: 600;
 }
 
-.tok-scope2__mode:focus-visible,
-.tok-scope2__chip:focus-visible {
-  box-shadow: var(--ui-focus-ring);
-  outline: none;
-  position: relative;
+.tok-scope2__future {
+  color: var(--lazu-text-faint);
 }
 
-.tok-scope2__summary {
+.tok-scope2__clear {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
   margin-left: auto;
+  padding: 2px 4px;
 }
 
-.tok-scope2__table {
-  border: 1px solid rgb(20 22 28 / 12%);
+.tok-scope2__clear:hover {
+  color: var(--lazu-ink);
+}
+
+.tok-scope2__tagbox {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 5px 8px;
+}
+
+.tok-scope2__tagbox:focus-within {
+  border-color: var(--lazu-evidence);
+  box-shadow: var(--ui-focus-ring);
+}
+
+.tok-scope2__tag {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-radius: 5px;
+  color: var(--lazu-ink);
+  display: inline-flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  gap: 4px;
+  height: 22px;
+  max-width: 100%;
+  padding: 0 6px;
+}
+
+.tok-scope2__tag.is-out {
+  background: var(--lazu-danger-soft);
+  color: var(--lazu-danger);
+  text-decoration: line-through;
+}
+
+.tok-scope2__tag-rm {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  opacity: 0.72;
+  padding: 0;
+}
+
+.tok-scope2__tag-rm:hover {
+  opacity: 1;
+}
+
+.tok-scope2__q {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  flex: 1 1 110px;
+  font: inherit;
+  font-size: 12px;
+  height: 22px;
+  min-width: 110px;
+  outline: none;
+  padding: 0 2px;
+}
+
+.tok-scope2__q::placeholder {
+  color: var(--lazu-text-faint);
+}
+
+.tok-scope2__groups {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
 }
 
-.tok-scope2__tools {
+.tok-scope2__group {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--lazu-border) 60%, transparent);
+}
+
+.tok-scope2__group:last-child {
+  border-bottom: 0;
+}
+
+.tok-scope2__ghead {
   align-items: center;
-  border-bottom: 1px solid rgb(20 22 28 / 8%);
+  background: var(--lazu-surface-muted);
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 8px;
+  min-height: 35px;
+  padding: 0 10px;
 }
 
-.tok-scope2__search {
+.tok-scope2__gtoggle {
   align-items: center;
-  color: var(--lazu-text-muted);
-  display: inline-flex;
-  position: relative;
-  width: 150px;
-}
-
-.tok-scope2__search svg {
-  left: 8px;
-  pointer-events: none;
-  position: absolute;
-}
-
-.tok-scope2__search .lazu-input {
-  height: 28px;
-  padding-left: 26px;
-}
-
-.tok-scope2__chip {
-  background: var(--lazu-surface);
-  border: 1px solid rgb(20 22 28 / 16%);
-  border-radius: 999px;
+  background: transparent;
+  border: 0;
   color: var(--lazu-ink);
   cursor: pointer;
+  display: flex;
+  flex: 1;
   font: inherit;
+  gap: 7px;
+  height: 35px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.tok-scope2__gname {
   font-size: 12.5px;
-  height: 26px;
-  padding: 0 10px;
-  white-space: nowrap;
+  font-weight: 600;
 }
 
-.tok-scope2__chip.is-on {
-  background: var(--lazu-action);
-  border-color: var(--lazu-action);
-  color: var(--lazu-on-action);
+.tok-scope2__gcount {
+  color: var(--lazu-text-muted);
+  font-size: 11px;
 }
 
-.tok-scope2__row {
+.tok-scope2__agent {
   align-items: center;
-  border-bottom: 1px solid rgb(20 22 28 / 5%);
-  cursor: pointer;
+  background: var(--lazu-warning-soft);
+  border-radius: 999px;
+  color: var(--lazu-warning-strong);
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 600;
+  height: 16px;
+  padding: 0 6px;
+}
+
+.tok-scope2__gchev {
+  color: var(--lazu-text-muted);
+  margin-left: auto;
+  transform: rotate(-90deg);
+  transition: transform 150ms ease;
+}
+
+.tok-scope2__gchev.is-open {
+  transform: rotate(0deg);
+}
+
+.tok-scope2__grid {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 84px 110px 64px 96px;
-  height: 36px;
-  padding: 0 10px;
+  gap: 3px 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 5px 9px 7px;
 }
 
-.tok-scope2__row--head {
-  background: rgb(20 22 28 / 2.5%);
-  border-bottom-color: rgb(20 22 28 / 10%);
-  cursor: default;
-  height: 30px;
+.tok-scope2__item {
+  align-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 7px;
+  min-height: 30px;
+  min-width: 0;
+  padding: 3px 6px;
+  transition: background 100ms ease;
 }
 
-.tok-scope2__row.is-in {
-  background: color-mix(in srgb, var(--lazu-evidence) 5%, transparent);
+.tok-scope2__item:hover {
+  background: var(--lazu-surface-muted);
 }
 
-/* Left out of an "all but" scope: the whole row reads as struck. */
-.tok-scope2__row.is-out {
-  background: color-mix(in srgb, var(--lazu-danger) 4%, transparent);
+.tok-scope2__item.is-in {
+  background: color-mix(in srgb, var(--lazu-evidence) 6%, transparent);
+}
+
+.tok-scope2__item.is-out {
+  background: color-mix(in srgb, var(--lazu-danger) 6%, transparent);
   color: var(--lazu-danger);
 }
 
-.tok-scope2__row.is-out .tok-scope2__name {
+.tok-scope2__item-id {
+  flex: 1;
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  font-weight: 450;
+  line-height: 1.3;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tok-scope2__item.is-in .tok-scope2__item-id,
+.tok-scope2__item.is-out .tok-scope2__item-id {
+  font-weight: 600;
+}
+
+.tok-scope2__item.is-out .tok-scope2__item-id {
   text-decoration: line-through;
+}
+
+.tok-scope2__item-price {
+  color: var(--lazu-text-faint);
+  flex: none;
+  font-size: 10.5px;
+  white-space: nowrap;
 }
 
 .tok-scope2__box--out[data-checked] {
@@ -2116,56 +2417,26 @@ body:has(.console-review)
   border-color: var(--lazu-danger);
 }
 
-.tok-scope2__rows {
-  max-height: 288px;
-  overflow-y: auto;
-}
-
-.tok-scope2__th {
-  color: var(--lazu-text-muted);
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-}
-
-.tok-scope2__name {
-  font-family: var(--lazu-font-mono);
-  font-size: 12.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .tok-scope2__mono {
   font-family: var(--lazu-font-mono);
-  font-size: 12px;
-}
-
-.tok-scope2 .is-num {
-  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .tok-scope2__empty {
   color: var(--lazu-text-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   padding: 20px 10px;
   text-align: center;
 }
 
 .tok-scope2__error {
   color: var(--lazu-danger);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
-@media (max-width: 720px) {
-  .tok-scope2__row {
-    grid-template-columns: 30px minmax(0, 1fr) 96px;
-  }
-
-  .tok-scope2__row > :nth-child(3),
-  .tok-scope2__row > :nth-child(5),
-  .tok-scope2__row > :nth-child(6) {
-    display: none;
+@media (max-width: 640px) {
+  .tok-scope2__grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2346,268 +2617,6 @@ body:has(.console-review)
   display: block;
   line-height: 1.5;
   margin-top: 8px;
-}
-
-/* --- editor at reading size (2026-09-30) ------------------------------- */
-
-/* Editing is where a Key's limits are set, and at 600px with 11-12px labels
-   it read as fine print. It now opens at the connect dialog's width with the
-   console's reading sizes. Creation stays compact — it has to fit a laptop
-   screen with its button in view — and the team form keeps its own
-   refinement above, so every rule here is edit-only. */
-body:has(.console-review)
-  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
-    .whats-new-panel
-  ):not(.lazu-modal-content--wide):not(.lazu-modal-content--xwide) {
-  max-width: calc(100vw - 32px);
-  width: min(880px, calc(100vw - 32px));
-}
-
-body:has(.console-review)
-  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
-    .whats-new-panel
-  )
-  .lazu-modal-header {
-  padding: 30px 44px 20px;
-}
-
-body:has(.console-review)
-  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
-    .whats-new-panel
-  )
-  .lazu-modal-body {
-  padding: 26px 44px;
-}
-
-body:has(.console-review)
-  .tok-create-modal--edit.lazu-modal-content:not(.tok-create-modal--team):not(
-    .whats-new-panel
-  )
-  .lazu-modal-footer {
-  padding: 18px 44px 22px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .lazu-modal-title {
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .lazu-modal-description {
-  font-size: 13px;
-  gap: 4px 10px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create {
-  gap: 24px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__field {
-  gap: 10px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__label,
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__quota-label {
-  color: var(--lazu-ink);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__hint,
-.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-hint {
-  font-size: 13px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create .lazu-input {
-  background: var(--lazu-surface-solid);
-  border-color: var(--lazu-border-strong);
-  border-radius: var(--lazu-radius-control);
-  font-size: 15px;
-  min-height: 46px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__quota {
-  border-radius: 16px;
-  gap: 12px;
-  padding: 20px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__quota
-  .tok-create__money {
-  flex: 0 0 170px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__quota
-  .lazu-input {
-  font-family: var(--lazu-font-mono);
-  font-size: 20px;
-  min-height: 48px;
-  padding-left: 30px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__quota
-  .tok-create__money
-  > span {
-  font-size: 18px;
-  left: 14px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__presets {
-  gap: 8px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__presets
-  .tokv2-chip {
-  background: var(--lazu-surface-solid);
-  border: 1px solid var(--lazu-border-strong);
-  color: var(--lazu-ink);
-  font-size: 14px;
-  font-weight: 500;
-  height: 36px;
-  padding: 0 14px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__presets
-  .tokv2-chip.tokv2-chip--evi {
-  background: var(--lazu-ink);
-  border-color: var(--lazu-ink);
-  color: var(--lazu-surface-solid);
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-meter {
-  height: 6px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__cap {
-  gap: 10px;
-  padding-top: 14px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__cap-label {
-  font-size: 14px;
-  font-weight: 500;
-  width: 72px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__quota
-  .tok-create__cap-money {
-  flex: 0 0 120px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__quota
-  .tok-create__cap-money
-  .lazu-input {
-  font-size: 15px;
-  min-height: 40px;
-  padding-left: 26px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__cap-spent {
-  font-size: 13px;
-}
-
-/* Segmented controls: 36px targets on a 12px tray, the size the rest of the
-   editor's controls now share. */
-.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-seg {
-  background: var(--lazu-surface-muted);
-  border: 1px solid var(--lazu-border);
-  border-radius: var(--lazu-radius-control);
-  padding: 3px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-seg__btn,
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__seg
-  .tokv2-seg__btn {
-  border-radius: 9px;
-  font-size: 14px;
-  font-weight: 500;
-  height: 36px;
-  padding: 0 16px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tokv2-seg__btn.is-on {
-  font-weight: 500;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__lanes {
-  background: transparent;
-  border-radius: 14px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__lane {
-  padding: 10px 14px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__lane-name {
-  font-size: 15px;
-  font-weight: 500;
-  gap: 12px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-create__lane-name
-  .tok-create__hint {
-  font-family: var(--lazu-font-mono);
-}
-
-/* 更多设置 is a heading over a rule, not a second button competing with the
-   footer's two. */
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__more {
-  border: 0;
-  border-radius: 0;
-  border-top: 1px solid var(--lazu-border);
-  color: var(--lazu-ink);
-  font-size: 15px;
-  font-weight: 600;
-  min-height: 56px;
-  padding: 18px 0 0;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__more:hover {
-  border-color: var(--lazu-border);
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-create__more-hint {
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__sec {
-  gap: 14px;
-  padding: 14px 0 12px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__head {
-  gap: 12px;
-  min-height: 32px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__title {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-more__hint {
-  font-size: 14px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team)
-  .tok-modal-foot
-  .lazu-button {
-  font-size: 15px;
-  min-height: 44px;
-  padding: 0 20px;
-}
-
-.tok-create-modal--edit:not(.tok-create-modal--team) .tok-modal-foot__hint {
-  font-size: 13px;
 }
 
 /* --- list head (2026-10-02) -------------------------------------------- */

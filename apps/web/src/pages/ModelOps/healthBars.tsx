@@ -86,6 +86,7 @@ type ModelOpsBarsProps = {
   buckets: ModelOpsProbeBucket[];
   label: string;
   height?: number;
+  onSelectSlice?: (index: number) => void;
   /** The record is probes, not traffic: "observing" for a route being
    *  watched before going live, "idle" for any other route without traffic. */
   probed?: 'idle' | 'observing';
@@ -115,6 +116,7 @@ export const ModelOpsBars = memo(
     prev.label === next.label &&
     prev.height === next.height &&
     prev.probed === next.probed &&
+    prev.onSelectSlice === next.onSelectSlice &&
     sameBuckets(prev.buckets, next.buckets),
 );
 
@@ -122,6 +124,7 @@ function ModelOpsBarsRecord({
   buckets,
   label,
   height,
+  onSelectSlice,
   probed,
 }: ModelOpsBarsProps) {
   const { t, i18n } = useTranslation();
@@ -130,7 +133,14 @@ function ModelOpsBarsRecord({
     () => buildSlices(buckets, probed, t, language),
     [buckets, probed, t, language],
   );
-  return <StatusBars height={height} label={label} slices={slices} />;
+  return (
+    <StatusBars
+      height={height}
+      label={label}
+      onSelectSlice={onSelectSlice}
+      slices={slices}
+    />
+  );
 }
 
 function buildSlices(
@@ -158,6 +168,7 @@ function buildSlices(
       1000;
     return {
       tone,
+      probe: Boolean(probed && tone === 'ok'),
       when: formatSliceWhen(bucket.start_at, seconds || 0, language),
       verdict:
         bucket.success_rate != null

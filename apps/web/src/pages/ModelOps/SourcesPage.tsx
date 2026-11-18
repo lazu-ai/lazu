@@ -11,11 +11,20 @@ import {
   Zap,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Navigate,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { formatLatency, formatRate, healthTone } from './formatters';
-import { foldBuckets, ModelOpsBars } from './healthBars';
+import { ModelOpsBars } from './healthBars';
 import ModelOpsNav from './ModelOpsNav';
 import { ObservationDialog, observationSummaryLine } from './ObservationDialog';
+import SourceDialog, {
+  SOURCE_DIALOG_TABS,
+  type SourceDialogTab,
+} from './SourceDialog';
 import { isObservingSource, sourceAdapterLabel } from './sourceStatus';
 import { sourceTypeLabel } from './SourceTypeBadge';
 import { Button } from '../../components/ui/button';
@@ -31,6 +40,7 @@ import { IconButton } from '../../components/ui/icon-button';
 import { Input } from '../../components/ui/input';
 import { resolveProviderBrand } from '../../components/ui/provider-brands';
 import { ProviderLogo } from '../../components/ui/provider-icons';
+import { StatusBarsLegend } from '../../components/ui/status-bars';
 import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
 import { API } from '../../helpers/api';
 import { useChannelsQuery } from '../../hooks/channels/useChannelsQuery';
@@ -41,6 +51,7 @@ import {
   type ModelOpsSource,
 } from '../../hooks/models/useModelOpsQuery';
 import { unwrap } from '../../lib/api-error';
+import type { SourceModelStatusView } from './SourceModelsTable';
 import type { TFunction } from 'i18next';
 import './model-ops.css';
 import './ledger.css';
@@ -50,8 +61,6 @@ import '../../components/ui/row-actions.css';
 const ns = 'page.console.modelOps';
 const WINDOW_HOURS = 48;
 const LIST = '/console/model-ops/sources';
-/* Twelve slices fit the health column; the window arrives finer. */
-const BAR_SLICES = 12;
 
 type View = 'all' | 'changed' | 'live' | 'observing' | 'off';
 type OptionalColumn = 'health' | 'models' | 'upstream';
@@ -189,11 +198,13 @@ function StatusCell({
 }
 
 /**
- * 模型运营 · 来源 — the supply side, one row per upstream account. A row
- * opens the source's own page; a new source is a page too.
+ * 模型运营 · 来源 — the supply side, one row per upstream account. Clicking a
+ * row or 新建来源 opens a centered dialog over the ledger, keeping filters,
+ * search and scroll intact.
  */
 export default function SourcesPage() {
-  const [searchParams] = useSearchParams();
+  const { id: activeId = '' } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const channels = useChannelsQuery({ listEnabled: false });
   const { t } = channels;
@@ -236,8 +247,6 @@ export default function SourcesPage() {
   const undoPending = useUndoPending();
   const isUndoPending = (source: ModelOpsSource) =>
     undoPending.has(`channel:${String(source.id)}`);
-  /* 删除 runs at once and offers a 10-second undo instead of a dialog;
-     the row reads 删除中 until the request actually goes out. */
   const deleteNow = (source: ModelOpsSource) => {
     const name = source.name;
     const path = `/api/channel/${source.id}/`;
@@ -255,7 +264,6 @@ export default function SourcesPage() {
         defaultValue: '没删成，{{name}} 已放回',
         name,
       }),
-      // The undo toast reports a failure itself, with 重试.
       commit: async () =>
         unwrap(await API.delete(path, { skipErrorHandler: true })),
       keepalive: { method: 'DELETE', path },
@@ -263,27 +271,59 @@ export default function SourcesPage() {
     });
   };
 
-  const open = (source: ModelOpsSource, tab?: string) =>
-    navigate(`${LIST}/${source.id}${tab ? `?tab=${tab}` : ''}`);
+  const buildListSearch = () => {
+    const kept = new URLSearchParams();
+    if (modelFilter) kept.set('model', modelFilter);
+    const str = kept.toString();
+    return str ? `?${str}` : '';
+  };
 
-  /* Old links: ?new=1 and ?source=<id> opened the dialog this page used to
-     have. They land on the pages that replaced it. */
+  const open = (source: ModelOpsSource, querySuffix = '') =>
+    navigate(`${LIST}/${source.id}${querySuffix}`);
+
+  const closeDialog = () => navigate(`${LIST}${buildListSearch()}`);
+
+  /* Legacy query links: ?new=1 and ?source=<id>. */
   const legacySource = searchParams.get('source');
-  if (searchParams.get('new') === '1') {
+  if (!activeId && searchParams.get('new') === '1') {
     return <Navigate replace to={`${LIST}/new`} />;
   }
-  if (legacySource) {
+  if (!activeId && legacySource) {
     return <Navigate replace to={`${LIST}/${legacySource}`} />;
   }
 
+  const rawTab = searchParams.get('tab') as SourceDialogTab | null;
+  const dialogTab: SourceDialogTab =
+    rawTab && SOURCE_DIALOG_TABS.includes(rawTab) ? rawTab : 'models';
+  const rawDiff = searchParams.get('diff');
+  const initialModelView: SourceModelStatusView =
+    rawDiff === 'new' || rawDiff === 'gone' ? rawDiff : 'all';
+
+  const setDialogTab = (next: SourceDialogTab) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('diff');
+    if (next === 'models') params.delete('tab');
+    else params.set('tab', next);
+    setSearchParams(params, { replace: true });
+  };
+
+  const activeSource =
+    activeId && activeId !== 'new'
+      ? (sources.find((item) => String(item.id) === activeId) ?? null)
+      : null;
+  const navPool = rows.length ? rows : sources;
+  const activeIdx = activeSource
+    ? navPool.findIndex((item) => String(item.id) === String(activeSource.id))
+    : -1;
+
   const visible = (key: OptionalColumn) => !hidden.has(key);
   const template = [
-    '36px',
-    'minmax(0, 1.6fr)',
-    '190px',
-    visible('upstream') ? '120px' : null,
-    visible('models') ? '70px' : null,
-    visible('health') ? '200px' : null,
+    '32px',
+    'minmax(0, 1.35fr)',
+    '170px',
+    visible('upstream') ? '108px' : null,
+    visible('models') ? '60px' : null,
+    visible('health') ? 'minmax(290px, 1.6fr)' : null,
     '28px',
   ]
     .filter(Boolean)
@@ -339,7 +379,7 @@ export default function SourcesPage() {
                 defaultValue: '搜索来源',
               })}
               placeholder={t(`${ns}.sources.searchShort`, {
-                defaultValue: '搜来源或模型',
+                defaultValue: '搜来源或模型…',
               })}
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -388,6 +428,38 @@ export default function SourcesPage() {
             ))}
           </div>
           <span className='src-toolbar__end'>
+            {visible('health') ? (
+              <StatusBarsLegend
+                className='src-bars-legend'
+                items={[
+                  {
+                    tone: 'ok',
+                    label: t(`${ns}.sources.legendLive`, {
+                      defaultValue: '正式',
+                    }),
+                  },
+                  {
+                    probe: true,
+                    tone: 'ok',
+                    label: t(`${ns}.sources.legendProbe`, {
+                      defaultValue: '抽测',
+                    }),
+                  },
+                  {
+                    tone: 'warn',
+                    label: t(`${ns}.sources.legendWarn`, {
+                      defaultValue: '波动',
+                    }),
+                  },
+                  {
+                    tone: 'bad',
+                    label: t(`${ns}.sources.legendBad`, {
+                      defaultValue: '故障',
+                    }),
+                  },
+                ]}
+              />
+            ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger>
                 <Button size='sm' variant='secondary'>
@@ -439,11 +511,20 @@ export default function SourcesPage() {
               .filter(([key]) => visible(key))
               .map(([key, label]) => (
                 <span
-                  className={`src-th${key === 'upstream' ? '' : ' is-num'}`}
+                  className={`src-th${key === 'models' ? ' is-num' : ''}${key === 'health' ? ' src-th--health' : ''}`}
                   key={key}
                   role='columnheader'
                 >
-                  {label}
+                  {key === 'health' ? (
+                    <>
+                      <span>{label}</span>
+                      <span>
+                        {t(`${ns}.sources.now`, { defaultValue: '现在' })}
+                      </span>
+                    </>
+                  ) : (
+                    label
+                  )}
                 </span>
               ))}
             <span role='columnheader' />
@@ -463,7 +544,7 @@ export default function SourcesPage() {
               </div>
               <div className='lazu-state-description'>
                 {t(`${ns}.sources.emptyDescription`, {
-                  defaultValue: '接一个来源，模型和供货才会进来。',
+                  defaultValue: '新增一个来源，才能给线路供货。',
                 })}
               </div>
               <Button
@@ -488,13 +569,14 @@ export default function SourcesPage() {
               const measured = all.some(
                 (bucket) => bucket.success_rate !== null,
               );
-              const bars = measured
-                ? foldBuckets(all, Math.ceil(all.length / BAR_SLICES))
-                : [];
+              const bars = measured ? all : [];
               const observing = viewOf(source) === 'observing';
               const lane = lanes.find((item) => item.slug === source.lane);
               const showLane =
                 lanes.length > 1 && source.lane && source.lane !== defaultLane;
+              const rawLaneName = lane?.name || source.lane;
+              const laneLabel =
+                rawLaneName === 'Agent 专线' ? 'Agent' : rawLaneName;
               const change = upstreamChange(source);
               const syncError = source.upstream_sync?.error;
               return (
@@ -517,13 +599,14 @@ export default function SourcesPage() {
                     }
                   }}
                 >
-                  <span className='src-logo' role='cell'>
+                  <span className='src-logo-cell' role='cell'>
                     <ProviderLogo
                       brand={resolveProviderBrand({
-                        name: source.type_name || source.name,
+                        id: source.endpoint,
+                        name: `${source.type_name || ''} ${source.name}`,
                       })}
                       decorative
-                      size={16}
+                      size={28}
                     />
                   </span>
                   <span className='src-sname' role='cell'>
@@ -533,12 +616,11 @@ export default function SourcesPage() {
                         {sourceTypeLabel(source.source_type, t)}
                       </span>
                       {showLane ? (
-                        <span className='src-tag'>
-                          <span
-                            aria-hidden='true'
-                            className={`mo-dot mo-dot--lane-${lane?.color || 'info'}`}
-                          />
-                          {lane?.name || source.lane}
+                        <span
+                          className={`src-tag${source.lane === 'cheap' ? ' src-tag--agent' : ''}`}
+                        >
+                          <span aria-hidden='true' className='src-tag__dot' />
+                          {laneLabel}
                         </span>
                       ) : null}
                       <span className='src-hint'>
@@ -566,7 +648,9 @@ export default function SourcesPage() {
                           data-owns-chrome=''
                           className='src-diff'
                           type='button'
-                          onClick={() => navigate(`${LIST}/${source.id}`)}
+                          onClick={() =>
+                            open(source, `?diff=${change.new ? 'new' : 'gone'}`)
+                          }
                         >
                           {change.new ? (
                             <span className='src-diff__new'>+{change.new}</span>
@@ -576,11 +660,6 @@ export default function SourcesPage() {
                               −{change.gone}
                             </span>
                           ) : null}
-                          <span className='src-hint'>
-                            {t(`${ns}.sources.toReview`, {
-                              defaultValue: '待核对',
-                            })}
-                          </span>
                         </button>
                       ) : syncError ? (
                         <button
@@ -588,7 +667,7 @@ export default function SourcesPage() {
                           className='src-diff src-diff--bad'
                           title={syncError}
                           type='button'
-                          onClick={() => open(source, 'sync')}
+                          onClick={() => open(source, '?tab=sync')}
                         >
                           {t(`${ns}.sources.checkFailed`, {
                             defaultValue: '检查失败',
@@ -623,6 +702,7 @@ export default function SourcesPage() {
                                   : 'idle'
                                 : undefined
                             }
+                            onSelectSlice={() => open(source, '?tab=records')}
                           />
                           <span
                             className={`src-mono src-health__rate is-${tone}`}
@@ -633,34 +713,39 @@ export default function SourcesPage() {
                           </span>
                         </span>
                       ) : null}
-                      <span className='src-hint'>
-                        {!bars.length
-                          ? t(`${ns}.sources.notMeasured`, {
-                              defaultValue: '尚未观测',
-                            })
-                          : observing
-                            ? t(`${ns}.sources.probeShort`, {
-                                defaultValue: '抽测 {{ok}}/{{total}}',
-                                ok: (
-                                  source.health.request_count -
-                                  source.health.error_count
-                                ).toLocaleString(),
-                                total:
-                                  source.health.request_count.toLocaleString(),
+                      <span className='src-health__sub src-hint'>
+                        {bars.length ? (
+                          <span className='src-mono'>−{windowHours}h</span>
+                        ) : null}
+                        <span>
+                          {!bars.length
+                            ? t(`${ns}.sources.notMeasured`, {
+                                defaultValue: '尚未观测',
                               })
-                            : source.health.request_count > 0
-                              ? t(`${ns}.sources.healthFigures`, {
-                                  defaultValue:
-                                    '均值 {{latency}} · {{requests}} 次',
-                                  latency: formatLatency(
-                                    source.health.avg_latency_ms,
-                                  ),
-                                  requests:
+                            : observing
+                              ? t(`${ns}.sources.probeShort`, {
+                                  defaultValue: '抽测 {{ok}}/{{total}}',
+                                  ok: (
+                                    source.health.request_count -
+                                    source.health.error_count
+                                  ).toLocaleString(),
+                                  total:
                                     source.health.request_count.toLocaleString(),
                                 })
-                              : t(`${ns}.sources.idleWindow`, {
-                                  defaultValue: '窗口内无流量',
-                                })}
+                              : source.health.request_count > 0
+                                ? t(`${ns}.sources.healthFigures`, {
+                                    defaultValue:
+                                      '均值 {{latency}} · {{requests}} 次',
+                                    latency: formatLatency(
+                                      source.health.avg_latency_ms,
+                                    ),
+                                    requests:
+                                      source.health.request_count.toLocaleString(),
+                                  })
+                                : t(`${ns}.sources.idleWindow`, {
+                                    defaultValue: '窗口内无流量',
+                                  })}
+                        </span>
                       </span>
                     </span>
                   ) : null}
@@ -767,6 +852,43 @@ export default function SourcesPage() {
         </div>
       </section>
 
+      {activeId ? (
+        <SourceDialog
+          channels={channels}
+          hasNext={activeIdx >= 0 && activeIdx < navPool.length - 1}
+          hasPrev={activeIdx > 0}
+          initialModelView={initialModelView}
+          isSourcesLoading={sourcesQuery.isLoading}
+          source={activeSource}
+          sourceId={activeId}
+          tab={dialogTab}
+          onClose={closeDialog}
+          onCreated={(createdId) => {
+            void sourcesQuery.refetch();
+            if (createdId) {
+              navigate(`${LIST}/${createdId}`, { replace: true });
+            } else {
+              closeDialog();
+            }
+          }}
+          onNext={() => {
+            const next = navPool[activeIdx + 1];
+            if (next)
+              open(next, dialogTab !== 'models' ? `?tab=${dialogTab}` : '');
+          }}
+          onPrev={() => {
+            const prev = navPool[activeIdx - 1];
+            if (prev)
+              open(prev, dialogTab !== 'models' ? `?tab=${dialogTab}` : '');
+          }}
+          onSaved={() => {
+            void sourcesQuery.refetch();
+            closeDialog();
+          }}
+          onTabChange={setDialogTab}
+        />
+      ) : null}
+
       <ObservationDialog
         busy={
           ops.goLiveSourceMutation.isPending ||
@@ -780,14 +902,13 @@ export default function SourcesPage() {
             models,
             source: observed,
           });
-          // Nothing left to watch: the dialog has nothing to show.
           if (models.length >= (observed.observation?.routes ?? 0)) {
             setObserved(null);
           }
         }}
-        onOpenChange={(open) => {
+        onOpenChange={(openState) => {
           if (
-            !open &&
+            !openState &&
             !ops.goLiveSourceMutation.isPending &&
             !ops.removeWatchedModelsMutation.isPending
           )

@@ -1,9 +1,14 @@
-import { Search } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Checkbox } from '../../components/ui/checkbox';
-import { Input } from '../../components/ui/input';
+import { ProviderLogo } from '../../components/ui/provider-icons';
 import { cn } from '../../lib/cn';
-import { makerLabel, makerOf } from '../../lib/model-makers';
+import {
+  groupByMaker,
+  makerBrand,
+  makerLabel,
+  makerOf,
+} from '../../lib/model-makers';
 import type { TokenModelFact } from '../../hooks/tokens/useTokensQuery';
 import type { TFunction } from 'i18next';
 
@@ -11,7 +16,7 @@ import type { TFunction } from 'i18next';
    - off: every model, including ones added later;
    - "a,b": only these;
    - "*,-a,-b": every model but these, including ones added later. */
-type ScopeMode = 'all' | 'except' | 'only';
+export type ScopeMode = 'all' | 'except' | 'only';
 
 const EXCLUDE_ALL = '*';
 
@@ -19,7 +24,7 @@ export const scopeModeOf = (enabled: boolean, limits: string[]): ScopeMode =>
   !enabled ? 'all' : limits.includes(EXCLUDE_ALL) ? 'except' : 'only';
 
 /** The names a scope ticks: the allowed ones, or the excluded ones. */
-const scopeNames = (limits: string[]) =>
+export const scopeNames = (limits: string[]) =>
   limits.includes(EXCLUDE_ALL)
     ? limits
         .filter((name) => name.startsWith('-'))
@@ -27,56 +32,30 @@ const scopeNames = (limits: string[]) =>
         .filter(Boolean)
     : limits.filter((name) => name && name !== EXCLUDE_ALL);
 
-const scopeLimits = (mode: ScopeMode, names: string[]) =>
+export const scopeLimits = (mode: ScopeMode, names: string[]) =>
   mode === 'except'
     ? [EXCLUDE_ALL, ...names.map((name) => `-${name}`)]
     : mode === 'only'
       ? names
       : [];
 
-type Capability = 'cheap' | 'code' | 'embed' | 'vision';
-
-const CAPABILITIES: Array<[Capability, string]> = [
-  ['code', '编程'],
-  ['cheap', '便宜'],
-  ['vision', '视觉'],
-  ['embed', '向量'],
-];
-
-/* 便宜 is a list price at or under a dollar per million input tokens. */
-const CHEAP_INPUT_PER_MTOK = 1;
-
-const capabilitiesOf = (name: string, fact?: TokenModelFact) => {
-  const caps = new Set<Capability>();
-  const embed =
-    Boolean(fact?.endpointTypes.includes('embeddings')) ||
-    /embed|bge-|rerank/i.test(name);
-  if (embed) caps.add('embed');
-  if (!embed && fact?.tools) caps.add('code');
-  if (fact?.vision) caps.add('vision');
-  if (
-    fact?.inputPerMtok !== undefined &&
-    fact.inputPerMtok > 0 &&
-    fact.inputPerMtok <= CHEAP_INPUT_PER_MTOK
-  ) {
-    caps.add('cheap');
-  }
-  return caps;
-};
-
 const trimPrice = (value: number) => `$${Number(value.toFixed(4)).toString()}`;
 
-const priceOf = (fact?: TokenModelFact) => {
-  if (!fact || fact.inputPerMtok === undefined) return '—';
-  if (fact.outputPerMtok === undefined || fact.outputPerMtok === 0) {
-    return trimPrice(fact.inputPerMtok);
-  }
-  return `${trimPrice(fact.inputPerMtok)} / ${trimPrice(fact.outputPerMtok)}`;
+const priceOf = (fact: TokenModelFact | undefined, useAgent: boolean) => {
+  if (!fact) return '';
+  const lane = useAgent
+    ? fact.lanes?.find((item) => item.key === 'cheap' && item.available)
+    : undefined;
+  const inp = lane?.inputPerMtok ?? fact.inputPerMtok;
+  const out = lane?.outputPerMtok ?? fact.outputPerMtok;
+  if (inp === undefined) return '';
+  if (out === undefined || out === 0) return trimPrice(inp);
+  return `${trimPrice(inp)}/${trimPrice(out)}`;
 };
 
 const contextOf = (fact?: TokenModelFact) => {
   const tokens = fact?.contextLength;
-  if (!tokens) return '—';
+  if (!tokens) return '';
   if (tokens >= 1_000_000) {
     return `${Number((tokens / 1_000_000).toFixed(1))}M`;
   }
@@ -84,10 +63,11 @@ const contextOf = (fact?: TokenModelFact) => {
 };
 
 type ModelScopeTableProps = {
+  agentMakers?: ReadonlySet<string>;
   facts: TokenModelFact[];
   invalid?: boolean;
   limits: string[];
-  mode: ScopeMode;
+  mode: Exclude<ScopeMode, 'all'>;
   models: Array<{ label: string; value: string }>;
   onChange: (next: {
     limits: string[];
@@ -99,10 +79,10 @@ type ModelScopeTableProps = {
   vendors: string[];
 };
 
-/** 能调哪些模型: three ways to scope a Key over one table of the models it
- *  could call, with the price, context and what each is good for beside the
- *  box. */
+/** 限制模型: grouped by maker with collapsible headers, selected chips + search
+ *  bar, and a 2-column checkbox grid inside the steady 640px Key modal. */
 export default function ModelScopeTable({
+  agentMakers,
   facts,
   invalid,
   limits,
@@ -113,7 +93,8 @@ export default function ModelScopeTable({
   vendors,
 }: ModelScopeTableProps) {
   const [query, setQuery] = useState('');
-  const [capability, setCapability] = useState<Capability | null>(null);
+  const [folded, setFolded] = useState<Record<string, boolean>>({});
+
   const factOf = useMemo(
     () => new Map(facts.map((fact) => [fact.model, fact])),
     [facts],
@@ -124,9 +105,9 @@ export default function ModelScopeTable({
         const name = String(option.value);
         const fact = factOf.get(name);
         return {
-          caps: capabilitiesOf(name, fact),
           fact,
           maker: makerOf(fact?.maker, { name }),
+          makerRank: fact?.makerRank,
           name,
           vendorID: fact?.vendorID ? String(fact.vendorID) : '',
         };
@@ -136,36 +117,60 @@ export default function ModelScopeTable({
 
   const names = scopeNames(limits);
   const ticked = new Set(names);
-  /* A vendor taken whole ticks every model it ships. */
   const vendorSet = new Set(mode === 'only' ? vendors : []);
   const isTicked = (row: (typeof rows)[number]) =>
     ticked.has(row.name) ||
     (row.vendorID !== '' && vendorSet.has(row.vendorID));
 
+  const effectiveTickedNames = useMemo(() => {
+    if (vendorSet.size === 0) return names;
+    const expanded = new Set(names);
+    for (const row of rows) {
+      if (row.vendorID && vendorSet.has(row.vendorID)) expanded.add(row.name);
+    }
+    return [...expanded];
+  }, [names, rows, vendorSet]);
+
   const needle = query.trim().toLowerCase();
   const shown = rows.filter(
     (row) =>
-      (!capability || row.caps.has(capability)) &&
-      (!needle ||
-        row.name.toLowerCase().includes(needle) ||
-        makerLabel(row.maker, t).toLowerCase().includes(needle)),
+      !needle ||
+      row.name.toLowerCase().includes(needle) ||
+      makerLabel(row.maker, t).toLowerCase().includes(needle),
+  );
+
+  const allByMaker = useMemo(() => {
+    const map = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const list = map.get(row.maker) ?? [];
+      list.push(row);
+      map.set(row.maker, list);
+    }
+    return map;
+  }, [rows]);
+
+  const groups = useMemo(
+    () =>
+      groupByMaker(
+        shown,
+        (row) => row.maker,
+        (row) => row.makerRank,
+      ),
+    [shown],
   );
 
   const reach =
-    mode === 'all'
-      ? rows.length
-      : mode === 'only'
-        ? rows.filter(isTicked).length
-        : rows.filter((row) => !ticked.has(row.name)).length;
+    mode === 'only'
+      ? rows.filter(isTicked).length
+      : rows.filter((row) => !ticked.has(row.name)).length;
 
-  /* Unticking one model of a vendor taken whole names the rest one by one:
-     the vendor no longer means all of it. */
   const write = (nextNames: string[], nextVendors = vendors) =>
     onChange({
       limits: scopeLimits(mode, [...new Set(nextNames)]),
       mode,
       vendors: mode === 'only' ? nextVendors : [],
     });
+
   const toggle = (targets: typeof rows, on: boolean) => {
     let nextNames = [...names];
     let nextVendors = [...vendors];
@@ -187,72 +192,56 @@ export default function ModelScopeTable({
     write(nextNames, nextVendors);
   };
 
-  const pickMode = (next: ScopeMode) => {
+  const removeOne = (targetName: string) => {
+    const match = rows.find((row) => row.name === targetName);
+    if (match) {
+      toggle([match], false);
+    } else {
+      write(
+        names.filter((name) => name !== targetName),
+        vendors,
+      );
+    }
+  };
+
+  const pickMode = (next: Exclude<ScopeMode, 'all'>) => {
     if (next === mode) return;
-    /* The ticked set carries over: what was allowed becomes what is left
-       out, and the other way round. */
     const carried =
       mode === 'only' ? rows.filter(isTicked).map((row) => row.name) : names;
     onChange({ limits: scopeLimits(next, carried), mode: next, vendors: [] });
   };
 
-  const locked = mode === 'all';
-  const allShownOn = shown.length > 0 && shown.every(isTicked);
-  const someShownOn = shown.some(isTicked);
   const excluding = mode === 'except';
-
-  const summary =
-    mode === 'all'
-      ? t('page.console.token.scope.reachAll', {
-          count: reach,
-          defaultValue: '能调 {{count}} 个，含之后上新',
-        })
-      : mode === 'except'
-        ? t('page.console.token.scope.reachExcept', {
-            count: reach,
-            defaultValue: '能调 {{count}} 个，之后上新的也能调',
-          })
-        : t('page.console.token.scope.reachOnly', {
-            count: reach,
-            defaultValue: '能调 {{count}} 个',
-          });
 
   return (
     <div className='tok-scope2'>
       <div className='tok-scope2__modes'>
-        <span className='tok-create__label' id='token-scope-label'>
-          {t('page.console.token.scope.title', {
-            defaultValue: '能调哪些模型',
-          })}
-        </span>
         <div
-          aria-labelledby='token-scope-label'
-          className='tok-scope2__seg'
+          aria-label={t('page.console.token.scope.modeLabel', {
+            defaultValue: '限制方式',
+          })}
+          className='tokv2-seg'
           role='radiogroup'
         >
           {(
             [
               [
-                'all',
-                t('page.console.token.scope.modeAll', { defaultValue: '全部' }),
-              ],
-              [
                 'only',
-                t('page.console.token.scope.modeOnly', {
-                  defaultValue: '只允许勾选的',
+                t('page.console.token.scope.modeOnlyShort', {
+                  defaultValue: '只允许',
                 }),
               ],
               [
                 'except',
-                t('page.console.token.scope.modeExcept', {
-                  defaultValue: '全部，除了勾选的',
+                t('page.console.token.scope.modeExceptShort', {
+                  defaultValue: '排除',
                 }),
               ],
-            ] as Array<[ScopeMode, string]>
+            ] as const
           ).map(([key, label]) => (
             <button
               aria-checked={mode === key}
-              className={cn('tok-scope2__mode', mode === key && 'is-on')}
+              className={cn('tokv2-seg__btn', mode === key && 'is-on')}
               data-owns-chrome='true'
               key={key}
               role='radio'
@@ -263,139 +252,183 @@ export default function ModelScopeTable({
             </button>
           ))}
         </div>
-        <span className='tokv2-hint tok-scope2__summary'>{summary}</span>
+
+        <span className='tokv2-hint tok-scope2__reach'>
+          {t('page.console.token.scope.reachable', { defaultValue: '可调' })}{' '}
+          <b className='tok-scope2__mono tok-scope2__reach-num'>{reach}</b>
+          {` / ${rows.length}`}
+          {excluding ? (
+            <span className='tok-scope2__future'>
+              {` · ${t('page.console.token.scope.futureCallable', {
+                defaultValue: '新模型默认可调',
+              })}`}
+            </span>
+          ) : null}
+        </span>
+
+        {effectiveTickedNames.length > 0 ? (
+          <button
+            className='tok-scope2__clear'
+            data-owns-chrome='true'
+            type='button'
+            onClick={() =>
+              onChange({ limits: scopeLimits(mode, []), mode, vendors: [] })
+            }
+          >
+            {t('common.clear', { defaultValue: '清空' })}
+          </button>
+        ) : null}
       </div>
 
-      <div className='tok-scope2__table'>
-        <div className='tok-scope2__tools'>
-          <span className='tok-scope2__search'>
-            <Search aria-hidden='true' size={14} />
-            <Input
-              aria-label={t('page.console.token.scope.searchShort', {
-                defaultValue: '搜模型',
-              })}
-              placeholder={t('page.console.token.scope.searchShort', {
-                defaultValue: '搜模型',
-              })}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </span>
-          {(
-            [[null, '全部能力'], ...CAPABILITIES] as Array<
-              [Capability | null, string]
-            >
-          ).map(([key, label]) => (
+      <div className='tok-scope2__tagbox'>
+        {effectiveTickedNames.map((id) => (
+          <span
+            className={cn('tok-scope2__tag', excluding && 'is-out')}
+            key={id}
+          >
+            <span>{id}</span>
             <button
-              aria-pressed={capability === key}
-              className={cn('tok-scope2__chip', capability === key && 'is-on')}
+              aria-label={`${t('common.remove', { defaultValue: '移除' })} ${id}`}
+              className='tok-scope2__tag-rm'
               data-owns-chrome='true'
-              key={key || 'all'}
               type='button'
-              onClick={() => setCapability(key)}
+              onClick={() => removeOne(id)}
             >
-              {t(`page.console.token.scope.cap.${key || 'all'}`, {
-                defaultValue: label,
-              })}
+              <X aria-hidden='true' size={12} />
             </button>
-          ))}
-        </div>
-        <div className='tok-scope2__row tok-scope2__row--head'>
-          <Checkbox
-            aria-label={t('page.console.token.scope.tickShown', {
-              defaultValue: '勾选筛出的全部',
+          </span>
+        ))}
+        <input
+          aria-label={t('page.console.token.scope.searchShort', {
+            defaultValue: '搜模型',
+          })}
+          className='tok-scope2__q'
+          placeholder={t('page.console.token.scope.searchPlaceholder', {
+            defaultValue: '搜模型…',
+          })}
+          type='text'
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </div>
+
+      <div className='tok-scope2__groups'>
+        {groups.length === 0 ? (
+          <div className='tok-scope2__empty'>
+            {t('page.console.token.scope.noMatch', {
+              defaultValue: '无匹配模型',
             })}
-            checked={locked || allShownOn}
-            disabled={locked || shown.length === 0}
-            indeterminate={!locked && !allShownOn && someShownOn}
-            onCheckedChange={() => toggle(shown, !allShownOn)}
-          />
-          <span className='tok-scope2__th'>
-            {t('page.console.token.scope.colModel', { defaultValue: '模型' })}
-          </span>
-          <span className='tok-scope2__th'>
-            {t('page.console.token.scope.colMaker', { defaultValue: '厂商' })}
-          </span>
-          <span className='tok-scope2__th is-num'>
-            {t('page.console.token.scope.colPrice', {
-              defaultValue: '入/出 每百万',
-            })}
-          </span>
-          <span className='tok-scope2__th is-num'>
-            {t('page.console.token.scope.colContext', {
-              defaultValue: '上下文',
-            })}
-          </span>
-          <span className='tok-scope2__th is-num'>
-            {t('page.console.token.scope.colCaps', { defaultValue: '能力' })}
-          </span>
-        </div>
-        <div className='tok-scope2__rows'>
-          {shown.length === 0 ? (
-            <div className='tok-scope2__empty'>
-              {t('page.console.token.scope.noMatch', {
-                defaultValue: '没有符合筛选的模型',
-              })}
-            </div>
-          ) : (
-            shown.map((row) => {
-              const on = isTicked(row);
-              return (
-                <label
-                  className={cn(
-                    'tok-scope2__row',
-                    !locked && on && (excluding ? 'is-out' : 'is-in'),
-                  )}
-                  key={row.name}
-                >
+          </div>
+        ) : (
+          groups.map((group) => {
+            const key = group.maker || '__other__';
+            const label = makerLabel(group.maker, t);
+            const allInMaker = allByMaker.get(group.maker) ?? group.rows;
+            const pickedAll = allInMaker.filter(isTicked).length;
+            const pickedShown = group.rows.filter(isTicked).length;
+            const allOn =
+              group.rows.length > 0 && pickedShown === group.rows.length;
+            const someOn = pickedShown > 0 && !allOn;
+            const isOpen = Boolean(needle) || !folded[key];
+            const isAgent = Boolean(agentMakers?.has(group.maker));
+
+            return (
+              <div className='tok-scope2__group' key={key}>
+                <div className='tok-scope2__ghead'>
                   <Checkbox
-                    aria-label={row.name}
-                    checked={locked || on}
+                    aria-label={label}
+                    checked={allOn}
                     className={excluding ? 'tok-scope2__box--out' : undefined}
-                    disabled={locked}
+                    indeterminate={someOn}
                     onCheckedChange={(checked: boolean) =>
-                      toggle([row], checked)
+                      toggle(group.rows, checked)
                     }
                   />
-                  <span className='tok-scope2__name'>{row.name}</span>
-                  <span className='tokv2-hint'>
-                    {row.maker ? makerLabel(row.maker, t) : '—'}
-                  </span>
-                  <span className='tok-scope2__mono is-num'>
-                    {priceOf(row.fact)}
-                  </span>
-                  <span className='tok-scope2__mono is-num'>
-                    {contextOf(row.fact)}
-                  </span>
-                  <span className='tokv2-hint is-num'>
-                    {CAPABILITIES.filter(([key]) => row.caps.has(key))
-                      .slice(0, 2)
-                      .map(([key, label]) =>
-                        t(`page.console.token.scope.cap.${key}`, {
-                          defaultValue: label,
-                        }),
-                      )
-                      .join(' · ') || '—'}
-                  </span>
-                </label>
-              );
-            })
-          )}
-        </div>
+                  <button
+                    aria-expanded={isOpen}
+                    className='tok-scope2__gtoggle'
+                    data-owns-chrome='true'
+                    type='button'
+                    onClick={() =>
+                      setFolded((prev) => ({ ...prev, [key]: !prev[key] }))
+                    }
+                  >
+                    <ProviderLogo
+                      brand={makerBrand(
+                        group.maker,
+                        group.rows[0] ? { name: group.rows[0].name } : {},
+                      )}
+                      decorative
+                      size={18}
+                    />
+                    <span className='tok-scope2__gname'>{label}</span>
+                    <span className='tok-scope2__mono tok-scope2__gcount'>
+                      {`${pickedAll}/${allInMaker.length}`}
+                    </span>
+                    {isAgent ? (
+                      <span className='tok-scope2__agent'>Agent</span>
+                    ) : null}
+                    <ChevronDown
+                      aria-hidden='true'
+                      className={cn('tok-scope2__gchev', isOpen && 'is-open')}
+                      size={14}
+                    />
+                  </button>
+                </div>
+
+                {isOpen ? (
+                  <div className='tok-scope2__grid'>
+                    {group.rows.map((row) => {
+                      const on = isTicked(row);
+                      const price = priceOf(row.fact, isAgent);
+                      const ctx = contextOf(row.fact);
+                      const tip = [ctx, price].filter(Boolean).join(' · ');
+
+                      return (
+                        <label
+                          className={cn(
+                            'tok-scope2__item',
+                            on && (excluding ? 'is-out' : 'is-in'),
+                          )}
+                          key={row.name}
+                          title={tip || undefined}
+                        >
+                          <Checkbox
+                            aria-label={row.name}
+                            checked={on}
+                            className={
+                              excluding ? 'tok-scope2__box--out' : undefined
+                            }
+                            onCheckedChange={(checked: boolean) =>
+                              toggle([row], checked)
+                            }
+                          />
+                          <span className='tok-scope2__item-id'>
+                            {row.name}
+                          </span>
+                          {price ? (
+                            <span className='tok-scope2__mono tok-scope2__item-price'>
+                              {price}
+                            </span>
+                          ) : null}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
+        )}
       </div>
+
       {invalid && mode === 'only' && reach === 0 ? (
         <span className='tok-scope2__error' role='alert'>
           {t('page.console.token.scope.emptyOnly', {
-            defaultValue: '至少勾一个模型；不想限制就选「全部」。',
+            defaultValue: '至少选择一个模型，或关闭「限制模型」',
           })}
         </span>
       ) : null}
-      <span className='tokv2-hint'>
-        {t('page.console.token.scope.tableHint', {
-          defaultValue:
-            '价格、上下文来自模型页；Key 页面上就能比，不用来回切。',
-        })}
-      </span>
     </div>
   );
 }
