@@ -50,7 +50,12 @@ const formatMs = (value?: number) => {
 
 const pricePick = (
   p: CatalogPricing | undefined,
-  key: 'cache_read' | 'cache_write_5m' | 'cache_write_1h',
+  key:
+    | 'cache_read'
+    | 'cache_write_5m'
+    | 'cache_write_1h'
+    | 'cache_write_30m'
+    | 'cache_write_12h',
 ) => p?.[`${key}_per_million`] ?? p?.[key];
 
 type LaneStatus = 'operational' | 'degraded' | 'outage' | 'unknown';
@@ -456,7 +461,14 @@ function cacheLine(
   model: CatalogModel,
   t: ReturnType<typeof useTranslation>['t'],
 ) {
-  const pick = (key: 'cache_read' | 'cache_write_5m' | 'cache_write_1h') => {
+  const pick = (
+    key:
+      | 'cache_read'
+      | 'cache_write_5m'
+      | 'cache_write_1h'
+      | 'cache_write_30m'
+      | 'cache_write_12h',
+  ) => {
     const mine = pricePick(personalPricing(lane), key);
     if (mine != null) return applyPersonalPeak(mine, lane);
     return applyLanePeak(
@@ -468,6 +480,8 @@ function cacheLine(
   const read = pick('cache_read');
   const write5m = pick('cache_write_5m');
   const write1h = pick('cache_write_1h');
+  const write30m = pick('cache_write_30m');
+  const write12h = pick('cache_write_12h');
   const parts: string[] = [];
   if (read != null)
     parts.push(
@@ -476,10 +490,17 @@ function cacheLine(
         price: money(read),
       }),
     );
-  if (write5m != null || write1h != null) {
+  if (
+    write5m != null ||
+    write1h != null ||
+    write30m != null ||
+    write12h != null
+  ) {
     const writes = [
       write5m != null ? `5m ${money(write5m)}` : null,
       write1h != null ? `1h ${money(write1h)}` : null,
+      write30m != null ? `30m ${money(write30m)}` : null,
+      write12h != null ? `12h ${money(write12h)}` : null,
     ]
       .filter(Boolean)
       .join(' · ');

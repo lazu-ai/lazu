@@ -48,57 +48,63 @@ var providerCostPriceTableCache = struct {
 }{}
 
 type ProviderCostPrice struct {
-	ImagePricing        *billing.ImagePrices `json:"image_pricing,omitempty" gorm:"type:text;serializer:json"`
-	VideoPricing        *billing.VideoPrices `json:"video_pricing,omitempty" gorm:"type:text;serializer:json"`
-	ID                  uint                 `json:"id" gorm:"primaryKey"`
-	ModelName           string               `json:"model_name" gorm:"type:varchar(191);index:idx_provider_cost_prices_model_provider_channel_version,unique;not null"`
-	Provider            string               `json:"provider" gorm:"type:varchar(64);default:'seed';index:idx_provider_cost_prices_model_provider_channel_version,unique"`
-	ChannelID           int                  `json:"channel_id" gorm:"default:0;index:idx_provider_cost_prices_model_provider_channel_version,unique"`
-	InputPerMtok        *float64             `json:"input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	OutputPerMtok       *float64             `json:"output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	CacheReadPerMtok    *float64             `json:"cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	CacheWrite5mPerMtok *float64             `json:"cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	CacheWrite1hPerMtok *float64             `json:"cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	AudioInputPerMtok   *float64             `json:"audio_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	AudioOutputPerMtok  *float64             `json:"audio_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ImageInputPerMtok   *float64             `json:"image_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ImageOutputPerMtok  *float64             `json:"image_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	RequestUSD          *float64             `json:"request_usd,omitempty" gorm:"type:decimal(20,10)"`
-	SecondUSD           *float64             `json:"second_usd,omitempty" gorm:"type:decimal(20,10)"`
+	ImagePricing         *billing.ImagePrices `json:"image_pricing,omitempty" gorm:"type:text;serializer:json"`
+	VideoPricing         *billing.VideoPrices `json:"video_pricing,omitempty" gorm:"type:text;serializer:json"`
+	ID                   uint                 `json:"id" gorm:"primaryKey"`
+	ModelName            string               `json:"model_name" gorm:"type:varchar(191);index:idx_provider_cost_prices_model_provider_channel_version,unique;not null"`
+	Provider             string               `json:"provider" gorm:"type:varchar(64);default:'seed';index:idx_provider_cost_prices_model_provider_channel_version,unique"`
+	ChannelID            int                  `json:"channel_id" gorm:"default:0;index:idx_provider_cost_prices_model_provider_channel_version,unique"`
+	InputPerMtok         *float64             `json:"input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	OutputPerMtok        *float64             `json:"output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheReadPerMtok     *float64             `json:"cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite5mPerMtok  *float64             `json:"cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite30mPerMtok *float64             `json:"cache_write_30m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite12hPerMtok *float64             `json:"cache_write_12h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite1hPerMtok  *float64             `json:"cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	AudioInputPerMtok    *float64             `json:"audio_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	AudioOutputPerMtok   *float64             `json:"audio_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ImageInputPerMtok    *float64             `json:"image_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ImageOutputPerMtok   *float64             `json:"image_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	RequestUSD           *float64             `json:"request_usd,omitempty" gorm:"type:decimal(20,10)"`
+	SecondUSD            *float64             `json:"second_usd,omitempty" gorm:"type:decimal(20,10)"`
 	// Context tier on the cost side, same meaning as on ModelSellPrice: past
 	// the threshold the whole request costs the tier prices. Whether a source
 	// passes on the lab's long-context surcharge is a property of the source,
 	// so each cost row carries its own. A row without one falls back to the
 	// lab's official tier only when it is the list-price row (channel 0).
-	ContextTierThreshold           int64     `json:"context_tier_threshold,omitempty" gorm:"default:0"`
-	ContextTierInputPerMtok        *float64  `json:"context_tier_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierOutputPerMtok       *float64  `json:"context_tier_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierCacheReadPerMtok    *float64  `json:"context_tier_cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierCacheWrite5mPerMtok *float64  `json:"context_tier_cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierCacheWrite1hPerMtok *float64  `json:"context_tier_cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	Source                         string    `json:"source" gorm:"type:varchar(64);default:'manual'"`
-	PricingVersion                 int64     `json:"pricing_version" gorm:"index:idx_provider_cost_prices_model_provider_channel_version,unique;not null"`
-	CreatedAt                      time.Time `json:"created_at"`
-	UpdatedAt                      time.Time `json:"updated_at"`
+	ContextTierThreshold            int64     `json:"context_tier_threshold,omitempty" gorm:"default:0"`
+	ContextTierInputPerMtok         *float64  `json:"context_tier_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierOutputPerMtok        *float64  `json:"context_tier_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheReadPerMtok     *float64  `json:"context_tier_cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite5mPerMtok  *float64  `json:"context_tier_cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite30mPerMtok *float64  `json:"context_tier_cache_write_30m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite12hPerMtok *float64  `json:"context_tier_cache_write_12h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite1hPerMtok  *float64  `json:"context_tier_cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	Source                          string    `json:"source" gorm:"type:varchar(64);default:'manual'"`
+	PricingVersion                  int64     `json:"pricing_version" gorm:"index:idx_provider_cost_prices_model_provider_channel_version,unique;not null"`
+	CreatedAt                       time.Time `json:"created_at"`
+	UpdatedAt                       time.Time `json:"updated_at"`
 }
 
 func (price ProviderCostPrice) ToBillingPriceSheet() billing.PriceSheet {
 	return billing.PriceSheet{
-		ModelName:                   price.ModelName,
-		Images:                      price.ImagePricing.Scaled(1),
-		Video:                       price.VideoPricing.Scaled(1),
-		InputPerMtokMicrousd:        usdToMicrousdPtr(price.InputPerMtok),
-		OutputPerMtokMicrousd:       usdToMicrousdPtr(price.OutputPerMtok),
-		CacheReadPerMtokMicrousd:    usdToMicrousdPtr(price.CacheReadPerMtok),
-		CacheWrite5mPerMtokMicrousd: usdToMicrousdPtr(price.CacheWrite5mPerMtok),
-		CacheWrite1hPerMtokMicrousd: usdToMicrousdPtr(price.CacheWrite1hPerMtok),
-		AudioInputPerMtokMicrousd:   usdToMicrousdPtr(price.AudioInputPerMtok),
-		AudioOutputPerMtokMicrousd:  usdToMicrousdPtr(price.AudioOutputPerMtok),
-		ImageInputPerMtokMicrousd:   usdToMicrousdPtr(price.ImageInputPerMtok),
-		ImageOutputPerMtokMicrousd:  usdToMicrousdPtr(price.ImageOutputPerMtok),
-		RequestMicrousd:             usdToMicrousdPtr(price.RequestUSD),
-		SecondMicrousd:              usdToMicrousdPtr(price.SecondUSD),
-		PricingVersion:              price.PricingVersion,
+		ModelName:                    price.ModelName,
+		Images:                       price.ImagePricing.Scaled(1),
+		Video:                        price.VideoPricing.Scaled(1),
+		InputPerMtokMicrousd:         usdToMicrousdPtr(price.InputPerMtok),
+		OutputPerMtokMicrousd:        usdToMicrousdPtr(price.OutputPerMtok),
+		CacheReadPerMtokMicrousd:     usdToMicrousdPtr(price.CacheReadPerMtok),
+		CacheWrite5mPerMtokMicrousd:  usdToMicrousdPtr(price.CacheWrite5mPerMtok),
+		CacheWrite30mPerMtokMicrousd: usdToMicrousdPtr(price.CacheWrite30mPerMtok),
+		CacheWrite12hPerMtokMicrousd: usdToMicrousdPtr(price.CacheWrite12hPerMtok),
+		CacheWrite1hPerMtokMicrousd:  usdToMicrousdPtr(price.CacheWrite1hPerMtok),
+		AudioInputPerMtokMicrousd:    usdToMicrousdPtr(price.AudioInputPerMtok),
+		AudioOutputPerMtokMicrousd:   usdToMicrousdPtr(price.AudioOutputPerMtok),
+		ImageInputPerMtokMicrousd:    usdToMicrousdPtr(price.ImageInputPerMtok),
+		ImageOutputPerMtokMicrousd:   usdToMicrousdPtr(price.ImageOutputPerMtok),
+		RequestMicrousd:              usdToMicrousdPtr(price.RequestUSD),
+		SecondMicrousd:               usdToMicrousdPtr(price.SecondUSD),
+		PricingVersion:               price.PricingVersion,
 	}
 }
 
@@ -127,6 +133,8 @@ func (price ProviderCostPrice) ForInputTokens(inputTokens int64) (ProviderCostPr
 	tiered.OutputPerMtok = pickTierPrice(price.ContextTierOutputPerMtok, price.OutputPerMtok)
 	tiered.CacheReadPerMtok = pickTierPrice(price.ContextTierCacheReadPerMtok, price.CacheReadPerMtok)
 	tiered.CacheWrite5mPerMtok = pickTierPrice(price.ContextTierCacheWrite5mPerMtok, price.CacheWrite5mPerMtok)
+	tiered.CacheWrite30mPerMtok = pickTierPrice(price.ContextTierCacheWrite30mPerMtok, price.CacheWrite30mPerMtok)
+	tiered.CacheWrite12hPerMtok = pickTierPrice(price.ContextTierCacheWrite12hPerMtok, price.CacheWrite12hPerMtok)
 	tiered.CacheWrite1hPerMtok = pickTierPrice(price.ContextTierCacheWrite1hPerMtok, price.CacheWrite1hPerMtok)
 	return tiered, true
 }
@@ -152,6 +160,7 @@ func (price ProviderCostPrice) WithOfficialContextTier(official ModelOfficialPri
 	price.ContextTierOutputPerMtok = scaled(price.OutputPerMtok, official.OutputPerMtok(), tier.OutputPerMtok)
 	price.ContextTierCacheReadPerMtok = scaled(price.CacheReadPerMtok, official.CacheReadPerMtok, tier.CacheReadPerMtok)
 	price.ContextTierCacheWrite5mPerMtok = scaled(price.CacheWrite5mPerMtok, official.CacheWritePerMtok, tier.CacheWrite5mPerMtok)
+	price.ContextTierCacheWrite30mPerMtok = scaled(price.CacheWrite30mPerMtok, official.CacheWritePerMtok, tier.CacheWrite30mPerMtok)
 	return price
 }
 
@@ -163,22 +172,24 @@ func pickTierPrice(tier, base *float64) *float64 {
 }
 
 type ModelSellPrice struct {
-	ImagePricing        *billing.ImagePrices `json:"image_pricing,omitempty" gorm:"type:text;serializer:json"`
-	VideoPricing        *billing.VideoPrices `json:"video_pricing,omitempty" gorm:"type:text;serializer:json"`
-	ID                  uint                 `json:"id" gorm:"primaryKey"`
-	ModelName           string               `json:"model_name" gorm:"type:varchar(191);index:idx_model_sell_prices_model_lane_version,unique;not null"`
-	ChannelGroup        string               `json:"channel_group" gorm:"type:varchar(32);default:'direct';index:idx_model_sell_prices_model_lane_version,unique;not null"`
-	InputPerMtok        *float64             `json:"input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	OutputPerMtok       *float64             `json:"output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	CacheReadPerMtok    *float64             `json:"cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	CacheWrite5mPerMtok *float64             `json:"cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	CacheWrite1hPerMtok *float64             `json:"cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	AudioInputPerMtok   *float64             `json:"audio_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	AudioOutputPerMtok  *float64             `json:"audio_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ImageInputPerMtok   *float64             `json:"image_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ImageOutputPerMtok  *float64             `json:"image_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	RequestUSD          *float64             `json:"request_usd,omitempty" gorm:"type:decimal(20,10)"`
-	SecondUSD           *float64             `json:"second_usd,omitempty" gorm:"type:decimal(20,10)"`
+	ImagePricing         *billing.ImagePrices `json:"image_pricing,omitempty" gorm:"type:text;serializer:json"`
+	VideoPricing         *billing.VideoPrices `json:"video_pricing,omitempty" gorm:"type:text;serializer:json"`
+	ID                   uint                 `json:"id" gorm:"primaryKey"`
+	ModelName            string               `json:"model_name" gorm:"type:varchar(191);index:idx_model_sell_prices_model_lane_version,unique;not null"`
+	ChannelGroup         string               `json:"channel_group" gorm:"type:varchar(32);default:'direct';index:idx_model_sell_prices_model_lane_version,unique;not null"`
+	InputPerMtok         *float64             `json:"input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	OutputPerMtok        *float64             `json:"output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheReadPerMtok     *float64             `json:"cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite5mPerMtok  *float64             `json:"cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite30mPerMtok *float64             `json:"cache_write_30m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite12hPerMtok *float64             `json:"cache_write_12h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	CacheWrite1hPerMtok  *float64             `json:"cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	AudioInputPerMtok    *float64             `json:"audio_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	AudioOutputPerMtok   *float64             `json:"audio_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ImageInputPerMtok    *float64             `json:"image_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ImageOutputPerMtok   *float64             `json:"image_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	RequestUSD           *float64             `json:"request_usd,omitempty" gorm:"type:decimal(20,10)"`
+	SecondUSD            *float64             `json:"second_usd,omitempty" gorm:"type:decimal(20,10)"`
 	// PeakHoursUTC is a comma-separated list of UTC hour ranges (e.g. "1-4,6-10",
 	// each range [start,end) in 24h). PeakMultiplier scales every price field
 	// while the current UTC hour falls inside one of the ranges — this models
@@ -190,12 +201,14 @@ type ModelSellPrice struct {
 	// input tokens (cached included) exceed it, the whole request is billed
 	// at the ContextTier* prices, as OpenAI and Google bill long prompts. Zero
 	// means a single price. A tier price left nil keeps the base price.
-	ContextTierThreshold           int64    `json:"context_tier_threshold,omitempty" gorm:"default:0"`
-	ContextTierInputPerMtok        *float64 `json:"context_tier_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierOutputPerMtok       *float64 `json:"context_tier_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierCacheReadPerMtok    *float64 `json:"context_tier_cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierCacheWrite5mPerMtok *float64 `json:"context_tier_cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
-	ContextTierCacheWrite1hPerMtok *float64 `json:"context_tier_cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierThreshold            int64    `json:"context_tier_threshold,omitempty" gorm:"default:0"`
+	ContextTierInputPerMtok         *float64 `json:"context_tier_input_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierOutputPerMtok        *float64 `json:"context_tier_output_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheReadPerMtok     *float64 `json:"context_tier_cache_read_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite5mPerMtok  *float64 `json:"context_tier_cache_write_5m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite30mPerMtok *float64 `json:"context_tier_cache_write_30m_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite12hPerMtok *float64 `json:"context_tier_cache_write_12h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
+	ContextTierCacheWrite1hPerMtok  *float64 `json:"context_tier_cache_write_1h_per_mtok,omitempty" gorm:"type:decimal(20,10)"`
 
 	// FollowOfficial derives the token prices from the model's official list
 	// price × PriceRatio (percent; nil = the lane's default ratio). Fields in
@@ -276,21 +289,23 @@ func (price ModelSellPrice) ToBillingPriceSheetAt(now time.Time) billing.PriceSh
 		return usdToMicrousdPtr(&v)
 	}
 	return billing.PriceSheet{
-		ModelName:                   price.ModelName,
-		Images:                      price.ImagePricing.Scaled(factor),
-		Video:                       price.VideoPricing.Scaled(factor),
-		InputPerMtokMicrousd:        scale(price.InputPerMtok),
-		OutputPerMtokMicrousd:       scale(price.OutputPerMtok),
-		CacheReadPerMtokMicrousd:    scale(price.CacheReadPerMtok),
-		CacheWrite5mPerMtokMicrousd: scale(price.CacheWrite5mPerMtok),
-		CacheWrite1hPerMtokMicrousd: scale(price.CacheWrite1hPerMtok),
-		AudioInputPerMtokMicrousd:   scale(price.AudioInputPerMtok),
-		AudioOutputPerMtokMicrousd:  scale(price.AudioOutputPerMtok),
-		ImageInputPerMtokMicrousd:   scale(price.ImageInputPerMtok),
-		ImageOutputPerMtokMicrousd:  scale(price.ImageOutputPerMtok),
-		RequestMicrousd:             scale(price.RequestUSD),
-		SecondMicrousd:              scale(price.SecondUSD),
-		PricingVersion:              price.PricingVersion,
+		ModelName:                    price.ModelName,
+		Images:                       price.ImagePricing.Scaled(factor),
+		Video:                        price.VideoPricing.Scaled(factor),
+		InputPerMtokMicrousd:         scale(price.InputPerMtok),
+		OutputPerMtokMicrousd:        scale(price.OutputPerMtok),
+		CacheReadPerMtokMicrousd:     scale(price.CacheReadPerMtok),
+		CacheWrite5mPerMtokMicrousd:  scale(price.CacheWrite5mPerMtok),
+		CacheWrite30mPerMtokMicrousd: scale(price.CacheWrite30mPerMtok),
+		CacheWrite12hPerMtokMicrousd: scale(price.CacheWrite12hPerMtok),
+		CacheWrite1hPerMtokMicrousd:  scale(price.CacheWrite1hPerMtok),
+		AudioInputPerMtokMicrousd:    scale(price.AudioInputPerMtok),
+		AudioOutputPerMtokMicrousd:   scale(price.AudioOutputPerMtok),
+		ImageInputPerMtokMicrousd:    scale(price.ImageInputPerMtok),
+		ImageOutputPerMtokMicrousd:   scale(price.ImageOutputPerMtok),
+		RequestMicrousd:              scale(price.RequestUSD),
+		SecondMicrousd:               scale(price.SecondUSD),
+		PricingVersion:               price.PricingVersion,
 	}
 }
 
@@ -315,6 +330,8 @@ func (price ModelSellPrice) ForInputTokens(inputTokens int64) (ModelSellPrice, b
 	tiered.OutputPerMtok = pickTierPrice(price.ContextTierOutputPerMtok, price.OutputPerMtok)
 	tiered.CacheReadPerMtok = pickTierPrice(price.ContextTierCacheReadPerMtok, price.CacheReadPerMtok)
 	tiered.CacheWrite5mPerMtok = pickTierPrice(price.ContextTierCacheWrite5mPerMtok, price.CacheWrite5mPerMtok)
+	tiered.CacheWrite30mPerMtok = pickTierPrice(price.ContextTierCacheWrite30mPerMtok, price.CacheWrite30mPerMtok)
+	tiered.CacheWrite12hPerMtok = pickTierPrice(price.ContextTierCacheWrite12hPerMtok, price.CacheWrite12hPerMtok)
 	tiered.CacheWrite1hPerMtok = pickTierPrice(price.ContextTierCacheWrite1hPerMtok, price.CacheWrite1hPerMtok)
 	return tiered, true
 }
@@ -571,6 +588,8 @@ func (price ProviderCostPrice) Scaled(factor float64) ProviderCostPrice {
 	price.OutputPerMtok = scale(price.OutputPerMtok)
 	price.CacheReadPerMtok = scale(price.CacheReadPerMtok)
 	price.CacheWrite5mPerMtok = scale(price.CacheWrite5mPerMtok)
+	price.CacheWrite30mPerMtok = scale(price.CacheWrite30mPerMtok)
+	price.CacheWrite12hPerMtok = scale(price.CacheWrite12hPerMtok)
 	price.CacheWrite1hPerMtok = scale(price.CacheWrite1hPerMtok)
 	price.AudioInputPerMtok = scale(price.AudioInputPerMtok)
 	price.AudioOutputPerMtok = scale(price.AudioOutputPerMtok)
@@ -583,6 +602,8 @@ func (price ProviderCostPrice) Scaled(factor float64) ProviderCostPrice {
 	price.ContextTierOutputPerMtok = scale(price.ContextTierOutputPerMtok)
 	price.ContextTierCacheReadPerMtok = scale(price.ContextTierCacheReadPerMtok)
 	price.ContextTierCacheWrite5mPerMtok = scale(price.ContextTierCacheWrite5mPerMtok)
+	price.ContextTierCacheWrite30mPerMtok = scale(price.ContextTierCacheWrite30mPerMtok)
+	price.ContextTierCacheWrite12hPerMtok = scale(price.ContextTierCacheWrite12hPerMtok)
 	price.ContextTierCacheWrite1hPerMtok = scale(price.ContextTierCacheWrite1hPerMtok)
 	return price
 }
@@ -728,17 +749,19 @@ func validateModelSellPrice(row ModelSellPrice) error {
 		}
 	}
 	prices := map[string]*float64{
-		"input_per_mtok":          row.InputPerMtok,
-		"output_per_mtok":         row.OutputPerMtok,
-		"cache_read_per_mtok":     row.CacheReadPerMtok,
-		"cache_write_5m_per_mtok": row.CacheWrite5mPerMtok,
-		"cache_write_1h_per_mtok": row.CacheWrite1hPerMtok,
-		"audio_input_per_mtok":    row.AudioInputPerMtok,
-		"audio_output_per_mtok":   row.AudioOutputPerMtok,
-		"image_input_per_mtok":    row.ImageInputPerMtok,
-		"image_output_per_mtok":   row.ImageOutputPerMtok,
-		"request_usd":             row.RequestUSD,
-		"second_usd":              row.SecondUSD,
+		"input_per_mtok":           row.InputPerMtok,
+		"output_per_mtok":          row.OutputPerMtok,
+		"cache_read_per_mtok":      row.CacheReadPerMtok,
+		"cache_write_5m_per_mtok":  row.CacheWrite5mPerMtok,
+		"cache_write_30m_per_mtok": row.CacheWrite30mPerMtok,
+		"cache_write_12h_per_mtok": row.CacheWrite12hPerMtok,
+		"cache_write_1h_per_mtok":  row.CacheWrite1hPerMtok,
+		"audio_input_per_mtok":     row.AudioInputPerMtok,
+		"audio_output_per_mtok":    row.AudioOutputPerMtok,
+		"image_input_per_mtok":     row.ImageInputPerMtok,
+		"image_output_per_mtok":    row.ImageOutputPerMtok,
+		"request_usd":              row.RequestUSD,
+		"second_usd":               row.SecondUSD,
 	}
 	// A video price sheet prices on its own: per-resolution second prices or
 	// the provider's reported cost need no headline scalar.
@@ -763,11 +786,13 @@ func validateModelSellPrice(row ModelSellPrice) error {
 		return fmt.Errorf("context_tier_threshold must be non-negative")
 	}
 	tierPrices := map[string]*float64{
-		"context_tier_input_per_mtok":          row.ContextTierInputPerMtok,
-		"context_tier_output_per_mtok":         row.ContextTierOutputPerMtok,
-		"context_tier_cache_read_per_mtok":     row.ContextTierCacheReadPerMtok,
-		"context_tier_cache_write_5m_per_mtok": row.ContextTierCacheWrite5mPerMtok,
-		"context_tier_cache_write_1h_per_mtok": row.ContextTierCacheWrite1hPerMtok,
+		"context_tier_input_per_mtok":           row.ContextTierInputPerMtok,
+		"context_tier_output_per_mtok":          row.ContextTierOutputPerMtok,
+		"context_tier_cache_read_per_mtok":      row.ContextTierCacheReadPerMtok,
+		"context_tier_cache_write_5m_per_mtok":  row.ContextTierCacheWrite5mPerMtok,
+		"context_tier_cache_write_30m_per_mtok": row.ContextTierCacheWrite30mPerMtok,
+		"context_tier_cache_write_12h_per_mtok": row.ContextTierCacheWrite12hPerMtok,
+		"context_tier_cache_write_1h_per_mtok":  row.ContextTierCacheWrite1hPerMtok,
 	}
 	hasTierPrice := false
 	for field, value := range tierPrices {

@@ -45,6 +45,8 @@ type Pricing struct {
 	OutputPerMtok             *float64                       `json:"output_per_mtok,omitempty"`
 	CacheReadPerMtok          *float64                       `json:"cache_read_per_mtok,omitempty"`
 	CacheWrite5mPerMtok       *float64                       `json:"cache_write_5m_per_mtok,omitempty"`
+	CacheWrite30mPerMtok      *float64                       `json:"cache_write_30m_per_mtok,omitempty"`
+	CacheWrite12hPerMtok      *float64                       `json:"cache_write_12h_per_mtok,omitempty"`
 	CacheWrite1hPerMtok       *float64                       `json:"cache_write_1h_per_mtok,omitempty"`
 	AudioInputPerMtok         *float64                       `json:"audio_input_per_mtok,omitempty"`
 	AudioOutputPerMtok        *float64                       `json:"audio_output_per_mtok,omitempty"`
@@ -86,12 +88,14 @@ type Pricing struct {
 
 // ContextTierPrice is a lane's long-context pricing as the catalog shows it.
 type ContextTierPrice struct {
-	Threshold           int64    `json:"threshold"`
-	InputPerMtok        *float64 `json:"input_per_mtok,omitempty"`
-	OutputPerMtok       *float64 `json:"output_per_mtok,omitempty"`
-	CacheReadPerMtok    *float64 `json:"cache_read_per_mtok,omitempty"`
-	CacheWrite5mPerMtok *float64 `json:"cache_write_5m_per_mtok,omitempty"`
-	CacheWrite1hPerMtok *float64 `json:"cache_write_1h_per_mtok,omitempty"`
+	Threshold            int64    `json:"threshold"`
+	InputPerMtok         *float64 `json:"input_per_mtok,omitempty"`
+	OutputPerMtok        *float64 `json:"output_per_mtok,omitempty"`
+	CacheReadPerMtok     *float64 `json:"cache_read_per_mtok,omitempty"`
+	CacheWrite5mPerMtok  *float64 `json:"cache_write_5m_per_mtok,omitempty"`
+	CacheWrite30mPerMtok *float64 `json:"cache_write_30m_per_mtok,omitempty"`
+	CacheWrite12hPerMtok *float64 `json:"cache_write_12h_per_mtok,omitempty"`
+	CacheWrite1hPerMtok  *float64 `json:"cache_write_1h_per_mtok,omitempty"`
 }
 
 // ContextTier is the long-context pricing of a sell price, or nil.
@@ -100,36 +104,40 @@ func (price ModelSellPrice) ContextTier() *ContextTierPrice {
 		return nil
 	}
 	return &ContextTierPrice{
-		Threshold:           price.ContextTierThreshold,
-		InputPerMtok:        price.ContextTierInputPerMtok,
-		OutputPerMtok:       price.ContextTierOutputPerMtok,
-		CacheReadPerMtok:    price.ContextTierCacheReadPerMtok,
-		CacheWrite5mPerMtok: price.ContextTierCacheWrite5mPerMtok,
-		CacheWrite1hPerMtok: price.ContextTierCacheWrite1hPerMtok,
+		Threshold:            price.ContextTierThreshold,
+		InputPerMtok:         price.ContextTierInputPerMtok,
+		OutputPerMtok:        price.ContextTierOutputPerMtok,
+		CacheReadPerMtok:     price.ContextTierCacheReadPerMtok,
+		CacheWrite5mPerMtok:  price.ContextTierCacheWrite5mPerMtok,
+		CacheWrite30mPerMtok: price.ContextTierCacheWrite30mPerMtok,
+		CacheWrite12hPerMtok: price.ContextTierCacheWrite12hPerMtok,
+		CacheWrite1hPerMtok:  price.ContextTierCacheWrite1hPerMtok,
 	}
 }
 
 type PricingLane struct {
-	ImagePricing        *billing.ImagePrices    `json:"image_pricing,omitempty"`
-	VideoPricing        *billing.VideoPrices    `json:"video_pricing,omitempty"`
-	ModelName           string                  `json:"model_name"`
-	ChannelGroup        string                  `json:"channel_group"`
-	InputPerMtok        *float64                `json:"input_per_mtok,omitempty"`
-	OutputPerMtok       *float64                `json:"output_per_mtok,omitempty"`
-	CacheReadPerMtok    *float64                `json:"cache_read_per_mtok,omitempty"`
-	CacheWrite5mPerMtok *float64                `json:"cache_write_5m_per_mtok,omitempty"`
-	CacheWrite1hPerMtok *float64                `json:"cache_write_1h_per_mtok,omitempty"`
-	AudioInputPerMtok   *float64                `json:"audio_input_per_mtok,omitempty"`
-	AudioOutputPerMtok  *float64                `json:"audio_output_per_mtok,omitempty"`
-	ImageInputPerMtok   *float64                `json:"image_input_per_mtok,omitempty"`
-	ImageOutputPerMtok  *float64                `json:"image_output_per_mtok,omitempty"`
-	RequestUSD          *float64                `json:"request_usd,omitempty"`
-	SecondUSD           *float64                `json:"second_usd,omitempty"`
-	PeakCalendar        *pricecalendar.Calendar `json:"peak_calendar,omitempty"`
-	PeakHoursUTC        string                  `json:"peak_hours_utc,omitempty"`
-	PeakMultiplier      *float64                `json:"peak_multiplier,omitempty"`
-	PricingVersion      int64                   `json:"pricing_version,omitempty"`
-	ContextTier         *ContextTierPrice       `json:"context_tier,omitempty"`
+	ImagePricing         *billing.ImagePrices    `json:"image_pricing,omitempty"`
+	VideoPricing         *billing.VideoPrices    `json:"video_pricing,omitempty"`
+	ModelName            string                  `json:"model_name"`
+	ChannelGroup         string                  `json:"channel_group"`
+	InputPerMtok         *float64                `json:"input_per_mtok,omitempty"`
+	OutputPerMtok        *float64                `json:"output_per_mtok,omitempty"`
+	CacheReadPerMtok     *float64                `json:"cache_read_per_mtok,omitempty"`
+	CacheWrite5mPerMtok  *float64                `json:"cache_write_5m_per_mtok,omitempty"`
+	CacheWrite30mPerMtok *float64                `json:"cache_write_30m_per_mtok,omitempty"`
+	CacheWrite12hPerMtok *float64                `json:"cache_write_12h_per_mtok,omitempty"`
+	CacheWrite1hPerMtok  *float64                `json:"cache_write_1h_per_mtok,omitempty"`
+	AudioInputPerMtok    *float64                `json:"audio_input_per_mtok,omitempty"`
+	AudioOutputPerMtok   *float64                `json:"audio_output_per_mtok,omitempty"`
+	ImageInputPerMtok    *float64                `json:"image_input_per_mtok,omitempty"`
+	ImageOutputPerMtok   *float64                `json:"image_output_per_mtok,omitempty"`
+	RequestUSD           *float64                `json:"request_usd,omitempty"`
+	SecondUSD            *float64                `json:"second_usd,omitempty"`
+	PeakCalendar         *pricecalendar.Calendar `json:"peak_calendar,omitempty"`
+	PeakHoursUTC         string                  `json:"peak_hours_utc,omitempty"`
+	PeakMultiplier       *float64                `json:"peak_multiplier,omitempty"`
+	PricingVersion       int64                   `json:"pricing_version,omitempty"`
+	ContextTier          *ContextTierPrice       `json:"context_tier,omitempty"`
 	// Available and ClientOnly describe what the lane can actually serve right
 	// now, not what it costs. They are filled per request from the live channel
 	// cache (GetLaneServiceability) rather than stored with the price, because a
@@ -560,6 +568,8 @@ func (pricing *Pricing) applyModelSellPrice(sellPrice ModelSellPrice) {
 	pricing.OutputPerMtok = sellPrice.OutputPerMtok
 	pricing.CacheReadPerMtok = sellPrice.CacheReadPerMtok
 	pricing.CacheWrite5mPerMtok = sellPrice.CacheWrite5mPerMtok
+	pricing.CacheWrite30mPerMtok = sellPrice.CacheWrite30mPerMtok
+	pricing.CacheWrite12hPerMtok = sellPrice.CacheWrite12hPerMtok
 	pricing.CacheWrite1hPerMtok = sellPrice.CacheWrite1hPerMtok
 	pricing.AudioInputPerMtok = sellPrice.AudioInputPerMtok
 	pricing.AudioOutputPerMtok = sellPrice.AudioOutputPerMtok
@@ -602,6 +612,8 @@ func pricingHasConfiguredPrice(pricing Pricing) bool {
 		pricing.OutputPerMtok != nil ||
 		pricing.CacheReadPerMtok != nil ||
 		pricing.CacheWrite5mPerMtok != nil ||
+		pricing.CacheWrite30mPerMtok != nil ||
+		pricing.CacheWrite12hPerMtok != nil ||
 		pricing.CacheWrite1hPerMtok != nil ||
 		pricing.AudioInputPerMtok != nil ||
 		pricing.AudioOutputPerMtok != nil ||
@@ -625,6 +637,8 @@ func pricingLaneHasConfiguredPrice(lane PricingLane) bool {
 		lane.OutputPerMtok != nil ||
 		lane.CacheReadPerMtok != nil ||
 		lane.CacheWrite5mPerMtok != nil ||
+		lane.CacheWrite30mPerMtok != nil ||
+		lane.CacheWrite12hPerMtok != nil ||
 		lane.CacheWrite1hPerMtok != nil ||
 		lane.AudioInputPerMtok != nil ||
 		lane.AudioOutputPerMtok != nil ||
@@ -668,26 +682,28 @@ func resolveModelSellPriceLanes(modelName string, sellPriceByModel map[string][]
 
 func modelSellPriceToPricingLane(row ModelSellPrice) PricingLane {
 	return PricingLane{
-		ModelName:           row.ModelName,
-		ChannelGroup:        NormalizeChannelLane(row.ChannelGroup),
-		InputPerMtok:        row.InputPerMtok,
-		OutputPerMtok:       row.OutputPerMtok,
-		CacheReadPerMtok:    row.CacheReadPerMtok,
-		CacheWrite5mPerMtok: row.CacheWrite5mPerMtok,
-		CacheWrite1hPerMtok: row.CacheWrite1hPerMtok,
-		AudioInputPerMtok:   row.AudioInputPerMtok,
-		AudioOutputPerMtok:  row.AudioOutputPerMtok,
-		ImageInputPerMtok:   row.ImageInputPerMtok,
-		ImageOutputPerMtok:  row.ImageOutputPerMtok,
-		ImagePricing:        row.ImagePricing,
-		VideoPricing:        row.VideoPricing.Public(),
-		RequestUSD:          row.RequestUSD,
-		SecondUSD:           row.SecondUSD,
-		PeakCalendar:        pricecalendar.ForModel(row.ModelName),
-		PeakHoursUTC:        row.PeakHoursUTC,
-		PeakMultiplier:      row.PeakMultiplier,
-		PricingVersion:      row.PricingVersion,
-		ContextTier:         row.ContextTier(),
+		ModelName:            row.ModelName,
+		ChannelGroup:         NormalizeChannelLane(row.ChannelGroup),
+		InputPerMtok:         row.InputPerMtok,
+		OutputPerMtok:        row.OutputPerMtok,
+		CacheReadPerMtok:     row.CacheReadPerMtok,
+		CacheWrite5mPerMtok:  row.CacheWrite5mPerMtok,
+		CacheWrite30mPerMtok: row.CacheWrite30mPerMtok,
+		CacheWrite12hPerMtok: row.CacheWrite12hPerMtok,
+		CacheWrite1hPerMtok:  row.CacheWrite1hPerMtok,
+		AudioInputPerMtok:    row.AudioInputPerMtok,
+		AudioOutputPerMtok:   row.AudioOutputPerMtok,
+		ImageInputPerMtok:    row.ImageInputPerMtok,
+		ImageOutputPerMtok:   row.ImageOutputPerMtok,
+		ImagePricing:         row.ImagePricing,
+		VideoPricing:         row.VideoPricing.Public(),
+		RequestUSD:           row.RequestUSD,
+		SecondUSD:            row.SecondUSD,
+		PeakCalendar:         pricecalendar.ForModel(row.ModelName),
+		PeakHoursUTC:         row.PeakHoursUTC,
+		PeakMultiplier:       row.PeakMultiplier,
+		PricingVersion:       row.PricingVersion,
+		ContextTier:          row.ContextTier(),
 	}
 }
 

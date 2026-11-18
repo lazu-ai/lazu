@@ -150,7 +150,14 @@ func buildLane(lane Lane, model Model, locale string) LaneView {
 		view.CacheRead = MoneyShort(*read)
 	}
 	if write != nil {
-		view.CacheWrite = MoneyShort(*write)
+		view.CacheWrite = MoneyShort(*write) + " (5m)"
+	}
+	p := lane.Pricing
+	if p == nil && lane.Key == "stable" {
+		p = model.Pricing
+	}
+	if p != nil {
+		view.CacheWrite = cacheWriteLabel(write, firstOf(p.CacheWrite30mPerMillion, p.CacheWrite30m), firstOf(p.CacheWrite12hPerMillion, p.CacheWrite12h))
 	}
 	view.StatusDot = statusDot(LaneStatus(lane.Health))
 	view.Uptime = Uptime(lane.Health)
@@ -635,7 +642,7 @@ func BuildModelPage(catalog Catalog, model Model, locale string, docsBase string
 	page.HasCache = model.OfficialCacheRead != nil || model.OfficialCacheWrite != nil
 	if page.PerToken && model.OfficialInput > 0 {
 		row := PriceRow{Label: T(locale, "prices.official", makerName), Muted: true,
-			Input: MoneyShort(model.OfficialInput), CacheRead: publicPrice(model.OfficialCacheRead), CacheWrite: publicPrice(model.OfficialCacheWrite), Uptime: "—"}
+			Input: MoneyShort(model.OfficialInput), CacheRead: publicPrice(model.OfficialCacheRead), CacheWrite: dash(cacheWriteLabel(model.OfficialCacheWrite, nil, nil)), Uptime: "—"}
 		row.Output = "—"
 		if model.OfficialOutput > 0 {
 			row.Output = MoneyShort(model.OfficialOutput)
@@ -766,7 +773,7 @@ func tierRow(tier *ContextTier, base ListPrice, read, write *float64, muted bool
 		return MoneyShort(*value)
 	}
 	return PriceRow{Label: T(locale, "prices.tier", TokenWindow(tier.Threshold)), Tier: true, Muted: muted,
-		Input: money(input), Output: money(output), CacheRead: money(cacheRead), CacheWrite: money(cacheWrite)}
+		Input: money(input), Output: money(output), CacheRead: money(cacheRead), CacheWrite: dash(cacheWriteLabel(cacheWrite, tier.CacheWrite30m, tier.CacheWrite12h))}
 }
 
 // ModelAction is an extra button on a model page, after "Get an API key".
@@ -791,4 +798,18 @@ func modelPageActions(model Model, locale string) []ModelAction {
 		}
 	}
 	return actions
+}
+
+// cacheWriteLabel keeps the lifetime next to each independently billed price.
+func cacheWriteLabel(short, medium, long *float64) string {
+	var parts []string
+	for _, item := range []struct {
+		value *float64
+		ttl   string
+	}{{short, "5m"}, {medium, "30m"}, {long, "12h"}} {
+		if item.value != nil {
+			parts = append(parts, MoneyShort(*item.value)+" ("+item.ttl+")")
+		}
+	}
+	return strings.Join(parts, " / ")
 }

@@ -326,7 +326,16 @@ type CachedTokenDetails struct {
 	ImageTokens int `json:"image_tokens"`
 }
 
+// CacheWriteTokenDetails preserves OpenAI cache lifetimes separately from
+// Anthropic 5m/1h buckets. https://developers.openai.com/api/docs/guides/prompt-caching
+type CacheWriteTokenDetails struct {
+	TTL30mTokens int `json:"ttl_30m_tokens"`
+	TTL12hTokens int `json:"ttl_12h_tokens"`
+}
+
 type InputTokenDetails struct {
+	CacheWrite30mTokens    int                `json:"-"`
+	CacheWrite12hTokens    int                `json:"-"`
 	CachedTokens           int                `json:"-"`
 	CachedTokensDetails    CachedTokenDetails `json:"-"`
 	CacheWriteTokens       int                `json:"-"`
@@ -345,53 +354,60 @@ func (d InputTokenDetails) MarshalJSON() ([]byte, error) {
 		cacheWriteTokens = d.CachedCreationTokens
 	}
 	if cacheWriteTokens == 0 {
-		cacheWriteTokens = d.CachedCreation5mTokens + d.CachedCreation1hTokens
+		cacheWriteTokens = d.CachedCreation5mTokens + d.CachedCreation1hTokens + d.CacheWrite30mTokens + d.CacheWrite12hTokens
 	}
 	type inputTokenDetailsJSON struct {
-		CachedTokens        int                 `json:"cached_tokens"`
-		CachedTokensDetails *CachedTokenDetails `json:"cached_tokens_details,omitempty"`
-		CacheWriteTokens    int                 `json:"cache_write_tokens,omitempty"`
-		CacheWrite5mTokens  int                 `json:"cache_write_5m_tokens,omitempty"`
-		CacheWrite1hTokens  int                 `json:"cache_write_1h_tokens,omitempty"`
-		CacheMissTokens     int                 `json:"cache_miss_tokens,omitempty"`
-		TextTokens          int                 `json:"text_tokens"`
-		AudioTokens         int                 `json:"audio_tokens"`
-		ImageTokens         int                 `json:"image_tokens"`
+		CacheWriteTokensDetails *CacheWriteTokenDetails `json:"cache_write_tokens_details,omitempty"`
+		CachedTokens            int                     `json:"cached_tokens"`
+		CachedTokensDetails     *CachedTokenDetails     `json:"cached_tokens_details,omitempty"`
+		CacheWriteTokens        int                     `json:"cache_write_tokens,omitempty"`
+		CacheWrite5mTokens      int                     `json:"cache_write_5m_tokens,omitempty"`
+		CacheWrite1hTokens      int                     `json:"cache_write_1h_tokens,omitempty"`
+		CacheMissTokens         int                     `json:"cache_miss_tokens,omitempty"`
+		TextTokens              int                     `json:"text_tokens"`
+		AudioTokens             int                     `json:"audio_tokens"`
+		ImageTokens             int                     `json:"image_tokens"`
 	}
 	var cachedTokensDetails *CachedTokenDetails
 	if d.CachedTokensDetails != (CachedTokenDetails{}) {
 		cachedDetailsCopy := d.CachedTokensDetails
 		cachedTokensDetails = &cachedDetailsCopy
 	}
+	var writeDetails *CacheWriteTokenDetails
+	if d.CacheWrite30mTokens != 0 || d.CacheWrite12hTokens != 0 {
+		writeDetails = &CacheWriteTokenDetails{TTL30mTokens: d.CacheWrite30mTokens, TTL12hTokens: d.CacheWrite12hTokens}
+	}
 	return json.Marshal(inputTokenDetailsJSON{
-		CachedTokens:        d.CachedTokens,
-		CachedTokensDetails: cachedTokensDetails,
-		CacheWriteTokens:    cacheWriteTokens,
-		CacheWrite5mTokens:  d.CachedCreation5mTokens,
-		CacheWrite1hTokens:  d.CachedCreation1hTokens,
-		CacheMissTokens:     d.CacheMissTokens,
-		TextTokens:          d.TextTokens,
-		AudioTokens:         d.AudioTokens,
-		ImageTokens:         d.ImageTokens,
+		CacheWriteTokensDetails: writeDetails,
+		CachedTokens:            d.CachedTokens,
+		CachedTokensDetails:     cachedTokensDetails,
+		CacheWriteTokens:        cacheWriteTokens,
+		CacheWrite5mTokens:      d.CachedCreation5mTokens,
+		CacheWrite1hTokens:      d.CachedCreation1hTokens,
+		CacheMissTokens:         d.CacheMissTokens,
+		TextTokens:              d.TextTokens,
+		AudioTokens:             d.AudioTokens,
+		ImageTokens:             d.ImageTokens,
 	})
 }
 
 func (d *InputTokenDetails) UnmarshalJSON(data []byte) error {
 	type inputTokenDetailsJSON struct {
-		CachedTokens             int                `json:"cached_tokens"`
-		CachedTokensDetails      CachedTokenDetails `json:"cached_tokens_details"`
-		CachedTokenDetails       CachedTokenDetails `json:"cached_token_details"`
-		CacheWriteTokens         int                `json:"cache_write_tokens"`
-		CacheWrite5mTokens       int                `json:"cache_write_5m_tokens"`
-		CacheWrite1hTokens       int                `json:"cache_write_1h_tokens"`
-		CacheMissTokens          int                `json:"cache_miss_tokens"`
-		CacheCreationInputTokens int                `json:"cache_creation_input_tokens"`
-		CachedCreationTokens     int                `json:"cached_creation_tokens"`
-		CachedCreation5mTokens   int                `json:"cached_creation_5m_tokens"`
-		CachedCreation1hTokens   int                `json:"cached_creation_1h_tokens"`
-		TextTokens               int                `json:"text_tokens"`
-		AudioTokens              int                `json:"audio_tokens"`
-		ImageTokens              int                `json:"image_tokens"`
+		CacheWriteTokensDetails  *CacheWriteTokenDetails `json:"cache_write_tokens_details,omitempty"`
+		CachedTokens             int                     `json:"cached_tokens"`
+		CachedTokensDetails      CachedTokenDetails      `json:"cached_tokens_details"`
+		CachedTokenDetails       CachedTokenDetails      `json:"cached_token_details"`
+		CacheWriteTokens         int                     `json:"cache_write_tokens"`
+		CacheWrite5mTokens       int                     `json:"cache_write_5m_tokens"`
+		CacheWrite1hTokens       int                     `json:"cache_write_1h_tokens"`
+		CacheMissTokens          int                     `json:"cache_miss_tokens"`
+		CacheCreationInputTokens int                     `json:"cache_creation_input_tokens"`
+		CachedCreationTokens     int                     `json:"cached_creation_tokens"`
+		CachedCreation5mTokens   int                     `json:"cached_creation_5m_tokens"`
+		CachedCreation1hTokens   int                     `json:"cached_creation_1h_tokens"`
+		TextTokens               int                     `json:"text_tokens"`
+		AudioTokens              int                     `json:"audio_tokens"`
+		ImageTokens              int                     `json:"image_tokens"`
 	}
 	var payload inputTokenDetailsJSON
 	if err := json.Unmarshal(data, &payload); err != nil {
@@ -401,6 +417,11 @@ func (d *InputTokenDetails) UnmarshalJSON(data []byte) error {
 	d.CachedTokensDetails = payload.CachedTokensDetails
 	if d.CachedTokensDetails == (CachedTokenDetails{}) {
 		d.CachedTokensDetails = payload.CachedTokenDetails
+	}
+	d.CacheWrite30mTokens, d.CacheWrite12hTokens = 0, 0
+	if payload.CacheWriteTokensDetails != nil {
+		d.CacheWrite30mTokens = payload.CacheWriteTokensDetails.TTL30mTokens
+		d.CacheWrite12hTokens = payload.CacheWriteTokensDetails.TTL12hTokens
 	}
 	d.CacheWriteTokens = payload.CacheWriteTokens
 	d.CacheMissTokens = payload.CacheMissTokens

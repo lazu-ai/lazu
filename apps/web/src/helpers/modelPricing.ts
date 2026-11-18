@@ -21,6 +21,8 @@ const PRICE_FIELDS = [
   'cache_read_per_mtok',
   'cache_write_5m_per_mtok',
   'cache_write_1h_per_mtok',
+  'cache_write_30m_per_mtok',
+  'cache_write_12h_per_mtok',
   'audio_input_per_mtok',
   'audio_output_per_mtok',
   'image_input_per_mtok',

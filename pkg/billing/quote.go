@@ -6,18 +6,20 @@ const MicroUSDPerUSD int64 = 1_000_000
 const TokensPerMtok int64 = 1_000_000
 
 type Usage struct {
-	Images             *ImageUsage
-	InputTokens        int64
-	OutputTokens       int64
-	CacheReadTokens    int64
-	CacheWrite5mTokens int64
-	CacheWrite1hTokens int64
-	AudioInputTokens   int64
-	AudioOutputTokens  int64
-	ImageInputTokens   int64
-	ImageOutputTokens  int64
-	RequestCount       int64
-	Seconds            int64
+	Images              *ImageUsage
+	InputTokens         int64
+	OutputTokens        int64
+	CacheReadTokens     int64
+	CacheWrite5mTokens  int64
+	CacheWrite1hTokens  int64
+	CacheWrite30mTokens int64
+	CacheWrite12hTokens int64
+	AudioInputTokens    int64
+	AudioOutputTokens   int64
+	ImageInputTokens    int64
+	ImageOutputTokens   int64
+	RequestCount        int64
+	Seconds             int64
 	// Video prices a video generation; when set it replaces the flat Seconds
 	// line (see videoLines).
 	Video          *VideoUsage
@@ -25,21 +27,23 @@ type Usage struct {
 }
 
 type PriceSheet struct {
-	Images                      *ImagePrices
-	Video                       *VideoPrices
-	ModelName                   string
-	InputPerMtokMicrousd        *MicroUSD
-	OutputPerMtokMicrousd       *MicroUSD
-	CacheReadPerMtokMicrousd    *MicroUSD
-	CacheWrite5mPerMtokMicrousd *MicroUSD
-	CacheWrite1hPerMtokMicrousd *MicroUSD
-	AudioInputPerMtokMicrousd   *MicroUSD
-	AudioOutputPerMtokMicrousd  *MicroUSD
-	ImageInputPerMtokMicrousd   *MicroUSD
-	ImageOutputPerMtokMicrousd  *MicroUSD
-	RequestMicrousd             *MicroUSD
-	SecondMicrousd              *MicroUSD
-	PricingVersion              int64
+	Images                       *ImagePrices
+	Video                        *VideoPrices
+	ModelName                    string
+	InputPerMtokMicrousd         *MicroUSD
+	OutputPerMtokMicrousd        *MicroUSD
+	CacheReadPerMtokMicrousd     *MicroUSD
+	CacheWrite5mPerMtokMicrousd  *MicroUSD
+	CacheWrite1hPerMtokMicrousd  *MicroUSD
+	CacheWrite30mPerMtokMicrousd *MicroUSD
+	CacheWrite12hPerMtokMicrousd *MicroUSD
+	AudioInputPerMtokMicrousd    *MicroUSD
+	AudioOutputPerMtokMicrousd   *MicroUSD
+	ImageInputPerMtokMicrousd    *MicroUSD
+	ImageOutputPerMtokMicrousd   *MicroUSD
+	RequestMicrousd              *MicroUSD
+	SecondMicrousd               *MicroUSD
+	PricingVersion               int64
 }
 
 type Adjustment struct {
@@ -149,8 +153,8 @@ func CompareOfficial(q QuoteResult, official OfficialPrices) *OfficialComparison
 			unit = official.CacheRead
 		case "cache_write_5m":
 			unit = official.CacheWrite
-		case "cache_write_1h":
-			// No catalogue publishes the one-hour write price.
+		case "cache_write_1h", "cache_write_30m", "cache_write_12h":
+			// The official-price projection has no lifetime-specific write prices.
 			unit = nil
 		default:
 			total += item.AmountMicrousd
@@ -176,7 +180,7 @@ type ContextTierApplied struct {
 // InputTokenTotal is every token the request sent: fresh text, cache reads
 // and writes, audio and image input. Context tiers are judged on it.
 func (u Usage) InputTokenTotal() int64 {
-	return u.InputTokens + u.CacheReadTokens + u.CacheWrite5mTokens + u.CacheWrite1hTokens +
+	return u.InputTokens + u.CacheReadTokens + u.CacheWrite5mTokens + u.CacheWrite1hTokens + u.CacheWrite30mTokens + u.CacheWrite12hTokens +
 		u.AudioInputTokens + u.ImageInputTokens
 }
 
@@ -223,6 +227,8 @@ func Quote(usage Usage, price PriceSheet, adjustments []Adjustment) QuoteResult 
 	addTokenLine("cache_read", usage.CacheReadTokens, price.CacheReadPerMtokMicrousd)
 	addTokenLine("cache_write_5m", usage.CacheWrite5mTokens, price.CacheWrite5mPerMtokMicrousd)
 	addTokenLine("cache_write_1h", usage.CacheWrite1hTokens, price.CacheWrite1hPerMtokMicrousd)
+	addTokenLine("cache_write_30m", usage.CacheWrite30mTokens, price.CacheWrite30mPerMtokMicrousd)
+	addTokenLine("cache_write_12h", usage.CacheWrite12hTokens, price.CacheWrite12hPerMtokMicrousd)
 	addTokenLine("audio_input", usage.AudioInputTokens, price.AudioInputPerMtokMicrousd)
 	addTokenLine("audio_output", usage.AudioOutputTokens, price.AudioOutputPerMtokMicrousd)
 	addTokenLine("image_input", usage.ImageInputTokens, price.ImageInputPerMtokMicrousd)

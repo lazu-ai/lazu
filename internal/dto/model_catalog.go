@@ -76,12 +76,14 @@ type ModelCatalogReasoning struct {
 // input (cached included) passes Threshold tokens, the whole request is
 // billed at these prices per million tokens.
 type ModelCatalogContextTier struct {
-	Threshold    int64    `json:"threshold"`
-	Input        *float64 `json:"input,omitempty"`
-	Output       *float64 `json:"output,omitempty"`
-	CacheRead    *float64 `json:"cache_read,omitempty"`
-	CacheWrite5m *float64 `json:"cache_write_5m,omitempty"`
-	CacheWrite1h *float64 `json:"cache_write_1h,omitempty"`
+	Threshold     int64    `json:"threshold"`
+	Input         *float64 `json:"input,omitempty"`
+	Output        *float64 `json:"output,omitempty"`
+	CacheRead     *float64 `json:"cache_read,omitempty"`
+	CacheWrite5m  *float64 `json:"cache_write_5m,omitempty"`
+	CacheWrite30m *float64 `json:"cache_write_30m,omitempty"`
+	CacheWrite12h *float64 `json:"cache_write_12h,omitempty"`
+	CacheWrite1h  *float64 `json:"cache_write_1h,omitempty"`
 }
 
 type ModelCatalogModality struct {
@@ -100,35 +102,39 @@ type ModelCatalogPricing struct {
 	ImagePricing *billing.ImagePrices `json:"image_pricing,omitempty"`
 	// VideoPricing is the public copy: per-second tiers, the audio
 	// surcharge, and whether the charge follows the provider's report.
-	VideoPricing           *billing.VideoPrices      `json:"video_pricing,omitempty"`
-	ContextTiers           []ModelCatalogContextTier `json:"context_tiers,omitempty"`
-	PeakPricing            *ModelCatalogPricing      `json:"peak_pricing,omitempty"`
-	Currency               string                    `json:"currency"`
-	BillingType            string                    `json:"billing_type,omitempty"`
-	Input                  *float64                  `json:"input,omitempty"`
-	Output                 *float64                  `json:"output,omitempty"`
-	CacheRead              *float64                  `json:"cache_read,omitempty"`
-	CacheWrite5m           *float64                  `json:"cache_write_5m,omitempty"`
-	CacheWrite1h           *float64                  `json:"cache_write_1h,omitempty"`
-	AudioInput             *float64                  `json:"audio_input,omitempty"`
-	AudioOutput            *float64                  `json:"audio_output,omitempty"`
-	ImageInput             *float64                  `json:"image_input,omitempty"`
-	ImageOutput            *float64                  `json:"image_output,omitempty"`
-	Request                *float64                  `json:"request,omitempty"`
-	Second                 *float64                  `json:"second,omitempty"`
-	InputPerMillion        *float64                  `json:"input_per_million,omitempty"`
-	OutputPerMillion       *float64                  `json:"output_per_million,omitempty"`
-	CacheReadPerMillion    *float64                  `json:"cache_read_per_million,omitempty"`
-	CacheWrite5mPerMillion *float64                  `json:"cache_write_5m_per_million,omitempty"`
-	CacheWrite1hPerMillion *float64                  `json:"cache_write_1h_per_million,omitempty"`
-	RequestPrice           *float64                  `json:"request_price,omitempty"`
-	SecondPrice            *float64                  `json:"second_price,omitempty"`
-	PeakCalendar           *pricecalendar.Calendar   `json:"peak_calendar,omitempty"`
-	PeakHoursUTC           string                    `json:"peak_hours_utc,omitempty"`
-	PeakMultiplier         *float64                  `json:"peak_multiplier,omitempty"`
-	PricingVersion         int64                     `json:"pricing_version,omitempty"`
-	UpdatedAt              string                    `json:"updated_at,omitempty"`
-	ContextTier            *ModelCatalogContextTier  `json:"context_tier,omitempty"`
+	VideoPricing            *billing.VideoPrices      `json:"video_pricing,omitempty"`
+	ContextTiers            []ModelCatalogContextTier `json:"context_tiers,omitempty"`
+	PeakPricing             *ModelCatalogPricing      `json:"peak_pricing,omitempty"`
+	Currency                string                    `json:"currency"`
+	BillingType             string                    `json:"billing_type,omitempty"`
+	Input                   *float64                  `json:"input,omitempty"`
+	Output                  *float64                  `json:"output,omitempty"`
+	CacheRead               *float64                  `json:"cache_read,omitempty"`
+	CacheWrite5m            *float64                  `json:"cache_write_5m,omitempty"`
+	CacheWrite30m           *float64                  `json:"cache_write_30m,omitempty"`
+	CacheWrite12h           *float64                  `json:"cache_write_12h,omitempty"`
+	CacheWrite1h            *float64                  `json:"cache_write_1h,omitempty"`
+	AudioInput              *float64                  `json:"audio_input,omitempty"`
+	AudioOutput             *float64                  `json:"audio_output,omitempty"`
+	ImageInput              *float64                  `json:"image_input,omitempty"`
+	ImageOutput             *float64                  `json:"image_output,omitempty"`
+	Request                 *float64                  `json:"request,omitempty"`
+	Second                  *float64                  `json:"second,omitempty"`
+	InputPerMillion         *float64                  `json:"input_per_million,omitempty"`
+	OutputPerMillion        *float64                  `json:"output_per_million,omitempty"`
+	CacheReadPerMillion     *float64                  `json:"cache_read_per_million,omitempty"`
+	CacheWrite5mPerMillion  *float64                  `json:"cache_write_5m_per_million,omitempty"`
+	CacheWrite30mPerMillion *float64                  `json:"cache_write_30m_per_million,omitempty"`
+	CacheWrite12hPerMillion *float64                  `json:"cache_write_12h_per_million,omitempty"`
+	CacheWrite1hPerMillion  *float64                  `json:"cache_write_1h_per_million,omitempty"`
+	RequestPrice            *float64                  `json:"request_price,omitempty"`
+	SecondPrice             *float64                  `json:"second_price,omitempty"`
+	PeakCalendar            *pricecalendar.Calendar   `json:"peak_calendar,omitempty"`
+	PeakHoursUTC            string                    `json:"peak_hours_utc,omitempty"`
+	PeakMultiplier          *float64                  `json:"peak_multiplier,omitempty"`
+	PricingVersion          int64                     `json:"pricing_version,omitempty"`
+	UpdatedAt               string                    `json:"updated_at,omitempty"`
+	ContextTier             *ModelCatalogContextTier  `json:"context_tier,omitempty"`
 }
 
 // ModelCatalogLane is a published routing-price lane. Its standard price is

@@ -191,7 +191,9 @@ func factFromLogFields(promptTokens int, completionTokens int, fields map[string
 		outputTokens = 0
 	}
 
-	cacheWriteUnknown := cacheWriteTotal - cacheWrite5mTokens - cacheWrite1hTokens
+	cacheWrite30mTokens := firstPositiveIntFromFields(fields, "cache_write_30m_tokens")
+	cacheWrite12hTokens := firstPositiveIntFromFields(fields, "cache_write_12h_tokens")
+	cacheWriteUnknown := cacheWriteTotal - cacheWrite5mTokens - cacheWrite1hTokens - cacheWrite30mTokens - cacheWrite12hTokens
 	if cacheWriteUnknown < 0 {
 		cacheWriteUnknown = 0
 	}
@@ -211,6 +213,8 @@ func factFromLogFields(promptTokens int, completionTokens int, fields map[string
 	fact.addDimension(DimensionCacheWrite, int64(cacheWriteUnknown), UnitToken)
 	fact.addDimension(DimensionCacheWrite5m, int64(cacheWrite5mTokens), UnitToken)
 	fact.addDimension(DimensionCacheWrite1h, int64(cacheWrite1hTokens), UnitToken)
+	fact.addDimension(DimensionCacheWrite30m, int64(cacheWrite30mTokens), UnitToken)
+	fact.addDimension(DimensionCacheWrite12h, int64(cacheWrite12hTokens), UnitToken)
 	fact.addDimension(DimensionCacheMiss, int64(cacheMissTokens), UnitToken)
 	fact.addDimension(DimensionAudioInput, int64(audioInputTokens), UnitToken)
 	fact.addDimension(DimensionAudioOutput, int64(audioOutputTokens), UnitToken)
@@ -357,7 +361,7 @@ func (f Fact) CacheInclusivePromptTokens() int64 {
 	}
 	for _, dimension := range f.Dimensions {
 		switch dimension.Name {
-		case DimensionCacheRead, DimensionCacheWrite, DimensionCacheWrite5m, DimensionCacheWrite1h:
+		case DimensionCacheRead, DimensionCacheWrite, DimensionCacheWrite5m, DimensionCacheWrite1h, DimensionCacheWrite30m, DimensionCacheWrite12h:
 			if dimension.Quantity > 0 {
 				prompt += dimension.Quantity
 			}
@@ -495,6 +499,8 @@ func RawUsageFields(fields map[string]interface{}) map[string]any {
 		"cache_write_tokens",
 		"cache_write_5m_tokens",
 		"cache_write_1h_tokens",
+		"cache_write_30m_tokens",
+		"cache_write_12h_tokens",
 		"cache_creation_input_tokens",
 		"cache_creation_tokens",
 		"cache_creation_5m_tokens",

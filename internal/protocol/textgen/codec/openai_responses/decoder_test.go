@@ -154,3 +154,17 @@ func mustFinish[T any](out []T, err error) []T {
 	}
 	return out
 }
+
+func TestRecordedCacheLifetimeSurvivesStreamCollection(t *testing.T) {
+	result := collect(decodeRecording(t, "openai/responses_cache_12h.sse"))
+	if result.Usage == nil {
+		t.Fatal("stream lost usage")
+	}
+	details := result.Usage.PromptTokensDetails
+	if details.CacheWrite12hTokens != 1414 || details.CacheWrite30mTokens != 0 || details.CacheWriteTokens != 1414 {
+		t.Fatalf("stream lost cache lifetime: %+v", details)
+	}
+	if result.Usage.PromptTokens != 1417 || result.Usage.CompletionTokens != 7 {
+		t.Fatalf("totals changed: %+v", result.Usage)
+	}
+}

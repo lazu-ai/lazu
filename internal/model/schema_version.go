@@ -13,6 +13,9 @@ import (
 )
 
 const (
+	// Version 39 adds explicit 30-minute and 12-hour cache-write prices,
+	// including context tiers, to model_sell_prices and provider_cost_prices
+	// through AutoMigrate. Existing cache prices are unchanged.
 	// Version 38 adds account_deletions (one permanent record per account
 	// deletion) and user_identities.released_at (an identity given up when a
 	// deleted account is cleared after its restore window), both by
@@ -70,7 +73,7 @@ const (
 	// Version 12 records the disputed and original charge amounts for proportional reversals.
 	// Version 11 adds payment reversal and dispute hold fields. Version 10
 	// retired startup seeders, so rollback across that floor remains unsafe.
-	SchemaVersionCurrent = 38
+	SchemaVersionCurrent = 39
 
 	schemaVersionPrimary = "primary"
 	schemaVersionLog     = "log"

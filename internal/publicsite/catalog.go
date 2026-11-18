@@ -15,34 +15,40 @@ import (
 // the two surfaces price and colour a lane identically.
 
 type Pricing struct {
-	ImagePricing           *billing.ImagePrices `json:"image_pricing,omitempty"`
-	VideoPricing           *billing.VideoPrices `json:"video_pricing,omitempty"`
-	BillingType            string               `json:"billing_type,omitempty"`
-	Input                  *float64             `json:"input,omitempty"`
-	InputPerMillion        *float64             `json:"input_per_million,omitempty"`
-	Output                 *float64             `json:"output,omitempty"`
-	OutputPerMillion       *float64             `json:"output_per_million,omitempty"`
-	CacheRead              *float64             `json:"cache_read,omitempty"`
-	CacheReadPerMillion    *float64             `json:"cache_read_per_million,omitempty"`
-	CacheWrite5m           *float64             `json:"cache_write_5m,omitempty"`
-	CacheWrite5mPerMillion *float64             `json:"cache_write_5m_per_million,omitempty"`
-	Request                *float64             `json:"request,omitempty"`
-	RequestPrice           *float64             `json:"request_price,omitempty"`
-	Second                 *float64             `json:"second,omitempty"`
-	SecondPrice            *float64             `json:"second_price,omitempty"`
-	PricingVersion         int64                `json:"pricing_version,omitempty"`
-	ContextTier            *ContextTier         `json:"context_tier,omitempty"`
+	ImagePricing            *billing.ImagePrices `json:"image_pricing,omitempty"`
+	VideoPricing            *billing.VideoPrices `json:"video_pricing,omitempty"`
+	BillingType             string               `json:"billing_type,omitempty"`
+	Input                   *float64             `json:"input,omitempty"`
+	InputPerMillion         *float64             `json:"input_per_million,omitempty"`
+	Output                  *float64             `json:"output,omitempty"`
+	OutputPerMillion        *float64             `json:"output_per_million,omitempty"`
+	CacheRead               *float64             `json:"cache_read,omitempty"`
+	CacheReadPerMillion     *float64             `json:"cache_read_per_million,omitempty"`
+	CacheWrite5m            *float64             `json:"cache_write_5m,omitempty"`
+	CacheWrite30m           *float64             `json:"cache_write_30m,omitempty"`
+	CacheWrite12h           *float64             `json:"cache_write_12h,omitempty"`
+	CacheWrite5mPerMillion  *float64             `json:"cache_write_5m_per_million,omitempty"`
+	CacheWrite30mPerMillion *float64             `json:"cache_write_30m_per_million,omitempty"`
+	CacheWrite12hPerMillion *float64             `json:"cache_write_12h_per_million,omitempty"`
+	Request                 *float64             `json:"request,omitempty"`
+	RequestPrice            *float64             `json:"request_price,omitempty"`
+	Second                  *float64             `json:"second,omitempty"`
+	SecondPrice             *float64             `json:"second_price,omitempty"`
+	PricingVersion          int64                `json:"pricing_version,omitempty"`
+	ContextTier             *ContextTier         `json:"context_tier,omitempty"`
 }
 
 // ContextTier is a lane's long-context price: once a request's input (cache
 // reads and writes included) passes Threshold tokens, the whole request is
 // billed at these prices per million tokens. Nil prices keep the base price.
 type ContextTier struct {
-	Threshold    int64    `json:"threshold"`
-	Input        *float64 `json:"input,omitempty"`
-	Output       *float64 `json:"output,omitempty"`
-	CacheRead    *float64 `json:"cache_read,omitempty"`
-	CacheWrite5m *float64 `json:"cache_write_5m,omitempty"`
+	Threshold     int64    `json:"threshold"`
+	Input         *float64 `json:"input,omitempty"`
+	Output        *float64 `json:"output,omitempty"`
+	CacheRead     *float64 `json:"cache_read,omitempty"`
+	CacheWrite5m  *float64 `json:"cache_write_5m,omitempty"`
+	CacheWrite30m *float64 `json:"cache_write_30m,omitempty"`
+	CacheWrite12h *float64 `json:"cache_write_12h,omitempty"`
 }
 
 type HealthBucket struct {

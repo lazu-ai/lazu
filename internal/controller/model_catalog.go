@@ -1132,7 +1132,11 @@ func buildCatalogPricingWithAdjustment(
 	result.CacheRead = scale(pricing.CacheReadPerMtok)
 	result.CacheReadPerMillion = scale(pricing.CacheReadPerMtok)
 	result.CacheWrite5m = scale(pricing.CacheWrite5mPerMtok)
+	result.CacheWrite30m = scale(pricing.CacheWrite30mPerMtok)
+	result.CacheWrite12h = scale(pricing.CacheWrite12hPerMtok)
 	result.CacheWrite5mPerMillion = scale(pricing.CacheWrite5mPerMtok)
+	result.CacheWrite30mPerMillion = scale(pricing.CacheWrite30mPerMtok)
+	result.CacheWrite12hPerMillion = scale(pricing.CacheWrite12hPerMtok)
 	result.CacheWrite1h = scale(pricing.CacheWrite1hPerMtok)
 	result.CacheWrite1hPerMillion = scale(pricing.CacheWrite1hPerMtok)
 	result.AudioInput = scale(pricing.AudioInputPerMtok)
@@ -1154,12 +1158,14 @@ func buildCatalogPricingWithAdjustment(
 	}
 	if tier := pricing.ContextTier; tier != nil && tier.Threshold > 0 {
 		result.ContextTier = &dto.ModelCatalogContextTier{
-			Threshold:    tier.Threshold,
-			Input:        scale(tier.InputPerMtok),
-			Output:       scale(tier.OutputPerMtok),
-			CacheRead:    scale(tier.CacheReadPerMtok),
-			CacheWrite5m: scale(tier.CacheWrite5mPerMtok),
-			CacheWrite1h: scale(tier.CacheWrite1hPerMtok),
+			Threshold:     tier.Threshold,
+			Input:         scale(tier.InputPerMtok),
+			Output:        scale(tier.OutputPerMtok),
+			CacheRead:     scale(tier.CacheReadPerMtok),
+			CacheWrite5m:  scale(tier.CacheWrite5mPerMtok),
+			CacheWrite30m: scale(tier.CacheWrite30mPerMtok),
+			CacheWrite12h: scale(tier.CacheWrite12hPerMtok),
+			CacheWrite1h:  scale(tier.CacheWrite1hPerMtok),
 		}
 	}
 
@@ -1173,6 +1179,8 @@ func buildCatalogPricingWithAdjustment(
 		pricing.OutputPerMtok,
 		pricing.CacheReadPerMtok,
 		pricing.CacheWrite5mPerMtok,
+		pricing.CacheWrite30mPerMtok,
+		pricing.CacheWrite12hPerMtok,
 		pricing.CacheWrite1hPerMtok,
 		pricing.AudioInputPerMtok,
 		pricing.AudioOutputPerMtok,
@@ -1200,6 +1208,8 @@ func buildCatalogPersonalizedLanePrices(
 			OutputPerMtok:          lane.OutputPerMtok,
 			CacheReadPerMtok:       lane.CacheReadPerMtok,
 			CacheWrite5mPerMtok:    lane.CacheWrite5mPerMtok,
+			CacheWrite30mPerMtok:   lane.CacheWrite30mPerMtok,
+			CacheWrite12hPerMtok:   lane.CacheWrite12hPerMtok,
 			CacheWrite1hPerMtok:    lane.CacheWrite1hPerMtok,
 			AudioInputPerMtok:      lane.AudioInputPerMtok,
 			AudioOutputPerMtok:     lane.AudioOutputPerMtok,
@@ -1239,6 +1249,8 @@ func buildCatalogLanes(
 			OutputPerMtok:          lane.OutputPerMtok,
 			CacheReadPerMtok:       lane.CacheReadPerMtok,
 			CacheWrite5mPerMtok:    lane.CacheWrite5mPerMtok,
+			CacheWrite30mPerMtok:   lane.CacheWrite30mPerMtok,
+			CacheWrite12hPerMtok:   lane.CacheWrite12hPerMtok,
 			CacheWrite1hPerMtok:    lane.CacheWrite1hPerMtok,
 			AudioInputPerMtok:      lane.AudioInputPerMtok,
 			AudioOutputPerMtok:     lane.AudioOutputPerMtok,
@@ -1374,6 +1386,14 @@ func buildCatalogUsageCapabilities(
 	if catalogPriceConfigured(catalogPricing.CacheWrite1h, catalogPricing.CacheWrite1hPerMillion) {
 		billable = appendUniqueStrings(billable, usagepkg.DimensionCacheWrite1h)
 	}
+	if catalogPriceConfigured(catalogPricing.CacheWrite30m, catalogPricing.CacheWrite30mPerMillion) {
+		reported = appendUniqueStrings(reported, usagepkg.DimensionCacheWrite30m)
+		billable = appendUniqueStrings(billable, usagepkg.DimensionCacheWrite30m)
+	}
+	if catalogPriceConfigured(catalogPricing.CacheWrite12h, catalogPricing.CacheWrite12hPerMillion) {
+		reported = appendUniqueStrings(reported, usagepkg.DimensionCacheWrite12h)
+		billable = appendUniqueStrings(billable, usagepkg.DimensionCacheWrite12h)
+	}
 	if providerFamily == "deepseek" {
 		reported = appendUniqueStrings(reported, usagepkg.DimensionCacheMiss)
 	}
@@ -1474,6 +1494,12 @@ func buildCatalogUsageResponseFields(providerFamily string, reportedDimensions [
 			"usage.prompt_tokens_details.cache_write_5m_tokens",
 			"usage.input_tokens_details.cache_write_5m_tokens",
 		)
+	}
+	if stringSliceContains(reportedDimensions, usagepkg.DimensionCacheWrite30m) {
+		openAIFields = append(openAIFields, "usage.input_tokens_details.cache_write_tokens_details.ttl_30m_tokens", "usage.prompt_tokens_details.cache_write_tokens_details.ttl_30m_tokens")
+	}
+	if stringSliceContains(reportedDimensions, usagepkg.DimensionCacheWrite12h) {
+		openAIFields = append(openAIFields, "usage.input_tokens_details.cache_write_tokens_details.ttl_12h_tokens", "usage.prompt_tokens_details.cache_write_tokens_details.ttl_12h_tokens")
 	}
 	if stringSliceContains(reportedDimensions, usagepkg.DimensionCacheWrite1h) {
 		openAIFields = append(openAIFields,
@@ -2208,6 +2234,8 @@ func catalogPlanPrices(pricing model.Pricing, official model.ModelOfficialPrice,
 			p.OutputPerMtok = pick(tier.OutputPerMtok, p.OutputPerMtok)
 			p.CacheReadPerMtok = pick(tier.CacheReadPerMtok, p.CacheReadPerMtok)
 			p.CacheWrite5mPerMtok = pick(tier.CacheWrite5mPerMtok, p.CacheWrite5mPerMtok)
+			p.CacheWrite30mPerMtok = pick(tier.CacheWrite30mPerMtok, p.CacheWrite30mPerMtok)
+			p.CacheWrite12hPerMtok = pick(tier.CacheWrite12hPerMtok, p.CacheWrite12hPerMtok)
 			p.CacheWrite1hPerMtok = pick(tier.CacheWrite1hPerMtok, p.CacheWrite1hPerMtok)
 		}
 		p.ContextTier = nil
@@ -2244,7 +2272,7 @@ func catalogPlanPrices(pricing model.Pricing, official model.ModelOfficialPrice,
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
 	for _, threshold := range sorted {
 		p := project(threshold + 1)
-		result.ContextTiers = append(result.ContextTiers, dto.ModelCatalogContextTier{Threshold: threshold, Input: p.Input, Output: p.Output, CacheRead: p.CacheRead, CacheWrite5m: p.CacheWrite5m, CacheWrite1h: p.CacheWrite1h})
+		result.ContextTiers = append(result.ContextTiers, dto.ModelCatalogContextTier{Threshold: threshold, Input: p.Input, Output: p.Output, CacheRead: p.CacheRead, CacheWrite5m: p.CacheWrite5m, CacheWrite30m: p.CacheWrite30m, CacheWrite12h: p.CacheWrite12h, CacheWrite1h: p.CacheWrite1h})
 	}
 	if len(result.ContextTiers) > 0 {
 		result.ContextTier = &result.ContextTiers[0]
@@ -2277,7 +2305,7 @@ func applyCatalogPlanDiscount(result dto.ModelCatalogPricing, _ model.Pricing, o
 	result.CacheReadPerMillion = anchor(result.CacheReadPerMillion, official.CacheReadPerMtok)
 	result.CacheWrite5m = anchor(result.CacheWrite5m, official.CacheWritePerMtok)
 	result.CacheWrite5mPerMillion = anchor(result.CacheWrite5mPerMillion, official.CacheWritePerMtok)
-	for _, field := range []**float64{&result.CacheWrite1h, &result.CacheWrite1hPerMillion, &result.AudioInput, &result.AudioOutput, &result.ImageInput, &result.ImageOutput, &result.Request, &result.RequestPrice, &result.Second, &result.SecondPrice} {
+	for _, field := range []**float64{&result.CacheWrite30m, &result.CacheWrite30mPerMillion, &result.CacheWrite12h, &result.CacheWrite12hPerMillion, &result.CacheWrite1h, &result.CacheWrite1hPerMillion, &result.AudioInput, &result.AudioOutput, &result.ImageInput, &result.ImageOutput, &result.Request, &result.RequestPrice, &result.Second, &result.SecondPrice} {
 		*field = anchor(*field, 0)
 	}
 	if result.ImagePricing != nil {

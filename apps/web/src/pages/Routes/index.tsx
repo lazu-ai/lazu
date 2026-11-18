@@ -273,7 +273,14 @@ function ContextTierTable({
           : laneListPrice(lane, model)[key]),
       lane,
     );
-  const baseWrite = (lane: Lane, key: 'cache_write_5m' | 'cache_write_1h') =>
+  const baseWrite = (
+    lane: Lane,
+    key:
+      | 'cache_write_5m'
+      | 'cache_write_1h'
+      | 'cache_write_30m'
+      | 'cache_write_12h',
+  ) =>
     applyLanePeak(
       lane.your_price?.[`${key}_per_million`] ??
         lane.your_price?.[key] ??
@@ -312,6 +319,22 @@ function ContextTierTable({
       }),
       base: (lane) => baseWrite(lane, 'cache_write_5m'),
       tier: (tier) => tier.cache_write_5m,
+    },
+    {
+      key: 'cacheWrite30m',
+      label: t('page.console.plaza.detail.price.cacheWrite30m', {
+        defaultValue: '缓存写入 30m',
+      }),
+      base: (lane) => baseWrite(lane, 'cache_write_30m'),
+      tier: (tier) => tier.cache_write_30m,
+    },
+    {
+      key: 'cacheWrite12h',
+      label: t('page.console.plaza.detail.price.cacheWrite12h', {
+        defaultValue: '缓存写入 12h',
+      }),
+      base: (lane) => baseWrite(lane, 'cache_write_12h'),
+      tier: (tier) => tier.cache_write_12h,
     },
     {
       key: 'cacheWrite1h',

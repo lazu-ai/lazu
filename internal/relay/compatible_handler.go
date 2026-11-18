@@ -403,6 +403,8 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage 
 	if cachedCreationTokens != 0 {
 		other["cache_creation_tokens"] = cachedCreationTokens
 		other["cache_write_tokens"] = cachedCreationTokens
+		other["cache_write_30m_tokens"] = usage.PromptTokensDetails.CacheWrite30mTokens
+		other["cache_write_12h_tokens"] = usage.PromptTokensDetails.CacheWrite12hTokens
 	}
 	if cacheCreation5mTokens != 0 {
 		other["cache_creation_5m_tokens"] = cacheCreation5mTokens

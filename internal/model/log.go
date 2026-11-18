@@ -784,7 +784,7 @@ func attachRoutingOutcomeUsageSnapshot(c *gin.Context, params RecordConsumeLogPa
 		CachedInputTokens: dimensionQuantity(usageFact, usagepkg.DimensionCacheRead),
 		CacheWriteTokens: dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite) +
 			dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite5m) +
-			dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite1h),
+			dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite1h) + dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite30m) + dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite12h),
 		CacheWrite5mTokens: dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite5m),
 		CacheWrite1hTokens: dimensionQuantity(usageFact, usagepkg.DimensionCacheWrite1h),
 		CacheMissTokens:    dimensionQuantity(usageFact, usagepkg.DimensionCacheMiss),
@@ -855,6 +855,10 @@ func usageFactToBillingUsage(fact usagepkg.Fact) billing.Usage {
 			usage.CacheWrite5mTokens += dimension.Quantity
 		case usagepkg.DimensionCacheWrite1h:
 			usage.CacheWrite1hTokens += dimension.Quantity
+		case usagepkg.DimensionCacheWrite30m:
+			usage.CacheWrite30mTokens += dimension.Quantity
+		case usagepkg.DimensionCacheWrite12h:
+			usage.CacheWrite12hTokens += dimension.Quantity
 		case usagepkg.DimensionAudioInput:
 			usage.AudioInputTokens += dimension.Quantity
 		case usagepkg.DimensionAudioOutput:
