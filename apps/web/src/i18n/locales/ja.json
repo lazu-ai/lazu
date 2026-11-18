@@ -2304,8 +2304,6 @@
     "pricing.cacheRead": "キャッシュ読み取り",
     "pricing.cacheWrite1h": "キャッシュ書き込み・1 時間",
     "pricing.cacheWrite5m": "キャッシュ書き込み・5 分",
-    "pricing.cacheWrite30m": "キャッシュ書き込み・30 分",
-    "pricing.cacheWrite12h": "キャッシュ書き込み・12 時間",
     "pricing.confirmSave": "保存を確定",
     "pricing.input": "入力",
     "pricing.noChanges": "まだ何も変更されていません",

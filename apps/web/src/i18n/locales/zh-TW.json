@@ -2304,8 +2304,6 @@
     "pricing.cacheRead": "快取讀取",
     "pricing.cacheWrite1h": "快取寫入 1 小時",
     "pricing.cacheWrite5m": "快取寫入 5 分鐘",
-    "pricing.cacheWrite30m": "快取寫入 30 分鐘",
-    "pricing.cacheWrite12h": "快取寫入 12 小時",
     "pricing.confirmSave": "確認儲存",
     "pricing.input": "輸入",
     "pricing.noChanges": "尚未修改任何設定",

@@ -2304,8 +2304,6 @@
     "pricing.cacheRead": "Cache read",
     "pricing.cacheWrite1h": "Cache write · 1 hour",
     "pricing.cacheWrite5m": "Cache write · 5 min",
-    "pricing.cacheWrite30m": "Cache write · 30 min",
-    "pricing.cacheWrite12h": "Cache write · 12 hour",
     "pricing.confirmSave": "Confirm save",
     "pricing.input": "Input",
     "pricing.noChanges": "Nothing has been changed yet",

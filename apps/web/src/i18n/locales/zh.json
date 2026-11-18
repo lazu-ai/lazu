@@ -2304,8 +2304,6 @@
     "pricing.cacheRead": "缓存读取",
     "pricing.cacheWrite1h": "缓存写入 1 小时",
     "pricing.cacheWrite5m": "缓存写入 5 分钟",
-    "pricing.cacheWrite30m": "缓存写入 30 分钟",
-    "pricing.cacheWrite12h": "缓存写入 12 小时",
     "pricing.confirmSave": "确认保存",
     "pricing.input": "输入",
     "pricing.noChanges": "尚未修改任何设置",
