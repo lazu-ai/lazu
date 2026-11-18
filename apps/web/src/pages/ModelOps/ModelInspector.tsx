@@ -1,8 +1,13 @@
 import { ChevronLeft, ChevronRight, TriangleAlert, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from 'react';
 import { formatPerMtok, laneNamesOf, laneTitle } from './formatters';
 import LanePricing from './LanePricing';
-import ModelInfoPanel from './ModelInfoPanel';
 import ModelMetaForm from './ModelMetaForm';
 import { GoLiveDialog } from './observation';
 import {
@@ -29,7 +34,6 @@ import {
 import type { ModelView } from './modelView';
 import type { SellPriceRow } from './sellPrices';
 import type { TFunction } from 'i18next';
-import type { ComponentProps } from 'react';
 
 const ns = 'page.console.modelOps';
 
@@ -78,7 +82,7 @@ const shortTokens = (value: unknown) => {
   return `${Math.round(number / 1000)}K`;
 };
 
-/** One model, centred over the ledger it was opened from. */
+/** One model, centred over the ledger it was opened from (760px, 08-A). */
 export default function ModelInspector({
   canEditPrice,
   currentRow,
@@ -116,7 +120,6 @@ export default function ModelInspector({
   const record = view.record as Record<string, unknown>;
   const official = useMemo(() => officialOf(record), [record]);
   const ops = useModelOpsMutations(t);
-  const infoSaveRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const [drafts, setDrafts] = useState<Record<string, LaneDraft>>({});
   const [initial, setInitial] = useState<Record<string, LaneDraft>>({});
@@ -300,6 +303,7 @@ export default function ModelInspector({
     setPreview({ changes, tiers });
   };
 
+  const modelsDevId = String(record.models_dev_id || '').trim();
   const facts = [
     record.release_date
       ? t(`${ns}.inspector.released`, {
@@ -324,7 +328,7 @@ export default function ModelInspector({
   return (
     <ModalFrame
       busy={isSavingTier}
-      className='mo-dialog lazu-modal-content--xwide'
+      className='mo-dialog mo-inspector-dialog'
       hideClose
       open
       onOpenChange={(open) => {
@@ -350,8 +354,19 @@ export default function ModelInspector({
               </>
             )}
           </ModalTitle>
-          {facts.length ? (
-            <div className='mo-sub'>{facts.join(' · ')}</div>
+          {!isNew && (modelsDevId || facts.length) ? (
+            <div className='mo-sub'>
+              {modelsDevId ? (
+                <span>
+                  {t(`${ns}.inspector.matchedModelsDev`, {
+                    defaultValue: '已匹配 models.dev: ',
+                  })}
+                  <code className='mo-sub__code'>{modelsDevId}</code>
+                </span>
+              ) : null}
+              {modelsDevId && facts.length ? ' · ' : null}
+              {facts.join(' · ')}
+            </div>
           ) : null}
         </div>
         <div className='mo-dialog__tools'>
@@ -409,23 +424,10 @@ export default function ModelInspector({
 
       {page === 'info' ? (
         <ModelMetaForm
-          beforeSave={async () =>
-            infoSaveRef.current ? infoSaveRef.current() : true
-          }
           createVendor={metaForm.createVendor}
           creatingVendor={metaForm.creatingVendor}
           editingModel={isNew ? null : view.record}
           key={isNew ? 'new' : String(view.id)}
-          lead={
-            isNew ? null : (
-              <ModelInfoPanel
-                key={String(view.id)}
-                saveRef={infoSaveRef}
-                t={t}
-                view={view}
-              />
-            )
-          }
           models={metaForm.models}
           onCancel={onClose}
           onDelete={isNew ? undefined : () => onDelete(view)}
@@ -522,6 +524,7 @@ export default function ModelInspector({
             </Button>
             <Button
               loading={isSavingTier}
+              variant='primary'
               onClick={async () => {
                 if (!preview) return;
                 try {

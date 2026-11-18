@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { Download, History, Search } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -9,19 +9,26 @@ import {
   resolveTopupEffectiveTimestamp,
   resolveTopupPaidUSD,
 } from './walletAmounts';
-import { buildDailyWalletLedger, type WalletLedgerDay } from './walletLedger';
-import VChart from '../../components/common/charts/VChart';
+import {
+  buildDailyWalletLedger,
+  reconcileWalletStatement,
+  resolveWalletRouteState,
+  type WalletBillingView,
+  type WalletLedgerDay,
+  type WalletTab,
+} from './walletLedger';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
 import { DataTableShell } from '../../components/ui/data-table-shell';
 import { EmptyState } from '../../components/ui/empty-state';
-import { Field, FieldMessage, Label } from '../../components/ui/field';
+import { FieldMessage } from '../../components/ui/field';
 import { InlineNotice } from '../../components/ui/inline-notice';
 import { Input } from '../../components/ui/input';
 import { Modal } from '../../components/ui/modal';
 import { Pagination } from '../../components/ui/pagination';
 import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
+import { PendingBlock, PendingValue } from '../../components/ui/pending';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { notify } from '../../components/ui/toast';
 import {
@@ -31,7 +38,6 @@ import {
   TopupBar,
 } from '../../components/ui/topup-bar';
 import { TopupRecord } from '../../components/ui/topup-record';
-import { CHART_CONFIG } from '../../constants/dashboard.constants';
 import { useStatus } from '../../context/Status';
 import { useSession } from '../../context/User';
 import { useTopUpOffer, webExtensions } from '../../extensions';
@@ -40,9 +46,9 @@ import { getSupportEmail } from '../../helpers/brandUrls';
 import { asMicroUSD } from '../../helpers/money';
 import { getMicroUSDPerUSD, microUSDToUSD } from '../../helpers/render';
 import { isRoot, showError } from '../../helpers/utils';
+import { useDelayedReveal } from '../../hooks/common/useDelayedReveal';
 import { useSelfQuery } from '../../hooks/common/useSelfQuery';
 import { apiErrorHandler, errorMessage, unwrap } from '../../lib/api-error';
-import { readBrandToken, useBodyThemeMode } from '../../lib/brand-token';
 import { formatTimestamp } from '../../lib/date';
 import { queryKeys } from '../../lib/query-keys';
 import './wallet.css';
@@ -66,21 +72,13 @@ type TopupSource = {
   stripe_min_topup?: number;
 };
 
-type DashboardTimeRow = {
-  amount_microusd?: number;
-  bucket?: number;
-};
-
 type DashboardUsageData = {
-  time_series?: DashboardTimeRow[];
   totals?: {
     amount_microusd?: number;
-    outcome_count?: number;
-    request_count?: number;
   };
 };
 
-type TopupRecord = Record<string, unknown> & {
+type TopupOrderRecord = Record<string, unknown> & {
   amount?: number;
   complete_time?: number;
   credited_microusd?: number;
@@ -104,6 +102,8 @@ const STATUS_VARIANTS: Record<string, 'danger' | 'success' | 'warning'> = {
   success: 'success',
 };
 
+const DEFAULT_ALERT_THRESHOLD_USD = 0.5;
+
 const toNumber = (value: unknown) => {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -116,16 +116,10 @@ const formatCurrency = (value: number) =>
   });
 
 const formatSigned = (value: number) =>
-  `${value < 0 ? '−' : '+'}${formatCurrency(Math.abs(value))}`;
+  `${value < 0 ? '−$' : '+$'}${formatCurrency(Math.abs(value))}`;
 
-/** The amount the reader last took to checkout. It is deliberately not "the
- *  last top-up": a created checkout may be abandoned, and this page never
- *  learns the outcome, so it remembers the choice rather than claiming a
- *  completed payment. */
 const LAST_AMOUNT_STORAGE_KEY = 'lazu:wallet:last-selected-amount';
 
-/** Reading a stored amount is a convenience, never a requirement: private
- *  windows and cleared storage must land on the same page. */
 const readLastAmount = (minimum: number) => {
   try {
     const stored = Number(localStorage.getItem(LAST_AMOUNT_STORAGE_KEY));
@@ -143,14 +137,30 @@ const getSearchableHistoryKeyword = (value: unknown) => {
   return effective.length >= 2 ? trimmed : '';
 };
 
+const parseAlertThresholdUSD = (rawSetting: unknown): number | null => {
+  if (typeof rawSetting !== 'string' || !rawSetting.trim()) {
+    return DEFAULT_ALERT_THRESHOLD_USD;
+  }
+  try {
+    const parsed = JSON.parse(rawSetting) as {
+      quota_warning_threshold?: unknown;
+    };
+    if (parsed.quota_warning_threshold == null) {
+      return DEFAULT_ALERT_THRESHOLD_USD;
+    }
+    const usd = Number(parsed.quota_warning_threshold) / getMicroUSDPerUSD();
+    return Number.isFinite(usd) ? usd : null;
+  } catch {
+    return null;
+  }
+};
+
 const normalizeTopupInfo = (
   status: TopupSource | null | undefined,
   data: TopupSource | null | undefined,
 ) => {
   const enableStripeTopUp =
     data?.enable_stripe_topup ?? status?.enable_stripe_topup ?? false;
-  /* The server's range (operator floor, fixed ceiling); the defaults cover a
-     status that has not loaded, and the pay endpoint refuses outside its own. */
   const minTopUp =
     Number(data?.stripe_min_topup) ||
     Number(status?.stripe_min_topup) ||
@@ -173,28 +183,9 @@ const normalizeTopupInfo = (
   };
 };
 
-const buildDailySpend = (records: DashboardTimeRow[]) => {
-  const buckets = new Map<string, number>();
-  for (const record of records) {
-    const timestamp = toNumber(record.bucket);
-    if (!timestamp) continue;
-    const key = dayjs(
-      timestamp > 10_000_000_000 ? timestamp : timestamp * 1000,
-    ).format('YYYY-MM-DD');
-    buckets.set(
-      key,
-      (buckets.get(key) || 0) +
-        microUSDToUSD(asMicroUSD(toNumber(record.amount_microusd))),
-    );
-  }
-  return buckets;
-};
-
 const WalletPage = () => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  /* The Stripe return and both payment e-mails land here with the order id;
-     the record card is pinned above the ledger until the reader closes it. */
   const recordId = searchParams.get('top_up_id')?.trim() || '';
   const closeRecord = () => {
     const next = new URLSearchParams(searchParams);
@@ -202,31 +193,55 @@ const WalletPage = () => {
       next.delete(key);
     setSearchParams(next, { replace: true });
   };
+
   const queryClient = useQueryClient();
   const userSession = useSession();
   const statusState = useStatus();
+  const rootUser = isRoot();
+  const routeState = resolveWalletRouteState(searchParams, rootUser);
+  const activeTab = routeState.tab;
+  const billingView = routeState.billingView;
+  const ownerParam = routeState.ownerParam;
+
   const [period, setPeriod] = useState<'current' | 'previous'>('current');
   const [selectedMethod, setSelectedMethod] = useState('stripe');
   const [confirmOpen, setConfirmOpen] = useState(false);
-  /* The amount the reader pressed pay with; the confirmation shows it. */
   const [amount, setAmount] = useState(0);
   const [completeTradeNo, setCompleteTradeNo] = useState<string | null>(null);
-  const ownerParam = isRoot() ? searchParams.get('owner')?.trim() || '' : '';
-  const [historyOpen, setHistoryOpen] = useState(Boolean(ownerParam));
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(10);
   const [historyKeyword, setHistoryKeyword] = useState('');
   const [historyOwner, setHistoryOwner] = useState(ownerParam);
 
-  // React keeps this page mounted when only the query string changes. Keep
-  // the modal's exact-owner scope aligned with the URL instead of retaining a
-  // stale account after navigating to another owner (or back to global).
   useEffect(() => {
     setHistoryOwner(ownerParam);
     setHistoryKeyword('');
     setHistoryPage(1);
-    setHistoryOpen(Boolean(ownerParam));
   }, [ownerParam]);
+
+  const handleTabChange = (value: string) => {
+    const nextTab: WalletTab = value === 'billing' ? 'billing' : 'topup';
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === 'topup') {
+      next.delete('tab');
+      next.delete('view');
+    } else {
+      next.set('tab', 'billing');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  const handleBillingViewChange = (value: string) => {
+    const nextView: WalletBillingView = value === 'orders' ? 'orders' : 'daily';
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', 'billing');
+    if (nextView === 'orders') {
+      next.set('view', 'orders');
+    } else {
+      next.delete('view');
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const anchor = period === 'current' ? dayjs() : dayjs().subtract(1, 'month');
   const rangeFrom = anchor.startOf('month');
@@ -234,6 +249,12 @@ const WalletPage = () => {
     period === 'current' ? dayjs().endOf('day') : anchor.endOf('month');
   const startTimestamp = rangeFrom.unix();
   const endTimestamp = rangeTo.unix();
+
+  const recent7dStart = useMemo(
+    () => dayjs().subtract(6, 'day').startOf('day').unix(),
+    [],
+  );
+  const recent7dEnd = useMemo(() => dayjs().endOf('day').unix(), []);
 
   const userQuery = useSelfQuery(Boolean(userSession.user?.id));
   useEffect(() => {
@@ -243,18 +264,19 @@ const WalletPage = () => {
     }
   }, [userQuery.data, userSession.signIn]);
 
-  const usageQuery = useQuery({
+  const recentUsageQuery = useQuery({
     queryKey: [
       ...queryKeys.dashboard.summary(),
-      'wallet',
-      startTimestamp,
-      endTimestamp,
+      'wallet-runway-7d',
+      recent7dStart,
+      recent7dEnd,
     ],
+    enabled: activeTab === 'topup',
     queryFn: async () => {
       const res = await API.get('/api/data/dashboard/self', {
         params: {
-          start_timestamp: startTimestamp,
-          end_timestamp: endTimestamp,
+          start_timestamp: recent7dStart,
+          end_timestamp: recent7dEnd,
         },
         skipErrorHandler: true,
       });
@@ -265,6 +287,7 @@ const WalletPage = () => {
 
   const topupInfoQuery = useQuery({
     queryKey: [...queryKeys.console.detail('wallet', 'info')],
+    enabled: activeTab === 'topup',
     queryFn: async () => {
       const res = await API.get('/api/user/topup/info');
       return normalizeTopupInfo(statusState?.status, unwrap(res) ?? {});
@@ -280,12 +303,11 @@ const WalletPage = () => {
       endTimestamp,
       browserTimezone,
     ],
+    enabled: activeTab === 'billing',
     queryFn: async () => {
       const res = await API.get('/api/user/wallet/ledger', {
         params: {
           start_timestamp: startTimestamp,
-          // The wallet endpoint uses a half-open range so sub-second ledger
-          // events at the end of the selected day cannot be dropped.
           end_timestamp: rangeTo.add(1, 'second').unix(),
           timezone: browserTimezone,
           timezone_offset_minutes: new Date().getTimezoneOffset(),
@@ -307,11 +329,9 @@ const WalletPage = () => {
       historySearchKeyword,
       historyOwner,
     ],
-    enabled: historyOpen,
+    enabled: activeTab === 'billing',
     queryFn: async () => {
-      const base = isRoot() ? '/api/user/topup' : '/api/user/topup/self';
-      // The failure is shown under the search field, so the global toast
-      // would say it twice.
+      const base = rootUser ? '/api/user/topup' : '/api/user/topup/self';
       const res = await API.get(base, {
         params: {
           p: historyPage,
@@ -323,7 +343,9 @@ const WalletPage = () => {
       });
       const data = unwrap<{ items?: unknown; total?: number }>(res);
       return {
-        items: (Array.isArray(data?.items) ? data.items : []) as TopupRecord[],
+        items: (Array.isArray(data?.items)
+          ? data.items
+          : []) as TopupOrderRecord[],
         total: Number(data?.total || 0),
       };
     },
@@ -343,8 +365,6 @@ const WalletPage = () => {
     },
     onSuccess: (payLink, { amount: payAmount }) => {
       try {
-        // Only once the checkout actually exists, and only as the amount the
-        // reader chose — a rejected request must not become their default.
         localStorage.setItem(
           LAST_AMOUNT_STORAGE_KEY,
           String(Math.trunc(payAmount)),
@@ -388,18 +408,26 @@ const WalletPage = () => {
     user?.quota === undefined || user?.quota === null
       ? null
       : microUSDToUSD(asMicroUSD(user.quota));
-  const totals = usageQuery.data?.totals;
-  const periodSpend = totals
-    ? microUSDToUSD(asMicroUSD(toNumber(totals.amount_microusd)))
-    : null;
-  const periodRequests = totals
-    ? toNumber(totals.outcome_count ?? totals.request_count)
-    : null;
+  const balancePending =
+    userQuery.isPending || (userQuery.isFetching && walletBalance === null);
+  const revealBalancePending = useDelayedReveal(balancePending);
+  const revealLedgerPending = useDelayedReveal(walletLedgerQuery.isPending);
 
-  const spendByDay = useMemo(
-    () => buildDailySpend(usageQuery.data?.time_series || []),
-    [usageQuery.data?.time_series],
+  const recentSpendUSD = recentUsageQuery.data?.totals
+    ? microUSDToUSD(
+        asMicroUSD(toNumber(recentUsageQuery.data.totals.amount_microusd)),
+      )
+    : null;
+  const dailyAverage = recentSpendUSD !== null ? recentSpendUSD / 7 : null;
+  const runwayDays =
+    walletBalance !== null && dailyAverage !== null && dailyAverage > 0
+      ? Math.max(0, Math.round(walletBalance / dailyAverage))
+      : null;
+
+  const alertThresholdUSD = parseAlertThresholdUSD(
+    (user as { setting?: unknown } | null)?.setting,
   );
+
   const ledgerRows = useMemo(
     () =>
       buildDailyWalletLedger(
@@ -409,76 +437,36 @@ const WalletPage = () => {
     [walletLedgerQuery.data],
   );
 
-  const chartSeries = useMemo(() => {
-    const days = Math.max(1, rangeTo.endOf('day').diff(rangeFrom, 'day') + 1);
-    return Array.from({ length: days }, (_, index) => {
-      const day = rangeFrom.add(index, 'day');
-      return {
-        amount: spendByDay.get(day.format('YYYY-MM-DD')) || 0,
-        date: day.format('MM-DD'),
-      };
-    });
-  }, [rangeFrom, rangeTo, spendByDay]);
-
-  const elapsedDays = Math.max(
-    1,
-    (period === 'current' ? dayjs() : rangeTo).diff(rangeFrom, 'day') + 1,
+  const statement = useMemo(
+    () =>
+      walletLedgerQuery.isSuccess
+        ? reconcileWalletStatement({
+            openingBalanceMicrousd:
+              walletLedgerQuery.data?.opening_balance_microusd,
+            ledgerRows,
+            period,
+            liveWalletBalanceUSD: walletBalance,
+            microusdPerUsd: getMicroUSDPerUSD(),
+          })
+        : null,
+    [
+      ledgerRows,
+      period,
+      walletBalance,
+      walletLedgerQuery.data?.opening_balance_microusd,
+      walletLedgerQuery.isSuccess,
+    ],
   );
-  const dailyAverage = (periodSpend ?? 0) / elapsedDays;
-  const projected = dailyAverage * rangeFrom.daysInMonth();
 
-  const bodyTheme = useBodyThemeMode();
-  const chartSpec = useMemo(() => {
-    /* Charts draw in the brand's teal chart color — orange is banned in data
-       viz (BRAND.md). Read per theme so dark gets its lifted teal. */
-    const accent = readBrandToken('--lazu-chart-1', '#1f6f6b');
-    const grid = readBrandToken('--lazu-data-grid', '#e4e4e7');
-    return {
-      type: 'line',
-      data: [{ id: 'wallet-usage', values: chartSeries }],
-      xField: 'date',
-      yField: 'amount',
-      smooth: true,
-      area: { visible: true, style: { fill: accent, fillOpacity: 0.16 } },
-      line: { style: { lineWidth: 2, stroke: accent } },
-      point: { visible: false },
-      axes: [
-        {
-          orient: 'left',
-          grid: { style: { stroke: grid } },
-          label: {
-            formatMethod: (value: number | string) => `$${value}`,
-          },
-        },
-      ],
-      tooltip: {
-        mark: {
-          content: [
-            {
-              key: t(`${billingNs}.chart.spend`),
-              value: (datum: { amount: number }) =>
-                `$${datum.amount.toFixed(2)}`,
-            },
-          ],
-        },
-      },
-      color: [accent],
-    };
-  }, [bodyTheme, chartSeries, t]);
-
-  /* Opens on the amount the reader last took to checkout when there is one,
-     otherwise on the bar's default preset. */
   const initialAmount = readLastAmount(info.minTopUp) ?? TOPUP_DEFAULT;
   const payMethod = info.payMethods.find(
     (method) => method.type === selectedMethod,
   );
-  /* No configured payment method means this deployment does not sell credit —
-     the page is then a pure ledger and the recharge rail would be dead chrome. */
   const canRecharge = info.enableStripeTopUp && info.payMethods.length > 0;
   const firstTopup = useTopUpOffer(canRecharge);
 
-  const historyColumns = useMemo<ColumnDef<TopupRecord, unknown>[]>(() => {
-    const columns: ColumnDef<TopupRecord, unknown>[] = [
+  const historyColumns = useMemo<ColumnDef<TopupOrderRecord, unknown>[]>(() => {
+    const columns: ColumnDef<TopupOrderRecord, unknown>[] = [
       {
         header: t(`${topupNs}.history.orderNo`),
         accessorKey: 'trade_no',
@@ -535,7 +523,7 @@ const WalletPage = () => {
           formatTimestamp(resolveTopupEffectiveTimestamp(row.original)),
       },
     ];
-    if (isRoot()) {
+    if (rootUser) {
       columns.push({
         header: t(`${topupNs}.history.action`),
         id: 'action',
@@ -556,20 +544,20 @@ const WalletPage = () => {
       });
     }
     return columns;
-  }, [completeTopupMutation, t]);
+  }, [completeTopupMutation.isPending, rootUser, t]);
 
   const exportLedger = () => {
     const header = [
       t(`${ns}.ledger.date`, { defaultValue: '日期' }),
-      t(`${ns}.ledger.spend`, { defaultValue: '消耗' }),
-      t(`${ns}.ledger.credit`, { defaultValue: '充值' }),
-      t(`${ns}.ledger.balance`, { defaultValue: '余额' }),
+      t(`${ns}.ledger.credit`, { defaultValue: '入账' }),
+      t(`${ns}.chart.spend`, { defaultValue: '消耗' }),
+      t(`${ns}.ledger.closingBalance`, { defaultValue: '结余' }),
     ];
     const body = ledgerRows.map((row) =>
       [
         row.date,
-        row.spend ? (-row.spend).toFixed(2) : '',
         row.credit ? row.credit.toFixed(2) : '',
+        row.spend ? (-row.spend).toFixed(2) : '',
         row.balance.toFixed(2),
       ].join(','),
     );
@@ -596,47 +584,55 @@ const WalletPage = () => {
     setConfirmOpen(true);
   };
 
-  const actions = (
-    <>
-      <Tabs
-        value={period}
-        onValueChange={(value) => setPeriod(value as 'current' | 'previous')}
+  const billingActions =
+    activeTab === 'billing' ? (
+      <>
+        <Tabs
+          value={period}
+          onValueChange={(value) => setPeriod(value as 'current' | 'previous')}
+        >
+          <TabsList>
+            <TabsTrigger value='current'>
+              {t(`${ns}.period.current`, { defaultValue: '本期' })}
+            </TabsTrigger>
+            <TabsTrigger value='previous'>
+              {t(`${ns}.period.previous`, { defaultValue: '上期' })}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Button
+          disabled={!ledgerRows.length}
+          onClick={exportLedger}
+          size='sm'
+          variant='secondary'
+        >
+          <Download aria-hidden='true' size={14} />
+          {t(`${ns}.action.export`, { defaultValue: '导出 CSV' })}
+        </Button>
+      </>
+    ) : null;
+
+  const walletTabs = (
+    <Tabs value={activeTab} onValueChange={handleTabChange}>
+      <TabsList
+        aria-label={t(`${ns}.tabs.label`, { defaultValue: '钱包视图' })}
       >
-        <TabsList>
-          <TabsTrigger value='current'>
-            {t(`${ns}.period.current`, { defaultValue: '本期' })}
-          </TabsTrigger>
-          <TabsTrigger value='previous'>
-            {t(`${ns}.period.previous`, { defaultValue: '上期' })}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-      <Button
-        onClick={() => setHistoryOpen(true)}
-        size='sm'
-        variant='secondary'
-      >
-        <History aria-hidden='true' size={14} />
-        {t(`${topupNs}.action.history`)}
-      </Button>
-      <Button
-        disabled={!ledgerRows.length}
-        onClick={exportLedger}
-        size='sm'
-        variant='secondary'
-      >
-        <Download aria-hidden='true' size={14} />
-        {t(`${ns}.action.export`, { defaultValue: '导出 CSV' })}
-      </Button>
-      <PaymentAdminTools />
-    </>
+        <TabsTrigger value='topup'>
+          {t(`${ns}.recharge.title`, { defaultValue: '充值' })}
+        </TabsTrigger>
+        <TabsTrigger value='billing'>
+          {t('nav.billing', { defaultValue: '账单' })}
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 
   return (
     <ConsolePage
       appearance='review'
       title={t(`${ns}.title`, { defaultValue: '钱包' })}
-      actions={actions}
+      actions={billingActions}
+      tabs={walletTabs}
       className='wallet-page'
     >
       {recordId ? (
@@ -647,169 +643,128 @@ const WalletPage = () => {
           topupId={recordId}
         />
       ) : null}
-      <div className='wal-layout'>
-        <div className='wal-main'>
+
+      {activeTab === 'topup' ? (
+        <div className='wal-topup-stage'>
           <section className='wal-card wal-balance-summary'>
-            <span>{t('wallet.available', { defaultValue: '可用余额' })}</span>
-            <strong className='wal-balance-value'>
-              {walletBalance === null
-                ? '—'
-                : `$${formatCurrency(walletBalance)}`}
-            </strong>
-            <p>
-              {rangeFrom.format('YYYY.MM.DD')} — {rangeTo.format('MM.DD')} · USD
-            </p>
-            {/* 期初 + 入账 − 净支出 = 期末. The four figures were already here
-                as evenly spaced numbers; the operators are what make them
-                reconcile instead of read as an unrelated row of stats. */}
-            <div className='wal-balance-equation'>
-              {[
-                [
-                  t('wallet.opening', { defaultValue: '期初余额' }),
-                  walletLedgerQuery.data?.opening_balance_microusd == null
-                    ? null
-                    : walletLedgerQuery.data.opening_balance_microusd /
-                      getMicroUSDPerUSD(),
-                  '',
-                ],
-                [
-                  t('wallet.credits', { defaultValue: '入账' }),
-                  walletLedgerQuery.isSuccess
-                    ? ledgerRows.reduce((sum, row) => sum + row.credit, 0)
-                    : null,
-                  '+',
-                ],
-                [
-                  t('wallet.spend', { defaultValue: '净支出' }),
-                  walletLedgerQuery.isSuccess
-                    ? ledgerRows.reduce((sum, row) => sum + row.spend, 0)
-                    : null,
-                  '−',
-                ],
-                [
-                  t('wallet.closing', { defaultValue: '期末余额' }),
-                  walletLedgerQuery.isSuccess
-                    ? (ledgerRows[0]?.balance ??
-                      (walletLedgerQuery.data?.opening_balance_microusd == null
-                        ? null
-                        : walletLedgerQuery.data.opening_balance_microusd /
-                          getMicroUSDPerUSD()))
-                    : null,
-                  '=',
-                ],
-              ].map(([label, value, operator]) => (
-                <div key={String(label)}>
-                  {operator ? (
-                    <span aria-hidden='true' className='wal-balance-operator'>
-                      {operator}
-                    </span>
-                  ) : null}
-                  <span className='wal-balance-cell'>
-                    <small>{label}</small>
-                    <strong>
-                      {value == null
-                        ? '—'
-                        : `$${formatCurrency(Number(value))}`}
-                    </strong>
+            <div className='wal-balance-head'>
+              <div>
+                <span className='wal-balance-label'>
+                  {t('wallet.available', { defaultValue: '可用余额' })}
+                </span>
+                <strong className='wal-balance-value'>
+                  {balancePending ? (
+                    <PendingValue
+                      chars={6}
+                      className={
+                        !revealBalancePending ? 'invisible' : undefined
+                      }
+                    />
+                  ) : walletBalance === null ? (
+                    '—'
+                  ) : (
+                    `$${formatCurrency(walletBalance)}`
+                  )}
+                </strong>
+                {runwayDays !== null ? (
+                  <p
+                    className='wal-runway-note'
+                    data-warn={runwayDays <= 7 ? '' : undefined}
+                  >
+                    {t(`${ns}.runway7d`, {
+                      days: runwayDays,
+                      defaultValue: '按近 7 日消耗，预计可用约 {{days}} 天',
+                    })}
+                  </p>
+                ) : null}
+              </div>
+              <Link className='wal-alert-link' to='/console/personal'>
+                {alertThresholdUSD !== null && alertThresholdUSD >= 0.01
+                  ? t(`${ns}.alertThresholdLink`, {
+                      amount: `$${formatCurrency(alertThresholdUSD)}`,
+                      defaultValue: '余额提醒 <{{amount}} →',
+                    })
+                  : t(`${ns}.alertSettingLink`, {
+                      defaultValue: '余额提醒设置 →',
+                    })}
+              </Link>
+            </div>
+
+            {canRecharge ? (
+              <TopupBar
+                balanceUSD={walletBalance}
+                balancePending={balancePending}
+                dailyAvgUSD={dailyAverage}
+                bonusLabel={firstTopup.bonusLabel}
+                bonusUSD={firstTopup.bonusUSD}
+                className='wal-topup-bar wal-topup-bar--embedded'
+                disabled={!info.enableStripeTopUp || !info.payMethods.length}
+                initialAmount={initialAmount}
+                inputId='wallet-custom-amount'
+                max={info.maxTopUp}
+                method={
+                  info.payMethods.length > 1 ? (
+                    <div className='wal-methods' role='group'>
+                      {info.payMethods.map((method) => (
+                        <button
+                          aria-pressed={selectedMethod === method.type}
+                          className='wal-method'
+                          key={method.type}
+                          onClick={() => setSelectedMethod(method.type)}
+                          type='button'
+                        >
+                          {method.name || method.type}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    t('page.console.wallet.topupBar.methodStripe')
+                  )
+                }
+                min={info.minTopUp}
+                note={firstTopup.note}
+                onPay={startPayment}
+                paying={paymentMutation.isPending}
+                title={t(`${ns}.topupBar.amounts`, {
+                  defaultValue: '充值金额',
+                })}
+              />
+            ) : (
+              <div className='wal-topup-empty'>
+                <div className='wal-topup-empty__copy'>
+                  <strong>
+                    {t(`${topupNs}.recharge.unavailableTitle`, {
+                      defaultValue: '在线充值还没开通',
+                    })}
+                  </strong>
+                  <span>
+                    {t(`${topupNs}.recharge.unavailableBody`, {
+                      defaultValue:
+                        '这个站点还没有配置支付方式。联系我们，确认后会为你的账户开通，余额照常可用。',
+                    })}
                   </span>
                 </div>
-              ))}
-            </div>
+                <Button
+                  nativeButton={false}
+                  render={
+                    <a
+                      aria-label={t(`${topupNs}.recharge.contact`, {
+                        defaultValue: '联系我们开通',
+                      })}
+                      href={`mailto:${getSupportEmail()}`}
+                    />
+                  }
+                  size='sm'
+                  variant='secondary'
+                >
+                  {t(`${topupNs}.recharge.contact`, {
+                    defaultValue: '联系我们开通',
+                  })}
+                </Button>
+              </div>
+            )}
           </section>
 
-          {usageQuery.isError ? (
-            <InlineNotice
-              tone='danger'
-              title={t(`${billingNs}.error.loadUsage`)}
-              actions={
-                <Button
-                  size='sm'
-                  variant='ghost'
-                  onClick={() => void usageQuery.refetch()}
-                >
-                  {t('common.retry', { defaultValue: '重试' })}
-                </Button>
-              }
-            />
-          ) : null}
-          {/* Was a <details> nobody opened. Daily spend is the reason the
-              balance moves, so it sits on the page next to the balance. */}
-          {canRecharge ? (
-            <TopupBar
-              balanceUSD={walletBalance}
-              balancePending={
-                userQuery.isPending ||
-                (userQuery.isFetching && walletBalance === null)
-              }
-              dailyAvgUSD={periodSpend === null ? null : dailyAverage}
-              bonusLabel={firstTopup.bonusLabel}
-              bonusUSD={firstTopup.bonusUSD}
-              className='wal-topup-bar'
-              disabled={!info.enableStripeTopUp || !info.payMethods.length}
-              initialAmount={initialAmount}
-              inputId='wallet-custom-amount'
-              max={info.maxTopUp}
-              method={
-                info.payMethods.length > 1 ? (
-                  <div className='wal-methods'>
-                    {info.payMethods.map((method) => (
-                      <button
-                        aria-pressed={selectedMethod === method.type}
-                        className='wal-method'
-                        key={method.type}
-                        onClick={() => setSelectedMethod(method.type)}
-                        type='button'
-                      >
-                        {method.name || method.type}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  t('page.console.wallet.topupBar.methodStripe')
-                )
-              }
-              min={info.minTopUp}
-              note={firstTopup.note}
-              onPay={startPayment}
-              paying={paymentMutation.isPending}
-              title={t(`${ns}.recharge.title`, { defaultValue: '充值' })}
-            />
-          ) : (
-            /* No payment method: the top-up's own slot says why and offers
-               the one way forward, in the place the top-up will occupy. */
-            <section className='wal-topup-bar wal-topup-empty'>
-              <div className='wal-topup-empty__copy'>
-                <strong>
-                  {t(`${topupNs}.recharge.unavailableTitle`, {
-                    defaultValue: '在线充值还没开通',
-                  })}
-                </strong>
-                <span>
-                  {t(`${topupNs}.recharge.unavailableBody`, {
-                    defaultValue:
-                      '这个站点还没有配置支付方式。联系我们，确认后会为你的账户开通，余额照常可用。',
-                  })}
-                </span>
-              </div>
-              <Button
-                nativeButton={false}
-                render={
-                  <a
-                    aria-label={t(`${topupNs}.recharge.contact`, {
-                      defaultValue: '联系我们开通',
-                    })}
-                    href={`mailto:${getSupportEmail()}`}
-                  />
-                }
-                size='sm'
-                variant='secondary'
-              >
-                {t(`${topupNs}.recharge.contact`, {
-                  defaultValue: '联系我们开通',
-                })}
-              </Button>
-            </section>
-          )}
           {webExtensions().map((extension) =>
             extension.WalletAside ? (
               <extension.WalletAside
@@ -818,145 +773,258 @@ const WalletPage = () => {
               />
             ) : null,
           )}
-          <section className='wal-card wal-chart-card'>
-            <div className='wal-chart-card__head'>
-              <b>{t(`${ns}.chart.title`, { defaultValue: '本期消耗' })}</b>
-              <div className='wal-chart-card__figures'>
-                <span>
-                  {t(`${ns}.chart.spend`, { defaultValue: '消耗' })}{' '}
-                  <b>
-                    {periodSpend === null
-                      ? '—'
-                      : `$${formatCurrency(periodSpend)}`}
-                  </b>
-                </span>
-                <span>
-                  {t(`${ns}.chart.balance`, { defaultValue: '余额' })}{' '}
-                  <b>
-                    {walletBalance === null
-                      ? '—'
-                      : `$${formatCurrency(walletBalance)}`}
-                  </b>
-                </span>
-                <span>
-                  {t(`${ns}.chart.requests`, { defaultValue: '请求' })}{' '}
-                  <b>
-                    {periodRequests === null
-                      ? '—'
-                      : periodRequests.toLocaleString()}
-                  </b>
-                </span>
-              </div>
-            </div>
-            {usageQuery.isError ? (
-              <div className='wal-chart-card__empty'>
-                {t(`${billingNs}.error.loadUsage`)}
-              </div>
-            ) : usageQuery.isLoading ? (
-              <div className='wal-chart-card__empty'>
-                {t('page.system.loading.title')}
-              </div>
-            ) : periodSpend !== null && periodSpend > 0 ? (
-              <>
-                <div className='wal-chart-card__canvas'>
-                  <VChart spec={chartSpec} option={CHART_CONFIG} />
-                </div>
-                {/* The axis already dates the range; the foot keeps only
-                    the pace it implies. */}
-                <div className='wal-chart-card__foot'>
-                  <span>
-                    {t(`${ns}.chart.pace`, {
-                      average: formatCurrency(dailyAverage),
-                      projected: formatCurrency(projected),
-                      defaultValue:
-                        '日均 ${{average}} · 预计月末 ${{projected}}',
-                    })}
+        </div>
+      ) : (
+        <div className='wal-billing-stage'>
+          <section
+            aria-label={t(`${ns}.statement.aria`, { defaultValue: '对账摘要' })}
+            className='wal-card wal-statement-strip'
+          >
+            {[
+              {
+                key: 'opening',
+                label: t('wallet.opening', { defaultValue: '期初余额' }),
+                value: statement?.opening ?? null,
+                operator: '',
+                tone: undefined,
+              },
+              {
+                key: 'credits',
+                label: t('wallet.credits', { defaultValue: '入账' }),
+                value: statement?.credits ?? null,
+                operator: '+',
+                tone: statement && statement.credits > 0 ? 'credit' : undefined,
+              },
+              {
+                key: 'spend',
+                label: t(`${ns}.chart.spend`, { defaultValue: '消耗' }),
+                value: statement?.spend ?? null,
+                operator: '−',
+                tone: undefined,
+              },
+              {
+                key: 'closing',
+                label:
+                  period === 'current'
+                    ? t(`${ns}.statement.currentClosing`, {
+                        defaultValue: '当前结余',
+                      })
+                    : t('wallet.closing', { defaultValue: '期末余额' }),
+                value: statement?.closing ?? null,
+                operator: '=',
+                tone: period === 'current' ? 'closing' : undefined,
+              },
+            ].map((item) => (
+              <div className='wal-statement-group' key={item.key}>
+                {item.operator ? (
+                  <span aria-hidden='true' className='wal-statement-operator'>
+                    {item.operator}
                   </span>
+                ) : null}
+                <div className='wal-statement-cell'>
+                  <span className='wal-statement-cell__label'>
+                    {item.label}
+                  </span>
+                  <strong
+                    className='wal-statement-cell__value'
+                    data-tone={item.tone}
+                  >
+                    {walletLedgerQuery.isPending ? (
+                      <PendingValue
+                        chars={6}
+                        className={
+                          !revealLedgerPending ? 'invisible' : undefined
+                        }
+                      />
+                    ) : item.value === null ? (
+                      '—'
+                    ) : (
+                      `$${formatCurrency(item.value)}`
+                    )}
+                  </strong>
                 </div>
-              </>
-            ) : (
-              <div className='wal-chart-card__empty'>
-                {t(`${billingNs}.empty.usage`)}
               </div>
-            )}
+            ))}
           </section>
 
-          <section className='wal-card wal-ledger-card'>
-            <h2>{t('wallet.balanceChanges', { defaultValue: '余额变动' })}</h2>
-            {walletLedgerQuery.isError ? (
-              <div className='wal-ledger__empty'>
-                {t(`${ns}.ledger.loadError`)}
-              </div>
-            ) : walletLedgerQuery.isLoading ? (
-              <div className='wal-ledger__empty'>
-                {t('page.system.loading.title')}
-              </div>
-            ) : ledgerRows.length ? (
-              <div className='lazu-table-wrap'>
-                <table className='wal-ledger'>
-                  <thead>
-                    <tr>
-                      <th>
-                        {t(`${ns}.ledger.date`, { defaultValue: '日期' })}
-                      </th>
-                      <th className='wal-ledger__num'>
-                        {t(`${ns}.ledger.spend`, { defaultValue: '消耗' })}
-                      </th>
-                      <th className='wal-ledger__num'>
-                        {t(`${ns}.ledger.credit`, { defaultValue: '充值' })}
-                      </th>
-                      <th className='wal-ledger__num'>
-                        {t(`${ns}.ledger.balance`, { defaultValue: '余额' })}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ledgerRows.map((row) => (
-                      <tr key={row.id}>
-                        <td>
-                          <Link
-                            aria-label={t(`${ns}.ledger.inspect`, {
-                              date: row.date,
-                              defaultValue: `Inspect requests from ${row.date}`,
-                            })}
-                            className='wal-ledger__date-link'
-                            to={`/console/usage?tab=logs&start_timestamp=${dayjs(row.date).startOf('day').unix()}&end_timestamp=${dayjs(row.date).endOf('day').unix()}`}
-                          >
-                            {dayjs(row.date).format('MM-DD')}
-                          </Link>
-                        </td>
-                        <td className='wal-ledger__num'>
-                          {row.spend ? (
-                            formatSigned(-row.spend)
-                          ) : (
-                            <span className='wal-ledger__idle'>—</span>
-                          )}
-                        </td>
-                        <td className='wal-ledger__num'>
-                          {row.credit ? (
-                            <span className='wal-ledger__credit'>
-                              {formatSigned(row.credit)}
-                            </span>
-                          ) : (
-                            <span className='wal-ledger__idle'>—</span>
-                          )}
-                        </td>
-                        <td className='wal-ledger__num'>
-                          {formatCurrency(row.balance)}
-                        </td>
+          <section className='wal-card wal-billing-card'>
+            <div className='wal-billing-card__head'>
+              <Tabs value={billingView} onValueChange={handleBillingViewChange}>
+                <TabsList>
+                  <TabsTrigger value='daily'>
+                    {t(`${ns}.billing.daily`, { defaultValue: '每日汇总' })}
+                  </TabsTrigger>
+                  <TabsTrigger value='orders'>
+                    {historyQuery.data && historyQuery.data.total > 0
+                      ? t(`${ns}.billing.ordersCount`, {
+                          count: historyQuery.data.total,
+                          defaultValue: '充值订单 ({{count}})',
+                        })
+                      : t(`${ns}.billing.orders`, { defaultValue: '充值订单' })}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {billingView === 'daily' ? (
+                <span className='wal-billing-card__hint'>
+                  {t(`${ns}.ledger.clickDateHint`, {
+                    defaultValue: '点击日期查当日请求',
+                  })}
+                </span>
+              ) : (
+                <div className='wal-orders-tools'>
+                  <div className='wal-orders-search'>
+                    <Search
+                      aria-hidden='true'
+                      className='wal-orders-search__icon'
+                      size={14}
+                    />
+                    <Input
+                      aria-label={t(`${topupNs}.history.search`)}
+                      className='wal-orders-search__input'
+                      id='wallet-history-search'
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                        setHistoryKeyword(event.target.value);
+                        setHistoryPage(1);
+                      }}
+                      placeholder={t(`${topupNs}.history.searchPlaceholder`)}
+                      value={historyKeyword}
+                    />
+                  </div>
+                  <PaymentAdminTools />
+                </div>
+              )}
+            </div>
+
+            {billingView === 'daily' ? (
+              walletLedgerQuery.isError ? (
+                <div className='wal-billing-card__pad'>
+                  <InlineNotice
+                    tone='danger'
+                    title={t(`${ns}.ledger.loadError`)}
+                    actions={
+                      <Button
+                        size='sm'
+                        variant='ghost'
+                        onClick={() => void walletLedgerQuery.refetch()}
+                      >
+                        {t('common.retry', { defaultValue: '重试' })}
+                      </Button>
+                    }
+                  />
+                </div>
+              ) : walletLedgerQuery.isPending ? (
+                <div className='wal-billing-card__pad'>
+                  <PendingBlock
+                    height={168}
+                    className={!revealLedgerPending ? 'invisible' : undefined}
+                  />
+                </div>
+              ) : ledgerRows.length ? (
+                <div className='lazu-table-wrap'>
+                  <table className='wal-ledger'>
+                    <thead>
+                      <tr>
+                        <th>
+                          {t(`${ns}.ledger.date`, { defaultValue: '日期' })}
+                        </th>
+                        <th className='wal-ledger__num'>
+                          {t(`${ns}.ledger.credit`, { defaultValue: '入账' })}
+                        </th>
+                        <th className='wal-ledger__num'>
+                          {t(`${ns}.chart.spend`, { defaultValue: '消耗' })}
+                        </th>
+                        <th className='wal-ledger__num'>
+                          {t(`${ns}.ledger.closingBalance`, {
+                            defaultValue: '结余',
+                          })}
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {ledgerRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>
+                            <Link
+                              aria-label={t(`${ns}.ledger.inspect`, {
+                                date: row.date,
+                                defaultValue: `Inspect requests from ${row.date}`,
+                              })}
+                              className='wal-ledger__date-link'
+                              to={`/console/usage?tab=logs&start_timestamp=${dayjs(row.date).startOf('day').unix()}&end_timestamp=${dayjs(row.date).endOf('day').unix()}`}
+                            >
+                              {dayjs(row.date).format('MM-DD')}
+                            </Link>
+                          </td>
+                          <td className='wal-ledger__num'>
+                            {row.credit ? (
+                              <span className='wal-ledger__credit'>
+                                {formatSigned(row.credit)}
+                              </span>
+                            ) : (
+                              <span className='wal-ledger__idle'>—</span>
+                            )}
+                          </td>
+                          <td className='wal-ledger__num'>
+                            {row.spend ? (
+                              formatSigned(-row.spend)
+                            ) : (
+                              <span className='wal-ledger__idle'>—</span>
+                            )}
+                          </td>
+                          <td className='wal-ledger__num wal-ledger__closing'>
+                            ${formatCurrency(row.balance)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className='wal-ledger__empty'>
+                  {t(`${billingNs}.ledger.emptyDescription`)}
+                </p>
+              )
             ) : (
-              <div className='wal-ledger__empty'>
-                {t(`${billingNs}.ledger.emptyDescription`)}
+              <div className='wal-orders-body'>
+                {historyKeywordTooShort ? (
+                  <FieldMessage>
+                    {t(`${topupNs}.history.searchMinimum`)}
+                  </FieldMessage>
+                ) : null}
+                {historyQuery.error ? (
+                  <FieldMessage error>
+                    {errorMessage(
+                      historyQuery.error,
+                      t(`${topupNs}.error.loadHistory`),
+                    )}
+                  </FieldMessage>
+                ) : null}
+                <DataTableShell
+                  columns={historyColumns}
+                  data={historyQuery.data?.items || []}
+                  empty={<EmptyState title={t(`${topupNs}.history.empty`)} />}
+                  loading={historyQuery.isPending}
+                  rowKey={(row) => row.id || row.trade_no || ''}
+                />
+                {(historyQuery.data?.total || 0) > historyPageSize ? (
+                  <Pagination
+                    currentPage={historyPage}
+                    onPageChange={setHistoryPage}
+                    onPageSizeChange={(size) => {
+                      setHistoryPageSize(size);
+                      setHistoryPage(1);
+                    }}
+                    pageSize={historyPageSize}
+                    showSizeChanger
+                    total={historyQuery.data?.total || 0}
+                  />
+                ) : null}
               </div>
             )}
           </section>
         </div>
-      </div>
+      )}
 
       <Modal
         open={confirmOpen}
@@ -1029,73 +1097,6 @@ const WalletPage = () => {
               {t(`${topupNs}.history.complete`)}
             </Button>
           </>
-        }
-      />
-      <Modal
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-        title={t(`${topupNs}.history.title`)}
-        description={t(`${topupNs}.history.description`)}
-        body={
-          <div className='grid max-h-[70vh] gap-4 overflow-auto'>
-            <Field>
-              <Label htmlFor='wallet-history-search'>
-                {t(`${topupNs}.history.search`)}
-              </Label>
-              <div className='relative'>
-                <Search
-                  aria-hidden='true'
-                  className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-text-tertiary)]'
-                  size={15}
-                />
-                <Input
-                  className='pl-9'
-                  id='wallet-history-search'
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                    setHistoryKeyword(event.target.value);
-                    setHistoryPage(1);
-                  }}
-                  placeholder={t(`${topupNs}.history.searchPlaceholder`)}
-                  value={historyKeyword}
-                />
-              </div>
-            </Field>
-            {historyKeywordTooShort ? (
-              <FieldMessage>
-                {t(`${topupNs}.history.searchMinimum`)}
-              </FieldMessage>
-            ) : null}
-            {historyQuery.error ? (
-              <FieldMessage error>
-                {errorMessage(
-                  historyQuery.error,
-                  t(`${topupNs}.error.loadHistory`),
-                )}
-              </FieldMessage>
-            ) : null}
-            <DataTableShell
-              columns={historyColumns}
-              data={historyQuery.data?.items || []}
-              empty={<EmptyState title={t(`${topupNs}.history.empty`)} />}
-              loading={historyQuery.isLoading || historyQuery.isFetching}
-              rowKey={(row) => row.id || row.trade_no || ''}
-            />
-            {/* A pager under an empty table offers to page through nothing.
-                It appears once there is more than one page to reach. */}
-            {(historyQuery.data?.total || 0) > historyPageSize ? (
-              <Pagination
-                currentPage={historyPage}
-                onPageChange={setHistoryPage}
-                onPageSizeChange={(size) => {
-                  setHistoryPageSize(size);
-                  setHistoryPage(1);
-                }}
-                pageSize={historyPageSize}
-                showSizeChanger
-                total={historyQuery.data?.total || 0}
-              />
-            ) : null}
-          </div>
         }
       />
     </ConsolePage>

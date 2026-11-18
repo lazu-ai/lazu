@@ -13,24 +13,16 @@ type FieldsProps = {
   disabled: boolean;
 };
 
-/** 限流: this source's own limits, then the group it shares an upstream
- *  account with and that group's limits. Empty or 0 leaves a limit unset. */
-export function CapacityFields({ form, disabled }: FieldsProps) {
+/** Shared upstream account capacity pool, tucked inside the advanced section. */
+export function SharedCapacityFields({ form, disabled }: FieldsProps) {
   const { t } = useTranslation();
   const group = form.watch('shared_limit_group') || '';
   const unlimited = t(`${ns}.placeholder.unlimited`, { defaultValue: '不限' });
-  const numberField = (
-    name:
-      | 'max_rps'
-      | 'max_in_flight'
-      | 'shared_max_rps'
-      | 'shared_max_in_flight',
+  const sharedField = (
+    name: 'shared_max_rps' | 'shared_max_in_flight',
     label: string,
-    shared = false,
   ) => {
-    /* The shared limits mean nothing without a group to share them, so they
-       wait for one, unless a saved value is already there to edit. */
-    const idle = shared && !group.trim() && !Number(form.getValues(name));
+    const idle = !group.trim() && !Number(form.getValues(name));
     return (
       <Field key={name}>
         <FieldLabel
@@ -54,22 +46,17 @@ export function CapacityFields({ form, disabled }: FieldsProps) {
     );
   };
   return (
-    <div className='mo-form__grid'>
-      {numberField('max_rps', '每秒请求数')}
-      {numberField('max_in_flight', '上游并发请求数')}
-      <Field className='mo-form__wide'>
+    <div className='mo-form__grid mo-form__grid--3'>
+      <Field>
         <FieldLabel
           code='shared_limit_group'
-          hint={t(`${ns}.decision.groupHint`, {
-            defaultValue: '同一上游账户的来源填同名，共用下面两项',
-          })}
           htmlFor='shared-limit-group'
           text={t(`${ns}.field.shared_limit_group`, {
             defaultValue: '共享容量组',
           })}
           tip={t(`${ns}.decision.capacityHelp`, {
             defaultValue:
-              'Channels using the same upstream account share a group. 0 leaves a limit unset; the smallest positive shared limit applies.',
+              '同一上游账户的来源填同名，共用共享 RPS 与并发上限；0 为不限。',
           })}
         />
         <Input
@@ -81,8 +68,8 @@ export function CapacityFields({ form, disabled }: FieldsProps) {
           {...form.register('shared_limit_group')}
         />
       </Field>
-      {numberField('shared_max_rps', '共享每秒请求数', true)}
-      {numberField('shared_max_in_flight', '共享并发请求数', true)}
+      {sharedField('shared_max_rps', '共享每秒请求数')}
+      {sharedField('shared_max_in_flight', '共享并发请求数')}
     </div>
   );
 }

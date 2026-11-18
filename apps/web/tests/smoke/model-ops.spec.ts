@@ -282,7 +282,7 @@ test('来源 list is a table with state, upstream change and health columns', as
   await page.keyboard.press('Escape');
 
   // The row opens a centered dialog over the sources list without leaving it.
-  await healthy.click();
+  await healthy.getByText('OpenAI smoke channel').click();
   await expect(page).toHaveURL(/\/console\/model-ops\/sources\/1$/);
   await expect(page.getByRole('dialog')).toContainText('OpenAI smoke channel');
   await expect(page.locator('.src-list')).toBeVisible();
@@ -444,18 +444,9 @@ test('来源 dialog: maker-grouped models with upstream diff, then 线路 and �
   await dialog.getByRole('button', { name: /看新增/ }).click();
   await expect(models.getByRole('row')).toHaveCount(1);
 
-  await dialog.getByRole('tab', { name: '线路' }).click();
-  await expect(page).toHaveURL(/tab=routing/);
-  const nav = dialog.getByRole('navigation', { name: '线路设置分段' });
-  await expect(nav.getByRole('button')).toHaveText([
-    '线路与权重',
-    /限流\s*未限制/,
-    '行为',
-    '成本基准',
-    '厂商高级设置',
-  ]);
-
-  await dialog.getByRole('tab', { name: '同步' }).click();
+  await expect(dialog).toContainText('连接与凭证');
+  await expect(dialog).toContainText('归属线路、权重与成本');
+  await dialog.locator('#source-sect-advanced > summary').click();
   await expect(
     dialog.getByRole('button', { name: '每 6 小时' }),
   ).toHaveAttribute('aria-pressed', 'true');
@@ -685,10 +676,6 @@ test('来源表单 edits request overrides and keeps the stored ones on save', a
     },
   });
   await expectRouteReady(page, '/console/model-ops/sources/1?tab=routing');
-  await page
-    .getByRole('navigation', { name: '线路设置分段' })
-    .getByRole('button', { name: '厂商高级设置' })
-    .click();
 
   await expect(page.locator('#channel-param-override')).toHaveValue(
     /"temperature": 0.2/,

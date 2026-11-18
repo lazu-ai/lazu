@@ -2,38 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   accountKeyOperationalState,
   adjacentAccountTarget,
-  buildDailySpendSeries,
+  countOperationalKeys,
+  daysToEmpty,
   isDeleted,
   toAccount,
 } from './account-model';
-
-describe('customer account daily spend series', () => {
-  it('keeps a fixed 30-day timeline and pads missing buckets with zero', () => {
-    const end = new Date('2026-09-02T00:00:00Z');
-    const yesterday = new Date('2026-09-01T00:00:00Z').getTime() / 1000;
-    const series = buildDailySpendSeries(
-      [{ amount_microusd: 2_500_000, bucket: yesterday }],
-      end.getTime() / 1000,
-    );
-
-    expect(series).toHaveLength(30);
-    expect(series.slice(-3)).toEqual([0, 2_500_000, 0]);
-  });
-
-  it('merges duplicate day buckets without changing the timeline', () => {
-    const end = new Date('2026-09-02T00:00:00Z');
-    const today = end.getTime() / 1000;
-    const series = buildDailySpendSeries(
-      [
-        { amount_microusd: 400_000, bucket: today },
-        { amount_microusd: 600_000, bucket: today + 60 },
-      ],
-      today,
-    );
-
-    expect(series[series.length - 1]).toBe(1_000_000);
-  });
-});
 
 describe('customer account key state', () => {
   it('gives account suspension precedence over an enabled key', () => {
@@ -54,6 +27,29 @@ describe('customer account key state', () => {
         1_800_000_000,
       ),
     ).toBe('expired');
+  });
+
+  it('counts only live operational keys for the customer card strip', () => {
+    const keys = [
+      { status: 1, expired_time: 0 },
+      { status: 2, expired_time: 0 },
+      { status: 1, expired_time: 1_700_000_000 },
+    ];
+    expect(countOperationalKeys({ status: 1 }, keys, 1_800_000_000)).toBe(1);
+    expect(countOperationalKeys({ status: 2 }, keys, 1_800_000_000)).toBe(0);
+  });
+});
+
+describe('customer account runway estimate', () => {
+  it('computes days-to-empty from recent spend window', () => {
+    const days = daysToEmpty({
+      id: 'usr_1',
+      name: 'Grace',
+      balance_microusd: 15_000_000,
+      recent_spend_microusd: 30_000_000,
+      recent_spend_days: 30,
+    });
+    expect(days).toBe(15);
   });
 });
 

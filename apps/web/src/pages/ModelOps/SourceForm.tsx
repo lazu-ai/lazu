@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { CapacityFields, DecisionFields } from './DecisionSourceFields';
+import { DecisionFields, SharedCapacityFields } from './DecisionSourceFields';
 import { FieldLabel } from './FieldLabel';
 import { SOURCE_TYPES } from './formatters';
 import { makerChips, type SourceCatalog } from './sourceCatalog';
@@ -56,33 +56,13 @@ import type { UseFormProps } from 'react-hook-form';
 
 const ns = 'page.console.channel.form';
 
-/* What a row of 成本明细 looks like, printed as a block rather than one
-   unbroken line that ran past the dialog. */
-const COST_PRICES_EXAMPLE = JSON.stringify(
-  [
-    {
-      model_name: 'gpt-5.5',
-      provider: 'manual',
-      input_per_mtok: 5,
-      output_per_mtok: 30,
-      context_tier_threshold: 272000,
-      context_tier_input_per_mtok: 10,
-      context_tier_output_per_mtok: 45,
-    },
-  ],
-  null,
-  2,
-);
-
-/* A limit of 0 is no limit, so the input shows 不限 (its placeholder)
-   rather than a 0 that reads as "allow nothing". The schema reads an empty
-   input back as 0. */
 const LIMIT_FIELDS = [
   'max_rps',
   'max_in_flight',
   'shared_max_rps',
   'shared_max_in_flight',
 ] as const;
+
 const blankUnsetLimits = <T extends Partial<ChannelFormValues>>(values: T) => {
   const next = { ...values } as Record<string, unknown>;
   for (const name of LIMIT_FIELDS) {
@@ -90,16 +70,6 @@ const blankUnsetLimits = <T extends Partial<ChannelFormValues>>(values: T) => {
   }
   return next as unknown as T;
 };
-
-/* 线路 tab sections, in order, for the anchor list beside them (canvas 3B). */
-const ROUTING_SECTIONS = [
-  'lane',
-  'limit',
-  'behave',
-  'cost',
-  'advanced',
-] as const;
-type RoutingSection = (typeof ROUTING_SECTIONS)[number];
 
 type ChannelsQuery = ReturnType<typeof useChannelsQuery>;
 type ChannelRecord = ChannelsQuery['channels'][number];
@@ -152,6 +122,19 @@ export type ChannelFormValues = {
   weight: number;
 };
 
+const ADVANCED_ERROR_FIELDS: ReadonlyArray<keyof ChannelFormValues> = [
+  'param_override',
+  'header_override',
+  'status_code_mapping',
+  'settings',
+  'video_envelope',
+  'upstream_sync_ignore',
+  'upstream_sync_interval',
+  'shared_max_rps',
+  'shared_max_in_flight',
+  'decision_timeout_ms',
+];
+
 const splitFreeEntry = (value: unknown): string[] =>
   String(value || '')
     .split(/[\n,]/)
@@ -178,9 +161,6 @@ const withSelectedOptions = (
   return [...options, ...appended];
 };
 
-/* cost_multiplier lives inside the source's settings JSON: upstream cost is
-   the official list price times it whenever the source has no cost row of its
-   own for a model. The field edits it as a percentage of list. */
 function readCostPercent(settings: string | undefined): string {
   if (!settings?.trim()) return '';
   try {
@@ -192,8 +172,6 @@ function readCostPercent(settings: string | undefined): string {
   }
 }
 
-/* Sets or removes one key of the settings JSON. null means the JSON in the
-   box is not an object, so the field leaves it for the operator to fix. */
 function writeSettingsKey(
   settings: string | undefined,
   key: string,
@@ -227,9 +205,6 @@ function writeCostPercent(
   );
 }
 
-/* first_event_timeout_seconds: how long a streamed attempt on this source
-   waits for its first data event after the upstream's headers. Empty keeps
-   the request's stream start deadline. */
 function readFirstEventTimeout(settings: string | undefined): string {
   if (!settings?.trim()) return '';
   try {
@@ -362,36 +337,9 @@ const buildChannelFormSchema = (t: TFunction, isEdit: boolean) =>
     weight: z.coerce.number().min(0, t(`${ns}.error.weight.min`)),
   });
 
-/** The detail page's tabs that edit the source; 记录 reads only. */
-export type SourceTab = 'connection' | 'models' | 'routing' | 'sync';
-
-/** The page header's 保存 submits the form by this id. */
+/** The dialog footer's 保存 submits the form by this id. */
 export const SOURCE_FORM_ID = 'source-form';
 
-/* Which tab holds a field, so a save that fails validation can show the
-   field that stopped it. Anything not listed sits on 线路. */
-const FIELD_TAB: Partial<Record<keyof ChannelFormValues, SourceTab>> = {
-  base_url: 'connection',
-  claude_code_user_agent: 'connection',
-  key: 'connection',
-  model_mapping: 'models',
-  models: 'models',
-  name: 'connection',
-  protocol_dialect: 'connection',
-  source_type: 'connection',
-  type: 'connection',
-  upstream_sync_ignore: 'sync',
-  upstream_sync_interval: 'sync',
-  upstream_sync_notify_ops: 'sync',
-  upstream_sync_on_gone: 'sync',
-  upstream_sync_on_new: 'sync',
-  video_content_url_template: 'connection',
-  video_envelope: 'connection',
-  video_status_url_template: 'connection',
-};
-
-/* 新建来源's type buttons: the adapters the console offers, in the order
-   operators reach for them. */
 const CREATE_TYPES: Array<[number, string, string]> = [
   [1, 'openai', 'OpenAI 兼容'],
   [14, 'anthropic', 'Anthropic'],
@@ -404,17 +352,16 @@ type SourceFormProps = {
   catalog: SourceCatalog;
   channels: ChannelsQuery;
   editingChannel: ChannelRecord | null;
+  initialAdvancedOpen?: boolean;
   initialModelView?: SourceModelStatusView;
-  /** create: the one-page 新建来源. page: one tab of a source's page. */
+  keyFingerprint?: string;
   layout: 'create' | 'page';
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   onResolve?: (body: { gone?: string[]; new?: string[] }) => void;
-  /** Called with the public ids the save returned (one when creating). */
   onSaved: (ids: string[]) => Promise<void> | void;
   onServedCountChange?: (count: number) => void;
-  onTabChange?: (tab: SourceTab) => void;
   resolving?: boolean;
-  tab?: SourceTab;
   upstream?: UpstreamSyncView | null;
 };
 
@@ -424,38 +371,42 @@ const savedIds = (result: unknown): string[] => {
 };
 
 /**
- * The source form, laid out as a page.
- *
- * Creating is one page in three parts, each grey until the one above it is
- * done: the adapter, the connection (tested against the upstream), and which
- * of the models the upstream lists this source will serve.
- *
- * A saved source has a page of its own with tabs; this renders the tab that
- * edits, inside one form, so the header's 保存 writes every tab at once.
+ * Tabless vertical flow for SourceDialog (07-A):
+ * 1. 供货模型 (hugs actual row count)
+ * 2. 连接与凭证 (compact 2-col grid + single-line masked password input)
+ * 3. 归属线路、权重与成本 (compact 4-col grid)
+ * 4. 自动同步与高级参数覆写 (collapsible disclosure, auto-opens on error)
  */
 export default function SourceForm({
   catalog,
   channels,
   editingChannel,
+  initialAdvancedOpen = false,
   initialModelView,
+  keyFingerprint,
   layout,
   onCancel,
+  onDirtyChange,
   onResolve,
   onSaved,
   onServedCountChange,
-  onTabChange,
   resolving,
-  tab = 'models',
   upstream,
 }: SourceFormProps) {
   const { t } = channels;
   const isEdit = Boolean(editingChannel?.id);
   const creating = layout === 'create';
   const protocolDialectManuallySelected = useRef(false);
+  const keyInputRef = useRef<HTMLInputElement | null>(null);
   const detailQuery = useChannelDetailQuery(editingChannel?.id, isEdit);
-  /* The lane select names lanes the way the rest of the console does,
-     never by slug. */
   const lanes = useChannelLanesQuery().data ?? [];
+
+  const [keyRevealed, setKeyRevealed] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(initialAdvancedOpen);
+
+  useEffect(() => {
+    if (initialAdvancedOpen) setAdvancedOpen(true);
+  }, [initialAdvancedOpen]);
 
   const defaultValues = useMemo(() => {
     const values = getDefaultChannelFormValues() as ChannelFormValues;
@@ -474,19 +425,29 @@ export default function SourceForm({
     channels.saveChannelMutation.isPending ||
     channels.fetchUpstreamModelsMutation.isPending ||
     detailQuery.isFetching;
-  /* Editing saves the whole record, so a form that never received the saved
-     one must not be saved: it would write the defaults over every field the
-     admin did not retype, the overrides among them. */
   const detailMissing = isEdit && !detailQuery.data;
 
   useEffect(() => {
+    onDirtyChange?.(form.formState.isDirty);
+  }, [form.formState.isDirty, onDirtyChange]);
+
+  useEffect(() => {
     protocolDialectManuallySelected.current = isEdit;
+    setKeyRevealed(false);
     if (isEdit && detailQuery.data) {
       form.reset(blankUnsetLimits({ ...defaultValues, ...detailQuery.data }));
       return;
     }
     if (!isEdit) form.reset(blankUnsetLimits(defaultValues));
   }, [defaultValues, detailQuery.data, form, isEdit, editingChannel?.id]);
+
+  // Auto-expand Section 4 whenever any override/sync field has a validation error.
+  useEffect(() => {
+    const errs = form.formState.errors;
+    if (ADVANCED_ERROR_FIELDS.some((field) => Boolean(errs[field]))) {
+      setAdvancedOpen(true);
+    }
+  }, [form.formState.errors]);
 
   const typeOptions = useMemo(
     () =>
@@ -529,139 +490,15 @@ export default function SourceForm({
     },
     (errors) => {
       if (creating) return;
-      const first = Object.keys(errors)[0] as
-        | keyof ChannelFormValues
-        | undefined;
-      if (!first) return;
-      const holder = FIELD_TAB[first] ?? 'routing';
-      if (holder !== tab) onTabChange?.(holder);
+      if (ADVANCED_ERROR_FIELDS.some((field) => Boolean(errors[field]))) {
+        setAdvancedOpen(true);
+      }
     },
   );
 
   const laneColor = (slug: string) =>
     lanes.find((lane) => lane.slug === slug)?.color || 'info';
 
-  /* 视频上游族 only matters to a source that serves video: it sits with the
-     credential once it is set (or for Custom, which always speaks the
-     envelope), and waits in 高级设置 otherwise. */
-  const videoInCredential =
-    Boolean(values.video_family) || Number(values.type) === 8;
-  const videoFamilyField = (
-    <Field>
-      <FieldLabel
-        code='video_family'
-        text={t(`${ns}.field.video_family`, {
-          defaultValue: '视频上游族',
-        })}
-      />
-      <Controller
-        control={form.control}
-        name='video_family'
-        render={({ field }) => (
-          <Select
-            disabled={loading}
-            value={field.value || 'auto'}
-            onValueChange={(value) =>
-              field.onChange(value === 'auto' ? '' : value)
-            }
-          >
-            <SelectItem value='auto'>
-              {t(`${ns}.option.videoFamily.auto`, {
-                defaultValue: '自动（按类型与模型名）',
-              })}
-            </SelectItem>
-            <SelectItem value='gateway'>
-              {t(`${ns}.option.videoFamily.gateway`, {
-                defaultValue: 'OpenAI 兼容网关（/v1/videos）',
-              })}
-            </SelectItem>
-            <SelectItem value='ark'>
-              {t(`${ns}.option.videoFamily.ark`, {
-                defaultValue: '火山方舟原生（Seedance）',
-              })}
-            </SelectItem>
-            <SelectItem value='gemini'>
-              {t(`${ns}.option.videoFamily.gemini`, {
-                defaultValue: 'Gemini（Veo）',
-              })}
-            </SelectItem>
-            <SelectItem value='envelope'>
-              {t(`${ns}.option.videoFamily.envelope`, {
-                defaultValue: '统一信封聚合站',
-              })}
-            </SelectItem>
-          </Select>
-        )}
-      />
-      <FieldMessage>
-        {t(`${ns}.help.video_family`, {
-          defaultValue:
-            '只影响 /v1/videos。自动：Gemini 类型走 Veo，模型名含 seedance 走方舟，Custom 走信封，其余走 OpenAI 兼容网关。',
-        })}
-      </FieldMessage>
-    </Field>
-  );
-
-  /* The 线路 tab is long, so it carries an anchor list that follows the
-     scroll: the section whose heading last passed the top is current. */
-  const split = !creating && tab === 'routing';
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const navLock = useRef(0);
-  const [activeSection, setActiveSection] = useState<RoutingSection>('lane');
-  useEffect(() => {
-    const root = scrollRef.current;
-    if (!split || !root) return;
-    const onScroll = () => {
-      if (Date.now() < navLock.current) return;
-      const top = root.getBoundingClientRect().top;
-      let current: RoutingSection = ROUTING_SECTIONS[0];
-      for (const key of ROUTING_SECTIONS) {
-        const node = root.querySelector<HTMLElement>(`#source-sect-${key}`);
-        if (node && node.getBoundingClientRect().top - top <= 32) {
-          current = key;
-        }
-      }
-      if (root.scrollTop + root.clientHeight >= root.scrollHeight - 4) {
-        current = ROUTING_SECTIONS[ROUTING_SECTIONS.length - 1];
-      }
-      setActiveSection(current);
-    };
-    root.addEventListener('scroll', onScroll, { passive: true });
-    return () => root.removeEventListener('scroll', onScroll);
-  }, [split]);
-  const jumpTo = (key: RoutingSection) => {
-    navLock.current = Date.now() + 700;
-    setActiveSection(key);
-    scrollRef.current
-      ?.querySelector<HTMLElement>(`#source-sect-${key}`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-  const limited = LIMIT_FIELDS.some((name) => Number(values[name]) > 0);
-  const costPercent = readCostPercent(values.settings);
-  const sectionNav: Array<[RoutingSection, string, string | null]> = [
-    [
-      'lane',
-      t(`${ns}.section.laneWeight`, { defaultValue: '线路与权重' }),
-      null,
-    ],
-    [
-      'limit',
-      t(`${ns}.section.limit`, { defaultValue: '限流' }),
-      limited
-        ? t(`${ns}.section.limitSet`, { defaultValue: '已设' })
-        : t(`${ns}.section.limitNone`, { defaultValue: '未限制' }),
-    ],
-    ['behave', t(`${ns}.section.behave`, { defaultValue: '行为' }), null],
-    [
-      'cost',
-      t(`${ns}.section.cost`, { defaultValue: '成本基准' }),
-      costPercent ? `${costPercent}%` : null,
-    ],
-    ['advanced', t(`${ns}.section.advanced`), null],
-  ];
-
-  /* Editing waits for the saved record before it shows a field: until then
-     the body is the form's outline, not inputs holding defaults (canvas 6A). */
   const awaitingDetail = isEdit && !detailQuery.data && !detailQuery.isError;
 
   /* ---- 新建来源: test the connection, then pick from what it lists. ---- */
@@ -683,8 +520,7 @@ export default function SourceForm({
       onServedCountChange?.(servedModelsCount);
     }
   }, [detailQuery.data, isEdit, onServedCountChange, servedModelsCount]);
-  /* A test holds for the connection it ran against; changing the type,
-     address or key greys the model list until it runs again. */
+
   const connectionAs = `${values.type}|${String(values.base_url || '').trim()}|${String(values.key || '').trim()}`;
   const tested = listed !== null && testedAs === connectionAs;
   const pickOpen = tested || manualMode;
@@ -765,663 +601,6 @@ export default function SourceForm({
     form.setValue('model_mapping', serializeModelMapping(served.mapping));
     void submit();
   };
-
-  const credentialGrid = (
-    <div className='mo-form__grid'>
-      <Field>
-        <label className='lazu-label' htmlFor='channel-name'>
-          {t(`${ns}.field.name`)}
-        </label>
-        <Input
-          disabled={loading}
-          id='channel-name'
-          placeholder={t(`${ns}.placeholder.name`)}
-          {...form.register('name')}
-        />
-        <FieldMessage error>{form.formState.errors.name?.message}</FieldMessage>
-      </Field>
-      <Field>
-        {/* Channel.Type is the API-protocol adapter; SourceType is
-          where the supply comes from. They are independent — a
-          cloud resale and a first-party account can speak the same
-          protocol. */}
-        <label className='lazu-label'>
-          {t(`${ns}.field.source_type`, {
-            defaultValue: '来源类型',
-          })}
-        </label>
-        <Controller
-          control={form.control}
-          name='source_type'
-          render={({ field }) => (
-            <Select
-              disabled={loading}
-              value={String(field.value || 'unclassified')}
-              onValueChange={field.onChange}
-            >
-              {SOURCE_TYPES.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {sourceTypeLabel(option, t)}
-                </SelectItem>
-              ))}
-            </Select>
-          )}
-        />
-        <FieldMessage>
-          {t(`${ns}.help.source_type`, {
-            defaultValue:
-              '官方 / 云厂商 / 聚合 / 非官方。只影响台账分类与筛选，不改变路由。',
-          })}
-        </FieldMessage>
-      </Field>
-      <Field>
-        <FieldLabel code='type' text={t(`${ns}.field.type`)} />
-        <Controller
-          control={form.control}
-          name='type'
-          render={({ field }) => (
-            <Select
-              disabled={loading}
-              placeholder={t(`${ns}.placeholder.type`)}
-              value={String(field.value || '')}
-              onValueChange={(value) => {
-                field.onChange(value);
-                protocolDialectManuallySelected.current = false;
-                form.setValue(
-                  'protocol_dialect',
-                  inferProtocolDialect(form.getValues('base_url'), value),
-                  { shouldDirty: true, shouldValidate: true },
-                );
-              }}
-            >
-              {typeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </Select>
-          )}
-        />
-        <FieldMessage error>{form.formState.errors.type?.message}</FieldMessage>
-      </Field>
-      <Field>
-        <FieldLabel
-          code='protocol_dialect'
-          text={t(`${ns}.field.protocol_dialect`, {
-            defaultValue: '协议方言',
-          })}
-        />
-        <Controller
-          control={form.control}
-          name='protocol_dialect'
-          render={({ field }) => (
-            <Select
-              disabled={loading}
-              value={field.value || 'openai_chat_compatible'}
-              onValueChange={(value) => {
-                protocolDialectManuallySelected.current = true;
-                field.onChange(value);
-              }}
-            >
-              <SelectItem value='openai_chat_compatible'>
-                {t(`${ns}.option.protocolDialect.compatible`, {
-                  defaultValue: 'OpenAI-compatible（保守）',
-                })}
-              </SelectItem>
-              <SelectItem value='openai'>OpenAI</SelectItem>
-              <SelectItem value='azure_openai'>Azure OpenAI</SelectItem>
-              <SelectItem value='openrouter'>OpenRouter</SelectItem>
-              <SelectItem value='deepseek'>DeepSeek</SelectItem>
-              <SelectItem value='cloudflare_ai_v1'>
-                Cloudflare Workers AI
-              </SelectItem>
-              <SelectItem value='anthropic'>Anthropic</SelectItem>
-              <SelectItem value='gemini'>Gemini</SelectItem>
-            </Select>
-          )}
-        />
-        <FieldMessage>
-          {t(`${ns}.help.protocol_dialect`, {
-            defaultValue:
-              '决定原生端点与 wire 能力；Cloudflare Workers AI 请选择 Cloudflare。',
-          })}
-        </FieldMessage>
-      </Field>
-      {Number(values.type) === 14 ? (
-        <Field className='mo-form__wide'>
-          <Controller
-            control={form.control}
-            name='claude_code_client_only'
-            render={({ field }) => (
-              <Switch
-                checked={field.value}
-                disabled={loading}
-                onCheckedChange={field.onChange}
-              >
-                {t(`${ns}.field.claude_code_client_only`, {
-                  defaultValue: '只给 Claude Code 用',
-                })}
-              </Switch>
-            )}
-          />
-          <FieldMessage>
-            {t(`${ns}.help.claude_code_client_only`, {
-              defaultValue:
-                '上游只接受官方 Claude Code 客户端时打开。只有 Claude Code 的请求会路由到这里，并带上它自己的客户端标识。抽测和观察检查使用网关配置的探测身份；下面可以只为这个来源改 User-Agent。',
-            })}
-          </FieldMessage>
-          {values.claude_code_client_only ? (
-            <Input
-              aria-label={t(`${ns}.field.claude_code_user_agent`, {
-                defaultValue: '这个来源的抽测 User-Agent',
-              })}
-              disabled={loading}
-              {...form.register('claude_code_user_agent')}
-            />
-          ) : null}
-        </Field>
-      ) : null}
-      <Field className='mo-form__wide'>
-        <label className='lazu-label' htmlFor='channel-key'>
-          {t(`${ns}.field.key`)}
-        </label>
-        <Textarea
-          disabled={loading}
-          id='channel-key'
-          placeholder={t(`${ns}.placeholder.key`)}
-          rows={3}
-          {...form.register('key')}
-        />
-        <FieldMessage>
-          {isEdit ? t(`${ns}.help.keyEdit`) : t(`${ns}.help.keyCreate`)}
-        </FieldMessage>
-        <FieldMessage error>{form.formState.errors.key?.message}</FieldMessage>
-      </Field>
-      <Field className='mo-form__wide'>
-        <label className='lazu-label' htmlFor='channel-base-url'>
-          {t(`${ns}.field.base_url`)}
-        </label>
-        <Input
-          disabled={loading}
-          id='channel-base-url'
-          placeholder={t(`${ns}.placeholder.base_url`)}
-          {...form.register('base_url', {
-            onChange: (event) => {
-              form.setValue(
-                'protocol_dialect',
-                protocolDialectAfterBaseURLChange(
-                  event.target.value,
-                  form.getValues('type'),
-                  form.getValues('protocol_dialect'),
-                  protocolDialectManuallySelected.current,
-                ),
-                { shouldDirty: true, shouldValidate: true },
-              );
-            },
-          })}
-        />
-      </Field>
-      {videoInCredential ? videoFamilyField : null}
-      {values.video_family === 'envelope' || Number(values.type) === 8 ? (
-        <Field className='mo-form__wide'>
-          <FieldLabel
-            code='video_envelope'
-            htmlFor='channel-video-envelope'
-            text={t(`${ns}.field.video_envelope`, {
-              defaultValue: '视频信封配置',
-            })}
-          />
-          <Textarea
-            disabled={loading}
-            id='channel-video-envelope'
-            placeholder={t(`${ns}.placeholder.video_envelope`, {
-              defaultValue:
-                '{"preset":"tasks"} 或 {"submit_url":"/v1/videos/generations","status_url":"/v1/tasks/{id}","job_id_paths":["data.0.task_id"],"status_path":"data.status","artifact_paths":["data.result.videos.0.url.0"],"cost_path":"data.cost"}',
-            })}
-            rows={4}
-            {...form.register('video_envelope')}
-          />
-          <FieldMessage>
-            {t(`${ns}.help.video_envelope`, {
-              defaultValue:
-                'preset 为 tasks 或 openai；显式字段覆盖预设。URL 可相对基础地址，{id} 为上游任务 id。',
-            })}
-          </FieldMessage>
-          <FieldMessage error>
-            {form.formState.errors.video_envelope?.message}
-          </FieldMessage>
-        </Field>
-      ) : null}
-      {Number(values.type) === 8 ? (
-        <>
-          <Field className='mo-form__wide'>
-            <label
-              className='lazu-label'
-              htmlFor='channel-video-status-url-template'
-            >
-              {t(`${ns}.field.video_status_url_template`)}
-            </label>
-            <Input
-              disabled={loading}
-              id='channel-video-status-url-template'
-              placeholder={t(`${ns}.placeholder.video_status_url_template`)}
-              {...form.register('video_status_url_template')}
-            />
-            <FieldMessage>
-              {t(`${ns}.help.video_status_url_template`)}
-            </FieldMessage>
-          </Field>
-          <Field className='mo-form__wide'>
-            <label
-              className='lazu-label'
-              htmlFor='channel-video-content-url-template'
-            >
-              {t(`${ns}.field.video_content_url_template`)}
-            </label>
-            <Input
-              disabled={loading}
-              id='channel-video-content-url-template'
-              placeholder={t(`${ns}.placeholder.video_content_url_template`)}
-              {...form.register('video_content_url_template')}
-            />
-            <FieldMessage>
-              {t(`${ns}.help.video_content_url_template`)}
-            </FieldMessage>
-          </Field>
-        </>
-      ) : null}
-    </div>
-  );
-
-  const routingSections = (
-    <>
-      <section className='mo-form-sect' id='source-sect-lane'>
-        <h3 className='mo-form-sect__title'>
-          {t(`${ns}.section.laneWeight`, {
-            defaultValue: '线路与权重',
-          })}
-        </h3>
-        <div className='mo-form__grid mo-form__grid--3'>
-          <Field>
-            <FieldLabel
-              text={t(`${ns}.field.groups`, { defaultValue: '线路' })}
-            />
-            <Controller
-              control={form.control}
-              name='groups'
-              render={({ field }) => (
-                <Select
-                  aria-label={t(`${ns}.field.groups`, {
-                    defaultValue: '线路',
-                  })}
-                  disabled={loading}
-                  value={field.value?.[0] || 'direct'}
-                  onValueChange={(value) => field.onChange([value])}
-                >
-                  {groupOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className='mo-lane-option'>
-                        <span
-                          aria-hidden='true'
-                          className={`mo-dot mo-dot--lane-${laneColor(option.value)}`}
-                        />
-                        {option.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </Select>
-              )}
-            />
-            <FieldMessage error>
-              {form.formState.errors.groups?.message}
-            </FieldMessage>
-          </Field>
-          <Field>
-            <FieldLabel
-              code='weight'
-              htmlFor='channel-weight'
-              text={t(`${ns}.field.weight`)}
-              tip={t(`${ns}.help.weightOverride`, {
-                defaultValue:
-                  '这个来源在各线路池里的默认权重；模型页里按模型改过的以那边为准。',
-              })}
-            />
-            <Input
-              disabled={loading}
-              id='channel-weight'
-              min='0'
-              type='number'
-              {...form.register('weight')}
-            />
-            <FieldMessage>
-              {t(`${ns}.help.weightShort`, {
-                defaultValue: '同一线路里按权重分流。',
-              })}
-            </FieldMessage>
-            <FieldMessage error>
-              {form.formState.errors.weight?.message}
-            </FieldMessage>
-          </Field>
-          <Field>
-            <FieldLabel
-              code='priority'
-              htmlFor='channel-priority'
-              text={t(`${ns}.field.priority`)}
-            />
-            <Input
-              disabled={loading}
-              id='channel-priority'
-              min='0'
-              type='number'
-              {...form.register('priority')}
-            />
-            <FieldMessage>
-              {t(`${ns}.help.priorityShort`, {
-                defaultValue: '高的先用，相同再看权重。',
-              })}
-            </FieldMessage>
-            <FieldMessage error>
-              {form.formState.errors.priority?.message}
-            </FieldMessage>
-          </Field>
-        </div>
-      </section>
-
-      <section className='mo-form-sect' id='source-sect-limit'>
-        <h3 className='mo-form-sect__title'>
-          {t(`${ns}.section.limit`, { defaultValue: '限流' })}
-          <span className='mo-form-sect__note'>
-            {t(`${ns}.section.limitShort`, {
-              defaultValue: '留空即不限',
-            })}
-          </span>
-        </h3>
-        <CapacityFields disabled={loading} form={form} />
-      </section>
-
-      <section className='mo-form-sect' id='source-sect-behave'>
-        <h3 className='mo-form-sect__title'>
-          {t(`${ns}.section.behave`, { defaultValue: '行为' })}
-        </h3>
-        <div className='mo-form__switches'>
-          <Controller
-            control={form.control}
-            name='auto_ban'
-            render={({ field }) => (
-              <Switch
-                checked={field.value}
-                disabled={loading}
-                onCheckedChange={field.onChange}
-              >
-                {t(`${ns}.field.auto_ban`)}
-              </Switch>
-            )}
-          />
-          <Controller
-            control={form.control}
-            name='observe_new_routes'
-            render={({ field }) => (
-              <Switch
-                checked={field.value}
-                disabled={loading}
-                onCheckedChange={field.onChange}
-              >
-                {t(`${ns}.field.observe_new_routes`, {
-                  defaultValue: '先观察再上线',
-                })}
-              </Switch>
-            )}
-          />
-          <FieldMessage className='mo-form__switch-note'>
-            {t(`${ns}.help.observe_new_routes`, {
-              defaultValue:
-                '新接入的模型先放进库存，只被探测、不接流量；观察期满且各项检查通过后，在来源台账或模型的线路卡上线。已在服务的模型不受影响。',
-            })}
-          </FieldMessage>
-        </div>
-        <div className='mo-form__grid'>
-          <Field>
-            <FieldLabel
-              code='first_event_timeout_seconds'
-              htmlFor='channel-first-event-timeout'
-              text={t(`${ns}.field.firstEventTimeout`, {
-                defaultValue: '首个事件等待（秒）',
-              })}
-            />
-            <Input
-              disabled={loading}
-              id='channel-first-event-timeout'
-              inputMode='numeric'
-              min='0'
-              max='3600'
-              step='1'
-              type='number'
-              placeholder='90'
-              value={readFirstEventTimeout(values.settings)}
-              onChange={(event) => {
-                const next = writeFirstEventTimeout(
-                  form.getValues('settings'),
-                  event.target.value,
-                );
-                if (next === null) return;
-                form.setValue('settings', next, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-              }}
-            />
-            <FieldMessage>
-              {t(`${ns}.help.firstEventTimeout`, {
-                defaultValue:
-                  '流式请求收到上游响应头后，最多等多久第一个数据事件。上游先回响应头、再思考很久才出字的，调大；回了头常卡住不出字的，调小。留空按请求的起流时限（90 秒；已换过渠道时放宽到 STREAMING_TIMEOUT）。',
-              })}
-            </FieldMessage>
-          </Field>
-          <DecisionFields disabled={loading} form={form} />
-        </div>
-      </section>
-
-      <section className='mo-form-sect' id='source-sect-cost'>
-        <h3 className='mo-form-sect__title'>
-          {t(`${ns}.section.cost`, { defaultValue: '成本基准' })}
-          <span className='mo-form-sect__note'>
-            {t(`${ns}.section.costShort`, {
-              defaultValue: '· 用来算毛利，不影响售价',
-            })}
-          </span>
-        </h3>
-        <div className='mo-form__grid'>
-          <Field>
-            <FieldLabel
-              code='cost_multiplier'
-              htmlFor='channel-cost'
-              text={t(`${ns}.field.costPercent`, {
-                defaultValue: '成本折扣',
-              })}
-            />
-            <Input
-              disabled={loading}
-              id='channel-cost'
-              inputMode='decimal'
-              min='0'
-              max='1000'
-              step='0.1'
-              type='number'
-              placeholder='100'
-              value={readCostPercent(values.settings)}
-              onChange={(event) => {
-                const next = writeCostPercent(
-                  form.getValues('settings'),
-                  event.target.value,
-                );
-                if (next === null) return;
-                form.setValue('settings', next, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-              }}
-            />
-            <FieldMessage>
-              {t(`${ns}.help.costPercent`, {
-                defaultValue:
-                  '按官方价的百分之几进货，30 就是三折。没单独配成本价的模型按这个算上游成本和毛利；留空按官方价。',
-              })}
-            </FieldMessage>
-          </Field>
-          <Field className='mo-form__wide'>
-            <FieldLabel
-              code='provider_cost_prices'
-              htmlFor='channel-cost-prices'
-              text={t(`${ns}.field.provider_cost_prices`, {
-                defaultValue: '成本明细',
-              })}
-              tip={t(`${ns}.help.costTier`, {
-                defaultValue:
-                  '这条来源按长上下文加价时才填 context_tier_*：输入（含缓存）超过阈值，整单按分档成本算。不填就按基础成本算；官方价兜底行会自动带上官方分档。',
-              })}
-            />
-            <Textarea
-              disabled={loading}
-              id='channel-cost-prices'
-              rows={4}
-              {...form.register('provider_cost_prices')}
-            />
-            <span className='mo-example-label'>
-              {t(`${ns}.help.example`, { defaultValue: '示例' })}
-            </span>
-            <pre className='mo-example'>{COST_PRICES_EXAMPLE}</pre>
-          </Field>
-        </div>
-      </section>
-
-      <section className='mo-form-sect' id='source-sect-advanced'>
-        <h3 className='mo-form-sect__title'>
-          {t(`${ns}.section.advanced`)}
-          <span className='mo-form-sect__note'>
-            {t(`${ns}.section.advancedShort`, {
-              defaultValue: '· 模型映射 · 参数覆盖 · 备注',
-            })}
-          </span>
-        </h3>
-        <div className='mo-form__grid'>
-          <Field>
-            <FieldLabel htmlFor='channel-tag' text={t(`${ns}.field.tag`)} />
-            <Input
-              disabled={loading}
-              id='channel-tag'
-              placeholder={t(`${ns}.placeholder.tag`)}
-              {...form.register('tag')}
-            />
-          </Field>
-          {videoInCredential ? null : videoFamilyField}
-
-          <Field className='mo-form__wide'>
-            <label className='lazu-label' htmlFor='channel-remark'>
-              {t(`${ns}.field.remark`)}
-            </label>
-            <Input
-              disabled={loading}
-              id='channel-remark'
-              placeholder={t(`${ns}.placeholder.remark`)}
-              {...form.register('remark')}
-            />
-          </Field>
-          <Field className='mo-form__wide'>
-            <FieldLabel
-              code='param_override'
-              htmlFor='channel-param-override'
-              text={t(`${ns}.field.param_override`)}
-            />
-            <Textarea
-              disabled={loading}
-              id='channel-param-override'
-              placeholder={t(`${ns}.placeholder.param_override`)}
-              rows={4}
-              {...form.register('param_override')}
-            />
-            <FieldMessage>{t(`${ns}.help.param_override`)}</FieldMessage>
-            <FieldMessage error>
-              {form.formState.errors.param_override?.message}
-            </FieldMessage>
-          </Field>
-          <Field className='mo-form__wide'>
-            <FieldLabel
-              code='header_override'
-              htmlFor='channel-header-override'
-              text={t(`${ns}.field.header_override`)}
-            />
-            <Textarea
-              disabled={loading}
-              id='channel-header-override'
-              placeholder={t(`${ns}.placeholder.header_override`)}
-              rows={3}
-              {...form.register('header_override')}
-            />
-            <FieldMessage>{t(`${ns}.help.header_override`)}</FieldMessage>
-            <FieldMessage error>
-              {form.formState.errors.header_override?.message}
-            </FieldMessage>
-          </Field>
-          <Field className='mo-form__wide'>
-            <FieldLabel
-              code='status_code_mapping'
-              htmlFor='channel-status-code-mapping'
-              text={t(`${ns}.field.status_code_mapping`)}
-            />
-            <Textarea
-              disabled={loading}
-              id='channel-status-code-mapping'
-              placeholder={t(`${ns}.placeholder.status_code_mapping`)}
-              rows={3}
-              {...form.register('status_code_mapping')}
-            />
-            <FieldMessage>{t(`${ns}.help.status_code_mapping`)}</FieldMessage>
-            <FieldMessage error>
-              {form.formState.errors.status_code_mapping?.message}
-            </FieldMessage>
-          </Field>
-          <Field className='mo-form__wide'>
-            <FieldLabel
-              code='settings'
-              htmlFor='channel-settings'
-              text={t(`${ns}.field.settings`)}
-            />
-            <Textarea
-              disabled={loading}
-              id='channel-settings'
-              placeholder={t(`${ns}.placeholder.settings`)}
-              rows={5}
-              {...form.register('settings')}
-            />
-            <FieldMessage>{t(`${ns}.help.settings`)}</FieldMessage>
-            <FieldMessage error>
-              {form.formState.errors.settings?.message}
-            </FieldMessage>
-          </Field>
-        </div>
-      </section>
-    </>
-  );
-
-  const detailError =
-    isEdit && detailQuery.isError && !detailQuery.data ? (
-      <InlineNotice
-        tone='danger'
-        title={t(`${ns}.detailError.title`)}
-        description={t(`${ns}.detailError.description`)}
-        actions={
-          <Button
-            size='sm'
-            type='button'
-            variant='secondary'
-            loading={detailQuery.isFetching}
-            onClick={() => void detailQuery.refetch()}
-          >
-            {t('common.retry')}
-          </Button>
-        }
-      />
-    ) : null;
 
   if (creating) {
     const typeValue = Number(values.type || 1);
@@ -1673,7 +852,7 @@ export default function SourceForm({
                   {t(`${ns}.create.clear`, { defaultValue: '清空' })}
                 </Button>
               </div>
-              <div className='src-pick__rows src-mgroups'>
+              <div className='src-mgroups'>
                 {pickGroups.map((group) => {
                   const gKey = group.maker || '__other__';
                   const gLabel = makerLabel(group.maker, t);
@@ -1844,7 +1023,7 @@ export default function SourceForm({
                   );
                 })}
                 {pickShown.length === 0 ? (
-                  <div className='src-empty'>
+                  <div className='src-empty src-empty--compact'>
                     {t(`${ns}.create.noMatch`, {
                       defaultValue: '无匹配模型',
                     })}
@@ -1888,7 +1067,7 @@ export default function SourceForm({
           <Button
             className='src-create__cancel'
             disabled={channels.saveChannelMutation.isPending}
-            size='md'
+            size='sm'
             type='button'
             variant='secondary'
             onClick={onCancel}
@@ -1898,7 +1077,7 @@ export default function SourceForm({
           <Button
             disabled={!pickOpen || pickedCount === 0 || loading}
             loading={channels.saveChannelMutation.isPending}
-            size='md'
+            size='sm'
             type='submit'
             variant='primary'
           >
@@ -1911,6 +1090,48 @@ export default function SourceForm({
       </form>
     );
   }
+
+  const keyRegister = form.register('key');
+  const hasNewKey = Boolean(String(values.key || '').trim());
+  const syncInterval = Number(values.upstream_sync_interval || 0);
+  const hasOverrides = Boolean(
+    values.param_override?.trim() ||
+    values.header_override?.trim() ||
+    values.status_code_mapping?.trim(),
+  );
+  const syncSummary = syncInterval
+    ? t(`${ns}.summary.syncEvery`, {
+        defaultValue: '每 {{hours}} 小时巡检上游',
+        hours: syncInterval,
+      })
+    : t(`${ns}.summary.syncOff`, { defaultValue: '不自动巡检上游' });
+  const newPolicySummary =
+    values.upstream_sync_on_new === 'auto'
+      ? t(`${ns}.summary.newAuto`, { defaultValue: '新模型自动供货' })
+      : t(`${ns}.summary.newReview`, { defaultValue: '新模型需人工确认' });
+  const overrideSummary = hasOverrides
+    ? t(`${ns}.summary.hasOverrides`, { defaultValue: '已设参数/Header覆写' })
+    : t(`${ns}.summary.noOverrides`, { defaultValue: '无参数覆写' });
+
+  const detailError =
+    isEdit && detailQuery.isError && !detailQuery.data ? (
+      <InlineNotice
+        tone='danger'
+        title={t(`${ns}.detailError.title`)}
+        description={t(`${ns}.detailError.description`)}
+        actions={
+          <Button
+            size='sm'
+            type='button'
+            variant='secondary'
+            loading={detailQuery.isFetching}
+            onClick={() => void detailQuery.refetch()}
+          >
+            {t('common.retry')}
+          </Button>
+        }
+      />
+    ) : null;
 
   return (
     <>
@@ -1932,66 +1153,812 @@ export default function SourceForm({
           ))}
         </div>
       ) : null}
+
       <form
-        className='src-form'
+        className='src-flow'
         hidden={awaitingDetail}
         id={SOURCE_FORM_ID}
         onSubmit={(event) => void submit(event)}
       >
-        {tab === 'models' ? (
-          <SourceModelsTable
-            catalog={catalog}
-            disabled={loading || detailMissing}
-            form={form}
-            initialView={initialModelView}
-            resolving={resolving}
-            t={t}
-            upstream={upstream}
-            onResolve={(body) => onResolve?.(body)}
-          />
-        ) : null}
-        {tab === 'connection' ? (
-          <section className='src-panel src-panel--pad mo-form'>
-            {credentialGrid}
-          </section>
-        ) : null}
-        {tab === 'routing' ? (
-          <section className='src-panel src-routing'>
-            <nav
-              aria-label={t(`${ns}.section.navLabel`, {
-                defaultValue: '线路设置分段',
+        {/* Section 1 · 供货模型 */}
+        <SourceModelsTable
+          catalog={catalog}
+          disabled={loading || detailMissing}
+          form={form}
+          initialView={initialModelView}
+          resolving={resolving}
+          t={t}
+          upstream={upstream}
+          onResolve={(body) => onResolve?.(body)}
+        />
+
+        {/* Section 2 · 连接与凭证 */}
+        <section className='src-flow__sect'>
+          <div className='src-sect-head'>
+            <span className='src-sect-head__title'>
+              {t(`${ns}.section.connection`, { defaultValue: '连接与凭证' })}
+            </span>
+          </div>
+          <div className='src-grid src-grid--name'>
+            <Field>
+              <label className='lazu-label' htmlFor='channel-name'>
+                {t(`${ns}.field.name`, { defaultValue: '来源名称' })}
+              </label>
+              <Input
+                disabled={loading}
+                id='channel-name'
+                placeholder={t(`${ns}.placeholder.name`)}
+                {...form.register('name')}
+              />
+              <FieldMessage error>
+                {form.formState.errors.name?.message}
+              </FieldMessage>
+            </Field>
+            <Field>
+              <label className='lazu-label'>
+                {t(`${ns}.field.source_type`, { defaultValue: '来源类型' })}
+              </label>
+              <Controller
+                control={form.control}
+                name='source_type'
+                render={({ field }) => (
+                  <Select
+                    disabled={loading}
+                    value={String(field.value || 'unclassified')}
+                    onValueChange={field.onChange}
+                  >
+                    {SOURCE_TYPES.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {sourceTypeLabel(option, t)}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                )}
+              />
+            </Field>
+          </div>
+
+          <div className='src-grid src-grid--2'>
+            <Field>
+              <FieldLabel
+                code='type'
+                text={t(`${ns}.field.type`, { defaultValue: '供应商类型' })}
+              />
+              <Controller
+                control={form.control}
+                name='type'
+                render={({ field }) => (
+                  <Select
+                    disabled={loading}
+                    placeholder={t(`${ns}.placeholder.type`)}
+                    value={String(field.value || '')}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      protocolDialectManuallySelected.current = false;
+                      form.setValue(
+                        'protocol_dialect',
+                        inferProtocolDialect(form.getValues('base_url'), value),
+                        { shouldDirty: true, shouldValidate: true },
+                      );
+                    }}
+                  >
+                    {typeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                )}
+              />
+              <FieldMessage error>
+                {form.formState.errors.type?.message}
+              </FieldMessage>
+            </Field>
+            <Field>
+              <FieldLabel
+                code='protocol_dialect'
+                text={t(`${ns}.field.protocol_dialect`, {
+                  defaultValue: '协议方言',
+                })}
+                tip={t(`${ns}.help.protocol_dialect`)}
+              />
+              <Controller
+                control={form.control}
+                name='protocol_dialect'
+                render={({ field }) => (
+                  <Select
+                    disabled={loading}
+                    value={field.value || 'openai_chat_compatible'}
+                    onValueChange={(value) => {
+                      protocolDialectManuallySelected.current = true;
+                      field.onChange(value);
+                    }}
+                  >
+                    <SelectItem value='openai_chat_compatible'>
+                      {t(`${ns}.option.protocolDialect.compatible`, {
+                        defaultValue: 'OpenAI-compatible（保守）',
+                      })}
+                    </SelectItem>
+                    <SelectItem value='openai'>OpenAI</SelectItem>
+                    <SelectItem value='azure_openai'>Azure OpenAI</SelectItem>
+                    <SelectItem value='openrouter'>OpenRouter</SelectItem>
+                    <SelectItem value='deepseek'>DeepSeek</SelectItem>
+                    <SelectItem value='cloudflare_ai_v1'>
+                      Cloudflare Workers AI
+                    </SelectItem>
+                    <SelectItem value='anthropic'>Anthropic</SelectItem>
+                    <SelectItem value='gemini'>Gemini</SelectItem>
+                  </Select>
+                )}
+              />
+            </Field>
+          </div>
+
+          <Field>
+            <label className='lazu-label' htmlFor='channel-base-url'>
+              {t(`${ns}.field.base_url`, {
+                defaultValue: '基础地址 (Base URL)',
               })}
-              className='mo-source-nav'
-            >
-              {sectionNav.map(([key, label, note]) => (
-                <button
-                  aria-current={activeSection === key ? 'location' : undefined}
-                  className={`mo-source-nav__item${activeSection === key ? ' is-active' : ''}`}
-                  data-owns-chrome=''
-                  key={key}
+            </label>
+            <Input
+              className='src-mono-input'
+              disabled={loading}
+              id='channel-base-url'
+              placeholder={t(`${ns}.placeholder.base_url`)}
+              {...form.register('base_url', {
+                onChange: (event) => {
+                  form.setValue(
+                    'protocol_dialect',
+                    protocolDialectAfterBaseURLChange(
+                      event.target.value,
+                      form.getValues('type'),
+                      form.getValues('protocol_dialect'),
+                      protocolDialectManuallySelected.current,
+                    ),
+                    { shouldDirty: true, shouldValidate: true },
+                  );
+                },
+              })}
+            />
+          </Field>
+
+          <Field>
+            <label className='lazu-label' htmlFor='channel-key'>
+              {t(`${ns}.field.key`, { defaultValue: '上游 API 密钥' })}
+              <span className='src-label-sub'>
+                {keyFingerprint
+                  ? t(`${ns}.help.keyMaskedFp`, {
+                      defaultValue: ' · 已存掩码 …{{fp}}，输入新值即替换',
+                      fp: keyFingerprint,
+                    })
+                  : t(`${ns}.help.keyMasked`, {
+                      defaultValue:
+                        ' · 已加密存储，输入新值即替换，留空保持不变',
+                    })}
+              </span>
+            </label>
+            <div className='src-key-row'>
+              <Input
+                autoComplete='off'
+                className={`src-mono-input${hasNewKey ? '' : ' is-masked-idle'}`}
+                disabled={loading}
+                id='channel-key'
+                placeholder={
+                  keyFingerprint
+                    ? `••••••••••••••••${keyFingerprint}`
+                    : t(`${ns}.placeholder.keyReplace`, {
+                        defaultValue: '输入新密钥替换，留空保持当前密钥不变',
+                      })
+                }
+                type={keyRevealed ? 'text' : 'password'}
+                {...keyRegister}
+                ref={(el) => {
+                  keyRegister.ref(el);
+                  keyInputRef.current = el;
+                }}
+              />
+              {hasNewKey ? (
+                <Button
+                  aria-label={
+                    keyRevealed
+                      ? t(`${ns}.hideKey`, { defaultValue: '隐藏密钥' })
+                      : t(`${ns}.showKey`, { defaultValue: '显示密钥' })
+                  }
+                  size='sm'
                   type='button'
-                  onClick={() => jumpTo(key)}
+                  variant='secondary'
+                  onClick={() => setKeyRevealed((open) => !open)}
                 >
-                  <span>{label}</span>
-                  {note ? (
-                    <span className='mo-source-nav__note'>{note}</span>
-                  ) : null}
-                </button>
-              ))}
-            </nav>
-            <div className='src-routing__scroll mo-form' ref={scrollRef}>
-              {routingSections}
+                  {keyRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                  {keyRevealed
+                    ? t(`${ns}.hideShort`, { defaultValue: '隐藏' })
+                    : t(`${ns}.showShort`, { defaultValue: '显示' })}
+                </Button>
+              ) : (
+                <Button
+                  size='sm'
+                  type='button'
+                  variant='secondary'
+                  onClick={() => keyInputRef.current?.focus()}
+                >
+                  {t(`${ns}.replaceKey`, { defaultValue: '替换新密钥' })}
+                </Button>
+              )}
             </div>
-          </section>
-        ) : null}
-        {tab === 'sync' ? (
-          <SourceSyncPanel
-            disabled={loading || detailMissing}
-            form={form}
-            t={t}
-            upstream={upstream}
-          />
-        ) : null}
+            <FieldMessage error>
+              {form.formState.errors.key?.message}
+            </FieldMessage>
+          </Field>
+
+          {Number(values.type) === 14 ? (
+            <div className='src-inline-switches'>
+              <Controller
+                control={form.control}
+                name='claude_code_client_only'
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    disabled={loading}
+                    onCheckedChange={field.onChange}
+                  >
+                    {t(`${ns}.field.claude_code_client_only`, {
+                      defaultValue: '只给 Claude Code 用',
+                    })}
+                  </Switch>
+                )}
+              />
+              {values.claude_code_client_only ? (
+                <Input
+                  aria-label={t(`${ns}.field.claude_code_user_agent`, {
+                    defaultValue: '这个来源的抽测 User-Agent',
+                  })}
+                  disabled={loading}
+                  placeholder='User-Agent override (optional)'
+                  {...form.register('claude_code_user_agent')}
+                />
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        {/* Section 3 · 归属线路、权重与成本 */}
+        <section className='src-flow__sect'>
+          <div className='src-sect-head'>
+            <span className='src-sect-head__title'>
+              {t(`${ns}.section.routingCost`, {
+                defaultValue: '归属线路、权重与成本',
+              })}
+            </span>
+          </div>
+          <div className='src-grid src-grid--4'>
+            <Field>
+              <FieldLabel
+                text={t(`${ns}.field.groups`, { defaultValue: '归属线路' })}
+              />
+              <Controller
+                control={form.control}
+                name='groups'
+                render={({ field }) => (
+                  <Select
+                    aria-label={t(`${ns}.field.groups`, {
+                      defaultValue: '线路',
+                    })}
+                    disabled={loading}
+                    value={field.value?.[0] || 'direct'}
+                    onValueChange={(value) => field.onChange([value])}
+                  >
+                    {groupOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className='mo-lane-option'>
+                          <span
+                            aria-hidden='true'
+                            className={`mo-dot mo-dot--lane-${laneColor(option.value)}`}
+                          />
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </Select>
+                )}
+              />
+              <FieldMessage error>
+                {form.formState.errors.groups?.message}
+              </FieldMessage>
+            </Field>
+
+            <Field>
+              <FieldLabel
+                code='weight'
+                htmlFor='channel-weight'
+                text={t(`${ns}.field.weight`, { defaultValue: '权重' })}
+                tip={t(`${ns}.help.weightOverride`, {
+                  defaultValue:
+                    '同一线路里按权重分流；模型页里按模型改过的以那边为准。',
+                })}
+              />
+              <Input
+                className='src-mono-input'
+                disabled={loading}
+                id='channel-weight'
+                min='0'
+                type='number'
+                {...form.register('weight')}
+              />
+              <FieldMessage error>
+                {form.formState.errors.weight?.message}
+              </FieldMessage>
+            </Field>
+
+            <Field>
+              <FieldLabel
+                code='priority'
+                htmlFor='channel-priority'
+                text={t(`${ns}.field.priority`, { defaultValue: '优先级' })}
+                tip={t(`${ns}.help.priorityShort`, {
+                  defaultValue: '高的先用，相同再看权重。',
+                })}
+              />
+              <Input
+                className='src-mono-input'
+                disabled={loading}
+                id='channel-priority'
+                min='0'
+                type='number'
+                {...form.register('priority')}
+              />
+              <FieldMessage error>
+                {form.formState.errors.priority?.message}
+              </FieldMessage>
+            </Field>
+
+            <Field>
+              <FieldLabel
+                code='cost_multiplier'
+                htmlFor='channel-cost'
+                text={t(`${ns}.field.costPercentShort`, {
+                  defaultValue: '上游成本折算 %',
+                })}
+                tip={t(`${ns}.help.costPercent`, {
+                  defaultValue:
+                    '按官方价的百分之几进货（如 65 代表 6.5 折），只用来算毛利，不影响售价。',
+                })}
+              />
+              <Input
+                className='src-mono-input'
+                disabled={loading}
+                id='channel-cost'
+                inputMode='decimal'
+                max='1000'
+                min='0'
+                placeholder='100'
+                step='0.1'
+                type='number'
+                value={readCostPercent(values.settings)}
+                onChange={(event) => {
+                  const next = writeCostPercent(
+                    form.getValues('settings'),
+                    event.target.value,
+                  );
+                  if (next === null) return;
+                  form.setValue('settings', next, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+              />
+            </Field>
+          </div>
+
+          <div className='src-grid src-grid--4 src-grid--align-center'>
+            <Field>
+              <FieldLabel
+                code='max_rps'
+                htmlFor='capacity-max_rps'
+                text={t(`${ns}.field.max_rps`, {
+                  defaultValue: '每秒请求 (RPS)',
+                })}
+              />
+              <Input
+                className='src-mono-input'
+                disabled={loading}
+                id='capacity-max_rps'
+                min={0}
+                placeholder={t(`${ns}.placeholder.unlimited`, {
+                  defaultValue: '不限',
+                })}
+                type='number'
+                {...form.register('max_rps')}
+              />
+              <FieldMessage error>
+                {form.formState.errors.max_rps?.message}
+              </FieldMessage>
+            </Field>
+
+            <Field>
+              <FieldLabel
+                code='max_in_flight'
+                htmlFor='capacity-max_in_flight'
+                text={t(`${ns}.field.max_in_flight`, {
+                  defaultValue: '并发上限',
+                })}
+              />
+              <Input
+                className='src-mono-input'
+                disabled={loading}
+                id='capacity-max_in_flight'
+                min={0}
+                placeholder={t(`${ns}.placeholder.unlimited`, {
+                  defaultValue: '不限',
+                })}
+                type='number'
+                {...form.register('max_in_flight')}
+              />
+              <FieldMessage error>
+                {form.formState.errors.max_in_flight?.message}
+              </FieldMessage>
+            </Field>
+
+            <div className='src-switch-cell'>
+              <Controller
+                control={form.control}
+                name='auto_ban'
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    disabled={loading}
+                    onCheckedChange={field.onChange}
+                  >
+                    {t(`${ns}.field.auto_ban`, {
+                      defaultValue: '异常自动封禁',
+                    })}
+                  </Switch>
+                )}
+              />
+            </div>
+
+            <div className='src-switch-cell'>
+              <Controller
+                control={form.control}
+                name='observe_new_routes'
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    disabled={loading}
+                    onCheckedChange={field.onChange}
+                  >
+                    {t(`${ns}.field.observe_new_routes`, {
+                      defaultValue: '先观察再上线',
+                    })}
+                  </Switch>
+                )}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Section 4 · 自动同步策略与高级参数覆写 */}
+        <details
+          className='src-disclosure'
+          id='source-sect-advanced'
+          open={advancedOpen}
+          onToggle={(event) =>
+            setAdvancedOpen((event.currentTarget as HTMLDetailsElement).open)
+          }
+        >
+          <summary className='src-disclosure__summary'>
+            <span className='src-disclosure__text'>
+              <b>
+                {t(`${ns}.section.syncAndAdvanced`, {
+                  defaultValue: '自动同步策略与高级参数覆写',
+                })}
+              </b>
+              <span className='src-disclosure__meta'>
+                {` · ${syncSummary} · ${newPolicySummary} · ${overrideSummary}`}
+              </span>
+            </span>
+            <span className='src-disclosure__action'>
+              {advancedOpen
+                ? t(`${ns}.collapseAdvanced`, { defaultValue: '收起设置' })
+                : t(`${ns}.expandAdvanced`, { defaultValue: '展开设置' })}
+              <ChevronDown
+                aria-hidden='true'
+                className={`src-disclosure__chev${advancedOpen ? ' is-open' : ''}`}
+                size={14}
+              />
+            </span>
+          </summary>
+
+          <div className='src-disclosure__body'>
+            <SourceSyncPanel
+              disabled={loading || detailMissing}
+              form={form}
+              t={t}
+              upstream={upstream}
+            />
+
+            <div className='src-flow__subsect'>
+              <div className='src-sect-head'>
+                <span className='src-sect-head__title'>
+                  {t(`${ns}.section.sharedAndTimeout`, {
+                    defaultValue: '共享容量、流式超时与备注',
+                  })}
+                </span>
+              </div>
+              <SharedCapacityFields disabled={loading} form={form} />
+              <div className='src-grid src-grid--2'>
+                <Field>
+                  <FieldLabel
+                    code='first_event_timeout_seconds'
+                    htmlFor='channel-first-event-timeout'
+                    text={t(`${ns}.field.firstEventTimeout`, {
+                      defaultValue: '首个事件等待（秒）',
+                    })}
+                  />
+                  <Input
+                    disabled={loading}
+                    id='channel-first-event-timeout'
+                    inputMode='numeric'
+                    max='3600'
+                    min='0'
+                    placeholder='90'
+                    step='1'
+                    type='number'
+                    value={readFirstEventTimeout(values.settings)}
+                    onChange={(event) => {
+                      const next = writeFirstEventTimeout(
+                        form.getValues('settings'),
+                        event.target.value,
+                      );
+                      if (next === null) return;
+                      form.setValue('settings', next, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }}
+                  />
+                </Field>
+                <DecisionFields disabled={loading} form={form} />
+                <Field>
+                  <FieldLabel
+                    htmlFor='channel-tag'
+                    text={t(`${ns}.field.tag`, { defaultValue: '标签' })}
+                  />
+                  <Input
+                    disabled={loading}
+                    id='channel-tag'
+                    placeholder={t(`${ns}.placeholder.tag`)}
+                    {...form.register('tag')}
+                  />
+                </Field>
+                <Field>
+                  <label className='lazu-label' htmlFor='channel-remark'>
+                    {t(`${ns}.field.remark`, { defaultValue: '备注' })}
+                  </label>
+                  <Input
+                    disabled={loading}
+                    id='channel-remark'
+                    placeholder={t(`${ns}.placeholder.remark`)}
+                    {...form.register('remark')}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel
+                    code='video_family'
+                    text={t(`${ns}.field.video_family`, {
+                      defaultValue: '视频上游族',
+                    })}
+                  />
+                  <Controller
+                    control={form.control}
+                    name='video_family'
+                    render={({ field }) => (
+                      <Select
+                        disabled={loading}
+                        value={field.value || 'auto'}
+                        onValueChange={(value) =>
+                          field.onChange(value === 'auto' ? '' : value)
+                        }
+                      >
+                        <SelectItem value='auto'>
+                          {t(`${ns}.option.videoFamily.auto`, {
+                            defaultValue: '自动（按类型与模型名）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='gateway'>
+                          {t(`${ns}.option.videoFamily.gateway`, {
+                            defaultValue: 'OpenAI 兼容网关（/v1/videos）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='ark'>
+                          {t(`${ns}.option.videoFamily.ark`, {
+                            defaultValue: '火山方舟原生（Seedance）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='gemini'>
+                          {t(`${ns}.option.videoFamily.gemini`, {
+                            defaultValue: 'Gemini（Veo）',
+                          })}
+                        </SelectItem>
+                        <SelectItem value='envelope'>
+                          {t(`${ns}.option.videoFamily.envelope`, {
+                            defaultValue: '统一信封聚合站',
+                          })}
+                        </SelectItem>
+                      </Select>
+                    )}
+                  />
+                </Field>
+              </div>
+
+              {values.video_family === 'envelope' ||
+              Number(values.type) === 8 ? (
+                <Field>
+                  <FieldLabel
+                    code='video_envelope'
+                    htmlFor='channel-video-envelope'
+                    text={t(`${ns}.field.video_envelope`, {
+                      defaultValue: '视频信封配置',
+                    })}
+                  />
+                  <Textarea
+                    disabled={loading}
+                    id='channel-video-envelope'
+                    placeholder={t(`${ns}.placeholder.video_envelope`, {
+                      defaultValue: '{"preset":"tasks"}',
+                    })}
+                    rows={3}
+                    {...form.register('video_envelope')}
+                  />
+                  <FieldMessage error>
+                    {form.formState.errors.video_envelope?.message}
+                  </FieldMessage>
+                </Field>
+              ) : null}
+
+              {Number(values.type) === 8 ? (
+                <div className='src-grid src-grid--2'>
+                  <Field>
+                    <label
+                      className='lazu-label'
+                      htmlFor='channel-video-status-url-template'
+                    >
+                      {t(`${ns}.field.video_status_url_template`)}
+                    </label>
+                    <Input
+                      disabled={loading}
+                      id='channel-video-status-url-template'
+                      placeholder={t(
+                        `${ns}.placeholder.video_status_url_template`,
+                      )}
+                      {...form.register('video_status_url_template')}
+                    />
+                  </Field>
+                  <Field>
+                    <label
+                      className='lazu-label'
+                      htmlFor='channel-video-content-url-template'
+                    >
+                      {t(`${ns}.field.video_content_url_template`)}
+                    </label>
+                    <Input
+                      disabled={loading}
+                      id='channel-video-content-url-template'
+                      placeholder={t(
+                        `${ns}.placeholder.video_content_url_template`,
+                      )}
+                      {...form.register('video_content_url_template')}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </div>
+
+            <div className='src-flow__subsect'>
+              <div className='src-sect-head'>
+                <span className='src-sect-head__title'>
+                  {t(`${ns}.section.overridesJson`, {
+                    defaultValue: '成本明细与请求参数覆写 (JSON)',
+                  })}
+                </span>
+              </div>
+              <div className='src-grid src-grid--2'>
+                <Field>
+                  <FieldLabel
+                    code='param_override'
+                    htmlFor='channel-param-override'
+                    text={t(`${ns}.field.param_override`)}
+                    tip={t(`${ns}.help.param_override`)}
+                  />
+                  <Textarea
+                    className='src-mono-input'
+                    disabled={loading}
+                    id='channel-param-override'
+                    placeholder={t(`${ns}.placeholder.param_override`)}
+                    rows={3}
+                    {...form.register('param_override')}
+                  />
+                  <FieldMessage error>
+                    {form.formState.errors.param_override?.message}
+                  </FieldMessage>
+                </Field>
+                <Field>
+                  <FieldLabel
+                    code='header_override'
+                    htmlFor='channel-header-override'
+                    text={t(`${ns}.field.header_override`)}
+                    tip={t(`${ns}.help.header_override`)}
+                  />
+                  <Textarea
+                    className='src-mono-input'
+                    disabled={loading}
+                    id='channel-header-override'
+                    placeholder={t(`${ns}.placeholder.header_override`)}
+                    rows={3}
+                    {...form.register('header_override')}
+                  />
+                  <FieldMessage error>
+                    {form.formState.errors.header_override?.message}
+                  </FieldMessage>
+                </Field>
+                <Field>
+                  <FieldLabel
+                    code='status_code_mapping'
+                    htmlFor='channel-status-code-mapping'
+                    text={t(`${ns}.field.status_code_mapping`)}
+                    tip={t(`${ns}.help.status_code_mapping`)}
+                  />
+                  <Textarea
+                    className='src-mono-input'
+                    disabled={loading}
+                    id='channel-status-code-mapping'
+                    placeholder={t(`${ns}.placeholder.status_code_mapping`)}
+                    rows={3}
+                    {...form.register('status_code_mapping')}
+                  />
+                  <FieldMessage error>
+                    {form.formState.errors.status_code_mapping?.message}
+                  </FieldMessage>
+                </Field>
+                <Field>
+                  <FieldLabel
+                    code='provider_cost_prices'
+                    htmlFor='channel-cost-prices'
+                    text={t(`${ns}.field.provider_cost_prices`, {
+                      defaultValue: '按模型成本明细',
+                    })}
+                    tip={t(`${ns}.help.costTier`)}
+                  />
+                  <Textarea
+                    className='src-mono-input'
+                    disabled={loading}
+                    id='channel-cost-prices'
+                    rows={3}
+                    {...form.register('provider_cost_prices')}
+                  />
+                </Field>
+              </div>
+              <Field>
+                <FieldLabel
+                  code='settings'
+                  htmlFor='channel-settings'
+                  text={t(`${ns}.field.settings`)}
+                  tip={t(`${ns}.help.settings`)}
+                />
+                <Textarea
+                  className='src-mono-input'
+                  disabled={loading}
+                  id='channel-settings'
+                  placeholder={t(`${ns}.placeholder.settings`)}
+                  rows={3}
+                  {...form.register('settings')}
+                />
+                <FieldMessage error>
+                  {form.formState.errors.settings?.message}
+                </FieldMessage>
+              </Field>
+            </div>
+          </div>
+        </details>
       </form>
     </>
   );

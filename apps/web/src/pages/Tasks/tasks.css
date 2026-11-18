@@ -30,19 +30,46 @@
 }
 
 .tasks-search {
-  margin-left: auto;
+  display: flex;
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
-.tasks-search input {
+.tasks-search__box {
+  align-items: center;
   background: var(--lazu-surface);
-  border: 1px solid var(--lazu-border-strong);
-  border-radius: var(--lazu-radius-control);
+  border: 1px solid color-mix(in srgb, var(--lazu-ink) 12%, transparent);
+  border-radius: 10px;
+  box-sizing: border-box;
+  color: var(--lazu-text-faint);
+  display: flex;
+  flex: 1 1 auto;
+  gap: 8px;
+  height: 36px;
+  min-width: 0;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.tasks-search__box:focus-within {
+  border-color: var(--lazu-evidence);
+  box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
+}
+
+.tasks-search__box input {
+  background: transparent;
+  border: 0;
   color: var(--lazu-ink);
+  flex: 1 1 auto;
   font: inherit;
   font-size: 13px;
-  min-height: 40px;
-  padding: 0 12px;
-  width: min(280px, 100%);
+  min-width: 0;
+  outline: 0;
+  width: 100%;
+}
+
+.tasks-search__box input::placeholder {
+  color: var(--lazu-text-faint);
 }
 
 .tasks-table {
@@ -401,15 +428,18 @@
   gap: 8px;
 }
 
-/* Phone: range and status share the first lines, search takes a full row. */
-@media (max-width: 720px) {
-  .tasks-search {
-    flex-basis: 100%;
-    margin-left: 0;
+/* Phone: search + 筛选 stay on a single compact row. */
+@media (max-width: 768px) {
+  .tasks-filters {
+    flex-wrap: nowrap;
   }
 
-  .tasks-search input {
-    width: 100%;
+  .tasks-search,
+  .tasks-search__box {
+    flex: 1 1 auto;
+    height: 38px;
+    margin-left: 0;
+    min-width: 0;
   }
 }
 

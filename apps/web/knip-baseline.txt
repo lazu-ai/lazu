@@ -13,9 +13,6 @@ exports src/components/announcements/whatsNewAutoOpen.ts WHATS_NEW_AUTO_OPEN_DAY
 exports src/components/auth/AuthExits.tsx default
 exports src/components/auth/AuthLayout.tsx AuthMark
 exports src/components/auth/DoorSkeleton.tsx markDoorEntry
-exports src/components/charts/mini.tsx DistBar
-exports src/components/charts/mini.tsx Donut
-exports src/components/charts/mini.tsx HeatStrip
 exports src/components/common/DocumentRenderer/legal-outline.ts plainHeadingText
 exports src/components/dashboard/time-picker-v3.tsx DEFAULT_PRESET_ID
 exports src/components/dashboard/time-picker-v3.tsx rangeToDates
@@ -67,7 +64,6 @@ exports src/pages/Console/Ops/mailShared.tsx mailStatusText
 exports src/pages/Console/Ops/mailShared.tsx skipReasonLabel
 exports src/pages/Console/Ops/mailShared.tsx statusTone
 exports src/pages/Dashboard/overview/overview-api.ts viewerTzMinutes
-exports src/pages/Dashboard/overview/overview-parts.tsx rangeMetaLabel
 exports src/pages/FAQ/FAQSchema.tsx default
 exports src/pages/Log/sessions/SessionsView.tsx SessionKindTags
 exports src/pages/Log/sessions/session-format.ts dayText
@@ -89,8 +85,6 @@ exports src/pages/ModelOps/pricePlans.ts previewLane
 exports src/pages/ModelOps/ratioPricing.ts officialPerMtok
 exports src/pages/ModelOps/ratioPricing.ts readVideoPricingText
 exports src/pages/ModelOps/sellPrices.ts emptyLane
-exports src/pages/Organizations/account-model.ts LOW_BALANCE_MICROUSD
-exports src/pages/Organizations/account-model.ts relativeTime
 exports src/pages/Routes/catalog.ts laneFromChannelGroup
 exports src/pages/Routes/lane-block.tsx money
 exports src/pages/Routes/lane-block.tsx useLaneLabel
@@ -168,13 +162,6 @@ types src/pages/Console/Ops/mailApi.ts DigestRun
 types src/pages/Console/Ops/mailApi.ts MailDeliveryDetail
 types src/pages/Console/Ops/mailApi.ts MailDeliveryPage
 types src/pages/Console/Ops/mailApi.ts MailListParams
-types src/pages/Dashboard/overview/overview-api.ts OverviewBucket
-types src/pages/Dashboard/overview/overview-api.ts OverviewClient
-types src/pages/Dashboard/overview/overview-api.ts OverviewData
-types src/pages/Dashboard/overview/overview-api.ts OverviewDimensionRow
-types src/pages/Dashboard/overview/overview-api.ts OverviewGrowth
-types src/pages/Dashboard/overview/overview-api.ts OverviewTotals
-types src/pages/Dashboard/overview/overview-parts.tsx ListRow
 types src/pages/Home/components/useLandingFacts.ts LandingFacts
 types src/pages/Home/components/useLandingFacts.ts LandingFactsState
 types src/pages/Home/components/useLandingFacts.ts LandingModel
@@ -187,7 +174,6 @@ types src/pages/ModelOps/ratioPricing.ts DraftProblem
 types src/pages/ModelOps/sellPrices.ts OptionalNumberResult
 types src/pages/Organizations/account-model.ts AccountKeyOperationalState
 types src/pages/Organizations/account-model.ts AdjacentAccountTarget
-types src/pages/Organizations/account-model.ts DailySpendPoint
 types src/pages/Routes/catalog.ts DiscountMark
 types src/pages/Routes/catalog.ts HeroPrice
 types src/pages/Setting/settingInvalid.ts SettingInvalid

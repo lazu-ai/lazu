@@ -59,7 +59,7 @@ import {
   SAMPLE_LANGUAGES,
   type SampleLanguage,
 } from './code-samples';
-import { LaneBlock, LaneHealthLegend } from './lane-block';
+import { LaneBlock, LaneHealthLegend, laneHasRecord } from './lane-block';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
@@ -587,121 +587,150 @@ function ModelDetail({ model }: { model: CatalogModel }) {
   const heroIn = bestPrice('input');
   const heroOut = bestPrice('output');
 
-  const renderModalities = (values: string[]) =>
-    values.length ? (
-      <span className='plaza-detail__modality'>
-        {values.map((value) => {
-          const Icon = MODALITY_ICONS[value] || Type;
-          return (
-            <span key={value} className='plaza-detail__modality-item'>
-              <Icon size={12} />
-              {t(`page.console.plaza.detail.modality.${value}`, {
-                defaultValue: value,
-              })}
-            </span>
-          );
-        })}
-      </span>
-    ) : (
-      '—'
-    );
+  const renderModalities = (values: string[]) => (
+    <span className='plaza-detail__modality'>
+      {values.map((value) => {
+        const Icon = MODALITY_ICONS[value] || Type;
+        return (
+          <span key={value} className='plaza-detail__modality-item'>
+            <Icon size={12} />
+            {t(`page.console.plaza.detail.modality.${value}`, {
+              defaultValue: value,
+            })}
+          </span>
+        );
+      })}
+    </span>
+  );
+
+  const hasModality = modality.input.length > 0 || modality.output.length > 0;
+  const hasHeroPrice = heroIn != null || heroOut != null;
+  const hasStats = Boolean(
+    hasModality ||
+    hasHeroPrice ||
+    context ||
+    inputLimit ||
+    maxOutput ||
+    released ||
+    model.knowledge_cutoff,
+  );
+  const anyLaneHasRecord = lanes.some(laneHasRecord);
 
   return (
     <div className='plaza-detail'>
       {description ? <p className='plaza-detail__desc'>{description}</p> : null}
 
-      <div className='plaza-detail__stats'>
-        <div className='plaza-detail__stat'>
-          <span className='plaza-detail__stat-label'>
-            {t('page.console.plaza.detail.modalityHeading', {
-              defaultValue: '模态',
-            })}
-          </span>
-          <b className='plaza-detail__modality-flow'>
-            {renderModalities(modality.input)}
-            <MoveRight size={13} />
-            {renderModalities(modality.output)}
-          </b>
-        </div>
-        {heroIn != null || heroOut != null ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.inOutPrice', {
-                defaultValue: '输入 / 输出',
-              })}
-              {bestOff ? <em className='plaza-off'>−{bestOff}%</em> : null}
-            </span>
-            <b>
-              {[money(heroIn), money(heroOut)].filter(Boolean).join(' / ')}
-              <small>
-                {t('page.console.plaza.detail.unit.perMtokShort', {
-                  defaultValue: ' /M',
+      {hasStats ? (
+        <div className='plaza-detail__stats'>
+          {hasModality ? (
+            <div className='plaza-detail__stat'>
+              <span className='plaza-detail__stat-label'>
+                {t('page.console.plaza.detail.modalityHeading', {
+                  defaultValue: '模态',
+                })}
+              </span>
+              <b className='plaza-detail__modality-flow'>
+                {modality.input.length > 0
+                  ? renderModalities(modality.input)
+                  : null}
+                {modality.input.length > 0 && modality.output.length > 0 ? (
+                  <MoveRight size={13} />
+                ) : null}
+                {modality.output.length > 0
+                  ? renderModalities(modality.output)
+                  : null}
+              </b>
+            </div>
+          ) : null}
+          {hasHeroPrice ? (
+            <div className='plaza-detail__stat'>
+              <span className='plaza-detail__stat-label'>
+                {t('page.console.plaza.detail.inOutPrice', {
+                  defaultValue: '输入 / 输出',
+                })}
+                {bestOff ? <em className='plaza-off'>−{bestOff}%</em> : null}
+              </span>
+              <b>
+                {[money(heroIn), money(heroOut)].filter(Boolean).join(' / ')}
+                <small>
+                  {t('page.console.plaza.detail.unit.perMtokShort', {
+                    defaultValue: ' /M',
+                  })}
+                </small>
+              </b>
+            </div>
+          ) : null}
+          {context ? (
+            <div className='plaza-detail__stat'>
+              <span className='plaza-detail__stat-label'>
+                {t('page.console.plaza.detail.context', {
+                  defaultValue: '上下文',
+                })}
+              </span>
+              <b>{context}</b>
+            </div>
+          ) : null}
+          {inputLimit ? (
+            <div className='plaza-detail__stat'>
+              <span className='plaza-detail__stat-label'>
+                {t('page.console.plaza.detail.inputLimit', {
+                  defaultValue: '输入上限',
+                })}
+              </span>
+              <b>{inputLimit}</b>
+              <small className='plaza-detail__stat-note'>
+                {t('page.console.plaza.detail.inputLimitNote', {
+                  defaultValue: '其余留给输出',
                 })}
               </small>
-            </b>
-          </div>
-        ) : null}
-        <div className='plaza-detail__stat'>
-          <span className='plaza-detail__stat-label'>
-            {t('page.console.plaza.detail.context', {
-              defaultValue: '上下文',
-            })}
-          </span>
-          <b>{context ?? '—'}</b>
+            </div>
+          ) : null}
+          {maxOutput ? (
+            <div className='plaza-detail__stat'>
+              <span className='plaza-detail__stat-label'>
+                {t('page.console.plaza.detail.maxOutput', {
+                  defaultValue: '最大输出',
+                })}
+              </span>
+              <b>{maxOutput}</b>
+            </div>
+          ) : null}
+          {released ? (
+            <div className='plaza-detail__stat'>
+              <span className='plaza-detail__stat-label'>
+                {t('page.console.plaza.detail.releasedDate', {
+                  defaultValue: '发布日期',
+                })}
+              </span>
+              <b>{released}</b>
+            </div>
+          ) : null}
+          {model.knowledge_cutoff ? (
+            <div className='plaza-detail__stat'>
+              <span className='plaza-detail__stat-label'>
+                {t('page.console.plaza.detail.knowledgeCutoff', {
+                  defaultValue: '知识截止',
+                })}
+              </span>
+              <b>{model.knowledge_cutoff}</b>
+            </div>
+          ) : null}
         </div>
-        {inputLimit ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.inputLimit', {
-                defaultValue: '输入上限',
-              })}
-            </span>
-            <b>{inputLimit}</b>
-            <small className='plaza-detail__stat-note'>
-              {t('page.console.plaza.detail.inputLimitNote', {
-                defaultValue: '其余留给输出',
-              })}
-            </small>
-          </div>
-        ) : null}
-        <div className='plaza-detail__stat'>
-          <span className='plaza-detail__stat-label'>
-            {t('page.console.plaza.detail.maxOutput', {
-              defaultValue: '最大输出',
-            })}
-          </span>
-          <b>{maxOutput ?? '—'}</b>
-        </div>
-        {released ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.releasedDate', {
-                defaultValue: '发布日期',
-              })}
-            </span>
-            <b>{released}</b>
-          </div>
-        ) : null}
-        {model.knowledge_cutoff ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.knowledgeCutoff', {
-                defaultValue: '知识截止',
-              })}
-            </span>
-            <b>{model.knowledge_cutoff}</b>
-          </div>
-        ) : null}
-      </div>
+      ) : null}
 
       <DetailSection
         icon={Workflow}
         title={t('page.console.plaza.detail.lanes', { defaultValue: '线路' })}
       >
-        <div className='plaza-detail__lanes-head'>
-          <LaneHealthLegend className='plaza-detail__legend' />
-        </div>
-        <div className='plaza-detail__lanes'>
+        {anyLaneHasRecord ? (
+          <div className='plaza-detail__lanes-head'>
+            <LaneHealthLegend className='plaza-detail__legend' />
+          </div>
+        ) : null}
+        <div
+          className='plaza-detail__lanes'
+          data-count={lanes.length >= 2 ? 'two' : 'one'}
+        >
           {lanes.map((lane) => (
             <LaneBlock
               key={lane.key}
@@ -1057,9 +1086,14 @@ export function ModelCatalogPlaza({
         />
       ) : null}
 
-      {/* The key to the bars on every card; it names no figure, so it paints
-          with the frame instead of waiting for the catalog. */}
-      {catalogFailed ? null : <LaneHealthLegend className='plaza-legend' />}
+      {/* The key to the bars on every card; omit when no visible model carries
+          7d health slices so an orphaned legend never renders without bars. */}
+      {!catalogFailed &&
+      groups.some(({ models }) =>
+        models.some((model) => resolveLanes(model).some(laneHasRecord)),
+      ) ? (
+        <LaneHealthLegend className='plaza-legend' />
+      ) : null}
 
       {/* One continuous grid. Grouping by maker left a row with one card and
           two empty slots for every small maker; the maker now rides on each
@@ -1141,7 +1175,7 @@ export function ModelCatalogPlaza({
         }}
         footer={
           selected ? (
-            <Button variant='ghost' onClick={() => setSelected(null)}>
+            <Button variant='secondary' onClick={() => setSelected(null)}>
               {t('page.console.plaza.close', { defaultValue: '关闭' })}
             </Button>
           ) : null

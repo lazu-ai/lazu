@@ -3,11 +3,11 @@ export type LaneKey = 'eco' | 'stable';
 export type PeakCalendar = { years: number[]; holidays: string[] };
 
 export type LaneHealthBucket = {
-  index: number;
-  start_at: string;
+  index?: number;
+  start_at?: string;
   /** 'sample' from current servers; 'traffic' and 'probe' only in payloads
    *  cached before the catalog stopped naming provenance. */
-  source: 'sample' | 'traffic' | 'probe' | 'none';
+  source?: 'sample' | 'traffic' | 'probe' | 'none';
   success_rate?: number;
   tone: 'ok' | 'warn' | 'bad' | 'none';
 };

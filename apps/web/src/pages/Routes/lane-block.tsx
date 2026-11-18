@@ -126,43 +126,66 @@ const LaneBars = memo(
     prev.label === next.label && prev.lane.health === next.lane.health,
 );
 
+const bucketHasRecord = (bucket?: { source?: string; tone?: StatusBarTone }) =>
+  Boolean(
+    bucket &&
+    (bucket.source
+      ? bucket.source !== 'none'
+      : bucket.tone && bucket.tone !== 'none'),
+  );
+
+export function resolveLaneSlices(
+  health: Lane['health'],
+  language: string,
+  t: ReturnType<typeof useTranslation>['t'],
+): StatusBarSlice[] {
+  const seconds = health?.bucket_seconds || WEEK_SLICE_SECONDS;
+  const rawBuckets = health?.buckets || [];
+  const count = rawBuckets.length || WEEK_SLICES;
+  const hasExplicitIndex = rawBuckets.some(
+    (bucket) => typeof bucket.index === 'number',
+  );
+  const byIndex = hasExplicitIndex
+    ? new Map(rawBuckets.map((bucket) => [bucket.index, bucket]))
+    : null;
+  const toneWord = (tone: StatusBarTone) =>
+    t(`page.console.channelHealth.tip.${tone}`, {
+      defaultValue: {
+        ok: '正常',
+        warn: '部分失败',
+        bad: '中断',
+        none: '暂无数据',
+        future: '还没到',
+        blocked: '无法探测',
+      }[tone],
+    });
+  return Array.from({ length: count }, (_, index) => {
+    const bucket = byIndex ? byIndex.get(index) : rawBuckets[index];
+    const tone: StatusBarTone =
+      bucket && bucketHasRecord(bucket) ? bucket.tone : 'none';
+    const rate = tone === 'none' ? undefined : bucket?.success_rate;
+    return {
+      tone,
+      when: formatSliceWhen(bucket?.start_at, seconds, language),
+      verdict:
+        rate != null
+          ? `${toneWord(tone)} · ${t('page.console.channelHealth.tip.rate', {
+              defaultValue: '可用 {{value}}',
+              value: formatSliceRate(rate),
+            })}`
+          : toneWord(tone),
+    };
+  });
+}
+
 function LaneBarsRecord({ lane, label }: { lane: Lane; label: string }) {
   const { t, i18n } = useTranslation();
   const health = lane.health;
   const language = i18n.language;
-  const slices = useMemo<StatusBarSlice[]>(() => {
-    const seconds = health?.bucket_seconds || WEEK_SLICE_SECONDS;
-    const count = health?.buckets?.length || WEEK_SLICES;
-    const byIndex = new Map((health?.buckets || []).map((b) => [b.index, b]));
-    const toneWord = (tone: StatusBarTone) =>
-      t(`page.console.channelHealth.tip.${tone}`, {
-        defaultValue: {
-          ok: '正常',
-          warn: '部分失败',
-          bad: '中断',
-          none: '暂无数据',
-          future: '还没到',
-          blocked: '无法探测',
-        }[tone],
-      });
-    return Array.from({ length: count }, (_, index) => {
-      const bucket = byIndex.get(index);
-      const tone: StatusBarTone =
-        bucket && bucket.source !== 'none' ? bucket.tone : 'none';
-      const rate = tone === 'none' ? undefined : bucket?.success_rate;
-      return {
-        tone,
-        when: formatSliceWhen(bucket?.start_at, seconds, language),
-        verdict:
-          rate != null
-            ? `${toneWord(tone)} · ${t('page.console.channelHealth.tip.rate', {
-                defaultValue: '可用 {{value}}',
-                value: formatSliceRate(rate),
-              })}`
-            : toneWord(tone),
-      };
-    });
-  }, [health, language, t]);
+  const slices = useMemo<StatusBarSlice[]>(
+    () => resolveLaneSlices(health, language, t),
+    [health, language, t],
+  );
   return (
     <StatusBars
       className='plaza-laneblock__bars'
@@ -175,8 +198,9 @@ function LaneBarsRecord({ lane, label }: { lane: Lane; label: string }) {
   );
 }
 
-const laneHasRecord = (lane: Lane) =>
-  (lane.health?.buckets || []).some((bucket) => bucket.source !== 'none');
+export const laneHasRecord = (lane: Lane) =>
+  lane.available !== false &&
+  (lane.health?.buckets || []).some((bucket) => bucketHasRecord(bucket));
 
 export function LaneBlock({
   lane,
@@ -199,6 +223,7 @@ export function LaneBlock({
     return (
       <div
         className={`plaza-laneblock plaza-laneblock--${variant} plaza-laneblock--off`}
+        data-lane={lane.key}
       >
         <div className='plaza-laneblock__head'>
           <span className='plaza-laneblock__label'>{laneLabel}</span>
@@ -273,7 +298,10 @@ export function LaneBlock({
     variant === 'detail' ? cacheLine(lane, model, t) : ([] as string[]);
 
   return (
-    <div className={`plaza-laneblock plaza-laneblock--${variant}`}>
+    <div
+      className={`plaza-laneblock plaza-laneblock--${variant}`}
+      data-lane={lane.key}
+    >
       <div className='plaza-laneblock__head'>
         <span className='plaza-laneblock__label'>{laneLabel}</span>
         {mark ? (

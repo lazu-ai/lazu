@@ -501,9 +501,28 @@ body[theme-mode='dark'] .plaza-card:hover {
 
 .plaza-detail__lanes {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 4px;
+}
+
+.plaza-detail__lanes[data-count='two'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plaza-laneblock--detail[data-lane='eco']:not(.plaza-laneblock--off) {
+  background: color-mix(
+    in srgb,
+    var(--lazu-evidence) 3.5%,
+    var(--lazu-surface)
+  );
+  border-color: color-mix(in srgb, var(--lazu-evidence) 28%, transparent);
+}
+
+@media (max-width: 640px) {
+  .plaza-detail__lanes[data-count='two'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .plaza-card__lanes,

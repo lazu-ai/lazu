@@ -32,8 +32,8 @@ export default function LanesDialog({
   trigger = 'button',
 }: {
   t: TFunction;
-  /** "icon": a settings button beside the lane switch it configures. */
-  trigger?: 'button' | 'icon';
+  /** "icon": settings icon button; "settings": labeled 线路设置 button. */
+  trigger?: 'button' | 'icon' | 'settings';
 }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>({ kind: 'list' });
@@ -299,6 +299,11 @@ export default function LanesDialog({
         >
           <SlidersVertical size={14} />
         </IconButton>
+      ) : trigger === 'settings' ? (
+        <Button size='sm' variant='secondary' onClick={() => setOpen(true)}>
+          <SlidersVertical size={14} />
+          {t(`${ns}.lanes.settings`, { defaultValue: '线路设置' })}
+        </Button>
       ) : (
         <Button size='sm' variant='secondary' onClick={() => setOpen(true)}>
           {t(`${ns}.lanes.title`, { defaultValue: '线路' })}

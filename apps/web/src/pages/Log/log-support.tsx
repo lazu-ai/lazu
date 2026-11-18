@@ -27,7 +27,6 @@ import {
 import { API } from '../../helpers/api';
 import { formatMoney } from '../../helpers/money';
 import { asMicroUSD } from '../../helpers/money';
-import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useUsageRange } from '../../hooks/usage-logs/usageRange';
 import {
   LOG_COLUMN_KEYS,
@@ -37,7 +36,11 @@ import {
 import i18n from '../../i18n/i18n';
 import { LazuApiError, readApiError } from '../../lib/api-error';
 import { useOverviewQuery } from '../Dashboard/overview/overview-api';
-import { UsageRangeCalendarRow, UsageRangeSeg } from '../Usage/UsageRangeSeg';
+import {
+  UsageRangeCalendarRow,
+  UsageRangeSeg,
+  useMobile768,
+} from '../Usage/UsageRangeSeg';
 import './log-table.css';
 import type { UsageLogFilters } from '../../hooks/usage-logs/useUsageLogsQuery';
 import type { TFunction } from 'i18next';
@@ -762,9 +765,11 @@ type LedgerRow = {
   label: string;
   /** "96,512", "3 次"; empty when the line has only an amount. */
   quantity: string;
+  rawQuantity: number;
   tone: LedgerTone;
   /** "$2.00/M", "$10.00/千次"; empty when the line has only an amount. */
   unit: string;
+  unitMicrousd: number;
 };
 
 /* Reading order of a bill: what went in, what came out, then the per-call
@@ -883,7 +888,9 @@ function buildLedgerRows(record: LogRecord, t: TFunction): LedgerRow[] {
         amountMicrousd: Number(item?.amount_microusd) || 0,
         dimension,
         label: ledgerLabel(dimension, t),
+        rawQuantity: quantity,
         tone: LEDGER_TONE[dimension] ?? 'tool',
+        unitMicrousd,
         ...shown,
       };
     })
@@ -891,6 +898,138 @@ function buildLedgerRows(record: LogRecord, t: TFunction): LedgerRow[] {
       (a, b) =>
         (LEDGER_ORDER[a.dimension] ?? 50) - (LEDGER_ORDER[b.dimension] ?? 50),
     );
+}
+
+/** Formats receipt & ledger amounts cleanly at 4 decimal places ("$0.0041",
+ *  "$0.0000"), while showing "<$0.0001" (with exact 6-decimal USD in `title`)
+ *  whenever a positive quantity × unit price rounds below $0.0001. */
+export function formatLedgerAmount(input: {
+  amountMicrousd: number;
+  dimension?: string;
+  rawQuantity?: number;
+  unitMicrousd?: number;
+}): { display: string; title?: string } {
+  const amount = Number(input.amountMicrousd) || 0;
+  const qty = Number(input.rawQuantity) || 0;
+  const unit = Number(input.unitMicrousd) || 0;
+  if (amount === 0 && qty > 0 && unit > 0) {
+    const exactMicro =
+      input.dimension && TOKEN_LINE_DIMENSIONS.has(input.dimension)
+        ? (qty * unit) / 1_000_000
+        : qty * unit;
+    return {
+      display: '<$0.0001',
+      title: `$${(exactMicro / 1_000_000).toFixed(6)}`,
+    };
+  }
+  const absMicro = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  if (absMicro > 0 && absMicro < 100) {
+    return {
+      display: `${sign}<$0.0001`,
+      title: `${sign}$${(absMicro / 1_000_000).toFixed(6)}`,
+    };
+  }
+  const display = `${sign}$${(absMicro / 1_000_000).toFixed(4)}`;
+  const title =
+    absMicro % 100 !== 0
+      ? `${sign}$${(absMicro / 1_000_000).toFixed(6)}`
+      : undefined;
+  return { display, title };
+}
+
+export function computeReceiptTiming({
+  duration,
+  firstTokenMs,
+  isStream,
+  outputTokens,
+}: {
+  duration: number | null;
+  firstTokenMs: number;
+  isStream: boolean;
+  outputTokens: number;
+}) {
+  const streamed =
+    isStream && firstTokenMs > 0 && firstTokenMs / 1000 < (duration ?? 0);
+  const firstFraction = streamed
+    ? Math.min(Math.max(firstTokenMs / 1000 / (duration || 1), 0.08), 0.8)
+    : 0;
+  const generationSeconds = streamed
+    ? Math.max(0, (duration ?? 0) - firstTokenMs / 1000)
+    : (duration ?? 0);
+  // A non-streamed duration includes reading the prompt, and a sub-second
+  // generation divides by noise (2,000 tok in "1 s" reads 2,000 tok/s);
+  // neither is a speed, so neither shows one.
+  const tokensPerSecond =
+    streamed && generationSeconds >= 1 && outputTokens > 0
+      ? Math.round(outputTokens / generationSeconds)
+      : 0;
+  return {
+    firstFraction,
+    generationSeconds,
+    streamed,
+    tokensPerSecond,
+  };
+}
+
+export function buildCostShareCaption(
+  rows: Array<{
+    amountMicrousd: number;
+    dimension?: string;
+    label: string;
+    rawQuantity?: number;
+    unitMicrousd?: number;
+  }>,
+  barTotal: number,
+  t: TFunction,
+): { primary: string; secondary?: string } | null {
+  if (barTotal <= 0) return null;
+  const activeRows = rows.filter(
+    (row) =>
+      row.amountMicrousd > 0 ||
+      ((row.rawQuantity ?? 0) > 0 && (row.unitMicrousd ?? 0) > 0),
+  );
+  const positive = rows
+    .filter((row) => row.amountMicrousd > 0)
+    .sort((a, b) => b.amountMicrousd - a.amountMicrousd);
+  if (positive.length === 0) return null;
+  const pctOf = (micro: number) => {
+    const raw = (micro / barTotal) * 100;
+    return raw > 0 && raw < 1 ? '<1%' : `${Math.round(raw)}%`;
+  };
+  if (positive.length === 1) {
+    const top = positive[0];
+    const extraCount = activeRows.length - 1;
+    const primary = `${top.label} ${pctOf(top.amountMicrousd)} (${formatLedgerAmount(top).display})`;
+    const secondary =
+      extraCount > 0
+        ? t('page.console.log.m3.costShareRest', {
+            defaultValue: '其余 {{pct}}',
+            pct: '<1%',
+          })
+        : undefined;
+    return { primary, secondary };
+  }
+  const [first, second, ...restPositive] = positive;
+  const firstText = `${first.label} ${pctOf(first.amountMicrousd)} (${formatLedgerAmount(first).display})`;
+  const secondText = `${second.label} ${pctOf(second.amountMicrousd)} (${formatLedgerAmount(second).display})`;
+  const hasRemainder = restPositive.length > 0 || activeRows.length > 2;
+  if (!hasRemainder) {
+    return { primary: firstText, secondary: secondText };
+  }
+  const restMicro = restPositive.reduce(
+    (sum, item) => sum + item.amountMicrousd,
+    0,
+  );
+  const restPct = restMicro > 0 ? pctOf(restMicro) : '<1%';
+  const restLabel = t('page.console.log.m3.costShareRest', {
+    defaultValue: '其余 {{pct}}',
+    pct: restPct,
+  });
+  return {
+    primary: firstText,
+    secondary: `${secondText} · ${restLabel}`,
+  };
 }
 
 const ledgerLabel = (dimension: string, t: TFunction) => {
@@ -972,25 +1111,28 @@ function PriceLedger({
         <span>{t('page.console.log.m3.unitPrice')}</span>
         <span>{t('page.console.log.m3.amount')}</span>
       </div>
-      {rows.map((row) => (
-        <div
-          className='logv2-ledger__row logv2-ledger__row--item'
-          key={row.dimension}
-        >
-          <span className='logv2-ledger__label'>
-            <i aria-hidden='true' data-tone={row.tone} />
-            {row.label}
-            {tagsFor(row).map((tag) => (
-              <span className='logv2-ledger__tag' key={tag}>
-                {tag}
-              </span>
-            ))}
-          </span>
-          <span>{row.quantity}</span>
-          <span className='logv2-ledger__unit'>{row.unit}</span>
-          <span>{formatCost(row.amountMicrousd)}</span>
-        </div>
-      ))}
+      {rows.map((row) => {
+        const formatted = formatLedgerAmount(row);
+        return (
+          <div
+            className='logv2-ledger__row logv2-ledger__row--item'
+            key={row.dimension}
+          >
+            <span className='logv2-ledger__label'>
+              <i aria-hidden='true' data-tone={row.tone} />
+              {row.label}
+              {tagsFor(row).map((tag) => (
+                <span className='logv2-ledger__tag' key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </span>
+            <span>{row.quantity}</span>
+            <span className='logv2-ledger__unit'>{row.unit}</span>
+            <span title={formatted.title}>{formatted.display}</span>
+          </div>
+        );
+      })}
       {planBase > 0 ? (
         <>
           <div className='logv2-ledger__rule' />
@@ -1000,7 +1142,11 @@ function PriceLedger({
             </span>
             <span />
             <span />
-            <span>{formatCost(planBase)}</span>
+            <span
+              title={formatLedgerAmount({ amountMicrousd: planBase }).title}
+            >
+              {formatLedgerAmount({ amountMicrousd: planBase }).display}
+            </span>
           </div>
           <div className='logv2-ledger__row'>
             <span className='logv2-ledger__label logv2-ledger__label--sum'>
@@ -1013,8 +1159,20 @@ function PriceLedger({
                 rate: Number(((100 - pct) / 10).toFixed(2)),
               })}
             </span>
-            <span className='logv2-ledger__off'>
-              −{formatCost(planBase - Number(record.amount_microusd))}
+            <span
+              className='logv2-ledger__off'
+              title={
+                formatLedgerAmount({
+                  amountMicrousd: planBase - Number(record.amount_microusd),
+                }).title
+              }
+            >
+              −
+              {
+                formatLedgerAmount({
+                  amountMicrousd: planBase - Number(record.amount_microusd),
+                }).display
+              }
             </span>
           </div>
         </>
@@ -1027,7 +1185,11 @@ function PriceLedger({
             </span>
             <span />
             <span />
-            <span>{formatCost(subtotal)}</span>
+            <span
+              title={formatLedgerAmount({ amountMicrousd: subtotal }).title}
+            >
+              {formatLedgerAmount({ amountMicrousd: subtotal }).display}
+            </span>
           </div>
           <div className='logv2-ledger__row'>
             <span className='logv2-ledger__label logv2-ledger__label--sum'>
@@ -1050,9 +1212,18 @@ function PriceLedger({
                   ? 'logv2-ledger__off'
                   : 'logv2-ledger__surcharge'
               }
+              title={
+                formatLedgerAmount({
+                  amountMicrousd: Math.abs(adjustMicrousd),
+                }).title
+              }
             >
               {adjustMicrousd > 0 ? '−' : '+'}
-              {formatCost(Math.abs(adjustMicrousd))}
+              {
+                formatLedgerAmount({
+                  amountMicrousd: Math.abs(adjustMicrousd),
+                }).display
+              }
             </span>
           </div>
         </>
@@ -1064,7 +1235,19 @@ function PriceLedger({
         </span>
         <span />
         <span />
-        <span>{formatCost(record.amount_microusd)}</span>
+        <span
+          title={
+            formatLedgerAmount({
+              amountMicrousd: Number(record.amount_microusd) || 0,
+            }).title
+          }
+        >
+          {
+            formatLedgerAmount({
+              amountMicrousd: Number(record.amount_microusd) || 0,
+            }).display
+          }
+        </span>
       </div>
       {tier ? (
         <p className='logv2-ledger__foot'>
@@ -1104,7 +1287,10 @@ export function LogDetailPanel({
   isAdminUser,
   standalone = false,
   hideSession = false,
+  channelShownInRow = false,
 }: {
+  /** Whether the parent table/card row above already displays `channel_name`. */
+  channelShownInRow?: boolean;
   copyText: (value: unknown) => void | Promise<void>;
   isAdminUser: boolean;
   record: LogRecord | null;
@@ -1139,24 +1325,17 @@ export function LogDetailPanel({
     duration !== null &&
     duration > 0 &&
     !errorUsageUnknown(record);
-  const streamed =
-    isStream && firstTokenMs > 0 && firstTokenMs / 1000 < (duration ?? 0);
-  const firstFraction = streamed
-    ? Math.min(Math.max(firstTokenMs / 1000 / (duration || 1), 0.08), 0.6)
-    : 0;
-  const generationSeconds = streamed
-    ? (duration ?? 0) - firstTokenMs / 1000
-    : (duration ?? 0);
-  // A non-streamed duration includes reading the prompt, and a sub-second
-  // generation divides by noise (2,000 tok in "1 s" reads 2,000 tok/s);
-  // neither is a speed, so neither shows one.
-  const tokensPerSecond =
-    streamed && generationSeconds >= 1 && outputTokens > 0
-      ? Math.round(outputTokens / generationSeconds)
-      : 0;
+  const { firstFraction, generationSeconds, streamed, tokensPerSecond } =
+    computeReceiptTiming({
+      duration,
+      firstTokenMs,
+      isStream,
+      outputTokens,
+    });
 
   const barRows = rows.filter((row) => row.amountMicrousd > 0);
   const barTotal = barRows.reduce((sum, row) => sum + row.amountMicrousd, 0);
+  const costCaption = buildCostShareCaption(rows, barTotal, t);
 
   const effortClamped =
     other.effort_clamped === true && other.effort_applied
@@ -1185,10 +1364,16 @@ export function LogDetailPanel({
     ? (other.admin_info.use_channel as unknown[]).map(String)
     : [];
   const upstream = String(other.upstream_model_name || '');
-  const chargeLabel = record.isRefund
-    ? record.refundCostDisplay ||
-      formatCost(-Math.abs(record.amount_microusd || 0))
-    : formatCost(record.amount_microusd);
+  const chargeFormatted = record.isRefund
+    ? {
+        display:
+          record.refundCostDisplay ||
+          formatCost(-Math.abs(record.amount_microusd || 0)),
+        title: undefined,
+      }
+    : formatLedgerAmount({
+        amountMicrousd: Number(record.amount_microusd) || 0,
+      });
 
   return (
     <div className='logv2-m3'>
@@ -1220,16 +1405,24 @@ export function LogDetailPanel({
             <span className='logv2-m3__eyebrow'>
               {t('page.console.log.m3.charged')}
             </span>
-            <b className='logv2-m3__amount'>{chargeLabel}</b>
+            <b className='logv2-m3__amount' title={chargeFormatted.title}>
+              {chargeFormatted.display}
+            </b>
             {saving ? (
               <>
                 <span className='logv2-m3__official'>
                   {t('page.console.log.m3.official')}{' '}
-                  <s>{formatCost(saving.official)}</s>
+                  <s>
+                    {
+                      formatLedgerAmount({ amountMicrousd: saving.official })
+                        .display
+                    }
+                  </s>
                 </span>
                 <b className='logv2-m3__saved'>
                   {t('page.console.log.m3.saved', {
-                    amount: formatCost(saving.saved),
+                    amount: formatLedgerAmount({ amountMicrousd: saving.saved })
+                      .display,
                     pct: saving.pct,
                   })}
                 </b>
@@ -1265,7 +1458,7 @@ export function LogDetailPanel({
                       </span>
                     </div>
                   ) : null}
-                  <div className='logv2-m3__seg'>
+                  <div className='logv2-m3__seg logv2-m3__seg--end'>
                     <i data-tone='output' />
                     <span>
                       {streamed
@@ -1278,7 +1471,7 @@ export function LogDetailPanel({
                         </>
                       ) : null}
                       {' · '}
-                      <b>{formatSeconds(duration ?? 0)}</b>
+                      <b>{formatSeconds(generationSeconds)}</b>
                     </span>
                   </div>
                 </div>
@@ -1290,22 +1483,32 @@ export function LogDetailPanel({
                 <span className='logv2-m3__eyebrow'>
                   {t('page.console.log.m3.cost')}
                 </span>
-                <div
-                  className='logv2-m3__track'
-                  style={{
-                    gridTemplateColumns: barRows
-                      .map(
-                        (row) =>
-                          `minmax(0, ${row.amountMicrousd / barTotal}fr)`,
-                      )
-                      .join(' '),
-                  }}
-                >
-                  {barRows.map((row) => (
-                    <div className='logv2-m3__seg' key={row.dimension}>
-                      <i data-tone={row.tone} />
+                <div className='logv2-m3__bar-col'>
+                  <div
+                    className='logv2-m3__track'
+                    style={{
+                      gridTemplateColumns: barRows
+                        .map(
+                          (row) =>
+                            `minmax(0, ${row.amountMicrousd / barTotal}fr)`,
+                        )
+                        .join(' '),
+                    }}
+                  >
+                    {barRows.map((row) => (
+                      <div className='logv2-m3__seg' key={row.dimension}>
+                        <i data-tone={row.tone} />
+                      </div>
+                    ))}
+                  </div>
+                  {costCaption ? (
+                    <div className='logv2-m3__caption'>
+                      <span>{costCaption.primary}</span>
+                      {costCaption.secondary ? (
+                        <span>{costCaption.secondary}</span>
+                      ) : null}
                     </div>
-                  ))}
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -1362,7 +1565,9 @@ export function LogDetailPanel({
             <span className='logv2-mono'>{String(record.ip)}</span>
           </DetailFact>
         ) : null}
-        {isAdminUser && record.channel_name ? (
+        {isAdminUser &&
+        record.channel_name &&
+        (standalone || !channelShownInRow || useChannel.length > 1) ? (
           <DetailFact label={t('page.console.log.column.channel')}>
             {String(record.channel_name)}
           </DetailFact>
@@ -1508,7 +1713,7 @@ export function UsageLogFilters({
   /* On phones the lane switch and every condition move into one bottom
      sheet behind 筛选, and each change there applies at once so its
      「显示 N 条」 is the real count. */
-  const narrow = useIsMobile();
+  const narrow = useMobile768();
   const [moreOpen, setMoreOpen] = useState(false);
   const form = useForm({
     defaultValues: logs.filters,
@@ -1690,7 +1895,10 @@ export function UsageLogFilters({
     });
   }
   // The username comes from the search box, so it is named but not counted.
-  const moreCount = chips.filter((chip) => chip.key !== 'user').length;
+  const mobileStatusActive =
+    narrow && ['2', '5'].includes(applied.logType || '') ? 1 : 0;
+  const moreCount =
+    chips.filter((chip) => chip.key !== 'user').length + mobileStatusActive;
   const popoverDirty = () =>
     (['logType', 'model_name', 'token_name', 'channel'] as const).some(
       (key) => (values[key] ?? '') !== (logs.filters[key] ?? ''),
@@ -1849,7 +2057,7 @@ export function UsageLogFilters({
 
   const laneSwitch = (
     <span
-      className='logv2-seg'
+      className='logv2-seg usage-seg'
       role='group'
       aria-label={t('page.console.log.lane.label')}
     >
@@ -1931,7 +2139,7 @@ export function UsageLogFilters({
       onSubmit={submit}
     >
       <div className='logv2-filters__row'>
-        {statusSwitch}
+        {narrow ? null : statusSwitch}
         <label className='logv2-search'>
           <Search aria-hidden='true' size={14} />
           <input
@@ -1983,7 +2191,7 @@ export function UsageLogFilters({
             </PopoverContent>
           </Popover>
         )}
-        {viewSwitcher ? (
+        {!narrow && viewSwitcher ? (
           <span className='logv2-filters__view'>{viewSwitcher}</span>
         ) : null}
       </div>
@@ -2022,12 +2230,28 @@ export function UsageLogFilters({
         <Modal
           body={
             <div className='logv2-sheet'>
+              {viewSwitcher ? (
+                <section className='logv2-sheet__section'>
+                  <h3 className='logv2-filter-pop__label'>
+                    {t('page.console.usage.tabs.label', {
+                      defaultValue: '用量视图',
+                    })}
+                  </h3>
+                  {viewSwitcher}
+                </section>
+              ) : null}
               <section className='logv2-sheet__section'>
                 <h3 className='logv2-filter-pop__label'>
                   {t('page.console.usage.range.title')}
                 </h3>
-                <UsageRangeSeg calendar={false} />
+                <UsageRangeSeg calendar={false} className='usage-seg' />
                 <UsageRangeCalendarRow />
+              </section>
+              <section className='logv2-sheet__section'>
+                <h3 className='logv2-filter-pop__label'>
+                  {t('page.console.usage.status.label')}
+                </h3>
+                {statusSwitch}
               </section>
               <section className='logv2-sheet__section'>
                 <h3 className='logv2-filter-pop__label'>

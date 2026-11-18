@@ -51,8 +51,12 @@ import {
 import { notify } from '../../components/ui/toast';
 import { useSession } from '../../context/User';
 import { API } from '../../helpers/api';
-import { copy, showError } from '../../helpers/utils';
-import { getUserFromLocalStorage, isRoot } from '../../helpers/utils';
+import {
+  copy,
+  getUserFromLocalStorage,
+  isRoot,
+  showError,
+} from '../../helpers/utils';
 import {
   apiErrorHandler,
   errorMessage,
@@ -66,13 +70,13 @@ import './organizations.css';
 type AccountFilters = {
   keyword: string;
   order: string;
-  /** 'all' | 'none' | a plan id — the 专属折扣 chip. */
+  /** 'all' | 'any' | 'none' | a plan id — the 专属折扣 chip. */
   pricePlan: string;
   provider: string;
-  // Server-side lifecycle/quota filter driven by the facts strip.
+  /** Server-side cohort filter ('active_30d' | 'topped_up' | 'low_balance_active' | 'zero_topped_up'). */
   quick: string;
   status: string;
-  /** Views that are not a lifecycle filter: '' | 'plan' | 'admin' | 'deleted'. */
+  /** Secondary scope: '' | 'admin' | 'deleted'. */
   view: string;
 };
 
@@ -222,21 +226,21 @@ function FilterChip({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger>
         <Button
-          variant='ghost'
-          size='sm'
           className='orgs__chip'
           data-active={selected ? 'true' : undefined}
           data-open={open ? 'true' : undefined}
+          size='sm'
+          variant='ghost'
         >
           {selected ? (
             <>
               <span className='orgs__chip-key'>{label}</span>
               {selected.label}
-              <ChevronDown size={13} aria-hidden='true' />
+              <ChevronDown aria-hidden='true' size={13} />
             </>
           ) : (
             <>
-              <Plus size={13} aria-hidden='true' />
+              <Plus aria-hidden='true' size={13} />
               {label}
             </>
           )}
@@ -246,16 +250,16 @@ function FilterChip({
         <p className='orgs__chip-menu-title'>{label}</p>
         {[{ label: allLabel, value: 'all' }, ...options].map((option) => (
           <Button
-            key={option.value}
-            variant='ghost'
-            size='sm'
             className='orgs__chip-option'
             data-selected={option.value === value ? 'true' : undefined}
+            key={option.value}
+            size='sm'
+            variant='ghost'
             onClick={() => pick(option.value)}
           >
             <span>{option.label}</span>
             {option.value === value ? (
-              <Check size={14} aria-hidden='true' />
+              <Check aria-hidden='true' size={14} />
             ) : null}
           </Button>
         ))}
@@ -301,6 +305,7 @@ export default function OrganizationsPage() {
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [activeAccount, setActiveAccount] = useState<Account | null>(null);
   const [adjacentLoading, setAdjacentLoading] = useState(false);
+  const [drawerDirty, setDrawerDirty] = useState(false);
 
   const plans = usePricePlansQuery(isRoot());
 
@@ -330,9 +335,7 @@ export default function OrganizationsPage() {
       p: request.page,
       page_size: request.pageSize,
       keyword: useSearch ? keyword : undefined,
-      // An explicit plan from the chip narrows the 专属折扣 view further.
-      price_plan:
-        pricePlan !== 'all' ? pricePlan : view === 'plan' ? 'any' : undefined,
+      price_plan: pricePlan !== 'all' ? pricePlan : undefined,
       status:
         request.filters.status === 'all' ? undefined : request.filters.status,
       order:
@@ -342,12 +345,8 @@ export default function OrganizationsPage() {
         request.filters.provider === 'all'
           ? undefined
           : request.filters.provider,
-      // The plan count (on_price_plan) spans every role, so its view does
-      // too; 管理员 is role 100; every other view is customers.
-      // 已注销 lists deleted accounts of every role; every other view lists
-      // live ones only.
       role:
-        view === 'plan' || view === 'deleted'
+        pricePlan === 'any' || view === 'deleted'
           ? undefined
           : view === 'admin'
             ? '100'
@@ -381,22 +380,17 @@ export default function OrganizationsPage() {
   const total = accounts.isError ? 0 : (accounts.data?.total ?? 0);
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['organizations'] });
-    queryClient.invalidateQueries({ queryKey: ['organizations-summary'] });
+    void queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    void queryClient.invalidateQueries({ queryKey: ['organizations-summary'] });
   };
 
-  // Sync the open drawer with ?account=<username>. A shared link opens that
-  // account even when it is on another page or filtered out. A dedicated
-  // exact lookup avoids walking every page of fuzzy search results.
+  // Sync the open modal with ?account=<username>.
   const accountParam = searchParams.get('account');
   useEffect(() => {
     if (!accountParam) {
       setActiveAccount(null);
       return;
     }
-    // The URL is the drawer's source of truth. Clear the previous identity
-    // before resolving a new deep link so a missing/deleted account can never
-    // leave stale details or actions visible under a different ?account=.
     setActiveAccount(null);
     const match = rows.find(
       (row) => row.username === accountParam || String(row.id) === accountParam,
@@ -417,14 +411,12 @@ export default function OrganizationsPage() {
         if (cancelled || !isRecord(data)) return;
         setActiveAccount(toAccount(data));
       } catch {
-        // The list remains usable while the unresolved drawer stays closed.
+        // The list remains usable while the unresolved modal stays closed.
       }
     })();
     return () => {
       cancelled = true;
     };
-    // Re-resolving on every `rows` change would refetch mid-typing; the loaded
-    // rows are read at call time and only the param drives the lookup.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountParam]);
 
@@ -437,6 +429,7 @@ export default function OrganizationsPage() {
 
   const closeAccount = () => {
     setActiveAccount(null);
+    setDrawerDirty(false);
     const next = new URLSearchParams(searchParams);
     next.delete('account');
     setSearchParams(next, { replace: true });
@@ -495,11 +488,11 @@ export default function OrganizationsPage() {
       setAdjacentLoading(false);
     }
   };
-  const openPreviousAccount = () => openAdjacentAccount('previous');
-  const openNextAccount = () => openAdjacentAccount('next');
+  const openPreviousAccount = () => void openAdjacentAccount('previous');
+  const openNextAccount = () => void openAdjacentAccount('next');
 
   useEffect(() => {
-    if (!activeAccount) return;
+    if (!activeAccount || drawerDirty) return;
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (
@@ -511,10 +504,10 @@ export default function OrganizationsPage() {
       }
       if (event.key.toLowerCase() === 'j' && nextTarget) {
         event.preventDefault();
-        void openNextAccount();
+        openNextAccount();
       } else if (event.key.toLowerCase() === 'k' && previousTarget) {
         event.preventDefault();
-        void openPreviousAccount();
+        openPreviousAccount();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -555,8 +548,6 @@ export default function OrganizationsPage() {
     onError: apiErrorHandler,
   });
 
-  // A failure stays in the gate, written above its buttons, instead of a
-  // toast from the request interceptor.
   const remove = useMutation({
     mutationFn: async (account: Account) => {
       unwrap(
@@ -578,8 +569,6 @@ export default function OrganizationsPage() {
     setDeleting(null);
     remove.reset();
   };
-  // The hard delete is one transaction: a refusal changed nothing. A lost
-  // answer or a server failure leaves the outcome unknown, and says so.
   const deleteError = remove.error
     ? isRefusal(remove.error)
       ? t('page.console.orgs.deleteFailed', {
@@ -610,7 +599,7 @@ export default function OrganizationsPage() {
     return () => window.clearTimeout(handle);
   }, [keywordDraft, filters.keyword]);
 
-  // "/" jumps to search from anywhere on the page, like most ledgers.
+  // "/" jumps to search from anywhere on the page.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== '/' || event.metaKey || event.ctrlKey) return;
@@ -625,19 +614,41 @@ export default function OrganizationsPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  const scopeChipValue =
+    filters.view === 'admin'
+      ? 'admin'
+      : filters.view === 'deleted'
+        ? 'deleted'
+        : filters.quick === 'zero_topped_up'
+          ? 'zero_topped_up'
+          : filters.status;
+
+  const handleScopeChange = (next: string) => {
+    if (next === 'admin' || next === 'deleted') {
+      updateFilters({ quick: '', status: 'all', view: next });
+    } else if (next === 'zero_topped_up') {
+      updateFilters({ quick: 'zero_topped_up', status: 'all', view: '' });
+    } else {
+      updateFilters({
+        quick: filters.quick === 'zero_topped_up' ? '' : filters.quick,
+        status: next,
+        view: '',
+      });
+    }
+  };
+
   const hasChipFilters =
     filters.pricePlan !== 'all' ||
     filters.provider !== 'all' ||
-    filters.status !== 'all' ||
+    scopeChipValue !== 'all' ||
     Boolean(filters.keyword);
 
   const clearFilters = () => {
     setKeywordDraft('');
     setFilters((current) => ({
       ...emptyFilters,
-      quick: current.quick,
+      quick: current.quick === 'zero_topped_up' ? '' : current.quick,
       order: current.order,
-      view: current.view,
     }));
     setPage(1);
   };
@@ -698,25 +709,20 @@ export default function OrganizationsPage() {
   };
 
   const summary = platform.data || {};
-  const factTiles: {
-    interactive: boolean;
+  const cohortTabs: {
     key: string;
     label: string;
     quick: string;
-    status: string;
     tone?: 'danger' | 'warning';
     value?: number;
-    view?: string;
   }[] = [
     {
       key: 'all',
       label: t('page.console.orgs.fact.all.label', {
         defaultValue: '全部账户',
       }),
-      value: Math.max(summary.total_customers ?? 0, total),
+      value: summary.total_customers,
       quick: '',
-      status: 'all',
-      interactive: true,
     },
     {
       key: 'active',
@@ -724,9 +730,7 @@ export default function OrganizationsPage() {
         defaultValue: '近 30 日活跃',
       }),
       value: summary.active_30d,
-      status: 'all',
       quick: 'active_30d',
-      interactive: true,
     },
     {
       key: 'topped',
@@ -735,8 +739,6 @@ export default function OrganizationsPage() {
       }),
       value: summary.topped_up,
       quick: 'topped_up',
-      status: 'all',
-      interactive: true,
     },
     {
       key: 'low',
@@ -745,84 +747,19 @@ export default function OrganizationsPage() {
       }),
       value: summary.low_balance_active,
       quick: 'low_balance_active',
-      status: 'all',
       tone: 'warning',
-      interactive: true,
-    },
-    {
-      key: 'zero',
-      label: t('page.console.orgs.fact.zero.label', {
-        defaultValue: '零余额且充过值',
-      }),
-      value: summary.zero_topped_up,
-      quick: 'zero_topped_up',
-      status: 'all',
-      tone: 'danger',
-      interactive: true,
-    },
-    {
-      key: 'plan',
-      label: t('page.console.orgs.fact.plan.label', {
-        defaultValue: '专属折扣',
-      }),
-      value: summary.on_price_plan,
-      quick: '',
-      status: 'all',
-      view: 'plan',
-      interactive: true,
-    },
-    {
-      key: 'admin',
-      label: t('page.console.orgs.fact.admin.label', {
-        defaultValue: '管理员',
-      }),
-      value: summary.platform_members,
-      quick: '',
-      status: 'all',
-      view: 'admin',
-      interactive: true,
-    },
-    {
-      key: 'frozen',
-      label: t('page.console.orgs.fact.frozen.label', {
-        defaultValue: '已冻结',
-      }),
-      value: summary.disabled,
-      quick: '',
-      status: 'disabled',
-      interactive: true,
-    },
-    {
-      key: 'deleted',
-      label: t('page.console.orgs.fact.deleted.label', {
-        defaultValue: '已注销',
-      }),
-      value: summary.deleted,
-      quick: '',
-      status: 'all',
-      view: 'deleted',
-      interactive: true,
     },
   ];
 
-  const activeView = filters.view
-    ? filters.view
-    : (factTiles.find((tile) =>
-        tile.view
-          ? false
-          : tile.key === 'frozen'
-            ? !filters.quick && filters.status === 'disabled'
-            : tile.quick === filters.quick &&
-              (tile.key !== 'all' || filters.status !== 'disabled'),
-      )?.key ?? 'all');
+  const activeTab = filters.view
+    ? ''
+    : (cohortTabs.find((tab) => tab.quick === filters.quick)?.key ?? '');
 
-  const selectView = (key: string) => {
-    const tile = factTiles.find((item) => item.key === key);
-    if (!tile) return;
+  const selectTab = (quick: string) => {
     updateFilters({
-      quick: tile.quick,
-      status: tile.status,
-      view: tile.view ?? '',
+      quick,
+      status: 'all',
+      view: '',
     });
   };
 
@@ -841,11 +778,11 @@ export default function OrganizationsPage() {
           <span className='orgs__uid'>
             <span className='orgs__mono'>#{value}</span>
             <IconButton
-              size='xs'
-              className='orgs__uid-copy'
               aria-label={t('page.console.orgs.copyId', {
                 defaultValue: '复制 ID',
               })}
+              className='orgs__uid-copy'
+              size='xs'
               onClick={(event) => {
                 event.stopPropagation();
                 void copyAccountId(value);
@@ -876,7 +813,7 @@ export default function OrganizationsPage() {
           .join(' · ');
         return (
           <div className='orgs__who'>
-            <span className='orgs__avatar' aria-hidden='true'>
+            <span aria-hidden='true' className='orgs__avatar'>
               {initials(account)}
             </span>
             <span className='orgs__who-copy'>
@@ -884,15 +821,13 @@ export default function OrganizationsPage() {
                 className='orgs__who-name'
                 data-frozen={frozen || undefined}
               >
-                {/* The row opens the account on click; this button is the
-                    same action for keyboard and screen-reader users. */}
                 <button
                   className='orgs__who-open'
+                  type='button'
                   onClick={(event) => {
                     event.stopPropagation();
                     openAccount(account);
                   }}
-                  type='button'
                 >
                   <strong>{account.name}</strong>
                 </button>
@@ -957,8 +892,6 @@ export default function OrganizationsPage() {
       ),
       cell: ({ row }: { row: { original: Account } }) => {
         const account = row.original;
-        // Everything the account was ever credited — top-ups, admin grants
-        // and bonuses alike — is what it holds now plus what it has spent.
         const used = account.used_quota_microusd ?? 0;
         const credit = (account.balance_microusd ?? 0) + used;
         if (credit <= 0) {
@@ -1051,14 +984,44 @@ export default function OrganizationsPage() {
   return (
     <ConsolePage
       appearance='review'
-      title={t('page.console.orgs.title', { defaultValue: '用户' })}
+      className='users-page--compact orgs-ledger'
       description={t('page.console.orgs.description', {
         defaultValue: '平台客户的额度、消费、余额与访问状态。',
       })}
-      className='users-page--compact orgs-ledger'
+      title={t('page.console.orgs.title', { defaultValue: '用户' })}
+      tabs={
+        <div
+          aria-label={t('page.console.orgs.viewsLabel', {
+            defaultValue: '视图',
+          })}
+          className='orgs__tabs'
+          role='tablist'
+        >
+          {cohortTabs.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                aria-selected={active}
+                className={`orgs__tab${active ? ' is-active' : ''}`}
+                data-owns-chrome=''
+                key={tab.key}
+                role='tab'
+                type='button'
+                onClick={() => selectTab(tab.quick)}
+              >
+                <span>{tab.label}</span>
+                {platform.isPending || tab.value == null ? null : (
+                  <span className='orgs__view-count' data-tone={tab.tone}>
+                    {int(tab.value)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      }
       actions={
         <>
-          {/* 专属折扣 are customer prices, so they live beside the customers. */}
           <Link
             className={buttonVariants({ variant: 'secondary' })}
             to='/console/price-plans'
@@ -1074,51 +1037,18 @@ export default function OrganizationsPage() {
         </>
       }
     >
-      <div
-        className='orgs__views'
-        role='tablist'
-        aria-label={t('page.console.orgs.viewsLabel', {
-          defaultValue: '视图',
-        })}
-      >
-        {factTiles.map((tile) => (
-          <Button
-            key={tile.key}
-            role='tab'
-            variant='ghost'
-            size='sm'
-            className='orgs__view'
-            aria-selected={activeView === tile.key}
-            data-active={activeView === tile.key ? 'true' : undefined}
-            onClick={() => selectView(tile.key)}
-          >
-            {tile.label}
-            {/* No count until the summary has answered: a missing count is
-                not zero. */}
-            {platform.isPending ||
-            (tile.key === 'all'
-              ? summary.total_customers == null
-              : tile.value == null) ? null : (
-              <span className='orgs__view-count' data-tone={tile.tone}>
-                {int(tile.key === 'all' ? summary.total_customers : tile.value)}
-              </span>
-            )}
-          </Button>
-        ))}
-      </div>
-
       <div className='orgs__toolbar'>
         <label className='orgs__search'>
-          <Search size={15} aria-hidden='true' />
+          <Search aria-hidden='true' size={15} />
           <input
-            ref={searchRef}
-            value={keywordDraft}
             aria-label={t('page.console.orgs.filter.keywordLabel', {
               defaultValue: '搜索',
             })}
             placeholder={t('page.console.orgs.filter.searchPlaceholder', {
               defaultValue: '搜索名称、用户名、邮箱或 #ID',
             })}
+            ref={searchRef}
+            value={keywordDraft}
             onChange={(event) => setKeywordDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
@@ -1129,21 +1059,26 @@ export default function OrganizationsPage() {
             }}
           />
           {keywordDraft ? null : (
-            <kbd className='orgs__kbd' aria-hidden='true'>
+            <kbd aria-hidden='true' className='orgs__kbd'>
               /
             </kbd>
           )}
         </label>
+
         <FilterChip
-          label={t('page.console.orgs.filter.planLabel', {
-            defaultValue: '专属折扣',
-          })}
           allLabel={t('page.console.orgs.filter.planAll', {
             defaultValue: '全部',
           })}
-          value={filters.pricePlan}
-          onChange={(pricePlan) => updateFilters({ pricePlan })}
+          label={t('page.console.orgs.filter.planLabel', {
+            defaultValue: '专属折扣',
+          })}
           options={[
+            {
+              label: t('page.console.orgs.filter.planAny', {
+                defaultValue: '有专属折扣',
+              }),
+              value: 'any',
+            },
             ...planOptions,
             {
               label: t('page.console.orgs.filter.planNone', {
@@ -1152,16 +1087,17 @@ export default function OrganizationsPage() {
               value: 'none',
             },
           ]}
+          value={filters.pricePlan}
+          onChange={(pricePlan) => updateFilters({ pricePlan })}
         />
+
         <FilterChip
-          label={t('page.console.orgs.filter.providerLabel', {
-            defaultValue: '登录方式',
-          })}
           allLabel={t('page.console.orgs.filter.providerAll', {
             defaultValue: '全部方式',
           })}
-          value={filters.provider}
-          onChange={(provider) => updateFilters({ provider })}
+          label={t('page.console.orgs.filter.providerLabel', {
+            defaultValue: '登录方式',
+          })}
           options={[
             ...(authStatus?.password_login
               ? [
@@ -1199,16 +1135,17 @@ export default function OrganizationsPage() {
               value: 'unbound',
             },
           ]}
+          value={filters.provider}
+          onChange={(provider) => updateFilters({ provider })}
         />
+
         <FilterChip
-          label={t('page.console.orgs.filter.statusLabel', {
-            defaultValue: '状态',
-          })}
           allLabel={t('page.console.orgs.filter.statusAll', {
             defaultValue: '全部状态',
           })}
-          value={filters.status}
-          onChange={(status) => updateFilters({ status })}
+          label={t('page.console.orgs.filter.statusLabel', {
+            defaultValue: '状态',
+          })}
           options={[
             {
               label: t('page.console.orgs.drawer.status.ok', {
@@ -1222,21 +1159,43 @@ export default function OrganizationsPage() {
               }),
               value: 'disabled',
             },
+            {
+              label: t('page.console.orgs.fact.zero.label', {
+                defaultValue: '零余额且充过值',
+              }),
+              value: 'zero_topped_up',
+            },
+            {
+              label: t('page.console.orgs.fact.admin.label', {
+                defaultValue: '管理员',
+              }),
+              value: 'admin',
+            },
+            {
+              label: t('page.console.orgs.fact.deleted.label', {
+                defaultValue: '已注销',
+              }),
+              value: 'deleted',
+            },
           ]}
+          value={scopeChipValue}
+          onChange={handleScopeChange}
         />
+
         {hasChipFilters ? (
           <Button
-            variant='ghost'
-            size='sm'
             className='orgs__clear'
+            size='sm'
+            variant='ghost'
             onClick={clearFilters}
           >
-            <X size={13} aria-hidden='true' />
+            <X aria-hidden='true' size={13} />
             {t('page.console.orgs.filter.clear', {
               defaultValue: '清除筛选',
             })}
           </Button>
         ) : null}
+
         <div className='orgs__sort'>
           <span className='orgs__sort-label'>
             {t('page.console.orgs.filter.orderLabel', {
@@ -1244,10 +1203,7 @@ export default function OrganizationsPage() {
             })}
           </span>
           <Select
-            size='sm'
             className='orgs__sort-select'
-            value={filters.order}
-            onValueChange={(order) => updateFilters({ order })}
             options={[
               {
                 label: t('page.console.orgs.filter.orderDefault', {
@@ -1274,50 +1230,54 @@ export default function OrganizationsPage() {
                 value: 'credit_desc',
               },
             ]}
+            size='sm'
+            value={filters.order}
+            onValueChange={(order) => updateFilters({ order })}
           />
         </div>
       </div>
+
       <DataSurface className='lazu-table-page-surface'>
         {accounts.isError ? (
           <ErrorState
-            title={t('page.console.orgs.loadFailed', {
-              defaultValue: '加载失败',
-            })}
             action={
-              <Button variant='ghost' onClick={() => accounts.refetch()}>
+              <Button variant='ghost' onClick={() => void accounts.refetch()}>
                 {t('legacy.i18n.retry.e2d53a6d3a')}
               </Button>
             }
+            title={t('page.console.orgs.loadFailed', {
+              defaultValue: '加载失败',
+            })}
           />
         ) : (
           <>
             <DataTableShell
               columns={columns}
               data={rows}
+              empty={
+                <EmptyState
+                  description={t('page.console.orgs.empty.description', {
+                    defaultValue: '用户注册后会作为客户账户出现在这里。',
+                  })}
+                  title={t('page.console.orgs.empty.title', {
+                    defaultValue: '还没有客户账户',
+                  })}
+                />
+              }
               loading={accounts.isLoading}
               rowKey='id'
               selectedRowKey={activeAccount?.id ?? null}
               onRowClick={(record) => openAccount(record as Account)}
-              empty={
-                <EmptyState
-                  title={t('page.console.orgs.empty.title', {
-                    defaultValue: '还没有客户账户',
-                  })}
-                  description={t('page.console.orgs.empty.description', {
-                    defaultValue: '用户注册后会作为客户账户出现在这里。',
-                  })}
-                />
-              }
             />
 
             <Pagination
               className='mt-4'
               currentPage={accounts.data?.page || page}
               pageSize={accounts.data?.pageSize || pageSize}
-              pending={accounts.isPending}
-              total={total}
-              showSizeChanger
               pageSizeOpts={DEFAULT_PAGE_SIZE_OPTIONS}
+              pending={accounts.isPending}
+              showSizeChanger
+              total={total}
               onPageChange={setPage}
               onPageSizeChange={(nextSize) => {
                 setPageSize(nextSize);
@@ -1330,60 +1290,34 @@ export default function OrganizationsPage() {
 
       <AccountDrawer
         account={activeAccount}
+        callerId={callerId}
+        callerRole={callerRole}
+        canGoNext={Boolean(nextTarget) && !adjacentLoading}
+        canGoPrevious={Boolean(previousTarget) && !adjacentLoading}
         open={Boolean(activeAccount)}
+        planOptions={planOptions}
+        onChanged={invalidate}
+        onDirtyChange={setDrawerDirty}
+        onNext={openNextAccount}
         onOpenChange={(next) => {
           if (!next) closeAccount();
         }}
-        callerRole={callerRole}
-        callerId={callerId}
-        canGoNext={Boolean(nextTarget) && !adjacentLoading}
-        canGoPrevious={Boolean(previousTarget) && !adjacentLoading}
-        onChanged={invalidate}
-        onNext={openNextAccount}
         onPrevious={openPreviousAccount}
         onRequestDelete={(account) => setDeleting(account)}
-        planOptions={planOptions}
       />
 
       <Modal
-        open={creating}
-        title={t('page.console.orgs.createTitle', {
-          defaultValue: '新建用户',
-        })}
-        onOpenChange={(open) => {
-          if (!open) {
-            setCreating(false);
-            setCreateForm(emptyCreateForm);
-          }
-        }}
-        footer={
-          <>
-            <Button
-              variant='primary'
-              disabled={
-                create.isPending ||
-                !createForm.username.trim() ||
-                !createForm.password
-              }
-              onClick={() => create.mutate(createForm)}
-            >
-              {t('page.console.orgs.createSubmit', { defaultValue: '创建' })}
-            </Button>
-            <Button variant='ghost' onClick={() => setCreating(false)}>
-              {t('page.console.orgs.cancel', { defaultValue: '取消' })}
-            </Button>
-          </>
-        }
         body={
           <div className='orgs__form'>
             <div className='orgs__grid'>
               <Field>
-                <Label>
+                <Label htmlFor='org-create-username'>
                   {t('page.console.orgs.field.username', {
                     defaultValue: '登录名',
                   })}
                 </Label>
                 <Input
+                  id='org-create-username'
                   value={createForm.username}
                   onChange={(event) =>
                     setCreateForm({
@@ -1394,14 +1328,15 @@ export default function OrganizationsPage() {
                 />
               </Field>
               <Field>
-                <Label>
+                <Label htmlFor='org-create-password'>
                   {t('page.console.orgs.field.password', {
                     defaultValue: '初始密码',
                   })}
                 </Label>
                 <Input
-                  type='password'
                   autoComplete='new-password'
+                  id='org-create-password'
+                  type='password'
                   value={createForm.password}
                   onChange={(event) =>
                     setCreateForm({
@@ -1414,12 +1349,13 @@ export default function OrganizationsPage() {
             </div>
             <div className='orgs__grid'>
               <Field>
-                <Label>
+                <Label htmlFor='org-create-name'>
                   {t('page.console.orgs.field.name', {
                     defaultValue: '账户名称',
                   })}
                 </Label>
                 <Input
+                  id='org-create-name'
                   value={createForm.display_name}
                   onChange={(event) =>
                     setCreateForm({
@@ -1430,12 +1366,13 @@ export default function OrganizationsPage() {
                 />
               </Field>
               <Field>
-                <Label>
+                <Label htmlFor='org-create-email'>
                   {t('page.console.orgs.field.email', {
                     defaultValue: '邮箱',
                   })}
                 </Label>
                 <Input
+                  id='org-create-email'
                   value={createForm.email}
                   onChange={(event) =>
                     setCreateForm({ ...createForm, email: event.target.value })
@@ -1451,10 +1388,6 @@ export default function OrganizationsPage() {
                   })}
                 </Label>
                 <Select
-                  value={createForm.price_plan_id}
-                  onValueChange={(value) =>
-                    setCreateForm({ ...createForm, price_plan_id: value })
-                  }
                   options={[
                     {
                       label: t('page.console.orgs.filter.planNone', {
@@ -1464,15 +1397,20 @@ export default function OrganizationsPage() {
                     },
                     ...planOptions,
                   ]}
+                  value={createForm.price_plan_id}
+                  onValueChange={(value) =>
+                    setCreateForm({ ...createForm, price_plan_id: value })
+                  }
                 />
               </Field>
               <Field>
-                <Label>
+                <Label htmlFor='org-create-quota'>
                   {t('page.console.orgs.field.initialBalance', {
                     defaultValue: '初始余额（USD，可留空）',
                   })}
                 </Label>
                 <Input
+                  id='org-create-quota'
                   placeholder='0.00'
                   value={createForm.quota}
                   onChange={(event) =>
@@ -1482,12 +1420,13 @@ export default function OrganizationsPage() {
               </Field>
             </div>
             <Field>
-              <Label>
+              <Label htmlFor='org-create-note'>
                 {t('page.console.orgs.field.note', {
                   defaultValue: '备注（仅平台可见）',
                 })}
               </Label>
               <Input
+                id='org-create-note'
                 value={createForm.remark}
                 onChange={(event) =>
                   setCreateForm({ ...createForm, remark: event.target.value })
@@ -1496,9 +1435,45 @@ export default function OrganizationsPage() {
             </Field>
           </div>
         }
+        footer={
+          <>
+            <Button variant='secondary' onClick={() => setCreating(false)}>
+              {t('page.console.orgs.cancel', { defaultValue: '取消' })}
+            </Button>
+            <Button
+              disabled={
+                create.isPending ||
+                !createForm.username.trim() ||
+                !createForm.password
+              }
+              loading={create.isPending}
+              variant='primary'
+              onClick={() => create.mutate(createForm)}
+            >
+              {t('page.console.orgs.createSubmit', { defaultValue: '创建' })}
+            </Button>
+          </>
+        }
+        open={creating}
+        title={t('page.console.orgs.createTitle', {
+          defaultValue: '新建用户',
+        })}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreating(false);
+            setCreateForm(emptyCreateForm);
+          }
+        }}
       />
 
       <GateModal
+        body={
+          <div className='pj-gate__lines'>
+            <p>{t('page.console.orgs.deleteWhat')}</p>
+            <p>{t('page.console.orgs.deleteSessions')}</p>
+            <p>{t('page.console.orgs.deleteFinal')}</p>
+          </div>
+        }
         busy={remove.isPending}
         confirmLabel={t('page.console.orgs.deleteAction')}
         error={deleteError}
@@ -1509,23 +1484,16 @@ export default function OrganizationsPage() {
             username: deleting?.username || '',
           }),
         }}
+        open={Boolean(deleting)}
+        title={t('page.console.orgs.deleteQuestion', {
+          name: deleting?.name ?? '',
+        })}
         onConfirm={() => {
           if (deleting) remove.mutate(deleting);
         }}
         onOpenChange={(open) => {
           if (!open) closeDeleting();
         }}
-        open={Boolean(deleting)}
-        title={t('page.console.orgs.deleteQuestion', {
-          name: deleting?.name ?? '',
-        })}
-        body={
-          <div className='pj-gate__lines'>
-            <p>{t('page.console.orgs.deleteWhat')}</p>
-            <p>{t('page.console.orgs.deleteSessions')}</p>
-            <p>{t('page.console.orgs.deleteFinal')}</p>
-          </div>
-        }
       />
     </ConsolePage>
   );

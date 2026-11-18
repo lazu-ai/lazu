@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -9,14 +9,19 @@ import {
 import {
   comparisonLabel,
   Delta,
-  ListCard,
   Metric,
   NeedsLine,
   OverviewHeader,
   type NeedItem,
 } from './overview-parts';
-import { relativeTime } from './PlatformOverview';
+import {
+  computeWorkspaceRunwayDays,
+  OVERVIEW_RUNWAY_WARN_DAYS,
+  OVERVIEW_SUCCESS_TARGET,
+  relativeTime,
+} from './overviewModel';
 import { AgentBadge } from '../../../components/ui/agent-badge';
+import { Button } from '../../../components/ui/button';
 import { ComboChart } from '../../../components/ui/combo-chart';
 import {
   formatCount,
@@ -25,13 +30,12 @@ import {
   formatRatio,
 } from '../../../components/ui/metric-format';
 import { PendingBlock, PendingValue } from '../../../components/ui/pending';
+import { notify } from '../../../components/ui/toast';
 import { useAgentSessionsQuery } from '../../../hooks/usage-logs/useAgentSessions';
 import './overview.css';
 
 const ns = 'page.console.overview';
-const SUCCESS_TARGET = 0.99;
-const CHART_HEIGHT = 300;
-const RUNWAY_WARN_DAYS = 7;
+const COMPACT_CHART_HEIGHT = 200;
 
 type Props = {
   range: OverviewRange;
@@ -39,27 +43,31 @@ type Props = {
   onExport: (format: 'csv' | 'xlsx') => void;
   /** Wallet balance in microUSD; undefined while it is still loading. */
   balance: number | undefined;
+  /** Gateway API Base URL ending in /v1. */
+  apiBaseURL: string;
   /** Links to apps beside the console, shown before the range picker. */
   appLinks?: { href: string; label: string }[];
   canInspectUsage: boolean;
   canManageKeys: boolean;
+  canViewModels: boolean;
+  /** True when Dashboard already renders OnboardingTakeover above this view. */
+  suppressZeroLaunchpad?: boolean;
 };
-
-function rangeDays(range: OverviewRange, start?: number, end?: number): number {
-  if (start && end && end > start) return Math.max(1, (end - start) / 86400);
-  return { '24h': 1, '7d': 7, '30d': 30, '90d': 90, custom: 1 }[range.preset];
-}
 
 export default function WorkspaceOverview({
   range,
   onRange,
   onExport,
   balance,
+  apiBaseURL,
   appLinks = [],
   canInspectUsage,
   canManageKeys,
+  canViewModels,
+  suppressZeroLaunchpad = false,
 }: Props) {
   const { t, i18n } = useTranslation();
+  const [copiedEndpoint, setCopiedEndpoint] = useState(false);
   const query = useOverviewQuery('self', range);
   const data = query.data;
   const pending = query.isPending;
@@ -90,26 +98,22 @@ export default function WorkspaceOverview({
     totals && totals.prompt_tokens > 0
       ? Math.min(1, totals.cached_tokens / totals.prompt_tokens)
       : null;
-  const perDay = spend / rangeDays(range, data?.start, data?.end);
-  const runwayDays =
-    balance !== undefined && perDay > 0 ? balance / perDay : null;
+  const runwayDays = computeWorkspaceRunwayDays(
+    balance,
+    spend,
+    range,
+    data?.start,
+    data?.end,
+  );
   const series = data?.series || [];
 
+  // Low-balance runway lives inside KPI Cell 1; NeedsLine stays strictly for
+  // failure-rate alerts so runway warnings are never repeated twice.
   const needs: NeedItem[] = [];
-  if (runwayDays !== null && runwayDays < RUNWAY_WARN_DAYS) {
-    needs.push({
-      key: 'runway',
-      to: '/console/wallet',
-      content: t(`${ns}.needs.runway`, {
-        defaultValue: '按最近的用量，余额约 {{days}} 天内用完',
-        days: Math.max(0, Math.round(runwayDays)),
-      }),
-    });
-  }
   if (
     canInspectUsage &&
     successRate !== null &&
-    successRate < SUCCESS_TARGET &&
+    successRate < OVERVIEW_SUCCESS_TARGET &&
     (totals?.outcome_count ?? 0) >= 20
   ) {
     needs.push({
@@ -129,10 +133,31 @@ export default function WorkspaceOverview({
 
   const chartTitle =
     data?.bucket === 'hour'
-      ? t(`${ns}.chart.hourly`, { defaultValue: '每小时用量' })
+      ? t(`${ns}.chart.hourlyModels`, {
+          defaultValue: '每小时消耗趋势与主力模型',
+        })
       : data?.bucket === 'week'
-        ? t(`${ns}.chart.weekly`, { defaultValue: '每周用量' })
-        : t(`${ns}.chart.daily`, { defaultValue: '每日用量' });
+        ? t(`${ns}.chart.weeklyModels`, {
+            defaultValue: '每周消耗趋势与主力模型',
+          })
+        : t(`${ns}.chart.dailyModels`, {
+            defaultValue: '每日消耗趋势与主力模型',
+          });
+
+  const copyEndpoint = async () => {
+    try {
+      await navigator.clipboard.writeText(apiBaseURL);
+      setCopiedEndpoint(true);
+      notify.success(t('secret.copied', { defaultValue: '已复制' }));
+      window.setTimeout(() => setCopiedEndpoint(false), 1800);
+    } catch {
+      /* clipboard blocked in non-secure context */
+    }
+  };
+
+  const zeroTraffic = !pending && requests === 0;
+  const topModels = (data?.models || []).slice(0, 3);
+  const activeKeys = (data?.keys || []).slice(0, 3);
 
   return (
     <div className='ov-page'>
@@ -163,10 +188,51 @@ export default function WorkspaceOverview({
       />
       <NeedsLine items={needs} />
 
-      <section
-        className='ov-panel ov-kpis'
-        style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 1.25fr' }}
-      >
+      <section className='ov-panel ov-kpis ov-kpis--workspace'>
+        <div className='ov-kpi ov-kpi--balance'>
+          <div className='ov-kpi__balance-copy'>
+            <span className='ov-label'>
+              {t(`${ns}.balance`, { defaultValue: '可用余额' })}
+              {!pending && balance !== undefined && runwayDays !== null ? (
+                runwayDays < OVERVIEW_RUNWAY_WARN_DAYS ? (
+                  <>
+                    {' · '}
+                    <span className='ov-runway-inline' data-alert=''>
+                      {t(`${ns}.runwayWarnInline`, {
+                        days: Math.max(0, Math.round(runwayDays)),
+                        defaultValue: '预计约 {{days}} 天用完',
+                      })}
+                    </span>
+                  </>
+                ) : runwayDays < 365 ? (
+                  <>
+                    {' · '}
+                    <span className='ov-runway-inline'>
+                      {t(`${ns}.runwayDays`, {
+                        count: Math.round(runwayDays),
+                        defaultValue: '约 {{count}} 天',
+                      })}
+                    </span>
+                  </>
+                ) : null
+              ) : null}
+            </span>
+            <strong className='ov-money ov-money--hero'>
+              <Metric pending={balance === undefined} chars={7}>
+                {formatMicroUsd(balance)}
+              </Metric>
+            </strong>
+          </div>
+          <Button
+            nativeButton={false}
+            render={<Link to='/console/wallet' />}
+            size='sm'
+            variant='primary'
+          >
+            {t(`${ns}.topupNow`, { defaultValue: '立即充值' })}
+          </Button>
+        </div>
+
         <div className='ov-kpi'>
           <span className='ov-label'>
             {t(`${ns}.spend`, { defaultValue: '消耗' })}
@@ -186,257 +252,419 @@ export default function WorkspaceOverview({
             />
           )}
         </div>
+
         <div className='ov-kpi'>
           <span className='ov-label'>
-            {t(`${ns}.balance`, { defaultValue: '可用余额' })}
-          </span>
-          <strong className='ov-money'>
-            <Metric pending={balance === undefined} chars={7}>
-              {formatMicroUsd(balance)}
-            </Metric>
-          </strong>
-          <span className='ov-note'>
-            <Link className='ov-link' to='/console/wallet'>
-              {t(`${ns}.topup`, { defaultValue: '充值 →' })}
-            </Link>
-          </span>
-        </div>
-        <div className='ov-kpi'>
-          <span className='ov-label'>
-            {t(`${ns}.runway`, { defaultValue: '预计还能用' })}
+            {t(`${ns}.successAndRequests`, { defaultValue: '请求与成功率' })}
           </span>
           <strong
             className='ov-kv'
             data-alert={
-              runwayDays !== null && runwayDays < RUNWAY_WARN_DAYS
-                ? ''
-                : undefined
-            }
-          >
-            <Metric pending={pending || balance === undefined}>
-              {runwayDays === null
-                ? '—'
-                : runwayDays >= 365
-                  ? t(`${ns}.runwayYear`, { defaultValue: '一年以上' })
-                  : t(`${ns}.runwayDays`, {
-                      defaultValue: '约 {{count}} 天',
-                      count: Math.max(0, Math.round(runwayDays)),
-                    })}
-            </Metric>
-          </strong>
-          <span className='ov-note'>
-            <Metric pending={pending} chars={10}>
-              {perDay > 0
-                ? t(`${ns}.perDay`, {
-                    defaultValue: '按日均 {{amount}}',
-                    amount: formatMicroUsd(perDay),
-                  })
-                : t(`${ns}.noSpend`, { defaultValue: '这段时间没有消耗' })}
-            </Metric>
-          </span>
-        </div>
-        <div className='ov-kpi'>
-          <span className='ov-label'>
-            {t(`${ns}.successRate`, { defaultValue: '成功率' })}
-          </span>
-          <strong
-            className='ov-kv'
-            data-alert={
-              successRate !== null && successRate < SUCCESS_TARGET
+              successRate !== null && successRate < OVERVIEW_SUCCESS_TARGET
                 ? ''
                 : undefined
             }
           >
             <Metric pending={pending} chars={6}>
-              {formatRatio(successRate)}
+              {requests > 0
+                ? formatRatio(successRate)
+                : t(`${ns}.zeroRequestsShort`, { defaultValue: '0 次' })}
             </Metric>
           </strong>
           <span className='ov-note'>
-            <Metric pending={pending} chars={8}>
-              {t(`${ns}.failures`, {
-                defaultValue: '{{count}} 次失败',
-                count: formatCount(totals?.error_count),
-              })}
+            <Metric pending={pending} chars={10}>
+              {requests > 0
+                ? t(`${ns}.requestsAndFailures`, {
+                    defaultValue: '{{requests}} 次请求 · {{errors}} 次失败',
+                    requests: formatCount(requests),
+                    errors: formatCount(totals?.error_count),
+                  })
+                : t(`${ns}.noTraffic`, { defaultValue: '这段时间没有请求' })}
             </Metric>
           </span>
         </div>
+
         <div className='ov-kpi'>
           <span className='ov-label'>
-            {t(`${ns}.tokensRequests`, { defaultValue: 'Tokens · 请求' })}
+            {t(`${ns}.tokensAndCache`, { defaultValue: 'Tokens · 缓存命中' })}
           </span>
-          <span className='ov-pair'>
-            <strong className='ov-kv'>
-              <Metric pending={pending}>{formatCount(tokens)}</Metric>
-            </strong>
-            <span className='ov-kv--small'>
-              <Metric pending={pending} chars={4}>
-                {t(`${ns}.requestsCount`, {
-                  defaultValue: '{{count}} 次',
-                  count: formatCount(requests),
-                })}
-              </Metric>
-            </span>
-          </span>
+          <strong className='ov-kv'>
+            <Metric pending={pending} chars={6}>
+              {formatCount(tokens)}
+            </Metric>
+          </strong>
           <span className='ov-note'>
-            <Metric pending={pending} chars={18}>
-              {t(`${ns}.perRequest`, {
-                defaultValue: '平均每次 {{per}} tokens · 缓存命中 {{cache}}',
-                per: requests > 0 ? formatCount(tokens / requests) : '—',
-                cache: formatRatio(cacheRatio, 0),
-              })}
+            <Metric pending={pending} chars={16}>
+              {cacheRatio !== null
+                ? t(`${ns}.cacheHitNote`, {
+                    defaultValue: 'Prompt 缓存命中 {{cache}}',
+                    cache: formatRatio(cacheRatio, 1),
+                  })
+                : t(`${ns}.requestsSub`, {
+                    defaultValue: '{{count}} 次请求',
+                    count: formatCount(requests),
+                  })}
             </Metric>
           </span>
         </div>
       </section>
 
-      <section
-        className='ov-panel ov-chart-panel'
-        style={{ padding: '16px 24px 10px' }}
-      >
-        <div className='ov-chart-panel__title'>
-          <strong>{chartTitle}</strong>
-          <span className='ov-label'>
-            {t(`${ns}.chart.usageNote`, {
-              defaultValue: 'Tokens 在左轴，消耗在右轴',
-            })}
-          </span>
-        </div>
-        {pending ? (
-          <PendingBlock height={CHART_HEIGHT} />
-        ) : (
-          <ComboChart
-            ariaLabel={chartTitle}
-            labels={axisLabels}
-            titles={titles}
-            partial={partial}
-            height={CHART_HEIGHT}
-            bars={[
-              {
-                key: 'tokens',
-                label: 'Tokens',
-                values: series.map(
-                  (b) => b.prompt_tokens + b.completion_tokens,
-                ),
-                tone: 'ink',
-              },
-            ]}
-            lines={[
-              {
-                key: 'spend',
-                label: t(`${ns}.spend`, { defaultValue: '消耗' }),
-                values: series.map((b) => b.amount_microusd),
-                tone: 'grey',
-                dashed: true,
-              },
-            ]}
-            left={{ format: (v) => formatCount(v) }}
-            right={{ format: (v) => formatMicroUsdCompact(v) }}
-            tooltip={(i) => {
-              const b = series[i];
-              const failed = b?.error_count ?? 0;
-              return [
-                {
-                  label: 'Tokens',
-                  value: formatCount(
-                    (b?.prompt_tokens ?? 0) + (b?.completion_tokens ?? 0),
-                  ),
-                  tone: 'ink',
-                },
-                {
-                  label: t(`${ns}.spend`, { defaultValue: '消耗' }),
-                  value: formatMicroUsd(b?.amount_microusd ?? 0),
-                  tone: 'grey',
-                },
-                {
-                  label: t(`${ns}.legend.requests`, { defaultValue: '请求' }),
-                  value: formatCount(b?.request_count),
-                  tone: 'pale',
-                },
-                ...(failed > 0
-                  ? [
-                      {
-                        label: t(`${ns}.legend.failures`, {
-                          defaultValue: '失败',
-                        }),
-                        value: formatCount(failed),
-                        tone: 'danger' as const,
-                        alert: true,
-                      },
-                    ]
-                  : []),
-              ];
-            }}
-          />
-        )}
-      </section>
+      {zeroTraffic ? (
+        suppressZeroLaunchpad ? null : (
+          <section className='ov-panel ov-zero-launchpad'>
+            <div className='ov-zero-launchpad__head'>
+              <span className='ov-zero-launchpad__eyebrow'>QUICKSTART</span>
+              <h2 className='ov-zero-launchpad__title'>
+                {t(`${ns}.zero.title`, {
+                  defaultValue: '3 步跑通第一条 Agent 请求',
+                })}
+              </h2>
+              <p className='ov-note'>
+                {t(`${ns}.zero.subtitle`, {
+                  defaultValue:
+                    '发出首条请求后，这里会自动切换为实时消耗趋势与会话视图。',
+                })}
+              </p>
+            </div>
+            <div className='ov-zero-steps'>
+              <div className='ov-zero-step'>
+                <div>
+                  <span className='ov-zero-step__tag'>
+                    {balance !== undefined && balance > 0
+                      ? t(`${ns}.zero.step1Ready`, {
+                          defaultValue: '✓ 第 1 步 · 已就绪',
+                        })
+                      : t(`${ns}.zero.step1Tag`, {
+                          defaultValue: '● 第 1 步',
+                        })}
+                  </span>
+                  <strong className='ov-zero-step__title'>
+                    {t(`${ns}.zero.step1Title`, {
+                      defaultValue: '确认额度与充值',
+                    })}
+                  </strong>
+                  <p className='ov-zero-step__desc'>
+                    {balance !== undefined && balance > 0
+                      ? t(`${ns}.zero.step1ReadyDesc`, {
+                          balance: formatMicroUsd(balance),
+                          defaultValue:
+                            '当前可用余额 {{balance}}，按实际 Token 用量结算。',
+                        })
+                      : t(`${ns}.zero.step1Desc`, {
+                          defaultValue:
+                            '充值或确认账户可用额度，按实际消耗计费。',
+                        })}
+                  </p>
+                </div>
+                <Button
+                  nativeButton={false}
+                  render={<Link to='/console/wallet' />}
+                  size='sm'
+                  variant={balance && balance > 0 ? 'secondary' : 'primary'}
+                >
+                  {t(`${ns}.zero.step1Action`, { defaultValue: '去钱包查看' })}
+                </Button>
+              </div>
 
-      <div className='ov-grid-3'>
-        <ListCard
-          title={t(`${ns}.byModel`, { defaultValue: '按模型' })}
-          link={
-            canInspectUsage
-              ? {
-                  to: '/console/usage',
-                  label: t(`${ns}.usageLink`, { defaultValue: '用量与日志 →' }),
-                }
-              : undefined
-          }
-          columns={[
-            t(`${ns}.model`, { defaultValue: '模型' }),
-            'Tokens',
-            t(`${ns}.spend`, { defaultValue: '消耗' }),
-          ]}
-          pending={pending}
-          empty={t(`${ns}.noTraffic`, { defaultValue: '这段时间没有请求' })}
-          rows={(data?.models || []).slice(0, 4).map((m) => ({
-            key: m.name,
-            name: m.name,
-            mono: true,
-            sub: t(`${ns}.requestsSub`, {
-              defaultValue: '{{count}} 次请求',
-              count: formatCount(m.request_count),
-            }),
-            b: formatCount(m.prompt_tokens + m.completion_tokens),
-            c: formatMicroUsd(m.amount_microusd),
-          }))}
-        />
-        <ListCard
-          title={t(`${ns}.byKey`, { defaultValue: '按 Key' })}
-          link={
-            canManageKeys
-              ? { to: '/console/token', label: 'API Keys →' }
-              : undefined
-          }
-          columns={[
-            'Key',
-            'Tokens',
-            t(`${ns}.spend`, { defaultValue: '消耗' }),
-          ]}
-          pending={pending}
-          empty={t(`${ns}.noTraffic`, { defaultValue: '这段时间没有请求' })}
-          rows={(data?.keys || []).slice(0, 4).map((k) => ({
-            key: `${k.id}-${k.name}`,
-            name:
-              k.name || t(`${ns}.deletedKey`, { defaultValue: '已删除的 Key' }),
-            sub: [
-              t(`${ns}.requestsSub`, {
-                defaultValue: '{{count}} 次请求',
-                count: formatCount(k.request_count),
-              }),
-              k.last_used_at ? relativeTime(k.last_used_at, i18n.language) : '',
-            ]
-              .filter(Boolean)
-              .join(' · '),
-            b: formatCount(k.prompt_tokens + k.completion_tokens),
-            c: formatMicroUsd(k.amount_microusd),
-          }))}
-        />
-        <RecentSessions
-          pending={canInspectUsage && sessions.isPending}
-          items={sessions.data?.items || []}
-          visible={canInspectUsage}
-        />
-      </div>
+              <div className='ov-zero-step'>
+                <div>
+                  <span className='ov-zero-step__tag'>
+                    {t(`${ns}.zero.step2Tag`, { defaultValue: '● 第 2 步' })}
+                  </span>
+                  <strong className='ov-zero-step__title'>
+                    {t(`${ns}.zero.step2Title`, {
+                      defaultValue: '创建 API Key',
+                    })}
+                  </strong>
+                  <p className='ov-zero-step__desc'>
+                    {t(`${ns}.zero.step2Desc`, {
+                      defaultValue:
+                        '支持独立设置每日预算、允许模型与思考深度上限。',
+                    })}
+                  </p>
+                </div>
+                {canManageKeys ? (
+                  <Button
+                    nativeButton={false}
+                    render={<Link to='/console/token' />}
+                    size='sm'
+                    variant={balance && balance > 0 ? 'primary' : 'secondary'}
+                  >
+                    {t(`${ns}.zero.step2Action`, {
+                      defaultValue: '创建 API Key',
+                    })}
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className='ov-zero-step'>
+                <div>
+                  <span className='ov-zero-step__tag'>
+                    {t(`${ns}.zero.step3Tag`, { defaultValue: '○ 第 3 步' })}
+                  </span>
+                  <strong className='ov-zero-step__title'>
+                    {t(`${ns}.zero.step3Title`, {
+                      defaultValue: '接入 Claude Code / Cursor',
+                    })}
+                  </strong>
+                  <p className='ov-zero-step__desc'>
+                    {t(`${ns}.zero.step3Desc`, {
+                      endpoint: apiBaseURL,
+                      defaultValue:
+                        '替换 Base URL 为 {{endpoint}} 即可发起首条请求。',
+                    })}
+                  </p>
+                </div>
+                <Button
+                  nativeButton={false}
+                  render={
+                    <Link
+                      to={canManageKeys ? '/console/token' : '/quickstart'}
+                    />
+                  }
+                  size='sm'
+                  variant='secondary'
+                >
+                  {t(`${ns}.zero.step3Action`, {
+                    defaultValue: '打开接入向导',
+                  })}
+                </Button>
+              </div>
+            </div>
+          </section>
+        )
+      ) : (
+        <>
+          <div className='ov-workspace-stage'>
+            <section className='ov-panel ov-trend-card'>
+              <div className='ov-chart-panel__title'>
+                <strong>{chartTitle}</strong>
+                {canInspectUsage ? (
+                  <Link className='ov-link' to='/console/usage'>
+                    {t(`${ns}.usageLink`, { defaultValue: '用量与日志 →' })}
+                  </Link>
+                ) : null}
+              </div>
+              {pending ? (
+                <PendingBlock height={COMPACT_CHART_HEIGHT} />
+              ) : (
+                <ComboChart
+                  ariaLabel={chartTitle}
+                  labels={axisLabels}
+                  titles={titles}
+                  partial={partial}
+                  height={COMPACT_CHART_HEIGHT}
+                  bars={[
+                    {
+                      key: 'tokens',
+                      label: 'Tokens',
+                      values: series.map(
+                        (b) => b.prompt_tokens + b.completion_tokens,
+                      ),
+                      tone: 'ink',
+                    },
+                  ]}
+                  lines={[
+                    {
+                      key: 'spend',
+                      label: t(`${ns}.spend`, { defaultValue: '消耗' }),
+                      values: series.map((b) => b.amount_microusd),
+                      tone: 'grey',
+                      dashed: true,
+                    },
+                  ]}
+                  left={{ format: (v) => formatCount(v) }}
+                  right={{ format: (v) => formatMicroUsdCompact(v) }}
+                  tooltip={(i) => {
+                    const b = series[i];
+                    const failed = b?.error_count ?? 0;
+                    return [
+                      {
+                        label: 'Tokens',
+                        value: formatCount(
+                          (b?.prompt_tokens ?? 0) + (b?.completion_tokens ?? 0),
+                        ),
+                        tone: 'ink',
+                      },
+                      {
+                        label: t(`${ns}.spend`, { defaultValue: '消耗' }),
+                        value: formatMicroUsd(b?.amount_microusd ?? 0),
+                        tone: 'grey',
+                      },
+                      {
+                        label: t(`${ns}.legend.requests`, {
+                          defaultValue: '请求',
+                        }),
+                        value: formatCount(b?.request_count),
+                        tone: 'pale',
+                      },
+                      ...(failed > 0
+                        ? [
+                            {
+                              label: t(`${ns}.legend.failures`, {
+                                defaultValue: '失败',
+                              }),
+                              value: formatCount(failed),
+                              tone: 'danger' as const,
+                              alert: true,
+                            },
+                          ]
+                        : []),
+                    ];
+                  }}
+                />
+              )}
+
+              <div className='ov-top-models'>
+                {pending
+                  ? Array.from({ length: 3 }, (_, i) => (
+                      <div key={i} className='ov-top-model'>
+                        <PendingValue chars={14} />
+                        <PendingValue chars={12} />
+                      </div>
+                    ))
+                  : topModels.length > 0
+                    ? topModels.map((m) => {
+                        const share =
+                          spend > 0
+                            ? Math.round((m.amount_microusd / spend) * 100)
+                            : 0;
+                        return (
+                          <div key={m.name} className='ov-top-model'>
+                            <strong className='lz-mono ov-top-model__name'>
+                              {m.name}
+                            </strong>
+                            <span className='ov-note'>
+                              {formatMicroUsd(m.amount_microusd)} ({share}%) ·{' '}
+                              {t(`${ns}.requestsCount`, {
+                                defaultValue: '{{count}} 次',
+                                count: formatCount(m.request_count),
+                              })}
+                            </span>
+                          </div>
+                        );
+                      })
+                    : null}
+              </div>
+            </section>
+
+            <section className='ov-panel ov-launchpad-card'>
+              <div className='ov-chart-panel__title'>
+                <strong>
+                  {t(`${ns}.quickConnectTitle`, {
+                    defaultValue: '快速接入与活跃 API Keys',
+                  })}
+                </strong>
+                {canManageKeys ? (
+                  <Link className='ov-link' to='/console/token'>
+                    API Keys →
+                  </Link>
+                ) : null}
+              </div>
+
+              <div className='ov-endpoint-bar'>
+                <span className='ov-endpoint-bar__url'>
+                  <span className='ov-note'>
+                    {t(`${ns}.endpointLabel`, { defaultValue: '接入端点' })}
+                  </span>
+                  <code className='lz-mono'>{apiBaseURL}</code>
+                </span>
+                <Button
+                  size='sm'
+                  type='button'
+                  variant='secondary'
+                  onClick={() => void copyEndpoint()}
+                >
+                  {copiedEndpoint
+                    ? t('secret.copied', { defaultValue: '已复制' })
+                    : t('secret.copy', { defaultValue: '复制' })}
+                </Button>
+              </div>
+
+              <div className='ov-key-list'>
+                {pending ? (
+                  Array.from({ length: 2 }, (_, i) => (
+                    <div key={i} className='ov-key-item'>
+                      <PendingValue chars={14} />
+                      <PendingValue chars={8} />
+                    </div>
+                  ))
+                ) : activeKeys.length > 0 ? (
+                  activeKeys.map((k) => (
+                    <div key={`${k.id}-${k.name}`} className='ov-key-item'>
+                      <div className='ov-key-item__meta'>
+                        <strong>
+                          {k.name ||
+                            t(`${ns}.deletedKey`, {
+                              defaultValue: '已删除的 Key',
+                            })}
+                        </strong>
+                        <span className='ov-note'>
+                          {[
+                            t(`${ns}.requestsCount`, {
+                              defaultValue: '{{count}} 次',
+                              count: formatCount(k.request_count),
+                            }),
+                            k.last_used_at
+                              ? relativeTime(k.last_used_at, i18n.language)
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                      </div>
+                      <span className='lz-mono ov-key-item__spend'>
+                        {formatMicroUsd(k.amount_microusd)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className='ov-empty-line'>
+                    {t(`${ns}.noKeyTraffic`, {
+                      defaultValue: '当前时间范围内暂无 API Key 调用记录',
+                    })}
+                  </p>
+                )}
+              </div>
+
+              {canManageKeys || canViewModels ? (
+                <div className='ov-launchpad-actions'>
+                  {canManageKeys ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link to='/console/token' />}
+                      size='sm'
+                      variant='secondary'
+                    >
+                      {t(`${ns}.connectToolAction`, {
+                        defaultValue: '接入工具与管理 Key',
+                      })}
+                    </Button>
+                  ) : null}
+                  {canViewModels ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link to='/console/models' />}
+                      size='sm'
+                      variant='secondary'
+                    >
+                      {t(`${ns}.browseModelsAction`, {
+                        defaultValue: '浏览模型目录',
+                      })}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          </div>
+
+          <RecentSessions
+            pending={canInspectUsage && sessions.isPending}
+            items={sessions.data?.items || []}
+            visible={canInspectUsage}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -460,8 +688,8 @@ function RecentSessions({
   if (!visible) return null;
   const now = Date.now() / 1000;
   return (
-    <section className='ov-panel ov-list'>
-      <div className='ov-list__head'>
+    <section className='ov-panel ov-sessions-strip'>
+      <div className='ov-chart-panel__title'>
         <strong>
           {t(`${ns}.recentSessions`, { defaultValue: '最近的会话' })}
         </strong>
@@ -474,88 +702,93 @@ function RecentSessions({
         </Link>
       </div>
       {pending ? (
-        Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className='ov-session'>
-            <PendingValue chars={2} />
-            <span className='ov-session__meta'>
-              <PendingValue chars={18} />
-              <PendingValue chars={12} />
-            </span>
-            <span className='ov-session__right'>
-              <PendingValue chars={5} />
-              <PendingValue chars={4} />
-            </span>
-          </div>
-        ))
-      ) : items.length ? (
-        items.map((item) => {
-          const live = now - item.last_at < LIVE_WINDOW_SECONDS;
-          const tokens =
-            item.tokens ?? item.prompt_tokens + item.completion_tokens;
-          const title =
-            item.title ||
-            (item.source === 'token'
-              ? t(`${ns}.sessionByKey`, {
-                  defaultValue: '{{key}} 的请求',
-                  key: item.token_name || 'Key',
-                })
-              : item.session_id);
-          return (
-            <div key={item.id} className='ov-session'>
-              <AgentBadge
-                client={item.client}
-                ungrouped={item.source === 'token'}
-              />
+        <div className='ov-sessions-grid'>
+          {Array.from({ length: 2 }, (_, i) => (
+            <div key={i} className='ov-session-card'>
+              <PendingValue chars={2} />
               <span className='ov-session__meta'>
-                <Link
-                  className='ov-session__title'
-                  to={`/console/usage/sessions/${encodeURIComponent(item.id)}`}
-                  title={title}
-                >
-                  {title}
-                </Link>
-                <span className='ov-note'>
-                  {relativeTime(item.last_at, i18n.language)} ·{' '}
-                  <strong style={{ fontWeight: 600, color: 'var(--lazu-ink)' }}>
-                    {formatCount(tokens)}
-                  </strong>{' '}
-                  ·{' '}
-                  {t(`${ns}.requestsCount`, {
-                    defaultValue: '{{count}} 次',
-                    count: formatCount(item.request_count),
-                  })}
-                </span>
+                <PendingValue chars={18} />
+                <PendingValue chars={12} />
               </span>
               <span className='ov-session__right'>
-                <span className='lz-mono'>
-                  {formatMicroUsd(item.amount_microusd)}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11.5,
-                    color:
-                      item.error_count > 0
-                        ? 'var(--lazu-danger)'
-                        : live
-                          ? 'var(--lazu-success)'
-                          : 'var(--lazu-text-faint)',
-                  }}
-                >
-                  {item.error_count > 0
-                    ? t(`${ns}.sessionFailures`, {
-                        defaultValue: '{{count}} 次失败',
-                        count: item.error_count,
-                      })
-                    : live
-                      ? t(`${ns}.sessionLive`, { defaultValue: '进行中' })
-                      : t(`${ns}.sessionDone`, { defaultValue: '已结束' })}
-                </span>
+                <PendingValue chars={5} />
               </span>
             </div>
-          );
-        })
+          ))}
+        </div>
+      ) : items.length ? (
+        <div className='ov-sessions-grid'>
+          {items.slice(0, 4).map((item) => {
+            const live = now - item.last_at < LIVE_WINDOW_SECONDS;
+            const tokens =
+              item.tokens ?? item.prompt_tokens + item.completion_tokens;
+            const title =
+              item.title ||
+              (item.source === 'token'
+                ? t(`${ns}.sessionByKey`, {
+                    defaultValue: '{{key}} 的请求',
+                    key: item.token_name || 'Key',
+                  })
+                : item.session_id);
+            return (
+              <div key={item.id} className='ov-session-card'>
+                <AgentBadge
+                  client={item.client}
+                  ungrouped={item.source === 'token'}
+                />
+                <span className='ov-session__meta'>
+                  <Link
+                    className='ov-session__title'
+                    to={`/console/usage/sessions/${encodeURIComponent(item.id)}`}
+                    title={title}
+                  >
+                    {title}
+                  </Link>
+                  <span className='ov-note'>
+                    {relativeTime(item.last_at, i18n.language)} ·{' '}
+                    <strong
+                      style={{ fontWeight: 600, color: 'var(--lazu-ink)' }}
+                    >
+                      {formatCount(tokens)}
+                    </strong>{' '}
+                    ·{' '}
+                    {t(`${ns}.requestsCount`, {
+                      defaultValue: '{{count}} 次',
+                      count: formatCount(item.request_count),
+                    })}
+                  </span>
+                </span>
+                <span className='ov-session__right'>
+                  <span className='lz-mono'>
+                    {formatMicroUsd(item.amount_microusd)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      color:
+                        item.error_count > 0
+                          ? 'var(--lazu-danger)'
+                          : live
+                            ? 'var(--lazu-success)'
+                            : 'var(--lazu-text-faint)',
+                    }}
+                  >
+                    {item.error_count > 0
+                      ? t(`${ns}.sessionFailures`, {
+                          defaultValue: '{{count}} 次失败',
+                          count: item.error_count,
+                        })
+                      : live
+                        ? t(`${ns}.sessionLive`, { defaultValue: '进行中' })
+                        : t(`${ns}.sessionDone`, { defaultValue: '已结束' })}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
       ) : (
-        <p className='ov-list__empty'>
+        <p className='ov-empty-line'>
           {t(`${ns}.sessionsEmpty`, {
             defaultValue:
               '这段时间没有会话。Claude Code、Codex 等 agent 发来的请求会按会话归在这里。',

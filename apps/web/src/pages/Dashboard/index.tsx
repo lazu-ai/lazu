@@ -189,6 +189,7 @@ const Dashboard = () => {
         onRange={setRange}
         onExport={exportUsage}
         balance={balance}
+        apiBaseURL={onboardingApiBaseURL}
         appLinks={extensionSidebarEntries()
           .filter(
             (entry) =>
@@ -199,6 +200,8 @@ const Dashboard = () => {
           .map((entry) => ({ href: entry.to, label: entry.label(t) }))}
         canInspectUsage={isModuleVisible('workspace', 'usage')}
         canManageKeys={isModuleVisible('workspace', 'token')}
+        canViewModels={isModuleVisible('workspace', 'model_market')}
+        suppressZeroLaunchpad={showOnboardingTakeover}
       />
       {project.enabled ? (
         <div className='pj-overview-extra' key={project.current?.id}>

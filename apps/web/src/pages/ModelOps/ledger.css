@@ -647,7 +647,7 @@
 }
 
 .mo-dim-field__label {
-  color: var(--lazu-text);
+  color: var(--lazu-ink);
   display: block;
   font-size: 12px;
   font-weight: 600;
@@ -667,7 +667,7 @@
 }
 
 .mo-swatch.is-active {
-  box-shadow: 0 0 0 2px var(--lazu-text);
+  box-shadow: 0 0 0 2px var(--lazu-ink);
 }
 
 .mo-swatch--evidence,
@@ -1002,86 +1002,24 @@
   padding: 4px 2px;
 }
 
-/* ---- 资料 tab ---- */
-.mo-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.mo-info__row {
-  align-items: center;
-  border-bottom: 1px solid var(--lazu-border);
-  display: grid;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  gap: 12px;
-  grid-template-columns: 96px minmax(0, 1fr) 112px;
-  padding: 11px 0;
-}
-
-.mo-info__label {
-  color: var(--lazu-text-muted);
-}
-
-.mo-info__value {
-  min-width: 0;
-}
-
-.mo-info__src {
-  color: var(--lazu-text-faint);
-  font-size: 11px;
-  text-align: right;
-}
-
-.mo-info__none {
-  color: var(--lazu-text-faint);
-}
-
+/* ---- 资料 tab upstream & G1 paper conflict notice ---- */
 .mo-info__upstream {
-  color: var(--lazu-text-faint);
-  font-size: 12px;
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 11px;
+  font-weight: 400;
   margin-left: 6px;
-}
-
-.mo-info__pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.mo-info__pill {
-  border: 1px solid var(--lazu-border);
-  border-radius: 999px;
-  font-size: 12px;
-  padding: 2px 9px;
-}
-
-.mo-info__level,
-.mo-info__id {
-  background: var(--lazu-surface-muted);
-  border-radius: 7px;
-  font-family: var(--lazu-font-mono);
-  font-size: 12px;
-  padding: 2px 8px;
-}
-
-.mo-info__param {
-  border: 1px dashed var(--lazu-border-strong);
-  border-radius: 999px;
-  font-family: var(--lazu-font-mono);
-  font-size: 12px;
-  padding: 1px 9px;
 }
 
 .mo-info__conflict {
   align-items: flex-start;
-  background: var(--lazu-surface-raised);
-  border: 1px solid var(--lazu-border);
-  border-radius: 14px;
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-notice-edge);
+  border-radius: var(--lazu-radius-notice, 10px);
   display: flex;
   gap: 10px;
-  margin: 2px 0 10px;
-  padding: 14px 16px;
+  margin: 4px 0 0;
+  padding: 12px 14px;
 }
 
 .mo-info__conflict > svg {
@@ -1091,46 +1029,22 @@
 }
 
 .mo-info__conflict b {
-  color: var(--lazu-warning-strong);
-  font-size: 13px;
+  color: var(--lazu-ink);
+  font-size: 12.5px;
   font-weight: 600;
 }
 
 .mo-info__conflict p {
   color: var(--lazu-text-muted);
   font-size: 12px;
-  line-height: 1.6;
-  margin: 4px 0 0;
+  line-height: 1.5;
+  margin: 3px 0 0;
 }
 
 .mo-info__conflict-actions {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
-}
-
-.mo-info__lock {
-  align-items: flex-start;
-  cursor: pointer;
-  display: flex;
-  gap: 12px;
-  padding: 16px 0 4px;
-}
-
-.mo-info__lock > span {
-  display: grid;
-  gap: 4px;
-}
-
-.mo-info__lock b {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.mo-info__lock > span > span {
-  color: var(--lazu-text-muted);
-  font-size: 12px;
-  line-height: 1.6;
+  margin-top: 8px;
 }
 
 /* A missing date needs one direct action, even on a narrow screen. */

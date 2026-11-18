@@ -10,20 +10,16 @@ for (const theme of ['light', 'dark'] as const) {
       }, theme);
     });
 
-    test('personal settings controls retain their appearance in a portal', async ({
+    test('personal settings controls retain their appearance inline and in a portal', async ({
       page,
     }) => {
       await page.goto('/console/personal');
-      await page
-        .locator('.set-row')
-        .filter({
-          has: page.locator('.set-row__lb', { hasText: 'Low-balance alert' }),
-        })
-        .getByRole('button', { name: 'Edit', exact: true })
-        .click();
-      const dialog = page.getByRole('dialog');
-      await expect(dialog).toBeVisible();
-      const select = dialog.locator('.lazu-select-trigger');
+      const alertRow = page.locator('.set-row').filter({
+        has: page.locator('.set-row__lb', { hasText: 'Low-balance alert' }),
+      });
+      await alertRow.getByRole('button', { name: 'Edit', exact: true }).click();
+      const select = alertRow.locator('.lazu-select-trigger');
+      await expect(select).toBeVisible();
       await expect(select).toHaveCSS('border-top-width', '1px');
       await expect(select).not.toHaveCSS(
         'background-color',
@@ -32,17 +28,33 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(select).toHaveCSS('min-height', '38px');
       await expect(select).toHaveCSS('padding-left', '12px');
       await expect(select).toHaveCSS('padding-right', '12px');
+      await select.click();
+      await expect(
+        page.getByRole('option', { name: 'Webhook', exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+      const inlineCancel = alertRow.getByRole('button', {
+        name: 'Cancel',
+        exact: true,
+      });
+      await expect(inlineCancel).toHaveCSS('border-radius', '12px');
+      await expect(inlineCancel).toHaveCSS('min-height', '30px');
+      await inlineCancel.click();
+
+      const emailRow = page.locator('.set-row').filter({
+        has: page.locator('.set-row__lb', { hasText: 'Email' }),
+      });
+      await emailRow
+        .getByRole('button', { name: /^(Bind|Change)$/, exact: false })
+        .click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
       const cancel = dialog.getByRole('button', {
         name: 'Cancel',
         exact: true,
       });
       await expect(cancel).toHaveCSS('border-radius', '12px');
       await expect(cancel).toHaveCSS('min-height', '30px');
-      await select.click();
-      await expect(
-        page.getByRole('option', { name: 'Webhook', exact: true }),
-      ).toBeVisible();
-      await page.keyboard.press('Escape');
       await cancel.click();
       await expect(dialog).not.toBeVisible();
     });

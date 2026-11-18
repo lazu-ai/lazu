@@ -38,7 +38,7 @@ type HeaderProps = {
   children?: React.ReactNode;
 };
 
-export function rangeMetaLabel(
+function rangeMetaLabel(
   range: OverviewRange,
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
@@ -228,90 +228,4 @@ export function Metric({
   children: React.ReactNode;
 }) {
   return pending ? <PendingValue chars={chars} /> : <>{children}</>;
-}
-
-export type ListRow = {
-  key: string;
-  name: React.ReactNode;
-  sub?: React.ReactNode;
-  mono?: boolean;
-  b: React.ReactNode;
-  c: React.ReactNode;
-  tone?: 'alert' | 'warn';
-};
-
-export function ListCard({
-  title,
-  link,
-  columns,
-  rows,
-  pending,
-  empty,
-  foot,
-}: {
-  title: string;
-  link?: { to: string; label: string };
-  columns: [string, string, string];
-  rows: ListRow[];
-  pending: boolean;
-  empty: string;
-  foot?: React.ReactNode;
-}) {
-  return (
-    <section className='ov-panel ov-list'>
-      <div className='ov-list__head'>
-        <strong>{title}</strong>
-        {link ? (
-          <Link className='ov-link' to={link.to} style={{ fontSize: 12.5 }}>
-            {link.label}
-          </Link>
-        ) : null}
-      </div>
-      <div className='ov-list__cols'>
-        <span>{columns[0]}</span>
-        <span>{columns[1]}</span>
-        <span>{columns[2]}</span>
-      </div>
-      {pending
-        ? Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className='ov-list__row'>
-              <PendingValue chars={14} />
-              <PendingValue chars={5} />
-              <PendingValue chars={6} />
-            </div>
-          ))
-        : rows.length
-          ? rows.map((row) => (
-              <div key={row.key} className='ov-list__row'>
-                <span
-                  className='ov-list__name'
-                  data-mono={row.mono || undefined}
-                >
-                  <span>{row.name}</span>
-                  {row.sub ? (
-                    <span className='ov-list__sub'>{row.sub}</span>
-                  ) : null}
-                </span>
-                <span>{row.b}</span>
-                <span
-                  className={
-                    row.tone === 'alert'
-                      ? 'ov-alert'
-                      : row.tone === 'warn'
-                        ? 'ov-warn'
-                        : undefined
-                  }
-                >
-                  {row.c}
-                </span>
-              </div>
-            ))
-          : [
-              <p key='empty' className='ov-list__empty'>
-                {empty}
-              </p>,
-            ]}
-      {foot ? <div className='ov-list__foot'>{foot}</div> : null}
-    </section>
-  );
 }

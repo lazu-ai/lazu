@@ -2,11 +2,10 @@ import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { UsageHeadSlotContext } from './headSlot';
-import { UsageRangeSeg } from './UsageRangeSeg';
+import { UsageRangeSeg, useMobile768 } from './UsageRangeSeg';
 import ConsolePage from '../../components/ui/console-page';
 import { LoadingState } from '../../components/ui/loading-state';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { useIsMobile } from '../../hooks/common/useIsMobile';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import './usage-page.css';
 
@@ -47,7 +46,7 @@ const components = {
 export default function UsagePage() {
   const { t } = useTranslation();
   const { isModuleVisible } = useSidebar();
-  const narrow = useIsMobile();
+  const narrow = useMobile768();
   const [params, setParams] = useSearchParams();
   const [headSlot, setHeadSlot] = useState<HTMLElement | null>(null);
   const activeTab = params.get('tab') || 'logs';
@@ -128,6 +127,11 @@ export default function UsagePage() {
         }
         className='usage-page--log-first'
       >
+        {narrow ? (
+          <div className='usage-mobile-range'>
+            <UsageRangeSeg compact className='usage-seg usage-range--mobile' />
+          </div>
+        ) : null}
         <Suspense
           fallback={
             <LoadingState

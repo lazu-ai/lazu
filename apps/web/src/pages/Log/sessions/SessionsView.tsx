@@ -36,7 +36,6 @@ import {
 } from '../../../components/ui/popover';
 import { Select, SelectItem } from '../../../components/ui/select';
 import { useDelayedReveal } from '../../../hooks/common/useDelayedReveal';
-import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { useUsageRange } from '../../../hooks/usage-logs/usageRange';
 import {
   type AgentSessionListItem,
@@ -47,6 +46,7 @@ import {
 import {
   UsageRangeCalendarRow,
   UsageRangeSeg,
+  useMobile768,
 } from '../../Usage/UsageRangeSeg';
 import '../log-table.css';
 import './sessions.css';
@@ -345,7 +345,7 @@ export default function SessionsView({ admin, t }: Props) {
     shared.preset === 'custom'
       ? { endTimestamp: shared.end, startTimestamp: shared.start }
       : {};
-  const narrow = useIsMobile();
+  const narrow = useMobile768();
   const [moreOpen, setMoreOpen] = useState(false);
   const [client, setClient] = useState('');
   const [tokenName, setTokenName] = useState('');
@@ -465,6 +465,16 @@ export default function SessionsView({ admin, t }: Props) {
     setUserId('');
     setClient('');
   };
+  const hasActiveFilters = Boolean(
+    result || keyword || client || tokenName || (admin && userId),
+  );
+  const clearAllFilters = () => {
+    setResult('');
+    setDraft('');
+    setKeyword('');
+    clearConditions();
+  };
+  const filterBadgeCount = chips.length + (narrow && result ? 1 : 0);
   const choice = (
     value: string,
     options: { label: string; value: string }[],
@@ -575,8 +585,8 @@ export default function SessionsView({ admin, t }: Props) {
     >
       <SlidersHorizontal aria-hidden='true' size={14} />
       {t('page.console.log.filter.more', { defaultValue: '筛选' })}
-      {chips.length ? (
-        <span className='logv2-filter-count'>{chips.length}</span>
+      {filterBadgeCount ? (
+        <span className='logv2-filter-count'>{filterBadgeCount}</span>
       ) : null}
     </Button>
   );
@@ -643,7 +653,7 @@ export default function SessionsView({ admin, t }: Props) {
       </div>
 
       <div className='ses-filters'>
-        {statusSwitch}
+        {narrow ? null : statusSwitch}
         <label className='ses-search'>
           <SearchIcon />
           <input
@@ -716,8 +726,14 @@ export default function SessionsView({ admin, t }: Props) {
                 <h3 className='logv2-filter-pop__label'>
                   {t('page.console.usage.range.title')}
                 </h3>
-                <UsageRangeSeg calendar={false} />
+                <UsageRangeSeg calendar={false} className='usage-seg' />
                 <UsageRangeCalendarRow />
+              </section>
+              <section className='logv2-sheet__section'>
+                <h3 className='logv2-filter-pop__label'>
+                  {t('page.console.usage.status.label')}
+                </h3>
+                {statusSwitch}
               </section>
               {moreFields}
             </div>
@@ -725,7 +741,14 @@ export default function SessionsView({ admin, t }: Props) {
           closeLabel={t('common.close')}
           footer={
             <>
-              <Button onClick={clearConditions} type='button' variant='ghost'>
+              <Button
+                onClick={() => {
+                  setResult('');
+                  clearConditions();
+                }}
+                type='button'
+                variant='ghost'
+              >
                 {t('page.console.log.filter.resetAll')}
               </Button>
               <Button
@@ -745,99 +768,124 @@ export default function SessionsView({ admin, t }: Props) {
       ) : null}
 
       <div className='sv-table'>
-        <div className='sv-scroll'>
-          <div className='sv-row sv-row--head' data-admin={admin || undefined}>
-            <span>{t(`${SK}.list.col.start`)}</span>
-            <span>{t(`${SK}.list.col.timeline`)}</span>
-            {admin ? (
-              <span>
-                {t(`${SK}.list.col.userKey`, { defaultValue: '用户 · Key' })}
-              </span>
-            ) : null}
-            <span
-              title={t(`${SK}.list.col.sessionHint`, {
-                defaultValue: '取这个会话的第一条消息',
-              })}
-            >
-              {t(`${SK}.list.col.session`, { defaultValue: '会话' })}
-            </span>
-            <span>{t(`${SK}.list.col.agent`, { defaultValue: 'Agent' })}</span>
-            <span className='sv-right'>
-              {t(`${SK}.list.col.usage`, { defaultValue: '用量' })}
-            </span>
-            <span>{t(`${SK}.list.col.status`, { defaultValue: '状态' })}</span>
-            <span className='sv-right'>
-              {t(`${SK}.kpi.spend`, { defaultValue: '花费' })}
-            </span>
-          </div>
-          {pending ? (
-            Array.from({ length: PENDING_ROWS }, (_, index) => (
-              <PendingRow admin={admin} key={index} />
-            ))
-          ) : list.isError ? (
-            <div className='ses-state'>
-              <ErrorState
-                action={
-                  <button
-                    data-owns-chrome
-                    className='ses-btn ses-btn--sm'
-                    onClick={() => list.refetch()}
-                    type='button'
-                  >
-                    {t(`${SK}.retry`, { defaultValue: '重试' })}
-                  </button>
-                }
-                error={list.error}
-              />
-            </div>
-          ) : items.length === 0 ? (
-            <div className='ses-state'>
-              <EmptyState
-                description={t(`${SK}.list.emptyDescription`, {
-                  defaultValue:
-                    '用 Claude Code、Codex、OpenCode 这类 agent 调用时，每个会话会在这里成为一行。',
-                })}
-                title={t(`${SK}.list.emptyTitle`, {
-                  defaultValue: '这段时间没有 Agent 会话',
-                })}
-              />
-            </div>
-          ) : (
-            items.map((session) => (
-              <SessionRow
-                admin={admin}
-                key={session.id}
-                session={session}
-                t={t}
-              />
-            ))
-          )}
-        </div>
-        <div className='sv-foot'>
-          <span>
-            {pending || !summary ? (
-              <PendingValue chars={16} />
-            ) : (
-              t(`${SK}.list.footer`, {
-                defaultValue: '最近 {{range}} · {{sessions}} 个会话',
-                range:
-                  shared.preset === 'custom'
-                    ? shared.label
-                    : rangeLabel(range, t),
-                sessions: summary.sessions,
-              })
-            )}
-          </span>
-          {total > PAGE_SIZE ? (
-            <Pagination
-              currentPage={page}
-              onPageChange={setPage}
-              pageSize={PAGE_SIZE}
-              showTotal={false}
-              total={total}
+        {!pending && list.isError ? (
+          <div className='ses-state'>
+            <ErrorState
+              action={
+                <button
+                  data-owns-chrome
+                  className='ses-btn ses-btn--sm'
+                  onClick={() => list.refetch()}
+                  type='button'
+                >
+                  {t(`${SK}.retry`, { defaultValue: '重试' })}
+                </button>
+              }
+              error={list.error}
             />
-          ) : null}
-        </div>
+          </div>
+        ) : !pending && items.length === 0 ? (
+          <div className='ses-state'>
+            <EmptyState
+              action={
+                hasActiveFilters ? (
+                  <Button
+                    onClick={clearAllFilters}
+                    size='sm'
+                    type='button'
+                    variant='secondary'
+                  >
+                    {t('page.console.log.filter.clearAll', {
+                      defaultValue: '清除筛选',
+                    })}
+                  </Button>
+                ) : undefined
+              }
+              description={t(`${SK}.list.emptyDescription`, {
+                defaultValue:
+                  '用 Claude Code、Codex、OpenCode 这类 agent 调用时，每个会话会在这里成为一行。',
+              })}
+              title={t(`${SK}.list.emptyTitle`, {
+                defaultValue: '这段时间没有 Agent 会话',
+              })}
+            />
+          </div>
+        ) : (
+          <>
+            <div className='sv-scroll'>
+              <div
+                className='sv-row sv-row--head'
+                data-admin={admin || undefined}
+              >
+                <span>{t(`${SK}.list.col.start`)}</span>
+                <span>{t(`${SK}.list.col.timeline`)}</span>
+                {admin ? (
+                  <span>
+                    {t(`${SK}.list.col.userKey`, {
+                      defaultValue: '用户 · Key',
+                    })}
+                  </span>
+                ) : null}
+                <span
+                  title={t(`${SK}.list.col.sessionHint`, {
+                    defaultValue: '取这个会话的第一条消息',
+                  })}
+                >
+                  {t(`${SK}.list.col.session`, { defaultValue: '会话' })}
+                </span>
+                <span>
+                  {t(`${SK}.list.col.agent`, { defaultValue: 'Agent' })}
+                </span>
+                <span className='sv-right'>
+                  {t(`${SK}.list.col.usage`, { defaultValue: '用量' })}
+                </span>
+                <span>
+                  {t(`${SK}.list.col.status`, { defaultValue: '状态' })}
+                </span>
+                <span className='sv-right'>
+                  {t(`${SK}.kpi.spend`, { defaultValue: '花费' })}
+                </span>
+              </div>
+              {pending
+                ? Array.from({ length: PENDING_ROWS }, (_, index) => (
+                    <PendingRow admin={admin} key={index} />
+                  ))
+                : items.map((session) => (
+                    <SessionRow
+                      admin={admin}
+                      key={session.id}
+                      session={session}
+                      t={t}
+                    />
+                  ))}
+            </div>
+            <div className='sv-foot'>
+              <span>
+                {pending || !summary ? (
+                  <PendingValue chars={16} />
+                ) : (
+                  t(`${SK}.list.footer`, {
+                    defaultValue: '最近 {{range}} · {{sessions}} 个会话',
+                    range:
+                      shared.preset === 'custom'
+                        ? shared.label
+                        : rangeLabel(range, t),
+                    sessions: summary.sessions,
+                  })
+                )}
+              </span>
+              {total > PAGE_SIZE ? (
+                <Pagination
+                  currentPage={page}
+                  onPageChange={setPage}
+                  pageSize={PAGE_SIZE}
+                  showTotal={false}
+                  total={total}
+                />
+              ) : null}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

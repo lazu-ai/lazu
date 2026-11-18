@@ -1,4 +1,4 @@
-import { Copy, Zap } from 'lucide-react';
+import { ChevronDown, Copy, Zap } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { isLoopbackOrigin, isUsableOrigin } from './baseURL';
 import { buildDeepLink, describeDeepLink } from './deepLinks';
@@ -170,6 +170,7 @@ export function ConnectModal({
   const [sonnetPinned, setSonnetPinned] = useState(false);
   const [extras, setExtras] = useState<string[]>([]);
   const [extrasPinned, setExtrasPinned] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   // One lane per model, not one per Key. An entry exists only where the user
   // moved a model off its vendor default; everything else reads through.
   const [modelLanes, setModelLanes] = useState<Record<string, Lane>>({});
@@ -213,6 +214,7 @@ export function ConnectModal({
       setOpusPinned(false);
       setSonnetPinned(false);
       setExtrasPinned(false);
+      setAdvancedOpen(false);
     }
   }, [open]);
 
@@ -509,6 +511,7 @@ export function ConnectModal({
     setOpusPinned(false);
     setSonnetPinned(false);
     setExtrasPinned(false);
+    setAdvancedOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, toolId, modelOptions.join(',')]);
 
@@ -799,6 +802,33 @@ export function ConnectModal({
   const groupLabel = (group: string) =>
     t(`page.console.token.connect.group.${group}`);
 
+  const hasSecondarySlots =
+    tool.usesModel &&
+    (tool.extraModels === 'aliases' ||
+      Boolean(tool.lightSlot) ||
+      tool.extraModels === 'list');
+  const secondarySlotIds = [
+    tool.extraModels === 'aliases' ? opus : '',
+    tool.extraModels === 'aliases' ? sonnet : '',
+    tool.lightSlot ? light : '',
+    ...(tool.extraModels === 'list' ? extras : []),
+  ].filter(Boolean);
+  const hasSecondaryConflict = secondarySlotIds.some(
+    (id) => offerFor(id).kind === 'client-locked' && laneOf(id) === 'cheap',
+  );
+  const showSecondarySlots = advancedOpen || hasSecondaryConflict;
+  const collapsedSlotSummary = writtenModels.length
+    ? t('page.console.token.connect.laneSummary', {
+        agent: writtenModels.filter((id) => laneOf(id) === 'cheap').length,
+        count: writtenModels.length,
+        defaultValue:
+          '本次写入 {{count}} 个模型 · Agent {{agent}} · 稳定 {{direct}}。',
+        direct: writtenModels.filter((id) => laneOf(id) === 'direct').length,
+      })
+    : t('page.console.token.connect.advancedSlotsHint', {
+        defaultValue: '辅助模型槽位与默认线路已自动匹配',
+      });
+
   return (
     <ModalFrame
       open={open}
@@ -917,101 +947,235 @@ export function ConnectModal({
           {modelMissing ? (
             <InlineNotice
               tone='warning'
+              className='tok-connect__paper-notice'
               title={t('page.console.token.connect.noModel', {
                 defaultValue:
                   '{{tool}} 需要一个模型，但这把 Key 现在没有可用的 {{protocol}} 模型。先在「编辑」里放开模型范围，或换一个工具。',
                 protocol: toolEndpointLabel(tool),
                 tool: tool.name,
               })}
+              actions={
+                onEditKey && record ? (
+                  <Button
+                    size='xs'
+                    type='button'
+                    variant='secondary'
+                    onClick={() => {
+                      onOpenChange(false);
+                      onEditKey(record);
+                    }}
+                  >
+                    {t('page.console.token.connect.openScopeAction', {
+                      defaultValue: '编辑模型范围',
+                    })}
+                  </Button>
+                ) : undefined
+              }
             />
           ) : null}
 
-          <div
-            className={cn(
-              'tok-connect__controls',
-              !tool.usesModel
-                ? 'tok-connect__controls--one'
-                : tool.extraModels === 'aliases'
-                  ? 'tok-connect__controls--slots'
-                  : !tool.lightSlot && 'tok-connect__controls--two',
-            )}
-          >
-            {tool.usesModel ? (
-              <ModelPickerField
-                disabled={modelOptions.length === 0}
-                id='tok-connect-model'
-                label={t('page.console.token.connect.model', {
-                  defaultValue: '默认模型',
-                })}
-                lane={laneSlotFor(model, 'tok-connect-model-label')}
-                onChange={setModel}
-                priceForModel={priceForModel}
-                result={picker}
-                t={t}
-                value={model}
-              />
-            ) : null}
-            {tool.usesModel && tool.extraModels === 'aliases' ? (
-              <>
+          {tool.usesModel ? (
+            <div className='tok-connect__model-box'>
+              <div className='tok-connect__primary-slot'>
                 <ModelPickerField
                   disabled={modelOptions.length === 0}
-                  id='tok-connect-opus'
-                  label={t('page.console.token.connect.alias.opus', {
-                    defaultValue: '旗舰档 · /model opus',
+                  id='tok-connect-model'
+                  label={t('page.console.token.connect.model', {
+                    defaultValue: '默认模型',
                   })}
-                  lane={laneSlotFor(opus, 'tok-connect-opus-label')}
-                  onChange={(next) => {
-                    setOpusPinned(true);
-                    setOpus(next);
-                  }}
+                  lane={laneSlotFor(model, 'tok-connect-model-label')}
+                  onChange={setModel}
                   priceForModel={priceForModel}
                   result={picker}
                   t={t}
-                  value={opus}
+                  value={model}
                 />
-                <ModelPickerField
-                  disabled={modelOptions.length === 0}
-                  id='tok-connect-sonnet'
-                  label={t('page.console.token.connect.alias.sonnet', {
-                    defaultValue: '均衡档 · /model sonnet',
-                  })}
-                  lane={laneSlotFor(sonnet, 'tok-connect-sonnet-label')}
-                  onChange={(next) => {
-                    setSonnetPinned(true);
-                    setSonnet(next);
-                  }}
-                  priceForModel={priceForModel}
-                  result={picker}
-                  t={t}
-                  value={sonnet}
-                />
-              </>
-            ) : null}
-            {tool.usesModel && tool.lightSlot ? (
-              <ModelPickerField
-                disabled={modelOptions.length === 0}
-                id='tok-connect-light'
-                label={
-                  tool.extraModels === 'aliases'
-                    ? t('page.console.token.connect.alias.haiku', {
-                        defaultValue: '轻量档 · /model haiku',
-                      })
-                    : t('page.console.token.connect.light', {
-                        defaultValue: '轻量模型',
-                      })
-                }
-                lane={laneSlotFor(light, 'tok-connect-light-label')}
-                onChange={(next) => {
-                  setLightPinned(true);
-                  setLight(next);
-                }}
-                priceForModel={priceForModel}
-                result={picker}
-                t={t}
-                value={light}
-              />
-            ) : null}
-            {!tool.usesModel ? (
+              </div>
+              {hasSecondarySlots ? (
+                <>
+                  <div className='tok-connect__adv-bar'>
+                    <span className='tok-connect__adv-summary'>
+                      {collapsedSlotSummary}
+                    </span>
+                    <button
+                      aria-expanded={showSecondarySlots}
+                      className='tok-connect__adv-toggle'
+                      data-owns-chrome='true'
+                      onClick={() => setAdvancedOpen((prev) => !prev)}
+                      type='button'
+                    >
+                      {showSecondarySlots
+                        ? t(
+                            'page.console.token.connect.collapseAdvancedSlots',
+                            {
+                              defaultValue: '收起',
+                            },
+                          )
+                        : t('page.console.token.connect.expandAdvancedSlots', {
+                            defaultValue: '展开高级槽位',
+                          })}
+                      <ChevronDown
+                        aria-hidden='true'
+                        className={cn(
+                          'tok-connect__adv-chevron',
+                          showSecondarySlots && 'is-open',
+                        )}
+                        size={13}
+                      />
+                    </button>
+                  </div>
+                  {showSecondarySlots ? (
+                    <div className='tok-connect__adv-body'>
+                      <div
+                        className={cn(
+                          'tok-connect__controls',
+                          tool.extraModels === 'aliases'
+                            ? 'tok-connect__controls--slots'
+                            : tool.lightSlot
+                              ? 'tok-connect__controls--two'
+                              : 'tok-connect__controls--one',
+                        )}
+                      >
+                        {tool.extraModels === 'aliases' ? (
+                          <>
+                            <ModelPickerField
+                              disabled={modelOptions.length === 0}
+                              id='tok-connect-opus'
+                              label={t(
+                                'page.console.token.connect.alias.opus',
+                                {
+                                  defaultValue: '旗舰档 · /model opus',
+                                },
+                              )}
+                              lane={laneSlotFor(opus, 'tok-connect-opus-label')}
+                              onChange={(next) => {
+                                setOpusPinned(true);
+                                setOpus(next);
+                              }}
+                              priceForModel={priceForModel}
+                              result={picker}
+                              t={t}
+                              value={opus}
+                            />
+                            <ModelPickerField
+                              disabled={modelOptions.length === 0}
+                              id='tok-connect-sonnet'
+                              label={t(
+                                'page.console.token.connect.alias.sonnet',
+                                {
+                                  defaultValue: '均衡档 · /model sonnet',
+                                },
+                              )}
+                              lane={laneSlotFor(
+                                sonnet,
+                                'tok-connect-sonnet-label',
+                              )}
+                              onChange={(next) => {
+                                setSonnetPinned(true);
+                                setSonnet(next);
+                              }}
+                              priceForModel={priceForModel}
+                              result={picker}
+                              t={t}
+                              value={sonnet}
+                            />
+                          </>
+                        ) : null}
+                        {tool.lightSlot ? (
+                          <ModelPickerField
+                            disabled={modelOptions.length === 0}
+                            id='tok-connect-light'
+                            label={
+                              tool.extraModels === 'aliases'
+                                ? t('page.console.token.connect.alias.haiku', {
+                                    defaultValue: '轻量档 · /model haiku',
+                                  })
+                                : t('page.console.token.connect.light', {
+                                    defaultValue: '轻量模型',
+                                  })
+                            }
+                            lane={laneSlotFor(light, 'tok-connect-light-label')}
+                            onChange={(next) => {
+                              setLightPinned(true);
+                              setLight(next);
+                            }}
+                            priceForModel={priceForModel}
+                            result={picker}
+                            t={t}
+                            value={light}
+                          />
+                        ) : null}
+                        {tool.extraModels === 'list' ? (
+                          <ModelMultiField
+                            disabled={modelOptions.length === 0}
+                            hint={
+                              tool.id === 'codex'
+                                ? t(
+                                    'page.console.token.connect.extrasHintCodex',
+                                    {
+                                      defaultValue:
+                                        '写成 Codex 的模型目录：/model 里切换，每个模型各选推理强度；默认模型已在目录里',
+                                    },
+                                  )
+                                : tool.lightSlot
+                                  ? t('page.console.token.connect.extrasHint', {
+                                      defaultValue:
+                                        '写进 {{tool}} 的模型列表，在应用里直接切换；默认和轻量模型已经在列表里',
+                                      tool: tool.name,
+                                    })
+                                  : t(
+                                      'page.console.token.connect.extrasHintDefaultOnly',
+                                      {
+                                        defaultValue:
+                                          '写进 {{tool}} 的模型列表，在应用里直接切换；默认模型已经在列表里',
+                                        tool: tool.name,
+                                      },
+                                    )
+                            }
+                            candidates={extraCandidates}
+                            fixed={[model, tool.lightSlot ? light : '']}
+                            id='tok-connect-extras'
+                            label={t('page.console.token.connect.extras', {
+                              defaultValue: '同时导入',
+                            })}
+                            laneFor={(id) => (
+                              <LaneControl
+                                compact
+                                disabled={!canUpdate}
+                                offer={offerFor(id)}
+                                onChange={(next) => setLaneOf(id, next)}
+                                t={t}
+                                value={laneOf(id)}
+                              />
+                            )}
+                            note={t(
+                              'page.console.token.connect.extrasLaneNote',
+                              {
+                                defaultValue:
+                                  '每行右侧是该模型的线路；没有 Agent 专线来源的模型不显示开关。Agent 专线由第三方订阅池提供，不是官方 API，只建议在对应的 Agent 工具里用',
+                              },
+                            )}
+                            onChange={(next) => {
+                              setExtrasPinned(true);
+                              setExtras(next);
+                            }}
+                            priceForModel={priceForModel}
+                            result={picker}
+                            t={t}
+                            values={extras}
+                          />
+                        ) : null}
+                        {laneSummary}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className='tok-connect__primary-foot'>{laneSummary}</div>
+              )}
+            </div>
+          ) : (
+            <div className='tok-connect__controls tok-connect__controls--one'>
               <LaneTable
                 canUpdate={canUpdate}
                 laneOf={laneOf}
@@ -1023,60 +1187,9 @@ export function ConnectModal({
                 vendorLabelOf={vendorLabelOf}
                 vendorLaneOf={vendorLaneOf}
               />
-            ) : null}
-            {tool.usesModel && tool.extraModels === 'list' ? (
-              <ModelMultiField
-                disabled={modelOptions.length === 0}
-                hint={
-                  tool.id === 'codex'
-                    ? t('page.console.token.connect.extrasHintCodex', {
-                        defaultValue:
-                          '写成 Codex 的模型目录：/model 里切换，每个模型各选推理强度；默认模型已在目录里',
-                      })
-                    : tool.lightSlot
-                      ? t('page.console.token.connect.extrasHint', {
-                          defaultValue:
-                            '写进 {{tool}} 的模型列表，在应用里直接切换；默认和轻量模型已经在列表里',
-                          tool: tool.name,
-                        })
-                      : t('page.console.token.connect.extrasHintDefaultOnly', {
-                          defaultValue:
-                            '写进 {{tool}} 的模型列表，在应用里直接切换；默认模型已经在列表里',
-                          tool: tool.name,
-                        })
-                }
-                candidates={extraCandidates}
-                fixed={[model, tool.lightSlot ? light : '']}
-                id='tok-connect-extras'
-                label={t('page.console.token.connect.extras', {
-                  defaultValue: '同时导入',
-                })}
-                laneFor={(id) => (
-                  <LaneControl
-                    compact
-                    disabled={!canUpdate}
-                    offer={offerFor(id)}
-                    onChange={(next) => setLaneOf(id, next)}
-                    t={t}
-                    value={laneOf(id)}
-                  />
-                )}
-                note={t('page.console.token.connect.extrasLaneNote', {
-                  defaultValue:
-                    '每行右侧是该模型的线路；没有 Agent 专线来源的模型不显示开关。Agent 专线由第三方订阅池提供，不是官方 API，只建议在对应的 Agent 工具里用',
-                })}
-                onChange={(next) => {
-                  setExtrasPinned(true);
-                  setExtras(next);
-                }}
-                priceForModel={priceForModel}
-                result={picker}
-                t={t}
-                values={extras}
-              />
-            ) : null}
-            {laneSummary}
-          </div>
+              {laneSummary}
+            </div>
+          )}
 
           {tool.quick ? (
             <div className='tok-connect__quick'>

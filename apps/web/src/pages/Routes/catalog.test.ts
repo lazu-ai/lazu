@@ -14,6 +14,8 @@ import {
   resolveLanes,
   type CatalogModel,
 } from './catalog';
+import { laneHasRecord, resolveLaneSlices } from './lane-block';
+import type { TFunction } from 'i18next';
 
 describe('model catalog normalization', () => {
   it('reads the registered catalog response shape', () => {
@@ -234,5 +236,58 @@ describe('DeepSeek peak calendar from the server', () => {
         new Date(at),
       ),
     ).toBe(factor);
+  });
+});
+
+describe('lane 7d health slices & record detection', () => {
+  const mockT = ((key: string, options?: Record<string, unknown>) =>
+    String(options?.defaultValue ?? key)) as unknown as TFunction;
+
+  it('never reports a record for empty, disabled, or source=none buckets', () => {
+    expect(laneHasRecord({ key: 'stable' })).toBe(false);
+    expect(
+      laneHasRecord({
+        key: 'stable',
+        available: false,
+        health: {
+          buckets: [{ index: 0, source: 'sample', tone: 'ok' }],
+        },
+      }),
+    ).toBe(false);
+    expect(
+      laneHasRecord({
+        key: 'stable',
+        health: {
+          buckets: [
+            { index: 0, source: 'none', tone: 'none' },
+            { index: 1, source: 'none', tone: 'none' },
+          ],
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('renders 7d health slices for both indexed and positional bucket payloads', () => {
+    const positionalLane = {
+      key: 'eco' as const,
+      health: {
+        bucket_seconds: 7200,
+        buckets: [
+          {
+            start_at: '2026-10-20T00:00:00Z',
+            tone: 'ok' as const,
+            success_rate: 1,
+          },
+          {
+            start_at: '2026-10-20T02:00:00Z',
+            tone: 'warn' as const,
+            success_rate: 0.92,
+          },
+        ],
+      },
+    };
+    expect(laneHasRecord(positionalLane)).toBe(true);
+    const slices = resolveLaneSlices(positionalLane.health, 'zh-CN', mockT);
+    expect(slices.map((slice) => slice.tone)).toEqual(['ok', 'warn']);
   });
 });

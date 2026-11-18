@@ -1,9 +1,21 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import { X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, CircleAlert, X } from 'lucide-react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useControlAppearanceClass } from './control-appearance';
 import { cn } from '../../lib/cn';
+import '../../styles/modal.css';
+
+type ModalTone = 'default' | 'danger' | 'warning';
+
+type SwipeHandlers = {
+  onPointerCancel: () => void;
+  onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+  onPointerMove: (event: React.PointerEvent<HTMLElement>) => void;
+  onPointerUp: (event: React.PointerEvent<HTMLElement>) => void;
+};
+
+const ModalSwipeContext = React.createContext<SwipeHandlers | null>(null);
 
 type ModalProps = Omit<DialogPrimitive.Root.Props, 'children'> & {
   body?: React.ReactNode;
@@ -16,14 +28,16 @@ type ModalProps = Omit<DialogPrimitive.Root.Props, 'children'> & {
   hideClose?: boolean;
   labelledBy?: string;
   frameClasses?: { backdrop: string; viewport: string; popup: string };
-  /** On phones (≤720px) the dialog rises from the bottom as a sheet: a
+  /** On phones/tablets (≤768px) the dialog rises from the bottom as a sheet: a
    *  grabber, a fixed header and footer, and a body that scrolls between
    *  them. `full` keeps it 44px short of the top whatever its content. */
   sheet?: boolean | 'full';
   title?: React.ReactNode;
+  /** Semantic header tone (`danger` / `warning` render an inline icon + colored title). */
+  tone?: ModalTone;
 };
 
-const SHEET_QUERY = '(max-width: 720px)';
+const SHEET_QUERY = '(max-width: 768px)';
 const SWIPE_CLOSE_PX = 72;
 
 /* The on-screen keyboard shrinks the visual viewport but not the layout
@@ -120,7 +134,8 @@ export function ModalFrame({
   labelledBy,
   frameClasses,
   onOpenChange,
-  sheet = false,
+  sheet = true,
+  tone = 'default',
   trigger,
   ...props
 }: ModalFrameProps) {
@@ -130,13 +145,28 @@ export function ModalFrame({
   const drag = useRef<{ id: number; y: number } | null>(null);
   useKeyboardInset(Boolean(sheet) && props.open !== false);
 
-  /* Pulling the grabber down past a threshold closes the sheet through its
-     close button, so it takes the same path as a tap on 关闭 — busy guards
-     and unsaved-change prompts included. */
-  const swipe = sheet
+  /* Pulling the grabber or header down past a threshold closes the sheet
+     through its close button, so it takes the same path as a tap on 关闭 —
+     busy guards and unsaved-change prompts included. */
+  const swipe: SwipeHandlers | null = sheet
     ? {
         onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
-          if (busy || !window.matchMedia(SHEET_QUERY).matches) return;
+          if (
+            busy ||
+            typeof window === 'undefined' ||
+            typeof window.matchMedia !== 'function' ||
+            !window.matchMedia(SHEET_QUERY).matches
+          ) {
+            return;
+          }
+          if (
+            event.target instanceof Element &&
+            event.target.closest(
+              'button, a, input, select, textarea, [role="button"]',
+            )
+          ) {
+            return;
+          }
           drag.current = { id: event.pointerId, y: event.clientY };
           event.currentTarget.setPointerCapture(event.pointerId);
         },
@@ -196,6 +226,8 @@ export function ModalFrame({
               frameClasses?.popup ?? 'lazu-modal-content',
               sheet && 'lazu-modal-content--sheet',
               sheet === 'full' && 'lazu-modal-content--sheet-full',
+              tone === 'danger' && 'lazu-modal-content--danger',
+              tone === 'warning' && 'lazu-modal-content--warning',
               controlAppearanceClass,
               className,
             )}
@@ -226,7 +258,9 @@ export function ModalFrame({
                 <X size={17} />
               </DialogPrimitive.Close>
             ) : null}
-            {children}
+            <ModalSwipeContext.Provider value={swipe}>
+              {children}
+            </ModalSwipeContext.Provider>
           </DialogPrimitive.Popup>
         </DialogPrimitive.Viewport>
       </DialogPrimitive.Portal>
@@ -237,6 +271,54 @@ export function ModalFrame({
 export const ModalTitle = DialogPrimitive.Title;
 export const ModalDescription = DialogPrimitive.Description;
 
+function ModalHeader({
+  description,
+  scrolled,
+  sheet,
+  title,
+  tone,
+}: {
+  description?: React.ReactNode;
+  scrolled: boolean;
+  sheet: boolean | 'full';
+  title?: React.ReactNode;
+  tone: ModalTone;
+}) {
+  const swipe = useContext(ModalSwipeContext);
+  const ToneIcon =
+    tone === 'danger' ? CircleAlert : tone === 'warning' ? AlertTriangle : null;
+  return (
+    <div
+      className='lazu-modal-header'
+      data-scrolled={(sheet && scrolled) || undefined}
+      {...(swipe ?? null)}
+    >
+      {title ? (
+        <ModalTitle
+          className={cn(
+            'lazu-modal-title',
+            ToneIcon && 'lazu-modal-title--with-icon',
+          )}
+        >
+          {ToneIcon ? (
+            <ToneIcon
+              aria-hidden='true'
+              className='lazu-modal-title__icon'
+              size={16}
+            />
+          ) : null}
+          {title}
+        </ModalTitle>
+      ) : null}
+      {description ? (
+        <ModalDescription className='lazu-modal-description'>
+          {description}
+        </ModalDescription>
+      ) : null}
+    </div>
+  );
+}
+
 export function Modal({
   body,
   busy = false,
@@ -246,8 +328,9 @@ export function Modal({
   description,
   footer,
   hideClose = false,
-  sheet = false,
+  sheet = true,
   title,
+  tone = 'default',
   onOpenChange,
   ...props
 }: ModalProps) {
@@ -261,31 +344,22 @@ export function Modal({
       hideClose={hideClose}
       onOpenChange={onOpenChange}
       sheet={sheet}
+      tone={tone}
       trigger={children}
       {...props}
     >
       {title || description ? (
-        <div
-          className='lazu-modal-header'
-          data-scrolled={(sheet && scrolled) || undefined}
-        >
-          {title ? (
-            <ModalTitle className='lazu-modal-title'>{title}</ModalTitle>
-          ) : null}
-          {description ? (
-            <ModalDescription className='lazu-modal-description'>
-              {description}
-            </ModalDescription>
-          ) : null}
-        </div>
+        <ModalHeader
+          description={description}
+          scrolled={scrolled}
+          sheet={sheet}
+          title={title}
+          tone={tone}
+        />
       ) : null}
       <div
         className='lazu-modal-body'
-        onScroll={
-          sheet
-            ? (event) => setScrolled(event.currentTarget.scrollTop > 0)
-            : undefined
-        }
+        onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 0)}
       >
         {body}
       </div>

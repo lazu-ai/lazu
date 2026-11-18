@@ -768,6 +768,14 @@ a.lazu-evidence:hover {
 /* A segmented box filters one table: a 4% ink track, the picked segment a
    white sheet with a hairline. Peer views use the underline strip instead
    (--line, .console-page-tabs); nothing else draws a switch. */
+.lazu-input-affix__prefix + .lazu-input {
+  padding-left: 34px;
+}
+
+.lazu-input:has(+ .lazu-input-affix__suffix) {
+  padding-right: 34px;
+}
+
 .lazu-tabs-list {
   background: var(--lazu-surface-muted);
   border: 0;
@@ -777,6 +785,7 @@ a.lazu-evidence:hover {
 
 .lazu-tabs-trigger {
   border-radius: 7px;
+  padding: 0 11px;
 }
 
 .lazu-tabs-trigger[data-active] {

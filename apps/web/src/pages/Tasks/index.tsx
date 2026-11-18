@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -8,7 +8,10 @@ import { formatTaskRemaining } from './format';
 import { TasksEmpty } from './TasksEmpty';
 import { UploadsTable, fetchUploads } from './UploadsTable';
 import { Button } from '../../components/ui/button';
+import { EmptyState } from '../../components/ui/empty-state';
 import { Input } from '../../components/ui/input';
+import { Modal } from '../../components/ui/modal';
+import { PendingValue } from '../../components/ui/pending';
 import {
   Popover,
   PopoverContent,
@@ -25,6 +28,11 @@ import { useUsageScope } from '../../hooks/usage-logs/useUsageScope';
 import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
 import { UserIdentity } from '../Log/log-support';
+import {
+  UsageRangeCalendarRow,
+  UsageRangeSeg,
+  useMobile768,
+} from '../Usage/UsageRangeSeg';
 import '../Log/log-table.css';
 import './tasks.css';
 import type { TFunction } from 'i18next';
@@ -422,6 +430,7 @@ export default function TasksPage() {
   // Platform scope (administrators) reads every account's jobs, with who
   // made each; everyone else reads their project's.
   const { activeScope, admin } = useUsageScope();
+  const narrow = useMobile768();
   const columns = admin ? 10 : 9;
   const [searchParams, setSearchParams] = useSearchParams();
   const status = searchParams.get('status') || '';
@@ -594,63 +603,133 @@ export default function TasksPage() {
     if (modelDraft.trim() !== modelName) setParam('model', modelDraft.trim());
   };
 
+  const hasActiveFilters = Boolean(status || kind || modelName || q);
+  const clearAllFilters = () => {
+    const next = new URLSearchParams(searchParams);
+    for (const key of ['status', 'kind', 'model', 'q', 'task']) {
+      next.delete(key);
+    }
+    setSearchParams(next, { replace: true });
+    setDraft('');
+    setModelDraft('');
+    setPage(1);
+  };
+
+  const statusSwitch = uploads ? null : (
+    <div
+      aria-label={t('page.console.tasks.filter.status')}
+      className='logv2-seg usage-seg'
+      role='group'
+    >
+      {STATUSES.map((value) => (
+        <button
+          aria-pressed={status === value}
+          className='logv2-seg__button'
+          data-active={status === value ? 'true' : undefined}
+          key={value || 'all'}
+          type='button'
+          onClick={() => setParam('status', value)}
+        >
+          {statusLabel(value)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const mobileFilterCount =
+    (kind ? 1 : 0) +
+    (!uploads && status ? 1 : 0) +
+    (!uploads && modelName ? 1 : 0);
+
+  const modelField = !uploads ? (
+    <div className='logv2-filter-pop__field'>
+      <label className='logv2-filter-pop__label' htmlFor='tasks-model'>
+        {t('page.console.tasks.col.model')}
+      </label>
+      <Input
+        id='tasks-model'
+        placeholder={t('page.console.tasks.filter.modelPlaceholder')}
+        value={modelDraft}
+        onChange={(event) => {
+          setModelDraft(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            setMoreOpen(false);
+            applyModel();
+          }
+        }}
+      />
+    </div>
+  ) : null;
+
   return (
     <div className='tasks-page'>
       {uploads ? null : (
         <div className='logv2-summary tasks-summary'>
           <div className='logv2-summary__cell'>
             <span>{t('page.console.tasks.summary.spend')}</span>
-            <b>{formatTaskCost(summary?.spend_microusd ?? 0)}</b>
+            <b>
+              {query.isPending ? (
+                <PendingValue chars={5} />
+              ) : (
+                formatTaskCost(summary?.spend_microusd ?? 0)
+              )}
+            </b>
           </div>
           <div className='logv2-summary__cell'>
             <span>{t('page.console.tasks.summary.tasks')}</span>
-            <b>{(summary?.tasks ?? 0).toLocaleString()}</b>
+            <b>
+              {query.isPending ? (
+                <PendingValue chars={3} />
+              ) : (
+                (summary?.tasks ?? 0).toLocaleString()
+              )}
+            </b>
           </div>
           <div className='logv2-summary__cell'>
             <span>{t('page.console.tasks.summary.active')}</span>
             <b>
-              {summary?.active ?? 0} ·{' '}
-              {formatTaskCost(summary?.active_hold_microusd ?? 0)}
+              {query.isPending ? (
+                <PendingValue chars={6} />
+              ) : (
+                <>
+                  {summary?.active ?? 0} ·{' '}
+                  {formatTaskCost(summary?.active_hold_microusd ?? 0)}
+                </>
+              )}
             </b>
           </div>
           <div className='logv2-summary__cell'>
             <span>{t('page.console.tasks.summary.failed')}</span>
             <b>
-              {summary?.failed ?? 0} ·{' '}
-              {formatTaskCost(summary?.refunded_microusd ?? 0)}
+              {query.isPending ? (
+                <PendingValue chars={6} />
+              ) : (
+                <>
+                  {summary?.failed ?? 0} ·{' '}
+                  {formatTaskCost(summary?.refunded_microusd ?? 0)}
+                </>
+              )}
             </b>
           </div>
           <div className='logv2-summary__cell'>
             <span>{t('page.console.tasks.summary.expiring')}</span>
             <b className={summary?.expiring_soon ? 'tasks-tone--warn' : ''}>
-              {summary?.expiring_soon ?? 0}
+              {query.isPending ? (
+                <PendingValue chars={2} />
+              ) : (
+                (summary?.expiring_soon ?? 0)
+              )}
             </b>
           </div>
         </div>
       )}
 
       <div className='tasks-filters'>
-        {kindSwitch}
-        {uploads ? null : (
-          <div
-            aria-label={t('page.console.tasks.filter.status')}
-            className='logv2-seg usage-seg'
-            role='group'
-          >
-            {STATUSES.map((value) => (
-              <button
-                aria-pressed={status === value}
-                className='logv2-seg__button'
-                data-active={status === value ? 'true' : undefined}
-                key={value || 'all'}
-                type='button'
-                onClick={() => setParam('status', value)}
-              >
-                {statusLabel(value)}
-              </button>
-            ))}
-          </div>
-        )}
+        {narrow ? null : kindSwitch}
+        {narrow ? null : statusSwitch}
         {/* Searches as you type, like the other usage tabs. */}
         <form
           className='tasks-search'
@@ -660,25 +739,42 @@ export default function TasksPage() {
             applySearch.flush();
           }}
         >
-          <label className='sr-only' htmlFor='tasks-q'>
-            {t('page.console.tasks.filter.search')}
+          <label className='tasks-search__box' htmlFor='tasks-q'>
+            <Search aria-hidden='true' size={14} />
+            <span className='sr-only'>
+              {t('page.console.tasks.filter.search')}
+            </span>
+            <input
+              id='tasks-q'
+              placeholder={
+                uploads
+                  ? t('page.console.tasks.uploads.search')
+                  : t('page.console.tasks.filter.search')
+              }
+              type='search'
+              value={draft}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                applySearch(event.target.value);
+              }}
+            />
           </label>
-          <input
-            id='tasks-q'
-            placeholder={
-              uploads
-                ? t('page.console.tasks.uploads.search')
-                : t('page.console.tasks.filter.search')
-            }
-            type='search'
-            value={draft}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              applySearch(event.target.value);
-            }}
-          />
         </form>
-        {uploads ? null : (
+        {narrow ? (
+          <Button
+            className='usage-filter-button'
+            onClick={() => setMoreOpen(true)}
+            size='sm'
+            type='button'
+            variant='secondary'
+          >
+            <SlidersHorizontal aria-hidden='true' size={14} />
+            {t('page.console.log.filter.more')}
+            {mobileFilterCount ? (
+              <span className='logv2-filter-count'>{mobileFilterCount}</span>
+            ) : null}
+          </Button>
+        ) : uploads ? null : (
           <Popover
             open={moreOpen}
             onOpenChange={(open) => {
@@ -701,27 +797,7 @@ export default function TasksPage() {
               </Button>
             </PopoverTrigger>
             <PopoverContent align='end' className='logv2-filter-pop'>
-              <div className='logv2-filter-pop__field'>
-                <label
-                  className='logv2-filter-pop__label'
-                  htmlFor='tasks-model'
-                >
-                  {t('page.console.tasks.col.model')}
-                </label>
-                <Input
-                  id='tasks-model'
-                  placeholder={t('page.console.tasks.filter.modelPlaceholder')}
-                  value={modelDraft}
-                  onChange={(event) => setModelDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      setMoreOpen(false);
-                      applyModel();
-                    }
-                  }}
-                />
-              </div>
+              {modelField}
               <div className='logv2-filter-pop__foot'>
                 <span className='logv2-filter-pop__hint'>
                   {t('page.console.log.filter.applyOnClose')}
@@ -743,192 +819,284 @@ export default function TasksPage() {
         )}
       </div>
 
-      {uploads ? (
-        <UploadsTable nowSec={nowSec} q={q} />
-      ) : (
-        <div className='logv2-card'>
-          <div className='logv2-scroll'>
-            <table className='logv2-table tasks-table'>
-              <thead>
-                <tr>
-                  <th scope='col'>{t('page.console.tasks.col.time')}</th>
-                  {admin ? (
-                    <th scope='col'>{t('page.console.log.column.user')}</th>
-                  ) : null}
-                  <th scope='col'>{t('page.console.tasks.col.status')}</th>
-                  <th scope='col'>{t('page.console.tasks.col.model')}</th>
-                  <th scope='col'>{t('page.console.tasks.col.key')}</th>
-                  <th scope='col'>{t('page.console.tasks.col.took')}</th>
-                  <th className='logv2-num' scope='col'>
-                    {t('page.console.tasks.col.cost')}
-                  </th>
-                  <th scope='col'>{t('page.console.tasks.col.keep')}</th>
-                  <th scope='col'>{t('page.console.tasks.col.spec')}</th>
-                  <th scope='col'>{t('page.console.tasks.col.content')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr>
-                    <td className='tasks-empty' colSpan={columns}>
-                      {query.isLoading
-                        ? t('page.system.loading.title')
-                        : t('page.console.tasks.empty')}
-                    </td>
-                  </tr>
-                ) : null}
-                {items.map((task) => {
-                  const open = openId === task.id;
-                  const took = isActive(task)
-                    ? t('page.console.tasks.took.waiting', {
-                        time: formatTaskDuration(nowSec - task.created_at),
-                      })
-                    : task.completed_at
-                      ? formatTaskDuration(task.completed_at - task.created_at)
-                      : '—';
-                  const expiresAt = task.artifact?.expires_at;
-                  return (
-                    <Fragment key={task.id}>
-                      <tr
-                        className='logv2-row'
-                        data-open={open ? 'true' : undefined}
-                        onClick={() => setParam('task', open ? '' : task.id)}
-                      >
-                        <td>
-                          <button
-                            aria-expanded={open}
-                            className='logv2-link logv2-time'
-                            type='button'
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setParam('task', open ? '' : task.id);
-                            }}
-                          >
-                            {formatTaskTime(task.created_at)}
-                          </button>
-                        </td>
-                        {admin ? (
-                          <td>
-                            <UserIdentity
-                              name={task.username || '—'}
-                              uid={task.user_id}
-                            />
-                          </td>
-                        ) : null}
-                        <td>
-                          <TaskStatusCell task={task} t={t} />
-                        </td>
-                        <td>
-                          <span className='logv2-model'>{task.model}</span>
-                        </td>
-                        <td>
-                          {task.token_name ? (
-                            task.token_name
-                          ) : (
-                            <span className='logv2-soft'>
-                              {task.key_deleted
-                                ? t('page.console.tasks.keyDeleted')
-                                : task.source && task.source !== 'media_job'
-                                  ? 'Studio'
-                                  : t('page.console.tasks.noKey')}
-                            </span>
-                          )}
-                        </td>
-                        <td className='logv2-soft tasks-nowrap'>{took}</td>
-                        <td className='logv2-num'>
-                          {isActive(task) ? (
-                            <span className='logv2-soft'>
-                              {t('page.console.tasks.cost.held', {
-                                amount: formatTaskCost(task.hold_microusd),
-                              })}
-                            </span>
-                          ) : (
-                            formatTaskCost(task.charge_microusd)
-                          )}
-                          {task.status === 'failed' && task.refund_microusd ? (
-                            <span className='logv2-chip logv2-chip--bad tasks-chip'>
-                              {t('page.console.tasks.cost.refunded')}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className='tasks-nowrap'>
-                          {expiresAt && !task.file_expired ? (
-                            <span
-                              className={
-                                expiresAt - nowSec < DAY
-                                  ? 'tasks-tone--warn'
-                                  : 'logv2-soft'
-                              }
-                            >
-                              {formatTaskRemaining(expiresAt, nowSec, t)}
-                            </span>
-                          ) : (
-                            <span className='logv2-faint'>
-                              {task.file_expired
-                                ? t('page.console.tasks.keep.gone')
-                                : '—'}
-                            </span>
-                          )}
-                        </td>
-                        <td className='tasks-nowrap'>
-                          {taskSpecText(task, t)}
-                        </td>
-                        <td>
-                          <span className='tasks-prompt' title={task.prompt}>
-                            {task.prompt || '—'}
-                          </span>
-                        </td>
-                      </tr>
-                      {open ? (
-                        <tr className='logv2-detail-row'>
-                          <td colSpan={columns}>
-                            <TaskDetail nowSec={nowSec} t={t} task={task} />
-                          </td>
-                        </tr>
-                      ) : null}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {narrow ? (
+        <Modal
+          body={
+            <div className='logv2-sheet'>
+              <section className='logv2-sheet__section'>
+                <h3 className='logv2-filter-pop__label'>
+                  {t('page.console.usage.range.title')}
+                </h3>
+                <UsageRangeSeg calendar={false} className='usage-seg' />
+                <UsageRangeCalendarRow />
+              </section>
+              <section className='logv2-sheet__section'>
+                <h3 className='logv2-filter-pop__label'>
+                  {t('page.console.tasks.kind.label')}
+                </h3>
+                {kindSwitch}
+              </section>
+              {statusSwitch ? (
+                <section className='logv2-sheet__section'>
+                  <h3 className='logv2-filter-pop__label'>
+                    {t('page.console.tasks.filter.status')}
+                  </h3>
+                  {statusSwitch}
+                </section>
+              ) : null}
+              {modelField}
+            </div>
+          }
+          closeLabel={t('common.close')}
+          footer={
+            <>
+              <Button onClick={clearAllFilters} type='button' variant='ghost'>
+                {t('page.console.log.filter.resetAll')}
+              </Button>
+              <Button
+                onClick={() => {
+                  applyModel();
+                  setMoreOpen(false);
+                }}
+                type='button'
+                variant='primary'
+              >
+                {uploads
+                  ? t('common.close')
+                  : t('page.console.log.filter.showCount', {
+                      count: data?.total ?? 0,
+                    })}
+              </Button>
+            </>
+          }
+          onOpenChange={(open) => {
+            setMoreOpen(open);
+            if (!open) applyModel();
+          }}
+          open={moreOpen}
+          sheet
+          title={t('page.console.log.filter.more')}
+        />
+      ) : null}
 
       {uploads ? (
-        <div className='tasks-pager'>
-          <span className='logv2-soft'>
-            {t('page.console.tasks.uploads.retention')}
-          </span>
+        <UploadsTable
+          hasActiveFilters={hasActiveFilters}
+          nowSec={nowSec}
+          onClearFilters={clearAllFilters}
+          q={q}
+        />
+      ) : !query.isLoading && items.length === 0 ? (
+        <div className='logv2-card'>
+          <EmptyState
+            action={
+              hasActiveFilters ? (
+                <Button
+                  onClick={clearAllFilters}
+                  size='sm'
+                  type='button'
+                  variant='secondary'
+                >
+                  {t('page.console.log.filter.clearAll', {
+                    defaultValue: '清除筛选',
+                  })}
+                </Button>
+              ) : undefined
+            }
+            description={
+              hasActiveFilters
+                ? t('page.console.log.emptyDescription', {
+                    defaultValue: '尝试放宽筛选条件或切换时间范围。',
+                  })
+                : t('page.console.tasks.retention')
+            }
+            title={t('page.console.tasks.empty')}
+          />
         </div>
       ) : (
-        <div className='tasks-pager'>
-          <span>{t('page.console.tasks.count', { n: data?.total ?? 0 })}</span>
-          <span className='tasks-pager__buttons'>
-            <button
-              className='tasks-button'
-              disabled={page <= 1}
-              type='button'
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-            >
-              {t('page.console.tasks.prev')}
-            </button>
+        <>
+          <div className='logv2-card'>
+            <div className='logv2-scroll'>
+              <table className='logv2-table tasks-table'>
+                <thead>
+                  <tr>
+                    <th scope='col'>{t('page.console.tasks.col.time')}</th>
+                    {admin ? (
+                      <th scope='col'>{t('page.console.log.column.user')}</th>
+                    ) : null}
+                    <th scope='col'>{t('page.console.tasks.col.status')}</th>
+                    <th scope='col'>{t('page.console.tasks.col.model')}</th>
+                    <th scope='col'>{t('page.console.tasks.col.key')}</th>
+                    <th scope='col'>{t('page.console.tasks.col.took')}</th>
+                    <th className='logv2-num' scope='col'>
+                      {t('page.console.tasks.col.cost')}
+                    </th>
+                    <th scope='col'>{t('page.console.tasks.col.keep')}</th>
+                    <th scope='col'>{t('page.console.tasks.col.spec')}</th>
+                    <th scope='col'>{t('page.console.tasks.col.content')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {query.isLoading && items.length === 0
+                    ? Array.from({ length: 6 }, (_, index) => (
+                        <tr aria-hidden='true' key={index}>
+                          {Array.from({ length: columns }, (__, cellIndex) => (
+                            <td key={cellIndex}>
+                              <PendingValue chars={6} />
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    : null}
+                  {items.map((task) => {
+                    const open = openId === task.id;
+                    const took = isActive(task)
+                      ? t('page.console.tasks.took.waiting', {
+                          time: formatTaskDuration(nowSec - task.created_at),
+                        })
+                      : task.completed_at
+                        ? formatTaskDuration(
+                            task.completed_at - task.created_at,
+                          )
+                        : '—';
+                    const expiresAt = task.artifact?.expires_at;
+                    return (
+                      <Fragment key={task.id}>
+                        <tr
+                          className='logv2-row'
+                          data-open={open ? 'true' : undefined}
+                          onClick={() => setParam('task', open ? '' : task.id)}
+                        >
+                          <td>
+                            <button
+                              aria-expanded={open}
+                              className='logv2-link logv2-time'
+                              type='button'
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setParam('task', open ? '' : task.id);
+                              }}
+                            >
+                              {formatTaskTime(task.created_at)}
+                            </button>
+                          </td>
+                          {admin ? (
+                            <td>
+                              <UserIdentity
+                                name={task.username || '—'}
+                                uid={task.user_id}
+                              />
+                            </td>
+                          ) : null}
+                          <td>
+                            <TaskStatusCell task={task} t={t} />
+                          </td>
+                          <td>
+                            <span className='logv2-model'>{task.model}</span>
+                          </td>
+                          <td>
+                            {task.token_name ? (
+                              task.token_name
+                            ) : (
+                              <span className='logv2-soft'>
+                                {task.key_deleted
+                                  ? t('page.console.tasks.keyDeleted')
+                                  : task.source && task.source !== 'media_job'
+                                    ? 'Studio'
+                                    : t('page.console.tasks.noKey')}
+                              </span>
+                            )}
+                          </td>
+                          <td className='logv2-soft tasks-nowrap'>{took}</td>
+                          <td className='logv2-num'>
+                            {isActive(task) ? (
+                              <span className='logv2-soft'>
+                                {t('page.console.tasks.cost.held', {
+                                  amount: formatTaskCost(task.hold_microusd),
+                                })}
+                              </span>
+                            ) : (
+                              formatTaskCost(task.charge_microusd)
+                            )}
+                            {task.status === 'failed' &&
+                            task.refund_microusd ? (
+                              <span className='logv2-chip logv2-chip--bad tasks-chip'>
+                                {t('page.console.tasks.cost.refunded')}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className='tasks-nowrap'>
+                            {expiresAt && !task.file_expired ? (
+                              <span
+                                className={
+                                  expiresAt - nowSec < DAY
+                                    ? 'tasks-tone--warn'
+                                    : 'logv2-soft'
+                                }
+                              >
+                                {formatTaskRemaining(expiresAt, nowSec, t)}
+                              </span>
+                            ) : (
+                              <span className='logv2-faint'>
+                                {task.file_expired
+                                  ? t('page.console.tasks.keep.gone')
+                                  : '—'}
+                              </span>
+                            )}
+                          </td>
+                          <td className='tasks-nowrap'>
+                            {taskSpecText(task, t)}
+                          </td>
+                          <td>
+                            <span className='tasks-prompt' title={task.prompt}>
+                              {task.prompt || '—'}
+                            </span>
+                          </td>
+                        </tr>
+                        {open ? (
+                          <tr className='logv2-detail-row'>
+                            <td colSpan={columns}>
+                              <TaskDetail nowSec={nowSec} t={t} task={task} />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className='tasks-pager'>
             <span>
-              {page} / {totalPages}
+              {t('page.console.tasks.count', { n: data?.total ?? 0 })}
             </span>
-            <button
-              className='tasks-button'
-              disabled={page >= totalPages}
-              type='button'
-              onClick={() => setPage((value) => value + 1)}
-            >
-              {t('page.console.tasks.next')}
-            </button>
-          </span>
-          <span className='logv2-soft'>
-            {t('page.console.tasks.retention')}
-          </span>
-        </div>
+            <span className='tasks-pager__buttons'>
+              <button
+                className='tasks-button'
+                disabled={page <= 1}
+                type='button'
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+              >
+                {t('page.console.tasks.prev')}
+              </button>
+              <span>
+                {page} / {totalPages}
+              </span>
+              <button
+                className='tasks-button'
+                disabled={page >= totalPages}
+                type='button'
+                onClick={() => setPage((value) => value + 1)}
+              >
+                {t('page.console.tasks.next')}
+              </button>
+            </span>
+            <span className='logv2-soft'>
+              {t('page.console.tasks.retention')}
+            </span>
+          </div>
+        </>
       )}
     </div>
   );

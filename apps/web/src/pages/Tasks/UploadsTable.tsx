@@ -6,6 +6,10 @@ import { isAxiosError } from 'axios';
 import { Download, FileText, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatTaskRemaining } from './format';
+import { Button } from '../../components/ui/button';
+import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorState } from '../../components/ui/error-state';
+import { PendingValue } from '../../components/ui/pending';
 import { deferUndoable, useUndoPending } from '../../components/ui/undo-toast';
 import { API } from '../../helpers/api';
 import { showError } from '../../helpers/utils';
@@ -73,7 +77,17 @@ const withJsonErrorBody = async (error: unknown): Promise<unknown> => {
   return error;
 };
 
-export function UploadsTable({ nowSec, q }: { nowSec: number; q: string }) {
+export function UploadsTable({
+  hasActiveFilters = false,
+  nowSec,
+  onClearFilters,
+  q,
+}: {
+  hasActiveFilters?: boolean;
+  nowSec: number;
+  onClearFilters?: () => void;
+  q: string;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const undoPending = useUndoPending();
@@ -129,6 +143,53 @@ export function UploadsTable({ nowSec, q }: { nowSec: number; q: string }) {
       ? t('page.console.files.purpose.vision')
       : t('page.console.files.purpose.userData');
 
+  if (!query.isPending && query.isError) {
+    return (
+      <div className='logv2-card'>
+        <ErrorState
+          action={
+            <Button
+              onClick={() => void query.refetch()}
+              size='sm'
+              type='button'
+              variant='secondary'
+            >
+              {t('page.console.log.session.retry', { defaultValue: '重试' })}
+            </Button>
+          }
+          error={query.error}
+          title={t('page.console.tasks.uploads.loadFailed')}
+        />
+      </div>
+    );
+  }
+
+  if (!query.isPending && files.length === 0) {
+    return (
+      <div className='logv2-card'>
+        <EmptyState
+          action={
+            (needle || hasActiveFilters) && onClearFilters ? (
+              <Button
+                onClick={onClearFilters}
+                size='sm'
+                type='button'
+                variant='secondary'
+              >
+                {t('page.console.log.filter.clearAll', {
+                  defaultValue: '清除筛选',
+                })}
+              </Button>
+            ) : undefined
+          }
+          description={t('page.console.tasks.uploads.retention')}
+          icon={<FileText size={22} />}
+          title={t('page.console.tasks.uploads.empty')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className='logv2-card'>
       <div className='logv2-scroll'>
@@ -148,17 +209,30 @@ export function UploadsTable({ nowSec, q }: { nowSec: number; q: string }) {
             </tr>
           </thead>
           <tbody>
-            {files.length === 0 ? (
-              <tr>
-                <td className='tasks-empty' colSpan={6}>
-                  {query.isPending
-                    ? t('page.system.loading.title')
-                    : query.isError
-                      ? t('page.console.tasks.uploads.loadFailed')
-                      : t('page.console.tasks.uploads.empty')}
-                </td>
-              </tr>
-            ) : null}
+            {query.isPending
+              ? Array.from({ length: 4 }, (_, index) => (
+                  <tr aria-hidden='true' key={index}>
+                    <td>
+                      <PendingValue chars={18} />
+                    </td>
+                    <td>
+                      <PendingValue chars={6} />
+                    </td>
+                    <td>
+                      <PendingValue chars={6} />
+                    </td>
+                    <td>
+                      <PendingValue chars={6} />
+                    </td>
+                    <td>
+                      <PendingValue chars={8} />
+                    </td>
+                    <td className='uploads-table__actions'>
+                      <PendingValue chars={4} />
+                    </td>
+                  </tr>
+                ))
+              : null}
             {files.map((file) => {
               const deleting = undoPending.has(`file:${file.id}`);
               return (

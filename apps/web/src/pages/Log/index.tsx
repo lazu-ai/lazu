@@ -30,7 +30,7 @@ import {
 } from './log-support';
 import { SK } from './sessions/session-format';
 import SessionsView from './sessions/SessionsView';
-import { SpendCard } from './SpendCard';
+import { SpendCard, formatSpendMoney } from './SpendCard';
 import { Button } from '../../components/ui/button';
 import { DataTableShell } from '../../components/ui/data-table-shell';
 import {
@@ -55,8 +55,6 @@ import {
 } from '../../components/ui/table-tools';
 import { useConsoleScope } from '../../context/ConsoleScope';
 import { rejectionLabelKey } from '../../features/projects/rejections';
-import { formatMoney } from '../../helpers/money';
-import { asMicroUSD } from '../../helpers/money';
 import { showError } from '../../helpers/utils';
 import { useUsageRange } from '../../hooks/usage-logs/usageRange';
 import {
@@ -477,7 +475,7 @@ const Token = () => {
      仅我自己 a chip says so above the table and drops back to 平台全局. */
   const scopeSwitch =
     platformScope && customerScope ? (
-      <span className='logv2-seg'>
+      <span className='logv2-seg usage-seg'>
         <button
           type='button'
           aria-pressed={logs.isAdminUser}
@@ -611,7 +609,14 @@ const Token = () => {
             </div>
           ) : (
             <SpendCard
-              loading={logs.statLoading}
+              amountMicrousd={
+                showingUsers && !userAggregateQuery.isLoading
+                  ? userRowsTotalMicrousd
+                  : listSpend
+              }
+              loading={
+                showingUsers ? userAggregateQuery.isLoading : logs.statLoading
+              }
               preset={range.preset}
               range={range}
               stat={logs.stat}
@@ -640,7 +645,7 @@ const Token = () => {
                 scopeChip={scopeChip}
                 viewSwitcher={
                   logs.isAdminUser && viewMode === 'requests' ? (
-                    <span className='logv2-seg'>
+                    <span className='logv2-seg usage-seg'>
                       <button
                         type='button'
                         aria-pressed={!showingUsers}
@@ -707,208 +712,248 @@ const Token = () => {
                 </div>
               ) : null}
               <div className='logv2-card logv2-desktop-master'>
-                {/* While the page is in flight the table holds a page's
-                    worth of height, so the pager under it holds still. Once
-                    the answer is here the table is as tall as the answer:
-                    a page with three rows is three rows, not ten. */}
-                <div
-                  className='logv2-scroll'
-                  style={
-                    {
-                      '--logv2-page-rows': logs.isLoading
-                        ? Math.min(logs.pageSize || 10, 10)
-                        : Math.max(logs.usageLogs.length, 2),
-                    } as React.CSSProperties
-                  }
-                >
-                  <table className='logv2-table'>
-                    <thead>
-                      <tr>
-                        {columnVisibility.visibleColumns.map((column) => (
-                          <th
-                            key={column.id}
-                            className={
-                              NUMERIC_LOG_COLUMNS.has(column.id)
-                                ? 'logv2-num'
-                                : undefined
-                            }
-                          >
-                            {column.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.isLoading ? (
-                        /* One "加载中…" row, and everything under the table —
-                           the pager, the investigation panel — sat a few
-                           dozen pixels from the top and was thrown down when
-                           the rows arrived (measured: 0.17 layout shift, the
-                           worst in the console). The outline is the page the
-                           query is about to return, at its height. */
-                        Array.from({
-                          length: Math.min(logs.pageSize || 10, 10),
-                        }).map((_unused, rowIndex) => (
-                          <tr aria-hidden='true' key={`pending-${rowIndex}`}>
+                {!logs.isLoading && logs.usageLogs.length === 0 ? (
+                  <EmptyState
+                    action={
+                      logs.filters.channel ||
+                      logs.filters.group ||
+                      (logs.filters.logType && logs.filters.logType !== '0') ||
+                      logs.filters.model_name ||
+                      logs.filters.token_name ||
+                      logs.filters.user_id ||
+                      logs.filters.username ? (
+                        <Button
+                          size='sm'
+                          type='button'
+                          variant='secondary'
+                          onClick={() =>
+                            logs.submitFilters({
+                              ...logs.filters,
+                              channel: '',
+                              group: '',
+                              logType: '0',
+                              model_name: '',
+                              token_name: '',
+                              user_id: '',
+                              username: '',
+                            })
+                          }
+                        >
+                          {t('page.console.log.filter.clearAll', {
+                            defaultValue: '清除筛选',
+                          })}
+                        </Button>
+                      ) : undefined
+                    }
+                    icon={<Activity size={24} />}
+                    title={t('legacy.i18n.no_results_found.3f5746269e')}
+                    description={t('page.console.log.emptyDescription')}
+                  />
+                ) : (
+                  <>
+                    {/* While the page is in flight the table holds a page's
+                        worth of height, so the pager under it holds still. Once
+                        the answer is here the table is as tall as the answer:
+                        a page with three rows is three rows, not ten. */}
+                    <div
+                      className='logv2-scroll'
+                      style={
+                        {
+                          '--logv2-page-rows': logs.isLoading
+                            ? Math.min(logs.pageSize || 10, 10)
+                            : Math.max(logs.usageLogs.length, 2),
+                        } as React.CSSProperties
+                      }
+                    >
+                      <table className='logv2-table'>
+                        <thead>
+                          <tr>
                             {columnVisibility.visibleColumns.map((column) => (
-                              <td
+                              <th
+                                key={column.id}
                                 className={
                                   NUMERIC_LOG_COLUMNS.has(column.id)
                                     ? 'logv2-num'
                                     : undefined
                                 }
-                                key={column.id}
                               >
-                                <PendingValue chars={6} />
-                              </td>
+                                {column.label}
+                              </th>
                             ))}
                           </tr>
-                        ))
-                      ) : logs.usageLogs.length === 0 ? (
-                        <tr>
-                          <td colSpan={columnVisibility.visibleColumns.length}>
-                            <EmptyState
-                              icon={<Activity size={24} />}
-                              title={t(
-                                'legacy.i18n.no_results_found.3f5746269e',
-                              )}
-                              description={t(
-                                'page.console.log.emptyDescription',
-                              )}
-                            />
-                          </td>
-                        </tr>
-                      ) : (
-                        logs.usageLogs.flatMap((record) => {
-                          const isOpen = Boolean(
-                            selectedRequestId &&
-                            requestIdentity(record) === selectedRequestId,
-                          );
-                          return [
-                            <tr
-                              key={record.key}
-                              className='logv2-row'
-                              data-failed={
-                                Number(record.type) === 5 && !isOpen
-                                  ? 'true'
-                                  : undefined
-                              }
-                              data-selected={isOpen ? 'true' : undefined}
-                              onClick={() => selectRequest(record)}
-                            >
-                              {columnVisibility.visibleColumns.map((column) => (
-                                <td
-                                  key={column.id}
-                                  className={
-                                    NUMERIC_LOG_COLUMNS.has(column.id)
-                                      ? 'logv2-num'
-                                      : undefined
-                                  }
+                        </thead>
+                        <tbody>
+                          {logs.isLoading
+                            ? /* One "加载中…" row, and everything under the table —
+                                 the pager, the investigation panel — sat a few
+                                 dozen pixels from the top and was thrown down when
+                                 the rows arrived (measured: 0.17 layout shift, the
+                                 worst in the console). The outline is the page the
+                                 query is about to return, at its height. */
+                              Array.from({
+                                length: Math.min(logs.pageSize || 10, 10),
+                              }).map((_unused, rowIndex) => (
+                                <tr
+                                  aria-hidden='true'
+                                  key={`pending-${rowIndex}`}
                                 >
-                                  {renderLogCell(
-                                    column.id,
-                                    record,
-                                    cellContext,
+                                  {columnVisibility.visibleColumns.map(
+                                    (column) => (
+                                      <td
+                                        className={
+                                          NUMERIC_LOG_COLUMNS.has(column.id)
+                                            ? 'logv2-num'
+                                            : undefined
+                                        }
+                                        key={column.id}
+                                      >
+                                        <PendingValue chars={6} />
+                                      </td>
+                                    ),
                                   )}
-                                </td>
-                              ))}
-                            </tr>,
-                            Number(record.type) === 5 && !isOpen ? (
-                              <tr
-                                className='logv2-failrow'
-                                key={`${record.key}-fail`}
-                                onClick={() => selectRequest(record)}
-                              >
-                                <td aria-hidden='true' />
-                                <td
-                                  colSpan={
-                                    columnVisibility.visibleColumns.length - 1
-                                  }
-                                >
-                                  <FailureNote
-                                    onOpen={() => selectRequest(record)}
-                                    record={record}
-                                    t={t}
-                                  />
-                                </td>
-                              </tr>
-                            ) : null,
-                            isOpen ? (
-                              <tr
-                                className='logv2-detail-row'
-                                key={`${record.key}-detail`}
-                              >
-                                <td
-                                  colSpan={
-                                    columnVisibility.visibleColumns.length
-                                  }
-                                >
-                                  {/* Focus moves here on open so the detail is
-                                      announced and keyboard-reachable, but with
-                                      preventScroll: the reader keeps their
-                                      place in the list. */}
-                                  <div
-                                    aria-label='Selected request receipt'
-                                    className='logv2-receipt'
-                                    ref={(node) => {
-                                      if (
-                                        node &&
-                                        requestRevealVersion !==
-                                          revealedRef.current
-                                      ) {
-                                        revealedRef.current =
-                                          requestRevealVersion;
-                                        node.focus({ preventScroll: true });
-                                      }
-                                    }}
-                                    tabIndex={-1}
+                                </tr>
+                              ))
+                            : logs.usageLogs.flatMap((record) => {
+                                const isOpen = Boolean(
+                                  selectedRequestId &&
+                                  requestIdentity(record) === selectedRequestId,
+                                );
+                                return [
+                                  <tr
+                                    key={record.key}
+                                    className='logv2-row'
+                                    data-failed={
+                                      Number(record.type) === 5 && !isOpen
+                                        ? 'true'
+                                        : undefined
+                                    }
+                                    data-selected={isOpen ? 'true' : undefined}
+                                    onClick={() => selectRequest(record)}
                                   >
-                                    <LogDetailPanel
-                                      record={record}
-                                      t={t}
-                                      copyText={logs.copyText}
-                                      isAdminUser={logs.isAdminUser}
-                                    />
-                                  </div>
-                                </td>
-                              </tr>
-                            ) : null,
-                          ];
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div className='logv2-foot'>
-                  <span>
-                    {logs.isLoading ? (
-                      <PendingValue chars={18} />
-                    ) : (
-                      t(
-                        logs.totalAtLeast
-                          ? 'page.console.log.footer.summaryAtLeast'
-                          : 'page.console.log.footer.summary',
-                        {
-                          cost: formatMoney(asMicroUSD(listSpend), 6),
-                          defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
-                          total: compactNumber(logs.total),
-                        },
-                      )
-                    )}
-                  </span>
-                  <Pagination
-                    currentPage={logs.page}
-                    pageSize={logs.pageSize}
-                    total={logs.total}
-                    totalAtLeast={logs.totalAtLeast}
-                    hasNextPage={logs.usageLogs.length >= logs.pageSize}
-                    showTotal={false}
-                    showSizeChanger
-                    pageSizeOpts={DEFAULT_PAGE_SIZE_OPTIONS}
-                    onPageChange={logs.setPage}
-                    onPageSizeChange={logs.setPageSize}
-                  />
-                </div>
+                                    {columnVisibility.visibleColumns.map(
+                                      (column) => (
+                                        <td
+                                          key={column.id}
+                                          className={
+                                            NUMERIC_LOG_COLUMNS.has(column.id)
+                                              ? 'logv2-num'
+                                              : undefined
+                                          }
+                                        >
+                                          {renderLogCell(
+                                            column.id,
+                                            record,
+                                            cellContext,
+                                          )}
+                                        </td>
+                                      ),
+                                    )}
+                                  </tr>,
+                                  Number(record.type) === 5 && !isOpen ? (
+                                    <tr
+                                      className='logv2-failrow'
+                                      key={`${record.key}-fail`}
+                                      onClick={() => selectRequest(record)}
+                                    >
+                                      <td aria-hidden='true' />
+                                      <td
+                                        colSpan={
+                                          columnVisibility.visibleColumns
+                                            .length - 1
+                                        }
+                                      >
+                                        <FailureNote
+                                          onOpen={() => selectRequest(record)}
+                                          record={record}
+                                          t={t}
+                                        />
+                                      </td>
+                                    </tr>
+                                  ) : null,
+                                  isOpen ? (
+                                    <tr
+                                      className='logv2-detail-row'
+                                      key={`${record.key}-detail`}
+                                    >
+                                      <td
+                                        colSpan={
+                                          columnVisibility.visibleColumns.length
+                                        }
+                                      >
+                                        {/* Focus moves here on open so the detail is
+                                            announced and keyboard-reachable, but with
+                                            preventScroll: the reader keeps their
+                                            place in the list. */}
+                                        <div
+                                          aria-label='Selected request receipt'
+                                          className='logv2-receipt'
+                                          ref={(node) => {
+                                            if (
+                                              node &&
+                                              requestRevealVersion !==
+                                                revealedRef.current
+                                            ) {
+                                              revealedRef.current =
+                                                requestRevealVersion;
+                                              node.focus({
+                                                preventScroll: true,
+                                              });
+                                            }
+                                          }}
+                                          tabIndex={-1}
+                                        >
+                                          <LogDetailPanel
+                                            channelShownInRow={columnVisibility.visibleColumns.some(
+                                              (column) =>
+                                                column.id ===
+                                                LOG_COLUMN_KEYS.CHANNEL,
+                                            )}
+                                            record={record}
+                                            t={t}
+                                            copyText={logs.copyText}
+                                            isAdminUser={logs.isAdminUser}
+                                          />
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ) : null,
+                                ];
+                              })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className='logv2-foot'>
+                      <span>
+                        {logs.isLoading ? (
+                          <PendingValue chars={18} />
+                        ) : (
+                          t(
+                            logs.totalAtLeast
+                              ? 'page.console.log.footer.summaryAtLeast'
+                              : 'page.console.log.footer.summary',
+                            {
+                              cost: formatSpendMoney(listSpend),
+                              defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
+                              total: compactNumber(logs.total),
+                            },
+                          )
+                        )}
+                      </span>
+                      <Pagination
+                        currentPage={logs.page}
+                        pageSize={logs.pageSize}
+                        total={logs.total}
+                        totalAtLeast={logs.totalAtLeast}
+                        hasNextPage={logs.usageLogs.length >= logs.pageSize}
+                        showTotal={false}
+                        showSizeChanger
+                        pageSizeOpts={DEFAULT_PAGE_SIZE_OPTIONS}
+                        onPageChange={logs.setPage}
+                        onPageSizeChange={logs.setPageSize}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
               <div className='logv2-mobile-master'>
                 {/* The card list gets the same disclosure as the table: the
@@ -930,6 +975,7 @@ const Token = () => {
                   renderExpanded={(record: LogRecord) => (
                     <div className='logv2-receipt'>
                       <LogDetailPanel
+                        channelShownInRow={logs.isAdminUser}
                         record={record}
                         t={t}
                         copyText={logs.copyText}
@@ -950,7 +996,7 @@ const Token = () => {
                           ? 'page.console.log.footer.summaryAtLeast'
                           : 'page.console.log.footer.summary',
                         {
-                          cost: formatMoney(asMicroUSD(listSpend), 6),
+                          cost: formatSpendMoney(listSpend),
                           defaultValue: '共 {{total}} 条 · 消费 {{cost}}',
                           total: compactNumber(logs.total),
                         },

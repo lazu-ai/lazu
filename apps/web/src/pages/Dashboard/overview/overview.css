@@ -1,542 +1,836 @@
-/* Console overview — locked 2026-09-30 (brand/foundations/yunmu-console.md,
-   "Locked console overview"). Canvas: `archive:brand/canvases.md`.
-   Unlayered on purpose: index.css styles bare h1/button outside any layer,
-   and an unlayered rule beats every layered one. */
+/* Console overview — Customer (12-A + 12-D) & Platform Operational Cockpit (12-B).
+ * Unlayered on purpose: index.css styles bare h1/button outside any layer.
+ */
 
 .ov-page {
+  color: var(--lazu-ink);
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  color: var(--lazu-ink);
   font-variant-numeric: tabular-nums;
-}
-.ov-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
   gap: 16px;
-  flex-wrap: wrap;
 }
+
+.ov-head {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+}
+
 .ov-head__copy {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
+
 .ov-title {
-  margin: 0;
   font-family: var(--lazu-font-display);
+  font-size: var(--lazu-console-heading-size, 34px);
   font-weight: 400;
-  font-size: var(--lazu-console-heading-size, 40px);
-  line-height: 1.05;
   letter-spacing: -0.01em;
+  line-height: 1.05;
+  margin: 0;
 }
+
 .ov-note {
+  color: var(--lazu-text-muted);
   font-size: 12px;
   line-height: 1.45;
-  color: var(--lazu-text-faint);
 }
+
 .ov-head__meta {
-  font-size: 12.5px;
   color: var(--lazu-text-faint);
+  font-size: 12.5px;
 }
+
 .ov-head__actions {
+  align-items: center;
   display: flex;
   gap: 10px;
-  align-items: center;
 }
+
 .ov-seg {
+  background: var(--lazu-surface-muted);
+  border-radius: 10px;
   display: inline-flex;
   gap: 2px;
   padding: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--lazu-ink) 6%, transparent);
 }
+
 .ov-seg__btn {
-  font: inherit;
-  font-size: 13px;
-  border: 0;
   background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
   color: var(--lazu-text-muted);
-  padding: 6px 12px;
-  border-radius: 999px;
   cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 11px;
   white-space: nowrap;
 }
+
 .ov-seg__btn[aria-pressed='true'] {
   background: var(--lazu-surface-solid);
+  border-color: var(--lazu-border);
   color: var(--lazu-ink);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgb(20 24 32 / 8%);
+  font-weight: 500;
 }
+
 .ov-link {
-  font-size: 13px;
   color: var(--lazu-evidence);
+  font-size: 12.5px;
   text-decoration: none;
+  white-space: nowrap;
 }
+
 .ov-link:hover {
-  color: var(--lazu-ink);
+  color: var(--lazu-evidence-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
+
 .ov-panel {
   background: var(--lazu-surface);
   border: 1px solid var(--lazu-border);
-  border-radius: 14px;
+  border-radius: 16px;
   box-sizing: border-box;
   min-width: 0;
 }
-/* G1: a white sheet with an ink edge and an ink label — the one row on the
-   page that asks for something. */
+
+/* G1 Needs bar: white sheet + 1px ink edge */
 .ov-needs {
-  border-color: var(--lazu-notice-edge);
-  padding: 11px 18px;
-  display: flex;
   align-items: center;
-  gap: 20px;
+  border-color: var(--lazu-notice-edge);
+  display: flex;
   flex-wrap: wrap;
-  font-size: 13.5px;
-}
-.ov-needs__label {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--lazu-ink);
+  gap: 18px;
+  padding: 11px 18px;
 }
+
+.ov-needs__label {
+  color: var(--lazu-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 .ov-needs__item {
   color: var(--lazu-ink);
   text-decoration: none;
 }
+
 .ov-needs__item:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
 .ov-needs__sep {
-  width: 1px;
-  height: 14px;
   background: color-mix(in srgb, var(--lazu-ink) 16%, transparent);
+  height: 14px;
+  width: 1px;
 }
 
-/* An empty answer is one plain sentence where the table would be — no
-   header row with nothing under it (brand/foundations/paper-states.md). */
 .ov-empty-line {
-  margin: 14px 0 2px;
   color: var(--lazu-text-muted);
-  font-size: 13.5px;
+  font-size: 12.5px;
+  margin: 8px 0 0;
 }
 
-/* Metric strip: hairline columns, no cards (Quiet Precision rule 1). */
+/* ── KPI Strips (Customer 4-Cell & Platform 5-Cell) ────────────────── */
 .ov-kpis {
   display: grid;
 }
+
+.ov-kpis--workspace {
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+}
+
+.ov-kpis--platform {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .ov-kpi {
-  padding: 18px 22px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  justify-content: center;
   min-width: 0;
+  padding: 18px 20px;
 }
+
 .ov-kpi + .ov-kpi {
   border-left: 1px solid var(--lazu-border);
 }
-.ov-groups {
-  padding: 18px 22px 20px;
-  display: grid;
-  /* Fixed shares, never content-sized: the columns must not resize when the
-     figures arrive (that is layout shift). The service group gets the room
-     its 40px success rate needs at 1440 — at 1.7fr 「100.00%」 ran into the
-     P95 column beside it. */
-  grid-template-columns: 2.1fr 2fr 2.6fr;
-}
-.ov-group {
-  display: flex;
-  flex-direction: column;
+
+.ov-kpi--balance {
+  align-items: center;
+  flex-direction: row;
   gap: 12px;
-  min-width: 0;
+  justify-content: space-between;
 }
-.ov-group + .ov-group {
-  padding-left: 22px;
-  border-left: 1px solid color-mix(in srgb, var(--lazu-ink) 14%, transparent);
-}
-.ov-group:not(:last-child) {
-  padding-right: 22px;
-}
-.ov-group__name {
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  color: var(--lazu-text-faint);
-}
-.ov-group__cells {
-  display: flex;
-}
-.ov-cell {
-  padding: 0 20px;
+
+.ov-kpi__balance-copy {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
 }
-.ov-cell:first-child {
-  padding-left: 0;
+
+.ov-runway-inline {
+  color: var(--lazu-text-muted);
+  font-weight: 500;
 }
-.ov-cell + .ov-cell {
-  border-left: 1px solid var(--lazu-border);
+
+.ov-runway-inline[data-alert] {
+  color: var(--lazu-danger);
 }
+
 .ov-label {
-  font-size: 12.5px;
-  color: var(--lazu-text-faint);
+  color: var(--lazu-text-muted);
+  font-size: 12px;
 }
+
 .ov-kv {
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--lazu-font-display);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
   line-height: 1;
   white-space: nowrap;
 }
-.ov-kv--hero {
-  font-size: 40px;
-  letter-spacing: -0.03em;
-}
-.ov-kv--small {
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--lazu-text-muted);
-}
+
 .ov-kv[data-alert] {
   color: var(--lazu-danger);
 }
+
 .ov-money {
   font-family: var(--lazu-font-display);
+  font-size: 30px;
   font-weight: 400;
-  font-size: 31px;
-  line-height: 1;
   letter-spacing: -0.01em;
+  line-height: 1;
 }
+
+.ov-money--hero {
+  font-size: 34px;
+}
+
 .ov-delta[data-dir='up'] {
   color: var(--lazu-success);
 }
+
 .ov-delta[data-dir='down'] {
   color: var(--lazu-danger);
 }
-.ov-pair {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+
+.ov-alert {
+  color: var(--lazu-danger);
 }
 
-.ov-grid-2 {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+.ov-warn {
+  color: var(--lazu-warning-strong);
 }
-.ov-grid-growth {
+
+/* ── Customer Active Stage (12-A) ──────────────────────────────────── */
+.ov-workspace-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   gap: 16px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
 }
-.ov-grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
+
+.ov-trend-card,
 .ov-chart-panel {
-  padding: 16px 22px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-.ov-chart-panel__title {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
   gap: 12px;
+  justify-content: space-between;
+  padding: 18px 22px;
 }
+
+.ov-launchpad-card,
+.ov-cockpit-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: flex-start;
+  padding: 18px 22px;
+}
+
+.ov-chart-panel__title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+}
+
 .ov-chart-panel__title strong {
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.ov-funnel {
-  padding: 16px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.ov-funnel__step {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.ov-funnel__head {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-}
-.ov-funnel__track {
-  height: 10px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--lazu-ink) 7%, transparent);
-  overflow: hidden;
-}
-.ov-funnel__fill {
-  height: 100%;
-  border-radius: 5px;
-}
-.ov-funnel__facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.ov-top-models {
   border-top: 1px solid var(--lazu-border);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding-top: 12px;
-  font-size: 12.5px;
-}
-.ov-funnel__facts > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.ov-funnel__facts strong {
-  font-size: 18px;
-}
-.ov-slot {
-  border: 1px dashed color-mix(in srgb, var(--lazu-ink) 28%, transparent);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 12px;
-  color: var(--lazu-text-faint);
-  line-height: 1.5;
 }
 
-/* List cards. */
-.ov-list {
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  min-height: 300px;
-}
-.ov-list__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 10px;
-}
-.ov-list__head strong {
-  font-size: 14.5px;
-}
-.ov-list__cols,
-.ov-list__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 84px;
-  column-gap: 10px;
-  align-items: center;
-}
-.ov-list__cols {
-  font-size: 11.5px;
-  color: var(--lazu-text-faint);
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--lazu-border);
-}
-.ov-list__cols span + span,
-.ov-list__row > span + span {
-  text-align: right;
-}
-.ov-list__row {
-  min-height: 38px;
-  padding: 6px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--lazu-ink) 7%, transparent);
-  font-size: 13px;
-}
-.ov-list__name {
+.ov-top-model {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-.ov-list__name > span:first-child {
-  white-space: nowrap;
+
+.ov-top-model__name {
+  font-size: 12.5px;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 500;
-}
-.ov-list__name[data-mono] > span:first-child {
-  font-family: var(--lazu-font-mono);
-  font-size: 12.5px;
-  font-weight: 400;
-}
-.ov-list__link {
-  color: inherit;
-  text-decoration: none;
-}
-.ov-list__link:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.ov-list__sub {
-  font-size: 11.5px;
-  color: var(--lazu-text-faint);
-}
-.ov-list__foot {
-  margin-top: auto;
-  padding-top: 8px;
-  font-size: 12px;
-  color: var(--lazu-text-faint);
-}
-.ov-list__empty {
-  padding: 18px 0;
-  font-size: 12.5px;
-  color: var(--lazu-text-faint);
-}
-.ov-alert {
-  color: var(--lazu-danger);
-}
-.ov-warn {
-  color: var(--lazu-warning-strong);
+  white-space: nowrap;
 }
 
-/* Clients card (platform) and recent sessions (workspace). */
-.ov-clients__stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 12px 0 6px;
-  padding: 10px 0;
-  border-top: 1px solid var(--lazu-border);
-  border-bottom: 1px solid var(--lazu-border);
+.ov-endpoint-bar {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px 12px;
 }
-.ov-clients__stats > span {
+
+.ov-endpoint-bar__url {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.ov-endpoint-bar__url code {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-key-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ov-key-item {
+  align-items: center;
+  border: 1px solid var(--lazu-border);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.ov-key-item__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ov-key-item__meta strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-key-item__spend {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ov-launchpad-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.ov-launchpad-actions > * {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border-strong);
+  flex: 1 1 140px;
+  justify-content: center;
+}
+
+/* ── Customer Zero-Request Onboarding Launchpad (12-D) ─────────────── */
+.ov-zero-launchpad {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px;
+}
+
+.ov-zero-launchpad__head {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.ov-clients__stats strong {
-  font-size: 20px;
+
+.ov-zero-launchpad__head p {
+  margin: 0;
 }
-.ov-clients__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) 0.6fr 0.6fr 0.8fr 0.8fr 1.3fr;
-  column-gap: 12px;
-  align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid color-mix(in srgb, var(--lazu-ink) 7%, transparent);
-  font-size: 12.5px;
-}
-.ov-clients__row > span:nth-child(2),
-.ov-clients__row > span:nth-child(3),
-.ov-clients__row > span:nth-child(4),
-.ov-clients__row > span:nth-child(5) {
-  text-align: right;
-}
-.ov-clients__row--head {
-  border-top: 0;
+
+.ov-zero-launchpad__eyebrow {
+  color: var(--lazu-evidence-strong);
+  font-family: var(--lazu-font-mono);
   font-size: 11.5px;
-  color: var(--lazu-text-faint);
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
-.ov-clients__name {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+
+.ov-zero-launchpad__title {
+  font-family: var(--lazu-font-display);
+  font-size: 26px;
+  font-weight: 400;
+  margin: 0;
 }
-.ov-clients__name > span:last-child {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+
+.ov-zero-steps {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.ov-share {
+
+.ov-zero-step {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: 14px;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 16px;
 }
-.ov-share__track {
-  flex-grow: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--lazu-ink) 8%, transparent);
-  overflow: hidden;
-}
-.ov-share__fill {
+
+.ov-zero-step__tag {
+  color: var(--lazu-evidence);
   display: block;
-  height: 100%;
-  background: var(--lazu-chart-1);
+  font-size: 11.5px;
+  font-weight: 600;
 }
-.ov-share__fill[data-faint] {
-  opacity: 0.45;
+
+.ov-zero-step__title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
 }
-.ov-session {
+
+.ov-zero-step__desc {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+  word-break: break-word;
+}
+
+/* ── Bottom Sessions Strip (12-A) ──────────────────────────────────── */
+.ov-sessions-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 22px;
+}
+
+.ov-sessions-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ov-session-card {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-radius: 11px;
+  column-gap: 10px;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;
-  column-gap: 10px;
-  align-items: center;
-  padding: 11px 0;
-  border-top: 1px solid color-mix(in srgb, var(--lazu-ink) 8%, transparent);
+  padding: 11px 14px;
 }
+
 .ov-session__title {
+  color: var(--lazu-ink);
   font-size: 13px;
   font-weight: 500;
-  color: var(--lazu-ink);
-  text-decoration: none;
-  white-space: nowrap;
   overflow: hidden;
+  text-decoration: none;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
 .ov-session__title:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
 .ov-session__meta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
+
 .ov-session__right {
+  align-items: flex-end;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  font-size: 13px;
+  font-size: 12.5px;
+  gap: 2px;
 }
 
+/* ── Platform 2x2 Operational Cockpit (12-B) ───────────────────────── */
+.ov-cockpit {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+
+.ov-cockpit-links {
+  align-items: center;
+  display: inline-flex;
+  gap: 12px;
+}
+
+.ov-watch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ov-watch-item {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: 10px;
+  color: inherit;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 11px 13px;
+  text-decoration: none;
+}
+
+.ov-watch-item[data-tone='alert'] {
+  background: var(--lazu-surface-solid);
+  border-color: var(--lazu-notice-edge);
+}
+
+.ov-watch-item:hover {
+  border-color: var(--lazu-ink);
+}
+
+.ov-watch-item__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ov-watch-item__copy strong {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-healthy-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ov-healthy-sla {
+  align-items: flex-start;
+  background: var(--lazu-surface-muted);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.ov-healthy-sla strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ov-healthy-sla__dot {
+  background: var(--lazu-success);
+  border-radius: 50%;
+  flex: none;
+  height: 8px;
+  margin-top: 5px;
+  width: 8px;
+}
+
+.ov-lowbal-callout {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border: 1px solid var(--lazu-border);
+  border-radius: 10px;
+  color: var(--lazu-ink);
+  display: flex;
+  font-size: 12.5px;
+  font-weight: 500;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 9px 12px;
+  text-decoration: none;
+}
+
+.ov-mini-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.ov-mini-row {
+  align-items: center;
+  border-top: 1px solid color-mix(in srgb, var(--lazu-ink) 7%, transparent);
+  column-gap: 10px;
+  display: grid;
+  font-size: 12.5px;
+  grid-template-columns: minmax(0, 1fr) auto 64px;
+  padding: 8px 0;
+}
+
+.ov-mini-row:first-child {
+  border-top: 0;
+}
+
+.ov-mini-row > span:last-child {
+  text-align: right;
+}
+
+.ov-list__link {
+  color: var(--lazu-evidence);
+  font-weight: 500;
+  overflow: hidden;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-list__link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ov-compact-funnel {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.ov-compact-funnel__head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.ov-funnel__step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ov-funnel__head {
+  display: flex;
+  font-size: 12.5px;
+  justify-content: space-between;
+}
+
+.ov-funnel__track {
+  background: color-mix(in srgb, var(--lazu-ink) 7%, transparent);
+  border-radius: 4px;
+  height: 7px;
+  overflow: hidden;
+}
+
+.ov-funnel__fill {
+  border-radius: 4px;
+  height: 100%;
+}
+
+.ov-sources-box {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.ov-source-row {
+  display: flex;
+  font-size: 12px;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.ov-agent-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ov-agent-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ov-agent-bar__head {
+  align-items: center;
+  display: flex;
+  font-size: 12.5px;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.ov-agent-bar__nums {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.ov-clients__name {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ov-clients__name > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-share__track {
+  background: color-mix(in srgb, var(--lazu-ink) 8%, transparent);
+  border-radius: 3px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.ov-share__fill {
+  background: var(--lazu-chart-1);
+  border-radius: 3px;
+  display: block;
+  height: 100%;
+}
+
+.ov-share__fill[data-faint] {
+  opacity: 0.45;
+}
+
+/* ── Responsive Breakpoints ────────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .ov-groups {
+  .ov-cockpit {
     grid-template-columns: 1fr;
-    row-gap: 16px;
   }
-  .ov-group + .ov-group {
-    padding-left: 0;
+
+  .ov-kpis--platform {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ov-kpis--platform .ov-kpi:nth-child(4) {
     border-left: 0;
-    padding-top: 16px;
+  }
+
+  .ov-kpis--platform .ov-kpi:nth-child(n + 4) {
     border-top: 1px solid var(--lazu-border);
   }
-  .ov-grid-2,
-  .ov-grid-growth,
-  .ov-grid-3 {
+}
+
+@media (max-width: 900px) {
+  .ov-workspace-stage,
+  .ov-sessions-grid,
+  .ov-zero-steps {
     grid-template-columns: 1fr;
   }
-}
-@media (max-width: 720px) {
-  .ov-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+
+  .ov-kpis--workspace {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .ov-kpi + .ov-kpi {
+
+  .ov-kpis--workspace .ov-kpi:nth-child(3) {
     border-left: 0;
   }
-  .ov-group__cells {
-    flex-wrap: wrap;
-    row-gap: 14px;
+
+  .ov-kpis--workspace .ov-kpi:nth-child(n + 3) {
+    border-top: 1px solid var(--lazu-border);
   }
+}
+
+@media (max-width: 640px) {
+  .ov-kpis--workspace,
+  .ov-kpis--platform {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ov-kpis--workspace .ov-kpi--balance {
+    grid-column: 1 / -1;
+  }
+
+  .ov-kpis--workspace .ov-kpi:nth-child(2),
+  .ov-kpis--workspace .ov-kpi:nth-child(4),
+  .ov-kpis--platform .ov-kpi:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .ov-kpis--workspace .ov-kpi:nth-child(n + 2),
+  .ov-kpis--platform .ov-kpi:nth-child(n + 3) {
+    border-top: 1px solid var(--lazu-border);
+  }
+
+  .ov-kpis--workspace .ov-kpi:nth-child(3),
+  .ov-kpis--platform .ov-kpi:nth-child(even) {
+    border-left: 1px solid var(--lazu-border);
+  }
+
+  .ov-top-models {
+    grid-template-columns: 1fr;
+  }
+
   .ov-head__actions {
     flex-wrap: wrap;
     min-width: 0;
   }
+
   .ov-seg {
     max-width: 100%;
     overflow-x: auto;
   }
-  .ov-chart-panel__title {
-    flex-wrap: wrap;
-    row-gap: 4px;
-  }
+
+  .ov-trend-card,
+  .ov-launchpad-card,
+  .ov-cockpit-card,
   .ov-chart-panel,
-  .ov-list {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-  .ov-clients__row {
-    font-size: 12px;
+  .ov-sessions-strip,
+  .ov-zero-launchpad {
+    padding-inline: 16px;
   }
 }

@@ -2,21 +2,42 @@
  * 24 小时 / 7 天 / 30 天 / 90 天 / 自定义. A custom range shows its dates in
  * place of 自定义 (only the day count on phones) and leaves the presets
  * unselected; picking one returns to it. ← → move between the five. */
+import { type KeyboardEvent, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CALENDAR_PRESET_IDS,
   InteractiveTimePicker,
 } from '../../components/dashboard/time-picker-v3';
-import { useIsMobile } from '../../hooks/common/useIsMobile';
 import {
   USAGE_RANGE_PRESETS,
   type UsageRangePreset,
   useUsageRange,
 } from '../../hooks/usage-logs/usageRange';
 import './usage-range.css';
-import type { KeyboardEvent } from 'react';
 
 const SK = 'page.console.log.session';
+const MOBILE_768_QUERY = '(max-width: 768px)';
+
+export function useMobile768() {
+  return useSyncExternalStore(
+    (callback) => {
+      if (
+        typeof window === 'undefined' ||
+        typeof window.matchMedia !== 'function'
+      ) {
+        return () => {};
+      }
+      const mql = window.matchMedia(MOBILE_768_QUERY);
+      mql.addEventListener('change', callback);
+      return () => mql.removeEventListener('change', callback);
+    },
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia(MOBILE_768_QUERY).matches,
+    () => false,
+  );
+}
 
 function usageRangeLabel(
   preset: UsageRangePreset,
@@ -42,15 +63,23 @@ function moveFocus(event: KeyboardEvent<HTMLElement>) {
 export function UsageRangeSeg({
   calendar = true,
   className,
+  compact = false,
 }: {
   /* The phone filter sheet puts the calendar on its own row. */
   calendar?: boolean;
   className?: string;
+  /* Phone inline switcher keeps concise 24h / 7d / 30d / 自定义 pills. */
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
-  const narrow = useIsMobile();
+  const narrow = useMobile768();
   const { range, setPicker, setPreset } = useUsageRange();
   const custom = range.preset === 'custom';
+  const presets: readonly UsageRangePreset[] = compact
+    ? range.preset === '90d'
+      ? ['24h', '7d', '30d', '90d']
+      : ['24h', '7d', '30d']
+    : USAGE_RANGE_PRESETS;
   return (
     <span
       aria-label={t('page.console.usage.range.label')}
@@ -60,16 +89,17 @@ export function UsageRangeSeg({
       onKeyDown={moveFocus}
       role='toolbar'
     >
-      {USAGE_RANGE_PRESETS.map((preset) => (
+      {presets.map((preset) => (
         <button
           aria-pressed={range.preset === preset}
           className='logv2-seg__button'
           data-active={range.preset === preset ? 'true' : undefined}
           key={preset}
           onClick={() => setPreset(preset)}
+          title={compact ? usageRangeLabel(preset, t) : undefined}
           type='button'
         >
-          {usageRangeLabel(preset, t)}
+          {compact ? preset : usageRangeLabel(preset, t)}
         </button>
       ))}
       {calendar ? (
@@ -80,7 +110,7 @@ export function UsageRangeSeg({
             <span className='usage-range__custom'>
               {!custom
                 ? t('page.console.usage.range.customShort')
-                : narrow
+                : narrow || compact
                   ? t('page.console.usage.range.days', { count: range.days })
                   : range.label}
             </span>

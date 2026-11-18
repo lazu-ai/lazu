@@ -60,8 +60,8 @@ export default function LaneForm({
   const stopped = Boolean(lane && !lane.enabled);
 
   return (
-    <>
-      <div className='mo-dialog__body'>
+    <div className='mo-lane-form'>
+      <div className='mo-lane-form__fields'>
         <label className='mo-dim-field'>
           <span className='mo-dim-field__label'>
             {t(`${ns}.lane.name`, { defaultValue: '名称' })}
@@ -85,7 +85,7 @@ export default function LaneForm({
             <span className='mo-sub'>
               {' · '}
               {t(`${ns}.lane.slugHint`, {
-                defaultValue: '小写英文，建后不能改；Key 指定档位、账单里用它',
+                defaultValue: '小写英文，建后不能改；Key 指定线路、账单里用它',
               })}
             </span>
           </span>
@@ -105,7 +105,7 @@ export default function LaneForm({
             {t(`${ns}.lane.note`, { defaultValue: '一句话说明' })}
             <span className='mo-sub'>
               {' · '}
-              {t(`${ns}.lane.noteHint`, { defaultValue: '用户在选档时看到' })}
+              {t(`${ns}.lane.noteHint`, { defaultValue: '用户在选线路时看到' })}
             </span>
           </span>
           <Input
@@ -143,25 +143,25 @@ export default function LaneForm({
             <p>
               {t(`${ns}.lane.afterBody`, {
                 defaultValue:
-                  '折扣页多一列、模型页多一档售价、来源那一行的档位多一个选项。',
+                  '折扣页多一列、模型页多一条线路售价、来源的归属线路多一个选项。',
               })}
             </p>
             <p className='mo-sub'>
               {t(`${ns}.lane.afterHint`, {
                 defaultValue:
-                  '建好先是「未启用」：把来源挪进来、给模型定了这档的售价，才能开。',
+                  '建好先是「未启用」：把来源归入线路、给模型定了该线路售价后即可启用。',
               })}
             </p>
           </div>
         ) : (
           <div className='mo-effect'>
             <span className='mo-effect__title'>
-              {t(`${ns}.lane.stateTitle`, { defaultValue: '这档现在的样子' })}
+              {t(`${ns}.lane.stateTitle`, { defaultValue: '当前线路概况' })}
             </span>
             <p>
               {t(`${ns}.lane.stateBody`, {
                 defaultValue:
-                  '{{sources}} 个来源 · {{priced}} 个模型定了这档售价。',
+                  '{{sources}} 个来源 · {{priced}} 个模型定了该线路售价。',
                 priced: lane?.priced ?? 0,
                 sources: lane?.sources ?? 0,
               })}
@@ -170,23 +170,23 @@ export default function LaneForm({
               {stopped
                 ? t(`${ns}.lane.stoppedHint`, {
                     defaultValue:
-                      '已停用：新请求不再落到这档，已定的售价和折扣保留。',
+                      '已停用：新请求不再落到该线路，已定的售价和折扣保留。',
                   })
                 : t(`${ns}.lane.stopHint`, {
                     defaultValue:
-                      '停用后：新请求不再落到这档，已定的售价和折扣保留。',
+                      '停用后：新请求不再落到该线路，已定的售价和折扣保留。',
                   })}
             </p>
           </div>
         )}
       </div>
 
-      <div className='mo-dialog__foot'>
+      <div className='mo-lane-form__foot'>
         {isNew ? (
           <span />
         ) : lane?.builtin ? (
           <span className='mo-sub'>
-            {t(`${ns}.lane.builtin`, { defaultValue: '内置档位，不能停用' })}
+            {t(`${ns}.lane.builtin`, { defaultValue: '内置线路，不能停用' })}
           </span>
         ) : lane?.ever_enabled ? (
           <Button
@@ -196,8 +196,8 @@ export default function LaneForm({
             variant={stopped ? 'secondary' : 'danger'}
           >
             {stopped
-              ? t(`${ns}.lane.enable`, { defaultValue: '启用这档' })
-              : t(`${ns}.lane.disable`, { defaultValue: '停用这档' })}
+              ? t(`${ns}.lane.enable`, { defaultValue: '启用线路' })
+              : t(`${ns}.lane.disable`, { defaultValue: '停用线路' })}
           </Button>
         ) : (
           <Button
@@ -231,6 +231,6 @@ export default function LaneForm({
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,0 +1,270 @@
+/* Canonical Modal & Mobile Bottom-Sheet Contract (Module 02).
+   - Desktop (>768px): 20px radius, pinned header & footer, scrolling body,
+     right-aligned [Cancel] [Primary] footer actions, semantic danger/warning
+     title tone.
+   - Mobile (<=768px): bottom sheet rising to 44px below top, keyboard-inset
+     safe bottom edge, swipeable grabber & header, horizontal overflow guard
+     inside <pre> code blocks so 390px viewports never clip sideways. */
+
+@layer tailwind-components {
+  .lazu-modal-content:not(.whats-new-panel) {
+    border-radius: 20px;
+  }
+
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body) {
+    display: flex;
+    flex-direction: column;
+    max-height: min(85dvh, calc(100dvh - 48px));
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body)
+    > .lazu-modal-header {
+    border-bottom: 1px solid var(--lazu-border);
+    flex-shrink: 0;
+    margin-bottom: 0;
+    padding: 20px 52px 16px 24px;
+  }
+
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body)
+    > .lazu-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 20px 24px;
+  }
+
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body)
+    > .lazu-modal-footer {
+    align-items: center;
+    border-top: 1px solid var(--lazu-border);
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 0;
+    padding: 14px 24px;
+  }
+
+  .lazu-modal-title--with-icon {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+  }
+
+  .lazu-modal-title__icon {
+    flex: none;
+  }
+
+  .lazu-modal-content--danger .lazu-modal-title {
+    color: var(--lazu-danger);
+  }
+
+  .lazu-modal-content--warning .lazu-modal-title {
+    color: var(--lazu-warning-strong);
+  }
+
+  .lazu-modal-content pre {
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  @media (max-width: 768px) {
+    .lazu-modal-content.lazu-modal-content--sheet:not(.whats-new-panel) {
+      border-bottom: 0;
+      border-radius: 20px 20px 0 0;
+      bottom: var(--lazu-keyboard-inset, 0px);
+      display: flex;
+      flex-direction: column;
+      left: 0;
+      max-height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
+      max-width: 100vw;
+      overflow: hidden;
+      padding: 0;
+      right: 0;
+      top: auto;
+      transform: none;
+      width: 100%;
+    }
+
+    .lazu-modal-content.lazu-modal-content--sheet-full:not(.whats-new-panel) {
+      height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
+    }
+
+    .lazu-modal-content.lazu-modal-content--sheet[data-open] {
+      animation: lazu-sheet-motion var(--ui-motion-base, 180ms)
+        var(--ui-ease-direct, ease) both;
+    }
+
+    .lazu-modal-content.lazu-modal-content--sheet[data-closed] {
+      animation: lazu-sheet-exit var(--ui-motion-base, 180ms)
+        var(--ui-ease-direct, ease) both;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-grabber {
+      cursor: grab;
+      display: block;
+      flex: none;
+      height: 22px;
+      position: relative;
+      touch-action: none;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-grabber::before {
+      background: var(--ui-border-strong);
+      border-radius: 99px;
+      content: '';
+      height: 4px;
+      left: 50%;
+      margin-left: -18px;
+      position: absolute;
+      top: 8px;
+      width: 36px;
+    }
+
+    .lazu-modal-content--sheet .lazu-modal-close {
+      right: 10px;
+      top: 22px;
+    }
+
+    .lazu-modal-content--sheet:not(.whats-new-panel) > .lazu-modal-header {
+      border-bottom: 1px solid transparent;
+      flex: none;
+      margin: 0;
+      padding: 6px 52px 12px 16px;
+      touch-action: pan-x;
+      transition: border-color var(--ui-motion-fast, 140ms)
+        var(--ui-ease-direct, ease);
+    }
+
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+      > .lazu-modal-header[data-scrolled] {
+      border-bottom-color: var(--lazu-border);
+    }
+
+    .lazu-modal-content--sheet:not(.whats-new-panel) > .lazu-modal-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      min-width: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 8px 16px 16px;
+    }
+
+    .lazu-modal-content--sheet:not(.whats-new-panel) > .lazu-modal-footer {
+      background: var(--lazu-surface-solid);
+      border-top: 1px solid var(--lazu-border);
+      flex: none;
+      margin: 0;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+}
+
+/* Unlayered rules matching console-review.css specificity so canonical 20px
+   radius, pinned header/footer, semantic tones, and <=768px sheets win cleanly
+   without disturbing .tok-create-modal or .pj-modal--member compact padding. */
+body:has(.console-review) .lazu-modal-content:not(.whats-new-panel) {
+  border-radius: 20px;
+}
+
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body)
+  > .lazu-modal-header,
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body)
+  > .lazu-modal-footer {
+  flex-shrink: 0;
+}
+
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body)
+  > .lazu-modal-footer {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+}
+
+body:has(.console-review)
+  .lazu-modal-content:not(.whats-new-panel):has(> .lazu-modal-body)
+  > .lazu-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+body:has(.console-review)
+  .lazu-modal-content.lazu-modal-content--danger
+  .lazu-modal-title {
+  color: var(--lazu-danger);
+}
+
+body:has(.console-review)
+  .lazu-modal-content.lazu-modal-content--warning
+  .lazu-modal-title {
+  color: var(--lazu-warning-strong);
+}
+
+@media (max-width: 768px) {
+  body:has(.console-review)
+    .lazu-modal-content.lazu-modal-content--sheet:not(.whats-new-panel):not(
+      .lazu-modal-content--wide
+    ):not(.lazu-modal-content--xwide) {
+    max-width: 100vw;
+    width: 100%;
+  }
+
+  body:has(.console-review)
+    .lazu-modal-content.lazu-modal-content--sheet:not(.whats-new-panel) {
+    border-radius: 20px 20px 0 0;
+    bottom: var(--lazu-keyboard-inset, 0px);
+    left: 0;
+    max-height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
+    max-width: 100vw;
+    right: 0;
+    top: auto;
+    transform: none;
+    width: 100%;
+  }
+
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-header {
+    border-bottom-color: transparent;
+    padding: 6px 52px 12px 16px;
+  }
+
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-header[data-scrolled] {
+    border-bottom-color: var(--lazu-border);
+  }
+
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-body {
+    padding: 8px 16px 16px;
+  }
+
+  body:has(.console-review)
+    .lazu-modal-content--sheet:not(.whats-new-panel)
+    .lazu-modal-footer {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}

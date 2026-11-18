@@ -33,9 +33,11 @@ type SourceModelsTableProps = {
   upstream: UpstreamSyncView | null | undefined;
 };
 
-/** 来源 › 模型: grouped by maker with collapsible headers and a 2-column
- *  checkbox grid so full model IDs, prices, context and upstream mappings stay
- *  readable inside the centered dialog. */
+/**
+ * Section 1 · 供货模型: hugs its actual row count (2 models = 2 compact rows,
+ * zero forced min-height or nested scrollbars), with G1 paper upstream sync
+ * notice and quick manual model / mapping addition.
+ */
 export default function SourceModelsTable({
   catalog,
   disabled,
@@ -60,6 +62,7 @@ export default function SourceModelsTable({
   const [folded, setFolded] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState(false);
   const [custom, setCustom] = useState('');
+  const [customUpstream, setCustomUpstream] = useState('');
 
   useEffect(() => {
     setView(initialView);
@@ -82,9 +85,12 @@ export default function SourceModelsTable({
     const nextModels = [...models];
     const nextMapping = { ...mapping };
     for (const row of targets) {
-      if (row.served || nextModels.includes(row.name)) continue;
-      nextModels.push(row.name);
-      if (row.upstreamId !== row.name) nextMapping[row.name] = row.upstreamId;
+      if (!nextModels.includes(row.name)) {
+        nextModels.push(row.name);
+      }
+      if (row.upstreamId && row.upstreamId !== row.name) {
+        nextMapping[row.name] = row.upstreamId;
+      }
     }
     write({ mapping: nextMapping, models: nextModels });
   };
@@ -140,6 +146,7 @@ export default function SourceModelsTable({
     [catalog, shown],
   );
 
+  const servedCount = rows.filter((row) => row.served).length;
   const newCount = state?.new?.length ?? 0;
   const goneServed = rows.filter(
     (row) => row.served && row.status === 'gone',
@@ -147,144 +154,342 @@ export default function SourceModelsTable({
   const stoppedCount = state?.stopped?.length ?? 0;
   const showBanner = newCount + goneServed + stoppedCount > 0;
   const filtered = Boolean(needle) || view !== 'all';
+  const showFilterToolbar = rows.length > 5 || showBanner || filtered;
+  const flatCompactList = rows.length > 0 && rows.length <= 5 && !filtered;
 
   const addCustom = () => {
-    const names = custom
+    const entries = custom
       .split(/[\s,，]+/)
-      .map((name) => name.trim())
+      .map((item) => item.trim())
       .filter(Boolean);
-    if (!names.length) return;
+    if (!entries.length) return;
+    const explicitUpstream = customUpstream.trim();
     serve(
-      names.map((name) => ({
-        name,
-        served: false,
-        status: 'unknown' as const,
-        upstreamId: name,
-      })),
+      entries.map((entry, idx) => {
+        const eqIdx = entry.indexOf('=');
+        if (eqIdx > 0) {
+          const publicName = entry.slice(0, eqIdx).trim();
+          const upName = entry.slice(eqIdx + 1).trim() || publicName;
+          return {
+            name: publicName,
+            served: false,
+            status: 'unknown' as const,
+            upstreamId: upName,
+          };
+        }
+        return {
+          name: entry,
+          served: false,
+          status: 'unknown' as const,
+          upstreamId:
+            entries.length === 1 && idx === 0 && explicitUpstream
+              ? explicitUpstream
+              : entry,
+        };
+      }),
     );
     setCustom('');
+    setCustomUpstream('');
     setAdding(false);
+  };
+
+  const renderRow = (row: SourceModelRow, flat = false) => {
+    const calls = upstream?.requests_7d?.[row.name];
+    const price = catalog.price(row.name);
+    const ctx = catalog.context(row.name);
+    const goneOn = row.served && row.status === 'gone';
+    const priceCtx = [
+      price !== '—' ? price : t(`${ns}.unpriced`, { defaultValue: '待补定价' }),
+      ctx,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    if (flat) {
+      return (
+        <div
+          className={`src-mrow-flat${row.served ? ' is-served' : ''}${goneOn ? ' is-gone' : ''}`}
+          key={`${row.name}\u0000${row.upstreamId}`}
+          role='row'
+          tabIndex={disabled ? -1 : 0}
+          onClick={(event) => {
+            if (
+              disabled ||
+              (event.target as HTMLElement | null)?.closest(
+                'button, input, label',
+              )
+            ) {
+              return;
+            }
+            if (row.served) stop([row]);
+            else serve([row]);
+          }}
+          onKeyDown={(event) => {
+            if (
+              disabled ||
+              (event.target as HTMLElement | null)?.closest(
+                'button, input, label',
+              )
+            ) {
+              return;
+            }
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              if (row.served) stop([row]);
+              else serve([row]);
+            }
+          }}
+        >
+          <span className='src-mrow-flat__main' role='cell'>
+            <Checkbox
+              aria-label={t(`${ns}.toggle`, {
+                defaultValue: '供货 {{name}}',
+                name: row.name,
+              })}
+              checked={row.served}
+              disabled={disabled}
+              onCheckedChange={(checked: boolean) =>
+                checked ? serve([row]) : stop([row])
+              }
+            />
+            <span className='src-mcard__id'>{row.name}</span>
+            {row.status === 'new' ? (
+              <span className='src-status is-new'>
+                {t(`${ns}.badgeNew`, { defaultValue: '新增' })}
+              </span>
+            ) : null}
+            {row.status === 'gone' ? (
+              <span className='src-status is-gone'>
+                {t(`${ns}.badgeGone`, { defaultValue: '下架' })}
+              </span>
+            ) : null}
+          </span>
+          <span className='src-mrow-flat__map src-mono' role='cell'>
+            {row.upstreamId !== row.name
+              ? `→ ${row.upstreamId}`
+              : priceCtx || '—'}
+          </span>
+          <span className='src-mrow-flat__end' role='cell'>
+            {row.served && calls !== undefined ? (
+              <span className='src-mono src-mcard__calls'>
+                {calls.toLocaleString()}
+              </span>
+            ) : null}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`src-mcard${row.served ? ' is-served' : ''}${goneOn ? ' is-gone' : ''}`}
+        key={`${row.name}\u0000${row.upstreamId}`}
+        role='row'
+        tabIndex={disabled ? -1 : 0}
+        onClick={(event) => {
+          if (
+            disabled ||
+            (event.target as HTMLElement | null)?.closest(
+              'button, input, label',
+            )
+          ) {
+            return;
+          }
+          if (row.served) stop([row]);
+          else serve([row]);
+        }}
+        onKeyDown={(event) => {
+          if (
+            disabled ||
+            (event.target as HTMLElement | null)?.closest(
+              'button, input, label',
+            )
+          ) {
+            return;
+          }
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (row.served) stop([row]);
+            else serve([row]);
+          }
+        }}
+      >
+        <span className='src-mcard__box' role='cell'>
+          <Checkbox
+            aria-label={t(`${ns}.toggle`, {
+              defaultValue: '供货 {{name}}',
+              name: row.name,
+            })}
+            checked={row.served}
+            disabled={disabled}
+            onCheckedChange={(checked: boolean) =>
+              checked ? serve([row]) : stop([row])
+            }
+          />
+        </span>
+        <span className='src-mcard__body' role='cell'>
+          <span className='src-mcard__top'>
+            <span className='src-mcard__id'>{row.name}</span>
+            {row.status === 'new' ? (
+              <span className='src-status is-new'>
+                {t(`${ns}.badgeNew`, { defaultValue: '新增' })}
+              </span>
+            ) : null}
+            {row.status === 'gone' ? (
+              <span className='src-status is-gone'>
+                {t(`${ns}.badgeGone`, { defaultValue: '下架' })}
+              </span>
+            ) : null}
+          </span>
+          <span className='src-mcard__sub'>
+            <span>{priceCtx}</span>
+            {row.upstreamId !== row.name ? (
+              <span className='src-mcard__map'>{` · ← ${row.upstreamId}`}</span>
+            ) : null}
+          </span>
+        </span>
+        {row.served && calls !== undefined ? (
+          <span className='src-mono src-mcard__calls' role='cell'>
+            {calls.toLocaleString()}
+          </span>
+        ) : null}
+      </div>
+    );
   };
 
   return (
     <div className='src-models'>
       {showBanner ? (
         <div className='src-banner' role='status'>
-          <strong>
-            {t(`${ns}.bannerTitle`, { defaultValue: '上游变化' })}
-          </strong>
-          <span>
-            {[
-              newCount
-                ? t(`${ns}.bannerNew`, {
-                    count: newCount,
-                    defaultValue: '新增 {{count}} 个',
-                  })
-                : null,
-              goneServed
-                ? t(`${ns}.bannerGone`, {
-                    count: goneServed,
-                    defaultValue: '下架 {{count}} 个',
-                  })
-                : null,
-              stoppedCount
-                ? t(`${ns}.bannerStopped`, {
-                    count: stoppedCount,
-                    defaultValue: '已自动停供 {{count}} 个',
-                  })
-                : null,
-            ]
-              .filter(Boolean)
-              .join('，')}
-          </span>
-          {newCount ? (
-            <Button
-              className='src-banner__first'
-              size='xs'
-              type='button'
-              variant='secondary'
-              onClick={() => setView('new')}
-            >
-              {t(`${ns}.showNew`, {
-                count: newCount,
-                defaultValue: '看新增 ({{count}})',
-              })}
-            </Button>
-          ) : null}
-          {goneServed + stoppedCount ? (
-            <Button
-              className={newCount ? undefined : 'src-banner__first'}
-              size='xs'
-              type='button'
-              variant='secondary'
-              onClick={() => setView('gone')}
-            >
-              {t(`${ns}.showGone`, {
-                count: goneServed + stoppedCount,
-                defaultValue: '看下架 ({{count}})',
-              })}
-            </Button>
-          ) : null}
+          <div className='src-banner__copy'>
+            <strong>
+              <span aria-hidden='true'>● </span>
+              {t(`${ns}.bannerTitle`, { defaultValue: '上游变化' })}
+            </strong>
+            <span>
+              {[
+                newCount
+                  ? t(`${ns}.bannerNew`, {
+                      count: newCount,
+                      defaultValue: '新增 {{count}} 个',
+                    })
+                  : null,
+                goneServed
+                  ? t(`${ns}.bannerGone`, {
+                      count: goneServed,
+                      defaultValue: '下架 {{count}} 个',
+                    })
+                  : null,
+                stoppedCount
+                  ? t(`${ns}.bannerStopped`, {
+                      count: stoppedCount,
+                      defaultValue: '已自动停供 {{count}} 个',
+                    })
+                  : null,
+              ]
+                .filter(Boolean)
+                .join('，')}
+            </span>
+          </div>
+          <div className='src-banner__actions'>
+            {newCount ? (
+              <Button
+                size='xs'
+                type='button'
+                variant='secondary'
+                onClick={() => setView('new')}
+              >
+                {t(`${ns}.showNew`, {
+                  count: newCount,
+                  defaultValue: '看新增 ({{count}})',
+                })}
+              </Button>
+            ) : null}
+            {goneServed + stoppedCount ? (
+              <Button
+                size='xs'
+                type='button'
+                variant='secondary'
+                onClick={() => setView('gone')}
+              >
+                {t(`${ns}.showGone`, {
+                  count: goneServed + stoppedCount,
+                  defaultValue: '看下架 ({{count}})',
+                })}
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
+      <div className='src-sect-head'>
+        <span className='src-sect-head__title'>
+          {t(`${ns}.sectionTitle`, { defaultValue: '供货模型' })}
+          <span className='src-sect-head__meta src-mono'>
+            {rows.length > servedCount
+              ? `${servedCount} / ${rows.length}`
+              : `${servedCount}`}
+          </span>
+        </span>
+        <button
+          className='src-link-btn'
+          data-owns-chrome=''
+          disabled={disabled}
+          type='button'
+          onClick={() => setAdding((open) => !open)}
+        >
+          <Plus aria-hidden='true' size={13} />
+          {t(`${ns}.addOrMap`, { defaultValue: '手动增补或映射模型' })}
+        </button>
+      </div>
+
       <section className='src-panel'>
-        <div className='src-toolbar'>
-          <span className='lazu-input-affix src-search'>
-            <span className='lazu-input-affix__prefix'>
-              <Search aria-hidden='true' size={14} />
+        {showFilterToolbar ? (
+          <div className='src-toolbar src-toolbar--compact'>
+            <span className='lazu-input-affix src-search src-search--sm'>
+              <span className='lazu-input-affix__prefix'>
+                <Search aria-hidden='true' size={14} />
+              </span>
+              <Input
+                aria-label={t(`${ns}.search`, { defaultValue: '搜模型' })}
+                placeholder={t(`${ns}.searchPlaceholder`, {
+                  defaultValue: '搜模型…',
+                })}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
             </span>
-            <Input
-              aria-label={t(`${ns}.search`, { defaultValue: '搜模型' })}
-              placeholder={t(`${ns}.searchPlaceholder`, {
-                defaultValue: '搜模型…',
-              })}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </span>
-          <div
-            aria-label={t(`${ns}.statusFilter`, { defaultValue: '供货状态' })}
-            className='src-seg'
-            role='group'
-          >
-            {(
-              [
-                ['all', t(`${ns}.viewAll`, { defaultValue: '全部' })],
-                ['on', t(`${ns}.viewOn`, { defaultValue: '供货中' })],
-                ['off', t(`${ns}.viewOff`, { defaultValue: '未供货' })],
-                ['new', t(`${ns}.viewNew`, { defaultValue: '新增' })],
-                ['gone', t(`${ns}.viewGone`, { defaultValue: '下架' })],
-              ] as Array<[SourceModelStatusView, string]>
-            ).map(([key, label]) => (
-              <button
-                aria-pressed={view === key}
-                className={`src-seg__item${view === key ? ' is-on' : ''}`}
-                data-owns-chrome=''
-                key={key}
-                type='button'
-                onClick={() => setView(key)}
-              >
-                {label}
-                <span className='src-num'>
-                  {base.filter(inView[key]).length}
-                </span>
-              </button>
-            ))}
-          </div>
-          <span className='src-toolbar__end'>
-            <Button
-              disabled={disabled}
-              size='sm'
-              type='button'
-              variant='secondary'
-              onClick={() => setAdding((open) => !open)}
+            <div
+              aria-label={t(`${ns}.statusFilter`, { defaultValue: '供货状态' })}
+              className='src-seg'
+              role='group'
             >
-              <Plus size={14} />
-              {t(`${ns}.addCustom`, { defaultValue: '手动添加' })}
-            </Button>
-          </span>
-        </div>
+              {(
+                [
+                  ['all', t(`${ns}.viewAll`, { defaultValue: '全部' })],
+                  ['on', t(`${ns}.viewOn`, { defaultValue: '供货中' })],
+                  ['off', t(`${ns}.viewOff`, { defaultValue: '未供货' })],
+                  ['new', t(`${ns}.viewNew`, { defaultValue: '新增' })],
+                  ['gone', t(`${ns}.viewGone`, { defaultValue: '下架' })],
+                ] as Array<[SourceModelStatusView, string]>
+              ).map(([key, label]) => (
+                <button
+                  aria-pressed={view === key}
+                  className={`src-seg__item${view === key ? ' is-on' : ''}`}
+                  data-owns-chrome=''
+                  key={key}
+                  type='button'
+                  onClick={() => setView(key)}
+                >
+                  {label}
+                  <span className='src-num'>
+                    {base.filter(inView[key]).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {adding ? (
           <div className='src-addrow'>
@@ -293,10 +498,27 @@ export default function SourceModelsTable({
                 defaultValue: '模型名',
               })}
               placeholder={t(`${ns}.addCustomPlaceholder`, {
-                defaultValue: '输入模型名，多个用空格或逗号分隔',
+                defaultValue: '目录模型名（多个用空格或逗号分隔）',
               })}
               value={custom}
               onChange={(event) => setCustom(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  addCustom();
+                }
+              }}
+            />
+            <Input
+              aria-label={t(`${ns}.addUpstreamLabel`, {
+                defaultValue: '上游模型 ID',
+              })}
+              className='src-mono-input'
+              placeholder={t(`${ns}.addUpstreamPlaceholder`, {
+                defaultValue: '上游 ID（留空同名）',
+              })}
+              value={customUpstream}
+              onChange={(event) => setCustomUpstream(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
@@ -378,7 +600,7 @@ export default function SourceModelsTable({
           role='table'
         >
           {groups.length === 0 ? (
-            <div className='src-empty'>
+            <div className='src-empty src-empty--compact'>
               {rows.length === 0
                 ? t(`${ns}.emptyAll`, {
                     defaultValue: '暂无模型，点右上角「查上游」或手动添加',
@@ -386,6 +608,10 @@ export default function SourceModelsTable({
                 : t(`${ns}.emptyFiltered`, {
                     defaultValue: '无匹配模型',
                   })}
+            </div>
+          ) : flatCompactList ? (
+            <div className='src-mflat' role='rowgroup'>
+              {shown.map((row) => renderRow(row, true))}
             </div>
           ) : (
             groups.map((group) => {
@@ -445,107 +671,7 @@ export default function SourceModelsTable({
 
                   {isOpen ? (
                     <div className='src-mgroup__grid'>
-                      {group.rows.map((row) => {
-                        const calls = upstream?.requests_7d?.[row.name];
-                        const price = catalog.price(row.name);
-                        const ctx = catalog.context(row.name);
-                        const goneOn = row.served && row.status === 'gone';
-                        const priceCtx = [
-                          price !== '—'
-                            ? price
-                            : t(`${ns}.unpriced`, { defaultValue: '待补定价' }),
-                          ctx,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ');
-
-                        return (
-                          <div
-                            className={`src-mcard${row.served ? ' is-served' : ''}${goneOn ? ' is-gone' : ''}`}
-                            key={`${row.name}\u0000${row.upstreamId}`}
-                            role='row'
-                            tabIndex={disabled ? -1 : 0}
-                            onClick={(event) => {
-                              if (
-                                disabled ||
-                                (event.target as HTMLElement | null)?.closest(
-                                  'button, input, label',
-                                )
-                              ) {
-                                return;
-                              }
-                              if (row.served) stop([row]);
-                              else serve([row]);
-                            }}
-                            onKeyDown={(event) => {
-                              if (
-                                disabled ||
-                                (event.target as HTMLElement | null)?.closest(
-                                  'button, input, label',
-                                )
-                              ) {
-                                return;
-                              }
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                if (row.served) stop([row]);
-                                else serve([row]);
-                              }
-                            }}
-                          >
-                            <span className='src-mcard__box' role='cell'>
-                              <Checkbox
-                                aria-label={t(`${ns}.toggle`, {
-                                  defaultValue: '供货 {{name}}',
-                                  name: row.name,
-                                })}
-                                checked={row.served}
-                                disabled={disabled}
-                                onCheckedChange={(checked: boolean) =>
-                                  checked ? serve([row]) : stop([row])
-                                }
-                              />
-                            </span>
-                            <span className='src-mcard__body' role='cell'>
-                              <span className='src-mcard__top'>
-                                <span className='src-mcard__id'>
-                                  {row.name}
-                                </span>
-                                {row.status === 'new' ? (
-                                  <span className='src-status is-new'>
-                                    {t(`${ns}.badgeNew`, {
-                                      defaultValue: '新增',
-                                    })}
-                                  </span>
-                                ) : null}
-                                {row.status === 'gone' ? (
-                                  <span className='src-status is-gone'>
-                                    {t(`${ns}.badgeGone`, {
-                                      defaultValue: '下架',
-                                    })}
-                                  </span>
-                                ) : null}
-                              </span>
-                              <span className='src-mcard__sub'>
-                                <span>{priceCtx}</span>
-                                {row.upstreamId !== row.name ? (
-                                  <span className='src-mcard__map'>
-                                    {` · ← ${row.upstreamId}`}
-                                  </span>
-                                ) : null}
-                              </span>
-                            </span>
-                            {row.served && calls !== undefined ? (
-                              <span
-                                className='src-mono src-mcard__calls'
-                                role='cell'
-                              >
-                                {calls.toLocaleString()}
-                              </span>
-                            ) : null}
-                          </div>
-                        );
-                      })}
+                      {group.rows.map((row) => renderRow(row, false))}
                     </div>
                   ) : null}
                 </div>

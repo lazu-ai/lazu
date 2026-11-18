@@ -1,6 +1,7 @@
 # Translation keys only an extension reads (docs/EXTENSIONS.md). A build without
 # extensions never reads them. One key per line, or a prefix ending in ".*".
 # An extension may add its own lines to this file.
+nav.account
 page.console.ops.category.comparison
 page.console.ops.category.model-launch
 page.console.ops.category.tool-guide

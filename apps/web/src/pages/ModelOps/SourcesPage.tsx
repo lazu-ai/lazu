@@ -10,7 +10,7 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import {
   Navigate,
   useNavigate,
@@ -19,12 +19,10 @@ import {
 } from 'react-router-dom';
 import { formatLatency, formatRate, healthTone } from './formatters';
 import { ModelOpsBars } from './healthBars';
+import LanesDialog from './LanesDialog';
 import ModelOpsNav from './ModelOpsNav';
 import { ObservationDialog, observationSummaryLine } from './ObservationDialog';
-import SourceDialog, {
-  SOURCE_DIALOG_TABS,
-  type SourceDialogTab,
-} from './SourceDialog';
+import SourceDialog from './SourceDialog';
 import { isObservingSource, sourceAdapterLabel } from './sourceStatus';
 import { sourceTypeLabel } from './SourceTypeBadge';
 import { Button } from '../../components/ui/button';
@@ -64,6 +62,14 @@ const LIST = '/console/model-ops/sources';
 
 type View = 'all' | 'changed' | 'live' | 'observing' | 'off';
 type OptionalColumn = 'health' | 'models' | 'upstream';
+
+const hostOf = (endpoint: string) => {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return endpoint.replace(/^https?:\/\//, '').split('/')[0];
+  }
+};
 
 const viewOf = (source: ModelOpsSource): Exclude<View, 'all' | 'changed'> =>
   source.status !== 1
@@ -198,13 +204,12 @@ function StatusCell({
 }
 
 /**
- * 模型运营 · 来源 — the supply side, one row per upstream account. Clicking a
- * row or 新建来源 opens a centered dialog over the ledger, keeping filters,
- * search and scroll intact.
+ * 模型运营 · 来源 — the supply side, one row per upstream account on desktop
+ * and clean stacked supply cards on ≤768px mobile.
  */
 export default function SourcesPage() {
   const { id: activeId = '' } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const channels = useChannelsQuery({ listEnabled: false });
   const { t } = channels;
@@ -212,9 +217,10 @@ export default function SourcesPage() {
   const sourcesQuery = useModelOpsSourcesQuery(modelFilter, WINDOW_HOURS);
   const ops = useModelOpsMutations(t);
   const lanes = useChannelLanesQuery().data ?? [];
-  const defaultLane = lanes[0]?.slug;
+  const defaultLane = lanes[0]?.slug || 'direct';
 
   const [keyword, setKeyword] = useState('');
+  const [laneFilter, setLaneFilter] = useState('all');
   const [view, setView] = useState<View>('all');
   const [hidden, setHidden] = useState<Set<OptionalColumn>>(new Set());
   const [observed, setObserved] = useState<ModelOpsSource | null>(null);
@@ -225,16 +231,32 @@ export default function SourcesPage() {
   );
   const windowHours = sourcesQuery.data?.rules?.window_hours ?? WINDOW_HOURS;
 
-  const base = useMemo(() => {
+  const enabledLanes = useMemo(
+    () => lanes.filter((item) => item.enabled),
+    [lanes],
+  );
+
+  const keywordMatched = useMemo(() => {
     const needle = keyword.trim().toLowerCase();
     if (!needle) return sources;
     return sources.filter((source) => {
       const lane = lanes.find((item) => item.slug === source.lane)?.name;
       const haystack =
-        `${source.name} ${source.endpoint} ${source.type_name} ${lane || ''} ${(source.model_names || []).join(' ')}`.toLowerCase();
+        `${source.name} ${source.endpoint} ${source.base_url || ''} ${source.type_name} ${lane || ''} ${(source.model_names || []).join(' ')}`.toLowerCase();
       return haystack.includes(needle);
     });
   }, [keyword, lanes, sources]);
+
+  const laneOfSource = (source: ModelOpsSource) => source.lane || defaultLane;
+
+  const base = useMemo(() => {
+    if (laneFilter === 'all') return keywordMatched;
+    return keywordMatched.filter(
+      (source) => laneOfSource(source) === laneFilter,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultLane, keywordMatched, laneFilter]);
+
   const inView: Record<View, (source: ModelOpsSource) => boolean> = {
     all: () => true,
     changed: hasChange,
@@ -292,20 +314,11 @@ export default function SourcesPage() {
     return <Navigate replace to={`${LIST}/${legacySource}`} />;
   }
 
-  const rawTab = searchParams.get('tab') as SourceDialogTab | null;
-  const dialogTab: SourceDialogTab =
-    rawTab && SOURCE_DIALOG_TABS.includes(rawTab) ? rawTab : 'models';
+  const rawTab = searchParams.get('tab');
+  const initialAdvancedOpen = rawTab === 'routing' || rawTab === 'sync';
   const rawDiff = searchParams.get('diff');
   const initialModelView: SourceModelStatusView =
     rawDiff === 'new' || rawDiff === 'gone' ? rawDiff : 'all';
-
-  const setDialogTab = (next: SourceDialogTab) => {
-    const params = new URLSearchParams(searchParams);
-    params.delete('diff');
-    if (next === 'models') params.delete('tab');
-    else params.set('tab', next);
-    setSearchParams(params, { replace: true });
-  };
 
   const activeSource =
     activeId && activeId !== 'new'
@@ -319,15 +332,16 @@ export default function SourcesPage() {
   const visible = (key: OptionalColumn) => !hidden.has(key);
   const template = [
     '32px',
-    'minmax(0, 1.35fr)',
-    '170px',
-    visible('upstream') ? '108px' : null,
+    'minmax(200px, 1.4fr)',
+    '156px',
+    visible('upstream') ? '100px' : null,
     visible('models') ? '60px' : null,
-    visible('health') ? 'minmax(290px, 1.6fr)' : null,
-    '28px',
+    visible('health') ? 'minmax(260px, 1.5fr)' : null,
+    '32px',
   ]
     .filter(Boolean)
     .join(' ');
+  const rowColsStyle = { '--src-cols': template } as CSSProperties;
   const columns: Array<[OptionalColumn, string]> = [
     ['upstream', t(`${ns}.sources.colUpstream`, { defaultValue: '上游变化' })],
     ['models', t(`${ns}.sources.colModels`, { defaultValue: '模型' })],
@@ -348,6 +362,7 @@ export default function SourcesPage() {
       tabs={<ModelOpsNav t={t} />}
       actions={
         <>
+          <LanesDialog t={t} trigger='settings' />
           <Button
             loading={ops.testAllSourcesMutation.isPending}
             size='sm'
@@ -370,21 +385,45 @@ export default function SourcesPage() {
     >
       <section className='src-panel src-list'>
         <div className='src-toolbar'>
-          <span className='lazu-input-affix src-search'>
-            <span className='lazu-input-affix__prefix'>
-              <Search aria-hidden='true' size={14} />
-            </span>
-            <Input
-              aria-label={t(`${ns}.sources.searchLabel`, {
-                defaultValue: '搜索来源',
+          {enabledLanes.length > 0 ? (
+            <div
+              aria-label={t(`${ns}.sources.laneFilter`, {
+                defaultValue: '线路',
               })}
-              placeholder={t(`${ns}.sources.searchShort`, {
-                defaultValue: '搜来源或模型…',
+              className='src-seg'
+              role='group'
+            >
+              <button
+                aria-pressed={laneFilter === 'all'}
+                className={`src-seg__item${laneFilter === 'all' ? ' is-on' : ''}`}
+                data-owns-chrome=''
+                type='button'
+                onClick={() => setLaneFilter('all')}
+              >
+                {t(`${ns}.sources.laneAll`, { defaultValue: '全部线路' })}
+                <span className='src-num'>{keywordMatched.length}</span>
+              </button>
+              {enabledLanes.map((lane) => {
+                const count = keywordMatched.filter(
+                  (source) => laneOfSource(source) === lane.slug,
+                ).length;
+                return (
+                  <button
+                    aria-pressed={laneFilter === lane.slug}
+                    className={`src-seg__item${laneFilter === lane.slug ? ' is-on' : ''}`}
+                    data-owns-chrome=''
+                    key={lane.slug}
+                    type='button'
+                    onClick={() => setLaneFilter(lane.slug)}
+                  >
+                    {lane.name}
+                    <span className='src-num'>{count}</span>
+                  </button>
+                );
               })}
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-            />
-          </span>
+            </div>
+          ) : null}
+
           <div
             aria-label={t(`${ns}.sources.statusFilter`, {
               defaultValue: '状态',
@@ -427,6 +466,23 @@ export default function SourcesPage() {
               </button>
             ))}
           </div>
+
+          <span className='lazu-input-affix src-search'>
+            <span className='lazu-input-affix__prefix'>
+              <Search aria-hidden='true' size={14} />
+            </span>
+            <Input
+              aria-label={t(`${ns}.sources.searchLabel`, {
+                defaultValue: '搜索来源',
+              })}
+              placeholder={t(`${ns}.sources.searchShort`, {
+                defaultValue: '搜来源、Base URL 或模型…',
+              })}
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+            />
+          </span>
+
           <span className='src-toolbar__end'>
             {visible('health') ? (
               <StatusBarsLegend
@@ -495,40 +551,42 @@ export default function SourcesPage() {
           className='src-table'
           role='table'
         >
-          <div
-            className='src-srow src-srow--head'
-            role='row'
-            style={{ gridTemplateColumns: template }}
-          >
-            <span role='columnheader' />
-            <span className='src-th' role='columnheader'>
-              {t(`${ns}.sources.colName`, { defaultValue: '来源' })}
-            </span>
-            <span className='src-th' role='columnheader'>
-              {t(`${ns}.sources.colState`, { defaultValue: '状态' })}
-            </span>
-            {columns
-              .filter(([key]) => visible(key))
-              .map(([key, label]) => (
-                <span
-                  className={`src-th${key === 'models' ? ' is-num' : ''}${key === 'health' ? ' src-th--health' : ''}`}
-                  key={key}
-                  role='columnheader'
-                >
-                  {key === 'health' ? (
-                    <>
-                      <span>{label}</span>
-                      <span>
-                        {t(`${ns}.sources.now`, { defaultValue: '现在' })}
-                      </span>
-                    </>
-                  ) : (
-                    label
-                  )}
-                </span>
-              ))}
-            <span role='columnheader' />
-          </div>
+          {sources.length > 0 && rows.length > 0 ? (
+            <div
+              className='src-srow src-srow--head'
+              role='row'
+              style={rowColsStyle}
+            >
+              <span role='columnheader' />
+              <span className='src-th' role='columnheader'>
+                {t(`${ns}.sources.colName`, { defaultValue: '来源' })}
+              </span>
+              <span className='src-th' role='columnheader'>
+                {t(`${ns}.sources.colState`, { defaultValue: '状态' })}
+              </span>
+              {columns
+                .filter(([key]) => visible(key))
+                .map(([key, label]) => (
+                  <span
+                    className={`src-th${key === 'models' ? ' is-num' : ''}${key === 'health' ? ' src-th--health' : ''}`}
+                    key={key}
+                    role='columnheader'
+                  >
+                    {key === 'health' ? (
+                      <>
+                        <span>{label}</span>
+                        <span>
+                          {t(`${ns}.sources.now`, { defaultValue: '现在' })}
+                        </span>
+                      </>
+                    ) : (
+                      label
+                    )}
+                  </span>
+                ))}
+              <span role='columnheader' />
+            </div>
+          ) : null}
 
           {sourcesQuery.isLoading ? (
             <div className='src-empty'>
@@ -571,21 +629,22 @@ export default function SourcesPage() {
               );
               const bars = measured ? all : [];
               const observing = viewOf(source) === 'observing';
-              const lane = lanes.find((item) => item.slug === source.lane);
-              const showLane =
-                lanes.length > 1 && source.lane && source.lane !== defaultLane;
-              const rawLaneName = lane?.name || source.lane;
-              const laneLabel =
-                rawLaneName === 'Agent 专线' ? 'Agent' : rawLaneName;
+              const lane = lanes.find(
+                (item) => item.slug === laneOfSource(source),
+              );
+              const laneLabel = lane?.name || source.lane || '';
               const change = upstreamChange(source);
               const syncError = source.upstream_sync?.error;
+              const endpointHost = hostOf(
+                source.endpoint || source.base_url || '',
+              );
               return (
                 <div
                   aria-label={source.name}
                   className={`src-srow${deleting ? ' is-undo-pending' : ''}`}
                   key={source.id}
                   role='row'
-                  style={{ gridTemplateColumns: template }}
+                  style={rowColsStyle}
                   tabIndex={deleting ? -1 : 0}
                   onClick={(event) => {
                     if (deleting || fromControl(event)) return;
@@ -615,7 +674,7 @@ export default function SourcesPage() {
                       <span className='src-tag'>
                         {sourceTypeLabel(source.source_type, t)}
                       </span>
-                      {showLane ? (
+                      {laneLabel ? (
                         <span
                           className={`src-tag${source.lane === 'cheap' ? ' src-tag--agent' : ''}`}
                         >
@@ -624,11 +683,11 @@ export default function SourcesPage() {
                         </span>
                       ) : null}
                       <span className='src-hint'>
-                        {sourceAdapterLabel(source, t)}
+                        {endpointHost || sourceAdapterLabel(source, t)}
                       </span>
                     </span>
                   </span>
-                  <span role='cell'>
+                  <span className='src-cell-state' role='cell'>
                     {deleting ? (
                       <span className='src-badge is-off'>
                         {t('undo.deleting', { defaultValue: '删除中' })}
@@ -642,7 +701,7 @@ export default function SourcesPage() {
                     )}
                   </span>
                   {visible('upstream') ? (
-                    <span role='cell'>
+                    <span className='src-cell-upstream' role='cell'>
                       {change.new + change.gone > 0 ? (
                         <button
                           data-owns-chrome=''
@@ -674,13 +733,23 @@ export default function SourcesPage() {
                           })}
                         </button>
                       ) : (
-                        <span className='src-hint'>—</span>
+                        <span className='src-hint src-dash-desktop'>—</span>
                       )}
                     </span>
                   ) : null}
                   {visible('models') ? (
-                    <span className='src-mono is-num' role='cell'>
-                      {source.model_count}
+                    <span
+                      className='src-cell-models src-mono is-num'
+                      role='cell'
+                    >
+                      <span className='src-models-num'>
+                        {source.model_count}
+                      </span>
+                      <span className='src-models-unit'>
+                        {t(`${ns}.sources.modelUnit`, {
+                          defaultValue: ' 模型',
+                        })}
+                      </span>
                     </span>
                   ) : null}
                   {visible('health') ? (
@@ -702,7 +771,13 @@ export default function SourcesPage() {
                                   : 'idle'
                                 : undefined
                             }
-                            onSelectSlice={() => open(source, '?tab=records')}
+                            onSelectSlice={() =>
+                              source.internal_id
+                                ? navigate(
+                                    `/console/usage?channel=${encodeURIComponent(String(source.internal_id))}&scope=platform`,
+                                  )
+                                : open(source)
+                            }
                           />
                           <span
                             className={`src-mono src-health__rate is-${tone}`}
@@ -842,14 +917,16 @@ export default function SourcesPage() {
             })
           )}
         </div>
-        <div className='src-foot'>
-          <span>
-            {t(`${ns}.sources.total`, {
-              count: rows.length,
-              defaultValue: '共 {{count}} 个来源',
-            })}
-          </span>
-        </div>
+        {sources.length > 0 ? (
+          <div className='src-foot'>
+            <span>
+              {t(`${ns}.sources.total`, {
+                count: rows.length,
+                defaultValue: '共 {{count}} 个来源',
+              })}
+            </span>
+          </div>
+        ) : null}
       </section>
 
       {activeId ? (
@@ -857,11 +934,11 @@ export default function SourcesPage() {
           channels={channels}
           hasNext={activeIdx >= 0 && activeIdx < navPool.length - 1}
           hasPrev={activeIdx > 0}
+          initialAdvancedOpen={initialAdvancedOpen}
           initialModelView={initialModelView}
           isSourcesLoading={sourcesQuery.isLoading}
           source={activeSource}
           sourceId={activeId}
-          tab={dialogTab}
           onClose={closeDialog}
           onCreated={(createdId) => {
             void sourcesQuery.refetch();
@@ -873,19 +950,16 @@ export default function SourcesPage() {
           }}
           onNext={() => {
             const next = navPool[activeIdx + 1];
-            if (next)
-              open(next, dialogTab !== 'models' ? `?tab=${dialogTab}` : '');
+            if (next) open(next);
           }}
           onPrev={() => {
             const prev = navPool[activeIdx - 1];
-            if (prev)
-              open(prev, dialogTab !== 'models' ? `?tab=${dialogTab}` : '');
+            if (prev) open(prev);
           }}
           onSaved={() => {
             void sourcesQuery.refetch();
             closeDialog();
           }}
-          onTabChange={setDialogTab}
         />
       ) : null}
 

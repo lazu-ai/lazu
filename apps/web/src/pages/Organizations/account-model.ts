@@ -2,7 +2,7 @@
 // The page renders the platform `users` table as customer accounts; a row is
 // one account, not a real multi-member organization.
 
-export type ClientTop = {
+type ClientTop = {
   country?: string;
   framework?: string;
 };
@@ -39,7 +39,7 @@ export type Account = {
 };
 
 /** The customer's 专属折扣, as the account summary reports it. */
-export type AccountPricePlan = {
+type AccountPricePlan = {
   default_pct?: number | null;
   ends_at?: string | null;
   id: number;
@@ -50,7 +50,7 @@ export type AccountPricePlan = {
 };
 
 /** Effective ceilings plus the account's own overrides (0 = none). */
-export type AccountRateLimit = {
+type AccountRateLimit = {
   enabled?: boolean;
   rpm?: number;
   rpm_override?: number;
@@ -59,7 +59,7 @@ export type AccountRateLimit = {
 };
 
 /** Where an account came from (internal/model/signup_attribution.go). */
-export type SignupAttribution = {
+type SignupAttribution = {
   campaign?: string;
   content?: string;
   country?: string;
@@ -84,7 +84,7 @@ export type AccountSignup = {
 };
 
 /** One account deletion, kept after the account is cleared. */
-export type AccountDeletion = {
+type AccountDeletion = {
   deleted_by?: string;
   email?: string;
   purged_at?: number;
@@ -164,25 +164,17 @@ export type AccountKeyOperationalState =
   | 'enabled'
   | 'expired';
 
-export type DailySpendPoint = {
-  amount_microusd?: number;
-  bucket?: number;
-};
-
 export type AdjacentAccountTarget =
   | { account: Account; kind: 'row' }
   | { kind: 'page'; page: number; pick: 'first' | 'last' }
   | null;
 
-/** Below this balance the ledger flags an account before it hard-stops. */
-export const LOW_BALANCE_MICROUSD = 5_000_000;
-
-/** Platform roles live in helpers/roles; re-exported for the drawer. */
+/** Platform roles live in helpers/roles; re-exported for the customer modal. */
 export { ROLE_ADMIN } from '../../helpers/roles';
 
 /**
  * Resolve adjacent-account navigation without treating a paginated page as
- * the complete customer list. Page targets are fetched before the drawer is
+ * the complete customer list. Page targets are fetched before the modal is
  * moved so J/K navigation stays continuous across page boundaries.
  */
 export const adjacentAccountTarget = (
@@ -211,20 +203,6 @@ export const adjacentAccountTarget = (
 export const usd = (micro?: number | null) =>
   micro == null ? '—' : `$${(micro / 1_000_000).toFixed(2)}`;
 
-/** Storage bytes as an operator reads them: 0 B, 512 KB, 1.5 MB, 10 GB. */
-export const formatStorageBytes = (bytes?: number | null) => {
-  const value = Number(bytes ?? 0);
-  if (!Number.isFinite(value) || value <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(
-    Math.floor(Math.log(value) / Math.log(1024)),
-    units.length - 1,
-  );
-  const scaled = value / 1024 ** index;
-  const text = Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1);
-  return `${text} ${units[index]}`;
-};
-
 export const int = (value?: number | null) =>
   value == null ? '—' : value.toLocaleString();
 
@@ -251,6 +229,20 @@ export const accountKeyOperationalState = (
   return key.status === 1 ? 'enabled' : 'disabled';
 };
 
+/** Count operational (non-expired, enabled, live-account) API keys. */
+export const countOperationalKeys = (
+  account: Pick<Account, 'status'>,
+  keys: ReadonlyArray<Pick<AccountKey, 'expired_time' | 'status'>>,
+  nowUnixSeconds = Math.floor(Date.now() / 1000),
+): number =>
+  keys.reduce(
+    (sum, key) =>
+      accountKeyOperationalState(account, key, nowUnixSeconds) === 'enabled'
+        ? sum + 1
+        : sum,
+    0,
+  );
+
 export const initials = (account: Pick<Account, 'name' | 'owner_email'>) =>
   (account.name || account.owner_email || '?').trim().slice(0, 2).toUpperCase();
 
@@ -259,6 +251,13 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const optionalNumber = (value: unknown) =>
   value === undefined || value === null ? null : Number(value);
+
+/** The list carries gorm's DeletedAt: an RFC 3339 time, or null when live. */
+const deletedAtSeconds = (value: unknown): number | undefined => {
+  if (typeof value !== 'string' || !value) return undefined;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : undefined;
+};
 
 /** Maps one server user record onto the Account view model. */
 export const toAccount = (row: Record<string, unknown>): Account => {
@@ -303,13 +302,6 @@ export const toAccount = (row: Record<string, unknown>): Account => {
   };
 };
 
-/** The list carries gorm's DeletedAt: an RFC 3339 time, or null when live. */
-const deletedAtSeconds = (value: unknown): number | undefined => {
-  if (typeof value !== 'string' || !value) return undefined;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) ? Math.floor(ms / 1000) : undefined;
-};
-
 export const isDeleted = (account: Pick<Account, 'deleted_at'>) =>
   Boolean(account.deleted_at);
 
@@ -325,22 +317,6 @@ export const daysToEmpty = (account: Account): number | null => {
   return balance / perDay;
 };
 
-/** Relative time in Chinese for a unix-seconds timestamp; 0/absent = never. */
-export const relativeTime = (unixSeconds?: number | null): string => {
-  if (!unixSeconds) return '从未调用';
-  const deltaMs = Date.now() - unixSeconds * 1000;
-  if (deltaMs < 0) return '刚刚';
-  const minutes = Math.floor(deltaMs / 60000);
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes} 分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} 天前`;
-  const months = Math.floor(days / 30);
-  return `${months} 个月前`;
-};
-
 export const providerLabel = (provider: string): string => {
   const map: Record<string, string> = {
     google: 'Google',
@@ -350,37 +326,4 @@ export const providerLabel = (provider: string): string => {
     password: '密码',
   };
   return map[provider.toLowerCase()] || provider;
-};
-
-/** Build the fixed 30-day sparkline promised by the drawer label.
- * Missing API buckets are represented as zero instead of collapsing the
- * chart's horizontal time scale. */
-export const buildDailySpendSeries = (
-  records: DailySpendPoint[],
-  endUnixSeconds = Math.floor(Date.now() / 1000),
-): number[] => {
-  const end = new Date(endUnixSeconds * 1000);
-  end.setUTCHours(0, 0, 0, 0);
-  const buckets = new Map<string, number>();
-  for (const record of records) {
-    const timestamp = Number(record.bucket || 0);
-    if (!Number.isFinite(timestamp) || timestamp <= 0) continue;
-    const date = new Date(
-      timestamp > 10_000_000_000 ? timestamp : timestamp * 1000,
-    );
-    date.setUTCHours(0, 0, 0, 0);
-    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`;
-    const amount = Number(record.amount_microusd || 0);
-    buckets.set(
-      key,
-      (buckets.get(key) || 0) + (Number.isFinite(amount) ? amount : 0),
-    );
-  }
-
-  return Array.from({ length: 30 }, (_, index) => {
-    const date = new Date(end);
-    date.setUTCDate(end.getUTCDate() - (29 - index));
-    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`;
-    return buckets.get(key) || 0;
-  });
 };

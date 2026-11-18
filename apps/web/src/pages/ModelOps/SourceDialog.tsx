@@ -1,19 +1,23 @@
-import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, RefreshCw, X, Zap } from 'lucide-react';
+import {
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  X,
+  Zap,
+} from 'lucide-react';
 import { useEffect, useState, type ComponentProps } from 'react';
 import { Link } from 'react-router-dom';
-import { formatLatency, formatRate, healthTone } from './formatters';
+import { formatRate, healthTone } from './formatters';
 import { useSourceCatalog } from './sourceCatalog';
-import SourceForm, { SOURCE_FORM_ID, type SourceTab } from './SourceForm';
-import { formatCheckTime } from './sourceModels';
+import SourceForm, { SOURCE_FORM_ID } from './SourceForm';
 import { isObservingSource, sourceAdapterLabel } from './sourceStatus';
 import { sourceTypeLabel } from './SourceTypeBadge';
 import { Button } from '../../components/ui/button';
 import { IconButton } from '../../components/ui/icon-button';
-import { ModalFrame, ModalTitle } from '../../components/ui/modal';
+import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
 import { resolveProviderBrand } from '../../components/ui/provider-brands';
 import { ProviderLogo } from '../../components/ui/provider-icons';
-import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { API } from '../../helpers/api';
 import { useChannelsQuery } from '../../hooks/channels/useChannelsQuery';
 import {
@@ -24,21 +28,10 @@ import {
   useSourceUpstreamMutations,
   useSourceUpstreamQuery,
 } from '../../hooks/models/useSourceUpstream';
-import { unwrap } from '../../lib/api-error';
-import { queryKeys } from '../../lib/query-keys';
 import type { SourceModelStatusView } from './SourceModelsTable';
 import type { TFunction } from 'i18next';
 
 const ns = 'page.console.modelOps.sourcePage';
-
-export type SourceDialogTab = SourceTab | 'records';
-export const SOURCE_DIALOG_TABS: SourceDialogTab[] = [
-  'models',
-  'connection',
-  'routing',
-  'sync',
-  'records',
-];
 
 type EditingChannel = ComponentProps<typeof SourceForm>['editingChannel'];
 
@@ -91,137 +84,11 @@ function SourceStatePill({
   );
 }
 
-type LogRecord = {
-  completion_tokens?: number;
-  content?: string;
-  created_at: number;
-  id: number;
-  model_name?: string;
-  prompt_tokens?: number;
-  type: number;
-  use_time?: number;
-};
-
-function SourceRecords({
-  internalId,
-  t,
-}: {
-  internalId?: number;
-  t: TFunction;
-}) {
-  const query = useQuery({
-    enabled: Boolean(internalId),
-    queryKey: queryKeys.console.table('source-records', { internalId }),
-    queryFn: async () => {
-      const end = Math.floor(Date.now() / 1000);
-      const params = new URLSearchParams({
-        channel: String(internalId),
-        end_timestamp: String(end),
-        p: '1',
-        page_size: '50',
-        start_timestamp: String(end - 7 * 86400),
-        type: '0',
-      });
-      const data = unwrap<{ items?: LogRecord[] } | LogRecord[]>(
-        await API.get(`/api/log/?${params}`, { skipErrorHandler: true }),
-      );
-      return (Array.isArray(data) ? data : data?.items) ?? [];
-    },
-  });
-  const rows = (query.data ?? []).filter(
-    (row) => row.type === 2 || row.type === 5,
-  );
-  return (
-    <section className='src-panel'>
-      <div className='src-recrow src-recrow--head'>
-        <span className='src-th'>
-          {t(`${ns}.records.time`, { defaultValue: '时间' })}
-        </span>
-        <span className='src-th'>
-          {t(`${ns}.records.model`, { defaultValue: '模型' })}
-        </span>
-        <span className='src-th'>
-          {t(`${ns}.records.result`, { defaultValue: '结果' })}
-        </span>
-        <span className='src-th is-num'>
-          {t(`${ns}.records.latency`, { defaultValue: '用时' })}
-        </span>
-        <span className='src-th is-num'>
-          {t(`${ns}.records.tokens`, { defaultValue: '入 / 出' })}
-        </span>
-        <span className='src-th'>
-          {t(`${ns}.records.note`, { defaultValue: '说明' })}
-        </span>
-      </div>
-      {query.isLoading ? (
-        <div className='src-empty'>
-          {t(`${ns}.records.loading`, { defaultValue: '读取中…' })}
-        </div>
-      ) : query.isError ? (
-        <div className='src-empty'>
-          {t(`${ns}.records.error`, { defaultValue: '读取失败' })}
-        </div>
-      ) : rows.length === 0 ? (
-        <div className='src-empty'>
-          {t(`${ns}.records.empty`, {
-            defaultValue: '近 7 天暂无请求记录',
-          })}
-        </div>
-      ) : (
-        rows.map((row) => {
-          const failed = row.type === 5;
-          return (
-            <div className='src-recrow' key={row.id}>
-              <span className='src-mono'>
-                {formatCheckTime(row.created_at)}
-              </span>
-              <span className='src-mono src-recrow__model'>
-                {row.model_name || '—'}
-              </span>
-              <span>
-                <span className={`src-status ${failed ? 'is-gone' : 'is-in'}`}>
-                  {failed
-                    ? t(`${ns}.records.failed`, { defaultValue: '失败' })
-                    : t(`${ns}.records.ok`, { defaultValue: '成功' })}
-                </span>
-              </span>
-              <span className='src-mono is-num'>
-                {row.use_time ? formatLatency(row.use_time * 1000) : '—'}
-              </span>
-              <span className='src-mono is-num'>
-                {failed
-                  ? '—'
-                  : `${(row.prompt_tokens ?? 0).toLocaleString()} / ${(row.completion_tokens ?? 0).toLocaleString()}`}
-              </span>
-              <span
-                className='src-hint src-recrow__note'
-                title={failed ? row.content : undefined}
-              >
-                {failed ? row.content || '' : ''}
-              </span>
-            </div>
-          );
-        })
-      )}
-      <div className='src-foot'>
-        <span>
-          {t(`${ns}.records.foot`, {
-            count: rows.length,
-            defaultValue: '近 7 天 · 最新 {{count}} 条',
-          })}
-        </span>
-        <Link className='src-foot__link' to='/console/usage-logs'>
-          {t(`${ns}.records.all`, { defaultValue: '全部日志' })}
-        </Link>
-      </div>
-    </section>
-  );
-}
-
 type SourceDialogProps = {
   channels: ReturnType<typeof useChannelsQuery>;
   hasNext: boolean;
   hasPrev: boolean;
+  initialAdvancedOpen?: boolean;
   initialModelView?: SourceModelStatusView;
   isSourcesLoading?: boolean;
   onClose: () => void;
@@ -229,18 +96,20 @@ type SourceDialogProps = {
   onNext: () => void;
   onPrev: () => void;
   onSaved: () => void;
-  onTabChange: (tab: SourceDialogTab) => void;
   source: ModelOpsSource | null;
   sourceId: string;
-  tab: SourceDialogTab;
 };
 
-/** Centered wide dialog over the Sources ledger for both editing an existing
- *  source and creating a new one without leaving the list. */
+/**
+ * Tabless vertical scroll sheet (07-A) over the Sources ledger:
+ * auto-hugs height up to min(86vh, 860px) at max-width 700px with one unified
+ * body scroll, pinned header with request-log link, and pinned footer.
+ */
 export default function SourceDialog({
   channels,
   hasNext,
   hasPrev,
+  initialAdvancedOpen = false,
   initialModelView,
   isSourcesLoading,
   onClose,
@@ -248,10 +117,8 @@ export default function SourceDialog({
   onNext,
   onPrev,
   onSaved,
-  onTabChange,
   source,
   sourceId,
-  tab,
 }: SourceDialogProps) {
   const creating = sourceId === 'new';
   const { t } = channels;
@@ -263,28 +130,46 @@ export default function SourceDialog({
     creating ? null : sourceId,
   );
   const [servedCount, setServedCount] = useState<number | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [pendingNav, setPendingNav] = useState<
+    'close' | 'next' | 'prev' | null
+  >(null);
 
   useEffect(() => {
     setServedCount(null);
+    setIsDirty(false);
+    setPendingNav(null);
   }, [sourceId]);
+
+  const guardAction = (action: 'close' | 'next' | 'prev', run: () => void) => {
+    if (isDirty) {
+      setPendingNav(action);
+      return;
+    }
+    run();
+  };
 
   if (creating) {
     return (
       <ModalFrame
         busy={channels.saveChannelMutation.isPending}
-        className='mo-dialog src-dialog src-dialog--create lazu-modal-content--xwide'
+        className='mo-dialog src-dialog src-dialog--create'
         hideClose
         open
-        sheet='full'
         onOpenChange={(open) => {
           if (!open) onClose();
         }}
       >
-        <div className='mo-dialog__head src-dialog__head--create'>
+        <div className='mo-dialog__head src-dialog__head src-dialog__head--create'>
           <div className='mo-dialog__title-block'>
             <ModalTitle className='mo-dialog__title'>
               {t(`${ns}.newTitle`, { defaultValue: '新建来源' })}
             </ModalTitle>
+            <div className='mo-sub'>
+              {t(`${ns}.newSubtitle`, {
+                defaultValue: '先验证连接并拉取模型，勾选后再供货',
+              })}
+            </div>
           </div>
           <div className='mo-dialog__tools'>
             <IconButton
@@ -327,184 +212,185 @@ export default function SourceDialog({
     );
   }
 
-  const settings = upstream?.settings;
-  const interval = settings?.interval_hours ?? 0;
-  const checkedAt = upstream?.state?.checked_at;
-  const syncLine = interval
-    ? t(`${ns}.syncLineShort`, {
-        defaultValue: '每 {{hours}}h 同步 · {{last}}',
-        hours: interval,
-        last: formatCheckTime(checkedAt),
-      })
-    : checkedAt
-      ? formatCheckTime(checkedAt)
-      : '';
-
   const displayCount = servedCount ?? source?.model_count ?? 0;
-  const tabLabel: Record<SourceDialogTab, string> = {
-    connection: t(`${ns}.tab.connection`, { defaultValue: '连接' }),
-    models: t(`${ns}.tab.models`, { defaultValue: '模型' }),
-    records: t(`${ns}.tab.records`, { defaultValue: '记录' }),
-    routing: t(`${ns}.tab.routing`, { defaultValue: '线路' }),
-    sync: t(`${ns}.tab.sync`, { defaultValue: '同步' }),
-  };
-
-  const meta = source
+  const metaParts = source
     ? [
         `#${source.internal_id}`,
         sourceTypeLabel(source.source_type, t),
         sourceAdapterLabel(source, t),
         hostOf(source.endpoint || source.base_url || ''),
-      ]
-        .filter(Boolean)
-        .join(' · ')
-    : '';
+      ].filter(Boolean)
+    : [];
+  const logsHref = source?.internal_id
+    ? `/console/usage?channel=${encodeURIComponent(String(source.internal_id))}&scope=platform`
+    : '/console/usage?scope=platform';
 
   return (
-    <ModalFrame
-      busy={channels.saveChannelMutation.isPending}
-      className='mo-dialog src-dialog lazu-modal-content--xwide'
-      hideClose
-      open
-      sheet='full'
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <div className='mo-dialog__head src-dialog__head'>
-        <div className='src-dialog__identity'>
-          <ProviderLogo
-            brand={resolveProviderBrand({
-              id: source?.endpoint,
-              name: `${source?.type_name || ''} ${source?.name || ''}`,
-            })}
-            decorative
-            size={30}
-          />
-          <div className='mo-dialog__title-block'>
-            <ModalTitle className='mo-dialog__title'>
-              <span>{source?.name || (isSourcesLoading ? '…' : sourceId)}</span>
-              {source ? <SourceStatePill source={source} t={t} /> : null}
-            </ModalTitle>
-            {meta ? <div className='mo-sub src-mono'>{meta}</div> : null}
-          </div>
-        </div>
-        <div className='mo-dialog__tools'>
-          <Button
-            disabled={!source}
-            loading={ops.testSourceMutation.isPending}
-            size='sm'
-            type='button'
-            variant='secondary'
-            onClick={() => source && ops.testSourceMutation.mutate(source.id)}
-          >
-            <Zap size={14} />
-            {t(`${ns}.testShort`, { defaultValue: '测试' })}
-          </Button>
-          <Button
-            loading={check.isPending}
-            size='sm'
-            type='button'
-            variant='secondary'
-            onClick={() => check.mutate()}
-          >
-            <RefreshCw size={14} />
-            {t(`${ns}.checkShort`, { defaultValue: '查上游' })}
-          </Button>
-          <IconButton
-            aria-label={t('page.console.modelOps.inspector.prev', {
-              defaultValue: '上一个',
-            })}
-            disabled={!hasPrev}
-            size='sm'
-            variant='ghost'
-            onClick={onPrev}
-          >
-            <ChevronLeft size={16} />
-          </IconButton>
-          <IconButton
-            aria-label={t('page.console.modelOps.inspector.next', {
-              defaultValue: '下一个',
-            })}
-            disabled={!hasNext}
-            size='sm'
-            variant='ghost'
-            onClick={onNext}
-          >
-            <ChevronRight size={16} />
-          </IconButton>
-          <IconButton
-            aria-label={t('common.close', { defaultValue: '关闭' })}
-            size='sm'
-            variant='ghost'
-            onClick={onClose}
-          >
-            <X size={16} />
-          </IconButton>
-        </div>
-      </div>
-
-      <div className='src-dialog__tabs-bar'>
-        <Tabs
-          className='src-dialog__tabs'
-          value={tab}
-          onValueChange={(value) => onTabChange(value as SourceDialogTab)}
-        >
-          <TabsList variant='line'>
-            {SOURCE_DIALOG_TABS.map((key) => (
-              <TabsTrigger key={key} value={key}>
-                {tabLabel[key]}
-                {key === 'models' ? (
-                  <span className='src-num src-tabs__count'>
-                    {displayCount}
+    <>
+      <ModalFrame
+        busy={channels.saveChannelMutation.isPending}
+        className='mo-dialog src-dialog'
+        hideClose
+        open
+        onOpenChange={(open) => {
+          if (!open) guardAction('close', onClose);
+        }}
+      >
+        <div className='mo-dialog__head src-dialog__head'>
+          <div className='src-dialog__identity'>
+            <ProviderLogo
+              brand={resolveProviderBrand({
+                id: source?.endpoint,
+                name: `${source?.type_name || ''} ${source?.name || ''}`,
+              })}
+              decorative
+              size={30}
+            />
+            <div className='mo-dialog__title-block'>
+              <ModalTitle className='mo-dialog__title'>
+                <span>
+                  {source?.name || (isSourcesLoading ? '…' : sourceId)}
+                </span>
+                {source ? <SourceStatePill source={source} t={t} /> : null}
+                {isDirty ? (
+                  <span className='src-dirty-pill'>
+                    {t(`${ns}.unsavedBadge`, { defaultValue: '有未保存修改' })}
                   </span>
                 ) : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        {syncLine ? (
-          <span className='src-hint src-tabs__aside'>{syncLine}</span>
-        ) : null}
-      </div>
+              </ModalTitle>
+              <div className='src-dialog__sub'>
+                {metaParts.length ? (
+                  <span className='src-mono'>{metaParts.join(' · ')}</span>
+                ) : null}
+                {metaParts.length ? <span aria-hidden='true'>·</span> : null}
+                <Link className='src-dialog__loglink' to={logsHref}>
+                  {source && source.health.request_count > 0
+                    ? t(`${ns}.viewLogsCount`, {
+                        count: source.health.request_count,
+                        defaultValue: '查看请求日志 ({{count}})',
+                      })
+                    : t(`${ns}.viewLogs`, { defaultValue: '查看请求日志' })}
+                  <ArrowUpRight aria-hidden='true' size={12} />
+                </Link>
+              </div>
+            </div>
+          </div>
+          <div className='mo-dialog__tools'>
+            <Button
+              disabled={!source}
+              loading={ops.testSourceMutation.isPending}
+              size='sm'
+              type='button'
+              variant='secondary'
+              onClick={() => source && ops.testSourceMutation.mutate(source.id)}
+            >
+              <Zap size={14} />
+              {t(`${ns}.testShort`, { defaultValue: '测试' })}
+            </Button>
+            <Button
+              loading={check.isPending}
+              size='sm'
+              type='button'
+              variant='secondary'
+              onClick={() => check.mutate()}
+            >
+              <RefreshCw size={14} />
+              {t(`${ns}.checkShort`, { defaultValue: '查上游' })}
+            </Button>
+            <IconButton
+              aria-label={t('page.console.modelOps.inspector.prev', {
+                defaultValue: '上一个',
+              })}
+              disabled={!hasPrev}
+              size='sm'
+              variant='ghost'
+              onClick={() => guardAction('prev', onPrev)}
+            >
+              <ChevronLeft size={16} />
+            </IconButton>
+            <IconButton
+              aria-label={t('page.console.modelOps.inspector.next', {
+                defaultValue: '下一个',
+              })}
+              disabled={!hasNext}
+              size='sm'
+              variant='ghost'
+              onClick={() => guardAction('next', onNext)}
+            >
+              <ChevronRight size={16} />
+            </IconButton>
+            <IconButton
+              aria-label={t('common.close', { defaultValue: '关闭' })}
+              size='sm'
+              variant='ghost'
+              onClick={() => guardAction('close', onClose)}
+            >
+              <X size={16} />
+            </IconButton>
+          </div>
+        </div>
 
-      <div className='mo-dialog__body src-dialog__body'>
-        {tab === 'records' ? (
-          <SourceRecords internalId={source?.internal_id} t={t} />
-        ) : null}
-        <div className='src-formhost' hidden={tab === 'records'}>
+        <div className='mo-dialog__body src-dialog__body'>
           <SourceForm
             catalog={catalog}
             channels={channels}
             editingChannel={{ id: sourceId } as unknown as EditingChannel}
+            initialAdvancedOpen={initialAdvancedOpen}
             initialModelView={initialModelView}
             key={sourceId}
+            keyFingerprint={source?.key_fingerprint}
             layout='page'
             resolving={resolve.isPending}
-            tab={tab === 'records' ? 'models' : tab}
             upstream={upstream}
-            onCancel={onClose}
+            onCancel={() => guardAction('close', onClose)}
+            onDirtyChange={setIsDirty}
             onResolve={(body) => resolve.mutate(body)}
             onSaved={() => {
+              setIsDirty(false);
               onSaved();
             }}
             onServedCountChange={setServedCount}
-            onTabChange={onTabChange}
           />
         </div>
-      </div>
 
-      <div className='mo-dialog__foot src-dialog__foot'>
-        <span className='src-hint'>
-          {t(`${ns}.footServing`, { defaultValue: '供货' })}{' '}
-          <strong className='src-mono src-ink'>{displayCount}</strong>{' '}
-          {t(`${ns}.footServingUnit`, { defaultValue: '个' })}
-        </span>
-        <div className='src-dialog__foot-actions'>
-          <Button size='sm' type='button' variant='secondary' onClick={onClose}>
-            {t('common.cancel', { defaultValue: '取消' })}
-          </Button>
-          {tab !== 'records' ? (
+        <div className='mo-dialog__foot src-dialog__foot'>
+          <div className='src-dialog__foot-left'>
+            {source ? (
+              <Button
+                className={
+                  source.status === 1 ? 'src-btn--danger-outline' : undefined
+                }
+                loading={ops.sourceStatusMutation.isPending}
+                size='sm'
+                type='button'
+                variant='secondary'
+                onClick={() =>
+                  ops.sourceStatusMutation.mutate({
+                    enabled: source.status !== 1,
+                    source,
+                  })
+                }
+              >
+                {source.status === 1
+                  ? t(`${ns}.disableSource`, { defaultValue: '停用该来源' })
+                  : t(`${ns}.enableSource`, { defaultValue: '启用该来源' })}
+              </Button>
+            ) : null}
+            <span className='src-hint'>
+              {t(`${ns}.footServing`, { defaultValue: '供货' })}{' '}
+              <strong className='src-mono src-ink'>{displayCount}</strong>{' '}
+              {t(`${ns}.footServingUnit`, { defaultValue: '个' })}
+            </span>
+          </div>
+          <div className='src-dialog__foot-actions'>
+            <Button
+              size='sm'
+              type='button'
+              variant='secondary'
+              onClick={() => guardAction('close', onClose)}
+            >
+              {t('common.cancel', { defaultValue: '取消' })}
+            </Button>
             <Button
               form={SOURCE_FORM_ID}
               loading={channels.saveChannelMutation.isPending}
@@ -514,9 +400,45 @@ export default function SourceDialog({
             >
               {t(`${ns}.save`, { defaultValue: '保存' })}
             </Button>
-          ) : null}
+          </div>
         </div>
-      </div>
-    </ModalFrame>
+      </ModalFrame>
+
+      <Modal
+        open={pendingNav !== null}
+        title={t(`${ns}.discardTitle`, { defaultValue: '放弃未保存的修改？' })}
+        description={t(`${ns}.discardDescription`, {
+          defaultValue: '当前来源有未保存的配置改动，离开后改动将丢失。',
+        })}
+        footer={
+          <>
+            <Button
+              size='sm'
+              variant='secondary'
+              onClick={() => setPendingNav(null)}
+            >
+              {t(`${ns}.keepEditing`, { defaultValue: '继续编辑' })}
+            </Button>
+            <Button
+              size='sm'
+              variant='primary'
+              onClick={() => {
+                const action = pendingNav;
+                setPendingNav(null);
+                setIsDirty(false);
+                if (action === 'prev') onPrev();
+                else if (action === 'next') onNext();
+                else onClose();
+              }}
+            >
+              {t(`${ns}.discardConfirm`, { defaultValue: '放弃修改' })}
+            </Button>
+          </>
+        }
+        onOpenChange={(open) => {
+          if (!open) setPendingNav(null);
+        }}
+      />
+    </>
   );
 }

@@ -181,6 +181,7 @@ test('each model slot carries its own lane, and only where there is one', async 
 
   // The flagship slot holds an OpenAI model whose agent lane is Codex-only.
   // Claude Code cannot reach it, so the price shows and the switch does not.
+  await dialog.getByRole('button', { name: '展开高级槽位' }).click();
   const opus = slot('tok-connect-opus');
   await opus.getByRole('button', { name: /gpt-6-astra|claude|gemini/ }).click();
   await page
@@ -221,6 +222,7 @@ test('a lane the Key kept but this tool cannot use warns instead of hiding', asy
     model_lanes: { 'gpt-6-astra': 'cheap' },
   });
   const dialog = page.locator('.tok-connect');
+  await dialog.getByRole('button', { name: '展开高级槽位' }).click();
   const opus = dialog.locator(
     '.tok-connect__field:has(#tok-connect-opus-label)',
   );

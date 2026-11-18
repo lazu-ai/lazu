@@ -234,6 +234,7 @@ test('organization balance adjustments submit an atomic signed delta', async ({
     .locator('tbody tr', { hasText: 'owner@example.com' })
     .first();
   await row.click();
+  await page.getByRole('button', { name: '手工充值 / 扣减' }).click();
   await page.locator('.orgs__balance .lazu-select-trigger').click();
   await page.getByRole('option', { name: '扣减 −' }).click();
   await page.getByPlaceholder('100.00').fill('1.25');
@@ -262,9 +263,9 @@ test('an account opens from the keyboard, not only by clicking its row', async (
   const open = page.locator('.orgs__who-open').first();
   await open.focus();
   await page.keyboard.press('Enter');
-  const drawer = page.locator('.lazu-drawer-content');
-  await expect(drawer).toBeVisible();
-  await expect(drawer.locator('.lazu-drawer-close')).toHaveAttribute(
+  const modal = page.locator('.lazu-modal-content.acc-modal');
+  await expect(modal).toBeVisible();
+  await expect(modal.locator('.lazu-drawer-close')).toHaveAttribute(
     'aria-label',
     '关闭',
   );

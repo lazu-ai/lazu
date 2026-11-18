@@ -128,15 +128,6 @@ export const dayText = (unix: number, t: TFunction) => {
   });
 };
 
-/** 今天 16:40 / 昨天 21:30 / 9月28日. */
-export const whenText = (unix: number, t: TFunction) => {
-  const date = new Date(unix * 1000);
-  const diff = Math.round((dayStart(new Date()) - dayStart(date)) / 86_400_000);
-  return diff <= 1
-    ? `${dayText(unix, t)} ${clockText(unix)}`
-    : dayText(unix, t);
-};
-
 /**
  * "14:02 – 14:48" inside today, "昨天 23:10 – 今天 14:55" across days,
  * "9月28日 14:02 – 14:48" on an earlier day. `withToday` prefixes 今天 on a

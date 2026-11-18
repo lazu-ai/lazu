@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 import { expectRouteReady, setupMockedApp, fail } from './helpers/mock-app';
 
-test('legacy billing route redirects to the wallet with real usage data', async ({
+test('wallet exposes separate top-up and billing views with reconciled statement', async ({
   page,
 }) => {
   const app = await setupMockedApp(page);
@@ -15,13 +15,12 @@ test('legacy billing route redirects to the wallet with real usage data', async 
   await usageRequest;
 
   await expect(page.locator('.wal-balance-value')).toHaveText('$5.00');
-  // The spend trend is on the page, not behind a disclosure: it explains the
-  // balance above it and the ledger below it.
-  const figures = page.locator('.wal-chart-card__figures');
-  await expect(figures).toContainText('$0.25');
-  await expect(figures).toContainText('请求 5');
+  await expect(page.locator('.wal-topup-stage')).toBeVisible();
 
-  await expect(page.locator('.wal-chart-card__canvas')).toBeVisible();
+  await page.getByRole('tab', { name: '账单' }).click();
+  await expect(page).toHaveURL(/\/console\/wallet\?tab=billing/);
+  await expect(page.locator('.wal-statement-strip')).toBeVisible();
+  await expect(page.locator('.wal-billing-card')).toBeVisible();
 
   await app.expectNoUnexpectedErrors();
 });
@@ -29,11 +28,23 @@ test('legacy billing route redirects to the wallet with real usage data', async 
 test('wallet reflows on mobile without horizontal page overflow', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 800, height: 900 });
+  await page.setViewportSize({ width: 390, height: 844 });
   const app = await setupMockedApp(page);
   await expectRouteReady(page, '/console/wallet');
 
-  await expect(page.locator('.wal-layout')).toBeVisible();
+  await expect(page.locator('.wal-topup-stage')).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      ),
+    )
+    .toBeLessThanOrEqual(1);
+
+  await page.getByRole('tab', { name: '账单' }).click();
+  await expect(page.locator('.wal-billing-stage')).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(
@@ -47,23 +58,23 @@ test('wallet reflows on mobile without horizontal page overflow', async ({
   await app.expectNoUnexpectedErrors();
 });
 
-test('wallet does not present zero usage when the usage request fails', async ({
+test('wallet billing does not present zero statement figures when ledger fails', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
     payloadFor: (url) => {
-      if (new URL(url).pathname === '/api/data/dashboard/self') {
+      if (new URL(url).pathname === '/api/user/wallet/ledger') {
         return fail(500, 'internal_error');
       }
       return undefined;
     },
   });
-  await expectRouteReady(page, '/console/wallet');
+  await expectRouteReady(page, '/console/wallet?tab=billing');
 
-  await expect(page.getByText('用量数据加载失败').first()).toBeVisible();
-  const figures = page.locator('.wal-chart-card__figures');
-  await expect(figures).toContainText('消耗 —');
-  await expect(figures).toContainText('请求 —');
+  await expect(page.locator('.wal-billing-card')).toContainText('重试');
+  await expect(page.locator('.wal-statement-cell__value').first()).toHaveText(
+    '—',
+  );
   await app.expectNoUnexpectedErrors();
 });
 
@@ -126,18 +137,18 @@ test('wallet separates paid and credited amounts and links a ledger day to logs'
       return undefined;
     },
   });
-  await expectRouteReady(page, '/console/wallet');
+  await expectRouteReady(page, '/console/wallet?tab=billing');
 
   const ledgerRow = page.locator('.wal-ledger tbody tr').first();
-  await expect(ledgerRow).toContainText('+110.00');
+  await expect(ledgerRow).toContainText('+$110.00');
 
-  await page.getByRole('button', { name: '历史记录' }).click();
-  const historyDialog = page.getByRole('dialog', { name: '充值记录' });
-  await expect(historyDialog).toContainText('$110.00');
-  await expect(historyDialog).toContainText('$100.00');
-  await expect(historyDialog).toContainText('2026-08-02');
-  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: /充值订单/ }).click();
+  const billingCard = page.locator('.wal-billing-card');
+  await expect(billingCard).toContainText('$110.00');
+  await expect(billingCard).toContainText('$100.00');
+  await expect(billingCard).toContainText('2026-08-02');
 
+  await page.getByRole('tab', { name: '每日汇总' }).click();
   const logRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
     return (
@@ -187,17 +198,14 @@ test('manual top-up completion uses a cancelable confirmation', async ({
       return undefined;
     },
   });
-  await expectRouteReady(page, '/console/wallet');
-  await page.getByRole('button', { name: '历史记录' }).click();
-  const history = page.getByRole('dialog', { name: '充值记录' });
-  const complete = history.getByRole('button', {
+  await expectRouteReady(page, '/console/wallet?tab=billing&view=orders');
+  const billingCard = page.locator('.wal-billing-card');
+  const complete = billingCard.getByRole('button', {
     name: '确认到账',
     exact: true,
   });
   const confirm = page.getByRole('dialog', { name: '确认到账', exact: true });
   await complete.click();
-  // Escape before the confirmation opens (and takes focus) would reach the
-  // history dialog instead.
   await expect(confirm).toBeVisible();
   await expect
     .poll(() =>
@@ -206,7 +214,7 @@ test('manual top-up completion uses a cancelable confirmation', async ({
     .toBe(true);
   await page.keyboard.press('Escape');
   await expect(confirm).toBeHidden();
-  await expect(history).toBeVisible();
+  await expect(billingCard).toBeVisible();
   expect(completions).toBe(0);
   await complete.click();
   await confirm.getByRole('button', { name: '确认到账', exact: true }).click();

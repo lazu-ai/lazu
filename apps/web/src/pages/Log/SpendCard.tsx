@@ -19,7 +19,7 @@ const dayStart = (at: Date) =>
   new Date(at.getFullYear(), at.getMonth(), at.getDate());
 
 /* Small ranges cost fractions of a cent; two decimals would read $0.00. */
-const money = (micro: number) =>
+export const formatSpendMoney = (micro: number) =>
   `$${(micro / 1_000_000).toFixed(Math.abs(micro) >= 10_000 || !micro ? 2 : 4)}`;
 
 /** The hourly series folded into local days (or kept by the hour when
@@ -58,11 +58,13 @@ export function spendBuckets(
 }
 
 export function SpendCard({
+  amountMicrousd,
   loading,
   preset,
   range,
   stat,
 }: {
+  amountMicrousd?: number;
   loading: boolean;
   preset: UsageRangePreset | 'custom';
   range: { days: number; end: number; label: string; start: number };
@@ -73,19 +75,20 @@ export function SpendCard({
     preset === 'custom'
       ? t('page.console.usage.range.days', { count: range.days })
       : t(`page.console.log.session.range.${preset}`);
-  const amount = Number(stat.amount_microusd || 0);
+  const statAmount = Number(stat.amount_microusd || 0);
+  const amount = amountMicrousd ?? statAmount;
   const previous =
     stat.previous_amount_microusd == null
       ? null
       : Number(stat.previous_amount_microusd);
-  const delta = previous == null ? 0 : amount - previous;
+  const delta = previous == null ? 0 : statAmount - previous;
   const compare =
     previous == null
       ? ''
       : delta === 0
         ? t(`${SC}.same`, { range: span })
         : t(delta > 0 ? `${SC}.more` : `${SC}.less`, {
-            amount: money(Math.abs(delta)),
+            amount: formatSpendMoney(Math.abs(delta)),
             range: span,
           });
 
@@ -100,34 +103,62 @@ export function SpendCard({
   const max = Math.max(0, ...buckets.map((bucket) => bucket.amount));
   const peak = buckets.find((bucket) => max > 0 && bucket.amount === max);
   const label = hourly ? hourLabel : dayLabel;
-  // Seven to ten labels at most; a long range labels every n-th bar.
-  const every = Math.max(1, Math.ceil(buckets.length / (hourly ? 8 : 10)));
-  const gap = buckets.length <= 14 ? 10 : buckets.length <= 31 ? 4 : 2;
+  const gap = buckets.length <= 14 ? 4 : buckets.length <= 31 ? 3 : 2;
+  const chartSummary = peak
+    ? t(hourly ? `${SC}.chartHourly` : `${SC}.chartDaily`, {
+        peak: label(peak.at),
+      })
+    : t(`${SC}.chartEmpty`);
+  const chartNote = peak
+    ? t(`${SC}.peakSlice`, {
+        amount: formatSpendMoney(peak.amount),
+        defaultValue: '{{peak}} 峰值 {{amount}}',
+        peak: label(peak.at),
+      })
+    : t(`${SC}.chartEmpty`);
 
   const requests = Number(stat.request_count || 0);
   const errors = Number(stat.error_count || 0);
   const total = requests + errors;
+  const successRatio = total > 0 ? requests / total : null;
   const ttft = stat.median_ttft_ms;
-  const metrics = [
-    [t(`${SC}.requests`), total.toLocaleString()],
-    [
-      t(`${SC}.success`),
-      total
-        ? `${((requests / total) * 100).toFixed(1).replace(/\.0$/, '')}%`
+  const metrics: Array<{
+    key: string;
+    name: string;
+    tone?: 'ok';
+    value: string;
+  }> = [
+    {
+      key: 'requests',
+      name: t(`${SC}.requests`),
+      value: total.toLocaleString(),
+    },
+    {
+      key: 'success',
+      name: t(`${SC}.success`),
+      tone: successRatio !== null && successRatio >= 0.99 ? 'ok' : undefined,
+      value:
+        successRatio !== null
+          ? `${(successRatio * 100).toFixed(1).replace(/\.0$/, '')}%`
+          : '—',
+    },
+    {
+      key: 'cache',
+      name: t(`${SC}.cache`),
+      value: requests
+        ? `${(Number(stat.cache_hit_ratio || 0) * 100).toFixed(1).replace(/\.0$/, '')}%`
         : '—',
-    ],
-    [
-      t(`${SC}.cache`),
-      requests
-        ? `${Math.round(Number(stat.cache_hit_ratio || 0) * 100)}%`
-        : '—',
-    ],
-    [
-      t(`${SC}.ttft`),
-      ttft == null
-        ? '—'
-        : t(`${SC}.seconds`, { value: (ttft / 1000).toFixed(1) }),
-    ],
+    },
+    {
+      key: 'ttft',
+      name: t(`${SC}.ttft`),
+      value:
+        ttft == null
+          ? '—'
+          : t(`${SC}.seconds`, {
+              value: (ttft / 1000).toFixed(ttft < 1000 ? 2 : 1),
+            }),
+    },
   ];
 
   return (
@@ -136,61 +167,68 @@ export function SpendCard({
       aria-label={t(`${SC}.title`, { range: span })}
     >
       <div className='spend-card__hero'>
-        <div>
-          <div className='spend-card__label'>
-            {t(`${SC}.title`, { range: span })}
-          </div>
-          <div className='spend-card__value'>
-            <Pending chars={5} pending={loading}>
-              {money(amount)}
-            </Pending>
-          </div>
+        <div className='spend-card__label'>
+          {t(`${SC}.title`, { range: span })}
         </div>
-        <div className='spend-card__label'>{loading ? '' : compare}</div>
+        <div className='spend-card__value'>
+          <Pending chars={5} pending={loading}>
+            {formatSpendMoney(amount)}
+          </Pending>
+        </div>
       </div>
-      <div
-        aria-label={
-          peak
-            ? t(hourly ? `${SC}.chartHourly` : `${SC}.chartDaily`, {
-                peak: label(peak.at),
-              })
-            : t(`${SC}.chartEmpty`)
-        }
-        className='spend-card__bars'
-        role='img'
-        style={{ gap }}
-      >
-        {buckets.map((bucket, i) => (
-          <div
-            className='spend-card__col'
-            key={bucket.at.getTime()}
-            title={`${label(bucket.at)} · ${money(bucket.amount)} · ${t(`${SC}.barRequests`, { count: bucket.requests })}`}
-          >
+      <div className='spend-card__chart'>
+        <div className='spend-card__chart-head'>
+          <span className='spend-card__chart-note'>
+            <Pending chars={10} pending={loading}>
+              {chartNote}
+            </Pending>
+          </span>
+          {!loading && compare ? (
+            <span
+              className='spend-card__delta'
+              data-less={delta < 0 || undefined}
+            >
+              {compare}
+            </span>
+          ) : null}
+        </div>
+        <div
+          aria-label={chartSummary}
+          className='spend-card__bars'
+          role='img'
+          style={{ gap }}
+        >
+          {buckets.map((bucket, i) => (
             <div
-              className='spend-card__bar'
-              data-current={i === buckets.length - 1 || undefined}
-              style={{
-                height: Math.round(8 + (max ? bucket.amount / max : 0) * 92),
-              }}
-            />
-            <div className='spend-card__tick'>
-              {(buckets.length - 1 - i) % every === 0 ? label(bucket.at) : ''}
+              className='spend-card__col'
+              key={bucket.at.getTime()}
+              title={`${label(bucket.at)} · ${formatSpendMoney(bucket.amount)} · ${t(`${SC}.barRequests`, { count: bucket.requests })}`}
+            >
+              <div
+                className='spend-card__bar'
+                data-current={i === buckets.length - 1 || undefined}
+                data-empty={bucket.amount <= 0 || undefined}
+                style={{
+                  height: Math.max(
+                    4,
+                    Math.round((max ? bucket.amount / max : 0) * 38),
+                  ),
+                }}
+              />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      <div className='spend-card__side'>
-        {metrics.map(([name, value]) => (
-          <div className='spend-card__metric' key={name}>
-            <span>{name}</span>
-            <b>
-              <Pending chars={4} pending={loading}>
-                {value}
-              </Pending>
-            </b>
-          </div>
-        ))}
-      </div>
+      {metrics.map((metric) => (
+        <div className='spend-card__metric' key={metric.key}>
+          <span>{metric.name}</span>
+          <b data-tone={metric.tone}>
+            <Pending chars={4} pending={loading}>
+              {metric.value}
+            </Pending>
+          </b>
+        </div>
+      ))}
     </section>
   );
 }

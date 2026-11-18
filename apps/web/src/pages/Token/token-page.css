@@ -747,17 +747,89 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 }
 
 .tok-create__split-row .lazu-effort {
-  padding-top: 3px;
+  gap: 0;
+  padding-top: 0;
   width: 100%;
+}
+
+.tok-create .lazu-effort__track {
+  display: none;
+}
+
+.tok-create .lazu-effort__words {
+  background: var(--lazu-surface-muted);
+  border-radius: 10px;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: 3px;
+}
+
+.tok-create .lazu-effort__word {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  display: inline-flex;
+  font-size: 11px;
+  height: 28px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.tok-create .lazu-effort__word[data-state='on'] {
+  background: color-mix(in srgb, var(--lazu-evidence) 10%, transparent);
+  color: var(--lazu-evidence-strong);
+}
+
+.tok-create .lazu-effort__word[data-state='cap'] {
+  background: var(--lazu-surface);
+  border-color: var(--lazu-evidence);
+  color: var(--lazu-evidence-strong);
+  font-weight: 600;
 }
 
 .tok-create__split-full {
   grid-column: 1 / -1;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .tok-create__split-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tok-create .lazu-effort__words {
+    background: transparent;
+    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0;
+  }
+
+  .tok-create .lazu-effort__word {
+    background: var(--lazu-surface);
+    border: 1px solid var(--lazu-border);
+    border-radius: 9px;
+    font-size: 12.5px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 6px;
+  }
+
+  .tok-create .lazu-effort__word[data-state='on'] {
+    background: color-mix(
+      in srgb,
+      var(--lazu-evidence) 7%,
+      var(--lazu-surface)
+    );
+    color: var(--lazu-evidence-strong);
+  }
+
+  .tok-create .lazu-effort__word[data-state='cap'] {
+    background: var(--lazu-evidence-soft);
+    border-color: var(--lazu-evidence);
+    color: var(--lazu-evidence-strong);
+    font-weight: 600;
   }
 }
 
@@ -928,7 +1000,7 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 
 /* On phones both dialogs are bottom sheets (modal.tsx `sheet`); these undo
    the desktop sizes that would otherwise outrank the sheet. */
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .tok-create-modal.lazu-modal-content--sheet,
   .tok-connect.lazu-modal-content--sheet {
     max-width: none;
@@ -1058,9 +1130,89 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
-  padding: 22px 24px;
+  padding: 18px 24px;
+}
+
+/* G1 paper notice inside ConnectModal: #FFFFFF + 1px solid var(--lazu-ink) */
+.tok-connect .lazu-inline-notice,
+.tok-connect__paper-notice.lazu-inline-notice {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-ink);
+  border-radius: 10px;
+  box-shadow: none;
+  padding: 10px 14px;
+}
+
+.tok-connect__model-box {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tok-connect__primary-slot {
+  padding: 12px 14px;
+}
+
+.tok-connect__primary-foot {
+  border-top: 1px solid var(--lazu-border);
+  padding: 8px 14px;
+}
+
+.tok-connect__adv-bar {
+  align-items: center;
+  background: var(--lazu-surface-muted);
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 8px 14px;
+}
+
+.tok-connect__adv-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tok-connect__adv-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  gap: 4px;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+.tok-connect__adv-toggle:hover {
+  color: var(--lazu-evidence);
+}
+
+.tok-connect__adv-chevron {
+  transition: transform var(--lazu-motion-fast, 140ms) ease;
+}
+
+.tok-connect__adv-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.tok-connect__adv-body {
+  border-top: 1px solid var(--lazu-border);
+  padding: 12px 14px;
 }
 
 .tok-connect__head {
@@ -1217,12 +1369,12 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 
 .tok-connect__quick {
   align-items: center;
-  background: var(--lazu-surface-solid);
-  border: 1px solid var(--lazu-ink);
-  border-radius: var(--lazu-radius-control);
+  background: var(--lazu-surface-muted);
+  border: 0;
+  border-radius: 10px;
   display: flex;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 8px 12px;
 }
 
 .tok-connect__quick .lazu-button {
@@ -1277,8 +1429,8 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: 110px;
-  padding: 12px 14px;
+  min-height: 92px;
+  padding: 11px 14px;
 }
 
 .tok-connect__code-head {
@@ -1348,7 +1500,7 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   z-index: 2;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .tok-connect__grid {
     grid-template-columns: minmax(0, 1fr);
   }

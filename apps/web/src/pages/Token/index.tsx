@@ -1283,6 +1283,7 @@ const Token = () => {
           if (!open) setRotateTarget(null);
         }}
         busy={rotating}
+        tone='danger'
         title={t('page.console.token.rotate.title', {
           defaultValue: '重新生成 {{name}}？',
           name: String(rotateTarget?.name || ''),
@@ -1304,7 +1305,7 @@ const Token = () => {
             >
               {t('common.cancel', { defaultValue: '取消' })}
             </Button>
-            <Button variant='primary' loading={rotating} onClick={rotate}>
+            <Button variant='danger' loading={rotating} onClick={rotate}>
               {t('page.console.token.action.regenerate', {
                 defaultValue: '重新生成',
               })}

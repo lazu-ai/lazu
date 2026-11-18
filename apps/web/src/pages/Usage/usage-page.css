@@ -6,8 +6,20 @@
   align-self: flex-end;
 }
 
+.usage-mobile-range {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.usage-mobile-range .usage-range--mobile {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 /* The segmented control: a 4% ink track, the picked segment a white sheet
-   with a hairline. */
+   with a hairline (10px track / 7px button G1 geometry). */
 .logv2-seg.usage-seg {
   background: var(--lazu-surface-muted);
   border-radius: 10px;
@@ -19,11 +31,11 @@
 .logv2-seg.usage-seg .logv2-seg__button,
 .usage-seg .dashv3-tp-btn--compact {
   border-radius: 7px;
-  color: var(--lazu-ink);
-  font-size: 13px;
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
   font-weight: 400;
-  min-height: 30px;
-  padding: 5px 11px;
+  min-height: 28px;
+  padding: 4px 11px;
 }
 
 .logv2-seg.usage-seg .logv2-seg__button[data-active='true'],
@@ -31,6 +43,8 @@
 .usage-seg .dashv3-tp-btn--compact[data-accent] {
   background: var(--lazu-surface);
   box-shadow: 0 0 0 1px var(--lazu-border);
+  color: var(--lazu-ink);
+  font-weight: 500;
 }
 
 /* A custom range shows its dates in the evidence colour. */
@@ -43,38 +57,52 @@
 .usage-page--log-first .tasks-filters {
   align-items: center;
   flex-wrap: nowrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .usage-page--log-first .logv2-search,
-.usage-page--log-first .ses-search {
-  border-color: color-mix(in srgb, var(--lazu-ink) 12%, transparent);
+.usage-page--log-first .ses-search,
+.usage-page--log-first .tasks-search__box {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid color-mix(in srgb, var(--lazu-ink) 12%, transparent);
   border-radius: 10px;
+  box-sizing: border-box;
+  color: var(--lazu-text-faint);
+  display: flex;
   flex: 1 1 auto;
+  gap: 8px;
   height: 36px;
   max-width: none;
   min-width: 0;
+  padding: 0 12px;
 }
 
 .usage-page--log-first .tasks-search {
+  display: flex;
   flex: 1 1 auto;
   margin-left: 0;
   min-width: 0;
 }
 
-.usage-page--log-first .tasks-search input {
-  border-color: color-mix(in srgb, var(--lazu-ink) 12%, transparent);
-  border-radius: 10px;
-  box-sizing: border-box;
-  height: 36px;
-  min-height: 36px;
-  width: 100%;
+.usage-page--log-first .tasks-search__box input {
+  background: transparent;
+  border: 0;
+  color: var(--lazu-ink);
+  flex: 1 1 auto;
+  font: inherit;
+  font-size: 13px;
+  min-width: 0;
+  outline: 0;
 }
 
-.usage-page--log-first .tasks-search input:focus-visible {
+.usage-page--log-first .tasks-search__box input::placeholder {
+  color: var(--lazu-text-faint);
+}
+
+.usage-page--log-first .tasks-search__box:focus-within {
   border-color: var(--lazu-evidence);
   box-shadow: 0 0 0 3px var(--lazu-evidence-soft);
-  outline: 0;
 }
 
 .usage-filter-button.lazu-button {
@@ -89,21 +117,27 @@
   padding: 0 12px;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .usage-page--log-first .logv2-filters__row,
   .usage-page--log-first .ses-filters,
   .usage-page--log-first .tasks-filters {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .usage-page--log-first .logv2-search,
   .usage-page--log-first .ses-search,
-  .usage-page--log-first .tasks-search {
-    flex-basis: 100%;
-    order: 1;
+  .usage-page--log-first .tasks-search,
+  .usage-page--log-first .tasks-search__box {
+    flex: 1 1 auto;
+    height: 38px;
+    min-width: 0;
+    order: 0;
   }
 
   .usage-page--log-first .usage-filter-button.lazu-button {
-    margin-left: auto;
+    flex: none;
+    height: 38px;
+    margin-left: 0;
   }
 }

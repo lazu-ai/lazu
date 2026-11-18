@@ -63,9 +63,10 @@ const handled = (
   return parts.join('；');
 };
 
-/** 来源 › 同步: how often the upstream list is read and what a change does,
- *  beside the record of the checks so far. The settings are part of the
- *  page's form and are written with 保存. */
+/**
+ * Upstream sync rules and recent check history, rendered inside the
+ * collapsible 自动同步与高级覆写 disclosure block of SourceForm.
+ */
 export default function SourceSyncPanel({
   disabled,
   form,
@@ -133,7 +134,7 @@ export default function SourceSyncPanel({
 
   return (
     <div className='src-sync'>
-      <section className='src-panel src-sync__rules'>
+      <div className='src-sync__rules'>
         <div className='src-setrow'>
           <span className='src-setrow__label'>
             <span className='src-setrow__title'>
@@ -182,11 +183,6 @@ export default function SourceSyncPanel({
             <span className='src-setrow__title'>
               {t(`${ns}.onNew`, { defaultValue: '上游新出现的模型' })}
             </span>
-            <span className='src-hint'>
-              {t(`${ns}.onNewHint`, {
-                defaultValue: '不在你供货单里、上次检查之后才出现的',
-              })}
-            </span>
           </span>
           <span className='src-setrow__body'>
             {radio('upstream_sync_on_new', [
@@ -214,11 +210,6 @@ export default function SourceSyncPanel({
           <span className='src-setrow__label'>
             <span className='src-setrow__title'>
               {t(`${ns}.onGone`, { defaultValue: '上游不再列出的模型' })}
-            </span>
-            <span className='src-hint'>
-              {t(`${ns}.onGoneHint`, {
-                defaultValue: '你在供货、但上游列表里没有了',
-              })}
             </span>
           </span>
           <span className='src-setrow__body'>
@@ -248,12 +239,12 @@ export default function SourceSyncPanel({
             </span>
             <span className='src-hint'>
               {t(`${ns}.ignoreHintBefore`, {
-                defaultValue: '这些名字不进「新出现」，也不提醒。每行一条，',
+                defaultValue: '每行一条，',
               })}
               <span className='src-mono'>*</span>
               {t(`${ns}.ignoreHintMiddle`, { defaultValue: ' 通配，' })}
               <span className='src-mono'>re:</span>
-              {t(`${ns}.ignoreHintAfter`, { defaultValue: ' 开头写正则' })}
+              {t(`${ns}.ignoreHintAfter`, { defaultValue: ' 正则' })}
             </span>
           </span>
           <span className='src-setrow__body'>
@@ -262,7 +253,7 @@ export default function SourceSyncPanel({
               className='src-ignore'
               disabled={disabled}
               placeholder={'*-preview\nre:^text-embedding-'}
-              rows={4}
+              rows={3}
               {...form.register('upstream_sync_ignore')}
             />
             <FieldMessage error>
@@ -300,19 +291,8 @@ export default function SourceSyncPanel({
             <span className='src-setrow__title'>
               {t(`${ns}.notify`, { defaultValue: '通知' })}
             </span>
-            <span className='src-hint'>
-              {t(`${ns}.notifyHint`, { defaultValue: '有变化时告诉谁' })}
-            </span>
           </span>
           <span className='src-setrow__body src-setrow__body--line src-notify'>
-            <Checkbox checked disabled>
-              {t(`${ns}.notifyList`, {
-                defaultValue: '来源列表「上游变化」列',
-              })}
-            </Checkbox>
-            <Checkbox checked disabled>
-              {t(`${ns}.notifyBanner`, { defaultValue: '详情页提示条' })}
-            </Checkbox>
             <Controller
               control={form.control}
               name='upstream_sync_notify_ops'
@@ -330,67 +310,47 @@ export default function SourceSyncPanel({
             />
           </span>
         </div>
-      </section>
+      </div>
 
-      <section className='src-panel src-sync__log'>
-        <div className='src-panel__title'>
-          {t(`${ns}.log`, { defaultValue: '检查记录' })}
+      {log.length > 0 ? (
+        <div className='src-panel src-sync__log'>
+          <div className='src-panel__title'>
+            {t(`${ns}.log`, { defaultValue: '最近检查记录' })}
+          </div>
+          {[...log]
+            .sort((a, b) => b.at - a.at)
+            .slice(0, 5)
+            .map((entry, index) => {
+              const change = describeLogChange(entry);
+              return (
+                <div className='src-logrow' key={`${entry.at}-${index}`}>
+                  <span className='src-mono src-logrow__time'>
+                    {formatCheckTime(entry.at)}
+                  </span>
+                  <span className={`src-logrow__change is-${change.tone}`}>
+                    {change.tone === 'bad'
+                      ? t(`${ns}.logFailed`, {
+                          defaultValue: '检查失败：{{error}}',
+                          error: change.text,
+                        })
+                      : change.text ||
+                        t(`${ns}.logNone`, {
+                          count: entry.listed ?? 0,
+                          defaultValue: '无变化',
+                        })}
+                    {entry.manual ? (
+                      <span className='src-hint'>
+                        {' · '}
+                        {t(`${ns}.logManual`, { defaultValue: '手动' })}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className='src-hint'>{handled(entry, pending, t)}</span>
+                </div>
+              );
+            })}
         </div>
-        <div className='src-logrow src-logrow--head'>
-          <span className='src-th'>
-            {t(`${ns}.logTime`, { defaultValue: '时间' })}
-          </span>
-          <span className='src-th'>
-            {t(`${ns}.logChange`, { defaultValue: '变化' })}
-          </span>
-          <span className='src-th'>
-            {t(`${ns}.logHandled`, { defaultValue: '处理' })}
-          </span>
-        </div>
-        <div className='src-log__body'>
-          {log.length === 0 ? (
-            <div className='src-empty'>
-              {t(`${ns}.logEmpty`, {
-                defaultValue: '还没检查过。点「立即检查上游」读一次。',
-              })}
-            </div>
-          ) : (
-            [...log]
-              .sort((a, b) => b.at - a.at)
-              .map((entry, index) => {
-                const change = describeLogChange(entry);
-                return (
-                  <div className='src-logrow' key={`${entry.at}-${index}`}>
-                    <span className='src-mono src-logrow__time'>
-                      {formatCheckTime(entry.at)}
-                    </span>
-                    <span className={`src-logrow__change is-${change.tone}`}>
-                      {change.tone === 'bad'
-                        ? t(`${ns}.logFailed`, {
-                            defaultValue: '检查失败：{{error}}',
-                            error: change.text,
-                          })
-                        : change.text ||
-                          t(`${ns}.logNone`, {
-                            count: entry.listed ?? 0,
-                            defaultValue: '无变化',
-                          })}
-                      {entry.manual ? (
-                        <span className='src-hint'>
-                          {' · '}
-                          {t(`${ns}.logManual`, { defaultValue: '手动' })}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className='src-hint'>
-                      {handled(entry, pending, t)}
-                    </span>
-                  </div>
-                );
-              })
-          )}
-        </div>
-      </section>
+      ) : null}
     </div>
   );
 }
