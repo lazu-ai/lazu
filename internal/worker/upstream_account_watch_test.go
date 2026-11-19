@@ -81,18 +81,18 @@ func TestRecentUpstreamAccountFinalFailuresReadsErrorLog(t *testing.T) {
 		}
 	}
 	for i := 0; i < 3; i++ {
-		seed(fmt.Sprintf("req_f%d", i), 88, model.LogTypeError, "upstream_billing_failed", now.Add(-time.Duration(i)*time.Minute))
+		seed(fmt.Sprintf("req_f%d", i), 41, model.LogTypeError, "upstream_billing_failed", now.Add(-time.Duration(i)*time.Minute))
 	}
-	seed("req_f_old", 88, model.LogTypeError, "upstream_billing_failed", now.Add(-2*time.Hour))
-	seed("req_f_rl", 88, model.LogTypeError, "upstream_rate_limited", now)
+	seed("req_f_old", 41, model.LogTypeError, "upstream_billing_failed", now.Add(-2*time.Hour))
+	seed("req_f_rl", 41, model.LogTypeError, "upstream_rate_limited", now)
 	seed("req_f_local", 0, model.LogTypeError, "upstream_billing_failed", now)
-	seed("req_f_ok", 88, model.LogTypeConsume, "upstream_billing_failed", now)
+	seed("req_f_ok", 41, model.LogTypeConsume, "upstream_billing_failed", now)
 
 	rows, err := model.RecentUpstreamAccountFinalFailures(context.Background(), now.Add(-upstreamAccountWindow), []string{"upstream_billing_failed"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].ChannelID != 88 || rows[0].ErrorCode != "upstream_billing_failed" || rows[0].Failures != 3 || rows[0].StatusCode != 0 {
+	if len(rows) != 1 || rows[0].ChannelID != 41 || rows[0].ErrorCode != "upstream_billing_failed" || rows[0].Failures != 3 || rows[0].StatusCode != 0 {
 		t.Fatalf("final failures = %+v", rows)
 	}
 	if rows[0].LastMs < now.Add(-time.Second).UnixMilli() {

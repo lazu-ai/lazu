@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
+	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/types"
 )
 
@@ -502,6 +504,15 @@ func TestDecisionRetrySwitchesOnChannelAccountFailures(t *testing.T) {
 		if plan := planRelayRetry(newContext(model.ChannelLaneAgent), err, 0, 0, 0); plan.Retry {
 			t.Fatalf("%s: agent lane switched channels: %+v", tc.code, plan)
 		}
+	}
+	// The error the decision handler really returns for a provider 402.
+	upstream := &http.Response{StatusCode: http.StatusPaymentRequired, Body: io.NopCloser(strings.NewReader(`{"error":{"message":"payment required"}}`))}
+	real402 := service.RelayErrorHandler(newContext("direct"), upstream, false)
+	if real402.GetErrorCode() != types.ErrorCodeUpstreamBillingFailed || types.IsSkipRetryError(real402) {
+		t.Fatalf("provider 402 mapped to %s (skip retry %v)", real402.GetErrorCode(), types.IsSkipRetryError(real402))
+	}
+	if plan := planRelayRetry(newContext("direct"), real402, 0, 0, 0); !plan.Retry || plan.Pick != pickDifferentChannelOnly {
+		t.Fatalf("provider 402: plan = %+v, want a switch to another channel", plan)
 	}
 	bad := types.NewErrorWithStatusCode(errors.New("bad body"), types.ErrorCodeInvalidRequest, http.StatusBadRequest)
 	if plan := planRelayRetry(newContext("direct"), bad, 0, 0, 0); plan.Retry {
