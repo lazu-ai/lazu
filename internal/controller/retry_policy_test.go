@@ -472,3 +472,39 @@ func TestAttemptFirstEventTimeoutSecondsReadsTheChannelSettings(t *testing.T) {
 		t.Fatalf("got %d want 240", got)
 	}
 }
+
+// A decision whose channel account is refused moves to another channel once;
+// a request the client got wrong does not move at all.
+func TestDecisionRetrySwitchesOnChannelAccountFailures(t *testing.T) {
+	newContext := func(lane string) *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/decisions", nil)
+		common.SetContextKey(c, constant.ContextKeyUsingGroup, lane)
+		return c
+	}
+	for _, tc := range []struct {
+		code   types.ErrorCode
+		status int
+	}{
+		{types.ErrorCodeUpstreamBillingFailed, http.StatusPaymentRequired},
+		{types.ErrorCodeUpstreamAuthFailed, http.StatusUnauthorized},
+		{types.ErrorCodeChannelInvalidKey, http.StatusUnauthorized},
+		{types.ErrorCodeUpstreamCapacity, http.StatusTooManyRequests},
+		{types.ErrorCodeUpstreamError, http.StatusBadGateway},
+	} {
+		err := types.NewErrorWithStatusCode(errors.New("upstream refused"), tc.code, tc.status)
+		if plan := planRelayRetry(newContext("direct"), err, 0, 0, 0); !plan.Retry || plan.Pick != pickDifferentChannelOnly {
+			t.Fatalf("%s: plan = %+v, want a switch to another channel", tc.code, plan)
+		}
+		if plan := planRelayRetry(newContext("direct"), err, 1, 0, 1); plan.Retry {
+			t.Fatalf("%s: retried a second time: %+v", tc.code, plan)
+		}
+		if plan := planRelayRetry(newContext(model.ChannelLaneAgent), err, 0, 0, 0); plan.Retry {
+			t.Fatalf("%s: agent lane switched channels: %+v", tc.code, plan)
+		}
+	}
+	bad := types.NewErrorWithStatusCode(errors.New("bad body"), types.ErrorCodeInvalidRequest, http.StatusBadRequest)
+	if plan := planRelayRetry(newContext("direct"), bad, 0, 0, 0); plan.Retry {
+		t.Fatalf("client error was retried: %+v", plan)
+	}
+}

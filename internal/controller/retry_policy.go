@@ -213,7 +213,7 @@ func planRelayRetry(c *gin.Context, err *types.LazuError, attempt int, elapsed t
 		if attempt >= 1 || elapsed >= 10*time.Second || c.Request.Context().Err() != nil || err == nil || types.IsSkipRetryError(err) {
 			return relayRetryPlan{}
 		}
-		if err.GetErrorCode() == types.ErrorCodeUpstreamCapacity || err.GetErrorCode() == types.ErrorCodeUpstreamDecisionInvalid || err.StatusCode >= 500 {
+		if decisionFailureMovesToAnotherChannel(err) {
 			if common.GetContextKeyString(c, constant.ContextKeyUsingGroup) == model.ChannelLaneAgent {
 				return relayRetryPlan{}
 			}
@@ -261,6 +261,19 @@ func planRelayRetry(c *gin.Context, err *types.LazuError, attempt int, elapsed t
 		return relayRetryPlan{Reason: fmt.Sprintf("first-byte budget %s exhausted after %s", relayFirstByteBudget, elapsed.Round(time.Millisecond))}
 	}
 	return plan
+}
+
+// decisionFailureMovesToAnotherChannel lists the decision failures another
+// channel may not share: capacity, an invalid answer, a server error, and the
+// channel's own account being refused (billing or credentials). Resending to
+// the same channel would fail the same way, so the retry always switches.
+func decisionFailureMovesToAnotherChannel(err *types.LazuError) bool {
+	switch err.GetErrorCode() {
+	case types.ErrorCodeUpstreamCapacity, types.ErrorCodeUpstreamDecisionInvalid,
+		types.ErrorCodeUpstreamBillingFailed, types.ErrorCodeUpstreamAuthFailed, types.ErrorCodeChannelInvalidKey:
+		return true
+	}
+	return err.StatusCode >= 500
 }
 
 // relayRetryBackoffApplies reports whether an error warrants spacing out the

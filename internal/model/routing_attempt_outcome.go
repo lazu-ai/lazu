@@ -98,3 +98,23 @@ func RecentUpstreamAccountFailures(ctx context.Context, since time.Time, codes [
 		Scan(&rows).Error
 	return rows, err
 }
+
+// RecentUpstreamAccountFinalFailures counts requests since `since` whose last
+// attempt failed with one of codes, per channel and code. Only retried
+// attempts reach routing_attempt_outcome; a failure nothing retried (no other
+// channel left, or a path that does not switch) ends in the error log alone,
+// so a watch that read only the attempts would never see it. The error log
+// keeps no upstream status, so StatusCode is 0.
+func RecentUpstreamAccountFinalFailures(ctx context.Context, since time.Time, codes []string) ([]UpstreamAccountFailure, error) {
+	db := TelemetryDB()
+	if db == nil {
+		return nil, nil
+	}
+	var rows []UpstreamAccountFailure
+	err := db.WithContext(ctx).Model(&Log{}).
+		Select("channel_id, rejection_reason AS error_code, 0 AS status_code, count(*) AS failures, max(request_ts) AS last_ms").
+		Where("request_ts >= ? AND created_at >= ? AND type = ? AND channel_id > 0 AND rejection_reason IN ?", since.Add(-time.Hour).UnixMilli(), since.Unix(), LogTypeError, codes).
+		Group("channel_id, rejection_reason").
+		Scan(&rows).Error
+	return rows, err
+}
