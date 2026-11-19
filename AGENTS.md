@@ -111,6 +111,9 @@ These rules come from [CONTRIBUTING.md](./CONTRIBUTING.md) and should be treated
 - accent stripes: a coloured bar down one edge of a card, row, panel, callout
   or quote, for selection or for status
   ([color-system.md](brand/foundations/color-system.md) rule 3)
+- side drawers: a panel that slides in from the right (or left) edge for
+  detail or editing; use a centered dialog, and a full-screen sheet on phones
+  ([yunmu-console.md](brand/foundations/yunmu-console.md) rule 7)
 
 ### Loading And Waiting
 

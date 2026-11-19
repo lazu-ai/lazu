@@ -30,7 +30,7 @@ Lazu 的界面是一套现代开发者工作台：复杂能力在结构上清楚
 | Icons          | **Medium Round / Phosphor-like**       | 约 1.5px 笔触、圆角、16px 仍清楚；默认描边，选中或关键对象可局部填充。                                       |
 | Motion         | **Direct Ease**                        | 常规 120–180ms，短淡入与方向移动；不使用弹跳，也不再以 Mechanical Cut 作为品牌特征。                         |
 | Empty/error    | **Structured Empty**                   | 遵循 paper-states.md；高频状态零装饰，标题、原因与恢复动作按需要出现。                               |
-| Overlays       | **Contextual Layer**                   | 快速选择用 Popover/Command Palette；编辑用居中 Dialog；单行只读回执原位展开；客户台账保留已锁定的操作抽屉例外。                       |
+| Overlays       | **Contextual Layer**                   | 快速选择用 Popover/Command Palette；编辑用居中 Dialog；单行只读回执原位展开；不使用侧边抽屉（2026-11-19 起无例外）。                       |
 | Code           | **Dark Code Island**                   | 代码、JSON、curl 与长日志使用中性深色独立表面，不把整个产品主题变成终端。                                    |
 | Selection      | **Soft Standard**                      | Checkbox/Radio/Switch 遵循熟悉语义、标准键盘行为和清楚 focus。                                               |
 | Tabs           | **Action Underline**                   | 同级页面使用墨色 underline；2–4 个互斥模式可使用 neutral segmented control。                              |

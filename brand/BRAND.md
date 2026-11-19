@@ -86,7 +86,7 @@
 - 用户侧主任务锁定为 5 页（总览 / API Keys / 用量与日志 / 钱包 / 个人设置）；模型目录仍是工作台入口，文档不受模块开关影响，平台管理继续按角色呈现。历史 Billing、TopUp、Files 与 Access 入口已移除，能力分别由钱包、用量与日志和个人设置承担。完整约束见 `foundations/yunmu-console.md`。
 - 模型页改为卡片广场 + 详情模态（`pages/Routes/`），含稳定 / Agent 专线两条线路与分组折后价。
 - 定价运营页 `pages/PricingOps/`：双通道价目 + 计价方式（按 token / 按次 / 按时长）+ 跟随所选模型的发布历史。
-- 客户账户页 `pages/Organizations/`：客户台账 + 单一账户运营抽屉，锁定稿为
+- 客户账户页 `pages/Organizations/`：客户台账 + 单一账户运营详情（2026-11-19 起改为居中弹窗，不再用抽屉，见 `foundations/yunmu-console.md` 规则 7），原锁定稿为
   `archive:brand/explorations/platform-accounts-2026-09/a-v3.html`；只复用现有用户、Key、钱包、
   用量与等级合同，不新增组织实体或虚构权限能力。
 - 设置界面锁定为 2026-08-27 refinement：个人设置与平台设置共用方案 1 的

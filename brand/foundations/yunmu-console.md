@@ -43,13 +43,13 @@ describe the console's composition, not a second colour system.
    the panel after the table and pagination and called `scrollIntoView`,
    which cost the reader their place in the list. This carve-out is for
    reading only. Editing of any length still uses a centered modal.
-   Refined 2026-09-02: the platform customer-account ledger is the second
-   explicit exception. Selecting a customer opens one right-side operational
-   drawer so operators can scan adjacent accounts with J / K without losing
-   the ledger. The drawer owns that account's existing user, key, usage,
-   wallet, client and audit contracts; irreversible or permission-changing
-   actions still require an explicit confirmation modal. This exception does
-   not reintroduce drawers as a general page pattern.
+   Refined 2026-11-19: no side drawers anywhere, with no exceptions. The
+   2026-09-02 customer-account drawer exception is withdrawn: account detail
+   opens as a centered dialog over the ledger and keeps J / K to move between
+   adjacent accounts. Any detail or editing surface, platform pages included,
+   opens as a centered dialog; on phones the dialog becomes a full-screen
+   sheet, never a panel sliding in from an edge. Irreversible or
+   permission-changing actions still require an explicit confirmation.
 8. Motion remains direct and restrained, and respects reduced-motion settings.
 9. Silent scroll (locked 2026-08-22). Scroll containers paint no scrollbar —
    no thumb, no track, no reserved gutter. A grey rail running down a floating
