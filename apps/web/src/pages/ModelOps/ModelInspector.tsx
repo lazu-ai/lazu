@@ -579,6 +579,7 @@ export default function ModelInspector({
               {t('common.cancel', { defaultValue: '取消' })}
             </Button>
             <Button
+              variant='primary'
               loading={isSavingTier}
               onClick={async () => {
                 if (!preview) return;
