@@ -278,6 +278,7 @@ export function RootTopupHistory({
               {t('common.cancel', { defaultValue: '取消' })}
             </Button>
             <Button
+              variant='primary'
               loading={complete.isPending}
               onClick={() => {
                 if (completeTradeNo)
