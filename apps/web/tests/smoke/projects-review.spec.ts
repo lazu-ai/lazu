@@ -2538,7 +2538,7 @@ test('topup bar holds unknown balance slots until the wallet responds', async ({
   expect(after).toEqual(before);
 });
 
-test('legacy topup bar estimates days from account daily spend', async ({
+test('account wallet names the chosen amount on the pay button', async ({
   page,
 }) => {
   await setup(page, (url) => {
@@ -2553,14 +2553,12 @@ test('legacy topup bar estimates days from account daily spend', async ({
         features: { projects: false },
         projects: [],
       });
-    if (url.pathname === '/api/data/dashboard/self')
-      return ok({ totals: { amount_microusd: 27_000_000 }, time_series: [] });
   });
   await page.goto('/console/wallet');
   await expect(page.locator('.wallet-page')).toBeVisible();
-  await expect(page.locator('.lazu-topup-bar__fact').first()).toContainText(
-    /days/,
-  );
+  await page.getByRole('button', { name: '$50', exact: true }).click();
+  await expect(page.locator('.wal-topup__figure')).toHaveText('$50');
+  await expect(page.locator('.wal-topup__pay')).toContainText('$50.00');
 });
 
 for (const status of ['pending', 'expired', 'failed'] as const) {
