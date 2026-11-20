@@ -68,10 +68,16 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(on).toBeVisible();
       await expect(on).toHaveCSS('width', '36px');
       await expect(on).toHaveCSS('height', '20px');
-      const teal = await on.evaluate((node) =>
-        getComputedStyle(node).getPropertyValue('--lazu-evidence').trim(),
-      );
-      expect(teal).not.toBe('');
+      // The track is the evidence token, resolved in this theme.
+      const colors = await on.evaluate((node) => {
+        const probe = document.createElement('span');
+        probe.style.background = 'var(--lazu-evidence)';
+        node.parentElement?.append(probe);
+        const expected = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return { expected, track: getComputedStyle(node).backgroundColor };
+      });
+      expect(colors.track).toBe(colors.expected);
       await expect(on.locator('.lazu-switch__thumb')).toHaveCSS(
         'width',
         '16px',

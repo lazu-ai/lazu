@@ -951,6 +951,10 @@ button.tokv2-chip.tokv2-chip--evi:hover {
     flex: 1 1 0;
   }
 
+  .tok-create-modal .tok-modal-foot .lazu-button--primary {
+    flex-grow: 2;
+  }
+
   .tok-connect > .tok-modal-foot {
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
   }

@@ -223,7 +223,9 @@ test.describe('What’s New version plate', () => {
     const viewport = page.viewportSize();
     expect(Math.round(box.y + box.height)).toBe(viewport.height);
     expect(Math.round(box.x)).toBe(0);
-    await expect(panel.locator('.whats-new-panel__grab')).toBeVisible();
+    // No drag handle; the close sits in the corner at thumb size.
+    await expect(panel.locator('.whats-new-panel__grab')).toHaveCount(0);
+    await expect(panel.locator('.lazu-modal-close')).toHaveCSS('width', '44px');
 
     await app.expectNoUnexpectedErrors();
   });
