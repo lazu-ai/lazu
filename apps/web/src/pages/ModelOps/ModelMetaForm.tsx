@@ -67,6 +67,11 @@ type ModelMetaFormProps = {
   createVendor: (name: string) => Promise<{ internal_id?: number } | undefined>;
   creatingVendor: boolean;
   editingModel?: LooseRecord | null;
+  /** Rendered at the start of the footer, before 删除模型. */
+  footLead?: ReactNode;
+  /** 'inline' sits in the model dialog's scroll area in place of the
+   *  overview, with its actions under the fields. */
+  layout?: 'dialog' | 'inline';
   /** Rendered at the top of the form, inside its scroll area. */
   lead?: ReactNode;
   /** Runs before the model is saved; false stops the save. */
@@ -253,6 +258,8 @@ function ModelMetaForm({
   createVendor,
   creatingVendor,
   editingModel,
+  footLead,
+  layout = 'dialog',
   lead,
   models,
   onCancel,
@@ -491,7 +498,9 @@ function ModelMetaForm({
 
   return (
     <>
-      <div className='mo-dialog__body'>
+      <div
+        className={layout === 'inline' ? 'mdl-edit__body' : 'mo-dialog__body'}
+      >
         {lead}
         <form
           id='model-form'
@@ -1115,7 +1124,10 @@ function ModelMetaForm({
           </div>
         </form>
       </div>
-      <div className='mo-dialog__foot'>
+      <div
+        className={layout === 'inline' ? 'mdl-edit__foot' : 'mo-dialog__foot'}
+      >
+        {footLead}
         {isEdit && onDelete ? (
           <Button
             size='sm'

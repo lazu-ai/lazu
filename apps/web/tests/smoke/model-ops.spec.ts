@@ -44,12 +44,12 @@ test('模型 tab renders both lanes and pooled source health from real fields', 
     }),
   ).toBeVisible();
 
-  // The row opens the model's dialog on 定价与来源, with both lanes priced.
+  // The row opens the model's dialog: its overview, then both lanes priced.
   await row.locator('.mo-name').first().click();
   const expanded = page.getByRole('dialog');
   await expect(
-    expanded.getByRole('tab', { name: '定价与来源', exact: true }),
-  ).toHaveAttribute('aria-selected', 'true');
+    expanded.getByRole('button', { name: '编辑资料', exact: true }),
+  ).toBeVisible();
   await expect(expanded).toContainText('稳定档');
   await expect(expanded).toContainText('便宜档');
 
@@ -174,16 +174,17 @@ test('expanding a model reveals both tier cards with their pools and weights', a
 
   const expanded = page.getByRole('dialog');
   await expect(expanded).toBeVisible();
-  const stable = expanded.getByRole('row', { name: /稳定档/ });
-  const cheap = expanded.getByRole('row', { name: /便宜档/ });
+  const stable = expanded.getByRole('region', { name: /稳定档/ });
+  const cheap = expanded.getByRole('region', { name: /便宜档/ });
   // Cost basis exists for both pools, so each shows a real margin, not "—".
-  // Matches the router's weight+10 smoothing: 0.11 @ 80 and 0.62 @ 15.
-  await expect(stable).toContainText('$0.1905');
+  // Matches the router's weight+10 smoothing: 0.11 @ 80 and 0.62 @ 15
+  // ($0.1905, shown to the cent).
+  await expect(stable).toContainText('成本 $0.19');
   await expect(stable).toContainText('-25.3%');
   await expect(cheap).toContainText('$0.06');
   await expect(cheap).toContainText('33.3%');
-  // Pool-local weights are editable per source, behind the source count.
-  await stable.getByRole('button', { name: '2 个来源' }).click();
+  // Pool-local weights become fields once the lane is in 改价.
+  await stable.getByRole('button', { name: '改价', exact: true }).click();
   await expect(
     expanded.getByLabel('OpenAI smoke channel 在本线路的权重'),
   ).toHaveValue('70');
@@ -216,11 +217,20 @@ test('saving both tiers sends one atomic row request', async ({ page }) => {
     .first();
   await row.locator('.mo-name').first().click();
   const expanded = page.getByRole('dialog');
-  await expanded.getByRole('button', { name: '2 个来源' }).click();
-  await expanded.getByRole('button', { name: '1 个来源' }).click();
+  await expanded
+    .getByRole('region', { name: /稳定档/ })
+    .getByRole('button', { name: '改价', exact: true })
+    .click();
+  await expanded
+    .getByRole('region', { name: /便宜档/ })
+    .getByRole('button', { name: '改价', exact: true })
+    .click();
   await expanded.getByLabel('OpenAI smoke channel 在本线路的权重').fill('71');
   await expanded.getByLabel('Budget smoke channel 在本线路的权重').fill('31');
-  await expanded.getByRole('button', { name: '保存', exact: true }).click();
+  await expanded
+    .getByRole('button', { name: '保存', exact: true })
+    .first()
+    .click();
 
   expect(requests).toHaveLength(0);
   await page.getByRole('button', { name: '确认保存' }).click();
@@ -593,7 +603,7 @@ test('model deletion runs behind an undo and puts the row back when it fails', a
   ).toBeVisible();
 });
 
-test('inspector tabs have keyboard navigation and ledger rows stay one line on mobile', async ({
+test('the model dialog opens 编辑资料 in place and ledger rows stay one line on mobile', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -606,15 +616,13 @@ test('inspector tabs have keyboard navigation and ledger rows stay one line on m
     .first()
     .click();
   const dialog = page.getByRole('dialog');
-  const info = dialog.getByRole('tab', { name: '资料', exact: true });
-  await info.focus();
-  // 定价与来源 · 资料: left of 资料 is the pricing page.
-  await page.keyboard.press('ArrowLeft');
-  const pricing = dialog.getByRole('tab', { name: '定价与来源', exact: true });
-  await expect(pricing).toBeFocused();
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Enter');
-  await expect(info).toHaveAttribute('aria-selected', 'true');
+  await dialog.getByRole('button', { name: '编辑资料', exact: true }).click();
+  await expect(page).toHaveURL(/panel=info/);
+  await dialog
+    .getByRole('button', { name: '取消', exact: true })
+    .first()
+    .click();
+  await expect(page).not.toHaveURL(/panel=info/);
   await page.screenshot({
     path: '../../.local-results/screenshots/model-ops-feedback/inspector.png',
     fullPage: true,

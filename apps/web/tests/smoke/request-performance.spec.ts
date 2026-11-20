@@ -79,11 +79,18 @@ test('prefetched model rows still save both source weights atomically', async ({
     .first()
     .click();
   const editor = page.getByRole('dialog');
-  await editor.getByRole('button', { name: '2 个来源', exact: true }).click();
-  await editor.getByRole('button', { name: '1 个来源', exact: true }).click();
+  for (const lane of [/稳定档/, /便宜档/]) {
+    await editor
+      .getByRole('region', { name: lane })
+      .getByRole('button', { name: '改价', exact: true })
+      .click();
+  }
   await editor.getByLabel('OpenAI smoke channel 在本线路的权重').fill('71');
   await editor.getByLabel('Budget smoke channel 在本线路的权重').fill('31');
-  await editor.getByRole('button', { name: '保存', exact: true }).click();
+  await editor
+    .getByRole('button', { name: '保存', exact: true })
+    .first()
+    .click();
   expect(writes).toHaveLength(0);
   await page
     .getByRole('dialog')
@@ -119,7 +126,10 @@ test('model metadata cannot save while its deferred options are unanswered', asy
       .filter({ hasText: 'gpt-4o-mini' })
       .first()
       .click();
-    await page.getByRole('tab', { name: '资料', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: '编辑资料', exact: true })
+      .click();
     const save = page
       .getByRole('dialog')
       .getByRole('button', { name: '保存', exact: true });

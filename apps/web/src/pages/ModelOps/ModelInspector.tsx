@@ -1,9 +1,22 @@
-import { ChevronLeft, ChevronRight, TriangleAlert, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { formatPerMtok, laneNamesOf, laneTitle } from './formatters';
+import {
+  formatPerMtok,
+  laneNamesOf,
+  laneShortName,
+  laneTitle,
+} from './formatters';
 import LanePricing from './LanePricing';
 import ModelInfoPanel from './ModelInfoPanel';
 import ModelMetaForm from './ModelMetaForm';
+import ModelOverview from './ModelOverview';
+import './model-detail.css';
 import { GoLiveDialog } from './observation';
 import {
   derivedPrice,
@@ -17,15 +30,18 @@ import {
 } from './ratioPricing';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
+import { Checkbox } from '../../components/ui/checkbox';
 import { IconButton } from '../../components/ui/icon-button';
 import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
-import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { notify } from '../../components/ui/toast';
+import { copy } from '../../helpers/clipboard';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
 import {
   useModelOpsMutations,
   type ModelOpsLane,
   type ModelOpsPoolEntry,
 } from '../../hooks/models/useModelOpsQuery';
+import { makerFullLabel } from '../../lib/model-makers';
 import type { ModelView } from './modelView';
 import type { SellPriceRow } from './sellPrices';
 import type { TFunction } from 'i18next';
@@ -33,8 +49,8 @@ import type { ComponentProps } from 'react';
 
 const ns = 'page.console.modelOps';
 
-/** Two pages: 定价与来源 and 资料. `meta` and `info` are both 资料 — the
- *  links that named the old pages keep working. */
+/** `pricing` is the page as it opens; `info` (and the older `meta`) opens
+ *  it with 编辑资料 already in place of the overview. */
 export type InspectorTab = 'info' | 'meta' | 'pricing';
 
 export type SaveTierRequest = Array<{
@@ -71,13 +87,6 @@ type ModelInspectorProps = {
   windowHours: number;
 };
 
-const shortTokens = (value: unknown) => {
-  const number = Number(value) || 0;
-  if (number <= 0) return '';
-  if (number >= 1_000_000) return `${Math.round(number / 100_000) / 10}M`;
-  return `${Math.round(number / 1000)}K`;
-};
-
 /** One model, centred over the ledger it was opened from. */
 export default function ModelInspector({
   canEditPrice,
@@ -100,7 +109,7 @@ export default function ModelInspector({
   view,
   windowHours,
 }: ModelInspectorProps) {
-  const page = isNew || tab !== 'pricing' ? 'info' : 'pricing';
+  const editingInfo = isNew || tab !== 'pricing';
   const lanesQuery = useChannelLanesQuery();
   const lanes = useMemo(() => lanesQuery.data ?? [], [lanesQuery.data]);
   const laneSlugs = useMemo(() => {
@@ -110,6 +119,7 @@ export default function ModelInspector({
   }, [lanes]);
   const laneNames = useMemo(() => laneNamesOf(lanes), [lanes]);
   const laneName = (slug: string) => laneTitle(slug, laneNames, t);
+  const laneShort = (slug: string) => laneShortName(slug, laneNames, t);
   const laneRatio = (slug: string) =>
     Number(lanes.find((item) => item.slug === slug)?.price_ratio) || 100;
 
@@ -117,6 +127,7 @@ export default function ModelInspector({
   const official = useMemo(() => officialOf(record), [record]);
   const ops = useModelOpsMutations(t);
   const infoSaveRef = useRef<(() => Promise<boolean>) | null>(null);
+  const [locked, setLocked] = useState(Boolean(record.info_locked));
 
   const [drafts, setDrafts] = useState<Record<string, LaneDraft>>({});
   const [initial, setInitial] = useState<Record<string, LaneDraft>>({});
@@ -156,6 +167,7 @@ export default function ModelInspector({
     setInitial(structuredClone(next));
     setProblem('');
     setPreview(null);
+    setLocked(Boolean(record.info_locked));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.id]);
 
@@ -168,6 +180,15 @@ export default function ModelInspector({
     setInitial((current) => ({ ...current, ...structuredClone(additions) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drafts, laneSlugs]);
+
+  const resetLane = (lane: string) => {
+    setProblem('');
+    setDrafts((current) =>
+      initial[lane]
+        ? { ...current, [lane]: structuredClone(initial[lane]) }
+        : current,
+    );
+  };
 
   const patch = (lane: string, next: Partial<LaneDraft>) =>
     setDrafts((current) => ({
@@ -300,67 +321,76 @@ export default function ModelInspector({
     setPreview({ changes, tiers });
   };
 
+  const makerKey = String(record.maker || record.maker_resolved || '');
+  const maker = makerKey ? makerFullLabel(makerKey, t) : view.vendorName;
   const facts = [
-    record.release_date
-      ? t(`${ns}.inspector.released`, {
-          date: String(record.release_date),
-          defaultValue: '{{date}} 发布',
-        })
-      : '',
-    shortTokens(record.context_length)
-      ? t(`${ns}.inspector.context`, {
-          defaultValue: '上下文 {{value}}',
-          value: shortTokens(record.context_length),
-        })
-      : '',
-    shortTokens(record.max_output_tokens)
-      ? t(`${ns}.inspector.maxOutput`, {
-          defaultValue: '最大输出 {{value}}',
-          value: shortTokens(record.max_output_tokens),
-        })
-      : '',
+    maker,
+    String(record.family || ''),
+    String(record.release_date || ''),
   ].filter(Boolean);
+  const initialLetter = (maker || view.name || '?')
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
+  const copyName = async () => {
+    if (await copy(view.name))
+      notify.success(
+        t(`${ns}.inspector.copied`, { defaultValue: '已复制模型名' }),
+      );
+  };
+
+  const metaFormProps = {
+    beforeSave: async () =>
+      infoSaveRef.current ? infoSaveRef.current() : true,
+    createVendor: metaForm.createVendor,
+    creatingVendor: metaForm.creatingVendor,
+    models: metaForm.models,
+  };
 
   return (
     <ModalFrame
       busy={isSavingTier}
-      className='mo-dialog lazu-modal-content--xwide'
+      className='mo-dialog mdl-dialog lazu-modal-content--xwide'
       hideClose
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <div className='mo-dialog__head'>
-        <div className='mo-dialog__title-block'>
-          <ModalTitle className='mo-dialog__title'>
-            {isNew ? (
-              t(`${ns}.action.addModel`, { defaultValue: '新增模型' })
-            ) : (
-              <>
-                <span className='mo-name'>{view.name}</span>
-                {view.vendorName ? (
-                  <Badge variant='neutral'>{view.vendorName}</Badge>
-                ) : null}
-                <Badge variant={view.listed ? 'success' : 'neutral'}>
-                  {view.listed
-                    ? t(`${ns}.models.listed`, { defaultValue: '已上架' })
-                    : t(`${ns}.models.unlisted`, { defaultValue: '未上架' })}
-                </Badge>
-              </>
-            )}
-          </ModalTitle>
-          {facts.length ? (
-            <div className='mo-sub'>{facts.join(' · ')}</div>
+      <div className='mdl-head'>
+        {!isNew ? (
+          <span aria-hidden='true' className='mdl-head__mark'>
+            {initialLetter}
+          </span>
+        ) : null}
+        <div className='mdl-head__title'>
+          <div className='mdl-head__line'>
+            <ModalTitle className='mdl-head__name'>
+              {isNew
+                ? t(`${ns}.action.addModel`, { defaultValue: '新增模型' })
+                : view.name}
+            </ModalTitle>
+            {!isNew ? (
+              <Badge variant={view.listed ? 'success' : 'neutral'}>
+                {view.listed
+                  ? t(`${ns}.models.onSale`, { defaultValue: '在售' })
+                  : t(`${ns}.models.unlisted`, { defaultValue: '未上架' })}
+              </Badge>
+            ) : null}
+          </div>
+          {!isNew && facts.length ? (
+            <p className='mdl-cap'>{facts.join(' · ')}</p>
           ) : null}
         </div>
-        <div className='mo-dialog__tools'>
+        <div className='mdl-head__tools'>
           {!isNew ? (
             <>
               <IconButton
                 aria-label={t(`${ns}.inspector.prev`, {
                   defaultValue: '上一个',
                 })}
+                className='mdl-head__step'
                 disabled={!hasPrev}
                 size='sm'
                 variant='ghost'
@@ -372,6 +402,7 @@ export default function ModelInspector({
                 aria-label={t(`${ns}.inspector.next`, {
                   defaultValue: '下一个',
                 })}
+                className='mdl-head__step'
                 disabled={!hasNext}
                 size='sm'
                 variant='ghost'
@@ -379,11 +410,25 @@ export default function ModelInspector({
               >
                 <ChevronRight size={16} />
               </IconButton>
+              <IconButton
+                aria-label={t(`${ns}.inspector.copyName`, {
+                  defaultValue: '复制模型名',
+                })}
+                size='sm'
+                title={t(`${ns}.inspector.copyName`, {
+                  defaultValue: '复制模型名',
+                })}
+                variant='ghost'
+                onClick={() => void copyName()}
+              >
+                <Copy size={16} />
+              </IconButton>
             </>
           ) : null}
           <IconButton
             aria-label={t('common.close', { defaultValue: '关闭' })}
             size='sm'
+            title={t('common.close', { defaultValue: '关闭' })}
             variant='ghost'
             onClick={onClose}
           >
@@ -392,49 +437,74 @@ export default function ModelInspector({
         </div>
       </div>
 
-      <Tabs
-        className='mo-dialog__tabs'
-        value={page}
-        onValueChange={(value) => onTabChange(value as InspectorTab)}
-      >
-        <TabsList variant='line'>
-          <TabsTrigger disabled={isNew} value='pricing'>
-            {t(`${ns}.inspector.pricingTab`, { defaultValue: '定价与来源' })}
-          </TabsTrigger>
-          <TabsTrigger value='info'>
-            {t(`${ns}.inspector.infoTab`, { defaultValue: '资料' })}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {page === 'info' ? (
+      {isNew ? (
         <ModelMetaForm
-          beforeSave={async () =>
-            infoSaveRef.current ? infoSaveRef.current() : true
-          }
-          createVendor={metaForm.createVendor}
-          creatingVendor={metaForm.creatingVendor}
-          editingModel={isNew ? null : view.record}
-          key={isNew ? 'new' : String(view.id)}
-          lead={
-            isNew ? null : (
-              <ModelInfoPanel
-                key={String(view.id)}
-                saveRef={infoSaveRef}
-                t={t}
-                view={view}
-              />
-            )
-          }
-          models={metaForm.models}
+          {...metaFormProps}
+          editingModel={null}
+          key='new'
           onCancel={onClose}
-          onDelete={isNew ? undefined : () => onDelete(view)}
           onSaved={onMetaSaved}
-          prefillModel={isNew ? prefillModel : undefined}
+          prefillModel={prefillModel}
         />
       ) : (
-        <>
-          <div className='mo-dialog__body'>
+        <div className='mdl-body'>
+          {editingInfo ? (
+            <section className='mdl-edit'>
+              <div className='mdl-edit__head'>
+                <h3 className='mdl-sec'>
+                  {t(`${ns}.info.overview.edit`, { defaultValue: '编辑资料' })}
+                </h3>
+                <span className='mdl-cap'>
+                  {record.models_dev_id
+                    ? 'models.dev'
+                    : t(`${ns}.info.source.manual`, { defaultValue: '手填' })}
+                </span>
+              </div>
+              <ModelMetaForm
+                {...metaFormProps}
+                editingModel={view.record}
+                footLead={
+                  <label className='mdl-edit__lock'>
+                    <Checkbox
+                      checked={locked}
+                      onCheckedChange={(checked: unknown) =>
+                        setLocked(checked === true)
+                      }
+                    />
+                    {t(`${ns}.info.lockShort`, { defaultValue: '锁定资料' })}
+                  </label>
+                }
+                key={String(view.id)}
+                layout='inline'
+                lead={
+                  <ModelInfoPanel
+                    key={String(view.id)}
+                    locked={locked}
+                    saveRef={infoSaveRef}
+                    t={t}
+                    view={view}
+                  />
+                }
+                onCancel={() => {
+                  setLocked(Boolean(record.info_locked));
+                  onTabChange('pricing');
+                }}
+                onDelete={() => onDelete(view)}
+                onSaved={() => {
+                  onMetaSaved();
+                  onTabChange('pricing');
+                }}
+              />
+            </section>
+          ) : (
+            <ModelOverview
+              t={t}
+              view={view}
+              onEdit={() => onTabChange('info')}
+            />
+          )}
+
+          <div className='mdl-body__lanes'>
             {view.blockReason ? (
               <div
                 className={`mo-notice mo-notice--${view.neitherPriced ? 'bad' : 'warn'}`}
@@ -447,16 +517,20 @@ export default function ModelInspector({
               canEditPrice={canEditPrice}
               currentRow={currentRow}
               drafts={drafts}
-              laneName={laneName}
+              laneName={laneShort}
               laneRatio={laneRatio}
               lanes={laneSlugs}
+              modelName={view.name}
               official={official}
               pools={view.lanePools}
+              saving={isSavingTier}
               t={t}
               windowHours={windowHours}
               onGoLive={(lane, entry) => setGoLive({ entry, lane })}
               onPatch={patch}
               onPromote={(lane, entry) => setPromote({ entry, lane })}
+              onReset={resetLane}
+              onSave={buildPreview}
             />
             {problem ? (
               <div className='mo-notice mo-notice--bad' role='alert'>
@@ -465,23 +539,7 @@ export default function ModelInspector({
               </div>
             ) : null}
           </div>
-          <div className='mo-dialog__foot'>
-            <span />
-            <div className='mo-dialog__foot-actions'>
-              <Button size='sm' variant='secondary' onClick={onClose}>
-                {t('common.cancel', { defaultValue: '取消' })}
-              </Button>
-              <Button
-                loading={isSavingTier}
-                size='sm'
-                variant='primary'
-                onClick={buildPreview}
-              >
-                {t('common.save', { defaultValue: '保存' })}
-              </Button>
-            </div>
-          </div>
-        </>
+        </div>
       )}
 
       <Modal
