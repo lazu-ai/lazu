@@ -1302,6 +1302,9 @@ func GetUserWalletLedgerEvents(userID int, limit int) ([]AccountLedgerEvent, err
 				Select("id", "delta_microusd", "kind", "metadata", "created_at").
 				Where("user_id = ?", userID).
 				Where("ref_type IS NULL OR ref_type <> ?", openingBalanceRefType).
+				// Literal predicate lets PostgreSQL prove idx_wallet_ledgers_account_events
+				// applies even when the IN list below is parameterized.
+				Where("kind <> 'spend'").
 				Where("kind IN ?", []string{WalletLedgerKindTopup, WalletLedgerKindBonus, WalletLedgerKindRefund, WalletLedgerKindAdjustment, WalletLedgerKindPaymentReversal})
 		}
 		if err := ledgerEventsQuery().Order("created_at DESC").Order("id DESC").Limit(limit).Find(&current).Error; err != nil {
