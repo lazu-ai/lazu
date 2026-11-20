@@ -946,6 +946,7 @@ export function ModelCatalogPlaza({
       }
       actions={
         <RefreshButton
+          variant='secondary'
           refreshing={catalog.isFetching}
           onClick={() => catalog.refetch()}
         >

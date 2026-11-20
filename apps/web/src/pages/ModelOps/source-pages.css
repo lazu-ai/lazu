@@ -1356,7 +1356,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .lazu-modal-content.mo-dialog.src-dialog,
   .lazu-modal-content.mo-dialog.src-dialog--create {
     border-radius: 20px 20px 0 0;

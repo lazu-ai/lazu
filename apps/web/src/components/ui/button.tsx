@@ -30,13 +30,21 @@ export const buttonVariants = cva('lazu-button', {
     },
   },
   defaultVariants: {
-    variant: 'secondary',
     size: 'md',
     fullWidth: false,
   },
 });
 
-type ButtonVariantProps = Omit<VariantProps<typeof buttonVariants>, 'size'>;
+type ButtonVariant = NonNullable<
+  VariantProps<typeof buttonVariants>['variant']
+>;
+
+/* Every button names its look. With a default, a forgotten variant rendered
+   as a bordered secondary that nobody chose, so the type requires it. */
+type ButtonVariantProps = Omit<
+  VariantProps<typeof buttonVariants>,
+  'size' | 'variant'
+> & { variant: ButtonVariant };
 
 type ButtonSize =
   | NonNullable<VariantProps<typeof buttonVariants>['size']>
@@ -76,7 +84,7 @@ export const Button = React.forwardRef<HTMLElement, ButtonProps>(
       size = 'md',
       status = 'idle',
       successLabel,
-      variant = 'secondary',
+      variant,
       children,
       nativeButton,
       render,

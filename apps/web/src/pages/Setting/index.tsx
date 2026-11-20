@@ -284,6 +284,7 @@ function SettingsPanels({
               })}
             </Button>
             <Button
+              variant='primary'
               loading={savingBeforeSwitch}
               onClick={async () => {
                 const next = pendingTab;

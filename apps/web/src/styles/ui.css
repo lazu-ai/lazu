@@ -1143,49 +1143,47 @@
     font-size: 14px;
   }
 
-  /* Switch off-state needs an explicit border so it's distinguishable
-   from a same-tone Warm Paper card surface. Track bg drops to page bg
-   (--ui-bg) so the pill is visibly inset rather than blending in. */
+  /* The one switch: a 36×20 track, evidence teal when on and 18% ink when
+     off, a 16px white knob. Every on/off setting uses it; segmented choices
+     and expand toggles are different controls. */
   .lazu-switch {
     align-items: center;
-    background: var(--ui-bg);
-    border: 1px solid var(--ui-border-strong);
+    background: color-mix(in srgb, var(--lazu-ink) 18%, transparent);
+    border: 0;
     border-radius: var(--ui-radius-pill);
     box-sizing: border-box;
     cursor: pointer;
     display: inline-flex;
     flex-shrink: 0;
-    height: 24px;
+    height: 20px;
     outline: none;
-    padding: 1px;
+    padding: 2px;
     position: relative;
-    width: 42px;
+    width: 36px;
   }
 
   .lazu-switch[data-checked] {
-    background: var(--ui-accent);
-    border-color: var(--ui-accent);
+    background: var(--lazu-evidence);
+  }
+
+  .lazu-switch[data-disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
   .lazu-switch__thumb {
-    background: var(--lazu-control-knob);
-    border-radius: var(--ui-radius-pill);
-    box-shadow: var(--ui-shadow-sm);
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgb(20 22 28 / 18%);
     display: block;
-    height: 20px;
+    height: 16px;
     transform: translateX(0);
     transition: transform var(--ui-motion-base) var(--ui-ease-direct);
-    width: 20px;
+    width: 16px;
   }
 
-  /* The knob has to contrast with the track it sits on, and the checked track
-     is --lazu-action. In dark that token is #f1f1f2 — the same near-white as
-     --lazu-control-knob — so an enabled switch rendered as a blank white pill
-     with no knob in it. --lazu-on-action is the colour that pairs with the
-     track by definition, in both themes. */
   .lazu-switch[data-checked] .lazu-switch__thumb {
-    background: var(--lazu-on-action);
-    transform: translateX(18px);
+    transform: translateX(16px);
   }
 
   .lazu-select-trigger {
@@ -1226,12 +1224,14 @@
     z-index: 110;
   }
 
+  /* Menus and popovers are one sheet of paper: control radius, a hairline,
+     4px inset, 8px rows. Never a pill. */
   .lazu-select-content,
   .lazu-dropdown-content,
   .lazu-popover-content {
-    border-radius: var(--ui-radius-lg);
+    border-radius: var(--lazu-radius-control);
     min-width: 180px;
-    padding: 6px;
+    padding: 4px;
     transform-origin: var(--transform-origin, center);
   }
 
@@ -1317,7 +1317,7 @@
   .lazu-select-item,
   .lazu-dropdown-item {
     align-items: center;
-    border-radius: var(--ui-radius-md);
+    border-radius: var(--lazu-radius-badge);
     color: var(--ui-text);
     cursor: pointer;
     display: flex;
@@ -1327,6 +1327,11 @@
     outline: none;
     padding: 0 9px;
     user-select: none;
+  }
+
+  /* A single-choice row puts its check at the far right. */
+  .lazu-select-item {
+    justify-content: space-between;
   }
 
   .lazu-select-item[data-highlighted],
@@ -1356,8 +1361,11 @@
     width: 100%;
   }
 
+  /* The picked row is tinted evidence teal and carries the check. */
+  .lazu-select-item[data-selected],
   .lazu-multi-select-item[data-selected] {
-    background: var(--ui-bg-muted);
+    background: color-mix(in srgb, var(--lazu-evidence) 11%, transparent);
+    color: var(--lazu-evidence);
   }
 
   .lazu-multi-select-item:disabled {
@@ -2294,36 +2302,57 @@
   }
 
   .lazu-empty__slot {
-    border: 1.5px dashed var(--lazu-border-strong);
-    border-radius: 14px;
-    padding: 24px 28px;
+    border: 1px dashed var(--lazu-border-strong);
+    border-radius: var(--lazu-radius-control);
+    padding: 28px;
     width: min(340px, 100%);
   }
 
-  /* Error · a hairline broken in the middle, one danger dot at the break.
-     The only semantic colour in the card states, and it is 5px wide. */
-  .lazu-error__break {
-    align-items: center;
+  /* Error · a white card drawn with one ink line; the state shows only in
+     the icon and the title colour. Retry sits at the right end. */
+  .lazu-error__card {
+    align-items: flex-start;
+    background: var(--lazu-surface-solid);
+    border: 1px solid var(--lazu-ink);
+    border-radius: var(--lazu-radius-control);
     display: flex;
-    gap: 9px;
-    margin: 2px 0 8px;
-    width: min(280px, 76%);
+    gap: 10px;
+    padding: 14px 16px;
+    text-align: left;
+    width: min(560px, 100%);
   }
 
-  .lazu-error__break::before,
-  .lazu-error__break::after {
-    background: var(--lazu-border-strong);
-    content: '';
-    flex: 1;
-    height: 1px;
-  }
-
-  .lazu-error__dot {
-    background: var(--lazu-danger);
-    border-radius: var(--lazu-radius-pill);
+  .lazu-error__icon {
+    color: var(--lazu-danger);
     flex: none;
-    height: 5px;
-    width: 5px;
+    margin-top: 1px;
+  }
+
+  .lazu-error__text {
+    display: grid;
+    flex: 1;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .lazu-error .lazu-state-title {
+    color: var(--lazu-danger);
+    font-size: 13px;
+  }
+
+  .lazu-error .lazu-state-description {
+    font-size: 12px;
+    max-width: none;
+  }
+
+  .lazu-error .lazu-state-fine {
+    margin-top: 2px;
+  }
+
+  .lazu-error__action {
+    display: flex;
+    flex: none;
+    gap: 8px;
   }
 
   .lazu-state-fine {
@@ -3460,7 +3489,9 @@
       height: 40px;
       min-width: 40px;
     }
+  }
 
+  @media (max-width: 767px) {
     .lazu-modal-content,
     .lazu-drawer-content {
       padding: 16px;
@@ -3500,15 +3531,53 @@
     }
   }
 
-  /* Phone sheet (modal.tsx `sheet`). Below 720px the dialog rises from the
-     bottom edge: grabber, fixed header and footer, a body that scrolls
-     between them, and a bottom edge that follows the on-screen keyboard.
-     Doubled class names outrank the plain .lazu-modal-content phone rules. */
-  .lazu-modal-grabber {
-    display: none;
+  /* Three bands (modal.tsx `Modal`): the header and footer are pinned and
+     only the body scrolls, so a long form never pushes its title or its
+     buttons out of reach. Replaces the per-page whitelist that used to grant
+     this one page at a time. */
+  .lazu-modal-content.lazu-modal-content--stack {
+    display: flex;
+    flex-direction: column;
+    max-height: min(86dvh, calc(100dvh - 48px));
+    overflow: hidden;
+    padding: 0;
   }
 
-  @media (max-width: 720px) {
+  .lazu-modal-content--stack > .lazu-modal-header {
+    border-bottom: 1px solid var(--lazu-border);
+    flex: none;
+    margin: 0;
+    padding: 22px 64px 18px 24px;
+  }
+
+  .lazu-modal-content--stack > .lazu-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 22px 24px 24px;
+  }
+
+  .lazu-modal-content--stack > .lazu-modal-footer {
+    border-top: 1px solid var(--lazu-border);
+    flex: none;
+    margin: 0;
+    padding: 16px 24px;
+  }
+
+  .lazu-modal-content--stack > .lazu-modal-close {
+    height: 36px;
+    right: 16px;
+    top: 16px;
+    width: 36px;
+  }
+
+  /* Phone sheet. Below 768px every dialog rises from the bottom edge: a
+     fixed header and footer, a body that scrolls between them, a 44px close
+     in the top-right corner, and a bottom edge that follows the on-screen
+     keyboard. Doubled class names outrank the plain .lazu-modal-content
+     phone rules. */
+  @media (max-width: 767px) {
     .lazu-modal-content.lazu-modal-content--sheet {
       border-bottom: 0;
       border-radius: 20px 20px 0 0;
@@ -3539,58 +3608,50 @@
         both;
     }
 
-    .lazu-modal-content--sheet .lazu-modal-grabber {
-      cursor: grab;
-      display: block;
-      flex: none;
-      height: 22px;
-      position: relative;
-      touch-action: none;
+    .lazu-modal-content--sheet > .lazu-modal-close {
+      height: 44px;
+      right: 6px;
+      top: 6px;
+      width: 44px;
     }
 
-    .lazu-modal-content--sheet .lazu-modal-grabber::before {
-      background: var(--ui-border-strong);
-      border-radius: 3px;
-      content: '';
-      height: 5px;
-      left: 50%;
-      margin-left: -18px;
-      position: absolute;
-      top: 8px;
-      width: 36px;
-    }
-
-    .lazu-modal-content--sheet .lazu-modal-close {
-      right: 10px;
-      top: 22px;
-    }
-
-    .lazu-modal-content--sheet .lazu-modal-header {
-      border-bottom: 1px solid transparent;
+    .lazu-modal-content--sheet > .lazu-modal-header {
+      border-bottom: 1px solid var(--lazu-border);
       flex: none;
       margin: 0;
-      padding: 6px 52px 12px 16px;
-      transition: border-color var(--ui-motion-fast) var(--ui-ease-direct);
+      min-height: 56px;
+      padding: 16px 56px 14px 16px;
     }
 
-    .lazu-modal-content--sheet .lazu-modal-header[data-scrolled] {
-      border-bottom-color: var(--ui-border-subtle);
-    }
-
-    .lazu-modal-content--sheet .lazu-modal-body {
+    .lazu-modal-content--sheet > .lazu-modal-body {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
-      padding: 4px 16px 16px;
+      padding: 16px;
     }
 
-    .lazu-modal-content--sheet .lazu-modal-footer {
+    .lazu-modal-content--sheet > .lazu-modal-footer {
       background: var(--ui-bg-elevated);
-      border-top: 1px solid var(--ui-border-subtle);
+      border-top: 1px solid var(--lazu-border);
       flex: none;
       margin: 0;
       padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Two actions share the bar: the way out takes a third, the action two
+       thirds, both at thumb height. */
+    .lazu-modal-content--sheet
+      > .lazu-modal-footer:not(:has(> :nth-child(3)))
+      > .lazu-button {
+      flex: 1 1 0;
+      height: 44px;
+    }
+
+    .lazu-modal-content--sheet
+      > .lazu-modal-footer:not(:has(> :nth-child(3)))
+      > :is(.lazu-button--primary, .lazu-button--danger) {
+      flex-grow: 2;
     }
   }
 

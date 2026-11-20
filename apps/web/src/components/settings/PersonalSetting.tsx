@@ -892,6 +892,7 @@ const PersonalSetting = () => {
                         {t(`${ns}.username.submit`)}
                       </Button>
                       <Button
+                        variant='secondary'
                         onClick={() => setExpanded(null)}
                         size='sm'
                         type='button'
@@ -950,6 +951,7 @@ const PersonalSetting = () => {
                         />
                       </div>
                       <Button
+                        variant='secondary'
                         loading={sendCodeMutation.isPending}
                         onClick={() =>
                           sendCodeMutation.mutate(emailForm.getValues('email'))
@@ -1007,6 +1009,7 @@ const PersonalSetting = () => {
                         {t(`${ns}.email.bind`)}
                       </Button>
                       <Button
+                        variant='secondary'
                         onClick={() => setExpanded(null)}
                         size='sm'
                         type='button'
@@ -1151,6 +1154,7 @@ const PersonalSetting = () => {
                         {t(`${ns}.password.submit`)}
                       </Button>
                       <Button
+                        variant='secondary'
                         onClick={() => setExpanded(null)}
                         size='sm'
                         type='button'
@@ -1414,6 +1418,7 @@ const PersonalSetting = () => {
                         {t(`${ns}.notification.save`)}
                       </Button>
                       <Button
+                        variant='secondary'
                         onClick={() => setExpanded(null)}
                         size='sm'
                         type='button'
@@ -1504,6 +1509,7 @@ const PersonalSetting = () => {
                         {t(`${ns}.notification.save`)}
                       </Button>
                       <Button
+                        variant='secondary'
                         onClick={() => setExpanded(null)}
                         size='sm'
                         type='button'

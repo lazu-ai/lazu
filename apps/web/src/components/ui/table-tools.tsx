@@ -549,7 +549,13 @@ export function FilterActions({
   return (
     <div className='flex flex-wrap items-end gap-2'>
       {/* type=submit: inside a FilterBar, Enter in any field clicks this. */}
-      <Button type='submit' size='md' onClick={onSubmit} disabled={disabled}>
+      <Button
+        variant='secondary'
+        type='submit'
+        size='md'
+        onClick={onSubmit}
+        disabled={disabled}
+      >
         <Search size={15} />
         {t('page.console.tables.search')}
       </Button>

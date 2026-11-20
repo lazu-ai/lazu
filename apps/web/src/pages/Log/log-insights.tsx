@@ -286,7 +286,7 @@ export function BudgetGuardPanel({
           >
             {t('page.console.log.budget.form.enabled')}
           </Switch>
-          <Button type='submit' loading={query.savePending}>
+          <Button variant='secondary' type='submit' loading={query.savePending}>
             <Save size={15} />
             {t('page.console.log.budget.action.save')}
           </Button>

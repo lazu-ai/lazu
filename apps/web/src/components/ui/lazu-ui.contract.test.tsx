@@ -12,7 +12,7 @@ import { StatusPage } from './status-page';
 describe('Lazu UI Brand contracts', () => {
   it('exposes loading state without relying on the spinner alone', () => {
     const html = renderToStaticMarkup(
-      <Button loading loadingLabel='Saving'>
+      <Button variant='secondary' loading loadingLabel='Saving'>
         Save
       </Button>,
     );
@@ -24,7 +24,7 @@ describe('Lazu UI Brand contracts', () => {
 
   it('keeps task completion feedback inside the stateful button', () => {
     const html = renderToStaticMarkup(
-      <Button status='success' successLabel='Saved'>
+      <Button variant='secondary' status='success' successLabel='Saved'>
         Save
       </Button>,
     );
@@ -66,7 +66,7 @@ describe('Lazu UI Brand contracts', () => {
   it('keeps abnormal facts, impact and actions in one inline notice', () => {
     const html = renderToStaticMarkup(
       <InlineNotice
-        actions={<Button>Recheck</Button>}
+        actions={<Button variant='secondary'>Recheck</Button>}
         description='Budget and member data remain available.'
         title='Channel telemetry is degraded'
         tone='warning'
@@ -112,7 +112,7 @@ describe('Lazu UI Brand contracts', () => {
   it('states the failure, its context and the way out on one page', () => {
     const html = renderToStaticMarkup(
       <StatusPage
-        action={<Button>Go to console</Button>}
+        action={<Button variant='secondary'>Go to console</Button>}
         description='This address does not match a Lazu page.'
         hint='Did you mean Models?'
         mark='404'
@@ -148,7 +148,10 @@ describe('Lazu UI Brand contracts', () => {
 
   it('only renders an empty slot when it contains a first action', () => {
     const actionable = renderToStaticMarkup(
-      <EmptyState action={<Button>Create key</Button>} title='No keys yet' />,
+      <EmptyState
+        action={<Button variant='secondary'>Create key</Button>}
+        title='No keys yet'
+      />,
     );
     const readOnly = renderToStaticMarkup(
       <EmptyState title='No results in this time range' />,
