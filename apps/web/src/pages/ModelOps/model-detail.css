@@ -4,7 +4,7 @@
    线路 as cards side by side, each with its price, margin and sources.
    编辑资料 swaps the overview for the form; 改价 opens a card in place. */
 
-@media (min-width: 641px) {
+@media (min-width: 768px) {
   body .lazu-modal-content.mo-dialog.mdl-dialog:not(.whats-new-panel) {
     border-radius: 20px;
     max-height: calc(100dvh - 48px);
@@ -14,7 +14,7 @@
 }
 
 /* On a phone the dialog is a full-screen sheet. */
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   body .lazu-modal-content.mo-dialog.mdl-dialog:not(.whats-new-panel) {
     border-radius: 0;
     height: 100dvh;
@@ -589,7 +589,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .mdl-head,
   .mdl-overview,
   .mdl-edit,
@@ -660,7 +660,7 @@
   gap: 12px 24px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .mdl-head__step {
     display: none;
   }
