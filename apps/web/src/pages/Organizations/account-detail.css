@@ -1,0 +1,812 @@
+/* 用户详情 — one account in one centred dialog (canvas board Final_Account).
+   A 380px column of who they are and what can be changed, one row per
+   setting whose edit opens in place, then the last 30 days, their Keys,
+   ledger and sessions beside it. On a phone the dialog is a full-screen
+   sheet and the columns stack. */
+
+@media (min-width: 641px) {
+  body .lazu-modal-content.acd-dialog:not(.whats-new-panel) {
+    border-radius: 20px;
+    height: min(960px, calc(100dvh - 48px));
+    max-height: calc(100dvh - 48px);
+    max-width: none;
+    overflow: hidden;
+    padding: 0;
+    width: min(1160px, calc(100vw - 32px));
+  }
+}
+
+@media (max-width: 640px) {
+  body .lazu-modal-content.acd-dialog:not(.whats-new-panel) {
+    border-radius: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    max-width: none;
+    overflow: auto;
+    padding: 0;
+    width: 100vw;
+  }
+}
+
+.acd-dialog {
+  font-variant-numeric: tabular-nums;
+  line-height: normal;
+}
+
+.acd-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.acd-cap {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.acd-sec {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.acd-mono {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+}
+
+.acd-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.acd-muted {
+  color: var(--lazu-text-muted);
+}
+
+.acd-ok {
+  color: var(--lazu-success);
+}
+
+.acd-warn {
+  color: var(--lazu-warning-strong);
+}
+
+.acd-link {
+  all: unset;
+  color: var(--lazu-evidence);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.acd-link:hover {
+  color: var(--lazu-evidence-strong);
+  text-decoration: underline;
+}
+
+.acd-link:focus-visible,
+.acd-icon:focus-visible,
+.acd-tab:focus-visible,
+.acd-bar:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+.acd-icon {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.acd-icon:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--lazu-ink) 6%, transparent);
+}
+
+.acd-icon:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+/* The board's badges: a flat 22px tag, no outline. */
+.acd-dialog .lazu-badge {
+  align-items: center;
+  border: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  height: 22px;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+/* ---- left column -------------------------------------------------------- */
+
+.acd-side {
+  background: color-mix(in srgb, var(--lazu-ink) 2%, var(--lazu-surface-solid));
+  border-right: 1px solid var(--lazu-border);
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 380px;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  padding: 22px 24px;
+}
+
+.acd-side__top {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.acd-avatar {
+  align-items: center;
+  background: color-mix(in srgb, var(--lazu-ink) 7%, transparent);
+  border-radius: 50%;
+  display: flex;
+  flex: none;
+  font-size: 16px;
+  font-weight: 600;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.acd-tools {
+  display: flex;
+}
+
+.acd-id {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.acd-id__name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.acd-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.acd-deleted {
+  align-items: flex-start;
+  background: var(--lazu-danger-soft);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.acd-deleted p {
+  margin: 0;
+}
+
+.acd-rows {
+  border-bottom: 1px solid var(--lazu-border);
+}
+
+.acd-row {
+  border-top: 1px solid var(--lazu-border);
+  padding: 12px 0;
+}
+
+.acd-row__line {
+  align-items: baseline;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+}
+
+.acd-row__label {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+}
+
+.acd-row__value {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.acd-row__big {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.acd-row__text {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.acd-row__lines {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.6;
+}
+
+.acd-row__value a.acd-cap:hover {
+  color: var(--lazu-evidence);
+}
+
+.acd-gauge {
+  background: color-mix(in srgb, var(--lazu-ink) 8%, transparent);
+  border-radius: 2px;
+  display: block;
+  height: 4px;
+  overflow: hidden;
+}
+
+.acd-gauge > span {
+  background: var(--lazu-evidence);
+  display: block;
+  height: 100%;
+}
+
+.acd-gauge > .acd-gauge__warn {
+  background: var(--lazu-warning);
+}
+
+.acd-gauge > .acd-gauge__bad {
+  background: var(--lazu-danger);
+}
+
+/* An opened row: its fields on a quiet panel under the line. */
+.acd-edit {
+  background: color-mix(in srgb, var(--lazu-ink) 4%, var(--lazu-surface-solid));
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+}
+
+.acd-edit__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.acd-edit .lazu-field {
+  align-content: start;
+}
+
+.acd-edit__foot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.acd-seg {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--lazu-ink) 5%, transparent);
+  border-radius: 10px;
+  display: inline-flex;
+  padding: 3px;
+}
+
+.acd-dialog .acd-seg button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+.acd-dialog .acd-seg button[aria-pressed='true'] {
+  background: var(--lazu-surface-solid);
+  border-color: var(--lazu-border);
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+/* The address list inside 设置 drops its own note: the switches say it. */
+.acd-edit .acc-addr__note {
+  display: none;
+}
+
+.acd-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.acd-actions__pair {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.acd-actions__pair > :only-child {
+  grid-column: 1 / -1;
+}
+
+/* ---- right column ------------------------------------------------------- */
+
+.acd-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.acd-main__close {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  padding: 14px 16px 0;
+}
+
+.acd-usage {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 28px 20px;
+}
+
+.acd-usage__head {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.acd-usage__range {
+  text-decoration: none;
+}
+
+.acd-usage__range:hover {
+  color: var(--lazu-evidence);
+  text-decoration: underline;
+}
+
+.acd-stats {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.acd-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.acd-stat__value {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.acd-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.acd-bars {
+  align-items: flex-end;
+  display: flex;
+  gap: 3px;
+  height: 120px;
+}
+
+.acd-bar {
+  align-items: flex-end;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  color: inherit;
+  cursor: default;
+  font: inherit;
+  padding: 0;
+  display: flex;
+  flex: 1;
+  height: 100%;
+  position: relative;
+}
+
+.acd-bar:hover,
+.acd-bar:focus-visible {
+  background: color-mix(in srgb, var(--lazu-ink) 4%, transparent);
+}
+
+.acd-bar__fill {
+  background: var(--lazu-evidence);
+  border-radius: 2px 2px 0 0;
+  display: block;
+  min-height: 1px;
+  width: 100%;
+}
+
+/* Today is still filling up. */
+.acd-bar.is-today .acd-bar__fill {
+  opacity: 0.6;
+}
+
+.acd-bars:hover .acd-bar:not(:hover) .acd-bar__fill {
+  opacity: 0.4;
+}
+
+.acd-tip {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: 12px;
+  bottom: calc(100% + 6px);
+  box-shadow: var(--lazu-shadow-overlay);
+  box-sizing: border-box;
+  display: none;
+  flex-direction: column;
+  font-size: 12.5px;
+  gap: 6px;
+  left: 50%;
+  padding: 11px 13px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 210px;
+  z-index: 5;
+}
+
+.acd-tip--l {
+  left: 0;
+  transform: none;
+}
+
+.acd-tip--r {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.acd-bar:hover .acd-tip,
+.acd-bar:focus-visible .acd-tip {
+  display: flex;
+}
+
+.acd-tip__head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.acd-tip__head b {
+  font-weight: 600;
+}
+
+.acd-chart__axis {
+  display: flex;
+  justify-content: space-between;
+}
+
+.acd-models {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 8px 18px;
+}
+
+.acd-models > .acd-cap {
+  font-size: 13px;
+}
+
+.acd-models__item {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.acd-models__item > span {
+  color: var(--lazu-text-muted);
+}
+
+.acd-tabs {
+  border-bottom: 1px solid color-mix(in srgb, var(--lazu-ink) 6%, transparent);
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  padding: 0 28px;
+}
+
+.acd-tab {
+  all: unset;
+  border-bottom: 2px solid transparent;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 24px;
+  padding: 12px 0 10px;
+}
+
+.acd-tab[aria-selected='true'] {
+  border-bottom-color: var(--lazu-ink);
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+.acd-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 28px 24px;
+}
+
+.acd-empty {
+  padding: 16px 0;
+}
+
+.acd-table__head,
+.acd-table__row {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+}
+
+.acd-table__head {
+  padding: 12px 0 8px;
+}
+
+.acd-table__head > span {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.acd-table__row {
+  border-top: 1px solid color-mix(in srgb, var(--lazu-ink) 7%, transparent);
+  font-size: 14px;
+  padding: 11px 0;
+}
+
+.acd-table--keys .acd-table__head,
+.acd-table--keys .acd-table__row {
+  grid-template-columns: minmax(0, 1.4fr) 80px minmax(0, 1fr) 100px 80px;
+}
+
+.acd-table--keys .acd-table__row > span:nth-child(4) {
+  font-size: 13px;
+}
+
+.acd-table--ledger .acd-table__head,
+.acd-table--ledger .acd-table__row {
+  grid-template-columns: 56px 140px minmax(0, 1fr) 80px;
+}
+
+.acd-table--ledger .acd-table__row > .acd-cap {
+  font-size: 13px;
+}
+
+.acd-table__note {
+  padding-top: 10px;
+}
+
+.acd-key {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.acd-key > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acd-state {
+  align-items: center;
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.acd-dot {
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+.acd-dot--ok {
+  background: var(--lazu-success);
+}
+
+.acd-dot--bad {
+  background: var(--lazu-danger);
+}
+
+.acd-dot--idle {
+  background: color-mix(in srgb, var(--lazu-ink) 16%, transparent);
+}
+
+.acd-quota {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.acd-pages {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+/* An order still waiting for payment: the whole row tinted, with 补单. */
+.acd-pending {
+  align-items: center;
+  background: var(--lazu-warning-soft);
+  border-radius: 10px;
+  display: grid;
+  font-size: 14px;
+  gap: 12px;
+  grid-template-columns: 56px 96px minmax(0, 1fr) 72px auto;
+  margin: 10px 0 4px;
+  padding: 11px 12px;
+}
+
+.acd-pending > .acd-cap {
+  font-size: 13px;
+}
+
+.acd-pending__how {
+  color: var(--lazu-text-muted);
+}
+
+.acd-facts {
+  display: grid;
+  font-size: 14px;
+  gap: 8px 16px;
+  grid-template-columns: auto 1fr;
+  margin: 0;
+}
+
+.acd-facts dt {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+}
+
+.acd-facts dd {
+  margin: 0;
+  text-align: left;
+}
+
+/* ---- narrower screens --------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .acd-side {
+    flex-basis: 320px;
+  }
+
+  .acd-table--keys .acd-table__head > :nth-child(4),
+  .acd-table--keys .acd-table__row > :nth-child(4) {
+    display: none;
+  }
+
+  .acd-table--keys .acd-table__head,
+  .acd-table--keys .acd-table__row {
+    grid-template-columns: minmax(0, 1.4fr) 80px minmax(0, 1fr) 72px;
+  }
+}
+
+@media (max-width: 640px) {
+  .acd-layout {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .acd-side {
+    border-bottom: 1px solid var(--lazu-border);
+    border-right: 0;
+    flex-basis: auto;
+    overflow: visible;
+    padding: 18px 16px;
+  }
+
+  .acd-icon--step {
+    display: none;
+  }
+
+  .acd-tools {
+    margin-right: 36px;
+  }
+
+  /* The close button sits beside the avatar, over the left column. */
+  .acd-main__close {
+    padding: 0;
+    position: absolute;
+    right: 12px;
+    top: 14px;
+  }
+
+  .acd-usage,
+  .acd-panel {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .acd-tabs {
+    overflow-x: auto;
+    padding: 0 16px;
+  }
+
+  .acd-tab {
+    white-space: nowrap;
+  }
+
+  .acd-panel {
+    overflow: visible;
+  }
+
+  .acd-stats {
+    gap: 10px;
+  }
+
+  .acd-stat__value {
+    font-size: 17px;
+  }
+
+  .acd-table--keys .acd-table__head,
+  .acd-table--keys .acd-table__row {
+    grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+  }
+
+  .acd-table--keys .acd-table__head > :nth-child(n + 4),
+  .acd-table--keys .acd-table__row > :nth-child(n + 4) {
+    display: none;
+  }
+
+  .acd-table--ledger .acd-table__head,
+  .acd-table--ledger .acd-table__row {
+    grid-template-columns: 44px minmax(0, 1fr) 64px;
+  }
+
+  .acd-table--ledger .acd-table__head > :nth-child(3),
+  .acd-table--ledger .acd-table__row > :nth-child(3) {
+    display: none;
+  }
+
+  .acd-pending {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+
+  .acd-pending > :nth-child(2),
+  .acd-pending > :nth-child(3) {
+    display: none;
+  }
+}

@@ -142,7 +142,10 @@ test('account usage carries platform scope despite a saved personal selection', 
     .locator('tbody tr', { hasText: 'owner@example.com' })
     .first()
     .click();
-  const usage = page.locator('.acc-drawer a[href^="/console/usage?"]').first();
+  const usage = page
+    .getByRole('dialog')
+    .locator('a[href^="/console/usage?"]')
+    .first();
   await expect(usage).toHaveAttribute('href', /scope=platform/);
   await page.goto(await usage.getAttribute('href'));
   await expect
@@ -172,15 +175,15 @@ test('organizations ledger exposes create and delete', async ({ page }) => {
   await expect(page.getByText('登录名')).toBeVisible();
   await page.getByRole('button', { name: '取消' }).click();
 
-  // Deleting an account is a hard delete: the drawer's 删除 opens a gate that
-  // stays shut until the username is typed exactly.
+  // Deleting an account is a hard delete: the dialog's 删除账户 opens a gate
+  // that stays shut until the username is typed exactly.
   await page
     .locator('tbody tr', { hasText: 'owner@example.com' })
     .first()
     .click();
   await page
-    .locator('.acc-drawer')
-    .getByRole('button', { name: '删除', exact: true })
+    .locator('.acd-dialog')
+    .getByRole('button', { name: '删除账户', exact: true })
     .click();
   const gate = page.getByRole('dialog', { name: /删除账户/ });
   const field = gate.getByRole('textbox');
@@ -234,8 +237,9 @@ test('organization balance adjustments submit an atomic signed delta', async ({
     .locator('tbody tr', { hasText: 'owner@example.com' })
     .first();
   await row.click();
-  await page.locator('.orgs__balance .lazu-select-trigger').click();
-  await page.getByRole('option', { name: '扣减 −' }).click();
+  const detail = page.locator('.acd-dialog');
+  await detail.getByRole('button', { name: '加扣款', exact: true }).click();
+  await detail.getByRole('button', { name: '扣减 −', exact: true }).click();
   await page.getByPlaceholder('100.00').fill('1.25');
   await page.getByPlaceholder('例如：线下转账 #77').fill('并发安全扣减');
   await page.getByRole('button', { name: '执行调整' }).click();
@@ -262,11 +266,13 @@ test('an account opens from the keyboard, not only by clicking its row', async (
   const open = page.locator('.orgs__who-open').first();
   await open.focus();
   await page.keyboard.press('Enter');
-  const drawer = page.locator('.lazu-drawer-content');
-  await expect(drawer).toBeVisible();
-  await expect(drawer.locator('.lazu-drawer-close')).toHaveAttribute(
-    'aria-label',
-    '关闭',
-  );
+  // It opens as a centred dialog, never a drawer from the edge.
+  const detail = page.getByRole('dialog');
+  await expect(detail).toBeVisible();
+  await expect(detail).toHaveClass(/acd-dialog/);
+  await expect(page.locator('.lazu-drawer-content')).toHaveCount(0);
+  await expect(
+    detail.getByRole('button', { name: '关闭', exact: true }),
+  ).toBeVisible();
   await app.expectNoUnexpectedErrors();
 });

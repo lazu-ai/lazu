@@ -22,7 +22,7 @@ import {
   toAccount,
   usd,
 } from './account-model';
-import AccountDrawer from './AccountDrawer';
+import AccountDetail from './AccountDetail';
 import useAuthStatus from '../../components/auth/useAuthStatus';
 import { Badge } from '../../components/ui/badge';
 import { Button, buttonVariants } from '../../components/ui/button';
@@ -1328,7 +1328,7 @@ export default function OrganizationsPage() {
         )}
       </DataSurface>
 
-      <AccountDrawer
+      <AccountDetail
         account={activeAccount}
         open={Boolean(activeAccount)}
         onOpenChange={(next) => {
