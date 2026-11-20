@@ -736,8 +736,8 @@
   padding: 0 14px;
 }
 
-/* Below 721px the dialog is a full-height sheet with touch-sized buttons. */
-@media (min-width: 721px) {
+/* Below 768px the dialog is a full-height sheet with touch-sized buttons. */
+@media (min-width: 768px) {
   .lazu-modal-content.console-review-controls.wal-day
     .wal-day__nav
     .lazu-button {
