@@ -906,6 +906,7 @@ export function ConnectModal({
               title={secretError}
               actions={
                 <Button
+                  variant='secondary'
                   loading={revealing}
                   onClick={() => setRevealAttempt((attempt) => attempt + 1)}
                 >

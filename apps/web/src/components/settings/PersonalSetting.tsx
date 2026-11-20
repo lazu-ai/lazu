@@ -883,6 +883,14 @@ const PersonalSetting = () => {
                     </p>
                     <div className='set-ed__actions'>
                       <Button
+                        variant='secondary'
+                        onClick={() => setExpanded(null)}
+                        size='sm'
+                        type='button'
+                      >
+                        {t(`${ns}.action.cancel`)}
+                      </Button>
+                      <Button
                         disabled={!usernameSavable}
                         loading={changeUsernameMutation.isPending}
                         size='sm'
@@ -890,13 +898,6 @@ const PersonalSetting = () => {
                         variant='primary'
                       >
                         {t(`${ns}.username.submit`)}
-                      </Button>
-                      <Button
-                        onClick={() => setExpanded(null)}
-                        size='sm'
-                        type='button'
-                      >
-                        {t(`${ns}.action.cancel`)}
                       </Button>
                     </div>
                   </form>
@@ -950,6 +951,7 @@ const PersonalSetting = () => {
                         />
                       </div>
                       <Button
+                        variant='secondary'
                         loading={sendCodeMutation.isPending}
                         onClick={() =>
                           sendCodeMutation.mutate(emailForm.getValues('email'))
@@ -999,19 +1001,20 @@ const PersonalSetting = () => {
                     ) : null}
                     <div className='set-ed__actions'>
                       <Button
+                        variant='secondary'
+                        onClick={() => setExpanded(null)}
+                        size='sm'
+                        type='button'
+                      >
+                        {t(`${ns}.action.cancel`)}
+                      </Button>
+                      <Button
                         loading={bindEmailMutation.isPending}
                         size='sm'
                         type='submit'
                         variant='primary'
                       >
                         {t(`${ns}.email.bind`)}
-                      </Button>
-                      <Button
-                        onClick={() => setExpanded(null)}
-                        size='sm'
-                        type='button'
-                      >
-                        {t(`${ns}.action.cancel`)}
                       </Button>
                     </div>
                   </form>
@@ -1143,19 +1146,20 @@ const PersonalSetting = () => {
                     </div>
                     <div className='set-ed__actions'>
                       <Button
+                        variant='secondary'
+                        onClick={() => setExpanded(null)}
+                        size='sm'
+                        type='button'
+                      >
+                        {t(`${ns}.action.cancel`)}
+                      </Button>
+                      <Button
                         loading={changePasswordMutation.isPending}
                         size='sm'
                         type='submit'
                         variant='primary'
                       >
                         {t(`${ns}.password.submit`)}
-                      </Button>
-                      <Button
-                        onClick={() => setExpanded(null)}
-                        size='sm'
-                        type='button'
-                      >
-                        {t(`${ns}.action.cancel`)}
                       </Button>
                     </div>
                   </form>
@@ -1405,6 +1409,14 @@ const PersonalSetting = () => {
                     ) : null}
                     <div className='set-ed__actions'>
                       <Button
+                        variant='secondary'
+                        onClick={() => setExpanded(null)}
+                        size='sm'
+                        type='button'
+                      >
+                        {t(`${ns}.action.cancel`)}
+                      </Button>
+                      <Button
                         disabled={!notificationReady}
                         loading={saveNotificationMutation.isPending}
                         size='sm'
@@ -1412,13 +1424,6 @@ const PersonalSetting = () => {
                         variant='primary'
                       >
                         {t(`${ns}.notification.save`)}
-                      </Button>
-                      <Button
-                        onClick={() => setExpanded(null)}
-                        size='sm'
-                        type='button'
-                      >
-                        {t(`${ns}.action.cancel`)}
                       </Button>
                     </div>
                   </form>
@@ -1491,6 +1496,14 @@ const PersonalSetting = () => {
                     </Field>
                     <div className='set-ed__actions'>
                       <Button
+                        variant='secondary'
+                        onClick={() => setExpanded(null)}
+                        size='sm'
+                        type='button'
+                      >
+                        {t(`${ns}.action.cancel`)}
+                      </Button>
+                      <Button
                         loading={saveTimezoneMutation.isPending}
                         size='sm'
                         type='button'
@@ -1502,13 +1515,6 @@ const PersonalSetting = () => {
                         }
                       >
                         {t(`${ns}.notification.save`)}
-                      </Button>
-                      <Button
-                        onClick={() => setExpanded(null)}
-                        size='sm'
-                        type='button'
-                      >
-                        {t(`${ns}.action.cancel`)}
                       </Button>
                     </div>
                   </SetEditor>

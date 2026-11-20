@@ -510,6 +510,7 @@ function TemplateField({
               {t('common.cancel', { defaultValue: '取消' })}
             </Button>
             <Button
+              variant='primary'
               onClick={() => {
                 form.setValue(formKey(field.key), draft, {
                   shouldDirty: true,
@@ -789,7 +790,7 @@ function DocsField({
             <Button onClick={close} variant='secondary'>
               {t('common.cancel', { defaultValue: '取消' })}
             </Button>
-            <Button onClick={applyDrafts}>
+            <Button variant='primary' onClick={applyDrafts}>
               {t('page.console.settingV2.runtime.templateApply', {
                 defaultValue: '应用到表单',
               })}
@@ -1556,6 +1557,7 @@ export const SettingsGroupPage = ({
     <>
       {!grouped && dirtyCount > 0 ? (
         <Button
+          variant='secondary'
           loading={saveMutation.isPending}
           onClick={form.handleSubmit(() => saveMutation.mutate())}
         >

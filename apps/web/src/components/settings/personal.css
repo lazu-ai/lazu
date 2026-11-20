@@ -135,6 +135,12 @@
   padding: 0;
 }
 
+/* Inside the dialog the actions read like a footer: the way out on the
+   left, the primary at the right end. */
+.personal-setting-editor .set-ed__actions {
+  justify-content: flex-end;
+}
+
 /* Digest preview: the mail at its own 640px width, scrolled inside. */
 .personal-digest-preview {
   max-width: 760px;

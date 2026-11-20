@@ -318,6 +318,7 @@ export function CreateKeyModal({
               <ErrLine>
                 {t('projects.key.form.unavailable')}{' '}
                 <Button
+                  variant='secondary'
                   size='sm'
                   onClick={() => {
                     if (editingToken) void detail.refetch();

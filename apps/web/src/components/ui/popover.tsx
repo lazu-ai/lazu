@@ -1,5 +1,6 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import React from 'react';
+import { useControlAppearanceClass } from './control-appearance';
 import { cn } from '../../lib/cn';
 
 export const Popover = PopoverPrimitive.Root;
@@ -29,22 +30,26 @@ type PopoverContentProps = PopoverPrimitive.Popup.Props &
 export const PopoverContent = React.forwardRef<
   HTMLDivElement,
   PopoverContentProps
->(({ align, alignOffset, className, side, sideOffset = 6, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Positioner
-      align={align}
-      alignOffset={alignOffset}
-      className='lazu-popup-positioner'
-      side={side}
-      sideOffset={sideOffset}
-    >
-      <PopoverPrimitive.Popup
-        ref={ref}
-        className={cn('lazu-popover-content', className)}
-        {...props}
-      />
-    </PopoverPrimitive.Positioner>
-  </PopoverPrimitive.Portal>
-));
+>(({ align, alignOffset, className, side, sideOffset = 6, ...props }, ref) => {
+  // Portalled to body, so it carries the page's control recipe itself.
+  const appearance = useControlAppearanceClass();
+  return (
+    <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Positioner
+        align={align}
+        alignOffset={alignOffset}
+        className='lazu-popup-positioner'
+        side={side}
+        sideOffset={sideOffset}
+      >
+        <PopoverPrimitive.Popup
+          ref={ref}
+          className={cn('lazu-popover-content', appearance, className)}
+          {...props}
+        />
+      </PopoverPrimitive.Positioner>
+    </PopoverPrimitive.Portal>
+  );
+});
 
 PopoverContent.displayName = 'PopoverContent';

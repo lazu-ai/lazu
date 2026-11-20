@@ -241,6 +241,7 @@ export default function RateLimits() {
             </span>
           ) : null}
           <Button
+            variant='secondary'
             disabled={!changed.length || save.isPending}
             onClick={() => options.data && setDraft(toDraft(options.data))}
           >

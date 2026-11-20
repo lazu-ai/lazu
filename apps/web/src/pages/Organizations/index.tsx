@@ -1358,6 +1358,9 @@ export default function OrganizationsPage() {
         }}
         footer={
           <>
+            <Button variant='secondary' onClick={() => setCreating(false)}>
+              {t('page.console.orgs.cancel', { defaultValue: '取消' })}
+            </Button>
             <Button
               variant='primary'
               disabled={
@@ -1368,9 +1371,6 @@ export default function OrganizationsPage() {
               onClick={() => create.mutate(createForm)}
             >
               {t('page.console.orgs.createSubmit', { defaultValue: '创建' })}
-            </Button>
-            <Button variant='ghost' onClick={() => setCreating(false)}>
-              {t('page.console.orgs.cancel', { defaultValue: '取消' })}
             </Button>
           </>
         }

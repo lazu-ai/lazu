@@ -1,5 +1,6 @@
 import { Menu as DropdownMenuPrimitive } from '@base-ui/react/menu';
 import React from 'react';
+import { useControlAppearanceClass } from './control-appearance';
 import { cn } from '../../lib/cn';
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
@@ -27,23 +28,27 @@ type DropdownMenuContentProps = DropdownMenuPrimitive.Popup.Props &
 export const DropdownMenuContent = React.forwardRef<
   HTMLDivElement,
   DropdownMenuContentProps
->(({ align, alignOffset, className, side, sideOffset = 6, ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal>
-    <DropdownMenuPrimitive.Positioner
-      align={align}
-      alignOffset={alignOffset}
-      className='lazu-popup-positioner'
-      side={side}
-      sideOffset={sideOffset}
-    >
-      <DropdownMenuPrimitive.Popup
-        ref={ref}
-        className={cn('lazu-dropdown-content', className)}
-        {...props}
-      />
-    </DropdownMenuPrimitive.Positioner>
-  </DropdownMenuPrimitive.Portal>
-));
+>(({ align, alignOffset, className, side, sideOffset = 6, ...props }, ref) => {
+  // Portalled to body, so it carries the page's control recipe itself.
+  const appearance = useControlAppearanceClass();
+  return (
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.Positioner
+        align={align}
+        alignOffset={alignOffset}
+        className='lazu-popup-positioner'
+        side={side}
+        sideOffset={sideOffset}
+      >
+        <DropdownMenuPrimitive.Popup
+          ref={ref}
+          className={cn('lazu-dropdown-content', appearance, className)}
+          {...props}
+        />
+      </DropdownMenuPrimitive.Positioner>
+    </DropdownMenuPrimitive.Portal>
+  );
+});
 
 DropdownMenuContent.displayName = 'DropdownMenuContent';
 

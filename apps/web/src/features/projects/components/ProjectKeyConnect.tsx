@@ -59,6 +59,7 @@ export function ProjectKeyConnect({
         title={t('projects.common.loadFailed', { ns: 'projects' })}
         actions={
           <Button
+            variant='secondary'
             onClick={() =>
               void Promise.all([vendors.refetch(), models.refetch()])
             }

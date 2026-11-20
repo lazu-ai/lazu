@@ -556,7 +556,7 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   max-width: min(92vw, 640px);
 }
 
-@media (min-width: 721px) {
+@media (min-width: 768px) {
   body:has(.console-review)
     .tok-create-modal.lazu-modal-content:not(.tok-create-modal--team):not(
       .whats-new-panel
@@ -928,7 +928,7 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 
 /* On phones both dialogs are bottom sheets (modal.tsx `sheet`); these undo
    the desktop sizes that would otherwise outrank the sheet. */
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .tok-create-modal.lazu-modal-content--sheet,
   .tok-connect.lazu-modal-content--sheet {
     max-width: none;
@@ -949,6 +949,10 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 
   .tok-create-modal .tok-modal-foot .lazu-button {
     flex: 1 1 0;
+  }
+
+  .tok-create-modal .tok-modal-foot .lazu-button--primary {
+    flex-grow: 2;
   }
 
   .tok-connect > .tok-modal-foot {
@@ -1348,7 +1352,7 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   z-index: 2;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .tok-connect__grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1440,10 +1444,6 @@ body:has(.console-review)
   .tok-create-modal.lazu-modal-content:not(.whats-new-panel)
   .lazu-modal-footer {
   padding: 12px 24px;
-}
-body:has(.console-review)
-  .tok-create-modal.lazu-modal-content:not(.whats-new-panel) {
-  max-height: calc(100dvh - 48px);
 }
 
 /* ---- connect dialog: the model field ----

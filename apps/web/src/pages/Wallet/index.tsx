@@ -1018,6 +1018,7 @@ const WalletPage = () => {
               {t('common.cancel', { defaultValue: '取消' })}
             </Button>
             <Button
+              variant='primary'
               loading={completeTopupMutation.isPending}
               onClick={() => {
                 if (completeTradeNo)

@@ -946,57 +946,9 @@ a.lazu-evidence:hover {
   }
 }
 
-/* Long selected-page editors scroll their body, keeping their title and actions available. */
-body:has(
-    :is(
-      .token-page-table,
-      .usage-page--log-first,
-      .users-page--compact,
-      .health-page--compact,
-      .model-ops-page--compact,
-      .search-services-page,
-      .settings-page,
-      .wallet-page,
-      .personal-page
-    )
-  )
-  .lazu-modal-content {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-body:has(
-    :is(
-      .token-page-table,
-      .usage-page--log-first,
-      .users-page--compact,
-      .health-page--compact,
-      .model-ops-page--compact,
-      .search-services-page,
-      .settings-page,
-      .wallet-page,
-      .personal-page
-    )
-  )
-  .lazu-modal-content
-  > .lazu-modal-body {
-  min-height: 0;
-  overflow: auto;
-}
-body:has(
-    :is(
-      .token-page-table,
-      .usage-page--log-first,
-      .users-page--compact,
-      .health-page--compact,
-      .model-ops-page--compact,
-      .search-services-page,
-      .settings-page,
-      .wallet-page,
-      .personal-page
-    )
-  )
-  .lazu-modal-content
-  > :is(.lazu-modal-header, .lazu-modal-footer) {
-  flex-shrink: 0;
+/* A phone sheet keeps its rounded top and sits flush on the bottom edge. */
+@media (max-width: 767px) {
+  .lazu-modal-content.lazu-modal-content--sheet {
+    border-radius: 20px 20px 0 0;
+  }
 }

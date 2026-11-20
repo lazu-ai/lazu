@@ -502,7 +502,12 @@ const KeyInspectorPage = () => {
                 {keyField}
                 {dateField}
                 <div className='flex items-end'>
-                  <Button fullWidth loading={loading} type='submit'>
+                  <Button
+                    variant='secondary'
+                    fullWidth
+                    loading={loading}
+                    type='submit'
+                  >
                     <Search size={15} />
                     {t('legacy.i18n.query.711363c424')}
                   </Button>
@@ -658,7 +663,11 @@ const KeyInspectorPage = () => {
                     <Button variant='ghost' onClick={resetLogFilters}>
                       {t('legacy.i18n.reset.3d81345303')}
                     </Button>
-                    <Button loading={loading} onClick={applyLogFilters}>
+                    <Button
+                      variant='secondary'
+                      loading={loading}
+                      onClick={applyLogFilters}
+                    >
                       <Search size={15} />
                       {t('legacy.i18n.filter.dcce9a144a')}
                     </Button>

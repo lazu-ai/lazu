@@ -623,62 +623,46 @@ body:has(.console-review)
   width: min(600px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
 }
+/* Review chrome for every dialog; the three bands themselves (pinned header
+   and footer, scrolling body) come from .lazu-modal-content--stack in ui.css. */
 body:has(.console-review) .lazu-modal-content:not(.whats-new-panel) {
   padding: 0;
-  max-height: 85dvh;
+  max-height: min(86dvh, calc(100dvh - 48px));
   border-radius: var(--lazu-radius-overlay);
   box-shadow: var(--lazu-shadow-overlay);
 }
-body:has(.console-review)
-  .lazu-modal-content:not(.whats-new-panel)
-  .lazu-modal-header {
-  margin-bottom: 0;
-  padding: 24px 24px 18px;
-  border-bottom: 1px solid var(--lazu-border);
-}
-body:has(.console-review)
-  .lazu-modal-content:not(.whats-new-panel)
-  .lazu-modal-body {
-  padding: 24px;
-}
-body:has(.console-review)
-  .lazu-modal-content:not(.whats-new-panel)
-  .lazu-modal-footer {
-  margin-top: 0;
-  padding: 18px 24px;
-  border-top: 1px solid var(--lazu-border);
-  gap: 8px;
-}
 /* The small member / settings-value dialog (team refinement 2026-09-28):
    520px, opens straight into its form without a header rule, footer on a
-   muted strip. Same selector shape as the defaults above so it outranks them. */
-body:has(.console-review)
-  .lazu-modal-content.pj-modal--member:not(.whats-new-panel):not(
-    .lazu-modal-content--wide
-  ):not(.lazu-modal-content--xwide) {
-  width: min(520px, calc(100vw - 32px));
-}
-body:has(.console-review)
-  .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
-  .lazu-modal-header {
-  border-bottom: 0;
-  padding: 20px 22px 0;
-}
-body:has(.console-review)
-  .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
-  .lazu-modal-body {
-  padding: 16px 22px 20px;
-}
-body:has(.console-review)
-  .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
-  .lazu-modal-footer {
-  background: var(--lazu-surface-muted);
-  padding: 14px 22px;
+   muted strip. Below 768px it is a sheet like every other dialog. */
+@media (min-width: 768px) {
+  body:has(.console-review)
+    .lazu-modal-content.pj-modal--member:not(.whats-new-panel):not(
+      .lazu-modal-content--wide
+    ):not(.lazu-modal-content--xwide) {
+    width: min(520px, calc(100vw - 32px));
+  }
+  body:has(.console-review)
+    .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
+    .lazu-modal-header {
+    border-bottom: 0;
+    padding: 20px 22px 0;
+  }
+  body:has(.console-review)
+    .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
+    .lazu-modal-body {
+    padding: 16px 22px 20px;
+  }
+  body:has(.console-review)
+    .lazu-modal-content.pj-modal--member:not(.whats-new-panel)
+    .lazu-modal-footer {
+    background: var(--lazu-surface-muted);
+    padding: 14px 22px;
+  }
 }
 /* Phone sheets (modal.tsx `sheet`, the rest in ui.css): the review chrome
    above would keep them a centred card, so the same selector shapes, one
-   class longer, hand them the full width and the sheet's own spacing. */
-@media (max-width: 720px) {
+   class longer, hand them the full width and the sheet's height. */
+@media (max-width: 767px) {
   body:has(.console-review)
     .lazu-modal-content.lazu-modal-content--sheet:not(.whats-new-panel):not(
       .lazu-modal-content--wide
@@ -690,27 +674,6 @@ body:has(.console-review)
     .lazu-modal-content.lazu-modal-content--sheet:not(.whats-new-panel) {
     border-radius: 20px 20px 0 0;
     max-height: calc(100dvh - 44px - var(--lazu-keyboard-inset, 0px));
-  }
-  body:has(.console-review)
-    .lazu-modal-content--sheet:not(.whats-new-panel)
-    .lazu-modal-header {
-    border-bottom-color: transparent;
-    padding: 6px 52px 12px 16px;
-  }
-  body:has(.console-review)
-    .lazu-modal-content--sheet:not(.whats-new-panel)
-    .lazu-modal-header[data-scrolled] {
-    border-bottom-color: var(--lazu-border);
-  }
-  body:has(.console-review)
-    .lazu-modal-content--sheet:not(.whats-new-panel)
-    .lazu-modal-body {
-    padding: 4px 16px 16px;
-  }
-  body:has(.console-review)
-    .lazu-modal-content--sheet:not(.whats-new-panel)
-    .lazu-modal-footer {
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (max-width: 1100px) {

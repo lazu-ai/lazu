@@ -122,7 +122,12 @@ export default function ReportProblemDialog() {
       }
       footer={
         <>
-          <Button onClick={() => setOpen(false)} size='sm' type='button'>
+          <Button
+            variant='secondary'
+            onClick={() => setOpen(false)}
+            size='sm'
+            type='button'
+          >
             {t(`${ns}.cancel`, { defaultValue: '取消' })}
           </Button>
           <Button

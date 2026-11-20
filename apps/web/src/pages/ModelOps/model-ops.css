@@ -774,7 +774,7 @@
   color: var(--lazu-surface-solid);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .lazu-modal-content.mo-dialog {
     border-radius: 0;
     height: 100dvh;

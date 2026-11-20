@@ -550,7 +550,10 @@ const AnnouncementsPage = ({
                   defaultValue: '公告读取失败',
                 })}
                 action={
-                  <Button onClick={() => void load(retryBeforeID)}>
+                  <Button
+                    variant='secondary'
+                    onClick={() => void load(retryBeforeID)}
+                  >
                     {t('common.retry', { defaultValue: '重试' })}
                   </Button>
                 }
@@ -862,7 +865,11 @@ const AnnouncementsPage = ({
                               setModelEntry(event.target.value)
                             }
                           />
-                          <Button type='submit' disabled={!modelEntry.trim()}>
+                          <Button
+                            variant='secondary'
+                            type='submit'
+                            disabled={!modelEntry.trim()}
+                          >
                             {t('page.console.announcements.addModel', {
                               defaultValue: '＋添加',
                             })}
@@ -977,6 +984,7 @@ const AnnouncementsPage = ({
               {t('common.cancel', { defaultValue: '取消' })}
             </Button>
             <Button
+              variant='primary'
               loading={saving}
               onClick={async () => {
                 if (await save(true)) setPublishConfirm(false);

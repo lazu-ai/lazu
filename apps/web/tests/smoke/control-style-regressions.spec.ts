@@ -38,13 +38,50 @@ for (const theme of ['light', 'dark'] as const) {
       });
       await expect(cancel).toHaveCSS('border-radius', '12px');
       await expect(cancel).toHaveCSS('min-height', '30px');
+      // Header and footer are pinned; only the body scrolls.
+      await expect(dialog).toHaveCSS('display', 'flex');
+      await expect(dialog.locator('.lazu-modal-body')).toHaveCSS(
+        'overflow-y',
+        'auto',
+      );
+      await expect(dialog.locator('.lazu-modal-header')).toHaveCSS(
+        'flex-shrink',
+        '0',
+      );
       await select.click();
       await expect(
         page.getByRole('option', { name: 'Webhook', exact: true }),
       ).toBeVisible();
+      // The list is portalled to body but keeps the page's control recipe,
+      // on one sheet of paper at control radius.
+      const list = page.locator('.lazu-select-content');
+      await expect(list).toHaveClass(/console-review-controls/);
+      await expect(list).toHaveCSS('border-radius', '12px');
       await page.keyboard.press('Escape');
       await cancel.click();
       await expect(dialog).not.toBeVisible();
+    });
+
+    test('there is one switch: 36 by 20, teal when on', async ({ page }) => {
+      await page.goto('/console/personal');
+      const on = page.locator('.lazu-switch[data-checked]').first();
+      await expect(on).toBeVisible();
+      await expect(on).toHaveCSS('width', '36px');
+      await expect(on).toHaveCSS('height', '20px');
+      // The track is the evidence token, resolved in this theme.
+      const colors = await on.evaluate((node) => {
+        const probe = document.createElement('span');
+        probe.style.background = 'var(--lazu-evidence)';
+        node.parentElement?.append(probe);
+        const expected = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return { expected, track: getComputedStyle(node).backgroundColor };
+      });
+      expect(colors.track).toBe(colors.expected);
+      await expect(on.locator('.lazu-switch__thumb')).toHaveCSS(
+        'width',
+        '16px',
+      );
     });
 
     test('announcement Select owns its surface outside the review page list', async ({
@@ -85,6 +122,31 @@ for (const theme of ['light', 'dark'] as const) {
     });
   });
 }
+
+test('below 768px a dialog is a bottom sheet with a 44px close', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 740, height: 900 });
+  await setupMockedApp(page, { language: 'en' });
+  await page.goto('/console/personal');
+  await page
+    .locator('.set-row')
+    .filter({
+      has: page.locator('.set-row__lb', { hasText: 'Low-balance alert' }),
+    })
+    .getByRole('button', { name: 'Edit', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toHaveClass(/lazu-modal-content--sheet/);
+  // Pinned to the bottom edge across the full width.
+  await expect(dialog).toHaveCSS('bottom', '0px');
+  await expect(dialog).toHaveCSS('left', '0px');
+  await expect(dialog).toHaveCSS('width', '740px');
+  const close = dialog.getByRole('button', { name: 'Close', exact: true });
+  await expect(close).toHaveCSS('width', '44px');
+  await expect(close).toHaveCSS('height', '44px');
+  await expect(page.locator('.lazu-modal-grabber')).toHaveCount(0);
+});
 
 test('mobile sign-out signs out from the drawer at once', async ({ page }) => {
   let logouts = 0;

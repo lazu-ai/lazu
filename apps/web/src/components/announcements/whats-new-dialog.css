@@ -16,12 +16,8 @@
   width: min(680px, calc(100vw - 48px));
 }
 
-/* Sheet handle: only ever visible in the mobile bottom-sheet layout. */
-.whats-new-panel__grab {
-  display: none;
-}
-
 .whats-new-panel .lazu-modal-header {
+  border-bottom: 0;
   margin: 0;
   padding: 20px 56px 14px 22px;
 }
@@ -85,7 +81,7 @@
 
 /* At the same breakpoint where the console sidebar leaves the viewport, the
    centred modal becomes a bottom sheet with more usable reading height. */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .whats-new-panel.lazu-modal-content {
     border-bottom: 0;
     border-left: 0;
@@ -134,20 +130,13 @@
       var(--lazu-ease-direct) both;
   }
 
-  .whats-new-panel__grab {
-    background: var(--lazu-border-strong);
-    border-radius: 999px;
-    display: block;
-    height: 4px;
-    left: 50%;
-    position: absolute;
-    top: 9px;
-    transform: translateX(-50%);
-    width: 36px;
-  }
-
   .whats-new-panel .lazu-modal-header {
     padding: 18px 52px 12px 18px;
+  }
+
+  .whats-new-panel .lazu-modal-close {
+    height: 44px;
+    width: 44px;
   }
 
   .whats-new-panel .lazu-modal-body {
