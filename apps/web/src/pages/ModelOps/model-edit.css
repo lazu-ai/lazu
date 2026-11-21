@@ -282,6 +282,17 @@
   color: var(--lazu-danger);
 }
 
+/* A narrow dialog: a slimmer preview, and 规格 two to a row. */
+@media (max-width: 1100px) {
+  .mdl-form {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .mdl-form__grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* A phone: one column that scrolls as a whole, the preview after the fields. */
 @media (max-width: 767px) {
   .mdl-form {
