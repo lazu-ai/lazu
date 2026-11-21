@@ -331,7 +331,7 @@ test('Stripe return lands in the wallet and pins the payment record', async ({
     record.getByRole('link', { name: 'View receipt', exact: true }),
   ).toHaveAttribute('href', /document=receipt/);
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).toHaveAttribute('href', /document=invoice_page/);
   await expect(page.locator('.pj-wallet-page')).toBeVisible();
   await page.waitForTimeout(3_500);
@@ -678,7 +678,7 @@ test('payment record never names the personal project', async ({ page }) => {
   await expect(record).not.toContainText('grace-1');
   await expect(record).toContainText('Stripe is preparing it');
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).toHaveAttribute('aria-disabled', 'true');
 });
 
@@ -763,7 +763,7 @@ test('payment return verifies the order with the rollout switch disabled', async
   });
   await page.goto('/payment/success?project_id=p_orbit&top_up_id=flag-off');
   await expect(page.locator('.wallet-page')).toBeVisible();
-  const record = page.locator('.lazu-topup-record');
+  const record = page.getByRole('dialog', { name: 'Top-ups' });
   await expect(record).toContainText('Confirming this payment with Stripe');
   await expect(record).toContainText('$5.00');
   await expect(record).not.toContainText('Added to');
@@ -798,7 +798,7 @@ test('fully discounted payment stops polling when the invoice is ready', async (
   await page.goto('/payment/success?project_id=p_orbit&top_up_id=free-return');
   const record = page.locator('.lazu-topup-record');
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).not.toHaveAttribute('aria-disabled', 'true');
   await expect(record).toContainText('Stripe issues no receipt');
   await expect.poll(() => polls).toBe(1);
@@ -1240,14 +1240,14 @@ test('flag-off failed payment lands in the legacy wallet without a project notic
     '/payment/success?project_id=p_orbit&top_up_id=flag-off-wallet',
   );
   await expect(page.locator('.wallet-page')).toBeVisible();
-  const record = page.locator('.lazu-topup-record');
+  const record = page.getByRole('dialog', { name: 'Top-ups' });
   await expect(record).toContainText('Nothing was charged.');
-  await expect(record).toContainText('No documents.');
+  await expect(record.getByRole('button', { name: 'Receipt' })).toHaveCount(0);
   await expect(
     page.getByText('Unable to open this project wallet', { exact: true }),
   ).toHaveCount(0);
   await record.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(page.locator('.lazu-topup-record')).toHaveCount(0);
+  await expect(record).toHaveCount(0);
   await expect(page).not.toHaveURL(/top_up_id/);
 });
 
@@ -1371,8 +1371,8 @@ test('former payer can open their payment without current project membership', a
   await page.goto(
     '/console/wallet?project_id=p_orbit&top_up_id=email-document',
   );
-  const record = page.locator('.lazu-topup-record');
-  await expect(record).toContainText('Added to your Lazu account');
+  const record = page.getByRole('dialog', { name: 'Top-ups' });
+  await expect(record).toContainText('Paid');
   await expect(record).toContainText('INV-2026-001');
   await expect(page).toHaveURL(/top_up_id=email-document/);
 });
@@ -1464,7 +1464,7 @@ test('legacy paid payment explains the missing Stripe invoice', async ({
   await expect(record).toContainText('Added to your Lazu account');
   await expect(record).toContainText('This top-up has no Stripe invoice');
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).toHaveAttribute('aria-disabled', 'true');
   await expect(record).not.toContainText('Chinese VAT');
 });

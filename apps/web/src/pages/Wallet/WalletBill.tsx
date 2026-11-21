@@ -2,10 +2,14 @@
  * month's spend, a row per month that moved, and the top-up records of the
  * same six months. A month opens its own view with a bar per day and a row
  * per day that moved; a day opens one centered dialog with that day's spend
- * by model, read from the usage the dialog's figures add up to. */
+ * by model, read from the usage the dialog's figures add up to.
+ *
+ * 充值记录 rows open in place onto their numbers and documents; a link to
+ * one payment (?top_up_id=, from the Stripe return and the payment e-mails)
+ * opens the same list as a dialog with that payment open. */
 import { useQueries, useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { X } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -21,17 +25,20 @@ import {
   type WalletLedgerRange,
   type WalletMonth,
 } from './billMonths';
-import { resolveTopupCreditUSD } from './walletAmounts';
+import { resolveTopupCreditUSD, resolveTopupPaidUSD } from './walletAmounts';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { formatCount } from '../../components/ui/metric-format';
 import { ModalFrame, ModalTitle } from '../../components/ui/modal';
 import { Pagination } from '../../components/ui/pagination';
 import { PendingValue } from '../../components/ui/pending';
+import { TopupRecord } from '../../components/ui/topup-record';
+import { accountPaymentQueryOptions } from '../../features/projects/paymentRecord';
 import { API } from '../../helpers/api';
 import { getMicroUSDPerUSD } from '../../helpers/render';
 import { unwrap } from '../../lib/api-error';
 import { queryKeys } from '../../lib/query-keys';
+import type { TopupRecordData } from '../../features/projects/paymentRecord';
 
 const ns = 'page.console.wallet.bill';
 
@@ -143,7 +150,8 @@ function useWalletMonths(now: dayjs.Dayjs) {
   };
 }
 
-function useTopups(start: number, end: number, page: number) {
+/* Without a range the list is the server's default: the last 30 days. */
+function useTopups(start: number | null, end: number | null, page: number) {
   return useQuery({
     queryKey: [
       ...queryKeys.console.detail('wallet', 'history'),
@@ -155,10 +163,11 @@ function useTopups(start: number, end: number, page: number) {
     queryFn: async () => {
       const res = await API.get('/api/user/topup/self', {
         params: {
-          end_timestamp: end,
           p: page,
           page_size: RECORDS_PAGE,
-          start_timestamp: start,
+          ...(start && end
+            ? { end_timestamp: end, start_timestamp: start }
+            : {}),
         },
         skipErrorHandler: true,
       });
@@ -171,24 +180,160 @@ function useTopups(start: number, end: number, page: number) {
   });
 }
 
-function TopupRecords({
-  end,
-  onOpenRecord,
-  start,
+type TopupLine = {
+  creditUSD: number;
+  id: string;
+  method: string;
+  paidUSD: number;
+  status: string;
+  when: number;
+};
+
+function lineFromTopup(item: WalletTopup): TopupLine {
+  const status = String(item.status || 'pending');
+  const settled = status === 'success';
+  return {
+    creditUSD: resolveTopupCreditUSD(item, getMicroUSDPerUSD()),
+    id: String(item.public_id || ''),
+    method: String(item.payment_method || ''),
+    paidUSD: settled ? resolveTopupPaidUSD(item) : 0,
+    status,
+    when: Number((settled && item.complete_time) || item.create_time || 0),
+  };
+}
+
+/* A linked payment older than the list's first page is read from its own
+   record and shown first. */
+function lineFromRecord(record: TopupRecordData): TopupLine {
+  const perUSD = getMicroUSDPerUSD();
+  const status =
+    record.payment_status === 'paid'
+      ? 'success'
+      : record.payment_status === 'failed'
+        ? 'pending'
+        : record.payment_status;
+  return {
+    creditUSD: record.credited_microusd / perUSD,
+    id: record.id,
+    method: record.payment_method,
+    paidUSD: status === 'success' ? record.paid_amount_microusd / perUSD : 0,
+    status,
+    when: record.paid_at || record.created_at,
+  };
+}
+
+function TopupRows({
+  documentError,
+  lines,
+  onToggle,
+  openId,
 }: {
-  end: number;
-  onOpenRecord: (publicId: string) => void;
-  start: number;
+  documentError?: boolean;
+  lines: TopupLine[];
+  onToggle: (id: string) => void;
+  openId: string | null;
 }) {
   const { t } = useTranslation();
-  const [page, setPage] = useState(1);
-  const records = useTopups(start, end, page);
   const statuses: Record<string, { label: string; tone?: 'success' }> = {
     canceled: { label: t(`${ns}.status.canceled`) },
     expired: { label: t(`${ns}.status.expired`) },
     pending: { label: t(`${ns}.status.pending`) },
     success: { label: t(`${ns}.status.success`), tone: 'success' },
   };
+  return (
+    <table className='wal-table wal-topups'>
+      <thead>
+        <tr>
+          <th className='wal-topups__toggle'>
+            <span className='sr-only'>{t(`${ns}.col.open`)}</span>
+          </th>
+          <th>{t(`${ns}.col.time`)}</th>
+          <th>{t(`${ns}.col.amount`)}</th>
+          <th>{t(`${ns}.col.method`)}</th>
+          <th className='wal-table__last'>{t(`${ns}.col.status`)}</th>
+        </tr>
+      </thead>
+      {lines.map((line) => {
+        const state = statuses[line.status] || { label: line.status };
+        const settled = line.status === 'success';
+        const open = Boolean(line.id) && openId === line.id;
+        const detailId = `wal-topup-${line.id}`;
+        const credited =
+          settled && Math.abs(line.creditUSD - line.paidUSD) >= 0.005;
+        return (
+          <tbody
+            className='wal-topup'
+            data-dim={settled ? undefined : ''}
+            data-open={open || undefined}
+            key={line.id || line.when}
+          >
+            <tr>
+              <td className='wal-topups__toggle'>
+                {line.id ? (
+                  <button
+                    aria-controls={open ? detailId : undefined}
+                    aria-expanded={open}
+                    aria-label={t(`${ns}.col.open`)}
+                    className='wal-icon-button wal-topups__chevron'
+                    onClick={() => onToggle(line.id)}
+                    type='button'
+                  >
+                    <ChevronRight aria-hidden='true' size={15} />
+                  </button>
+                ) : null}
+              </td>
+              <td>
+                {line.when
+                  ? dayjs.unix(line.when).format('YYYY-MM-DD HH:mm')
+                  : '—'}
+              </td>
+              <td>
+                <span className='wal-topups__amount'>
+                  ${money(settled ? line.paidUSD : line.creditUSD)}
+                </span>
+                {credited ? (
+                  <span className='wal-topups__credited'>
+                    {t(`${ns}.creditedTo`, {
+                      amount: `$${money(line.creditUSD)}`,
+                    })}
+                  </span>
+                ) : null}
+              </td>
+              <td>
+                {line.method
+                  ? t(`page.console.wallet.record.method.${line.method}`, {
+                      defaultValue: line.method,
+                    })
+                  : '—'}
+              </td>
+              <td className='wal-table__last'>
+                <Badge variant={state.tone ?? 'neutral'}>{state.label}</Badge>
+              </td>
+            </tr>
+            {open ? (
+              <tr className='wal-topups__detail' id={detailId}>
+                <td />
+                <td className='wal-table__last' colSpan={4}>
+                  <TopupRecord
+                    documentError={documentError}
+                    topupId={line.id}
+                    variant='row'
+                  />
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        );
+      })}
+    </table>
+  );
+}
+
+function TopupRecords({ end, start }: { end: number; start: number }) {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const records = useTopups(start, end, page);
   const items = records.data?.items || [];
   return (
     <section className='wal-card wal-records' aria-labelledby='wal-records'>
@@ -213,53 +358,13 @@ function TopupRecords({
       ) : items.length === 0 ? (
         <p className='wal-empty'>{t(`${ns}.recordsEmpty`)}</p>
       ) : (
-        <table className='wal-table'>
-          <tbody>
-            {items.map((item) => {
-              const status = String(item.status || 'pending');
-              const state = statuses[status] || { label: status };
-              const settled = status === 'success';
-              const when = Number(
-                (settled && item.complete_time) || item.create_time || 0,
-              );
-              const method = String(item.payment_method || '');
-              return (
-                <tr
-                  data-dim={settled ? undefined : ''}
-                  key={String(item.id || item.trade_no)}
-                >
-                  <td className='wal-table__first'>
-                    {when ? dayjs.unix(when).format('MM.DD HH:mm') : '—'}
-                  </td>
-                  <td>
-                    {method === 'stripe'
-                      ? t(`${ns}.methodStripe`)
-                      : method || '—'}
-                  </td>
-                  <td className='wal-num'>
-                    {money(resolveTopupCreditUSD(item, getMicroUSDPerUSD()))}
-                  </td>
-                  <td>
-                    <Badge variant={state.tone ?? 'neutral'}>
-                      {state.label}
-                    </Badge>
-                  </td>
-                  <td className='wal-table__last wal-table__end'>
-                    {settled && item.public_id ? (
-                      <button
-                        className='wal-link'
-                        onClick={() => onOpenRecord(String(item.public_id))}
-                        type='button'
-                      >
-                        {t(`${ns}.receipt`)}
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <TopupRows
+          lines={items.map(lineFromTopup)}
+          onToggle={(id) =>
+            setOpenId((current) => (current === id ? null : id))
+          }
+          openId={openId}
+        />
       )}
       {(records.data?.total || 0) > RECORDS_PAGE ? (
         <div className='wal-records__pager'>
@@ -275,6 +380,109 @@ function TopupRecords({
   );
 }
 
+/* 充值记录 as a dialog, over whichever tab the link landed on: the last 30
+   days, with the linked payment open (and first, when it is older). */
+export function TopupRecordsDialog({
+  documentError,
+  onClose,
+  topupId,
+}: {
+  documentError: boolean;
+  onClose: () => void;
+  topupId: string;
+}) {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState<string | null>(topupId);
+  const records = useTopups(null, null, page);
+  const linked = useQuery(accountPaymentQueryOptions(topupId));
+  const items = records.data?.items || [];
+  const lines = items.map(lineFromTopup);
+  const listed = lines.some((line) => line.id === topupId);
+  const pinned =
+    !listed && records.isSuccess && page === 1
+      ? linked.data
+        ? lineFromRecord(linked.data)
+        : linked.isError
+          ? null
+          : undefined
+      : null;
+  const total = (records.data?.total || 0) + (pinned ? 1 : 0);
+  const shown = pinned ? [pinned, ...lines] : lines;
+
+  return (
+    <ModalFrame
+      className='wal-topups-dialog'
+      hideClose
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      open
+      sheet='full'
+    >
+      <header className='wal-topups-dialog__head'>
+        <ModalTitle className='wal-day__title'>{t(`${ns}.records`)}</ModalTitle>
+        <button
+          aria-label={t('common.close', { defaultValue: '关闭' })}
+          className='wal-icon-button'
+          onClick={onClose}
+          type='button'
+        >
+          <X aria-hidden='true' size={16} />
+        </button>
+      </header>
+      <div className='wal-topups-dialog__body'>
+        {records.isError ? (
+          <p className='wal-empty'>
+            {t(`${ns}.recordsError`)}{' '}
+            <button
+              className='wal-link'
+              onClick={() => void records.refetch()}
+              type='button'
+            >
+              {t('common.retry', { defaultValue: '重试' })}
+            </button>
+          </p>
+        ) : records.isPending || pinned === undefined ? (
+          <p className='wal-empty'>
+            <PendingValue chars={18} />
+          </p>
+        ) : shown.length === 0 ? (
+          <div className='wal-topups-dialog__lone'>
+            <TopupRecord
+              documentError={documentError}
+              topupId={topupId}
+              variant='row'
+            />
+          </div>
+        ) : (
+          <TopupRows
+            documentError={documentError}
+            lines={shown}
+            onToggle={(id) =>
+              setOpenId((current) => (current === id ? null : id))
+            }
+            openId={openId}
+          />
+        )}
+      </div>
+      <footer className='wal-topups-dialog__foot'>
+        <span className='wal-label'>
+          {records.isSuccess ? t(`${ns}.recordsCount`, { count: total }) : ''}
+        </span>
+        {(records.data?.total || 0) > RECORDS_PAGE ? (
+          <Pagination
+            currentPage={page}
+            onPageChange={setPage}
+            pageSize={RECORDS_PAGE}
+            total={records.data?.total || 0}
+          />
+        ) : null}
+      </footer>
+    </ModalFrame>
+  );
+}
+
 type WalletBillProps = {
   balanceUSD: number | null;
   balancePending: boolean;
@@ -283,7 +491,6 @@ type WalletBillProps = {
   now: dayjs.Dayjs;
   onDay: (day: string | null) => void;
   onMonth: (month: string | null) => void;
-  onOpenRecord: (publicId: string) => void;
 };
 
 export function WalletBill(props: WalletBillProps) {
@@ -322,7 +529,6 @@ function ListView({
   ledger,
   now,
   onMonth,
-  onOpenRecord,
 }: WalletBillProps & { ledger: Ledger }) {
   const { t } = useTranslation();
   const labels = useMonthLabels();
@@ -480,11 +686,7 @@ function ListView({
         </table>
       </div>
 
-      <TopupRecords
-        end={newest.end}
-        onOpenRecord={onOpenRecord}
-        start={oldest.start}
-      />
+      <TopupRecords end={newest.end} start={oldest.start} />
     </>
   );
 }
@@ -495,7 +697,6 @@ function MonthView({
   now,
   onDay,
   onMonth,
-  onOpenRecord,
 }: Omit<WalletBillProps, 'month'> & { ledger: Ledger; month: string }) {
   const { t } = useTranslation();
   const labels = useMonthLabels();
@@ -674,11 +875,7 @@ function MonthView({
         ) : null}
       </div>
 
-      <TopupRecords
-        end={range.end}
-        onOpenRecord={onOpenRecord}
-        start={range.start}
-      />
+      <TopupRecords end={range.end} start={range.start} />
     </>
   );
 }

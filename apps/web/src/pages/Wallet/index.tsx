@@ -7,7 +7,7 @@ import { useSearchParams } from 'react-router-dom';
 import { isDayKey, isMonthKey } from './billMonths';
 import { RootTopupHistory } from './RootTopupHistory';
 import { TopUpCard, type LowBalanceMail, type PayMethod } from './TopUpCard';
-import { WalletBill } from './WalletBill';
+import { TopupRecordsDialog, WalletBill } from './WalletBill';
 import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
 import { PaymentAdminTools } from '../../components/ui/payment-admin-tools';
@@ -16,7 +16,6 @@ import {
   TOPUP_MAX_DEFAULT,
   TOPUP_MIN_DEFAULT,
 } from '../../components/ui/topup-bar';
-import { TopupRecord } from '../../components/ui/topup-record';
 import { useStatus } from '../../context/Status';
 import { useSession } from '../../context/User';
 import { useTopUpOffer, webExtensions } from '../../extensions';
@@ -121,7 +120,7 @@ const WalletPage = () => {
 
   /* The view lives in the address so a month or a day can be linked, and so
      the Stripe return and payment e-mails (?top_up_id=) land on the page
-     with the payment record pinned above it. */
+     with 充值记录 open over it, that payment opened. */
   const tab: WalletTab = searchParams.get('tab') === 'bill' ? 'bill' : 'topup';
   const monthParam = searchParams.get('month');
   const dayParam = searchParams.get('day');
@@ -276,14 +275,6 @@ const WalletPage = () => {
         </Tabs>
       }
     >
-      {recordId ? (
-        <TopupRecord
-          className='wal-record'
-          documentError={Boolean(searchParams.get('document_error'))}
-          onClose={closeRecord}
-          topupId={recordId}
-        />
-      ) : null}
       {tab === 'topup' ? (
         <div className='wal-body wal-body--topup'>
           {canRecharge ? (
@@ -358,13 +349,17 @@ const WalletPage = () => {
             now={now}
             onDay={(next) => updateParams({ day: next })}
             onMonth={(next) => updateParams({ day: null, month: next })}
-            onOpenRecord={(publicId) => {
-              updateParams({ top_up_id: publicId });
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
           />
         </div>
       )}
+      {recordId ? (
+        <TopupRecordsDialog
+          documentError={Boolean(searchParams.get('document_error'))}
+          key={recordId}
+          onClose={closeRecord}
+          topupId={recordId}
+        />
+      ) : null}
       {isRoot() ? (
         <RootTopupHistory
           key={ownerParam}

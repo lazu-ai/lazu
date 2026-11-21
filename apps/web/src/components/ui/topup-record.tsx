@@ -36,6 +36,10 @@ type TopupRecordProps = {
      back here; say so once, above the buttons they can try again from. */
   documentError?: boolean;
   onClose?: () => void;
+  /* `card` stands alone (the project wallet); `row` is the body of an
+     opened 充值记录 row: the numbers, a status line while one is owed, and
+     the three documents. */
+  variant?: 'card' | 'row';
 };
 
 const POLL_MS = 3_000;
@@ -121,6 +125,7 @@ function TopupRecordContent({
   className,
   documentError = false,
   onClose,
+  variant = 'card',
 }: TopupRecordProps) {
   const { t, i18n } = useTranslation();
   const userSession = useSession();
@@ -210,6 +215,34 @@ function TopupRecordContent({
 
   if (payment.isError) {
     const missing = lookupStatus(payment.error) === 404;
+    if (variant === 'row')
+      return (
+        <div className={cn('lazu-topup-row', className)} role='alert'>
+          <p className='lazu-topup-row__note'>
+            {missing ? t(`${ns}.missing`) : t(`${ns}.unavailable`)}
+          </p>
+          <div className='lazu-topup-row__docs'>
+            {missing ? (
+              <Button
+                disabled={switching}
+                onClick={() => void switchAccount()}
+                size='sm'
+                variant='secondary'
+              >
+                {switching ? t(`${ns}.switching`) : t(`${ns}.switchAccount`)}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => void payment.refetch()}
+                size='sm'
+                variant='secondary'
+              >
+                {t(`${ns}.retry`)}
+              </Button>
+            )}
+          </div>
+        </div>
+      );
     return (
       <section
         className={cn('lazu-topup-record', className)}
@@ -350,6 +383,116 @@ function TopupRecordContent({
     </div>
   );
 
+  if (variant === 'row') {
+    const docLink = (
+      document: 'invoice' | 'invoice_page' | 'receipt',
+      label: string,
+      ready: boolean,
+    ) => (
+      <Button
+        disabled={!ready}
+        render={
+          record && ready ? (
+            <a
+              aria-label={label}
+              href={topupDocumentPath(record.project_id, record.id, document)}
+              rel='noreferrer'
+              target='_blank'
+            />
+          ) : undefined
+        }
+        size='sm'
+        variant='secondary'
+      >
+        {label}
+      </Button>
+    );
+    const note = !record
+      ? null
+      : notPaid || !paid
+        ? [statusLine, hint]
+        : [
+            record.paid_amount_microusd === 0
+              ? t(`${ns}.receiptNone`)
+              : record.invoice_status === 'legacy'
+                ? t(`${ns}.receiptLegacy`)
+                : null,
+            record.invoice_ready
+              ? null
+              : record.invoice_status === 'failed'
+                ? t(`${ns}.invoiceFailed`)
+                : record.invoice_status === 'legacy'
+                  ? null
+                  : t(`${ns}.invoicePending`),
+          ];
+    const noteParts = (note || []).filter(Boolean);
+    return (
+      <div
+        aria-busy={waiting || undefined}
+        aria-live='polite'
+        className={cn('lazu-topup-row', className)}
+        data-state={record ? status : 'loading'}
+      >
+        {documentError ? (
+          <InlineNotice
+            description={t(`${ns}.documentErrorBody`)}
+            title={t(`${ns}.documentError`)}
+            tone='warning'
+          />
+        ) : null}
+        <dl className='lazu-topup-row__facts'>
+          {fact(t(`${ns}.reference`), record?.id ?? topupId, { mono: true })}
+          {fact(t(`${ns}.invoiceNumber`), record?.invoice_number || '—', {
+            mono: true,
+            pending:
+              !record || (!notPaid && record.invoice_status === 'pending'),
+            chars: 12,
+          })}
+          {fact(t(`${ns}.billTo`), billTo || '—', {
+            pending:
+              !record || (!notPaid && record.invoice_status === 'pending'),
+            chars: 16,
+          })}
+        </dl>
+        {noteParts.length ? (
+          <p className='lazu-topup-row__note'>
+            {noteParts.map((part, index) => (
+              <span key={index}>{part}</span>
+            ))}
+          </p>
+        ) : null}
+        {record && !notPaid ? (
+          <div className='lazu-topup-row__docs'>
+            {docLink(
+              'receipt',
+              t(`${ns}.receipt`),
+              Boolean(record.receipt_ready),
+            )}
+            {docLink(
+              'invoice',
+              t(`${ns}.invoicePdf`),
+              Boolean(record.invoice_ready),
+            )}
+            {docLink(
+              'invoice_page',
+              t(`${ns}.viewInvoice`),
+              Boolean(record.invoice_ready),
+            )}
+            {exhausted && !settled(record) ? (
+              <Button
+                onClick={() => void payment.refetch()}
+                size='sm'
+                variant='ghost'
+              >
+                {t(`${ns}.retry`)}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   const documents = record ? (
     notPaid ? (
       <p className='lazu-topup-record__nodocs'>{t(`${ns}.noDocs`)}</p>
@@ -357,7 +500,6 @@ function TopupRecordContent({
       <div className='lazu-topup-record__docs'>
         <div className='lazu-topup-record__docs-head'>
           <span>{t(`${ns}.docs`)}</span>
-          <span>{t(`${ns}.docsHint`)}</span>
         </div>
         <div className='lazu-topup-record__doc'>
           <div className='lazu-topup-record__doc-copy'>
@@ -459,9 +601,6 @@ function TopupRecordContent({
             {t(`${ns}.viewInvoice`)}
           </Button>
         </div>
-        {record.invoice_status !== 'legacy' ? (
-          <p className='lazu-topup-record__foot'>{t(`${ns}.foot`)}</p>
-        ) : null}
       </div>
     )
   ) : null;

@@ -54,13 +54,6 @@
   max-width: 520px;
 }
 
-/* The pinned payment record (Stripe return, payment e-mails, 收据). */
-.wal-record {
-  margin-inline: auto;
-  max-width: 720px;
-  width: 100%;
-}
-
 /* ---- shared pieces ------------------------------------------------------ */
 
 .wal-card {
@@ -571,6 +564,116 @@
 .wal-records__pager {
   border-top: 1px solid var(--lazu-border);
   padding: 10px 16px;
+}
+
+/* 充值记录: a chevron opens a row in place, on a neutral tint, onto its
+   numbers and documents. */
+.wal-topups .wal-topups__toggle {
+  padding-left: 12px;
+  padding-right: 0;
+  width: 32px;
+}
+
+.wal-topups__chevron {
+  color: var(--lazu-text-muted);
+  height: 28px;
+  width: 28px;
+}
+
+.wal-topups__chevron svg {
+  transition: transform var(--lazu-motion-base, 140ms);
+}
+
+.wal-topups__chevron[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+.wal-topup:last-child tr:last-child td {
+  border-bottom: 0;
+}
+
+.wal-topup[data-open] td {
+  background: var(--lazu-surface-muted);
+}
+
+.wal-topup[data-open] > tr:first-child td {
+  border-bottom: 0;
+}
+
+.wal-topup[data-dim] > tr:first-child td {
+  color: var(--lazu-text-muted);
+}
+
+.wal-topups__amount {
+  font-family: var(--lazu-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.wal-topups__credited {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.wal-topups__detail td {
+  padding-bottom: 18px;
+  padding-top: 2px;
+}
+
+.lazu-modal-content.wal-topups-dialog {
+  display: flex;
+  flex-direction: column;
+  line-height: normal;
+  max-height: min(86dvh, 760px);
+  max-width: min(94vw, 760px);
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+}
+
+.wal-topups-dialog__head {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.wal-topups-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wal-topups-dialog__lone {
+  padding: 18px 20px;
+}
+
+.wal-topups-dialog__foot {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 20px;
+}
+
+@media (max-width: 767px) {
+  .lazu-modal-content.wal-topups-dialog {
+    max-height: 100dvh;
+    max-width: 100vw;
+  }
+
+  .wal-topups th:nth-child(4),
+  .wal-topups td:nth-child(4) {
+    display: none;
+  }
+
+  .wal-topups__detail td[colspan] {
+    padding-left: 0;
+  }
 }
 
 .wal-days {
