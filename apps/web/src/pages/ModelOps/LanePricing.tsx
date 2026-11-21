@@ -1,4 +1,6 @@
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   formatPerMtok,
   grossMargin,
@@ -17,6 +19,12 @@ import {
 } from './ratioPricing';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
 import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
 import { Textarea } from '../../components/ui/textarea';
@@ -33,11 +41,16 @@ type LanePricingProps = {
   laneName: (lane: string) => string;
   laneRatio: (lane: string) => number;
   lanes: string[];
+  modelName: string;
   official: OfficialPrice | null;
   onGoLive: (lane: string, entry: ModelOpsPoolEntry) => void;
   onPatch: (lane: string, patch: Partial<LaneDraft>) => void;
   onPromote: (lane: string, entry: ModelOpsPoolEntry) => void;
+  /** Puts a lane back the way it was saved. */
+  onReset: (lane: string) => void;
+  onSave: () => void;
   pools: Record<string, ModelOpsPoolEntry[]>;
+  saving: boolean;
   t: TFunction;
   windowHours: number;
 };
@@ -53,9 +66,20 @@ const pinLabel = (key: PinKey, t: TFunction) =>
 const percent = (value: number | null) =>
   value == null ? '—' : `${Math.round(value * 10) / 10}%`;
 
-/** 定价与来源: one row per lane, priced as a percent of the official price.
- *  A row opens two things on demand — its single-price overrides and its
- *  sources — so the common case is one number per lane. */
+/* Cents from a dime up ($0.90, $18.75); below that the digits that matter. */
+const dollars = (value: number | null | undefined) =>
+  value == null || !Number.isFinite(value)
+    ? '—'
+    : `$${value >= 0.1 ? value.toFixed(2) : formatPerMtok(value)}`;
+
+const numberOr = (value: string) => {
+  const number = Number(value);
+  return value.trim() !== '' && Number.isFinite(number) ? number : null;
+};
+
+/** 线路: one card per open lane, side by side. A card reads its sell price
+ *  in large figures with the margin, then its sources; 改价 opens the price
+ *  and the source weights in place. */
 export default function LanePricing({
   canEditPrice,
   currentRow,
@@ -63,117 +87,84 @@ export default function LanePricing({
   laneName,
   laneRatio,
   lanes,
+  modelName,
   official,
   onGoLive,
   onPatch,
   onPromote,
+  onReset,
+  onSave,
   pools,
+  saving,
   t,
   windowHours,
 }: LanePricingProps) {
   const [editing, setEditing] = useState<Set<string>>(new Set());
-  const [poolOpen, setPoolOpen] = useState<Set<string>>(new Set());
-  const toggle = (
-    set: Set<string>,
-    update: (next: Set<string>) => void,
-    lane: string,
-  ) => {
-    const next = new Set(set);
-    if (next.has(lane)) next.delete(lane);
-    else next.add(lane);
-    update(next);
+  const setLaneEditing = (lane: string, on: boolean) =>
+    setEditing((current) => {
+      const next = new Set(current);
+      if (on) next.add(lane);
+      else next.delete(lane);
+      return next;
+    });
+
+  const closed = lanes.filter((lane) => drafts[lane] && !drafts[lane].exists);
+  const openLane = (lane: string) => {
+    onPatch(lane, { exists: true });
+    setLaneEditing(lane, true);
   };
+  const newLaneLabel = t(`${ns}.price.newLane`, { defaultValue: '新线路' });
 
   return (
-    <div className='mo-pricing'>
-      <div className='mo-official'>
-        <span className='mo-official__label'>
-          {t(`${ns}.price.official`, { defaultValue: '官方价 $/M' })}
+    <section className='mdl-lanes'>
+      <div className='mdl-lanes__head'>
+        <h3 className='mdl-sec'>
+          {t(`${ns}.price.colLane`, { defaultValue: '线路' })}
+        </h3>
+        <span className='mdl-lanes__tools'>
+          <span className='mdl-cap'>
+            {t(`${ns}.price.unit`, { defaultValue: '$ / 百万 token' })}
+          </span>
+          {canEditPrice && closed.length === 1 ? (
+            <Button
+              size='sm'
+              variant='secondary'
+              onClick={() => openLane(closed[0])}
+            >
+              <Plus aria-hidden='true' size={14} />
+              {newLaneLabel}
+            </Button>
+          ) : canEditPrice && closed.length > 1 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Button size='sm' variant='secondary'>
+                  <Plus aria-hidden='true' size={14} />
+                  {newLaneLabel}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align='end'>
+                {closed.map((lane) => (
+                  <DropdownMenuItem key={lane} onSelect={() => openLane(lane)}>
+                    {laneName(lane)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </span>
-        {official ? (
-          (
-            [
-              ['input', official.input],
-              ['output', official.output],
-              ['cache_read', official.cacheRead],
-              ['cache_write_5m', official.cacheWrite5m],
-            ] as Array<[PinKey, number | null]>
-          ).map(([key, value]) => (
-            <span className='mo-official__cell' key={key}>
-              <span className='mo-official__name'>{pinLabel(key, t)}</span>
-              <span className='mo-official__value'>
-                {value == null ? '—' : formatPerMtok(value)}
-              </span>
-            </span>
-          ))
-        ) : (
-          <span className='mo-sub'>
-            {t(`${ns}.price.noOfficial`, {
-              defaultValue: '没有官方价，按固定价定价。',
-            })}
-          </span>
-        )}
       </div>
-
-      <div className='mo-ltable' role='table'>
-        <div className='mo-ltable__row mo-ltable__row--head' role='row'>
-          <span role='columnheader'>
-            {t(`${ns}.price.colLane`, { defaultValue: '线路' })}
-          </span>
-          <span role='columnheader'>
-            {t(`${ns}.price.colRatio`, { defaultValue: '官方价的' })}
-          </span>
-          <span role='columnheader'>
-            {t(`${ns}.price.colSell`, { defaultValue: '售价 $/M 入 / 出' })}
-          </span>
-          <span role='columnheader'>
-            {t(`${ns}.price.colCost`, { defaultValue: '成本' })}
-          </span>
-          <span role='columnheader'>
-            {t(`${ns}.price.colMargin`, { defaultValue: '毛利' })}
-          </span>
-          <span role='columnheader' />
-        </div>
+      <div className='mdl-lanes__grid'>
         {lanes.map((lane) => {
           const draft = drafts[lane];
-          if (!draft) return null;
+          if (!draft || !draft.exists) return null;
           const pool = pools[lane] ?? [];
           const name = laneName(lane);
-          if (!draft.exists) {
-            return (
-              <div className='mo-ltable__row' key={lane} role='row'>
-                <span className='mo-ltable__name' role='cell'>
-                  {name}
-                </span>
-                <span className='mo-sub' role='cell'>
-                  {t(`${ns}.price.laneOff`, { defaultValue: '未开' })}
-                </span>
-                <span role='cell' />
-                <span role='cell' />
-                <span role='cell' />
-                <span className='mo-ltable__actions' role='cell'>
-                  <Button
-                    disabled={!canEditPrice}
-                    size='xs'
-                    variant='secondary'
-                    onClick={() => onPatch(lane, { exists: true })}
-                  >
-                    {t(`${ns}.price.openLane`, { defaultValue: '开这条线路' })}
-                  </Button>
-                </span>
-              </div>
-            );
-          }
           const current = currentRow(lane);
           const price = derivedPrice(draft, official, laneRatio(lane), current);
           const following = draft.mode === 'follow' && Boolean(official);
           const pinCount = following ? Object.keys(draft.pins).length : 0;
           const perToken = draft.billingMode === 'per_token' || following;
           const cost = poolCostBasis(pool);
-          const costShare =
-            official?.input && cost.input != null
-              ? (cost.input / official.input) * 100
-              : null;
           const margin = perToken
             ? grossMargin(price.input, price.output, cost.input, cost.output)
             : null;
@@ -181,22 +172,134 @@ export default function LanePricing({
             ? effectiveRatio(draft, laneRatio(lane))
             : impliedRatio(price.input, official);
           const isEditing = editing.has(lane);
-          const isPoolOpen = poolOpen.has(lane);
-          const sellText = perToken
-            ? `${formatPerMtok(price.input)} / ${formatPerMtok(price.output)}`
-            : draft.billingMode === 'per_call'
-              ? `$${draft.perCall || '—'}${t(`${ns}.tier.perCallUnit`, { defaultValue: '/ 次' })}`
-              : `$${draft.perSecond || '—'}${t(`${ns}.tier.perSecondUnit`, { defaultValue: '/ 秒' })}`;
+          const cache1h = following
+            ? (current?.cache_write_1h_per_mtok ?? null)
+            : numberOr(draft.cacheWrite1h);
+          const caption = [
+            price.cache_read != null
+              ? t(`${ns}.price.capCacheRead`, {
+                  defaultValue: '缓存读 {{value}}',
+                  value: dollars(price.cache_read),
+                })
+              : '',
+            price.cache_write_5m != null
+              ? t(`${ns}.price.capCacheWrite`, {
+                  defaultValue: '写 5m {{value}}',
+                  value: dollars(price.cache_write_5m),
+                })
+              : '',
+            cache1h != null
+              ? t(`${ns}.price.capCacheWrite1h`, {
+                  defaultValue: '1h {{value}}',
+                  value: dollars(cache1h),
+                })
+              : '',
+            cost.input != null || cost.output != null
+              ? t(`${ns}.price.capCost`, {
+                  defaultValue: '成本 {{input}} / {{output}}',
+                  input: dollars(cost.input),
+                  output: dollars(cost.output),
+                })
+              : cost.request != null
+                ? t(`${ns}.price.capCostCall`, {
+                    defaultValue: '成本 {{value}} / 次',
+                    value: dollars(cost.request),
+                  })
+                : '',
+            ratioShown != null ? `× ${(ratioShown / 100).toFixed(2)}` : '',
+          ].filter(Boolean);
+          const figures: Array<[string, string, string?]> = perToken
+            ? [
+                [
+                  'input',
+                  t('pricing.input', { defaultValue: '输入' }),
+                  dollars(price.input),
+                ],
+                [
+                  'output',
+                  t('pricing.output', { defaultValue: '输出' }),
+                  dollars(price.output),
+                ],
+              ]
+            : [
+                [
+                  'unit',
+                  draft.billingMode === 'per_call'
+                    ? t(`${ns}.price.perCallPrice`, { defaultValue: '每次 $' })
+                    : t(`${ns}.price.perSecondPrice`, {
+                        defaultValue: '每秒 $',
+                      }),
+                  `$${
+                    (draft.billingMode === 'per_call'
+                      ? (draft.imagePricing?.output_usd ?? draft.perCall)
+                      : draft.perSecond) || '—'
+                  }`,
+                ],
+              ];
 
           return (
-            <div className='mo-ltable__group' key={lane} role='rowgroup'>
-              <div className='mo-ltable__row' role='row'>
-                <span className='mo-ltable__name' role='cell'>
-                  {name}
-                </span>
-                <span className='mo-ltable__ratio' role='cell'>
-                  {following ? (
-                    <>
+            <section
+              aria-label={name}
+              className={isEditing ? 'mdl-lane is-editing' : 'mdl-lane'}
+              key={lane}
+            >
+              <div className='mdl-lane__head'>
+                <div className='mdl-lane__title'>
+                  <h4 className='mdl-lane__name'>{name}</h4>
+                  <Badge variant='neutral'>
+                    {following
+                      ? pinCount > 0
+                        ? t(`${ns}.price.followPinned`, {
+                            count: pinCount,
+                            defaultValue: '跟随官方价 · {{count}} 项固定',
+                          })
+                        : t(`${ns}.price.followBadge`, {
+                            defaultValue: '跟随官方价',
+                          })
+                      : t(`${ns}.price.fixed`, { defaultValue: '固定价' })}
+                  </Badge>
+                </div>
+                {!isEditing ? (
+                  <Button
+                    size='sm'
+                    variant='secondary'
+                    onClick={() => setLaneEditing(lane, true)}
+                  >
+                    {t(`${ns}.price.edit`, { defaultValue: '改价' })}
+                  </Button>
+                ) : null}
+              </div>
+              <div className='mdl-lane__figures'>
+                {figures.map(([key, label, value]) => (
+                  <div className='mdl-figure' key={key}>
+                    <p className='mdl-cap'>{label}</p>
+                    <p className='mdl-big'>{value}</p>
+                  </div>
+                ))}
+                <div className='mdl-figure'>
+                  <p className='mdl-cap'>
+                    {t(`${ns}.price.colMargin`, { defaultValue: '毛利' })}
+                  </p>
+                  <p
+                    className={`mdl-big ${margin != null ? marginClass(margin) : ''}`}
+                  >
+                    {margin == null ? '—' : percent(margin * 100)}
+                  </p>
+                </div>
+              </div>
+              {caption.length ? (
+                <p className='mdl-cap mdl-lane__caption'>
+                  {caption.join(' · ')}
+                </p>
+              ) : null}
+
+              {isEditing && following ? (
+                <div className='mo-ltable__panel'>
+                  <div className='mo-ltable__panel-head'>
+                    <span className='mo-sect'>
+                      {t(`${ns}.price.colRatio`, { defaultValue: '官方价的' })}
+                    </span>
+                    <span className='mo-ltable__ratio'>
                       <Input
                         aria-label={t(`${ns}.price.ratioFor`, {
                           defaultValue: '{{lane}}售价比例',
@@ -221,84 +324,10 @@ export default function LanePricing({
                               defaultValue: '单独',
                             })}
                       </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className='mo-sub'>
-                        {t(`${ns}.price.fixed`, { defaultValue: '固定价' })}
-                        {ratioShown != null ? ` · ≈${percent(ratioShown)}` : ''}
-                      </span>
-                      {official &&
-                      canEditPrice &&
-                      draft.billingMode === 'per_token' ? (
-                        <Button
-                          size='xs'
-                          variant='link'
-                          onClick={() =>
-                            onPatch(lane, {
-                              mode: 'follow',
-                              pins: {},
-                              ratio: '',
-                            })
-                          }
-                        >
-                          {t(`${ns}.price.follow`, {
-                            defaultValue: '改为跟随',
-                          })}
-                        </Button>
-                      ) : null}
-                    </>
-                  )}
-                </span>
-                <span className='mo-ltable__sell' role='cell'>
-                  <span className='mo-num'>{sellText}</span>
-                  {pinCount > 0 ? (
-                    <Badge variant='warning'>
-                      {t(`${ns}.price.pinnedCount`, {
-                        count: pinCount,
-                        defaultValue: '{{count}} 项固定',
-                      })}
-                    </Badge>
-                  ) : null}
-                  <Button
-                    aria-expanded={isEditing}
-                    size='xs'
-                    variant='ghost'
-                    onClick={() => toggle(editing, setEditing, lane)}
-                  >
-                    {following
-                      ? t(`${ns}.price.editItems`, { defaultValue: '改单项' })
-                      : t(`${ns}.price.editPrice`, { defaultValue: '改价格' })}
-                  </Button>
-                </span>
-                <span className='mo-num' role='cell'>
-                  {costShare != null
-                    ? percent(costShare)
-                    : cost.input != null
-                      ? `$${formatPerMtok(cost.input)}`
-                      : '—'}
-                </span>
-                <span
-                  className={`mo-num ${margin != null ? marginClass(margin) : ''}`}
-                  role='cell'
-                >
-                  {margin == null ? '—' : percent(margin * 100)}
-                </span>
-                <span className='mo-ltable__actions' role='cell'>
-                  <Button
-                    aria-expanded={isPoolOpen}
-                    size='xs'
-                    variant='ghost'
-                    onClick={() => toggle(poolOpen, setPoolOpen, lane)}
-                  >
-                    {t(`${ns}.price.sources`, {
-                      count: pool.length,
-                      defaultValue: '{{count}} 个来源',
-                    })}
-                  </Button>
-                </span>
-              </div>
-
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               {isEditing && following && official ? (
                 <div className='mo-ltable__panel'>
                   <div className='mo-ltable__panel-head'>
@@ -593,34 +622,55 @@ export default function LanePricing({
                 </div>
               ) : null}
 
-              {isPoolOpen ? (
-                <div className='mo-ltable__panel mo-ltable__panel--pool'>
-                  <LanePool
-                    pool={pool}
-                    t={t}
-                    weights={draft.weights}
-                    windowHours={windowHours}
-                    onGoLive={(entry) => onGoLive(lane, entry)}
-                    onPromote={(entry) => onPromote(lane, entry)}
-                    onWeightChange={(channelId, value) =>
-                      onPatch(lane, {
-                        weights: { ...draft.weights, [channelId]: value },
-                      })
-                    }
-                  />
-                </div>
-              ) : null}
-            </div>
+              <LanePool
+                editing={isEditing}
+                pool={pool}
+                t={t}
+                weights={draft.weights}
+                windowHours={windowHours}
+                onGoLive={(entry) => onGoLive(lane, entry)}
+                onPromote={(entry) => onPromote(lane, entry)}
+                onWeightChange={(channelId, value) =>
+                  onPatch(lane, {
+                    weights: { ...draft.weights, [channelId]: value },
+                  })
+                }
+              />
+              <div className='mdl-lane__foot'>
+                <Link
+                  className='mdl-link'
+                  to={`/console/model-ops/sources?model=${encodeURIComponent(modelName)}`}
+                >
+                  {t(`${ns}.price.addSource`, { defaultValue: '+ 来源' })}
+                </Link>
+                {isEditing ? (
+                  <span className='mdl-lane__actions'>
+                    <Button
+                      disabled={saving}
+                      size='sm'
+                      variant='secondary'
+                      onClick={() => {
+                        onReset(lane);
+                        setLaneEditing(lane, false);
+                      }}
+                    >
+                      {t('common.cancel', { defaultValue: '取消' })}
+                    </Button>
+                    <Button
+                      loading={saving}
+                      size='sm'
+                      variant='primary'
+                      onClick={onSave}
+                    >
+                      {t('common.save', { defaultValue: '保存' })}
+                    </Button>
+                  </span>
+                ) : null}
+              </div>
+            </section>
           );
         })}
       </div>
-      <p className='mo-sub'>
-        {official
-          ? t(`${ns}.price.followNote`, {
-              defaultValue: '缓存、长上下文同比例。官方价变动时售价自动跟随。',
-            })
-          : null}
-      </p>
-    </div>
+    </section>
   );
 }

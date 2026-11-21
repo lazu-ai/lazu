@@ -44,12 +44,12 @@ test('模型 tab renders both lanes and pooled source health from real fields', 
     }),
   ).toBeVisible();
 
-  // The row opens the model's dialog on 定价与来源, with both lanes priced.
+  // The row opens the model's dialog: its overview, then both lanes priced.
   await row.locator('.mo-name').first().click();
   const expanded = page.getByRole('dialog');
   await expect(
-    expanded.getByRole('tab', { name: '定价与来源', exact: true }),
-  ).toHaveAttribute('aria-selected', 'true');
+    expanded.getByRole('button', { name: '编辑资料', exact: true }),
+  ).toBeVisible();
   await expect(expanded).toContainText('稳定档');
   await expect(expanded).toContainText('便宜档');
 
@@ -174,16 +174,17 @@ test('expanding a model reveals both tier cards with their pools and weights', a
 
   const expanded = page.getByRole('dialog');
   await expect(expanded).toBeVisible();
-  const stable = expanded.getByRole('row', { name: /稳定档/ });
-  const cheap = expanded.getByRole('row', { name: /便宜档/ });
+  const stable = expanded.getByRole('region', { name: /稳定档/ });
+  const cheap = expanded.getByRole('region', { name: /便宜档/ });
   // Cost basis exists for both pools, so each shows a real margin, not "—".
-  // Matches the router's weight+10 smoothing: 0.11 @ 80 and 0.62 @ 15.
-  await expect(stable).toContainText('$0.1905');
+  // Matches the router's weight+10 smoothing: 0.11 @ 80 and 0.62 @ 15
+  // ($0.1905, shown to the cent).
+  await expect(stable).toContainText('成本 $0.19');
   await expect(stable).toContainText('-25.3%');
   await expect(cheap).toContainText('$0.06');
   await expect(cheap).toContainText('33.3%');
-  // Pool-local weights are editable per source, behind the source count.
-  await stable.getByRole('button', { name: '2 个来源' }).click();
+  // Pool-local weights become fields once the lane is in 改价.
+  await stable.getByRole('button', { name: '改价', exact: true }).click();
   await expect(
     expanded.getByLabel('OpenAI smoke channel 在本线路的权重'),
   ).toHaveValue('70');
@@ -216,11 +217,20 @@ test('saving both tiers sends one atomic row request', async ({ page }) => {
     .first();
   await row.locator('.mo-name').first().click();
   const expanded = page.getByRole('dialog');
-  await expanded.getByRole('button', { name: '2 个来源' }).click();
-  await expanded.getByRole('button', { name: '1 个来源' }).click();
+  await expanded
+    .getByRole('region', { name: /稳定档/ })
+    .getByRole('button', { name: '改价', exact: true })
+    .click();
+  await expanded
+    .getByRole('region', { name: /便宜档/ })
+    .getByRole('button', { name: '改价', exact: true })
+    .click();
   await expanded.getByLabel('OpenAI smoke channel 在本线路的权重').fill('71');
   await expanded.getByLabel('Budget smoke channel 在本线路的权重').fill('31');
-  await expanded.getByRole('button', { name: '保存', exact: true }).click();
+  await expanded
+    .getByRole('button', { name: '保存', exact: true })
+    .first()
+    .click();
 
   expect(requests).toHaveLength(0);
   await page.getByRole('button', { name: '确认保存' }).click();
@@ -593,7 +603,7 @@ test('model deletion runs behind an undo and puts the row back when it fails', a
   ).toBeVisible();
 });
 
-test('inspector tabs have keyboard navigation and ledger rows stay one line on mobile', async ({
+test('the model dialog opens 编辑资料 in place and ledger rows stay one line on mobile', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -606,15 +616,13 @@ test('inspector tabs have keyboard navigation and ledger rows stay one line on m
     .first()
     .click();
   const dialog = page.getByRole('dialog');
-  const info = dialog.getByRole('tab', { name: '资料', exact: true });
-  await info.focus();
-  // 定价与来源 · 资料: left of 资料 is the pricing page.
-  await page.keyboard.press('ArrowLeft');
-  const pricing = dialog.getByRole('tab', { name: '定价与来源', exact: true });
-  await expect(pricing).toBeFocused();
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Enter');
-  await expect(info).toHaveAttribute('aria-selected', 'true');
+  await dialog.getByRole('button', { name: '编辑资料', exact: true }).click();
+  await expect(page).toHaveURL(/panel=info/);
+  await dialog
+    .getByRole('button', { name: '取消', exact: true })
+    .first()
+    .click();
+  await expect(page).not.toHaveURL(/panel=info/);
   await page.screenshot({
     path: '../../.local-results/screenshots/model-ops-feedback/inspector.png',
     fullPage: true,
@@ -775,4 +783,106 @@ test('undoing a lane deletion from its toast keeps the lanes dialog open', async
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('试用档');
   expect(deletes).toHaveLength(0);
+});
+
+test('编辑资料 sends the facts and the fields in one save', async ({
+  page,
+}) => {
+  const puts: Array<Record<string, unknown>> = [];
+  let infoWrites = 0;
+  const app = await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: (url, request) => {
+      const { pathname } = new URL(url);
+      if (pathname === '/api/model_info/model') {
+        infoWrites++;
+        return { success: true, message: '', data: {} };
+      }
+      if (pathname === '/api/models/' && request.method() === 'PUT') {
+        puts.push(request.postDataJSON());
+        return { success: true, message: '', data: {} };
+      }
+      if (pathname === '/api/models/1' && request.method() === 'GET') {
+        return {
+          success: true,
+          message: '',
+          data: {
+            capabilities: { supports_function_calling: true },
+            context_length: 128000,
+            endpoints: '["openai"]',
+            id: 1,
+            lifecycle_status: 'active',
+            maker: 'openai',
+            max_output_tokens: 16384,
+            modalities: { input: ['text'], output: ['text'] },
+            model_name: 'gpt-4o-mini',
+            release_date: '2024-07-18',
+            status: 1,
+            sync_official: 1,
+            vendor_id: 1,
+          },
+        };
+      }
+      return undefined;
+    },
+  });
+  await expectRouteReady(page, '/console/model-ops?model=1&panel=info');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('发布日期').fill('2024-07-19');
+  await dialog.getByLabel('最大输出').fill('32,768');
+  await dialog
+    .getByRole('group', { name: '输入', exact: true })
+    .getByRole('button', { name: '图片', exact: true })
+    .click();
+  await expect(dialog.locator('.mdl-changes li')).toHaveCount(3);
+  await dialog
+    .getByRole('button', { name: '保存 3 处修改', exact: true })
+    .click();
+
+  await expect.poll(() => puts.length).toBe(1);
+  expect(puts[0]).toMatchObject({
+    // The derived interface list is not stored back as an override.
+    endpoints: '',
+    max_output_tokens: 32768,
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    release_date: '2024-07-19',
+  });
+  expect(infoWrites).toBe(0);
+  await app.expectNoUnexpectedErrors();
+});
+
+test('the model dialog opens before the sell prices, with its lanes waiting', async ({
+  page,
+}) => {
+  let release = () => {};
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await setupMockedApp(page, { consoleScope: 'platform:operations' });
+  await page.route('**/api/pricing/sell_prices*', async (route) => {
+    await pending;
+    await route.fallback();
+  });
+  try {
+    await expectRouteReady(page, '/console/model-ops');
+    await page
+      .locator('.mo-ledger__row', { hasText: 'gpt-4o-mini' })
+      .locator('.mo-name')
+      .first()
+      .click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('.mdl-lanes-wait')).toBeVisible();
+    await expect(dialog).not.toContainText('未开');
+    // Layout height: the box also carries the open animation's scale.
+    const height = () =>
+      dialog.evaluate((element) => (element as HTMLElement).offsetHeight);
+    const before = await height();
+    release();
+    await expect(dialog.locator('.mdl-lanes-wait')).toHaveCount(0);
+    await expect(dialog).toContainText('稳定档');
+    await expect(dialog).toContainText('便宜档');
+    expect(await height()).toBe(before);
+  } finally {
+    release();
+  }
 });

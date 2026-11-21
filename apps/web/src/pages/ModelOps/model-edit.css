@@ -1,0 +1,322 @@
+/* 编辑资料 (canvas board Model C): the fields on the left, scrolling on their
+   own; on the right the model as the 模型 page shows it and what this save
+   changes; one footer with 删除 on the left and the save on the right. */
+.mdl-form {
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  min-height: 0;
+}
+
+.mdl-form__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 24px 24px;
+}
+
+.mdl-form__side {
+  background: var(--lazu-surface-raised);
+  border-left: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
+}
+
+.mdl-form--wait .mdl-form__main {
+  gap: 18px;
+  padding-top: 20px;
+}
+
+.mdl-form--wait .lazu-skeleton {
+  border-radius: 12px;
+}
+
+.mdl-form__sec {
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 0;
+}
+
+.mdl-form__sec:last-child {
+  border-bottom: 0;
+}
+
+.mdl-form__sec > h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mdl-form__grid {
+  display: grid;
+  gap: 14px 12px;
+}
+
+.mdl-form__grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mdl-form__grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mdl-form__wide {
+  grid-column: 1 / -1;
+}
+
+.mdl-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mdl-form__label {
+  align-items: baseline;
+  display: flex;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.mdl-form__label > em {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.mdl-form__error {
+  color: var(--lazu-danger);
+  font-size: 12px;
+}
+
+.mdl-form__io {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mdl-form__io-row {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.mdl-form__io-label {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+}
+
+.mdl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mdl-chip {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: 9px;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  height: 32px;
+  padding: 0 12px;
+}
+
+.mdl-chip:hover:not(:disabled, .mdl-chip--static) {
+  border-color: var(--lazu-border-strong, var(--lazu-text-faint));
+}
+
+.mdl-chip[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--lazu-action) 9%, transparent);
+  border-color: var(--lazu-action);
+  color: var(--lazu-action);
+  font-weight: 500;
+}
+
+.mdl-chip:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+.mdl-chip--static {
+  align-items: center;
+  background: var(--lazu-surface-selected);
+  border-color: transparent;
+  cursor: default;
+  display: inline-flex;
+}
+
+.mdl-form__switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.mdl-form__more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mdl-form__more > summary {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+  list-style: none;
+  width: fit-content;
+}
+
+.mdl-form__more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mdl-form__more > summary svg {
+  transform: rotate(-90deg);
+  transition: transform var(--lazu-motion-base, 140ms);
+}
+
+.mdl-form__more[open] > summary svg {
+  transform: none;
+}
+
+.mdl-form__more[open] > :not(summary) + :not(summary) {
+  margin-top: 0;
+}
+
+.mdl-form__link {
+  align-self: flex-start;
+}
+
+/* The preview borrows the 模型 page's own detail styles; only its frame is
+   set here. */
+.mdl-preview {
+  background: var(--lazu-surface-solid);
+  border: 1px solid var(--lazu-border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.mdl-preview__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+}
+
+.mdl-preview__head > b {
+  font-family: var(--lazu-font-mono);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.mdl-preview__body.plaza-detail {
+  gap: 12px;
+  padding: 0;
+}
+
+.mdl-preview__body .plaza-detail__stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mdl-changes {
+  background: var(--lazu-surface-solid);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.mdl-changes h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.mdl-changes ul {
+  color: var(--lazu-text-muted);
+  display: flex;
+  flex-direction: column;
+  font-size: 12.5px;
+  gap: 4px;
+  line-height: 1.5;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdl-form__foot {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 14px 24px;
+}
+
+.mdl-form__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mdl-dialog .mdl-form__delete {
+  color: var(--lazu-danger);
+}
+
+/* A narrow dialog: a slimmer preview, and 规格 two to a row. */
+@media (max-width: 1100px) {
+  .mdl-form {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .mdl-form__grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* A phone: one column that scrolls as a whole, the preview after the fields. */
+@media (max-width: 767px) {
+  .mdl-form {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .mdl-form__main,
+  .mdl-form__side {
+    overflow: visible;
+  }
+
+  .mdl-form__side {
+    border-left: 0;
+    border-top: 1px solid var(--lazu-border);
+  }
+
+  .mdl-form__grid--2,
+  .mdl-form__grid--3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mdl-form__foot {
+    padding: 12px 16px;
+  }
+}

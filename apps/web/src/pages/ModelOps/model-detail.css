@@ -1,0 +1,541 @@
+/* 模型详情 — one model in one centred dialog (canvas board Final_Model).
+   The head names it; the body reads 资料 as an overview (four figures, then
+   pills for what goes in and out, what it can do and what it refuses), and
+   线路 as cards side by side, each with its price, margin and sources.
+   编辑资料 swaps the body for the form (model-edit.css); 改价 opens a card
+   in place. */
+
+@media (min-width: 768px) {
+  body .lazu-modal-content.mo-dialog.mdl-dialog:not(.whats-new-panel) {
+    border-radius: 20px;
+    /* One height from the first frame: loading, the overview and the form
+       all fill it, so the dialog never grows as its data arrives. */
+    height: min(820px, calc(100dvh - 48px));
+    max-height: calc(100dvh - 48px);
+    max-width: none;
+    width: min(1080px, calc(100vw - 32px));
+  }
+}
+
+/* On a phone the dialog is a full-screen sheet. */
+@media (max-width: 767px) {
+  body .lazu-modal-content.mo-dialog.mdl-dialog:not(.whats-new-panel) {
+    border-radius: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    max-width: none;
+    width: 100vw;
+  }
+}
+
+.mdl-dialog {
+  font-variant-numeric: tabular-nums;
+}
+
+.mdl-cap {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.mdl-sec {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* The board's badges: a flat 22px tag, no outline. */
+.mdl-dialog .lazu-badge {
+  align-items: center;
+  border: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  height: 22px;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+/* ---- head --------------------------------------------------------------- */
+
+.mdl-head {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 14px;
+  padding: 20px 24px;
+}
+
+.mdl-head__mark {
+  align-items: center;
+  background: var(--lazu-ink);
+  border-radius: 12px;
+  color: var(--lazu-surface-solid);
+  display: flex;
+  flex: none;
+  font-size: 15px;
+  font-weight: 600;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.mdl-head__title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mdl-head__line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mdl-dialog .mdl-head__name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mdl-head__tools {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.mdl-head__tools .lazu-icon-button {
+  border-radius: 10px;
+  height: 32px;
+  min-width: 32px;
+  width: 32px;
+}
+
+/* ---- body --------------------------------------------------------------- */
+
+.mdl-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* The lanes while the prices load: two cards' worth of grey at their size. */
+.mdl-lanes-wait {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.mdl-lanes-wait .lazu-skeleton {
+  border-radius: 16px;
+}
+
+/* ---- 资料 overview ---------------------------------------------------- */
+
+.mdl-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 24px 22px;
+}
+
+.mdl-stats {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
+.mdl-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mdl-stat__value {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 20px;
+  font-weight: 500;
+  gap: 8px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.mdl-stats__edit {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mdl-facts {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  padding-top: 16px;
+}
+
+.mdl-facts__label {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+}
+
+.mdl-facts__text {
+  font-size: 14px;
+}
+
+.mdl-pills {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mdl-pill {
+  align-items: center;
+  background: color-mix(in srgb, var(--lazu-ink) 5%, transparent);
+  border-radius: 9px;
+  display: inline-flex;
+  font-size: 13px;
+  height: 26px;
+  padding: 0 10px;
+}
+
+.mdl-pill--struck {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--lazu-ink) 20%, transparent);
+  color: var(--lazu-text-muted);
+  text-decoration: line-through;
+}
+
+.mdl-arrow {
+  color: var(--lazu-text-muted);
+  padding: 0 4px;
+}
+
+.mdl-none {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+}
+
+/* ---- 线路 ---------------------------------------------------------------- */
+
+.mdl-body__lanes {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px 26px;
+}
+
+.mdl-lanes {
+  display: flex;
+  flex-direction: column;
+}
+
+.mdl-lanes__head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 14px;
+}
+
+.mdl-lanes__tools {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.mdl-lanes__grid {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mdl-dialog .mdl-lanes .lazu-button--sm,
+.mdl-dialog .mdl-stats__edit .lazu-button--sm {
+  height: 30px;
+  min-height: 30px;
+}
+
+.mdl-lane {
+  border: 1px solid var(--lazu-border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px 22px;
+}
+
+.mdl-lane__head {
+  align-items: center;
+  display: flex;
+  min-height: 30px;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mdl-lane__title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mdl-lane__name {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mdl-lane__figures {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mdl-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mdl-big {
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mdl-big.model-ops__margin--negative {
+  color: var(--lazu-danger);
+}
+
+.mdl-big.model-ops__margin--thin {
+  color: var(--lazu-warning-strong, var(--lazu-warning));
+}
+
+/* 改价 opens under the figures, flat inside the card. */
+.mdl-lane .mo-ltable__panel {
+  background: transparent;
+  border-top: 1px solid var(--lazu-border);
+  gap: 12px;
+  margin: 0;
+  padding: 14px 0 0;
+}
+
+.mdl-lane .mo-ltable__panel + .mo-ltable__panel {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.mdl-lane .mo-sect {
+  border: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  margin: 0;
+  padding: 0;
+}
+
+.mdl-lane .mo-ltable__fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mdl-pool {
+  display: flex;
+  flex-direction: column;
+}
+
+.mdl-pool__title {
+  padding-bottom: 2px;
+}
+
+.mdl-pool__empty {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin: 0;
+  padding: 12px 0;
+}
+
+.mdl-src {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+}
+
+.mdl-src__head {
+  align-items: center;
+  display: flex;
+  font-size: 14px;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.mdl-src__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mdl-src__state {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.mdl-dot {
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 7px;
+  width: 7px;
+}
+
+.mdl-dot--ok {
+  background: var(--lazu-success);
+}
+
+.mdl-dot--warn {
+  background: var(--lazu-warning);
+}
+
+.mdl-dot--bad {
+  background: var(--lazu-danger);
+}
+
+.mdl-dot--idle,
+.mdl-src__bars .lazu-status-bar--none {
+  background: color-mix(in srgb, var(--lazu-ink) 16%, transparent);
+}
+
+.mdl-src__line {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.mdl-src__bars {
+  flex: 1;
+  min-width: 0;
+}
+
+.mdl-src__bars .lazu-status-bar {
+  border-radius: 1px;
+}
+
+.mdl-src__meta {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  width: 118px;
+}
+
+.mdl-src__weight {
+  align-items: center;
+  color: var(--lazu-text-muted);
+  display: inline-flex;
+  flex: none;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.mdl-src__weight-input.lazu-input {
+  height: 28px;
+  width: 64px;
+}
+
+.mdl-lane__foot {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: -10px;
+}
+
+.mdl-link {
+  color: var(--lazu-evidence);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.mdl-link:hover {
+  color: var(--lazu-evidence-strong);
+  text-decoration: underline;
+}
+
+.mdl-lane__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- narrow ------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .mdl-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mdl-stats__edit {
+    align-items: flex-start;
+    grid-column: 1 / -1;
+    flex-direction: row;
+  }
+  .mdl-lanes__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .mdl-head,
+  .mdl-overview,
+  .mdl-body__lanes {
+    padding-inline: 16px;
+  }
+  .mdl-lane {
+    padding: 16px;
+  }
+  .mdl-big {
+    font-size: 22px;
+  }
+  .mdl-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+}
+
+/* The board sets type at the browser default leading. */
+.mdl-head,
+.mdl-overview,
+.mdl-lanes {
+  line-height: normal;
+}
+
+@media (max-width: 767px) {
+  .mdl-head__step {
+    display: none;
+  }
+}
