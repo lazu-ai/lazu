@@ -21,7 +21,7 @@ test('the bill tab shows the balance, monthly spend and month rows', async ({
   await expect(page.locator('.wal-months__bar')).toHaveCount(6);
   const current = page.locator('.wal-table-card tbody tr').first();
   await expect(current).toContainText('本月');
-  await expect(current).toContainText('−0.25');
+  await expect(current).toContainText('$0.25');
   await expect(current).toContainText('5.00');
 
   await app.expectNoUnexpectedErrors();
@@ -140,7 +140,7 @@ test('wallet separates paid and credited amounts and links a day to logs', async
   await expectRouteReady(page, '/console/wallet?tab=bill');
 
   const monthRow = page.locator('.wal-table-card tbody tr').first();
-  await expect(monthRow).toContainText('+110.00');
+  await expect(monthRow).toContainText('$110.00');
   await expect(page.locator('.wal-records')).toContainText('110.00');
 
   await page.getByRole('button', { name: '历史记录' }).click();

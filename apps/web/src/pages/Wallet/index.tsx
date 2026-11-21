@@ -236,6 +236,12 @@ const WalletPage = () => {
      the 充值 tab then says so and offers the way to get it switched on. */
   const canRecharge = info.enableStripeTopUp && info.payMethods.length > 0;
   const firstTopup = useTopUpOffer(canRecharge);
+  /* The same 余额偏低 rule the top-up card uses, for the bill's head. */
+  const low =
+    walletBalance !== null &&
+    info.lowBalance !== null &&
+    info.lowBalance.thresholdUSD > 0 &&
+    walletBalance < info.lowBalance.thresholdUSD;
   const rememberedAmount = useMemo(
     () => readLastAmount(info.minTopUp, info.maxTopUp),
     [info.minTopUp, info.maxTopUp],
@@ -345,6 +351,7 @@ const WalletPage = () => {
             balancePending={balancePending}
             balanceUSD={walletBalance}
             day={day}
+            low={low}
             month={month}
             now={now}
             onDay={(next) => updateParams({ day: next })}
