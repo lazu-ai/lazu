@@ -413,18 +413,20 @@ The wallet has two peer views on the page head's underline strip: 充值 and
 账单. Both read from the authoritative wallet ledger and the account's own
 top-up orders.
 
-1. **充值 is one centered card**, 520px wide: the balance on top (a 余额偏低
-   warning badge when it is under the account's low-balance threshold), then
-   the amount being paid in 52px Instrument Serif over a 3 × 2 grid of preset
-   tiles with 自定义 last. The pay button names the amount ("前往支付 $20.00")
-   and opens checkout directly; there is no confirmation step. The foot of the
-   card is the account's own low-balance mail switch, with the threshold set
-   in mono inside the sentence. A deployment without a payment method shows
-   the contact slot in the card's place.
+1. **充值 is two cards side by side** (stacked on a phone): a 360px balance
+   card (the balance as the one large figure, a 余额偏低 warning badge when it
+   is under the account's low-balance threshold, and the account's own
+   low-balance mail switch at its foot) and the amount card: a 3 × 2 grid of
+   preset tiles with 自定义 last, the selected tile outlined in ink, the
+   custom amount field, the methods, and a pay button that names the amount
+   ("前往支付 $20.00") and opens checkout directly; there is no confirmation
+   step. A deployment without a payment method shows the contact slot in the
+   amount card's place.
 2. **账单 lists months, not days.** The balance and 导出 CSV head the view,
    then a 每月消耗 bar card for the last six months, a month table (入账 ·
    消耗 · 月末结余, the current month badged 本月) and the 充值记录 for the
-   same six months. Rows open their month.
+   same six months. Rows open their month. 充值记录 rows open in place onto
+   their numbers and documents; 历史记录 opens all of them in a 780px dialog.
 3. **A month** shows 期初 · 入账 · 消耗 · 结余, one bar per day (days still
    to come are a faint stub), and a day table that starts with ten rows and
    a 显示全部 link. Today's row is muted. Its 充值记录 covers only that month.
@@ -435,3 +437,6 @@ top-up orders.
 5. The month, the day and an opened receipt live in the URL
    (`?tab=bill&month=YYYY-MM&day=YYYY-MM-DD`, `top_up_id`), so the back button
    and a shared link return to the same view.
+6. **Type.** The wallet is set in the sans face throughout, the page title
+   and the one large balance figure included; money uses tabular figures.
+   Mono is kept for identifiers (充值编号, 发票编号) and the daily chart's axis.

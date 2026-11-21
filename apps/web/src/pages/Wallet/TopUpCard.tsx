@@ -1,8 +1,9 @@
-/* The wallet's 充值 tab: one centered card. The balance sits on top, then
- * the amount being paid in large figures over five preset tiles and a
- * 自定义 tile, the pay button that names the amount, and the account's own
- * low-balance mail switch at the foot. The method is chosen on the checkout
- * page, so a single-method deployment shows no method control here. */
+/* The wallet's 充值 tab: two cards side by side. The account card holds the
+ * balance (the view's one large figure) and the account's own low-balance
+ * mail switch; the amount card holds five preset tiles and 自定义, and the
+ * pay button that names the amount. The method is chosen on the checkout
+ * page, so a single-method deployment shows no method control here. On a
+ * phone the cards stack. */
 import { Fragment, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../../components/ui/badge';
@@ -118,32 +119,64 @@ export function TopUpCard({
     balanceUSD < lowBalance.thresholdUSD;
 
   return (
-    <section className='wal-card wal-topup' aria-labelledby='wal-topup-title'>
-      <h2 className='sr-only' id='wal-topup-title'>
-        {t(`${ns}.title`)}
-      </h2>
-      <div className='wal-topup__balance'>
-        <span className='wal-label'>{t(`${ns}.balance`)}</span>
+    <div className='wal-topup'>
+      <section
+        aria-labelledby='wal-topup-balance'
+        className='wal-card wal-topup__account'
+      >
+        <div className='wal-topup__account-head'>
+          <span className='wal-label' id='wal-topup-balance'>
+            {t(`${ns}.balance`)}
+          </span>
+          {low ? <Badge variant='warning'>{t(`${ns}.low`)}</Badge> : null}
+        </div>
         {balancePending ? (
           <PendingValue chars={6} />
         ) : (
-          <span className='wal-money wal-topup__balance-value'>
+          <p className='wal-hero wal-topup__balance-value'>
             {balanceUSD === null ? '—' : formatUSD(balanceUSD)}
-          </span>
+          </p>
         )}
-        {low ? <Badge variant='warning'>{t(`${ns}.low`)}</Badge> : null}
-      </div>
-
-      <div className='wal-topup__amount'>
-        <p className='wal-label wal-topup__amount-label'>{t(`${ns}.amount`)}</p>
-        <p aria-live='polite' className='wal-money wal-topup__figure'>
-          {amount === null ? '$ —' : whole(amount)}
-        </p>
-        {bonus > 0 && bonusLabel ? (
-          <p className='wal-topup__bonus'>{bonusLabel(bonus)}</p>
+        {lowBalance?.available ? (
+          <div className='wal-topup__remind'>
+            <span id='wal-remind-label'>
+              {/* The threshold is set in figures inside the sentence; the
+                  sentence's word order is the locale's. */}
+              {t(`${ns}.remind`, { amount: '\u0000' })
+                .split('\u0000')
+                .map((part, index) =>
+                  index === 0 ? (
+                    part
+                  ) : (
+                    <Fragment key={part}>
+                      <span className='wal-figure'>
+                        {threshold(lowBalance.thresholdUSD)}
+                      </span>
+                      {part}
+                    </Fragment>
+                  ),
+                )}
+            </span>
+            <Switch
+              aria-labelledby='wal-remind-label'
+              checked={lowBalance.on}
+              className='wal-switch'
+              disabled={lowBalanceSaving}
+              onCheckedChange={(checked) => onLowBalanceChange(checked)}
+            />
+          </div>
         ) : null}
+      </section>
+
+      <section
+        aria-labelledby='wal-topup-title'
+        className='wal-card wal-topup__pick'
+      >
+        <h2 className='wal-h2' id='wal-topup-title'>
+          {t(`${ns}.amount`)}
+        </h2>
         <div
-          aria-label={t(`${ns}.amounts`)}
+          aria-labelledby='wal-topup-title'
           className='wal-topup__tiles'
           role='group'
         >
@@ -156,7 +189,7 @@ export function TopUpCard({
               onClick={() => setPreset(value)}
               type='button'
             >
-              <span className='wal-money'>{whole(value)}</span>
+              {whole(value)}
             </button>
           ))}
           <button
@@ -173,93 +206,75 @@ export function TopUpCard({
           </button>
         </div>
         {custom ? (
-          <>
-            <Input
-              aria-describedby={error ? 'wal-topup-error' : undefined}
-              aria-invalid={error ? true : undefined}
-              aria-label={t(`${ns}.customLabel`)}
-              autoComplete='off'
-              className='wal-topup__custom'
-              ref={customRef}
-              id='wallet-custom-amount'
-              inputMode='numeric'
-              onChange={(event) => setTyped(event.target.value.trim())}
-              placeholder={`${whole(min)} – ${whole(max)}`}
-              value={typed}
-            />
+          <div className='wal-topup__custom-field'>
+            <label className='wal-label' htmlFor='wallet-custom-amount'>
+              {t(`${ns}.customField`)}
+            </label>
+            <div className='wal-topup__custom-wrap'>
+              <span aria-hidden='true' className='wal-topup__custom-unit'>
+                $
+              </span>
+              <Input
+                aria-describedby={error ? 'wal-topup-error' : undefined}
+                aria-invalid={error ? true : undefined}
+                autoComplete='off'
+                className='wal-topup__custom'
+                ref={customRef}
+                id='wallet-custom-amount'
+                inputMode='numeric'
+                onChange={(event) => setTyped(event.target.value.trim())}
+                placeholder={`${min}–${max}`}
+                value={typed}
+              />
+            </div>
             {error ? (
               <p className='wal-topup__error' id='wal-topup-error' role='alert'>
                 {error}
               </p>
             ) : null}
-          </>
+          </div>
         ) : null}
-      </div>
+        {bonus > 0 && bonusLabel ? (
+          <p className='wal-topup__bonus'>{bonusLabel(bonus)}</p>
+        ) : null}
 
-      {methods.length > 1 ? (
-        <div
-          aria-label={t(`${ns}.method`)}
-          className='wal-seg wal-topup__methods'
-          role='group'
-        >
-          {methods.map((item) => (
-            <button
-              aria-pressed={method === item.type}
-              className='wal-seg__item'
-              key={item.type}
-              onClick={() => onMethodChange(item.type)}
-              type='button'
-            >
-              {item.name || item.type}
-            </button>
-          ))}
+        {methods.length > 1 ? (
+          <div
+            aria-label={t(`${ns}.method`)}
+            className='wal-seg wal-topup__methods'
+            role='group'
+          >
+            {methods.map((item) => (
+              <button
+                aria-pressed={method === item.type}
+                className='wal-seg__item'
+                key={item.type}
+                onClick={() => onMethodChange(item.type)}
+                type='button'
+              >
+                {item.name || item.type}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className='wal-topup__foot'>
+          {note ? <p className='wal-topup__note'>{note}</p> : <span />}
+          <Button
+            className='wal-topup__pay'
+            disabled={amount === null}
+            loading={paying}
+            onClick={() => {
+              if (amount !== null) onPay(amount);
+            }}
+            variant='primary'
+          >
+            {amount === null
+              ? t(`${ns}.payEmpty`)
+              : t(`${ns}.pay`, { amount: formatUSD(amount) })}
+          </Button>
         </div>
-      ) : null}
-
-      <Button
-        className='wal-topup__pay'
-        disabled={amount === null}
-        loading={paying}
-        onClick={() => {
-          if (amount !== null) onPay(amount);
-        }}
-        variant='primary'
-      >
-        {amount === null
-          ? t(`${ns}.payEmpty`)
-          : t(`${ns}.pay`, { amount: formatUSD(amount) })}
-      </Button>
-      {note ? <p className='wal-topup__note'>{note}</p> : null}
-
-      {lowBalance?.available ? (
-        <div className='wal-topup__remind'>
-          <span id='wal-remind-label'>
-            {/* The threshold is set in mono inside the sentence; the
-                sentence's word order is the locale's. */}
-            {t(`${ns}.remind`, { amount: '\u0000' })
-              .split('\u0000')
-              .map((part, index) =>
-                index === 0 ? (
-                  part
-                ) : (
-                  <Fragment key={part}>
-                    <span className='wal-mono'>
-                      {threshold(lowBalance.thresholdUSD)}
-                    </span>
-                    {part}
-                  </Fragment>
-                ),
-              )}
-          </span>
-          <Switch
-            aria-labelledby='wal-remind-label'
-            checked={lowBalance.on}
-            className='wal-switch'
-            disabled={lowBalanceSaving}
-            onCheckedChange={(checked) => onLowBalanceChange(checked)}
-          />
-        </div>
-      ) : null}
-    </section>
+      </section>
+    </div>
   );
 }
