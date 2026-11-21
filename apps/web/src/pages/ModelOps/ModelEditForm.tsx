@@ -328,6 +328,7 @@ export default function ModelEditForm({
     <button
       aria-pressed={on}
       className='mdl-chip'
+      data-owns-chrome=''
       disabled={saving}
       key={key}
       type='button'
