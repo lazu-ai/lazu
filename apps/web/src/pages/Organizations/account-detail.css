@@ -275,28 +275,54 @@
   background: var(--lazu-danger);
 }
 
-/* An opened row: its fields on a quiet panel under the line. */
-.acd-edit {
-  background: color-mix(in srgb, var(--lazu-ink) 4%, var(--lazu-surface-solid));
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 14px;
+/* An opened row: the controls stand where the value was, across the value
+   and action columns, with no panel or repeated title around them. */
+.acd-row[data-editing] .acd-inline {
+  grid-column: 2 / 4;
 }
 
-.acd-edit__grid {
-  display: grid;
+.acd-row[data-editing] .acd-row__line {
+  align-items: start;
+}
+
+.acd-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.acd-inline__head {
+  align-items: center;
+  display: flex;
   gap: 12px;
+  justify-content: space-between;
+}
+
+.acd-inline__pair {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.acd-inline__unit {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.acd-inline__unit > span {
+  color: var(--lazu-text-muted);
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+}
+
+.acd-inline__pair--even {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.acd-edit .lazu-field {
-  align-content: start;
-}
-
-.acd-edit__foot {
+.acd-inline__foot {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
@@ -329,7 +355,7 @@
 }
 
 /* The address list inside 设置 drops its own note: the switches say it. */
-.acd-edit .acc-addr__note {
+.acd-inline .acc-addr__note {
   display: none;
 }
 

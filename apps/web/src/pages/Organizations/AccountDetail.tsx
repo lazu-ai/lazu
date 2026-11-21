@@ -26,11 +26,11 @@ import {
 import AccountAccessAddresses from './AccountAccessAddresses';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { Field, Label } from '../../components/ui/field';
 import { Input } from '../../components/ui/input';
 import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
 import { PendingValue } from '../../components/ui/pending';
 import { Select } from '../../components/ui/select';
+import { Textarea } from '../../components/ui/textarea';
 import { notify } from '../../components/ui/toast';
 import { Tooltip } from '../../components/ui/tooltip';
 import { API } from '../../helpers/api';
@@ -586,6 +586,8 @@ export default function AccountDetail({
     </div>
   );
 
+  /* An opened row edits in place: its controls take the value's spot, with
+     one 取消 / 保存 pair under them. It is a form, so Enter saves. */
   const editBox = (
     body: ReactNode,
     onSave: () => void,
@@ -593,23 +595,34 @@ export default function AccountDetail({
     saveLabel = d('save', '保存'),
     disabled = false,
   ) => (
-    <div className='acd-edit'>
+    <form
+      className='acd-inline'
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!disabled && !pending) onSave();
+      }}
+    >
       {body}
-      <div className='acd-edit__foot'>
-        <Button size='sm' variant='ghost' onClick={() => setEditing(null)}>
+      <div className='acd-inline__foot'>
+        <Button
+          size='sm'
+          type='button'
+          variant='ghost'
+          onClick={() => setEditing(null)}
+        >
           {d('cancel', '取消')}
         </Button>
         <Button
           disabled={disabled || pending}
           loading={pending}
           size='sm'
+          type='submit'
           variant='primary'
-          onClick={onSave}
         >
           {saveLabel}
         </Button>
       </div>
-    </div>
+    </form>
   );
 
   const row = (
@@ -619,33 +632,46 @@ export default function AccountDetail({
     caption: ReactNode,
     actionLabel: string,
     editor: ReactNode,
-  ) => (
-    <div className='acd-row' key={key}>
-      <div className='acd-row__line'>
-        <span className='acd-row__label'>{label}</span>
-        <span className='acd-row__value'>
-          {value}
-          {caption}
-        </span>
-        {canEdit && editing !== key ? (
-          <button
-            className='acd-link'
-            type='button'
-            onClick={() => {
-              resetDrafts();
-              setEditing(key);
-            }}
-          >
-            {actionLabel}
-          </button>
-        ) : (
-          <span />
-        )}
+  ) => {
+    const open = canEdit && editing === key;
+    return (
+      <div className='acd-row' data-editing={open || undefined} key={key}>
+        <div className='acd-row__line'>
+          <span className='acd-row__label'>{label}</span>
+          {open ? (
+            editor
+          ) : (
+            <>
+              <span className='acd-row__value'>
+                {value}
+                {caption}
+              </span>
+              {canEdit ? (
+                <button
+                  className='acd-link'
+                  type='button'
+                  onClick={() => {
+                    resetDrafts();
+                    setEditing(key);
+                  }}
+                >
+                  {actionLabel}
+                </button>
+              ) : (
+                <span />
+              )}
+            </>
+          )}
+        </div>
       </div>
-      {canEdit && editing === key ? editor : null}
-    </div>
-  );
+    );
+  };
 
+  const adjustValue = Number(adjustAmount);
+  const adjustShown =
+    Number.isFinite(adjustValue) && adjustValue > 0
+      ? ` $${adjustValue.toFixed(2)}`
+      : '';
   const balanceRow = row(
     'balance',
     d('metric.balance', '余额'),
@@ -676,53 +702,51 @@ export default function AccountDetail({
         </span>
       ) : null}
     </span>,
-    d('balance.adjust', '加扣款'),
+    d('balance.adjust', '调整余额'),
     editBox(
       <>
-        <div className='acd-edit__grid'>
-          <Field>
-            <Label>{d('actions.action', '动作')}</Label>
-            <div
-              aria-label={d('actions.action', '动作')}
-              className='acd-seg'
-              role='group'
-            >
-              {(['credit', 'debit'] as const).map((direction) => (
-                <button
-                  aria-pressed={adjustDirection === direction}
-                  key={direction}
-                  type='button'
-                  onClick={() => setAdjustDirection(direction)}
-                >
-                  {direction === 'credit'
-                    ? d('actions.credit', '充值 +')
-                    : d('actions.debit', '扣减 −')}
-                </button>
-              ))}
-            </div>
-          </Field>
-          <Field>
-            <Label>{d('actions.amount', '金额（USD）')}</Label>
-            <Input
-              inputMode='decimal'
-              placeholder='100.00'
-              value={adjustAmount}
-              onChange={(event) => setAdjustAmount(event.target.value)}
-            />
-          </Field>
+        <div className='acd-inline__head'>
+          <span className='acd-row__big'>{usd(balance)}</span>
+          <div
+            aria-label={d('balance.adjust', '调整余额')}
+            className='acd-seg'
+            role='group'
+          >
+            {(['credit', 'debit'] as const).map((direction) => (
+              <button
+                aria-pressed={adjustDirection === direction}
+                key={direction}
+                type='button'
+                onClick={() => setAdjustDirection(direction)}
+              >
+                {direction === 'credit'
+                  ? d('balance.credit', '加款')
+                  : d('balance.debit', '扣款')}
+              </button>
+            ))}
+          </div>
         </div>
-        <Field>
-          <Label>{d('actions.reasonShort', '原因')}</Label>
+        <div className='acd-inline__pair'>
           <Input
+            aria-label={d('actions.amount', '金额（USD）')}
+            inputMode='decimal'
+            placeholder='100.00'
+            value={adjustAmount}
+            onChange={(event) => setAdjustAmount(event.target.value)}
+          />
+          <Input
+            aria-label={d('actions.reasonShort', '原因')}
             placeholder={d('actions.reasonPlaceholder', '例如：线下转账 #77')}
             value={adjustReason}
             onChange={(event) => setAdjustReason(event.target.value)}
           />
-        </Field>
+        </div>
       </>,
       () => adjustBalance.mutate(),
       adjustBalance.isPending,
-      d('actions.apply', '执行调整'),
+      (adjustDirection === 'credit'
+        ? d('balance.confirmCredit', '确认加款')
+        : d('balance.confirmDebit', '确认扣款')) + adjustShown,
       !adjustAmount.trim() || !adjustReason.trim(),
     ),
   );
@@ -749,109 +773,74 @@ export default function AccountDetail({
     ) : null,
     d('edit', '修改'),
     editBox(
-      <Field>
-        <Label>{d('wallet.pricePlan', '专属折扣')}</Label>
-        <Select
-          options={[
-            { label: d('actions.noPlan', '无'), value: '0' },
-            ...planOptions,
-            // A plan the list has not loaded still shows by name.
-            ...(plan &&
-            !planOptions.some((option) => option.value === String(plan.id))
-              ? [{ label: plan.name, value: String(plan.id) }]
-              : []),
-          ]}
-          value={draftPlan}
-          onValueChange={setDraftPlan}
-        />
-      </Field>,
+      <Select
+        aria-label={d('wallet.pricePlan', '专属折扣')}
+        options={[
+          { label: d('actions.noPlan', '无'), value: '0' },
+          ...planOptions,
+          // A plan the list has not loaded still shows by name.
+          ...(plan &&
+          !planOptions.some((option) => option.value === String(plan.id))
+            ? [{ label: plan.name, value: String(plan.id) }]
+            : []),
+        ]}
+        value={draftPlan}
+        onValueChange={setDraftPlan}
+      />,
       () => saveProfile.mutate('plan'),
       saveProfile.isPending,
     ),
   );
 
   const peak = ratePeak.data;
-  const effectiveRpm = Number(limits?.rpm) || 0;
-  const effectiveTpm = Number(limits?.tpm) || 0;
-  const load = Math.max(
-    effectiveRpm > 0 ? Number(peak?.rpm || 0) / effectiveRpm : 0,
-    effectiveTpm > 0 ? Number(peak?.tpm || 0) / effectiveTpm : 0,
-  );
-  const limitText = (override?: number, fallback?: number) =>
-    override
-      ? shortCount(override)
-      : d('actions.limitDefault', '默认') +
-        (fallback ? ` ${shortCount(fallback)}` : '');
+  const limitText = (override?: number) =>
+    override ? shortCount(override) : d('actions.limitDefault', '默认');
   const peakText = (value?: number) =>
     peak ? shortCount(Number(value || 0)) : '—';
+  const peakLine = ratePeak.isPending ? (
+    <PendingValue chars={20} />
+  ) : (
+    t('page.console.orgs.drawer.rate.peak', {
+      defaultValue: '30 日峰值 RPM {{rpm}} · TPM {{tpm}}',
+      rpm: peakText(peak?.rpm),
+      tpm: peakText(peak?.tpm),
+    })
+  );
   const rateRow = row(
     'rate',
     d('rate.title', '速率'),
     <span className='acd-row__text'>
-      RPM {limitText(limits?.rpm_override, undefined)} · TPM{' '}
-      {limitText(limits?.tpm_override, undefined)}
+      RPM {limitText(limits?.rpm_override)} · TPM{' '}
+      {limitText(limits?.tpm_override)}
     </span>,
-    <>
-      {load > 0 ? (
-        <span aria-hidden='true' className='acd-gauge'>
-          <span
-            className={
-              load >= 0.9
-                ? 'acd-gauge__bad'
-                : load >= 0.6
-                  ? 'acd-gauge__warn'
-                  : undefined
-            }
-            style={{ width: `${Math.min(100, Math.round(load * 100))}%` }}
-          />
-        </span>
-      ) : null}
-      <span className='acd-cap'>
-        {ratePeak.isPending ? (
-          <PendingValue chars={20} />
-        ) : (
-          t('page.console.orgs.drawer.rate.peak', {
-            defaultValue: '30 日峰值 RPM {{rpm}} · TPM {{tpm}}',
-            rpm: peakText(peak?.rpm),
-            tpm: peakText(peak?.tpm),
-          })
-        )}
-      </span>
-    </>,
+    <span className='acd-cap'>{peakLine}</span>,
     d('edit', '修改'),
     editBox(
-      <div className='acd-edit__grid'>
-        <Field>
-          <Label>RPM</Label>
-          <Input
-            inputMode='numeric'
-            placeholder={d('actions.limitDefault', '默认')}
-            value={draftRpm}
-            onChange={(event) => setDraftRpm(event.target.value)}
-          />
-          <span className='acd-cap'>
-            {t('page.console.orgs.drawer.rate.peakOne', {
-              defaultValue: '30 日峰值 {{value}}',
-              value: peakText(peak?.rpm),
-            })}
+      <>
+        <div className='acd-inline__pair acd-inline__pair--even'>
+          <span className='acd-inline__unit'>
+            <span aria-hidden='true'>RPM</span>
+            <Input
+              aria-label='RPM'
+              inputMode='numeric'
+              placeholder={d('actions.limitDefault', '默认')}
+              value={draftRpm}
+              onChange={(event) => setDraftRpm(event.target.value)}
+            />
           </span>
-        </Field>
-        <Field>
-          <Label>TPM</Label>
-          <Input
-            inputMode='numeric'
-            placeholder={d('actions.limitDefault', '默认')}
-            value={draftTpm}
-            onChange={(event) => setDraftTpm(event.target.value)}
-          />
-          <span className='acd-cap'>
-            {t('page.console.orgs.drawer.rate.peakOne', {
-              defaultValue: '30 日峰值 {{value}}',
-              value: peakText(peak?.tpm),
-            })}
+          <span className='acd-inline__unit'>
+            <span aria-hidden='true'>TPM</span>
+            <Input
+              aria-label='TPM'
+              inputMode='numeric'
+              placeholder={d('actions.limitDefault', '默认')}
+              value={draftTpm}
+              onChange={(event) => setDraftTpm(event.target.value)}
+            />
           </span>
-        </Field>
-      </div>,
+        </div>
+        <span className='acd-cap'>{peakLine}</span>
+      </>,
       () => saveProfile.mutate('rate'),
       saveProfile.isPending,
     ),
@@ -884,10 +873,10 @@ export default function AccountDetail({
     </span>,
     null,
     d('access.set', '设置'),
-    <div className='acd-edit'>
+    <div className='acd-inline'>
       <AccountAccessAddresses account={currentAccount} />
-      <div className='acd-edit__foot'>
-        <Button size='sm' variant='ghost' onClick={() => setEditing(null)}>
+      <div className='acd-inline__foot'>
+        <Button size='sm' variant='secondary' onClick={() => setEditing(null)}>
           {d('done', '完成')}
         </Button>
       </div>
@@ -901,13 +890,11 @@ export default function AccountDetail({
     null,
     d('edit', '修改'),
     editBox(
-      <Field>
-        <Label>{d('actions.displayName', '显示名称')}</Label>
-        <Input
-          value={draftName}
-          onChange={(event) => setDraftName(event.target.value)}
-        />
-      </Field>,
+      <Input
+        aria-label={d('actions.displayName', '显示名称')}
+        value={draftName}
+        onChange={(event) => setDraftName(event.target.value)}
+      />,
       () => saveProfile.mutate('name'),
       saveProfile.isPending,
     ),
@@ -922,13 +909,12 @@ export default function AccountDetail({
     null,
     d('edit', '修改'),
     editBox(
-      <Field>
-        <Label>{d('note.title', '备注')}</Label>
-        <Input
-          value={draftNote}
-          onChange={(event) => setDraftNote(event.target.value)}
-        />
-      </Field>,
+      <Textarea
+        aria-label={d('note.title', '备注')}
+        rows={2}
+        value={draftNote}
+        onChange={(event) => setDraftNote(event.target.value)}
+      />,
       () => saveProfile.mutate('note'),
       saveProfile.isPending,
     ),

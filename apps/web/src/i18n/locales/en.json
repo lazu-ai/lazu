@@ -1208,11 +1208,7 @@
     "page.console.orgs.created": "Customer account created",
     "page.console.orgs.deleted": "Deleted",
     "page.console.orgs.description": "Customer accounts with their credit, spend, balances, and access status.",
-    "page.console.orgs.drawer.actions.action": "Action",
     "page.console.orgs.drawer.actions.amount": "Amount (USD)",
-    "page.console.orgs.drawer.actions.apply": "Apply adjustment",
-    "page.console.orgs.drawer.actions.credit": "Credit +",
-    "page.console.orgs.drawer.actions.debit": "Debit −",
     "page.console.orgs.drawer.actions.demote": "Remove root",
     "page.console.orgs.drawer.actions.disable": "Freeze",
     "page.console.orgs.drawer.actions.disableAccount": "Freeze account",
@@ -3499,7 +3495,7 @@
     "page.console.orgs.drawer.time.yesterday": "Yesterday",
     "page.console.orgs.drawer.save": "Save",
     "page.console.orgs.drawer.alert.email": "email",
-    "page.console.orgs.drawer.balance.adjust": "Adjust",
+    "page.console.orgs.drawer.balance.adjust": "Adjust balance",
     "page.console.orgs.drawer.actions.reasonShort": "Reason",
     "page.console.orgs.drawer.edit": "Edit",
     "page.console.orgs.drawer.rate.title": "Rate",
@@ -3533,7 +3529,6 @@
     "page.console.orgs.drawer.alert.sent": "Alert sent {{when}}",
     "page.console.orgs.drawer.plan.discount": "{{off}}% off",
     "page.console.orgs.drawer.rate.peak": "30-day peak RPM {{rpm}} · TPM {{tpm}}",
-    "page.console.orgs.drawer.rate.peakOne": "30-day peak {{value}}",
     "page.console.orgs.drawer.usage.daily": "{{amount}} a day",
     "page.console.orgs.drawer.usage.cacheHit": "Cache hits {{value}}",
     "page.console.orgs.drawer.usage.todayUntil": "Today · to {{time}}",
@@ -3545,6 +3540,10 @@
     "page.console.orgs.drawer.pending.ordered": "ordered {{time}}",
     "page.console.orgs.drawer.ledger.recent": "Latest {{count}}",
     "page.console.orgs.drawer.confirm.promote.titleNamed": "Make {{name}} root?",
-    "page.console.orgs.drawer.confirm.demote.titleNamed": "Remove root from {{name}}?"
+    "page.console.orgs.drawer.confirm.demote.titleNamed": "Remove root from {{name}}?",
+    "page.console.orgs.drawer.balance.credit": "Add",
+    "page.console.orgs.drawer.balance.debit": "Deduct",
+    "page.console.orgs.drawer.balance.confirmCredit": "Add",
+    "page.console.orgs.drawer.balance.confirmDebit": "Deduct"
   }
 }

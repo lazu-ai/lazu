@@ -238,11 +238,11 @@ test('organization balance adjustments submit an atomic signed delta', async ({
     .first();
   await row.click();
   const detail = page.locator('.acd-dialog');
-  await detail.getByRole('button', { name: '加扣款', exact: true }).click();
-  await detail.getByRole('button', { name: '扣减 −', exact: true }).click();
+  await detail.getByRole('button', { name: '调整余额', exact: true }).click();
+  await detail.getByRole('button', { name: '扣款', exact: true }).click();
   await page.getByPlaceholder('100.00').fill('1.25');
   await page.getByPlaceholder('例如：线下转账 #77').fill('并发安全扣减');
-  await page.getByRole('button', { name: '执行调整' }).click();
+  await page.getByRole('button', { name: '确认扣款 $1.25' }).click();
 
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]).toEqual({

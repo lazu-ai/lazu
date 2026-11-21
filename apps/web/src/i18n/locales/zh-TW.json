@@ -1208,11 +1208,7 @@
     "page.console.orgs.created": "客戶帳戶已建立",
     "page.console.orgs.deleted": "已刪除",
     "page.console.orgs.description": "平台客戶的額度、消費、餘額與存取狀態。",
-    "page.console.orgs.drawer.actions.action": "動作",
     "page.console.orgs.drawer.actions.amount": "金額（USD）",
-    "page.console.orgs.drawer.actions.apply": "执行調整",
-    "page.console.orgs.drawer.actions.credit": "儲值 +",
-    "page.console.orgs.drawer.actions.debit": "扣減 −",
     "page.console.orgs.drawer.actions.demote": "取消 root",
     "page.console.orgs.drawer.actions.disable": "凍結",
     "page.console.orgs.drawer.actions.disableAccount": "凍結帳戶",
@@ -3499,7 +3495,7 @@
     "page.console.orgs.drawer.time.yesterday": "昨天",
     "page.console.orgs.drawer.save": "儲存",
     "page.console.orgs.drawer.alert.email": "郵件",
-    "page.console.orgs.drawer.balance.adjust": "加扣款",
+    "page.console.orgs.drawer.balance.adjust": "調整餘額",
     "page.console.orgs.drawer.actions.reasonShort": "原因",
     "page.console.orgs.drawer.edit": "修改",
     "page.console.orgs.drawer.rate.title": "速率",
@@ -3533,7 +3529,6 @@
     "page.console.orgs.drawer.alert.sent": "{{when}} 已發提醒",
     "page.console.orgs.drawer.plan.discount": "{{value}} 折",
     "page.console.orgs.drawer.rate.peak": "30 日峰值 RPM {{rpm}} · TPM {{tpm}}",
-    "page.console.orgs.drawer.rate.peakOne": "30 日峰值 {{value}}",
     "page.console.orgs.drawer.usage.daily": "日均 {{amount}}",
     "page.console.orgs.drawer.usage.cacheHit": "快取命中 {{value}}",
     "page.console.orgs.drawer.usage.todayUntil": "今天 · 截至 {{time}}",
@@ -3545,6 +3540,10 @@
     "page.console.orgs.drawer.pending.ordered": "{{time}} 下單",
     "page.console.orgs.drawer.ledger.recent": "最近 {{count}} 筆",
     "page.console.orgs.drawer.confirm.promote.titleNamed": "把 {{name}} 設為 root？",
-    "page.console.orgs.drawer.confirm.demote.titleNamed": "取消 {{name}} 的 root？"
+    "page.console.orgs.drawer.confirm.demote.titleNamed": "取消 {{name}} 的 root？",
+    "page.console.orgs.drawer.balance.credit": "加款",
+    "page.console.orgs.drawer.balance.debit": "扣款",
+    "page.console.orgs.drawer.balance.confirmCredit": "確認加款",
+    "page.console.orgs.drawer.balance.confirmDebit": "確認扣款"
   }
 }

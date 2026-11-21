@@ -1208,11 +1208,7 @@
     "page.console.orgs.created": "顧客アカウントを作成しました",
     "page.console.orgs.deleted": "削除しました",
     "page.console.orgs.description": "顧客アカウントのクレジット・利用額・残高・アクセス状態。",
-    "page.console.orgs.drawer.actions.action": "操作",
     "page.console.orgs.drawer.actions.amount": "金額（USD）",
-    "page.console.orgs.drawer.actions.apply": "調整を実行",
-    "page.console.orgs.drawer.actions.credit": "追加 +",
-    "page.console.orgs.drawer.actions.debit": "減額 −",
     "page.console.orgs.drawer.actions.demote": "root を解除",
     "page.console.orgs.drawer.actions.disable": "凍結",
     "page.console.orgs.drawer.actions.disableAccount": "アカウントを凍結",
@@ -3533,7 +3529,6 @@
     "page.console.orgs.drawer.alert.sent": "{{when}} に通知済み",
     "page.console.orgs.drawer.plan.discount": "{{off}}% 割引",
     "page.console.orgs.drawer.rate.peak": "30 日ピーク RPM {{rpm}} · TPM {{tpm}}",
-    "page.console.orgs.drawer.rate.peakOne": "30 日ピーク {{value}}",
     "page.console.orgs.drawer.usage.daily": "1 日平均 {{amount}}",
     "page.console.orgs.drawer.usage.cacheHit": "キャッシュヒット {{value}}",
     "page.console.orgs.drawer.usage.todayUntil": "今日 · {{time}} まで",
@@ -3545,6 +3540,10 @@
     "page.console.orgs.drawer.pending.ordered": "{{time}} に注文",
     "page.console.orgs.drawer.ledger.recent": "直近 {{count}} 件",
     "page.console.orgs.drawer.confirm.promote.titleNamed": "{{name}} を root にしますか？",
-    "page.console.orgs.drawer.confirm.demote.titleNamed": "{{name}} の root を外しますか？"
+    "page.console.orgs.drawer.confirm.demote.titleNamed": "{{name}} の root を外しますか？",
+    "page.console.orgs.drawer.balance.credit": "追加",
+    "page.console.orgs.drawer.balance.debit": "減額",
+    "page.console.orgs.drawer.balance.confirmCredit": "追加する",
+    "page.console.orgs.drawer.balance.confirmDebit": "減額する"
   }
 }
