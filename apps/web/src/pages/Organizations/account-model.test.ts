@@ -2,36 +2,43 @@ import { describe, expect, it } from 'vitest';
 import {
   accountKeyOperationalState,
   adjacentAccountTarget,
-  buildDailySpendSeries,
+  buildDailyUsage,
   isDeleted,
   toAccount,
 } from './account-model';
 
-describe('customer account daily spend series', () => {
+describe('customer account daily usage', () => {
   it('keeps a fixed 30-day timeline and pads missing buckets with zero', () => {
     const end = new Date('2026-09-02T00:00:00Z');
     const yesterday = new Date('2026-09-01T00:00:00Z').getTime() / 1000;
-    const series = buildDailySpendSeries(
-      [{ amount_microusd: 2_500_000, bucket: yesterday }],
+    const days = buildDailyUsage(
+      [{ amount_microusd: 2_500_000, bucket: yesterday, request_count: 4 }],
       end.getTime() / 1000,
     );
 
-    expect(series).toHaveLength(30);
-    expect(series.slice(-3)).toEqual([0, 2_500_000, 0]);
+    expect(days).toHaveLength(30);
+    expect(days.slice(-3).map((day) => day.amount_microusd)).toEqual([
+      0, 2_500_000, 0,
+    ]);
+    expect(days[28].request_count).toBe(4);
+    expect(days[29].start).toBe(end.getTime() / 1000);
   });
 
   it('merges duplicate day buckets without changing the timeline', () => {
     const end = new Date('2026-09-02T00:00:00Z');
     const today = end.getTime() / 1000;
-    const series = buildDailySpendSeries(
+    const days = buildDailyUsage(
       [
-        { amount_microusd: 400_000, bucket: today },
-        { amount_microusd: 600_000, bucket: today + 60 },
+        { amount_microusd: 400_000, bucket: today, error_count: 1 },
+        { amount_microusd: 600_000, bucket: today + 60, error_count: 2 },
       ],
       today,
     );
 
-    expect(series[series.length - 1]).toBe(1_000_000);
+    expect(days[days.length - 1]).toMatchObject({
+      amount_microusd: 1_000_000,
+      error_count: 3,
+    });
   });
 });
 

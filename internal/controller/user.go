@@ -19,6 +19,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/setting"
+	"github.com/lazu-ai/lazu/internal/setting/email_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 	"github.com/lazu-ai/lazu/pkg/billing"
 
@@ -649,6 +650,8 @@ func GetUserAccountSummary(c *gin.Context) {
 		return
 	}
 
+	balanceAlert := balanceAlertFor(user)
+
 	var deletion any
 	if user.DeletedAt.Valid {
 		record, err := model.LatestAccountDeletion(user.Id)
@@ -696,7 +699,84 @@ func GetUserAccountSummary(c *gin.Context) {
 		"media_jobs":            gin.H{"total": mediaTotal, "failed": mediaFailed},
 		"settlement_failures":   gin.H{"open": openSettlements, "waived_legacy": waivedSettlements},
 		"agent_sessions":        agg.AgentSessions,
+		"balance_alert":         balanceAlert,
 	})
+}
+
+// balanceAlertFor is the low-balance reminder as the account sees it: the
+// threshold that applies (its own, else the platform's), whether the
+// reminder goes out by mail, and when the last one left.
+func balanceAlertFor(user *model.User) gin.H {
+	cfg := email_setting.GetEmailSetting()
+	threshold := billing.USD(cfg.LowBalanceThresholdUSD)
+	own := user.GetSetting().QuotaWarningThreshold
+	if own != 0 {
+		threshold = billing.MicroUSD(own)
+	}
+	// The mail record lives in the telemetry store; the rest of the
+	// summary still answers when it cannot be read.
+	lastSent, err := model.LatestBalanceAlertAt(user.Id)
+	if err != nil {
+		common.SysError(fmt.Sprintf("read last balance alert for user %d: %v", user.Id, err))
+		lastSent = 0
+	}
+	return gin.H{
+		"threshold_microusd": threshold.Int64(),
+		"own_threshold":      own != 0,
+		"email":              cfg.LowBalanceEnabled,
+		"last_sent_at":       lastSent,
+	}
+}
+
+// GetUserAccountRatePeak returns an account's busiest minute in the usage
+// window, read on its own because it scans every request in the window.
+func GetUserAccountRatePeak(c *gin.Context) {
+	user, ok := resolveAdminTargetUser(c)
+	if !ok {
+		return
+	}
+	since := time.Now().AddDate(0, 0, -userUsageWindowDays).Unix()
+	peak, err := model.GetUserRatePeak(user.Id, since)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"rpm": peak.RPM, "tpm": peak.TPM, "since": since})
+}
+
+type adminPendingTopUp struct {
+	TradeNo        string           `json:"trade_no"`
+	PaymentMethod  string           `json:"payment_method"`
+	CreditMicrousd billing.MicroUSD `json:"credit_microusd"`
+	CreateTime     int64            `json:"create_time"`
+	// Completable is whether 补单 can credit it (only card orders can).
+	Completable bool `json:"completable"`
+}
+
+// GetUserPendingTopUps returns an account's unpaid orders from the last 30
+// days with the amount 补单 would credit.
+func GetUserPendingTopUps(c *gin.Context) {
+	user, ok := resolveAdminTargetUser(c)
+	if !ok {
+		return
+	}
+	rows, err := model.GetUserPendingTopUps(user.Id, 10)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	items := make([]adminPendingTopUp, 0, len(rows))
+	for _, row := range rows {
+		row.NormalizeLedgerFields()
+		items = append(items, adminPendingTopUp{
+			TradeNo:        row.TradeNo,
+			PaymentMethod:  row.PaymentMethod,
+			CreditMicrousd: row.CreditedMicrousd,
+			CreateTime:     row.CreateTime,
+			Completable:    row.PaymentMethod == "stripe" && row.CreditedMicrousd > 0,
+		})
+	}
+	common.ApiSuccess(c, items)
 }
 
 type safeAdminWalletLedgerEvent struct {

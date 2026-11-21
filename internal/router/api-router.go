@@ -178,6 +178,8 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/:id/ledger", controller.GetUserWalletLedgerEvents)
 				adminRoute.GET("/:id/tokens", controller.GetUserTokens)
 				adminRoute.GET("/:id/dashboard", controller.GetUserAccountDashboard)
+				adminRoute.GET("/:id/rate_peak", controller.GetUserAccountRatePeak)
+				adminRoute.GET("/:id/pending_topups", controller.GetUserPendingTopUps)
 				adminRoute.POST("/", controller.CreateUser)
 				adminRoute.POST("/manage", controller.ManageUser)
 				adminRoute.POST("/:id/quota/adjust", controller.AdjustUserQuota)
