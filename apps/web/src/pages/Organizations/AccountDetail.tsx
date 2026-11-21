@@ -296,7 +296,9 @@ export default function AccountDetail({
     if (!editing || !box) return;
     (
       box.querySelector<HTMLElement>('.acd-inline :is(input, textarea)') ||
-      box.querySelector<HTMLElement>('.acd-inline button')
+      box.querySelector<HTMLElement>(
+        '.acd-inline :is(button, [role="switch"], [tabindex="0"])',
+      )
     )?.focus();
   }, [editing]);
 
