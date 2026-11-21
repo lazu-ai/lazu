@@ -141,9 +141,10 @@
 }
 
 .mdl-chip[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--lazu-action) 10%, transparent);
-  border-color: color-mix(in srgb, var(--lazu-action) 40%, transparent);
+  background: color-mix(in srgb, var(--lazu-action) 9%, transparent);
+  border-color: var(--lazu-action);
   color: var(--lazu-action);
+  font-weight: 500;
 }
 
 .mdl-chip:focus-visible {
