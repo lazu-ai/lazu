@@ -399,14 +399,16 @@ export function TopupRecordsDialog({
   const items = records.data?.items || [];
   const lines = items.map(lineFromTopup);
   const listed = lines.some((line) => line.id === topupId);
+  /* The linked payment never depends on the list: unless it is one of the
+     listed rows, it is shown first, as a row once its record arrives, and
+     on its own (with its own wait, 找不到, 切换账号 and 重试) until then, or
+     when the list itself fails. */
+  const showLinked = page === 1 && !records.isPending && !listed;
   const pinned =
-    !listed && records.isSuccess && page === 1
-      ? linked.data
-        ? lineFromRecord(linked.data)
-        : linked.isError
-          ? null
-          : undefined
+    showLinked && records.isSuccess && linked.data
+      ? lineFromRecord(linked.data)
       : null;
+  const lone = showLinked && !pinned;
   const total = (records.data?.total || 0) + (pinned ? 1 : 0);
   const shown = pinned ? [pinned, ...lines] : lines;
 
@@ -432,6 +434,15 @@ export function TopupRecordsDialog({
         </button>
       </header>
       <div className='wal-topups-dialog__body'>
+        {lone ? (
+          <div className='wal-topups-dialog__lone'>
+            <TopupRecord
+              documentError={documentError}
+              topupId={topupId}
+              variant='row'
+            />
+          </div>
+        ) : null}
         {records.isError ? (
           <p className='wal-empty'>
             {t(`${ns}.recordsError`)}{' '}
@@ -443,18 +454,14 @@ export function TopupRecordsDialog({
               {t('common.retry', { defaultValue: '重试' })}
             </button>
           </p>
-        ) : records.isPending || pinned === undefined ? (
+        ) : records.isPending ? (
           <p className='wal-empty'>
             <PendingValue chars={18} />
           </p>
         ) : shown.length === 0 ? (
-          <div className='wal-topups-dialog__lone'>
-            <TopupRecord
-              documentError={documentError}
-              topupId={topupId}
-              variant='row'
-            />
-          </div>
+          lone ? null : (
+            <p className='wal-empty'>{t(`${ns}.recordsEmpty`)}</p>
+          )
         ) : (
           <TopupRows
             documentError={documentError}

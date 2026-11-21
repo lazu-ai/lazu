@@ -588,7 +588,11 @@
   transform: rotate(90deg);
 }
 
-.wal-topups__item:last-child tr:last-child td {
+.wal-topups .wal-topups__item > tr:last-child td {
+  border-bottom: 1px solid var(--lazu-border);
+}
+
+.wal-topups .wal-topups__item:last-child > tr:last-child td {
   border-bottom: 0;
 }
 
@@ -647,6 +651,8 @@
 }
 
 .wal-topups-dialog__lone {
+  background: var(--lazu-surface-muted);
+  border-bottom: 1px solid var(--lazu-border);
   padding: 18px 20px;
 }
 

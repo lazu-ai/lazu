@@ -1,7 +1,9 @@
 /* One top-up, shown inside the wallet.
  *
  * The Stripe return, both payment e-mails and the wallet's own history all
- * land on `/console/wallet?top_up_id=…`, and this card is what they land on.
+ * land on `/console/wallet?top_up_id=…`. The project wallet shows this as a
+ * card; the account wallet opens 充值记录 with this payment's row open, and
+ * the `row` variant is that row's body.
  * Balance credit and document readiness are independent states: the card
  * polls the one order (`/api/user/payments/:id`, which is open to the payer
  * regardless of the projects switch) and lights each part as its real state

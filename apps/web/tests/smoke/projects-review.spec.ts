@@ -1377,6 +1377,68 @@ test('former payer can open their payment without current project membership', a
   await expect(page).toHaveURL(/top_up_id=email-document/);
 });
 
+test('a linked payment that cannot be found still shows above a full top-up list', async ({
+  page,
+}) => {
+  const user = {
+    id: 'u_payer',
+    username: 'Payer',
+    role: 1,
+    features: { projects: true },
+    projects: [],
+  };
+  await setupMockedApp(page, {
+    language: 'en',
+    user,
+    payloadFor: (raw: string) => {
+      const url = new URL(raw);
+      if (url.pathname === '/api/user/self') return ok(user);
+      if (url.pathname === '/api/user/topup/self')
+        return ok({
+          items: [
+            {
+              id: 1,
+              public_id: 'listed-topup',
+              amount: 10,
+              paid_amount: 10,
+              credited_microusd: 10000000,
+              payment_method: 'alipay',
+              status: 'success',
+              create_time: 1789000000,
+              complete_time: 1789000060,
+            },
+          ],
+          total: 1,
+        });
+      return undefined;
+    },
+  });
+  await page.route('**/api/user/payments/someone-else', async (route) => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: false,
+        error: {
+          code: 'payment_not_found',
+          type: 'not_found_error',
+          request_id: 'req_mock',
+        },
+      }),
+    });
+  });
+  await page.goto('/console/wallet?top_up_id=someone-else');
+  const dialog = page.getByRole('dialog', { name: 'Top-ups' });
+  await expect(dialog).toContainText(
+    'This payment was not found or is unavailable to this account.',
+  );
+  await expect(
+    dialog.getByRole('button', { name: 'Switch Lazu account' }),
+  ).toBeVisible();
+  await expect(dialog).toContainText('Alipay');
+  await expect(dialog).toContainText('1 top-ups');
+});
+
 for (const [status, label] of [
   ['pending', 'Confirming this payment with Stripe'],
   ['paid', 'Added to your Lazu account'],
