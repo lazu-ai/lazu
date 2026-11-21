@@ -588,19 +588,19 @@
   transform: rotate(90deg);
 }
 
-.wal-topup:last-child tr:last-child td {
+.wal-topups__item:last-child tr:last-child td {
   border-bottom: 0;
 }
 
-.wal-topup[data-open] td {
+.wal-topups__item[data-open] td {
   background: var(--lazu-surface-muted);
 }
 
-.wal-topup[data-open] > tr:first-child td {
+.wal-topups__item[data-open] > tr:first-child td {
   border-bottom: 0;
 }
 
-.wal-topup[data-dim] > tr:first-child td {
+.wal-topups__item[data-dim] > tr:first-child td {
   color: var(--lazu-text-muted);
 }
 

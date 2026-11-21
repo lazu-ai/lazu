@@ -262,7 +262,7 @@ function TopupRows({
           settled && Math.abs(line.creditUSD - line.paidUSD) >= 0.005;
         return (
           <tbody
-            className='wal-topup'
+            className='wal-topups__item'
             data-dim={settled ? undefined : ''}
             data-open={open || undefined}
             key={line.id || line.when}
