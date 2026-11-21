@@ -25,11 +25,11 @@
 }
 .ov-title {
   margin: 0;
-  font-family: var(--lazu-font-display);
-  font-weight: 400;
-  font-size: var(--lazu-console-heading-size, 40px);
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  font-size: var(--lazu-console-heading-size, 26px);
   line-height: 1.05;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 .ov-note {
   font-size: 12px;
@@ -203,11 +203,12 @@
   color: var(--lazu-danger);
 }
 .ov-money {
-  font-family: var(--lazu-font-display);
-  font-weight: 400;
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
   font-size: 31px;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
 }
 .ov-delta[data-dir='up'] {
   color: var(--lazu-success);

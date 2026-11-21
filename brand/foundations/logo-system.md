@@ -119,7 +119,7 @@ IBM Plex Mono。规则见 `public-web-system.md` 第 01 / 03 条。
 
 The owner-approved Console exception is defined by
 [yunmu-console.md](yunmu-console.md#locked-seal-refinement-2026-09-21):
-page headings and display money use the display serif, while Models, dense
-tables, controls and non-money figures retain their existing typography.
-This explicit amendment takes precedence over the earlier public-only /
-bold-money wording above.
+page headings and display money used the display serif. Withdrawn
+2026-11-21: the console is sans throughout and the display serif is
+public-only again; see
+[yunmu-console.md](yunmu-console.md#console-type-2026-11-21).
