@@ -690,9 +690,11 @@
 }
 
 .spend-card__value {
-  font-family: var(--lazu-font-display);
-  font-size: 52px;
+  font-family: var(--lazu-font-sans);
+  font-size: 44px;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.035em;
   line-height: 1;
   margin-top: 8px;
 }

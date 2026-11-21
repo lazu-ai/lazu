@@ -17,11 +17,11 @@
 .console-page-shell.console-review
   > .console-page-topbar
   .console-page-topbar__title {
-  font-family: var(--lazu-font-display);
+  font-family: var(--lazu-font-sans);
   font-size: var(--lazu-console-heading-size);
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.05;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 /* Every head sits on a rule. With peer views the tab row draws it; without
    them the head does. (yunmu.css says the same for unscoped pages; this file
