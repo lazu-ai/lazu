@@ -7,6 +7,9 @@
 @media (min-width: 768px) {
   body .lazu-modal-content.mo-dialog.mdl-dialog:not(.whats-new-panel) {
     border-radius: 20px;
+    /* One height from the first frame: loading, the overview and the form
+       all fill it, so the dialog never grows as its data arrives. */
+    height: min(820px, calc(100dvh - 48px));
     max-height: calc(100dvh - 48px);
     max-width: none;
     width: min(1080px, calc(100vw - 32px));
@@ -123,6 +126,17 @@
   flex-direction: column;
   min-height: 0;
   overflow: auto;
+}
+
+/* The lanes while the prices load: two cards' worth of grey at their size. */
+.mdl-lanes-wait {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.mdl-lanes-wait .lazu-skeleton {
+  border-radius: 16px;
 }
 
 /* ---- 资料 overview ---------------------------------------------------- */

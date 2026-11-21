@@ -33,6 +33,7 @@ import { Button } from '../../components/ui/button';
 import { Checkbox } from '../../components/ui/checkbox';
 import { IconButton } from '../../components/ui/icon-button';
 import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
+import { Skeleton } from '../../components/ui/skeleton';
 import { notify } from '../../components/ui/toast';
 import { copy } from '../../helpers/clipboard';
 import { useChannelLanesQuery } from '../../hooks/models/useModelOpsDimensions';
@@ -79,6 +80,9 @@ type ModelInspectorProps = {
   onPrev: () => void;
   onSaveTiers: (modelName: string, tiers: SaveTierRequest) => Promise<void>;
   onTabChange: (tab: InspectorTab) => void;
+  /** False until the sell prices have loaded: the lanes show as grey blocks
+   *  and their drafts are not seeded yet. */
+  pricesReady?: boolean;
   /** A model id to look up on models.dev when registering a new model. */
   prefillModel?: string;
   t: TFunction;
@@ -104,6 +108,7 @@ export default function ModelInspector({
   onSaveTiers,
   onTabChange,
   prefillModel,
+  pricesReady = true,
   t,
   tab,
   view,
@@ -162,24 +167,30 @@ export default function ModelInspector({
   /* Drafts belong to the open model: moving to the next one must never carry
      an unsaved price across. */
   useEffect(() => {
-    const next = seed(laneSlugs);
-    setDrafts(next);
-    setInitial(structuredClone(next));
     setProblem('');
     setPreview(null);
     setLocked(Boolean(record.info_locked));
+    if (!pricesReady) {
+      setDrafts({});
+      setInitial({});
+      return;
+    }
+    const next = seed(laneSlugs);
+    setDrafts(next);
+    setInitial(structuredClone(next));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view.id]);
+  }, [view.id, pricesReady]);
 
   // The lane registry can arrive after the dialog opens.
   useEffect(() => {
+    if (!pricesReady) return;
     const missing = laneSlugs.filter((slug) => !drafts[slug]);
     if (!missing.length) return;
     const additions = seed(missing);
     setDrafts((current) => ({ ...current, ...additions }));
     setInitial((current) => ({ ...current, ...structuredClone(additions) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drafts, laneSlugs]);
+  }, [drafts, laneSlugs, pricesReady]);
 
   const resetLane = (lane: string) => {
     setProblem('');
@@ -513,25 +524,32 @@ export default function ModelInspector({
                 <span>{view.blockReason}</span>
               </div>
             ) : null}
-            <LanePricing
-              canEditPrice={canEditPrice}
-              currentRow={currentRow}
-              drafts={drafts}
-              laneName={laneShort}
-              laneRatio={laneRatio}
-              lanes={laneSlugs}
-              modelName={view.name}
-              official={official}
-              pools={view.lanePools}
-              saving={isSavingTier}
-              t={t}
-              windowHours={windowHours}
-              onGoLive={(lane, entry) => setGoLive({ entry, lane })}
-              onPatch={patch}
-              onPromote={(lane, entry) => setPromote({ entry, lane })}
-              onReset={resetLane}
-              onSave={buildPreview}
-            />
+            {pricesReady ? (
+              <LanePricing
+                canEditPrice={canEditPrice}
+                currentRow={currentRow}
+                drafts={drafts}
+                laneName={laneShort}
+                laneRatio={laneRatio}
+                lanes={laneSlugs}
+                modelName={view.name}
+                official={official}
+                pools={view.lanePools}
+                saving={isSavingTier}
+                t={t}
+                windowHours={windowHours}
+                onGoLive={(lane, entry) => setGoLive({ entry, lane })}
+                onPatch={patch}
+                onPromote={(lane, entry) => setPromote({ entry, lane })}
+                onReset={resetLane}
+                onSave={buildPreview}
+              />
+            ) : (
+              <div className='mdl-lanes-wait'>
+                <Skeleton height={300} />
+                <Skeleton height={300} />
+              </div>
+            )}
             {problem ? (
               <div className='mo-notice mo-notice--bad' role='alert'>
                 <TriangleAlert aria-hidden='true' size={14} />

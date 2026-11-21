@@ -754,20 +754,19 @@ export default function ModelOpsPage() {
         </>
       )}
 
-      {/* The dialog seeds each lane from its current price, so it waits for
-          the prices: opened early, a priced lane would read as 未开. */}
-      {selected && (!canEditPrice || sellPricesQuery.isSuccess) ? (
+      {/* The dialog opens at once from the ledger row; its lanes wait for
+          the prices (seeded early, a priced lane would read as 未开). */}
+      {selected ? (
         <ModelInspector
           canEditPrice={canEditPrice}
+          pricesReady={!canEditPrice || sellPricesQuery.isSuccess}
           currentRow={currentRow(selected.name)}
           hasNext={
             !isNew && selectedIndex >= 0 && selectedIndex < views.length - 1
           }
           hasPrev={!isNew && selectedIndex > 0}
           isNew={isNew}
-          isSavingTier={
-            savingTier || (canEditPrice && !sellPricesQuery.isSuccess)
-          }
+          isSavingTier={savingTier}
           metaForm={{
             createVendor: async (name: string) =>
               ops.createVendorMutation.mutateAsync(name),
