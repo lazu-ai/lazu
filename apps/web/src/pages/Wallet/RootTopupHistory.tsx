@@ -206,6 +206,7 @@ export function RootTopupHistory({
   return (
     <>
       <Modal
+        className='wal-history-dialog'
         open={open}
         onOpenChange={onOpenChange}
         title={t(`${topupNs}.history.title`)}
