@@ -122,8 +122,15 @@ export function RootTopupHistory({
       {
         header: t(`${topupNs}.history.orderNo`),
         accessorKey: 'trade_no',
+        // Long order numbers end in an ellipsis so the amount and status
+        // columns stay in view; the full number is on hover and in search.
         cell: ({ getValue }) => (
-          <span className='font-mono text-xs'>{String(getValue() || '-')}</span>
+          <span
+            className='block max-w-[16ch] truncate font-mono text-xs'
+            title={String(getValue() || '')}
+          >
+            {String(getValue() || '-')}
+          </span>
         ),
       },
       {
