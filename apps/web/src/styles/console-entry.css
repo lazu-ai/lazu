@@ -9,7 +9,12 @@
  * these into its own stylesheet and this order is the order they apply in.
  *
  * index.tsx imports this after every component stylesheet and after
- * console-review.css, which is where these rules have always landed. */
+ * console-review.css, which is where these rules have always landed.
+ *
+ * fonts.css declares Instrument Serif, the display voice --lazu-font-display
+ * names first; without it the console's headings and large figures fell to
+ * the system serif. */
+@import './fonts.css';
 @import '../index.css';
 @import './brand.generated.css';
 @import './tokens.css';

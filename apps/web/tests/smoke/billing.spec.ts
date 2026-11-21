@@ -2,26 +2,27 @@
 import { expect, test } from '@playwright/test';
 import { expectRouteReady, setupMockedApp, fail } from './helpers/mock-app';
 
-test('legacy billing route redirects to the wallet with real usage data', async ({
+const today = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return {
+    day: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    month: `${now.getFullYear()}-${pad(now.getMonth() + 1)}`,
+  };
+};
+
+test('the bill tab shows the balance, monthly spend and month rows', async ({
   page,
 }) => {
   const app = await setupMockedApp(page);
-  const usageRequest = page.waitForRequest((request) => {
-    const url = new URL(request.url());
-    return url.pathname === '/api/data/dashboard/self';
-  });
-  await page.goto('/console/wallet', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/console\/wallet$/);
-  await usageRequest;
+  await expectRouteReady(page, '/console/wallet?tab=bill');
 
-  await expect(page.locator('.wal-balance-value')).toHaveText('$5.00');
-  // The spend trend is on the page, not behind a disclosure: it explains the
-  // balance above it and the ledger below it.
-  const figures = page.locator('.wal-chart-card__figures');
-  await expect(figures).toContainText('$0.25');
-  await expect(figures).toContainText('请求 5');
-
-  await expect(page.locator('.wal-chart-card__canvas')).toBeVisible();
+  await expect(page.locator('.wal-bill__balance-value')).toHaveText('$5.00');
+  await expect(page.locator('.wal-months__bar')).toHaveCount(6);
+  const current = page.locator('.wal-table-card tbody tr').first();
+  await expect(current).toContainText('本月');
+  await expect(current).toContainText('−0.25');
+  await expect(current).toContainText('5.00');
 
   await app.expectNoUnexpectedErrors();
 });
@@ -29,25 +30,31 @@ test('legacy billing route redirects to the wallet with real usage data', async 
 test('wallet reflows on mobile without horizontal page overflow', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 800, height: 900 });
+  await page.setViewportSize({ width: 375, height: 812 });
   const app = await setupMockedApp(page);
-  await expectRouteReady(page, '/console/wallet');
-
-  await expect(page.locator('.wal-layout')).toBeVisible();
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          document.documentElement.scrollWidth -
-          document.documentElement.clientWidth,
-      ),
-    )
-    .toBeLessThanOrEqual(1);
+  const { month } = today();
+  for (const route of [
+    '/console/wallet',
+    '/console/wallet?tab=bill',
+    `/console/wallet?tab=bill&month=${month}`,
+  ]) {
+    await expectRouteReady(page, route);
+    await expect(page.locator('.wal-body')).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+  }
 
   await app.expectNoUnexpectedErrors();
 });
 
-test('wallet does not present zero usage when the usage request fails', async ({
+test('a day does not present zero usage when the usage request fails', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
@@ -58,16 +65,20 @@ test('wallet does not present zero usage when the usage request fails', async ({
       return undefined;
     },
   });
-  await expectRouteReady(page, '/console/wallet');
+  const { day, month } = today();
+  await expectRouteReady(
+    page,
+    `/console/wallet?tab=bill&month=${month}&day=${day}`,
+  );
 
-  await expect(page.getByText('用量数据加载失败').first()).toBeVisible();
-  const figures = page.locator('.wal-chart-card__figures');
-  await expect(figures).toContainText('消耗 —');
-  await expect(figures).toContainText('请求 —');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('这一天的用量加载失败');
+  await expect(dialog).not.toContainText('0 次请求');
+  await expect(dialog).not.toContainText('这一天没有请求');
   await app.expectNoUnexpectedErrors();
 });
 
-test('wallet separates paid and credited amounts and links a ledger day to logs', async ({
+test('wallet separates paid and credited amounts and links a day to logs', async ({
   page,
 }) => {
   const now = Math.floor(Date.now() / 1000);
@@ -126,10 +137,11 @@ test('wallet separates paid and credited amounts and links a ledger day to logs'
       return undefined;
     },
   });
-  await expectRouteReady(page, '/console/wallet');
+  await expectRouteReady(page, '/console/wallet?tab=bill');
 
-  const ledgerRow = page.locator('.wal-ledger tbody tr').first();
-  await expect(ledgerRow).toContainText('+110.00');
+  const monthRow = page.locator('.wal-table-card tbody tr').first();
+  await expect(monthRow).toContainText('+110.00');
+  await expect(page.locator('.wal-records')).toContainText('110.00');
 
   await page.getByRole('button', { name: '历史记录' }).click();
   const historyDialog = page.getByRole('dialog', { name: '充值记录' });
@@ -138,6 +150,11 @@ test('wallet separates paid and credited amounts and links a ledger day to logs'
   await expect(historyDialog).toContainText('2026-08-02');
   await page.keyboard.press('Escape');
 
+  const { day, month } = today();
+  await expectRouteReady(
+    page,
+    `/console/wallet?tab=bill&month=${month}&day=${day}`,
+  );
   const logRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
     return (
@@ -147,7 +164,7 @@ test('wallet separates paid and credited amounts and links a ledger day to logs'
         Number(url.searchParams.get('start_timestamp'))
     );
   });
-  await ledgerRow.getByRole('link').click();
+  await page.getByRole('dialog').getByRole('link').click();
   await expect(page).toHaveURL(/\/console\/usage\?tab=logs&start_timestamp=/);
   await logRequest;
   await app.expectNoUnexpectedErrors();

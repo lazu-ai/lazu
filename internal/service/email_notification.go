@@ -120,6 +120,9 @@ func SendLowBalanceEmailIfNeeded(user *model.User, balance billing.MicroUSD, thr
 	if !cfg.LowBalanceEnabled {
 		return false, false
 	}
+	if user.GetSetting().LowBalanceOff {
+		return false, true
+	}
 	if threshold <= 0 {
 		threshold = billing.USD(cfg.LowBalanceThresholdUSD)
 	}
