@@ -635,13 +635,6 @@
   width: 100%;
 }
 
-/* Every account's orders: eight columns need more than a form dialog's
-   width. */
-.lazu-modal-content.wal-history-dialog {
-  max-width: min(94vw, 980px);
-  width: 100%;
-}
-
 .wal-topups-dialog__head {
   align-items: center;
   border-bottom: 1px solid var(--lazu-border);
