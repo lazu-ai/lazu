@@ -7,7 +7,7 @@ import {
   Link2,
   X,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -153,6 +153,7 @@ export default function AccountDetail({
   const d = (key: string, defaultValue: string) =>
     t(`page.console.orgs.drawer.${key}`, { defaultValue });
   const [editing, setEditing] = useState<Editing | null>(null);
+  const editingRow = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>('keys');
   const [keyPage, setKeyPage] = useState(1);
 
@@ -288,6 +289,16 @@ export default function AccountDetail({
     setTab('keys');
     setKeyPage(1);
   }, [account?.id]);
+
+  // An opened row takes the focus on its first field, or its first control.
+  useEffect(() => {
+    const box = editingRow.current;
+    if (!editing || !box) return;
+    (
+      box.querySelector<HTMLElement>('.acd-inline :is(input, textarea)') ||
+      box.querySelector<HTMLElement>('.acd-inline button')
+    )?.focus();
+  }, [editing]);
 
   useEffect(() => {
     if (editing) return;
@@ -587,13 +598,17 @@ export default function AccountDetail({
   );
 
   /* An opened row edits in place: its controls take the value's spot, with
-     one 取消 / 保存 pair under them. It is a form, so Enter saves. */
+     one 取消 / 保存 pair under them. It is a form, so Enter saves, except
+     where enterSaves is off (moving money): there the save button is not a
+     submit button, and a form of two fields with none does not submit on
+     Enter. */
   const editBox = (
     body: ReactNode,
     onSave: () => void,
     pending: boolean,
     saveLabel = d('save', '保存'),
     disabled = false,
+    enterSaves = true,
   ) => (
     <form
       className='acd-inline'
@@ -616,8 +631,15 @@ export default function AccountDetail({
           disabled={disabled || pending}
           loading={pending}
           size='sm'
-          type='submit'
+          type={enterSaves ? 'submit' : 'button'}
           variant='primary'
+          onClick={
+            enterSaves
+              ? undefined
+              : () => {
+                  if (!disabled && !pending) onSave();
+                }
+          }
         >
           {saveLabel}
         </Button>
@@ -635,7 +657,12 @@ export default function AccountDetail({
   ) => {
     const open = canEdit && editing === key;
     return (
-      <div className='acd-row' data-editing={open || undefined} key={key}>
+      <div
+        className='acd-row'
+        data-editing={open || undefined}
+        key={key}
+        ref={open ? editingRow : undefined}
+      >
         <div className='acd-row__line'>
           <span className='acd-row__label'>{label}</span>
           {open ? (
@@ -748,6 +775,7 @@ export default function AccountDetail({
         ? d('balance.confirmCredit', '确认加款')
         : d('balance.confirmDebit', '确认扣款')) + adjustShown,
       !adjustAmount.trim() || !adjustReason.trim(),
+      false,
     ),
   );
 
