@@ -2105,7 +2105,9 @@ body:has(.console-review)
 }
 
 .tok-disclosure__end {
+  align-items: center;
   display: inline-flex;
+  gap: 10px;
   margin-left: auto;
 }
 
@@ -2195,7 +2197,7 @@ body:has(.console-review)
   box-shadow: var(--ui-focus-ring);
 }
 
-.tok-create__effort-control {
+.tok-create .tok-create__effort-control {
   width: 100%;
 }
 

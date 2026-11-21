@@ -1460,6 +1460,7 @@ export function TokenFormDrawer({
           ) : null}
         </div>
         <EffortCapControl
+          className='tok-create__effort-control'
           aria-label={t('page.console.token.create.effort', {
             defaultValue: '思考深度上限',
           })}
