@@ -2,7 +2,8 @@
    The head names it; the body reads 资料 as an overview (four figures, then
    pills for what goes in and out, what it can do and what it refuses), and
    线路 as cards side by side, each with its price, margin and sources.
-   编辑资料 swaps the overview for the form; 改价 opens a card in place. */
+   编辑资料 swaps the body for the form (model-edit.css); 改价 opens a card
+   in place. */
 
 @media (min-width: 768px) {
   body .lazu-modal-content.mo-dialog.mdl-dialog:not(.whats-new-panel) {
@@ -231,96 +232,6 @@
 .mdl-none {
   color: var(--lazu-text-muted);
   font-size: 13px;
-}
-
-/* ---- 编辑资料 ------------------------------------------------------------ */
-
-.mdl-edit {
-  padding: 0 24px 22px;
-}
-
-.mdl-edit__head {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  padding-bottom: 14px;
-}
-
-.mdl-edit__body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* The form's sections run as one four-column grid of labelled fields. */
-.mdl-edit .model-ops-form__grid,
-.mdl-edit .model-ops-form__pane {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.mdl-edit .model-ops-form__section-title,
-.mdl-edit .model-ops-form__section-desc {
-  display: none;
-}
-
-.mdl-edit .model-ops-form__fields,
-.mdl-edit .model-ops-form__fields--two-col {
-  display: grid;
-  gap: 14px 16px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.mdl-edit .model-ops-form__fields .lazu-textarea,
-.mdl-edit .model-ops-form__fields > :has(.lazu-textarea) {
-  grid-column: span 2;
-}
-
-.mdl-edit .mo-info {
-  display: grid;
-  gap: 14px 16px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.mdl-edit .mo-info__row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.mdl-edit .mo-info__label {
-  font-size: 12.5px;
-  font-weight: 500;
-}
-
-.mdl-edit .mo-info__src {
-  color: var(--lazu-text-muted);
-  font-size: 12px;
-}
-
-.mdl-edit .mo-info__conflict {
-  grid-column: 1 / -1;
-}
-
-.mdl-edit__foot {
-  align-items: center;
-  border-top: 1px solid var(--lazu-border);
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-  padding-top: 14px;
-}
-
-.mdl-edit__foot .mo-dialog__foot-actions {
-  margin-left: auto;
-}
-
-.mdl-edit__lock {
-  align-items: center;
-  display: inline-flex;
-  font-size: 14px;
-  gap: 8px;
 }
 
 /* ---- 线路 ---------------------------------------------------------------- */
@@ -596,17 +507,11 @@
   .mdl-lanes__grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .mdl-edit .model-ops-form__fields,
-  .mdl-edit .model-ops-form__fields--two-col,
-  .mdl-edit .mo-info {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 767px) {
   .mdl-head,
   .mdl-overview,
-  .mdl-edit,
   .mdl-body__lanes {
     padding-inline: 16px;
   }
@@ -615,15 +520,6 @@
   }
   .mdl-big {
     font-size: 22px;
-  }
-  .mdl-edit .model-ops-form__fields,
-  .mdl-edit .model-ops-form__fields--two-col,
-  .mdl-edit .mo-info {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .mdl-edit .model-ops-form__fields .lazu-textarea,
-  .mdl-edit .model-ops-form__fields > :has(.lazu-textarea) {
-    grid-column: auto;
   }
   .mdl-facts {
     grid-template-columns: minmax(0, 1fr);
@@ -634,44 +530,8 @@
 /* The board sets type at the browser default leading. */
 .mdl-head,
 .mdl-overview,
-.mdl-edit__head,
 .mdl-lanes {
   line-height: normal;
-}
-
-/* Fields line up row by row: a label, then its control, top-aligned. */
-.mdl-edit .lazu-field {
-  align-content: start;
-  gap: 6px;
-}
-
-.mdl-edit .lazu-label,
-.mdl-edit .mo-info__label {
-  color: var(--lazu-ink);
-  font-size: 12.5px;
-  font-weight: 500;
-}
-
-.mdl-edit .lazu-field-message:not(.lazu-field-message--error) {
-  display: none;
-}
-
-.mdl-edit .mo-info__row {
-  align-items: stretch;
-  border-bottom: 0;
-  padding: 0;
-}
-
-.mdl-edit .mo-info__value > .lazu-select-trigger,
-.mdl-edit .mo-info__value > .lazu-input {
-  width: 100%;
-}
-
-.mdl-edit .model-ops-form__capabilities,
-.mdl-edit .model-ops-form__switches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 24px;
 }
 
 @media (max-width: 767px) {

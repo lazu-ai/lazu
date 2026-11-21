@@ -13,7 +13,7 @@ import {
   laneTitle,
 } from './formatters';
 import LanePricing from './LanePricing';
-import ModelInfoPanel from './ModelInfoPanel';
+import ModelEditForm from './ModelEditForm';
 import ModelMetaForm from './ModelMetaForm';
 import ModelOverview from './ModelOverview';
 import './model-detail.css';
@@ -30,7 +30,6 @@ import {
 } from './ratioPricing';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { Checkbox } from '../../components/ui/checkbox';
 import { IconButton } from '../../components/ui/icon-button';
 import { Modal, ModalFrame, ModalTitle } from '../../components/ui/modal';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -131,8 +130,6 @@ export default function ModelInspector({
   const record = view.record as Record<string, unknown>;
   const official = useMemo(() => officialOf(record), [record]);
   const ops = useModelOpsMutations(t);
-  const infoSaveRef = useRef<(() => Promise<boolean>) | null>(null);
-  const [locked, setLocked] = useState(Boolean(record.info_locked));
 
   const [drafts, setDrafts] = useState<Record<string, LaneDraft>>({});
   const [initial, setInitial] = useState<Record<string, LaneDraft>>({});
@@ -169,7 +166,6 @@ export default function ModelInspector({
   useEffect(() => {
     setProblem('');
     setPreview(null);
-    setLocked(Boolean(record.info_locked));
     if (!pricesReady) {
       setDrafts({});
       setInitial({});
@@ -352,8 +348,6 @@ export default function ModelInspector({
   };
 
   const metaFormProps = {
-    beforeSave: async () =>
-      infoSaveRef.current ? infoSaveRef.current() : true,
     createVendor: metaForm.createVendor,
     creatingVendor: metaForm.creatingVendor,
     models: metaForm.models,
@@ -457,63 +451,24 @@ export default function ModelInspector({
           onSaved={onMetaSaved}
           prefillModel={prefillModel}
         />
+      ) : editingInfo ? (
+        <ModelEditForm
+          createVendor={metaForm.createVendor}
+          creatingVendor={metaForm.creatingVendor}
+          key={String(view.id)}
+          models={metaForm.models}
+          t={t}
+          view={view}
+          onCancel={() => onTabChange('pricing')}
+          onDelete={() => onDelete(view)}
+          onSaved={() => {
+            onMetaSaved();
+            onTabChange('pricing');
+          }}
+        />
       ) : (
         <div className='mdl-body'>
-          {editingInfo ? (
-            <section className='mdl-edit'>
-              <div className='mdl-edit__head'>
-                <h3 className='mdl-sec'>
-                  {t(`${ns}.info.overview.edit`, { defaultValue: '编辑资料' })}
-                </h3>
-                <span className='mdl-cap'>
-                  {record.models_dev_id
-                    ? 'models.dev'
-                    : t(`${ns}.info.source.manual`, { defaultValue: '手填' })}
-                </span>
-              </div>
-              <ModelMetaForm
-                {...metaFormProps}
-                editingModel={view.record}
-                footLead={
-                  <label className='mdl-edit__lock'>
-                    <Checkbox
-                      checked={locked}
-                      onCheckedChange={(checked: unknown) =>
-                        setLocked(checked === true)
-                      }
-                    />
-                    {t(`${ns}.info.lockShort`, { defaultValue: '锁定资料' })}
-                  </label>
-                }
-                key={String(view.id)}
-                layout='inline'
-                lead={
-                  <ModelInfoPanel
-                    key={String(view.id)}
-                    locked={locked}
-                    saveRef={infoSaveRef}
-                    t={t}
-                    view={view}
-                  />
-                }
-                onCancel={() => {
-                  setLocked(Boolean(record.info_locked));
-                  onTabChange('pricing');
-                }}
-                onDelete={() => onDelete(view)}
-                onSaved={() => {
-                  onMetaSaved();
-                  onTabChange('pricing');
-                }}
-              />
-            </section>
-          ) : (
-            <ModelOverview
-              t={t}
-              view={view}
-              onEdit={() => onTabChange('info')}
-            />
-          )}
+          <ModelOverview t={t} view={view} onEdit={() => onTabChange('info')} />
 
           <div className='mdl-body__lanes'>
             {view.blockReason ? (

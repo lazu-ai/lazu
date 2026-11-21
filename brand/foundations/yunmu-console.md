@@ -383,8 +383,14 @@ full-screen sheet on a phone), with no tabs.
    (本站改过, 推断, 待确认) and captioned with the upstream value when the sync
    disagrees; then rows of pills for 输入 → 输出 and 能力, unsupported
    parameters as struck, dashed pills, and the official cache price.
-   编辑资料 replaces the overview with the form in place; 锁定资料 sits in
-   the form's footer.
+   编辑资料 replaces the body with the form (board Model C): sections
+   规格, 输入与输出, 能力, 接口 (read-only; endpoint paths folded), 上架,
+   名称与厂商 and 介绍 on the left; on the right the model as the 模型 page
+   shows it (the same facts component) and 本次修改, one line per changed
+   field. One footer: 删除模型 on the left, 取消 and 保存 N 处修改 on the
+   right. Everything saves in one request.
+5. **The dialog has one height** from the first frame. It opens from the
+   ledger row at once; the lane cards are grey blocks until prices load.
 3. **线路 are cards side by side**, two to a row (one on a narrow screen):
    the lane name with 跟随官方价 or 固定价, input, output and margin in 28px,
    a caption with cache prices, the pool's cost and the ratio, then the
@@ -392,7 +398,7 @@ full-screen sheet on a phone), with no tabs.
    weight and latency under it. 改价 opens the card's price and weights in
    place, with 取消 / 保存 at its foot; saving still shows the before/after
    confirmation.
-4. The dialog never explains itself in sentences: figures, badges and labels
+6. The dialog never explains itself in sentences: figures, badges and labels
    only.
 
 ## Locked page-UX revision (2026-10-14)

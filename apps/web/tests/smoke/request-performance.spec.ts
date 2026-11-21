@@ -130,9 +130,15 @@ test('model metadata cannot save while its deferred options are unanswered', asy
       .getByRole('dialog')
       .getByRole('button', { name: '编辑资料', exact: true })
       .click();
+    // One edit, so the save has something to send.
+    await page
+      .getByRole('dialog')
+      .getByRole('group', { name: '能力', exact: true })
+      .getByRole('button', { name: '联网搜索', exact: true })
+      .click();
     const save = page
       .getByRole('dialog')
-      .getByRole('button', { name: '保存', exact: true });
+      .getByRole('button', { name: '保存 1 处修改', exact: true });
     await expect(save).toBeDisabled();
     release();
     await expect(save).toBeEnabled();
