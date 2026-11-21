@@ -411,22 +411,24 @@ function TopupRecordContent({
     );
     const note = !record
       ? null
-      : notPaid || !paid
-        ? [statusLine, hint]
-        : [
-            record.paid_amount_microusd === 0
-              ? t(`${ns}.receiptNone`)
-              : record.invoice_status === 'legacy'
-                ? t(`${ns}.receiptLegacy`)
-                : null,
-            record.invoice_ready
-              ? null
-              : record.invoice_status === 'failed'
-                ? t(`${ns}.invoiceFailed`)
+      : notPaid
+        ? [statusLine]
+        : !paid
+          ? [statusLine, hint]
+          : [
+              record.paid_amount_microusd === 0
+                ? t(`${ns}.receiptNone`)
                 : record.invoice_status === 'legacy'
-                  ? null
-                  : t(`${ns}.invoicePending`),
-          ];
+                  ? t(`${ns}.receiptLegacy`)
+                  : null,
+              record.invoice_ready
+                ? null
+                : record.invoice_status === 'failed'
+                  ? t(`${ns}.invoiceFailed`)
+                  : record.invoice_status === 'legacy'
+                    ? null
+                    : t(`${ns}.invoicePending`),
+            ];
     const noteParts = (note || []).filter(Boolean);
     return (
       <div
