@@ -784,3 +784,105 @@ test('undoing a lane deletion from its toast keeps the lanes dialog open', async
   await expect(dialog).toContainText('试用档');
   expect(deletes).toHaveLength(0);
 });
+
+test('编辑资料 sends the facts and the fields in one save', async ({
+  page,
+}) => {
+  const puts: Array<Record<string, unknown>> = [];
+  let infoWrites = 0;
+  const app = await setupMockedApp(page, {
+    consoleScope: 'platform:operations',
+    payloadFor: (url, request) => {
+      const { pathname } = new URL(url);
+      if (pathname === '/api/model_info/model') {
+        infoWrites++;
+        return { success: true, message: '', data: {} };
+      }
+      if (pathname === '/api/models/' && request.method() === 'PUT') {
+        puts.push(request.postDataJSON());
+        return { success: true, message: '', data: {} };
+      }
+      if (pathname === '/api/models/1' && request.method() === 'GET') {
+        return {
+          success: true,
+          message: '',
+          data: {
+            capabilities: { supports_function_calling: true },
+            context_length: 128000,
+            endpoints: '["openai"]',
+            id: 1,
+            lifecycle_status: 'active',
+            maker: 'openai',
+            max_output_tokens: 16384,
+            modalities: { input: ['text'], output: ['text'] },
+            model_name: 'gpt-4o-mini',
+            release_date: '2024-07-18',
+            status: 1,
+            sync_official: 1,
+            vendor_id: 1,
+          },
+        };
+      }
+      return undefined;
+    },
+  });
+  await expectRouteReady(page, '/console/model-ops?model=1&panel=info');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('发布日期').fill('2024-07-19');
+  await dialog.getByLabel('最大输出').fill('32,768');
+  await dialog
+    .getByRole('group', { name: '输入', exact: true })
+    .getByRole('button', { name: '图片', exact: true })
+    .click();
+  await expect(dialog.locator('.mdl-changes li')).toHaveCount(3);
+  await dialog
+    .getByRole('button', { name: '保存 3 处修改', exact: true })
+    .click();
+
+  await expect.poll(() => puts.length).toBe(1);
+  expect(puts[0]).toMatchObject({
+    // The derived interface list is not stored back as an override.
+    endpoints: '',
+    max_output_tokens: 32768,
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    release_date: '2024-07-19',
+  });
+  expect(infoWrites).toBe(0);
+  await app.expectNoUnexpectedErrors();
+});
+
+test('the model dialog opens before the sell prices, with its lanes waiting', async ({
+  page,
+}) => {
+  let release = () => {};
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await setupMockedApp(page, { consoleScope: 'platform:operations' });
+  await page.route('**/api/pricing/sell_prices*', async (route) => {
+    await pending;
+    await route.fallback();
+  });
+  try {
+    await expectRouteReady(page, '/console/model-ops');
+    await page
+      .locator('.mo-ledger__row', { hasText: 'gpt-4o-mini' })
+      .locator('.mo-name')
+      .first()
+      .click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('.mdl-lanes-wait')).toBeVisible();
+    await expect(dialog).not.toContainText('未开');
+    // Layout height: the box also carries the open animation's scale.
+    const height = () =>
+      dialog.evaluate((element) => (element as HTMLElement).offsetHeight);
+    const before = await height();
+    release();
+    await expect(dialog.locator('.mdl-lanes-wait')).toHaveCount(0);
+    await expect(dialog).toContainText('稳定档');
+    await expect(dialog).toContainText('便宜档');
+    expect(await height()).toBe(before);
+  } finally {
+    release();
+  }
+});

@@ -56,6 +56,13 @@ const tokens = (value: unknown) => {
 };
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
+const safeJson = (value: unknown): unknown => {
+  try {
+    return JSON.parse(String(value ?? ''));
+  } catch {
+    return null;
+  }
+};
 const listOf = (value: unknown) =>
   Array.isArray(value) ? value.map(String) : [];
 
@@ -312,6 +319,17 @@ export default function ModelEditForm({
     // made; only a real change is written (and then marked 手填).
     if (!detail.maker && next.maker === String(detail.maker_resolved || ''))
       next.maker = '';
+    // "200,000" is how a window reads; the API takes digits.
+    next.context_window = digits(next.context_window);
+    next.max_tokens = digits(next.max_tokens);
+    // The server fills an empty endpoints value with the list it derives
+    // from the sources. Sent back untouched, that list would be stored as
+    // if it were an override, so it goes back as empty.
+    if (
+      same(next.endpoints, loaded?.endpoints) &&
+      Array.isArray(safeJson(next.endpoints))
+    )
+      next.endpoints = '';
     await models.saveModelMutation.mutateAsync({
       editingModel: record,
       values: next,
