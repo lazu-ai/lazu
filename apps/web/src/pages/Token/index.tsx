@@ -999,9 +999,6 @@ const Token = () => {
         className='token-page-table console-review'
         t={t}
         title={t('page.console.token.title')}
-        description={t('page.console.token.subtitle', {
-          defaultValue: '一把 Key，接到任何工具',
-        })}
         isFetching={tokens.isFetching}
         onRefresh={tokens.refresh}
         summary={<AccessAddressStrip t={t} />}

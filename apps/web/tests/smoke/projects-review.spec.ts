@@ -270,9 +270,7 @@ test('Key edit preserves full policy and updates monthly cap', async ({
   await page.locator('#token-name').fill('Updated key');
   await expect(page.locator('#token-quota')).toHaveValue('20');
   await page.locator('#token-quota').fill('30');
-  await page
-    .getByRole('button', { name: 'More settings', exact: true })
-    .click();
+  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   await page
     .getByPlaceholder('e.g. Claude Code on my Mac')
     .fill('updated note');
@@ -487,10 +485,7 @@ test('member edit dialog saves budget, allowed models and effort cap together', 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Edit Noor');
   await dialog.locator('.pj-budget-picker input').fill('77');
-  await dialog
-    .getByRole('radiogroup', { name: 'Thinking depth cap' })
-    .getByRole('radio', { name: 'low', exact: true })
-    .click();
+  await dialog.locator('.lazu-effort__word[data-level="low"]').click();
   await dialog.getByRole('button', { name: 'Allowed models' }).click();
   await page.locator('.pj-medit__opt').first().click();
   await page.keyboard.press('Escape');
@@ -819,10 +814,7 @@ test('project settings save the new-member effort cap on click', async ({
     }
   });
   await page.goto('/console/project/settings');
-  await page
-    .getByRole('radiogroup', { name: 'Thinking depth cap' })
-    .getByRole('radio', { name: 'medium', exact: true })
-    .click();
+  await page.locator('.lazu-effort__word[data-level="medium"]').click();
   await expect
     .poll(() => settings)
     .toEqual({
@@ -2109,18 +2101,19 @@ for (const fails of [false, true]) {
     await page.goto('/console/project/settings');
     const field = page.getByTestId('project-effort-setting');
     await expect(field.locator('.lazu-pending-block')).toBeVisible();
-    await expect(field.getByRole('radiogroup')).toHaveCount(0);
+    await expect(field.getByRole('slider')).toHaveCount(0);
     const before = await field.boundingBox();
     release();
     if (fails) {
       await expect(
         page.getByRole('button', { name: 'Retry', exact: true }),
       ).toBeVisible();
-      await expect(field.getByRole('radiogroup')).toHaveCount(0);
+      await expect(field.getByRole('slider')).toHaveCount(0);
     } else {
-      await expect(
-        field.getByRole('radio', { name: 'low', exact: true }),
-      ).toHaveAttribute('aria-checked', 'true');
+      await expect(field.getByRole('slider')).toHaveAttribute(
+        'aria-valuetext',
+        'low',
+      );
       const after = await field.boundingBox();
       expect(after?.width).toBe(before?.width);
       expect(after?.height).toBe(before?.height);

@@ -8,6 +8,7 @@ import ModelScopeTable, {
   scopeLimits,
   scopeModeOf,
   scopeNames,
+  scopeReach,
   type ScopeMode,
 } from './ModelScopeTable';
 import { isLegacyKey, shortKeyLabel } from './tokenKeyLabel';
@@ -641,9 +642,6 @@ export function TokenFormDrawer({
   });
   const values = form.watch();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [lastRestrictedMode, setLastRestrictedMode] = useState<
-    'only' | 'except'
-  >('only');
   /* Closing with unsaved changes — 取消, 关闭, Escape, a tap outside or a
      swipe down — turns the footer into 「有 N 处修改还没保存」 instead. */
   const [discardAsk, setDiscardAsk] = useState(false);
@@ -686,17 +684,12 @@ export function TokenFormDrawer({
         ...editValues,
       } as TokenFormInput);
       setExpiryChoice(editValues.expires_never ? 'never' : 'custom');
-      const editLimits = Array.isArray(editValues.model_limits)
-        ? editValues.model_limits.map(String)
-        : [];
-      setLastRestrictedMode(editLimits.includes('*') ? 'except' : 'only');
       return;
     }
     if (!isEdit) {
       form.reset(defaultValues as TokenFormInput);
       setMoreOpen(false);
       setExpiryChoice('never');
-      setLastRestrictedMode('only');
     }
   }, [defaultValues, editValues, form, isEdit, open]);
 
@@ -740,6 +733,35 @@ export function TokenFormDrawer({
           }),
         });
         return;
+      }
+      if (formValues.model_limits_enabled) {
+        const limits = formValues.model_limits.map(String);
+        const mode = limits.includes('*') ? 'except' : 'only';
+        const reach = scopeReach(
+          mode,
+          limits,
+          formValues.model_scope_vendors.map(String),
+          tokens.modelOptions,
+          tokens.vendorOptions.models,
+        );
+        if (reach === 0) {
+          form.setError('model_limits', {
+            type: 'manual',
+            message: t('page.console.token.scope.emptyOnly', {
+              defaultValue: '至少保留一个模型',
+            }),
+          });
+          return;
+        }
+        // Switched on with nothing unticked is every model: save it as off.
+        if (mode === 'except' && scopeNames(limits).length === 0) {
+          await save({
+            ...formValues,
+            model_limits_enabled: false,
+            model_limits: [],
+          });
+          return;
+        }
       }
       await save(formValues);
     },
@@ -818,29 +840,26 @@ export function TokenFormDrawer({
     rawLimits,
   );
   const scopeOpen = currentScopeMode !== 'all';
-  const activeRestrictedMode: 'only' | 'except' =
-    currentScopeMode === 'all' ? lastRestrictedMode : currentScopeMode;
-  const pickedScopeNames = scopeNames(rawLimits);
-  const pickedScopeCount =
-    activeRestrictedMode === 'only' && rawScopeVendors.length > 0
-      ? new Set([
-          ...pickedScopeNames,
-          ...tokens.vendorOptions.models
-            .filter(
-              (fact) =>
-                fact.vendorID &&
-                rawScopeVendors.includes(String(fact.vendorID)),
-            )
-            .map((fact) => fact.model),
-        ]).size
-      : pickedScopeNames.length;
+  /* New scopes exclude ("every model but these"), so models added later stay
+     usable. A Key saved with an allowlist keeps it, even while switched off,
+     so switching back on does not turn its picks into exclusions. */
+  const restrictedMode: 'only' | 'except' =
+    rawLimits.length > 0 && !rawLimits.includes('*') ? 'only' : 'except';
+  const scopeTotal = tokens.modelOptions.length;
+  const scopeReachCount = scopeReach(
+    restrictedMode,
+    rawLimits,
+    rawScopeVendors,
+    tokens.modelOptions,
+    tokens.vendorOptions.models,
+  );
 
   const toggleScopeOpen = (nextOpen: boolean) => {
     form.setValue('model_limits_enabled', nextOpen, { shouldDirty: true });
     if (nextOpen) {
       form.setValue(
         'model_limits',
-        scopeLimits(activeRestrictedMode, pickedScopeNames),
+        scopeLimits(restrictedMode, scopeNames(rawLimits)),
         { shouldDirty: true },
       );
     } else if (form.formState.errors.model_limits) {
@@ -866,7 +885,7 @@ export function TokenFormDrawer({
           defaultValue: '限流',
         })}
         hint={t('page.console.token.form.rateLimitSectionHint', {
-          defaultValue: '按账户档位的上限折算',
+          defaultValue: '不超过账户上限',
         })}
         control={
           <Controller
@@ -899,7 +918,7 @@ export function TokenFormDrawer({
                   : 'projects.key.form.alertHint',
               )
             : t('page.console.token.form.usageAlertHint', {
-                defaultValue: '额度用到阈值时发一封邮件',
+                defaultValue: '用到设定比例时邮件提醒',
               })
         }
         control={
@@ -1041,9 +1060,6 @@ export function TokenFormDrawer({
 
       <MoreSection
         title={t('page.console.token.form.note', { defaultValue: '备注' })}
-        hint={t('page.console.token.form.noteHint', {
-          defaultValue: '给同事看的一句话',
-        })}
       >
         <Input
           placeholder={t('page.console.token.form.notePlaceholder', {
@@ -1054,12 +1070,7 @@ export function TokenFormDrawer({
       </MoreSection>
 
       {!isEdit && !team ? (
-        <MoreSection
-          title={t('legacy.i18n.new_quantity.0859dc5a65')}
-          hint={t(
-            'legacy.i18n.when_creating_in_batches_a_random_suffix_will_be_automatically_a.97f8747f02',
-          )}
-        >
+        <MoreSection title={t('legacy.i18n.new_quantity.0859dc5a65')}>
           <Input
             aria-describedby={
               form.formState.errors.tokenCount ? 'token-count-error' : undefined
@@ -1176,18 +1187,14 @@ export function TokenFormDrawer({
                   })}
             {changedTag('quota')}
           </label>
-          <span className='tok-create__hint'>
-            {isEdit && !team && quotaDisplay
-              ? t('page.console.token.form.quotaUsedHint', {
-                  defaultValue: '已用 {{used}} · 用完即停',
-                  used: formatMoney(quotaDisplay.used),
-                })
-              : team
-                ? null
-                : t('page.console.token.create.quotaHint', {
-                    defaultValue: '用完即停',
-                  })}
-          </span>
+          {isEdit && !team && quotaDisplay ? (
+            <span className='tok-create__hint'>
+              {t('page.console.token.form.quotaUsedHint', {
+                defaultValue: '已用 {{used}}',
+                used: formatMoney(quotaDisplay.used),
+              })}
+            </span>
+          ) : null}
         </div>
         <div className='tok-create__row'>
           <div className='tok-create__money'>
@@ -1411,40 +1418,6 @@ export function TokenFormDrawer({
           </div>
         </div>
 
-        <div className='tok-create__field'>
-          <div className='tok-create__head'>
-            <span className='tok-create__label' id='tok-effort-label'>
-              {t('page.console.token.create.effort', {
-                defaultValue: '思考深度',
-              })}
-            </span>
-            {team &&
-            effortRank(team.memberEffortCap) < EFFORT_LEVELS.length - 1 ? (
-              <span className='tok-create__hint'>
-                {t('page.console.token.create.effortMemberCap', {
-                  defaultValue: '{{name}} 的上限 ≤ {{cap}}',
-                  name: team.memberName ?? '',
-                  cap: team.memberEffortCap,
-                })}
-              </span>
-            ) : null}
-          </div>
-          <EffortCapControl
-            aria-label={t('page.console.token.create.effort', {
-              defaultValue: '思考深度',
-            })}
-            ceiling={team?.memberEffortCap}
-            onChange={(next) =>
-              form.setValue('reasoning_effort_cap', next, { shouldDirty: true })
-            }
-            size='md'
-            value={lowerEffortCap(
-              String(values.reasoning_effort_cap || ''),
-              team?.memberEffortCap,
-            )}
-          />
-        </div>
-
         {expiryChoice === 'custom' ? (
           <div className='tok-create__split-full'>
             <Controller
@@ -1468,6 +1441,40 @@ export function TokenFormDrawer({
         ) : null}
       </div>
 
+      <div className='tok-create__field tok-create__effort'>
+        <div className='tok-create__head'>
+          <span className='tok-create__label' id='tok-effort-label'>
+            {t('page.console.token.create.effort', {
+              defaultValue: '思考深度上限',
+            })}
+          </span>
+          {team &&
+          effortRank(team.memberEffortCap) < EFFORT_LEVELS.length - 1 ? (
+            <span className='tok-create__hint'>
+              {t('page.console.token.create.effortMemberCap', {
+                defaultValue: '{{name}} 的上限 ≤ {{cap}}',
+                name: team.memberName ?? '',
+                cap: team.memberEffortCap,
+              })}
+            </span>
+          ) : null}
+        </div>
+        <EffortCapControl
+          aria-label={t('page.console.token.create.effort', {
+            defaultValue: '思考深度上限',
+          })}
+          ceiling={team?.memberEffortCap}
+          onChange={(next) =>
+            form.setValue('reasoning_effort_cap', next, { shouldDirty: true })
+          }
+          size='md'
+          value={lowerEffortCap(
+            String(values.reasoning_effort_cap || ''),
+            team?.memberEffortCap,
+          )}
+        />
+      </div>
+
       {tokenLaneVendors.length ? (
         <div className='tok-create__field'>
           <div className='tok-create__head'>
@@ -1478,7 +1485,7 @@ export function TokenFormDrawer({
               {team
                 ? t('projects.key.form.laneHint')
                 : t('page.console.token.create.laneHint', {
-                    defaultValue: 'Agent 仅限对应编程客户端',
+                    defaultValue: 'Agent 专线仅限编程客户端',
                   })}
             </span>
           </div>
@@ -1517,10 +1524,10 @@ export function TokenFormDrawer({
                       >
                         {value === 'direct'
                           ? t('page.console.token.form.laneDirect', {
-                              defaultValue: '稳定',
+                              defaultValue: '标准',
                             })
                           : t('page.console.token.form.laneCheap', {
-                              defaultValue: 'Agent',
+                              defaultValue: 'Agent 专线',
                             })}
                       </button>
                     ))}
@@ -1542,29 +1549,25 @@ export function TokenFormDrawer({
           >
             <span className='tok-disclosure__title'>
               {t('page.console.token.scope.title', {
-                defaultValue: '限制模型',
+                defaultValue: '可用模型',
               })}
-            </span>
-            <span className='tok-disclosure__caption'>
-              {scopeOpen
-                ? activeRestrictedMode === 'except'
-                  ? t('page.console.token.scope.captionExcept', {
-                      count: pickedScopeCount,
-                      defaultValue: '排除 {{count}} 个',
-                    })
-                  : t('page.console.token.scope.captionOnly', {
-                      count: pickedScopeCount,
-                      defaultValue: '已选 {{count}} 个',
-                    })
-                : t('page.console.token.scope.captionAll', {
-                    defaultValue: '默认全部可用',
-                  })}
             </span>
           </button>
           <span className='tok-disclosure__end'>
+            <span className='tok-disclosure__caption tok-scope2__reach'>
+              {scopeOpen
+                ? t('page.console.token.scope.captionReach', {
+                    count: scopeReachCount,
+                    total: scopeTotal,
+                    defaultValue: '可用 {{count}} / {{total}}',
+                  })
+                : t('page.console.token.scope.captionAll', {
+                    defaultValue: '全部',
+                  })}
+            </span>
             <Switch
               aria-label={t('page.console.token.scope.title', {
-                defaultValue: '限制模型',
+                defaultValue: '可用模型',
               })}
               checked={scopeOpen}
               onCheckedChange={toggleScopeOpen}
@@ -1578,12 +1581,11 @@ export function TokenFormDrawer({
               facts={tokens.vendorOptions.models}
               invalid={Boolean(form.formState.errors.model_limits)}
               limits={rawLimits}
-              mode={activeRestrictedMode}
+              mode={restrictedMode}
               models={tokens.modelOptions}
               t={t}
               vendors={rawScopeVendors}
               onChange={(next) => {
-                if (next.mode !== 'all') setLastRestrictedMode(next.mode);
                 form.setValue('model_limits_enabled', next.mode !== 'all', {
                   shouldDirty: true,
                 });
@@ -1615,12 +1617,12 @@ export function TokenFormDrawer({
           onClick={() => setMoreOpen((current) => !current)}
         >
           <span className='tok-disclosure__title'>
-            {t('page.console.token.create.more', { defaultValue: '更多设置' })}
+            {t('page.console.token.create.more', { defaultValue: '高级设置' })}
           </span>
           {!team && (
             <span className='tok-disclosure__caption tok-create__more-hint'>
               {t('page.console.token.create.moreHint', {
-                defaultValue: '限流 · 预警 · IP · 备注',
+                defaultValue: '限流 · 用量提醒 · IP · 备注',
               })}
             </span>
           )}
@@ -1780,7 +1782,7 @@ export function TokenFormDrawer({
                       defaultValue: '创建密钥',
                     })
                   : t('page.console.token.create.submit', {
-                      defaultValue: '创建并接入',
+                      defaultValue: '创建',
                     })}
             </Button>
           </div>

@@ -40,10 +40,12 @@ it('renders inherited levels above the member ceiling as unavailable', () => {
     }),
   );
   for (const level of ['high', 'xhigh', 'max']) {
-    const button = html.match(
-      new RegExp(`<button[^>]*>${level}</button>`),
+    const stop = html.match(
+      new RegExp(`<i[^>]*data-level="${level}"[^>]*>`),
     )?.[0];
-    expect(button).toContain('data-state="out"');
-    expect(button).toContain('disabled=""');
+    expect(stop).toContain('data-state="out"');
   }
+  // The cap reads at the ceiling, and the slider cannot go past it.
+  expect(html).toContain('aria-valuenow="2"');
+  expect(html).toContain('aria-valuemax="2"');
 });
