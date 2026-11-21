@@ -295,10 +295,9 @@ export default function AccountDetail({
     const box = editingRow.current;
     if (!editing || !box) return;
     (
-      box.querySelector<HTMLElement>('.acd-inline :is(input, textarea)') ||
       box.querySelector<HTMLElement>(
-        '.acd-inline :is(button, [role="switch"], [tabindex="0"])',
-      )
+        '.acd-inline :is(input, textarea):not(:disabled)',
+      ) || box.querySelector<HTMLElement>('.acd-inline button:not(:disabled)')
     )?.focus();
   }, [editing]);
 
