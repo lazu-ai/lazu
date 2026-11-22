@@ -164,9 +164,19 @@ export type AccountKeyOperationalState =
   | 'enabled'
   | 'expired';
 
-export type DailySpendPoint = {
+type DailyUsagePoint = {
   amount_microusd?: number;
   bucket?: number;
+  error_count?: number;
+  request_count?: number;
+};
+
+type DailyUsage = {
+  amount_microusd: number;
+  error_count: number;
+  request_count: number;
+  /** Unix seconds of the UTC midnight that starts the day. */
+  start: number;
 };
 
 export type AdjacentAccountTarget =
@@ -210,20 +220,6 @@ export const adjacentAccountTarget = (
 
 export const usd = (micro?: number | null) =>
   micro == null ? '—' : `$${(micro / 1_000_000).toFixed(2)}`;
-
-/** Storage bytes as an operator reads them: 0 B, 512 KB, 1.5 MB, 10 GB. */
-export const formatStorageBytes = (bytes?: number | null) => {
-  const value = Number(bytes ?? 0);
-  if (!Number.isFinite(value) || value <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(
-    Math.floor(Math.log(value) / Math.log(1024)),
-    units.length - 1,
-  );
-  const scaled = value / 1024 ** index;
-  const text = Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1);
-  return `${text} ${units[index]}`;
-};
 
 export const int = (value?: number | null) =>
   value == null ? '—' : value.toLocaleString();
@@ -352,35 +348,45 @@ export const providerLabel = (provider: string): string => {
   return map[provider.toLowerCase()] || provider;
 };
 
-/** Build the fixed 30-day sparkline promised by the drawer label.
- * Missing API buckets are represented as zero instead of collapsing the
- * chart's horizontal time scale. */
-export const buildDailySpendSeries = (
-  records: DailySpendPoint[],
+/** The last 30 UTC days, oldest first, as the usage dashboard buckets them.
+ * Days the API has no bucket for read as zero, so the bars keep one fixed
+ * time scale; buckets that land on the same day are added up. */
+export const buildDailyUsage = (
+  records: DailyUsagePoint[],
   endUnixSeconds = Math.floor(Date.now() / 1000),
-): number[] => {
-  const end = new Date(endUnixSeconds * 1000);
-  end.setUTCHours(0, 0, 0, 0);
-  const buckets = new Map<string, number>();
+): DailyUsage[] => {
+  const DAY = 86_400;
+  const today = Math.floor(endUnixSeconds / DAY) * DAY;
+  const byDay = new Map<number, DailyUsage>();
+  const add = (value: unknown) => {
+    const number = Number(value || 0);
+    return Number.isFinite(number) ? number : 0;
+  };
   for (const record of records) {
-    const timestamp = Number(record.bucket || 0);
-    if (!Number.isFinite(timestamp) || timestamp <= 0) continue;
-    const date = new Date(
-      timestamp > 10_000_000_000 ? timestamp : timestamp * 1000,
-    );
-    date.setUTCHours(0, 0, 0, 0);
-    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`;
-    const amount = Number(record.amount_microusd || 0);
-    buckets.set(
-      key,
-      (buckets.get(key) || 0) + (Number.isFinite(amount) ? amount : 0),
-    );
+    const raw = Number(record.bucket || 0);
+    if (!Number.isFinite(raw) || raw <= 0) continue;
+    const seconds = raw > 10_000_000_000 ? Math.floor(raw / 1000) : raw;
+    const start = Math.floor(seconds / DAY) * DAY;
+    const day = byDay.get(start) || {
+      amount_microusd: 0,
+      error_count: 0,
+      request_count: 0,
+      start,
+    };
+    day.amount_microusd += add(record.amount_microusd);
+    day.error_count += add(record.error_count);
+    day.request_count += add(record.request_count);
+    byDay.set(start, day);
   }
-
   return Array.from({ length: 30 }, (_, index) => {
-    const date = new Date(end);
-    date.setUTCDate(end.getUTCDate() - (29 - index));
-    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`;
-    return buckets.get(key) || 0;
+    const start = today - (29 - index) * DAY;
+    return (
+      byDay.get(start) || {
+        amount_microusd: 0,
+        error_count: 0,
+        request_count: 0,
+        start,
+      }
+    );
   });
 };

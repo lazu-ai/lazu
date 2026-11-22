@@ -13,9 +13,6 @@ exports src/components/announcements/whatsNewAutoOpen.ts WHATS_NEW_AUTO_OPEN_DAY
 exports src/components/auth/AuthExits.tsx default
 exports src/components/auth/AuthLayout.tsx AuthMark
 exports src/components/auth/DoorSkeleton.tsx markDoorEntry
-exports src/components/charts/mini.tsx DistBar
-exports src/components/charts/mini.tsx Donut
-exports src/components/charts/mini.tsx HeatStrip
 exports src/components/common/DocumentRenderer/legal-outline.ts plainHeadingText
 exports src/components/dashboard/time-picker-v3.tsx DEFAULT_PRESET_ID
 exports src/components/dashboard/time-picker-v3.tsx rangeToDates
@@ -187,7 +184,6 @@ types src/pages/ModelOps/ratioPricing.ts DraftProblem
 types src/pages/ModelOps/sellPrices.ts OptionalNumberResult
 types src/pages/Organizations/account-model.ts AccountKeyOperationalState
 types src/pages/Organizations/account-model.ts AdjacentAccountTarget
-types src/pages/Organizations/account-model.ts DailySpendPoint
 types src/pages/Routes/catalog.ts DiscountMark
 types src/pages/Routes/catalog.ts HeroPrice
 types src/pages/Setting/settingInvalid.ts SettingInvalid

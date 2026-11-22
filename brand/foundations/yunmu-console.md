@@ -144,6 +144,25 @@ Price factor and cumulative top-up are shown as evidence from existing
 contracts. Tier, balance, access and role changes use the registered endpoints;
 destructive or permission-changing actions require confirmation.
 
+**Account detail dialog (2026-11-20).** The drawer is replaced by one
+centred dialog, 1160 px wide, laid out in two columns:
+
+1. The left column is 380 px on a faintly tinted ground. It holds the avatar
+   with previous, next and copy-link, then the name, email and last activity,
+   and badges for role, status and low balance. One row follows per setting
+   (余额, 专属折扣, 速率, 接入地址, 显示名称, 备注): label, value, a caption,
+   and one text action. That action opens the row's fields on a quiet panel
+   in place, with 取消 and 保存. The account actions sit at the column's foot.
+2. The right column is the last 30 days: three figures, a bar per UTC day
+   whose tooltip gives requests and errors, and spend by model. Tabs follow
+   for API Keys, the ledger and sessions. An order still waiting for payment
+   is a tinted row at the top of the ledger with 补单, which confirms the
+   amount, method and order number before crediting.
+3. A rate row carries a gauge of the 30-day peak against the effective
+   limit. The gauge is warning-coloured from 60 % and danger-coloured from
+   90 %.
+4. On a phone the dialog is a full-screen sheet and the columns stack.
+
 ## Locked settings surfaces (2026-08-27)
 
 The selected production direction is option 1 from
