@@ -526,7 +526,7 @@ func TestManualModelInfoEditsRetireOnlyChangedProposals(t *testing.T) {
 	}
 	after := before
 	after.Maker, after.ReleaseDate = "anthropic", "2026-09-01"
-	if err := model.ApplyModelInfoEdits(before, after, map[string]json.RawMessage{"maker": json.RawMessage(`"anthropic"`), "release_date": json.RawMessage(`"2026-09-01"`)}); err != nil {
+	if err := after.UpdateWithModelInfo(map[string]json.RawMessage{"maker": json.RawMessage(`"anthropic"`), "release_date": json.RawMessage(`"2026-09-01"`)}); err != nil {
 		t.Fatal(err)
 	}
 	for i := range rows {

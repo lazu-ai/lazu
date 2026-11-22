@@ -36,7 +36,7 @@ const capabilityEntries = (capabilities?: Record<string, boolean>) =>
     .filter(([, enabled]) => enabled)
     .map(([name]) => name.replace(/^supports_/, '').replaceAll('_', ' '));
 
-export type IconComponent = ComponentType<{ size?: number | string }>;
+type IconComponent = ComponentType<{ size?: number | string }>;
 
 const CAPABILITY_ICONS: Record<string, IconComponent> = {
   'audio input': Mic,

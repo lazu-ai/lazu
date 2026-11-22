@@ -220,7 +220,7 @@ func (mi *Model) updateDB(db *gorm.DB) error {
 }
 
 // ModelInfoColumns are written only through the model-info paths
-// (ApplyModelInfoEdits, the models.dev sync), never by a whole-record update:
+// (UpdateWithModelInfo, the models.dev sync), never by a whole-record update:
 // a form that predates a column would otherwise blank it.
 var ModelInfoColumns = []string{
 	"maker", "release_date", "knowledge_cutoff", "input_limit", "modalities",

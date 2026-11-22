@@ -789,15 +789,10 @@ test('编辑资料 sends the facts and the fields in one save', async ({
   page,
 }) => {
   const puts: Array<Record<string, unknown>> = [];
-  let infoWrites = 0;
   const app = await setupMockedApp(page, {
     consoleScope: 'platform:operations',
     payloadFor: (url, request) => {
       const { pathname } = new URL(url);
-      if (pathname === '/api/model_info/model') {
-        infoWrites++;
-        return { success: true, message: '', data: {} };
-      }
       if (pathname === '/api/models/' && request.method() === 'PUT') {
         puts.push(request.postDataJSON());
         return { success: true, message: '', data: {} };
@@ -847,7 +842,6 @@ test('编辑资料 sends the facts and the fields in one save', async ({
     modalities: { input: ['text', 'image'], output: ['text'] },
     release_date: '2024-07-19',
   });
-  expect(infoWrites).toBe(0);
   await app.expectNoUnexpectedErrors();
 });
 

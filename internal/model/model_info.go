@@ -434,15 +434,9 @@ func (m *Model) UpdateWithModelInfo(sent map[string]json.RawMessage) error {
 	})
 }
 
-// ApplyModelInfoEdits writes the model-info fields an edit form sent (the
+// applyModelInfoEditsDB writes the model-info fields an edit form sent (the
 // whole-record update skips them) and marks every fact the operator changed
 // as manual, so the daily sync proposes rather than overwrites it.
-func ApplyModelInfoEdits(before, after Model, sent map[string]json.RawMessage) error {
-	return CoreDB().Transaction(func(tx *gorm.DB) error {
-		return applyModelInfoEditsDB(tx, before, after, sent)
-	})
-}
-
 func applyModelInfoEditsDB(tx *gorm.DB, before, after Model, sent map[string]json.RawMessage) error {
 	updates := map[string]interface{}{}
 	if err := NormalizeModelInfo(&after); err != nil {

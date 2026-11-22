@@ -40,7 +40,7 @@ type SelectOption = {
   value: OptionValue;
 };
 
-export type CapabilityKey =
+type CapabilityKey =
   | 'supports_audio_input'
   | 'supports_audio_output'
   | 'supports_computer_use'
