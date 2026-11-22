@@ -167,12 +167,17 @@ export function PaymentAdminTools() {
                 </a>
                 <div className='mt-3 flex gap-2'>
                   <Button
+                    variant='secondary'
                     disabled={busy}
                     onClick={() => void resolveDispute(item, 'won')}
                   >
                     {t(`${ns}.markWon`)}
                   </Button>
-                  <Button disabled={busy} onClick={() => setPendingLoss(item)}>
+                  <Button
+                    variant='secondary'
+                    disabled={busy}
+                    onClick={() => setPendingLoss(item)}
+                  >
                     {t(`${ns}.markLost`)}
                   </Button>
                 </div>
@@ -245,6 +250,7 @@ export function PaymentAdminTools() {
         }
         footer={
           <Button
+            variant='secondary'
             disabled={!reconcileTopupId.trim() || busy}
             onClick={() => void reconcileDocument()}
           >

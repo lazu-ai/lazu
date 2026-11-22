@@ -1,6 +1,7 @@
 import { Select as SelectPrimitive } from '@base-ui/react/select';
 import { Check, ChevronDown } from 'lucide-react';
 import React from 'react';
+import { useControlAppearanceClass } from './control-appearance';
 import { cn } from '../../lib/cn';
 
 type SelectSize = 'sm' | 'md' | 'lg' | (string & {});
@@ -58,6 +59,8 @@ export function Select({
   triggerContent,
   ...props
 }: SelectProps) {
+  // Portalled to body, so the list carries the page's control recipe itself.
+  const appearance = useControlAppearanceClass();
   const items = options.length ? options : collectChildItems(children);
   const renderedItems =
     children ??
@@ -100,7 +103,7 @@ export function Select({
           sideOffset={6}
         >
           <SelectPrimitive.Popup
-            className={cn('lazu-select-content', contentClassName)}
+            className={cn('lazu-select-content', appearance, contentClassName)}
           >
             <SelectPrimitive.List>{renderedItems}</SelectPrimitive.List>
           </SelectPrimitive.Popup>
@@ -181,6 +184,7 @@ export const MultiSelect = React.forwardRef<
     },
     ref,
   ) => {
+    const appearance = useControlAppearanceClass();
     const [internalValue, setInternalValue] =
       React.useState<MultiSelectValue[]>(defaultValue);
     const selectedValues = value ?? internalValue;
@@ -260,6 +264,7 @@ export const MultiSelect = React.forwardRef<
             <SelectPrimitive.Popup
               className={cn(
                 'lazu-select-content lazu-multi-select-content',
+                appearance,
                 contentClassName,
               )}
             >

@@ -63,6 +63,37 @@ describe the console's composition, not a second colour system.
    depth some other way — a cut-off row at the fold, a count in the footer, or
    a sticky header — rather than relying on the bar to say "there is more".
 
+## Locked dialog and control base (2026-11-20)
+
+Base A, "dialogs hold the line": editing stays in centred dialogs, and the
+dialog itself is what was fixed. Rules, each enforced in `components/ui`:
+
+1. Buttons have no default look. `Button` requires `variant`; leaving it out
+   is a type error. In a dialog footer the right-most button is the ink
+   primary and the way out sits to its left. A destructive confirmation is
+   solid red (`danger`); the entry that opens it is red text on white.
+2. Menus and popovers are one sheet of paper: control radius (12px), a
+   hairline, 4px inset, 8px rows, the picked row tinted evidence teal with
+   the check at the right. A popup portalled to body carries the page's
+   control recipe class itself instead of inheriting it. Never a pill.
+3. One switch: a 36×20 track, evidence teal when on, 18% ink when off, a
+   16px white knob. Radii come back to the tokens: control 12, card 18,
+   overlay 20.
+4. A dialog is three bands. Header and footer are pinned and only the body
+   scrolls; the dialog is at most 86vh tall. Every `Modal` gets this; no
+   page has to opt in.
+5. Picking something from inside a dialog swaps the dialog's page and comes
+   back with the form as it was. A second dialog is never stacked over the
+   first, except an explicit confirmation of an irreversible step.
+6. Empty: when the reader can act, a dashed slot with one button; when they
+   cannot, one sentence. An empty table shows no header row.
+7. Load failure inside a surface: a white card with one ink line, a danger
+   icon and a danger title, the retry at the right. The state shows only in
+   the icon and the title colour.
+8. Phones: one breakpoint, 768px. Below it every dialog is a sheet from the
+   bottom edge with a 44px close in the top-right corner and no drag handle;
+   two footer actions share the bar a third and two thirds, 44px tall.
+
 ## Locked console information architecture (2026-08-21)
 
 The selected production direction is Console Refit R2 option S1, “钱包独立”.

@@ -837,6 +837,7 @@ export function ChannelHealthPage() {
           error={health.error}
           action={
             <Button
+              variant='secondary'
               loading={health.isFetching}
               onClick={() => void health.refetch()}
             >

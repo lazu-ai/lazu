@@ -217,7 +217,6 @@ const WhatsNewDialog = () => {
       open={open}
       title={
         <>
-          <span aria-hidden='true' className='whats-new-panel__grab' />
           <span className='whats-new-panel__heading'>
             <span className='whats-new-panel__title'>
               <Send aria-hidden='true' size={16} />

@@ -1867,10 +1867,14 @@ export function FluentPrefillModal({
       }
       footer={
         <div className='flex justify-end gap-2'>
-          <Button variant='ghost' onClick={() => onOpenChange(false)}>
+          <Button variant='secondary' onClick={() => onOpenChange(false)}>
             {t('legacy.i18n.close.6c14bd7f6f')}
           </Button>
-          <Button disabled={!selectedModel} onClick={sendToFluent}>
+          <Button
+            variant='primary'
+            disabled={!selectedModel}
+            onClick={sendToFluent}
+          >
             {t('legacy.i18n.one_click_fill_to_fluentread.dc147b69cd')}
           </Button>
         </div>

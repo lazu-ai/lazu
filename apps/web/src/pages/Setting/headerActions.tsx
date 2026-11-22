@@ -87,7 +87,12 @@ export function SettingsHeaderActionsProvider({
       >
         {t('page.console.settingV2.runtime.reset')}
       </Button>
-      <Button loading={busy} size='sm' onClick={() => void saveAll()}>
+      <Button
+        variant='secondary'
+        loading={busy}
+        size='sm'
+        onClick={() => void saveAll()}
+      >
         {t('page.console.settingV2.runtime.save')}
       </Button>
     </div>

@@ -1,12 +1,13 @@
-/* A failure inside a surface: the link is broken, nothing else is.
+/* A failure inside a surface: this part did not come through, nothing else
+ * is affected.
  *
- * One hairline rule with a break in the middle and a 5px danger dot at the
- * break says "this did not come through" in the width of a line — and it is
- * the only semantic colour in the card states, which is what the brand rule
- * asks for: state only, small area only.
+ * A white card drawn with one ink line, a danger icon and a danger title;
+ * that is the only semantic colour in the card states. The retry sits on the
+ * right, where the eye ends the sentence.
  *
  * The full-screen crash state is a different object; see paper-page.tsx.
  */
+import { CircleAlert } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { errorMessage, errorReference } from '../../lib/api-error';
@@ -40,15 +41,23 @@ export function ErrorState({
     fine ?? (error !== undefined ? errorReference(error) || null : null);
   return (
     <div className={cn('lazu-error', className)} role='alert' {...props}>
-      <span aria-hidden='true' className='lazu-error__break'>
-        <span className='lazu-error__dot' />
-      </span>
-      <div className='lazu-state-title'>{shownTitle}</div>
-      {shownDescription ? (
-        <div className='lazu-state-description'>{shownDescription}</div>
-      ) : null}
-      {action ? <div className='lazu-state-actions'>{action}</div> : null}
-      {shownFine ? <div className='lazu-state-fine'>{shownFine}</div> : null}
+      <div className='lazu-error__card'>
+        <CircleAlert
+          aria-hidden='true'
+          className='lazu-error__icon'
+          size={16}
+        />
+        <div className='lazu-error__text'>
+          <div className='lazu-state-title'>{shownTitle}</div>
+          {shownDescription ? (
+            <div className='lazu-state-description'>{shownDescription}</div>
+          ) : null}
+          {shownFine ? (
+            <div className='lazu-state-fine'>{shownFine}</div>
+          ) : null}
+        </div>
+        {action ? <div className='lazu-error__action'>{action}</div> : null}
+      </div>
     </div>
   );
 }

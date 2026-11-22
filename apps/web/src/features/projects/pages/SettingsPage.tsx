@@ -221,6 +221,7 @@ export default function SettingsPage() {
         <ErrLine>
           {t('projects.key.form.unavailable')}{' '}
           <Button
+            variant='secondary'
             size='sm'
             onClick={() => {
               void detail.refetch();

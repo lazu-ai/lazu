@@ -56,6 +56,7 @@ export function WalletGate({ legacy }: { legacy: ReactNode }) {
         description={t('projects.wallet.openFailedBody')}
         actions={
           <Button
+            variant='secondary'
             onClick={() => navigate('/console/wallet', { replace: true })}
           >
             {t('projects.topup.backToWallet')}

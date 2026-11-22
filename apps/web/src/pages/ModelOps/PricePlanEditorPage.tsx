@@ -570,7 +570,11 @@ export default function PricePlanEditorPage() {
               </span>
               <Popover open={vendorOpen} onOpenChange={setVendorOpen}>
                 <PopoverTrigger>
-                  <Button className='pp-card__action' size='sm'>
+                  <Button
+                    variant='secondary'
+                    className='pp-card__action'
+                    size='sm'
+                  >
                     <Plus size={14} aria-hidden='true' />
                     {t(`${ns}.edit.addVendor`, { defaultValue: '添加供应商' })}
                   </Button>
@@ -694,7 +698,11 @@ export default function PricePlanEditorPage() {
                 }}
               >
                 <PopoverTrigger>
-                  <Button className='pp-card__action' size='sm'>
+                  <Button
+                    variant='secondary'
+                    className='pp-card__action'
+                    size='sm'
+                  >
                     <Plus size={14} aria-hidden='true' />
                     {t(`${ns}.edit.addModel`, { defaultValue: '添加例外' })}
                   </Button>
@@ -885,6 +893,7 @@ export default function PricePlanEditorPage() {
             </Button>
           ) : null}
           <Button
+            variant='secondary'
             disabled={Boolean(planId) && detail.isPending}
             onClick={() => patch({ active: !draft.active })}
           >
@@ -908,6 +917,7 @@ export default function PricePlanEditorPage() {
               : t(`${ns}.edit.noChanges`, { defaultValue: '没有改动' })}
           </span>
           <Button
+            variant='secondary'
             disabled={!changes || mutations.save.isPending}
             onClick={() => {
               setDraft(initial);
