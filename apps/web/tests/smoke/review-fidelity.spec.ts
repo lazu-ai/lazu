@@ -157,7 +157,7 @@ test('wallet amount choices keep their surface and selected border after the glo
     payloadFor: reviewPayload,
   });
   await expectRouteReady(page, '/console/wallet');
-  const choices = page.locator('.lazu-topup-bar__preset');
+  const choices = page.locator('.wal-tile');
   await expect(choices.first()).toHaveCSS('border-top-width', '1px');
   await choices.nth(1).click();
   await expect(choices.nth(1)).toHaveAttribute('aria-pressed', 'true');

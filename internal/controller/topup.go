@@ -12,7 +12,9 @@ import (
 	"github.com/lazu-ai/lazu/internal/model"
 	"github.com/lazu-ai/lazu/internal/service"
 	"github.com/lazu-ai/lazu/internal/setting"
+	"github.com/lazu-ai/lazu/internal/setting/email_setting"
 	"github.com/lazu-ai/lazu/internal/types"
+	"github.com/lazu-ai/lazu/pkg/billing"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,8 +41,31 @@ func GetTopUpInfo(c *gin.Context) {
 		"pay_methods":         payMethods,
 		"stripe_min_topup":    getStripeMinTopup(),
 		"stripe_max_topup":    getStripeMaxTopup(),
+		"low_balance_mail":    lowBalanceMailState(c.GetInt("id")),
 	}
 	common.ApiSuccess(c, data)
+}
+
+// lowBalanceMailState tells the wallet whether the low-balance mail can be
+// sent at all on this deployment, whether this account still wants it, and
+// the balance it is sent under: the account's own threshold when it set
+// one, otherwise the platform's.
+func lowBalanceMailState(userID int) gin.H {
+	cfg := email_setting.GetEmailSetting()
+	threshold := billing.USD(cfg.LowBalanceThresholdUSD)
+	on := true
+	if user, err := model.GetUserById(userID, true); err == nil && user != nil {
+		settings := user.GetSetting()
+		if settings.QuotaWarningThreshold > 0 {
+			threshold = billing.MicroUSD(settings.QuotaWarningThreshold)
+		}
+		on = !settings.LowBalanceOff
+	}
+	return gin.H{
+		"available":          cfg.LowBalanceEnabled && threshold > 0,
+		"on":                 on,
+		"threshold_microusd": threshold,
+	}
 }
 
 // tradeNo lock
@@ -70,10 +95,34 @@ func UnlockOrder(tradeNo string) {
 	}
 }
 
+// maxTopUpRange bounds an explicit start/end query on the reader's own
+// top-ups: the wallet asks for at most six months of records at a time.
+const maxTopUpRange = 400 * 24 * time.Hour
+
 func GetUserTopUps(c *gin.Context) {
 	userId := c.GetInt("id")
 	pageInfo := common.GetPageQuery(c)
 	keyword := c.Query("keyword")
+
+	// An explicit half-open [start, end) range replaces the default 30-day
+	// window. Both bounds are required together.
+	if rawStart, rawEnd := c.Query("start_timestamp"), c.Query("end_timestamp"); rawStart != "" || rawEnd != "" {
+		start, startErr := strconv.ParseInt(rawStart, 10, 64)
+		end, endErr := strconv.ParseInt(rawEnd, 10, 64)
+		if startErr != nil || endErr != nil || start <= 0 || end <= start || time.Duration(end-start)*time.Second > maxTopUpRange {
+			httperr.Invalid(c, "start_timestamp")
+			return
+		}
+		topups, total, err := model.GetUserTopUpsBetween(userId, start, end, pageInfo)
+		if err != nil {
+			httperr.Write(c, err)
+			return
+		}
+		pageInfo.SetTotal(int(total))
+		pageInfo.SetItems(topups)
+		common.ApiSuccess(c, pageInfo)
+		return
+	}
 
 	var (
 		topups []*model.TopUp

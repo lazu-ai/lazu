@@ -351,6 +351,22 @@ func GetUserTopUps(userId int, pageInfo *common.PageInfo) (topups []*TopUp, tota
 	return topups, total, nil
 }
 
+// GetUserTopUpsBetween pages one account's top-ups created inside the
+// half-open [start, end) Unix range, newest first. The caller bounds the
+// range; this does not apply the default 30-day window.
+func GetUserTopUpsBetween(userId int, start, end int64, pageInfo *common.PageInfo) (topups []*TopUp, total int64, err error) {
+	query := func() *gorm.DB {
+		return CoreDB().Model(&TopUp{}).Where("user_id = ? AND create_time >= ? AND create_time < ?", userId, start, end)
+	}
+	if err = query().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err = query().Order("create_time desc").Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error; err != nil {
+		return nil, 0, err
+	}
+	return topups, total, nil
+}
+
 // GetAllTopUps 获取全平台的充值记录（管理员使用，不限制时间窗口）
 func GetAllTopUps(pageInfo *common.PageInfo) (topups []*TopUp, total int64, err error) {
 	tx := CoreDB().Begin()

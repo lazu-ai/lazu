@@ -31,6 +31,10 @@ type UserSetting struct {
 	WeeklyDigestOff   bool `json:"weekly_digest_off,omitempty"`
 	MonthlyDigestOff  bool `json:"monthly_digest_off,omitempty"`
 	ProductUpdatesOff bool `json:"product_updates_off,omitempty"`
+	// LowBalanceOff stops the low-balance mail for this account. The operator
+	// still hears about a short runway; webhook, Bark and Gotify notices are
+	// separate and keep their own setting.
+	LowBalanceOff bool `json:"low_balance_off,omitempty"`
 }
 
 var (

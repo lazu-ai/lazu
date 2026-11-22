@@ -3687,7 +3687,6 @@
   }
 
   .lazu-topup-record__hint,
-  .lazu-topup-record__foot,
   .lazu-topup-record__nodocs {
     color: var(--lazu-text-muted);
     font-size: 12.5px;
@@ -3771,6 +3770,48 @@
     font-size: 12.5px;
   }
 
+  /* An opened 充值记录 row: the numbers on one line, a muted status line
+     while something is owed, and the three documents. */
+  .lazu-topup-row {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .lazu-topup-row__facts {
+    display: grid;
+    gap: 12px 24px;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+    margin: 0;
+  }
+
+  .lazu-topup-row__note {
+    align-items: center;
+    color: var(--lazu-text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    gap: 4px 8px;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .lazu-topup-row__note .lazu-topup-record__dot {
+    margin-right: 6px;
+  }
+
+  .lazu-topup-row__docs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 640px) {
+    .lazu-topup-row__facts {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   .lazu-topup-record__aside {
     color: var(--lazu-text-muted);
     font-family: var(--lazu-font-sans);
@@ -3792,12 +3833,6 @@
     font-weight: 600;
     justify-content: space-between;
     padding-bottom: 4px;
-  }
-
-  .lazu-topup-record__docs-head > span:last-child {
-    color: var(--lazu-text-faint);
-    font-size: 12px;
-    font-weight: 400;
   }
 
   .lazu-topup-record__doc {

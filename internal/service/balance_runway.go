@@ -171,6 +171,8 @@ func sendBalanceRunwayAlert(user *model.User, runway BalanceRunway, runwayDays i
 		reason = "exhausted_fixed_mail_owns_it"
 	case !email_setting.GetEmailSetting().LowBalanceEnabled:
 		reason = "low_balance_mail_disabled"
+	case user.GetSetting().LowBalanceOff:
+		reason = "user_turned_off"
 	case email == "":
 		reason = "no_email"
 	default:
