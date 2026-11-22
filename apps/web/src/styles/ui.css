@@ -2390,15 +2390,14 @@
     text-transform: uppercase;
   }
 
-  /* The console's page titles are set in the display serif, like the money
-     below them — the same face the wordmark uses. Never under 20px, so the
-     clamp floor stays above the serif's legibility floor. */
+  /* The console's page titles are set in the sans, semibold, like the money
+     below them. The serif is kept for the wordmark and the public pages. */
   .lazu-page-header__title {
     color: var(--ui-text);
-    font-family: var(--lazu-font-display);
+    font-family: var(--lazu-font-sans);
     font-size: var(--lazu-console-heading-size);
-    font-weight: 400;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.02em;
     line-height: 1.05;
     margin: 0;
   }
@@ -3670,11 +3669,11 @@
     width: 10ch;
     max-width: 100%;
     min-height: 1em;
-    font-family: var(--lazu-font-display);
+    font-family: var(--lazu-font-sans);
     font-size: var(--lazu-console-money-size);
     font-variant-numeric: tabular-nums;
-    font-weight: 400;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.025em;
     line-height: 1;
   }
 

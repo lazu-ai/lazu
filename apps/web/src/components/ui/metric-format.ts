@@ -39,6 +39,15 @@ export function formatMicroUsd(value: number | null | undefined): string {
   }).format(usd);
 }
 
+/** An upper bound on the width, in em, of a figure in the sans at 600 with
+ *  tabular digits and the display tracking. CSS divides the room by it, so a
+ *  long amount is set smaller instead of running into the next column. */
+export function figureEms(text: string): number {
+  let ems = 0;
+  for (const char of text) ems += char === ',' || char === '.' ? 0.29 : 0.625;
+  return ems;
+}
+
 /** microUSD → "$1.2k" for axes and dense cells. */
 export function formatMicroUsdCompact(
   value: number | null | undefined,

@@ -324,10 +324,10 @@ above; it preserves the lane as the unit of evidence and comparison.
 Owner-approved continuation of the 2026-09-20 Seal canvas
 `archive:brand/canvases.md`, reconfirmed during PR #252 repair.
 
-- Console page headings use Instrument Serif at `--lazu-console-heading-size`.
-  Display money uses `--lazu-console-money-size` or `--lazu-display-stat`,
-  regular weight and tabular figures. Body, controls and dense table values
-  retain Geist / IBM Plex Mono; serif is never used below 20px.
+- Console page headings and display money were set in Instrument Serif
+  (superseded 2026-11-21, see [Console type](#console-type-2026-11-21)).
+  Body, controls and dense table values retain Geist / IBM Plex Mono; serif
+  is never used below 20px.
 - The Models catalogue is explicitly excluded: preserve its card structure,
   sans price typography and semantic status colours. Do not replace it with
   the canvas price table or apply the console money override to its cards.
@@ -345,6 +345,27 @@ Owner-approved continuation of the 2026-09-20 Seal canvas
 This amendment supersedes the public-only display restriction for these
 console headings and display-money values, and Quiet Precision's bold KPI
 rule for display money only. All other data typography remains unchanged.
+
+## Console type (2026-11-21)
+
+Owner-approved before/after canvas (2026-11-21). The console is set in one
+sans face; the serif stays on the wordmark and the public pages (home, sign-in,
+key lookup, docs).
+
+- Page titles: Geist 600 at `--lazu-console-heading-size` (26px),
+  letter-spacing −0.02em, the same on every page and on phones.
+- Display money (overview cards, usage spend, payment record, wallet balance):
+  Geist 600 with tabular figures and letter-spacing −0.025em (−0.035em at
+  44px and above), so money sits in the same face as the rates and counts
+  beside it. Usage spend is 44px (40px on a phone). These sizes are maximums:
+  an amount too long for its column is set smaller, never wrapped, cut or
+  run into the next column, and the row keeps its height.
+- Mono stays for identifiers, code and chart axes. Page titles and display
+  money never use `--lazu-font-display`; the status-page mark
+  (`paper-states.md`) and artwork keep it.
+
+This supersedes the heading and display-money lines of the 2026-09-21 Seal
+refinement and the "Instrument Serif" wording of the 2026-10-14 page head.
 
 ## Locked console overview (2026-09-30)
 
@@ -378,8 +399,8 @@ rules, then the pages built on them.
 
 1. **One page head.** Every console page's title sits at the same place —
    12px / 16px insets inside the content column (290px from the window edge
-   at 1440), 10px under the top bar (86px), Instrument Serif at
-   `--lazu-console-heading-size`. Actions align to the title's bottom and
+   at 1440), 10px under the top bar (86px), set as in
+   [Console type](#console-type-2026-11-21) at `--lazu-console-heading-size`. Actions align to the title's bottom and
    never push it down. The overview's own head and the Models page use the
    same geometry.
 2. **Two switch controls.** Peer views (a different block of content) use the
