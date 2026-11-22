@@ -7,19 +7,20 @@ test('wallet route renders with mocked balance and usage data', async ({
 }) => {
   const app = await setupMockedApp(page);
   await expectRouteReady(page, '/console/wallet');
-  await expect(page.locator('.wal-balance-summary')).toBeVisible();
+  await expect(page.locator('.wal-body')).toBeVisible();
   await app.expectNoUnexpectedErrors();
 });
 
-test('self-hosted wallet keeps the ledger when recharge is unavailable', async ({
+test('self-hosted wallet keeps the bill when recharge is unavailable', async ({
   page,
 }) => {
   const app = await setupMockedApp(page, {
     status: { SidebarModulePreset: 'self-hosted' },
   });
   await expectRouteReady(page, '/console/wallet');
-  await expect(page.locator('.wal-ledger-card')).toBeVisible();
   await expect(page.locator('.wal-topup-empty')).toBeVisible();
+  await expectRouteReady(page, '/console/wallet?tab=bill');
+  await expect(page.locator('.wal-months')).toBeVisible();
   await app.expectNoUnexpectedErrors();
 });
 

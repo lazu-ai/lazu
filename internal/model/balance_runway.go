@@ -21,15 +21,21 @@ type PayerSpendWindow struct {
 // PayerSpendBetween sums consume logs per paying account in [since, until).
 // Accounts with no positive spend are left out.
 func PayerSpendBetween(since, until time.Time) ([]PayerSpendWindow, error) {
-	if TelemetryDB() == nil {
+	db := TelemetryDB()
+	if db == nil {
 		return nil, nil
 	}
 	var rows []PayerSpendWindow
 	payer := "CASE WHEN payer_user_id > 0 THEN payer_user_id ELSE user_id END"
-	err := TelemetryDB().Table("logs").
+	q := db.Table("logs").
 		Select(payer+" AS payer_user_id, COALESCE(SUM(amount_microusd), 0) AS spend, MIN(created_at) AS first_at, MAX(created_at) AS last_at").
-		Where("type = ? AND created_at >= ? AND created_at < ?", LogTypeConsume, since.Unix(), until.Unix()).
-		Group(payer).
+		Where("type = ? AND created_at >= ? AND created_at < ?", LogTypeConsume, since.Unix(), until.Unix())
+	if db.Dialector.Name() == "postgres" {
+		// Bound by the request_ts partition key so PostgreSQL prunes to only the
+		// partitions overlapping [since, until).
+		q = q.Where("request_ts >= ? AND request_ts < ?", logRequestTSFloor(since.Unix()), (until.Unix()+86400)*1000)
+	}
+	err := q.Group(payer).
 		Having("SUM(amount_microusd) > 0").
 		Scan(&rows).Error
 	return rows, err
