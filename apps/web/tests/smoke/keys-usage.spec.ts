@@ -39,7 +39,9 @@ test('a key row expands into its own usage instead of opening the editor', async
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('额度');
   await expect(panel).toContainText('最近使用');
-  await expect(panel.getByRole('link', { name: /请求日志/ })).toHaveAttribute(
+  await expect(
+    panel.getByRole('link', { name: '查看调用日志' }),
+  ).toHaveAttribute(
     'href',
     // The usage page reads the Key from `key`; `token_name` is not parsed
     // there, so linking with it would open an unfiltered log.
