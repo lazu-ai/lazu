@@ -510,13 +510,19 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 		}
 		logger.LogError(c, "do request failed: "+err.Error())
 		code := types.ErrorCodeUpstreamNetworkError
-		if errors.Is(err, context.DeadlineExceeded) || strings.Contains(strings.ToLower(err.Error()), "timeout") {
+		hidden := "upstream provider connection error"
+		if errors.Is(err, service.ErrRedirectLeftOrigin) {
+			// The channel key is not sent past the redirect; the attempt
+			// fails like an unreachable upstream and may move on to
+			// another channel.
+			hidden = "upstream provider redirected to a different origin"
+		} else if errors.Is(err, context.DeadlineExceeded) || strings.Contains(strings.ToLower(err.Error()), "timeout") {
 			code = types.ErrorCodeUpstreamTimeout
 		}
 		return nil, types.NewError(
 			err,
 			code,
-			types.ErrOptionWithHideErrMsg("upstream provider connection error"),
+			types.ErrOptionWithHideErrMsg(hidden),
 			types.ErrOptionWithDetails(map[string]string{"raw_message": common2.MaskSensitiveInfo(err.Error())}),
 		)
 	}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -428,4 +429,47 @@ func TestDoRequestIgnoresStartDeadlineForNonStreamedRequests(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = resp.Body.Close()
+}
+
+// An upstream that redirects a keyed call to another origin fails the attempt
+// as an upstream network error (502, retryable on another channel, and the
+// reservation is refunded because nothing was sent to the client); the
+// redirect target never sees the request.
+func TestDoRequestRefusesARedirectToAnotherOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var secondHits atomic.Int32
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		secondHits.Add(1)
+	}))
+	defer second.Close()
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, second.URL+"/v1/messages", http.StatusTemporaryRedirect)
+	}))
+	defer first.Close()
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	req, err := newUpstreamRequest(c, http.MethodPost, first.URL+"/v1/messages", strings.NewReader(`{"prompt":"synthetic"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("x-api-key", "synthetic-key")
+
+	resp, err := doRequest(c, req, &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}})
+	if resp != nil {
+		_ = resp.Body.Close()
+		t.Fatalf("expected no response, got status %d", resp.StatusCode)
+	}
+	var lazuErr *types.LazuError
+	if !errors.As(err, &lazuErr) {
+		t.Fatalf("expected LazuError, got %T: %v", err, err)
+	}
+	if got := lazuErr.GetErrorCode(); got != types.ErrorCodeUpstreamNetworkError {
+		t.Fatalf("error code=%q want %q", got, types.ErrorCodeUpstreamNetworkError)
+	}
+	if lazuErr.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status=%d want %d", lazuErr.StatusCode, http.StatusBadGateway)
+	}
+	if got := secondHits.Load(); got != 0 {
+		t.Fatalf("redirect target received %d request(s)", got)
+	}
 }

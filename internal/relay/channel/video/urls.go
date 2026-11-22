@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/lazu-ai/lazu/internal/common"
 )
 
 const cloudflareGatewayPrefix = "https://gateway.ai.cloudflare.com"
@@ -63,19 +65,7 @@ func SameOrigin(left string, right string) bool {
 	if leftErr != nil || rightErr != nil {
 		return false
 	}
-	return strings.EqualFold(leftURL.Scheme, rightURL.Scheme) &&
-		strings.EqualFold(leftURL.Hostname(), rightURL.Hostname()) &&
-		effectivePort(leftURL) == effectivePort(rightURL)
-}
-
-func effectivePort(value *url.URL) string {
-	if value.Port() != "" {
-		return value.Port()
-	}
-	if strings.EqualFold(value.Scheme, "https") {
-		return "443"
-	}
-	return "80"
+	return common.SameOrigin(leftURL, rightURL)
 }
 
 // bearerHeaders is the common authentication: a bearer key plus the

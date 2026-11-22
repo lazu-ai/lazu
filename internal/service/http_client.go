@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -45,9 +46,30 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-func checkRelayRedirect(_ *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return fmt.Errorf("stopped after 10 redirects")
+// maxRelayRedirects caps redirect chains on credentialed calls.
+const maxRelayRedirects = 10
+
+// ErrRedirectLeftOrigin is returned (wrapped in the *url.Error http.Client
+// builds) when a credentialed call is redirected away from the origin it was
+// sent to.
+var ErrRedirectLeftOrigin = errors.New("redirect to a different origin refused")
+
+// checkRelayRedirect is the redirect policy of every client that sends a
+// credential: upstream provider calls (channel key headers) and the internal
+// worker client (worker key in the body). On a redirect http.Client drops
+// Authorization and Cookie when the domain changes, but copies every other
+// header, vendor key headers such as x-api-key and x-goog-api-key among
+// them, and a 307/308 resends the body. So a redirect is followed only when
+// it stays on the scheme, host and port of the first request; any other
+// target, an https to http downgrade included, fails the call before that
+// hop is sent.
+func checkRelayRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxRelayRedirects {
+		return fmt.Errorf("stopped after %d redirects", maxRelayRedirects)
+	}
+	if len(via) > 0 && !common.SameOrigin(via[0].URL, req.URL) {
+		return fmt.Errorf("%w: %s redirected to %s; set the base URL to the origin that serves the request",
+			ErrRedirectLeftOrigin, common.URLOrigin(via[0].URL), common.URLOrigin(req.URL))
 	}
 	return nil
 }
@@ -111,8 +133,9 @@ func InitHttpClient() {
 		CheckRedirect: checkRelayRedirect,
 	}
 	internalHTTPClient = &http.Client{
-		Transport: internalTransport(),
-		Timeout:   relayTimeoutDuration(),
+		Transport:     internalTransport(),
+		Timeout:       relayTimeoutDuration(),
+		CheckRedirect: checkRelayRedirect,
 	}
 }
 
