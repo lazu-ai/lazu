@@ -1246,7 +1246,11 @@ test('flag-off failed payment lands in the legacy wallet without a project notic
   await expect(
     page.getByText('Unable to open this project wallet', { exact: true }),
   ).toHaveCount(0);
-  await record.getByRole('button', { name: 'Close', exact: true }).click();
+  // The footer's Close button; the head has an icon button of the same name.
+  await record
+    .getByRole('button', { name: 'Close', exact: true })
+    .last()
+    .click();
   await expect(record).toHaveCount(0);
   await expect(page).not.toHaveURL(/top_up_id/);
 });
@@ -2619,7 +2623,9 @@ test('account wallet names the chosen amount on the pay button', async ({
   await page.goto('/console/wallet');
   await expect(page.locator('.wallet-page')).toBeVisible();
   await page.getByRole('button', { name: '$50', exact: true }).click();
-  await expect(page.locator('.wal-topup__figure')).toHaveText('$50');
+  await expect(
+    page.getByRole('button', { name: '$50', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.wal-topup__pay')).toContainText('$50.00');
 });
 

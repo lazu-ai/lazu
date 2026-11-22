@@ -9,7 +9,13 @@
  * opens the same list as a dialog with that payment open. */
 import { useQueries, useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { ChevronRight, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  X,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -74,8 +80,9 @@ const money = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-const plus = (value: number) => (value ? `+${money(value)}` : '');
-const minus = (value: number) => (value ? `−${money(value)}` : '0.00');
+const usd = (value: number) => `$${money(value)}`;
+const plus = (value: number) => `+${usd(value)}`;
+const minus = (value: number) => (value ? `−${usd(value)}` : usd(0));
 
 function useMonthLabels() {
   const { i18n, t } = useTranslation();
@@ -234,23 +241,26 @@ function TopupRows({
   openId: string | null;
 }) {
   const { t } = useTranslation();
-  const statuses: Record<string, { label: string; tone?: 'success' }> = {
+  const statuses: Record<
+    string,
+    { label: string; tone?: 'success' | 'warning' }
+  > = {
     canceled: { label: t(`${ns}.status.canceled`) },
     expired: { label: t(`${ns}.status.expired`) },
-    pending: { label: t(`${ns}.status.pending`) },
+    pending: { label: t(`${ns}.status.pending`), tone: 'warning' },
     success: { label: t(`${ns}.status.success`), tone: 'success' },
   };
   return (
     <table className='wal-table wal-topups'>
       <thead>
         <tr>
-          <th className='wal-topups__toggle'>
+          <th className='wal-table__first'>{t(`${ns}.col.time`)}</th>
+          <th className='wal-num'>{t(`${ns}.col.amount`)}</th>
+          <th>{t(`${ns}.col.method`)}</th>
+          <th>{t(`${ns}.col.status`)}</th>
+          <th className='wal-table__chevron wal-table__last'>
             <span className='sr-only'>{t(`${ns}.col.open`)}</span>
           </th>
-          <th>{t(`${ns}.col.time`)}</th>
-          <th>{t(`${ns}.col.amount`)}</th>
-          <th>{t(`${ns}.col.method`)}</th>
-          <th className='wal-table__last'>{t(`${ns}.col.status`)}</th>
         </tr>
       </thead>
       {lines.map((line) => {
@@ -263,57 +273,77 @@ function TopupRows({
         return (
           <tbody
             className='wal-topups__item'
-            data-dim={settled ? undefined : ''}
+            data-dim={
+              line.status === 'canceled' || line.status === 'expired'
+                ? ''
+                : undefined
+            }
             data-open={open || undefined}
             key={line.id || line.when}
           >
-            <tr>
-              <td className='wal-topups__toggle'>
-                {line.id ? (
-                  <button
-                    aria-controls={open ? detailId : undefined}
-                    aria-expanded={open}
-                    aria-label={t(`${ns}.col.open`)}
-                    className='wal-icon-button wal-topups__chevron'
-                    onClick={() => onToggle(line.id)}
-                    type='button'
-                  >
-                    <ChevronRight aria-hidden='true' size={15} />
-                  </button>
-                ) : null}
+            <tr
+              className={line.id ? 'wal-table__row' : undefined}
+              onClick={line.id ? () => onToggle(line.id) : undefined}
+            >
+              <td className='wal-table__first wal-topups__time'>
+                {line.when ? (
+                  <>
+                    <span className='wal-topups__year'>
+                      {dayjs.unix(line.when).format('YYYY-')}
+                    </span>
+                    {dayjs.unix(line.when).format('MM-DD HH:mm')}
+                  </>
+                ) : (
+                  '—'
+                )}
               </td>
-              <td>
-                {line.when
-                  ? dayjs.unix(line.when).format('YYYY-MM-DD HH:mm')
-                  : '—'}
-              </td>
-              <td>
-                <span className='wal-topups__amount'>
-                  ${money(settled ? line.paidUSD : line.creditUSD)}
-                </span>
+              <td className='wal-num wal-topups__money'>
                 {credited ? (
                   <span className='wal-topups__credited'>
-                    {t(`${ns}.creditedTo`, {
-                      amount: `$${money(line.creditUSD)}`,
-                    })}
+                    {`${usd(line.paidUSD)} ${t(`${ns}.creditedTo`, { amount: '' }).trim()} `}
                   </span>
                 ) : null}
+                <span className='wal-topups__amount'>
+                  {usd(
+                    credited
+                      ? line.creditUSD
+                      : settled
+                        ? line.paidUSD
+                        : line.creditUSD,
+                  )}
+                </span>
               </td>
-              <td>
+              <td className='wal-topups__method'>
                 {line.method
                   ? t(`page.console.wallet.record.method.${line.method}`, {
                       defaultValue: line.method,
                     })
                   : '—'}
               </td>
-              <td className='wal-table__last'>
+              <td className='wal-topups__status'>
                 <Badge variant={state.tone ?? 'neutral'}>{state.label}</Badge>
+              </td>
+              <td className='wal-table__chevron wal-table__last'>
+                {line.id ? (
+                  <button
+                    aria-controls={open ? detailId : undefined}
+                    aria-expanded={open}
+                    aria-label={t(`${ns}.col.open`)}
+                    className='wal-icon-button wal-topups__chevron'
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggle(line.id);
+                    }}
+                    type='button'
+                  >
+                    <ChevronDown aria-hidden='true' size={16} />
+                  </button>
+                ) : null}
               </td>
             </tr>
             {open ? (
               <tr className='wal-topups__detail' id={detailId}>
-                <td />
-                <td className='wal-table__last' colSpan={4}>
+                <td className='wal-table__first wal-table__last' colSpan={5}>
                   <TopupRecord
                     documentError={documentError}
                     topupId={line.id}
@@ -337,9 +367,16 @@ function TopupRecords({ end, start }: { end: number; start: number }) {
   const items = records.data?.items || [];
   return (
     <section className='wal-card wal-records' aria-labelledby='wal-records'>
-      <h2 className='wal-records__title' id='wal-records'>
-        {t(`${ns}.records`)}
-      </h2>
+      <div className='wal-card__head'>
+        <h2 className='wal-h2' id='wal-records'>
+          {t(`${ns}.records`)}
+        </h2>
+        {records.isSuccess ? (
+          <span className='wal-label'>
+            {t(`${ns}.recordsCount`, { count: records.data.total })}
+          </span>
+        ) : null}
+      </div>
       {records.isError ? (
         <p className='wal-empty'>
           {t(`${ns}.recordsError`)}{' '}
@@ -423,7 +460,9 @@ export function TopupRecordsDialog({
       sheet='full'
     >
       <header className='wal-topups-dialog__head'>
-        <ModalTitle className='wal-day__title'>{t(`${ns}.records`)}</ModalTitle>
+        <ModalTitle className='wal-dialog__title'>
+          {t(`${ns}.records`)}
+        </ModalTitle>
         <button
           aria-label={t('common.close', { defaultValue: '关闭' })}
           className='wal-icon-button'
@@ -477,14 +516,19 @@ export function TopupRecordsDialog({
         <span className='wal-label'>
           {records.isSuccess ? t(`${ns}.recordsCount`, { count: total }) : ''}
         </span>
-        {(records.data?.total || 0) > RECORDS_PAGE ? (
-          <Pagination
-            currentPage={page}
-            onPageChange={setPage}
-            pageSize={RECORDS_PAGE}
-            total={records.data?.total || 0}
-          />
-        ) : null}
+        <span className='wal-topups-dialog__actions'>
+          {(records.data?.total || 0) > RECORDS_PAGE ? (
+            <Pagination
+              currentPage={page}
+              onPageChange={setPage}
+              pageSize={RECORDS_PAGE}
+              total={records.data?.total || 0}
+            />
+          ) : null}
+          <Button onClick={onClose} variant='secondary'>
+            {t('common.close', { defaultValue: '关闭' })}
+          </Button>
+        </span>
       </footer>
     </ModalFrame>
   );
@@ -493,6 +537,8 @@ export function TopupRecordsDialog({
 type WalletBillProps = {
   balanceUSD: number | null;
   balancePending: boolean;
+  /* The balance is under the account's low-balance threshold. */
+  low: boolean;
   day: string | null;
   month: string | null;
   now: dayjs.Dayjs;
@@ -534,6 +580,7 @@ function ListView({
   balanceUSD,
   balancePending,
   ledger,
+  low,
   now,
   onMonth,
 }: WalletBillProps & { ledger: Ledger }) {
@@ -577,28 +624,38 @@ function ListView({
   return (
     <>
       <div className='wal-bill__head'>
-        <span className='wal-bill__balance'>
+        <div className='wal-bill__balance'>
           <span className='wal-label'>{t(`${ns}.balance`)}</span>
-          {balancePending ? (
-            <PendingValue chars={6} />
-          ) : (
-            <span className='wal-money wal-bill__balance-value'>
-              {balanceUSD === null ? '—' : `$${money(balanceUSD)}`}
-            </span>
-          )}
-        </span>
+          <div className='wal-bill__balance-line'>
+            {balancePending ? (
+              <PendingValue chars={6} />
+            ) : (
+              <span className='wal-hero wal-bill__balance-value'>
+                {balanceUSD === null ? '—' : usd(balanceUSD)}
+              </span>
+            )}
+            {low ? (
+              <Badge variant='warning'>
+                {t('page.console.wallet.topup.low')}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
         <Button
           disabled={ledger.loading}
           onClick={exportMonths}
           variant='secondary'
         >
+          <Download aria-hidden='true' size={14} />
           {t(`${ns}.export`)}
         </Button>
       </div>
 
       <section className='wal-card wal-months' aria-labelledby='wal-months'>
-        <div className='wal-months__head'>
-          <h2 id='wal-months'>{t(`${ns}.monthly`)}</h2>
+        <div className='wal-card__head'>
+          <h2 className='wal-h2' id='wal-months'>
+            {t(`${ns}.monthly`)}
+          </h2>
           <span className='wal-label'>
             {t(`${ns}.lastMonths`, { count: 6 })}
           </span>
@@ -609,23 +666,25 @@ function ListView({
             const spend = month?.spend || 0;
             return (
               <button
-                aria-label={`${labels.full(key)} ${month ? `$${money(spend)}` : ''}`}
+                aria-label={`${labels.full(key)} ${month ? usd(spend) : ''}`}
                 className='wal-months__bar'
                 data-current={key === current ? '' : undefined}
                 data-empty={spend > 0 ? undefined : ''}
                 key={key}
                 onClick={() => onMonth(key)}
-                title={`${labels.full(key)} $${money(spend)}`}
+                title={`${labels.full(key)} ${usd(spend)}`}
                 type='button'
               >
                 <span className='wal-months__value'>
-                  {spend > 0 ? `$${money(spend)}` : ''}
+                  {month ? usd(spend) : ''}
                 </span>
                 <span
                   className='wal-months__fill'
-                  style={{
-                    height: `${month ? monthBarHeight(spend, max) : 2}%`,
-                  }}
+                  style={
+                    spend > 0
+                      ? { height: `${monthBarHeight(spend, max)}%` }
+                      : undefined
+                  }
                 />
               </button>
             );
@@ -636,62 +695,72 @@ function ListView({
             <span key={key}>{labels.short(key)}</span>
           ))}
         </div>
-      </section>
 
-      <div className='wal-card wal-table-card'>
-        <table className='wal-table'>
-          <thead>
-            <tr>
-              <th className='wal-table__first'>{t(`${ns}.col.month`)}</th>
-              <th className='wal-num'>{t(`${ns}.col.credit`)}</th>
-              <th className='wal-num'>{t(`${ns}.col.spend`)}</th>
-              <th className='wal-num'>{t(`${ns}.col.monthEnd`)}</th>
-              <th aria-hidden='true' className='wal-table__chevron' />
-            </tr>
-          </thead>
-          <tbody>
-            {ledger.loading && rows.length === 0 ? (
+        <div className='wal-table-card'>
+          <table className='wal-table'>
+            <thead>
               <tr>
-                <td className='wal-empty' colSpan={5}>
-                  <PendingValue chars={18} />
-                </td>
+                <th className='wal-table__first'>{t(`${ns}.col.month`)}</th>
+                <th className='wal-num'>{t(`${ns}.col.credit`)}</th>
+                <th className='wal-num'>{t(`${ns}.col.spend`)}</th>
+                <th className='wal-num'>{t(`${ns}.col.monthEnd`)}</th>
+                <th
+                  aria-hidden='true'
+                  className='wal-table__chevron wal-table__last'
+                />
               </tr>
-            ) : (
-              rows.map((month) => (
-                <tr
-                  className='wal-table__row'
-                  key={month.key}
-                  onClick={() => onMonth(month.key)}
-                >
-                  <td className='wal-table__first wal-table__strong'>
-                    <button
-                      className='wal-row-link'
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onMonth(month.key);
-                      }}
-                      type='button'
-                    >
-                      {labels.full(month.key)}
-                    </button>
-                    {month.key === current ? (
-                      <Badge className='wal-badge-current' variant='info'>
-                        {t(`${ns}.thisMonth`)}
-                      </Badge>
-                    ) : null}
-                  </td>
-                  <td className='wal-num wal-credit'>{plus(month.credit)}</td>
-                  <td className='wal-num'>{minus(month.spend)}</td>
-                  <td className='wal-num'>{money(month.closing)}</td>
-                  <td aria-hidden='true' className='wal-table__chevron'>
-                    ›
+            </thead>
+            <tbody>
+              {ledger.loading && rows.length === 0 ? (
+                <tr>
+                  <td className='wal-empty' colSpan={5}>
+                    <PendingValue chars={18} />
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                rows.map((month) => (
+                  <tr
+                    className='wal-table__row'
+                    key={month.key}
+                    onClick={() => onMonth(month.key)}
+                  >
+                    <td className='wal-table__first wal-table__strong'>
+                      <span className='wal-table__month'>
+                        <button
+                          className='wal-row-link'
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onMonth(month.key);
+                          }}
+                          type='button'
+                        >
+                          {month.key.slice(0, 4) === current.slice(0, 4)
+                            ? labels.short(month.key)
+                            : labels.full(month.key)}
+                        </button>
+                        {month.key === current ? (
+                          <Badge className='wal-badge-current' variant='info'>
+                            {t(`${ns}.thisMonth`)}
+                          </Badge>
+                        ) : null}
+                      </span>
+                    </td>
+                    <td className='wal-num'>{usd(month.credit)}</td>
+                    <td className='wal-num'>{usd(month.spend)}</td>
+                    <td className='wal-num'>{usd(month.closing)}</td>
+                    <td
+                      aria-hidden='true'
+                      className='wal-table__chevron wal-table__last'
+                    >
+                      <ChevronRight size={16} />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <TopupRecords end={newest.end} start={oldest.start} />
     </>
@@ -719,7 +788,6 @@ function MonthView({
   const max = Math.max(0, ...spendByDay.values());
   const days = month?.days || [];
   const shown = showAll ? days : days.slice(0, DAYS_SHOWN);
-  const middle = Math.min(15, length);
 
   const exportMonth = () =>
     downloadCsv(
@@ -744,84 +812,112 @@ function MonthView({
 
   return (
     <>
-      <div className='wal-bill__head'>
+      <div className='wal-month__back'>
+        <button
+          className='wal-link'
+          onClick={() => onMonth(null)}
+          type='button'
+        >
+          <ChevronLeft aria-hidden='true' size={14} />
+          {t(`${ns}.allMonths`)}
+        </button>
+      </div>
+      <div className='wal-bill__head wal-month__head'>
         <div className='wal-bill__title'>
-          <Button onClick={() => onMonth(null)} variant='ghost'>
-            {`← ${t(`${ns}.allMonths`)}`}
-          </Button>
           <h2>{labels.full(key)}</h2>
+          {range.isCurrent ? (
+            <Badge variant='info'>{t(`${ns}.thisMonth`)}</Badge>
+          ) : null}
         </div>
         <Button disabled={!month} onClick={exportMonth} variant='secondary'>
+          <Download aria-hidden='true' size={14} />
           {t(`${ns}.exportMonth`)}
         </Button>
       </div>
 
-      <section className='wal-card wal-days' aria-label={labels.full(key)}>
-        <dl className='wal-days__sum'>
-          <div>
-            <dt>{t(`${ns}.opening`)}</dt>
-            <dd>{month ? money(month.opening) : '—'}</dd>
-          </div>
-          <div>
-            <dt>{t(`${ns}.credit`)}</dt>
-            <dd className='wal-credit'>
-              {month ? plus(month.credit) || '0.00' : '—'}
-            </dd>
-          </div>
-          <div>
-            <dt>{t(`${ns}.spend`)}</dt>
-            <dd>{month ? minus(month.spend) : '—'}</dd>
-          </div>
-          <div>
-            <dt>{t(`${ns}.closing`)}</dt>
-            <dd className='wal-days__closing'>
-              {month ? money(month.closing) : '—'}
-            </dd>
-          </div>
-        </dl>
-        <div className='wal-days__bars'>
-          {Array.from({ length }, (_, index) => {
-            const date = first.add(index, 'day');
-            const dateKey = date.format('YYYY-MM-DD');
-            const future = date.isAfter(now, 'day');
-            const spend = spendByDay.get(dateKey) || 0;
-            return (
-              <button
-                aria-label={`${dayLabel(dateKey)} $${money(spend)}`}
-                className='wal-days__bar'
-                data-future={future ? '' : undefined}
-                data-today={dateKey === today ? '' : undefined}
-                disabled={future}
-                key={dateKey}
-                onClick={() => onDay(dateKey)}
-                title={`${dayLabel(dateKey)} $${money(spend)}`}
-                type='button'
-              >
-                <span
-                  style={{
-                    height: `${future ? 3 : dayBarHeight(spend, max)}%`,
-                  }}
-                />
-              </button>
-            );
-          })}
+      <dl className='wal-card wal-sum' aria-label={labels.full(key)}>
+        <div>
+          <dt>{t(`${ns}.opening`)}</dt>
+          <dd>{month ? usd(month.opening) : '—'}</dd>
         </div>
-        <div aria-hidden='true' className='wal-days__axis'>
-          <span>{first.format('MM.DD')}</span>
-          <span>{first.date(middle).format('MM.DD')}</span>
-          <span>{first.date(length).format('MM.DD')}</span>
+        <div>
+          <dt>{t(`${ns}.credit`)}</dt>
+          <dd>{month ? plus(month.credit) : '—'}</dd>
+        </div>
+        <div>
+          <dt>{t(`${ns}.spend`)}</dt>
+          <dd>{month ? minus(month.spend) : '—'}</dd>
+        </div>
+        <div>
+          <dt>{t(`${ns}.closing`)}</dt>
+          <dd>{month ? usd(month.closing) : '—'}</dd>
+        </div>
+      </dl>
+
+      <section className='wal-card wal-days' aria-labelledby='wal-days'>
+        <div className='wal-card__head'>
+          <h2 className='wal-h2' id='wal-days'>
+            {t(`${ns}.daily`)}
+          </h2>
+        </div>
+        <div className='wal-days__plot'>
+          <div className='wal-days__bars'>
+            {Array.from({ length }, (_, index) => {
+              const date = first.add(index, 'day');
+              const dateKey = date.format('YYYY-MM-DD');
+              const future = date.isAfter(now, 'day');
+              const spend = spendByDay.get(dateKey) || 0;
+              return (
+                <button
+                  aria-label={`${dayLabel(dateKey)} ${usd(spend)}`}
+                  className='wal-days__bar'
+                  data-future={future ? '' : undefined}
+                  data-today={dateKey === today ? '' : undefined}
+                  disabled={future}
+                  key={dateKey}
+                  onClick={() => onDay(dateKey)}
+                  title={`${dayLabel(dateKey)} ${usd(spend)}`}
+                  type='button'
+                >
+                  <span
+                    style={
+                      future
+                        ? undefined
+                        : { height: `${dayBarHeight(spend, max)}%` }
+                    }
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <div aria-hidden='true' className='wal-days__axis'>
+            {[1, 10, 20, length].map((date) => (
+              <span key={date}>{first.date(date).format('MM.DD')}</span>
+            ))}
+          </div>
         </div>
       </section>
 
-      <div className='wal-card wal-table-card'>
+      <section
+        className='wal-card wal-table-card'
+        aria-labelledby='wal-day-table'
+      >
+        <div className='wal-card__head'>
+          <h2 className='wal-h2' id='wal-day-table'>
+            {t(`${ns}.dailyTable`)}
+          </h2>
+        </div>
         <table className='wal-table'>
           <thead>
             <tr>
               <th className='wal-table__first'>{t(`${ns}.col.date`)}</th>
-              <th>{t(`${ns}.col.credit`)}</th>
+              <th className='wal-num'>{t(`${ns}.col.credit`)}</th>
               <th className='wal-num'>{t(`${ns}.col.spend`)}</th>
               <th className='wal-num'>{t(`${ns}.col.balance`)}</th>
-              <th aria-hidden='true' className='wal-table__chevron' />
+              <th
+                aria-hidden='true'
+                className='wal-table__chevron wal-table__last'
+              />
             </tr>
           </thead>
           <tbody>
@@ -855,14 +951,24 @@ function MonthView({
                       type='button'
                     >
                       {dayLabel(day.date)}
-                      {day.date === today ? ` ${t(`${ns}.today`)}` : ''}
                     </button>
+                    {day.date === today ? (
+                      <span className='wal-table__tag'>{t(`${ns}.today`)}</span>
+                    ) : null}
                   </td>
-                  <td className='wal-credit'>{plus(day.credit)}</td>
-                  <td className='wal-num'>{minus(day.spend)}</td>
-                  <td className='wal-num'>{money(day.balance)}</td>
-                  <td aria-hidden='true' className='wal-table__chevron'>
-                    ›
+                  <td
+                    className='wal-num'
+                    data-zero={day.credit ? undefined : ''}
+                  >
+                    {usd(day.credit)}
+                  </td>
+                  <td className='wal-num'>{usd(day.spend)}</td>
+                  <td className='wal-num'>{usd(day.balance)}</td>
+                  <td
+                    aria-hidden='true'
+                    className='wal-table__chevron wal-table__last'
+                  >
+                    <ChevronRight size={16} />
                   </td>
                 </tr>
               ))
@@ -880,7 +986,7 @@ function MonthView({
             </button>
           </div>
         ) : null}
-      </div>
+      </section>
 
       <TopupRecords end={range.end} start={range.start} />
     </>
@@ -896,7 +1002,7 @@ function DayDialog({
   now: dayjs.Dayjs;
   onDay: (day: string | null) => void;
 }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const range = dayRange(day);
   const usage = useQuery({
     queryKey: [...queryKeys.dashboard.summary(), 'wallet-day', day],
@@ -933,8 +1039,14 @@ function DayDialog({
     >
       <header className='wal-day__head'>
         <div>
-          <ModalTitle className='wal-day__title'>
-            {dayLabel(day)}
+          <ModalTitle className='wal-dialog__title'>
+            {t(`${ns}.dayTitle`, {
+              day: date.date(),
+              month: date.month() + 1,
+              monthName: new Intl.DateTimeFormat(i18n.language, {
+                month: 'short',
+              }).format(date.toDate()),
+            })}
             {isToday ? ` ${t(`${ns}.today`)}` : ''}
           </ModalTitle>
           <p className='wal-label'>
@@ -948,12 +1060,8 @@ function DayDialog({
           </p>
         </div>
         <div className='wal-day__total'>
-          <span className='wal-money'>
-            {usage.isPending
-              ? ''
-              : usage.isError
-                ? '$ —'
-                : `${total ? '−' : ''}$${money(total)}`}
+          <span className='wal-day__amount'>
+            {usage.isPending ? '' : usage.isError ? '$ —' : usd(total)}
           </span>
           <button
             aria-label={t('common.close', { defaultValue: '关闭' })}
@@ -1006,20 +1114,20 @@ function DayDialog({
             ) : (
               models.map((row) => (
                 <tr key={row.name}>
-                  <td className='wal-table__first wal-mono wal-day__model'>
+                  <td className='wal-table__first wal-figure wal-day__model'>
                     {row.name}
                   </td>
-                  <td className='wal-num wal-sans'>
+                  <td className='wal-num'>
                     {Number(row.request_count || 0).toLocaleString()}
                   </td>
-                  <td className='wal-num wal-muted'>
+                  <td className='wal-num'>
                     {formatCount(
                       Number(row.prompt_tokens || 0) +
                         Number(row.completion_tokens || 0),
                     )}
                   </td>
                   <td className='wal-num wal-table__last'>
-                    {money(Number(row.amount_microusd || 0) / perUSD)}
+                    {usd(Number(row.amount_microusd || 0) / perUSD)}
                   </td>
                 </tr>
               ))
@@ -1030,12 +1138,12 @@ function DayDialog({
       <footer className='wal-day__foot'>
         <Link className='wal-link' to={logs}>
           {t(`${ns}.logs`)}
+          <ChevronRight aria-hidden='true' size={14} />
         </Link>
         <span className='wal-day__nav'>
           <Button
             disabled={!date.isAfter(earliest, 'day')}
             onClick={() => onDay(date.subtract(1, 'day').format('YYYY-MM-DD'))}
-            size='sm'
             variant='secondary'
           >
             {t(`${ns}.prevDay`)}
@@ -1043,7 +1151,6 @@ function DayDialog({
           <Button
             disabled={isToday || date.isAfter(now, 'day')}
             onClick={() => onDay(date.add(1, 'day').format('YYYY-MM-DD'))}
-            size='sm'
             variant='secondary'
           >
             {t(`${ns}.nextDay`)}
