@@ -409,7 +409,14 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	}
 	reason := common.GetContextKeyString(c, constant.ContextKeyRequestErrorCode)
 	if reason == "" && other != nil {
-		reason, _ = other["error_code"].(string)
+		// Relay paths store the code as types.ErrorCode, which a plain
+		// string assertion misses; every channel error then lost its reason.
+		switch code := other["error_code"].(type) {
+		case string:
+			reason = code
+		case types.ErrorCode:
+			reason = string(code)
+		}
 	}
 
 	if other == nil {

@@ -28,15 +28,15 @@ const (
 var upstreamAccountReasons = map[string]struct{ title, lead string }{
 	string(types.ErrorCodeUpstreamBillingFailed): {
 		title: "计费失败",
-		lead:  "上游以付款或额度原因拒绝了请求（余额用完、额度到顶或结算账户被停）。网关会改走其他渠道，用户多半仍能得到回答，但可能更慢或更贵。请到这个渠道的上游后台检查账户余额和结算状态。",
+		lead:  "上游以付款或额度原因拒绝了请求（余额用完、额度到顶或结算账户被停）。网关会尽量改走其他渠道，用户多半仍能得到回答，但可能更慢或更贵；没有别的渠道可走时，用户直接收到失败。请到这个渠道的上游后台检查账户余额和结算状态。",
 	},
 	string(types.ErrorCodeUpstreamAuthFailed): {
 		title: "鉴权失败",
-		lead:  "上游拒绝了这个渠道的密钥（失效、被吊销或没有权限）。网关会改走其他渠道。请检查并更换这个渠道的密钥。",
+		lead:  "上游拒绝了这个渠道的密钥（失效、被吊销或没有权限）。网关会尽量改走其他渠道，没有别的渠道可走时用户直接收到失败。请检查并更换这个渠道的密钥。",
 	},
 	string(types.ErrorCodeChannelInvalidKey): {
 		title: "鉴权失败",
-		lead:  "上游拒绝了这个渠道的密钥（失效、被吊销或没有权限）。网关会改走其他渠道。请检查并更换这个渠道的密钥。",
+		lead:  "上游拒绝了这个渠道的密钥（失效、被吊销或没有权限）。网关会尽量改走其他渠道，没有别的渠道可走时用户直接收到失败。请检查并更换这个渠道的密钥。",
 	},
 }
 
@@ -52,10 +52,18 @@ func (t *UpstreamAccountWatchTask) Run(ctx context.Context) error {
 	for code := range upstreamAccountReasons {
 		codes = append(codes, code)
 	}
-	rows, err := model.RecentUpstreamAccountFailures(ctx, time.Now().Add(-upstreamAccountWindow), codes)
+	since := time.Now().Add(-upstreamAccountWindow)
+	rows, err := model.RecentUpstreamAccountFailures(ctx, since, codes)
 	if err != nil {
 		return err
 	}
+	// Retried attempts and final failures are disjoint: a request's last
+	// attempt is never in the attempts table. Both count.
+	final, err := model.RecentUpstreamAccountFinalFailures(ctx, since, codes)
+	if err != nil {
+		return err
+	}
+	rows = append(rows, final...)
 	// Both auth codes describe one condition; count them together.
 	type key struct {
 		channel int
@@ -70,7 +78,11 @@ func (t *UpstreamAccountWatchTask) Run(ctx context.Context) error {
 		} else {
 			m.Failures += r.Failures
 			if r.LastMs > m.LastMs {
-				m.LastMs, m.StatusCode = r.LastMs, r.StatusCode
+				m.LastMs = r.LastMs
+			}
+			// Final failures carry no status; keep one an attempt recorded.
+			if r.StatusCode > m.StatusCode {
+				m.StatusCode = r.StatusCode
 			}
 		}
 		merged[k] = m
@@ -97,8 +109,10 @@ func alertUpstreamAccount(ctx context.Context, f model.UpstreamAccountFailure) e
 		{Label: "渠道", Value: fmt.Sprintf("%s（#%d）", name, f.ChannelID)},
 		{Label: "近 15 分钟失败", Value: fmt.Sprintf("%d 次", f.Failures)},
 		{Label: "最近一次", Value: time.UnixMilli(f.LastMs).UTC().Format("2006-01-02 15:04 UTC")},
-		{Label: "上游状态码", Value: strconv.Itoa(f.StatusCode), Mono: true},
 		{Label: "下次提醒", Value: "仍失败时，至多每 6 小时一次"},
+	}
+	if f.StatusCode > 0 {
+		facts = append(facts[:3], append([]common.MailFact{{Label: "上游状态码", Value: strconv.Itoa(f.StatusCode), Mono: true}}, facts[3:]...)...)
 	}
 	if lane != "" {
 		facts = append(facts[:1], append([]common.MailFact{{Label: "线路", Value: lane, Mono: true}}, facts[1:]...)...)

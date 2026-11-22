@@ -22,7 +22,7 @@ func upstreamWatchDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&model.RoutingAttemptOutcome{}, &model.Channel{}); err != nil {
+	if err := db.AutoMigrate(&model.RoutingAttemptOutcome{}, &model.Channel{}, &model.Log{}); err != nil {
 		t.Fatal(err)
 	}
 	oldCore, oldTelemetry := model.CoreDB(), model.ConfiguredTelemetryDB()
@@ -68,9 +68,42 @@ func TestRecentUpstreamAccountFailuresCountsPerChannelAndCode(t *testing.T) {
 	}
 }
 
+// A failure nothing retried is only in the error log; the watch reads it
+// there, by the code stored as the row's reason.
+func TestRecentUpstreamAccountFinalFailuresReadsErrorLog(t *testing.T) {
+	db := upstreamWatchDB(t)
+	now := time.Now()
+	seed := func(id string, channel int, logType int, reason string, at time.Time) {
+		t.Helper()
+		row := model.Log{RequestTS: at.UnixMilli(), RequestID: id, CreatedAt: at.Unix(), Type: logType, ChannelId: channel, RejectionReason: reason}
+		if err := db.Create(&row).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		seed(fmt.Sprintf("req_f%d", i), 41, model.LogTypeError, "upstream_billing_failed", now.Add(-time.Duration(i)*time.Minute))
+	}
+	seed("req_f_old", 41, model.LogTypeError, "upstream_billing_failed", now.Add(-2*time.Hour))
+	seed("req_f_rl", 41, model.LogTypeError, "upstream_rate_limited", now)
+	seed("req_f_local", 0, model.LogTypeError, "upstream_billing_failed", now)
+	seed("req_f_ok", 41, model.LogTypeConsume, "upstream_billing_failed", now)
+
+	rows, err := model.RecentUpstreamAccountFinalFailures(context.Background(), now.Add(-upstreamAccountWindow), []string{"upstream_billing_failed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].ChannelID != 41 || rows[0].ErrorCode != "upstream_billing_failed" || rows[0].Failures != 3 || rows[0].StatusCode != 0 {
+		t.Fatalf("final failures = %+v", rows)
+	}
+	if rows[0].LastMs < now.Add(-time.Second).UnixMilli() {
+		t.Fatalf("last failure = %d, want the newest row", rows[0].LastMs)
+	}
+}
+
 // With Redis (CI sets REDIS_CONN_STRING; locally any reachable Redis in a
 // spare database), a channel past the threshold is reported once, through
-// the ops alert path, with its name; one under the threshold is not.
+// the ops alert path, with its name; retried attempts and final failures
+// count together.
 func TestUpstreamAccountWatchAlertsOncePerChannel(t *testing.T) {
 	conn := os.Getenv("REDIS_CONN_STRING")
 	if conn == "" {
@@ -115,6 +148,11 @@ func TestUpstreamAccountWatchAlertsOncePerChannel(t *testing.T) {
 	}
 	seedAttempt(t, db, "req_key0", 9, "channel:invalid_key", 401, now)
 	seedAttempt(t, db, "req_key1", 9, "upstream_auth_failed", 401, now)
+	// The third key failure was nobody's retry: it is only in the error log.
+	final := model.Log{RequestTS: now.UnixMilli(), RequestID: "req_key2", CreatedAt: now.Unix(), Type: model.LogTypeError, ChannelId: 9, RejectionReason: "upstream_auth_failed"}
+	if err := db.Create(&final).Error; err != nil {
+		t.Fatal(err)
+	}
 
 	task := NewUpstreamAccountWatchTask()
 	if err := task.Run(context.Background()); err != nil {
@@ -123,10 +161,20 @@ func TestUpstreamAccountWatchAlertsOncePerChannel(t *testing.T) {
 	if err := task.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if len(alerts) != 1 {
+	if len(alerts) != 2 {
 		t.Fatalf("alerts = %+v", alerts)
 	}
-	a := alerts[0]
+	var a, key common.OpsAlert
+	for _, alert := range alerts {
+		if strings.Contains(alert.Subject, "计费失败") {
+			a = alert
+		} else {
+			key = alert
+		}
+	}
+	if key.Subject != "[Lazu ops] 上游渠道鉴权失败：渠道 #9" || !strings.Contains(key.Text, "近 15 分钟失败: 3 次") || !strings.Contains(key.Text, "上游状态码: 401") {
+		t.Fatalf("key alert = %+v", key)
+	}
 	if a.Subject != "[Lazu ops] 上游渠道计费失败：Example Gemini" || !strings.Contains(a.Text, "近 15 分钟失败: 3 次") || !strings.Contains(a.Text, "线路: direct") {
 		t.Fatalf("alert = %+v", a)
 	}

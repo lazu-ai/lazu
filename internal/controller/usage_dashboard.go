@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
@@ -182,15 +183,21 @@ func resolveDashboardScopeRole(sessionRole int, requestedScope string) int {
 	return sessionRole
 }
 
+// usageLogExportSlowQueryThreshold is the slow-SQL alert threshold for a log
+// export. Reading and scanning up to 50,000 full rows takes seconds by
+// design; the default one-second threshold reported every large export.
+const usageLogExportSlowQueryThreshold = 15 * time.Second
+
 func listExportUsageLogs(c *gin.Context, access *model.ProjectLogAccess, role int, window model.DashboardUsageWindow, filters model.DashboardUsageLogFilters) ([]model.Log, error) {
+	ctx := model.WithSlowQueryThreshold(c.Request.Context(), usageLogExportSlowQueryThreshold)
 	if access == nil {
-		return model.ListDashboardUsageLogsContext(c.Request.Context(), c.GetInt("id"), role, window, filters, 50000)
+		return model.ListDashboardUsageLogsContext(ctx, c.GetInt("id"), role, window, filters, 50000)
 	}
 	filter := projectLogFilter(c)
 	filter.Start = window.StartTimestamp
 	filter.End = window.EndTimestamp
 	var rows []*model.Log
-	if err := model.ProjectLogsQuery(*access, filter).WithContext(c.Request.Context()).Order("logs.created_at ASC, logs.id ASC").Limit(50000).Find(&rows).Error; err != nil {
+	if err := model.ProjectLogsQuery(*access, filter).WithContext(ctx).Order("logs.created_at ASC, logs.id ASC").Limit(50000).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	views, err := model.ProjectLogViews(access.Project, rows)
