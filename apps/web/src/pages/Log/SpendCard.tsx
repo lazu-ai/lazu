@@ -3,6 +3,7 @@
  * 24 小时) as bars, and four figures that hold for any range on the right.
  * Everything reads off /api/log/(self/)stat under the list's filters. */
 import { useTranslation } from 'react-i18next';
+import { figureEms } from '../../components/ui/metric-format';
 import { Pending } from '../../components/ui/pending';
 import type { UsageRangePreset } from '../../hooks/usage-logs/usageRange';
 import type { UsageLogStat } from '../../hooks/usage-logs/useUsageLogsQuery';
@@ -140,7 +141,14 @@ export function SpendCard({
           <div className='spend-card__label'>
             {t(`${SC}.title`, { range: span })}
           </div>
-          <div className='spend-card__value'>
+          <div
+            className='spend-card__value'
+            style={
+              {
+                '--money-max': loading ? 1 : figureEms(money(amount)),
+              } as React.CSSProperties
+            }
+          >
             <Pending chars={5} pending={loading}>
               {money(amount)}
             </Pending>

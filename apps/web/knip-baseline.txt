@@ -203,5 +203,4 @@ types src/pages/Token/token-support.tsx TokenLaneVendorFamily
 types src/pages/Token/token-support.tsx TokenLaneVendorRecord
 types src/pages/Token/tokenSelection.ts SelectableToken
 types src/pages/Wallet/walletAmounts.ts TopupAmountRecord
-types src/pages/Wallet/walletLedger.ts WalletLedgerRow
 unlisted src/lib/vendor-braces.test.ts micromatch

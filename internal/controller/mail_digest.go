@@ -134,6 +134,7 @@ func MailDigestChart(c *gin.Context) {
 type updateMailPrefsRequest struct {
 	WeeklyDigest   *bool `json:"weekly_digest"`
 	ProductUpdates *bool `json:"product_updates"`
+	LowBalance     *bool `json:"low_balance"`
 }
 
 func UpdateSelfMailPrefs(c *gin.Context) {
@@ -148,6 +149,9 @@ func UpdateSelfMailPrefs(c *gin.Context) {
 	}
 	if req.ProductUpdates != nil {
 		values["product_updates_off"] = !*req.ProductUpdates
+	}
+	if req.LowBalance != nil {
+		values["low_balance_off"] = !*req.LowBalance
 	}
 	if err := model.SetUserSettingValues(c.GetInt("id"), values); err != nil {
 		httperr.Write(c, err)

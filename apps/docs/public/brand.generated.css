@@ -317,7 +317,7 @@ body[theme-mode="dark"] {
   --lazu-heading-docs: 38px;
   --lazu-heading-section: 22px;
   /* Seal Console continuation; Models and dense tables are excluded. */
-  --lazu-console-heading-size: clamp(26px, 3vw, 32px);
+  --lazu-console-heading-size: 26px;
   --lazu-console-money-size: 42px;
   --lazu-display-kpi: 34px;
   --lazu-display-stat: 26px;

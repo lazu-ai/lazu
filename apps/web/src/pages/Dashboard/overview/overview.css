@@ -25,11 +25,11 @@
 }
 .ov-title {
   margin: 0;
-  font-family: var(--lazu-font-display);
-  font-weight: 400;
-  font-size: var(--lazu-console-heading-size, 40px);
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  font-size: var(--lazu-console-heading-size, 26px);
   line-height: 1.05;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 .ov-note {
   font-size: 12px;
@@ -203,11 +203,30 @@
   color: var(--lazu-danger);
 }
 .ov-money {
-  font-family: var(--lazu-font-display);
-  font-weight: 400;
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
   font-size: 31px;
-  line-height: 1;
-  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  /* Fixed, so a figure set smaller to fit does not move the row. */
+  line-height: 31px;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+/* 31px is the size; a long amount shrinks to the room it has. Revenue and
+   margin share their group less the 61px of padding and rule between them,
+   and neither cell may shrink under its figure. */
+.ov-group--money,
+.ov-kpi--money {
+  container-type: inline-size;
+}
+.ov-group--money .ov-cell {
+  min-width: auto;
+}
+.ov-group--money .ov-money {
+  font-size: min(31px, calc((100cqi - 62px) / var(--money-sum, 1)));
+}
+.ov-kpi--money .ov-money {
+  font-size: min(31px, calc(100cqi / var(--money-max, 1)));
 }
 .ov-delta[data-dir='up'] {
   color: var(--lazu-success);
@@ -491,7 +510,10 @@
   font-size: 13px;
 }
 
-@media (max-width: 1100px) {
+/* Below these widths a four-figure amount would be set under body size, so
+   the strips give it room: the platform groups stack, the workspace strip
+   takes two rows. */
+@media (max-width: 1279px) {
   .ov-groups {
     grid-template-columns: 1fr;
     row-gap: 16px;
@@ -502,6 +524,16 @@
     padding-top: 16px;
     border-top: 1px solid var(--lazu-border);
   }
+}
+@media (min-width: 721px) and (max-width: 1100px) {
+  .ov-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .ov-kpi:nth-child(4) {
+    border-left: 0;
+  }
+}
+@media (max-width: 1100px) {
   .ov-grid-2,
   .ov-grid-growth,
   .ov-grid-3 {
@@ -518,6 +550,9 @@
   .ov-group__cells {
     flex-wrap: wrap;
     row-gap: 14px;
+  }
+  .ov-group--money .ov-money {
+    font-size: min(31px, calc((100cqi - 41px) / var(--money-max, 1)));
   }
   .ov-head__actions {
     flex-wrap: wrap;
