@@ -133,8 +133,12 @@ export const capabilityKeys: CapabilityKey[] = [
 
 export const lifecycleStatuses = ['candidate', 'active', 'retired'];
 
-export const buildModelFormSchema = (t: TFunction) =>
-  z
+export const buildModelFormSchema = (
+  t: TFunction,
+  options?: { requireVendor?: boolean },
+) => {
+  const requireVendor = options?.requireVendor ?? true;
+  return z
     .object({
       capabilities: z
         .object({
@@ -176,8 +180,7 @@ export const buildModelFormSchema = (t: TFunction) =>
       model_name: z
         .string()
         .trim()
-        .min(1, t(`${ns}.error.model_name.required`))
-        .transform((value) => value.toLowerCase()),
+        .min(1, t(`${ns}.error.model_name.required`)),
       name_rule: z.coerce.number().optional(),
       open_source: z.boolean(),
       replacement_model: z.string().trim().optional(),
@@ -185,9 +188,12 @@ export const buildModelFormSchema = (t: TFunction) =>
       status: z.boolean(),
       sync_official: z.boolean(),
       tags: z.array(z.string()),
-      vendor_id: z.coerce.number().min(1, t(`${ns}.error.vendor_id.required`)),
+      vendor_id: requireVendor
+        ? z.coerce.number().min(1, t(`${ns}.error.vendor_id.required`))
+        : z.coerce.number().min(0).optional(),
     })
     .passthrough();
+};
 
 const withSelectedOptions = (
   options: SelectOption[],

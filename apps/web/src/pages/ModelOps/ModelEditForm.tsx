@@ -111,7 +111,10 @@ export default function ModelEditForm({
   const makers = useModelMakersQuery();
   const reviews = useModelInfoReviewsQuery();
   const { resolveMutation } = useModelInfoMutations(t);
-  const schema = useMemo(() => buildModelFormSchema(t), [t]);
+  const schema = useMemo(
+    () => buildModelFormSchema(t, { requireVendor: false }),
+    [t],
+  );
   const form = useForm<Values>({
     defaultValues: getDefaultModelFormValues() as Values,
     resolver: zodResolver(
