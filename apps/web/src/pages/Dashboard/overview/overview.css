@@ -207,8 +207,26 @@
   font-weight: 600;
   font-size: 31px;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  /* Fixed, so a figure set smaller to fit does not move the row. */
+  line-height: 31px;
   letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+/* 31px is the size; a long amount shrinks to the room it has. Revenue and
+   margin share their group less the 61px of padding and rule between them,
+   and neither cell may shrink under its figure. */
+.ov-group--money,
+.ov-kpi--money {
+  container-type: inline-size;
+}
+.ov-group--money .ov-cell {
+  min-width: auto;
+}
+.ov-group--money .ov-money {
+  font-size: min(31px, calc((100cqi - 62px) / var(--money-sum, 1)));
+}
+.ov-kpi--money .ov-money {
+  font-size: min(31px, calc(100cqi / var(--money-max, 1)));
 }
 .ov-delta[data-dir='up'] {
   color: var(--lazu-success);
@@ -519,6 +537,9 @@
   .ov-group__cells {
     flex-wrap: wrap;
     row-gap: 14px;
+  }
+  .ov-group--money .ov-money {
+    font-size: min(31px, calc((100cqi - 41px) / var(--money-max, 1)));
   }
   .ov-head__actions {
     flex-wrap: wrap;

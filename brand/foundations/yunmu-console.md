@@ -357,9 +357,12 @@ key lookup, docs).
 - Display money (overview cards, usage spend, payment record, wallet balance):
   Geist 600 with tabular figures and letter-spacing −0.025em (−0.035em at
   44px and above), so money sits in the same face as the rates and counts
-  beside it. Usage spend is 44px.
-- Mono stays for identifiers, code and chart axes. No console text uses
-  `--lazu-font-display`.
+  beside it. Usage spend is 44px (40px on a phone). These sizes are maximums:
+  an amount too long for its column is set smaller, never wrapped, cut or
+  run into the next column, and the row keeps its height.
+- Mono stays for identifiers, code and chart axes. Page titles and display
+  money never use `--lazu-font-display`; the status-page mark
+  (`paper-states.md`) and artwork keep it.
 
 This supersedes the heading and display-money lines of the 2026-09-21 Seal
 refinement and the "Instrument Serif" wording of the 2026-10-14 page head.
