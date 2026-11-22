@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -286,61 +285,4 @@ func LookupModelInfo(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{"found": found, "prefill": prefill})
-}
-
-// UpdateModelInfo edits the facts the 资料 page exposes — maker, release
-// date, lock — without the whole-record model update, which would also
-// rewrite columns the page never showed.
-func UpdateModelInfo(c *gin.Context) {
-	raw, err := c.GetRawData()
-	if err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	var sent map[string]json.RawMessage
-	if err := common.Unmarshal(raw, &sent); err != nil {
-		httperr.Invalid(c, "body")
-		return
-	}
-	var body struct {
-		ID          int     `json:"id"`
-		Maker       *string `json:"maker"`
-		ReleaseDate *string `json:"release_date"`
-		InfoLocked  *bool   `json:"info_locked"`
-	}
-	if err := common.Unmarshal(raw, &body); err != nil {
-		httperr.Invalid(c, "body")
-		return
-	}
-	var before model.Model
-	if err := model.CoreDB().First(&before, body.ID).Error; err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	after := before
-	fields := map[string]json.RawMessage{}
-	if body.Maker != nil {
-		after.Maker = *body.Maker
-		fields["maker"] = sent["maker"]
-	}
-	if body.ReleaseDate != nil {
-		after.ReleaseDate = *body.ReleaseDate
-		fields["release_date"] = sent["release_date"]
-	}
-	if body.InfoLocked != nil {
-		after.InfoLocked = *body.InfoLocked
-		fields["info_locked"] = sent["info_locked"]
-	}
-	if err := model.NormalizeModelInfo(&after); err != nil {
-		httperr.Invalid(c, "model_info")
-		return
-	}
-	if err := model.ApplyModelInfoEdits(before, after, fields); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	refreshModelMarketplaceCaches()
-	InvalidateModelDiscoveryCache()
-	InvalidateChannelHealthCache()
-	common.ApiSuccess(c, nil)
 }

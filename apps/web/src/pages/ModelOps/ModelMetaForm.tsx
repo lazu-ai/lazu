@@ -53,13 +53,13 @@ type CapabilityKey =
   | 'supports_vision'
   | 'supports_web_search';
 
-type EndpointGroup = LooseRecord & {
+export type EndpointGroup = LooseRecord & {
   id?: OptionValue;
   items?: unknown;
   name?: string;
 };
 
-type ModelMetaFormProps = {
+export type ModelMetaFormProps = {
   /** 厂商 is display-layer metadata, not an operations object, so it has no tab
    *  of its own — but a model cannot be saved without one, and the vendor CRUD
    *  endpoints had no UI at all. Creating the brand inline here is the only
@@ -67,10 +67,6 @@ type ModelMetaFormProps = {
   createVendor: (name: string) => Promise<{ internal_id?: number } | undefined>;
   creatingVendor: boolean;
   editingModel?: LooseRecord | null;
-  /** Rendered at the top of the form, inside its scroll area. */
-  lead?: ReactNode;
-  /** Runs before the model is saved; false stops the save. */
-  beforeSave?: () => Promise<boolean>;
   models: {
     endpointGroups: EndpointGroup[];
     editorOptionsLoading?: boolean;
@@ -93,7 +89,7 @@ type ModelMetaFormProps = {
   prefillModel?: string;
 };
 
-const MODALITY_OPTIONS = ['text', 'image', 'audio', 'video', 'pdf'];
+export const MODALITY_OPTIONS = ['text', 'image', 'audio', 'video', 'pdf'];
 
 /** Which vendor row a lab's model most plausibly belongs to. Vendors are
  *  whoever a model was imported from, so this only preselects; the operator
@@ -121,7 +117,7 @@ const isJsonOrEmpty = (value: unknown) => {
   }
 };
 
-const capabilityKeys: CapabilityKey[] = [
+export const capabilityKeys: CapabilityKey[] = [
   'supports_function_calling',
   'supports_parallel_function_calling',
   'supports_vision',
@@ -135,10 +131,14 @@ const capabilityKeys: CapabilityKey[] = [
   'supports_computer_use',
 ];
 
-const lifecycleStatuses = ['candidate', 'active', 'retired'];
+export const lifecycleStatuses = ['candidate', 'active', 'retired'];
 
-const buildModelFormSchema = (t: TFunction) =>
-  z
+export const buildModelFormSchema = (
+  t: TFunction,
+  options?: { requireVendor?: boolean },
+) => {
+  const requireVendor = options?.requireVendor ?? true;
+  return z
     .object({
       capabilities: z
         .object({
@@ -180,8 +180,7 @@ const buildModelFormSchema = (t: TFunction) =>
       model_name: z
         .string()
         .trim()
-        .min(1, t(`${ns}.error.model_name.required`))
-        .transform((value) => value.toLowerCase()),
+        .min(1, t(`${ns}.error.model_name.required`)),
       name_rule: z.coerce.number().optional(),
       open_source: z.boolean(),
       replacement_model: z.string().trim().optional(),
@@ -189,9 +188,12 @@ const buildModelFormSchema = (t: TFunction) =>
       status: z.boolean(),
       sync_official: z.boolean(),
       tags: z.array(z.string()),
-      vendor_id: z.coerce.number().min(1, t(`${ns}.error.vendor_id.required`)),
+      vendor_id: requireVendor
+        ? z.coerce.number().min(1, t(`${ns}.error.vendor_id.required`))
+        : z.coerce.number().min(0).optional(),
     })
     .passthrough();
+};
 
 const withSelectedOptions = (
   options: SelectOption[],
@@ -222,7 +224,7 @@ const coerceEndpointGroup = (items: unknown): LooseRecord => {
   return typeof items === 'object' && !Array.isArray(items) ? items : {};
 };
 
-const mergeEndpointGroup = (
+export const mergeEndpointGroup = (
   current: unknown,
   group?: EndpointGroup,
 ): string => {
@@ -249,11 +251,9 @@ const errorMessage = (message: unknown): ReactNode =>
  * lock) sits on top and is saved by the same button.
  */
 function ModelMetaForm({
-  beforeSave,
   createVendor,
   creatingVendor,
   editingModel,
-  lead,
   models,
   onCancel,
   onDelete,
@@ -468,7 +468,6 @@ function ModelMetaForm({
 
   const submit = form.handleSubmit(async (formValues) => {
     if (!isEdit && lookupPending.current) return;
-    if (beforeSave && !(await beforeSave())) return;
     const finalValues = isEdit
       ? {
           ...(detailQuery.data || editingModel || {}),
@@ -492,7 +491,6 @@ function ModelMetaForm({
   return (
     <>
       <div className='mo-dialog__body'>
-        {lead}
         <form
           id='model-form'
           className='model-ops-form__grid'

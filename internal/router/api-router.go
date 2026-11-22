@@ -482,7 +482,6 @@ func SetApiRouter(router *gin.Engine) {
 			modelInfoRoute.GET("/lookup", controller.LookupModelInfo)
 			modelInfoRoute.GET("/makers", controller.GetModelMakers)
 			modelInfoRoute.PUT("/makers", controller.UpdateModelMakerOrder)
-			modelInfoRoute.PUT("/model", controller.UpdateModelInfo)
 		}
 
 		// Manual upload trigger (Admin)

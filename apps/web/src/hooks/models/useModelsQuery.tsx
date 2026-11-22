@@ -306,9 +306,7 @@ const normalizeModelPayload = (values: ModelFormValues): LooseRecord => {
       .trim()
       .toLowerCase(),
     max_output_tokens: asIntegerOrZero(values.max_tokens),
-    model_name: String(values.model_name || '')
-      .trim()
-      .toLowerCase(),
+    model_name: String(values.model_name || '').trim(),
     name_rule: Number(values.name_rule ?? 0),
     open_source: Boolean(values.open_source),
     lifecycle_status: String(values.lifecycle_status || 'active'),

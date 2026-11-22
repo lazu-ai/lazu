@@ -441,6 +441,37 @@ Owner-approved canvas `archive:brand/canvases.md`
   stay English as mono tags: `main`, `subagent`, `compact`, `review`.
 
 
+## Locked model detail (2026-11-19)
+
+A model opens from 模型运营 as one centered dialog, up to 1080px wide (a
+full-screen sheet on a phone), with no tabs.
+
+1. **The head names the model**: a 40px ink tile with the maker's initial,
+   the model name with its 在售 / 未上架 badge, and maker · family · release
+   date under it. Previous, next, copy name and close sit on the right.
+2. **资料 reads as an overview**: four figures in 20px (上下文, 最大输出,
+   知识截止, 官方价), each badged when it did not come from models.dev
+   (本站改过, 推断, 待确认) and captioned with the upstream value when the sync
+   disagrees; then rows of pills for 输入 → 输出 and 能力, unsupported
+   parameters as struck, dashed pills, and the official cache price.
+   编辑资料 replaces the body with the form (board Model C): sections
+   规格, 输入与输出, 能力, 接口 (read-only; endpoint paths folded), 上架,
+   名称与厂商 and 介绍 on the left; on the right the model as the 模型 page
+   shows it (the same facts component) and 本次修改, one line per changed
+   field. One footer: 删除模型 on the left, 取消 and 保存 N 处修改 on the
+   right. Everything saves in one request.
+3. **线路 are cards side by side**, two to a row (one on a narrow screen):
+   the lane name with 跟随官方价 or 固定价, input, output and margin in 28px,
+   a caption with cache prices, the pool's cost and the ratio, then the
+   sources: name and state on one line, 48 hours of thin bars with role,
+   weight and latency under it. 改价 opens the card's price and weights in
+   place, with 取消 / 保存 at its foot; saving still shows the before/after
+   confirmation.
+4. **The dialog has one height** from the first frame. It opens from the
+   ledger row at once; the lane cards are grey blocks until prices load.
+5. The dialog never explains itself in sentences: figures, badges and labels
+   only.
+
 ## Locked page-UX revision (2026-10-14)
 
 Owner-approved canvas `archive:brand/canvases.md`

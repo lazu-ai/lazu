@@ -1,49 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  AudioLines,
   Ban,
-  Binary,
-  Braces,
-  Brain,
   Check,
   Copy,
-  DatabaseZap,
-  Eye,
-  FileText,
   Gauge,
-  Image as ImageIcon,
-  ListOrdered,
   LayoutGrid,
-  Mic,
-  MoveRight,
   Terminal,
-  Type,
-  Video,
-  Volume2,
   Workflow,
-  Wrench,
 } from 'lucide-react';
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-  type ReactNode,
-} from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   applyLanePeak,
   contextLengthOf,
-  descriptionOf,
   formatContextLength,
   formatTierThreshold,
-  formatTokenWindow,
   healthTone,
   laneContextTier,
   laneListPrice,
-  modalitiesOf,
   releaseDateOf,
   resolveLanes,
   type CatalogModel,
@@ -60,6 +35,7 @@ import {
   type SampleLanguage,
 } from './code-samples';
 import { LaneBlock, LaneHealthLegend } from './lane-block';
+import { DetailSection, ModelFacts, money } from './model-facts';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import ConsolePage from '../../components/ui/console-page';
@@ -85,38 +61,6 @@ import {
   makerOf,
 } from '../../lib/model-makers';
 import './model-plaza.css';
-
-const money = (value?: number) =>
-  value == null ? null : `$${value < 1 ? value.toFixed(3) : value.toFixed(2)}`;
-
-const capabilityEntries = (capabilities?: Record<string, boolean>) =>
-  Object.entries(capabilities || {})
-    .filter(([, enabled]) => enabled)
-    .map(([name]) => name.replace(/^supports_/, '').replaceAll('_', ' '));
-
-type IconComponent = ComponentType<{ size?: number | string }>;
-
-const CAPABILITY_ICONS: Record<string, IconComponent> = {
-  'audio input': Mic,
-  'audio output': Volume2,
-  'function calling': Wrench,
-  'parallel function calling': Workflow,
-  'pdf input': FileText,
-  'prompt caching': DatabaseZap,
-  reasoning: Brain,
-  'response schema': Braces,
-  vision: Eye,
-};
-
-const MODALITY_ICONS: Record<string, IconComponent> = {
-  audio: AudioLines,
-  embedding: Binary,
-  decision: Braces,
-  image: ImageIcon,
-  rerank: ListOrdered,
-  text: Type,
-  video: Video,
-};
 
 const apiBaseURL = () =>
   getExternalAPIBaseURL(window.location.origin, window.location.hostname);
@@ -532,36 +476,9 @@ function CodeSamples({ model }: { model: CatalogModel }) {
   );
 }
 
-function DetailSection({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: IconComponent;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className='plaza-detail__section'>
-      <h3>
-        <Icon size={13} />
-        {title}
-      </h3>
-      {children}
-    </section>
-  );
-}
-
 function ModelDetail({ model }: { model: CatalogModel }) {
-  const { t, i18n } = useTranslation();
-  const description = descriptionOf(model, i18n.language || 'zh');
-  const modality = modalitiesOf(model);
-  const context = formatTokenWindow(contextLengthOf(model));
-  const maxOutput = formatTokenWindow(model.max_output_tokens);
-  const inputLimit = formatTokenWindow(model.input_limit);
-  const caps = capabilityEntries(model.capabilities);
+  const { t } = useTranslation();
   const lanes = resolveLanes(model);
-  const released = releaseDateOf(model) || null;
   const efforts = model.reasoning_options?.efforts || [];
   const canSwitchOffThinking = Boolean(model.reasoning_options?.toggle);
   const unsupported = model.unsupported_params || [];
@@ -587,152 +504,33 @@ function ModelDetail({ model }: { model: CatalogModel }) {
   const heroIn = bestPrice('input');
   const heroOut = bestPrice('output');
 
-  const renderModalities = (values: string[]) =>
-    values.length ? (
-      <span className='plaza-detail__modality'>
-        {values.map((value) => {
-          const Icon = MODALITY_ICONS[value] || Type;
-          return (
-            <span key={value} className='plaza-detail__modality-item'>
-              <Icon size={12} />
-              {t(`page.console.plaza.detail.modality.${value}`, {
-                defaultValue: value,
-              })}
-            </span>
-          );
-        })}
-      </span>
-    ) : (
-      '—'
-    );
-
   return (
     <div className='plaza-detail'>
-      {description ? <p className='plaza-detail__desc'>{description}</p> : null}
-
-      <div className='plaza-detail__stats'>
-        <div className='plaza-detail__stat'>
-          <span className='plaza-detail__stat-label'>
-            {t('page.console.plaza.detail.modalityHeading', {
-              defaultValue: '模态',
-            })}
-          </span>
-          <b className='plaza-detail__modality-flow'>
-            {renderModalities(modality.input)}
-            <MoveRight size={13} />
-            {renderModalities(modality.output)}
-          </b>
-        </div>
-        {heroIn != null || heroOut != null ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.inOutPrice', {
-                defaultValue: '输入 / 输出',
-              })}
-              {bestOff ? <em className='plaza-off'>−{bestOff}%</em> : null}
-            </span>
-            <b>
-              {[money(heroIn), money(heroOut)].filter(Boolean).join(' / ')}
-              <small>
-                {t('page.console.plaza.detail.unit.perMtokShort', {
-                  defaultValue: ' /M',
-                })}
-              </small>
-            </b>
-          </div>
-        ) : null}
-        <div className='plaza-detail__stat'>
-          <span className='plaza-detail__stat-label'>
-            {t('page.console.plaza.detail.context', {
-              defaultValue: '上下文',
-            })}
-          </span>
-          <b>{context ?? '—'}</b>
-        </div>
-        {inputLimit ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.inputLimit', {
-                defaultValue: '输入上限',
-              })}
-            </span>
-            <b>{inputLimit}</b>
-            <small className='plaza-detail__stat-note'>
-              {t('page.console.plaza.detail.inputLimitNote', {
-                defaultValue: '其余留给输出',
-              })}
-            </small>
-          </div>
-        ) : null}
-        <div className='plaza-detail__stat'>
-          <span className='plaza-detail__stat-label'>
-            {t('page.console.plaza.detail.maxOutput', {
-              defaultValue: '最大输出',
-            })}
-          </span>
-          <b>{maxOutput ?? '—'}</b>
-        </div>
-        {released ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.releasedDate', {
-                defaultValue: '发布日期',
-              })}
-            </span>
-            <b>{released}</b>
-          </div>
-        ) : null}
-        {model.knowledge_cutoff ? (
-          <div className='plaza-detail__stat'>
-            <span className='plaza-detail__stat-label'>
-              {t('page.console.plaza.detail.knowledgeCutoff', {
-                defaultValue: '知识截止',
-              })}
-            </span>
-            <b>{model.knowledge_cutoff}</b>
-          </div>
-        ) : null}
-      </div>
-
-      <DetailSection
-        icon={Workflow}
-        title={t('page.console.plaza.detail.lanes', { defaultValue: '线路' })}
+      <ModelFacts
+        model={model}
+        price={{ input: heroIn, off: bestOff, output: heroOut }}
       >
-        <div className='plaza-detail__lanes-head'>
-          <LaneHealthLegend className='plaza-detail__legend' />
-        </div>
-        <div className='plaza-detail__lanes'>
-          {lanes.map((lane) => (
-            <LaneBlock
-              key={lane.key}
-              lane={lane}
-              model={model}
-              variant='detail'
-            />
-          ))}
-        </div>
-        <ExtraPriceChips lanes={lanes} model={model} />
-        <ContextTierTable lanes={lanes} model={model} />
-      </DetailSection>
-
-      {caps.length ? (
         <DetailSection
-          icon={Brain}
-          title={t('page.console.plaza.capsHeading', { defaultValue: '能力' })}
+          icon={Workflow}
+          title={t('page.console.plaza.detail.lanes', { defaultValue: '线路' })}
         >
-          <div className='plaza-detail__caps'>
-            {caps.map((name) => {
-              const Icon = CAPABILITY_ICONS[name];
-              return (
-                <span key={name} className='plaza-cap'>
-                  {Icon ? <Icon size={12} /> : null}
-                  {name}
-                </span>
-              );
-            })}
+          <div className='plaza-detail__lanes-head'>
+            <LaneHealthLegend className='plaza-detail__legend' />
           </div>
+          <div className='plaza-detail__lanes'>
+            {lanes.map((lane) => (
+              <LaneBlock
+                key={lane.key}
+                lane={lane}
+                model={model}
+                variant='detail'
+              />
+            ))}
+          </div>
+          <ExtraPriceChips lanes={lanes} model={model} />
+          <ContextTierTable lanes={lanes} model={model} />
         </DetailSection>
-      ) : null}
+      </ModelFacts>
 
       {efforts.length || canSwitchOffThinking ? (
         <DetailSection
