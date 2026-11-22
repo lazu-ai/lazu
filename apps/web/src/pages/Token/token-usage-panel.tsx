@@ -162,7 +162,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
             </div>
             <span className='tok-usage__meter-line'>
               {t('page.console.token.usage.quotaLine', {
-                percent: quota.usedPercent,
+                percent: Math.round(quota.usedPercent),
                 total: formatMoney(quota.total),
                 used: formatMoney(quota.used),
                 defaultValue: '已用 {{used}} / {{total}} · {{percent}}%',
@@ -201,7 +201,7 @@ export function TokenUsagePanel({ record }: { record: TokenUsageRecord }) {
           variant='secondary'
         >
           {t('page.console.token.usage.viewNamedLogs', {
-            defaultValue: '查看此名称的 Key 请求日志 →',
+            defaultValue: '查看调用日志',
           })}
         </Button>
       </div>

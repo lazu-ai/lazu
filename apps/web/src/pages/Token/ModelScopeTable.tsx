@@ -1,4 +1,4 @@
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Checkbox } from '../../components/ui/checkbox';
 import { ProviderLogo } from '../../components/ui/provider-icons';
@@ -38,6 +38,33 @@ export const scopeLimits = (mode: ScopeMode, names: string[]) =>
     : mode === 'only'
       ? names
       : [];
+
+/** How many models a scope leaves usable. Exclusions keep every model that is
+ *  not named; an allowlist keeps the named ones and whole vendors. */
+export function scopeReach(
+  mode: Exclude<ScopeMode, 'all'>,
+  limits: string[],
+  vendors: string[],
+  models: Array<{ value: string }>,
+  facts: TokenModelFact[],
+) {
+  const named = new Set(scopeNames(limits));
+  if (mode === 'except') {
+    return models.filter((option) => !named.has(String(option.value))).length;
+  }
+  const vendorSet = new Set(vendors);
+  const vendorOf = new Map(
+    facts.map((fact) => [
+      fact.model,
+      fact.vendorID ? String(fact.vendorID) : '',
+    ]),
+  );
+  return models.filter((option) => {
+    const name = String(option.value);
+    const vendor = vendorOf.get(name) ?? '';
+    return named.has(name) || (vendor !== '' && vendorSet.has(vendor));
+  }).length;
+}
 
 const trimPrice = (value: number) => `$${Number(value.toFixed(4)).toString()}`;
 
@@ -79,8 +106,11 @@ type ModelScopeTableProps = {
   vendors: string[];
 };
 
-/** 限制模型: grouped by maker with collapsible headers, selected chips + search
- *  bar, and a 2-column checkbox grid inside the steady 640px Key modal. */
+/** 可用模型: a search box and the models grouped by maker, each ticked while it
+ *  is usable. A new scope starts as "every model but these" with nothing
+ *  excluded, so every box starts ticked and unticking takes a model away;
+ *  models added later stay usable. An older allowlist scope keeps its mode:
+ *  only its models are ticked, and ticking adds to it. */
 export default function ModelScopeTable({
   agentMakers,
   facts,
@@ -116,20 +146,15 @@ export default function ModelScopeTable({
   );
 
   const names = scopeNames(limits);
-  const ticked = new Set(names);
-  const vendorSet = new Set(mode === 'only' ? vendors : []);
+  const named = new Set(names);
+  const excluding = mode === 'except';
+  const vendorSet = new Set(excluding ? [] : vendors);
+  /** A box is ticked while its model is usable. */
   const isTicked = (row: (typeof rows)[number]) =>
-    ticked.has(row.name) ||
-    (row.vendorID !== '' && vendorSet.has(row.vendorID));
-
-  const effectiveTickedNames = useMemo(() => {
-    if (vendorSet.size === 0) return names;
-    const expanded = new Set(names);
-    for (const row of rows) {
-      if (row.vendorID && vendorSet.has(row.vendorID)) expanded.add(row.name);
-    }
-    return [...expanded];
-  }, [names, rows, vendorSet]);
+    excluding
+      ? !named.has(row.name)
+      : named.has(row.name) ||
+        (row.vendorID !== '' && vendorSet.has(row.vendorID));
 
   const needle = query.trim().toLowerCase();
   const shown = rows.filter(
@@ -159,19 +184,25 @@ export default function ModelScopeTable({
     [shown],
   );
 
-  const reach =
-    mode === 'only'
-      ? rows.filter(isTicked).length
-      : rows.filter((row) => !ticked.has(row.name)).length;
+  const reach = rows.filter(isTicked).length;
 
   const write = (nextNames: string[], nextVendors = vendors) =>
     onChange({
       limits: scopeLimits(mode, [...new Set(nextNames)]),
       mode,
-      vendors: mode === 'only' ? nextVendors : [],
+      vendors: excluding ? [] : nextVendors,
     });
 
   const toggle = (targets: typeof rows, on: boolean) => {
+    if (excluding) {
+      const out = new Set(names);
+      for (const row of targets) {
+        if (on) out.delete(row.name);
+        else out.add(row.name);
+      }
+      write([...out]);
+      return;
+    }
     let nextNames = [...names];
     let nextVendors = [...vendors];
     for (const row of targets) {
@@ -192,125 +223,20 @@ export default function ModelScopeTable({
     write(nextNames, nextVendors);
   };
 
-  const removeOne = (targetName: string) => {
-    const match = rows.find((row) => row.name === targetName);
-    if (match) {
-      toggle([match], false);
-    } else {
-      write(
-        names.filter((name) => name !== targetName),
-        vendors,
-      );
-    }
-  };
-
-  const pickMode = (next: Exclude<ScopeMode, 'all'>) => {
-    if (next === mode) return;
-    const carried =
-      mode === 'only' ? rows.filter(isTicked).map((row) => row.name) : names;
-    onChange({ limits: scopeLimits(next, carried), mode: next, vendors: [] });
-  };
-
-  const excluding = mode === 'except';
-
   return (
     <div className='tok-scope2'>
-      <div className='tok-scope2__modes'>
-        <div
-          aria-label={t('page.console.token.scope.modeLabel', {
-            defaultValue: '限制方式',
-          })}
-          className='tokv2-seg'
-          role='radiogroup'
-        >
-          {(
-            [
-              [
-                'only',
-                t('page.console.token.scope.modeOnlyShort', {
-                  defaultValue: '只允许',
-                }),
-              ],
-              [
-                'except',
-                t('page.console.token.scope.modeExceptShort', {
-                  defaultValue: '排除',
-                }),
-              ],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              aria-checked={mode === key}
-              className={cn('tokv2-seg__btn', mode === key && 'is-on')}
-              data-owns-chrome='true'
-              key={key}
-              role='radio'
-              type='button'
-              onClick={() => pickMode(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <span className='tokv2-hint tok-scope2__reach'>
-          {t('page.console.token.scope.reachable', { defaultValue: '可调' })}{' '}
-          <b className='tok-scope2__mono tok-scope2__reach-num'>{reach}</b>
-          {` / ${rows.length}`}
-          {excluding ? (
-            <span className='tok-scope2__future'>
-              {` · ${t('page.console.token.scope.futureCallable', {
-                defaultValue: '新模型默认可调',
-              })}`}
-            </span>
-          ) : null}
-        </span>
-
-        {effectiveTickedNames.length > 0 ? (
-          <button
-            className='tok-scope2__clear'
-            data-owns-chrome='true'
-            type='button'
-            onClick={() =>
-              onChange({ limits: scopeLimits(mode, []), mode, vendors: [] })
-            }
-          >
-            {t('common.clear', { defaultValue: '清空' })}
-          </button>
-        ) : null}
-      </div>
-
-      <div className='tok-scope2__tagbox'>
-        {effectiveTickedNames.map((id) => (
-          <span
-            className={cn('tok-scope2__tag', excluding && 'is-out')}
-            key={id}
-          >
-            <span>{id}</span>
-            <button
-              aria-label={`${t('common.remove', { defaultValue: '移除' })} ${id}`}
-              className='tok-scope2__tag-rm'
-              data-owns-chrome='true'
-              type='button'
-              onClick={() => removeOne(id)}
-            >
-              <X aria-hidden='true' size={12} />
-            </button>
-          </span>
-        ))}
-        <input
-          aria-label={t('page.console.token.scope.searchShort', {
-            defaultValue: '搜模型',
-          })}
-          className='tok-scope2__q'
-          placeholder={t('page.console.token.scope.searchPlaceholder', {
-            defaultValue: '搜模型…',
-          })}
-          type='text'
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </div>
+      <input
+        aria-label={t('page.console.token.scope.searchShort', {
+          defaultValue: '搜索模型',
+        })}
+        className='tok-scope2__search'
+        placeholder={t('page.console.token.scope.searchPlaceholder', {
+          defaultValue: '搜索模型',
+        })}
+        type='search'
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
 
       <div className='tok-scope2__groups'>
         {groups.length === 0 ? (
@@ -338,7 +264,6 @@ export default function ModelScopeTable({
                   <Checkbox
                     aria-label={label}
                     checked={allOn}
-                    className={excluding ? 'tok-scope2__box--out' : undefined}
                     indeterminate={someOn}
                     onCheckedChange={(checked: boolean) =>
                       toggle(group.rows, checked)
@@ -386,19 +311,13 @@ export default function ModelScopeTable({
 
                       return (
                         <label
-                          className={cn(
-                            'tok-scope2__item',
-                            on && (excluding ? 'is-out' : 'is-in'),
-                          )}
+                          className={cn('tok-scope2__item', on && 'is-in')}
                           key={row.name}
                           title={tip || undefined}
                         >
                           <Checkbox
                             aria-label={row.name}
                             checked={on}
-                            className={
-                              excluding ? 'tok-scope2__box--out' : undefined
-                            }
                             onCheckedChange={(checked: boolean) =>
                               toggle([row], checked)
                             }
@@ -422,10 +341,10 @@ export default function ModelScopeTable({
         )}
       </div>
 
-      {invalid && mode === 'only' && reach === 0 ? (
+      {invalid && reach === 0 ? (
         <span className='tok-scope2__error' role='alert'>
           {t('page.console.token.scope.emptyOnly', {
-            defaultValue: '至少选择一个模型，或关闭「限制模型」',
+            defaultValue: '至少保留一个模型',
           })}
         </span>
       ) : null}

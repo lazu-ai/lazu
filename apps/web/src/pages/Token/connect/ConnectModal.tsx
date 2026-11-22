@@ -376,7 +376,7 @@ export function ConnectModal({
                 .length,
               count: writtenModels.length,
               defaultValue:
-                '本次写入 {{count}} 个模型 · Agent {{agent}} · 稳定 {{direct}}。',
+                '本次写入 {{count}} 个模型 · Agent {{agent}} · 标准 {{direct}}。',
               direct: writtenModels.filter((id) => laneOf(id) === 'direct')
                 .length,
             })
@@ -384,11 +384,11 @@ export function ConnectModal({
         {cheapVendorNames.length
           ? t('page.console.token.connect.laneDefaults', {
               defaultValue:
-                '未列出的模型按厂商默认线路：{{vendors}} 走 Agent 专线、其余稳定。',
+                '未列出的模型按厂商默认线路：{{vendors}} 走 Agent 专线、其余标准。',
               vendors: cheapVendorNames.join('、'),
             })
           : t('page.console.token.connect.laneDefaultsAllDirect', {
-              defaultValue: '未列出的模型按厂商默认线路：全部稳定。',
+              defaultValue: '未列出的模型按厂商默认线路：全部标准。',
             })}
       </span>
       {onEditKey && record ? (

@@ -1,73 +1,31 @@
-/* A2 「填线」 reasoning-effort cap. Spec: brand/foundations/team-projects-2026-09.md
-   § Reasoning-effort cap. Words above, an ink line filled to the cap below. */
+/* Reasoning-effort cap. Spec: brand/foundations/team-projects-2026-09.md
+   § Reasoning-effort cap. A track of six stops with the labels under them;
+   the whole control is the hit area, so a click on a label or anywhere on the
+   track moves the cap there, and the knob drags. */
 .lazu-effort {
+  cursor: pointer;
   display: inline-flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   max-width: 100%;
-  width: 360px;
+  padding: 8px 22px 0;
+  touch-action: none;
+  user-select: none;
+  width: 380px;
 }
 
 .lazu-effort--lg {
-  width: 470px;
+  width: 490px;
 }
 
-.lazu-effort__words {
-  display: flex;
-}
-
-.lazu-effort__word {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  color: var(--lazu-text-faint);
-  cursor: pointer;
-  flex: 1;
-  font-family: var(--lazu-font-mono);
-  font-size: 11.5px;
-  line-height: 20px;
-  padding: 0 2px;
-  text-align: center;
-  transition: color var(--lazu-motion-base, 140ms) var(--lazu-ease-direct, ease);
-  white-space: nowrap;
-}
-
-.lazu-effort--lg .lazu-effort__word {
-  font-size: 12.5px;
-}
-
-.lazu-effort__word[data-state='on'] {
-  color: var(--lazu-ink);
-}
-
-.lazu-effort__word[data-state='cap'] {
-  color: var(--lazu-ink);
-  font-weight: 600;
-}
-
-.lazu-effort__word[data-state='out'] {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.lazu-effort__word:not(:disabled):hover {
-  color: var(--lazu-ink);
-}
-
-.lazu-effort__word:focus-visible {
-  outline: 2px solid var(--lazu-evidence);
-  outline-offset: 1px;
-}
-
-.lazu-effort[aria-disabled='true'] .lazu-effort__word {
+.lazu-effort[data-readonly] {
   cursor: default;
 }
 
-.lazu-effort__track {
+.lazu-effort__rail {
   background: var(--lazu-surface-selected);
   border-radius: 999px;
-  height: 4px;
+  height: 6px;
   position: relative;
 }
 
@@ -81,16 +39,85 @@
   transition: width var(--lazu-motion-base, 140ms) var(--lazu-ease-direct, ease);
 }
 
+.lazu-effort__stop {
+  background: var(--lazu-text-faint);
+  border-radius: 50%;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  position: absolute;
+  top: 50%;
+  width: 6px;
+}
+
+.lazu-effort__stop[data-state='on'] {
+  background: rgb(255 255 255 / 80%);
+}
+
+.lazu-effort__stop[data-state='out'] {
+  opacity: 0.4;
+}
+
 .lazu-effort__knob {
   background: var(--lazu-surface-solid);
   border: 2px solid var(--lazu-action);
   border-radius: 50%;
-  height: 12px;
-  margin-left: -6px;
+  box-shadow: 0 1px 4px rgb(20 22 28 / 18%);
+  cursor: grab;
+  height: 18px;
+  margin: -9px 0 0 -9px;
   position: absolute;
-  top: -4px;
+  top: 50%;
   transition: left var(--lazu-motion-base, 140ms) var(--lazu-ease-direct, ease);
-  width: 12px;
+  width: 18px;
+}
+
+.lazu-effort[data-readonly] .lazu-effort__knob {
+  cursor: default;
+}
+
+.lazu-effort__knob:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
+}
+
+.lazu-effort__words {
+  height: 18px;
+  position: relative;
+}
+
+.lazu-effort__word {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.lazu-effort--lg .lazu-effort__word {
+  font-size: 12.5px;
+}
+
+.lazu-effort__word[data-state='cap'] {
+  color: var(--lazu-ink);
+  font-weight: 600;
+}
+
+.lazu-effort__word[data-state='out'] {
+  opacity: 0.45;
+}
+
+.lazu-effort:not([data-readonly])
+  .lazu-effort__word:not([data-state='out']):hover {
+  color: var(--lazu-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lazu-effort__fill,
+  .lazu-effort__knob {
+    transition: none;
+  }
 }
 
 .lazu-effort-badge {

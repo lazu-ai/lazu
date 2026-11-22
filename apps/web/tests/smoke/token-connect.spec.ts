@@ -166,7 +166,7 @@ test('each model slot carries its own lane, and only where there is one', async 
   // The default model is Anthropic's, whose agent lane takes any client: both
   // sides of the switch are live and both quote their own rate.
   const main = slot('tok-connect-model');
-  await expect(main.getByRole('radio', { name: /稳定/ })).toHaveAttribute(
+  await expect(main.getByRole('radio', { name: /标准/ })).toHaveAttribute(
     'aria-checked',
     'true',
   );
@@ -201,7 +201,7 @@ test('each model slot carries its own lane, and only where there is one', async 
     .first()
     .click();
   await expect(light.getByRole('radio')).toHaveCount(0);
-  await expect(light).toContainText('仅稳定线路');
+  await expect(light).toContainText('仅标准线路');
 
   // Lanes belong to models, so one slot's choice never moves another's.
   await expect(main.getByRole('radio', { name: /Agent/ })).toHaveAttribute(
@@ -233,7 +233,7 @@ test('a lane the Key kept but this tool cannot use warns instead of hiding', asy
     'aria-checked',
     'true',
   );
-  await expect(opus).toContainText('这个工具的请求会被拒绝，请改为稳定');
+  await expect(opus).toContainText('这个工具的请求会被拒绝，请改为标准');
 
   // The same model in Codex is simply usable.
   await dialog.getByRole('button', { name: 'Codex CLI', exact: true }).click();
@@ -330,7 +330,7 @@ test('connection saves only changed fields with the opened version', async ({
   await expect(page.locator('.tok-connect')).toHaveCount(0);
 });
 
-test('default create form fits a laptop viewport and keeps 640px width on scope expand', async ({
+test('default create form fits a laptop viewport and keeps 800px width on scope expand', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -339,7 +339,7 @@ test('default create form fits a laptop viewport and keeps 640px width on scope 
   await page.getByRole('button', { name: '创建密钥', exact: true }).click();
   const modal = page.locator('.tok-create-modal');
   await expect(
-    modal.getByRole('button', { name: '创建并接入', exact: true }),
+    modal.getByRole('button', { name: '创建', exact: true }),
   ).toBeInViewport();
   await expect(modal.locator('#token-quota')).toHaveValue('100');
   await expect(
@@ -354,7 +354,7 @@ test('default create form fits a laptop viewport and keeps 640px width on scope 
 
   await expect
     .poll(async () => Math.round((await modal.boundingBox())?.width ?? 0))
-    .toBe(640);
+    .toBe(800);
   const box = await modal.boundingBox();
   if (!box) throw new Error('create dialog has no box');
   expect(box.y).toBeGreaterThanOrEqual(0);
@@ -362,10 +362,10 @@ test('default create form fits a laptop viewport and keeps 640px width on scope 
   await modal.locator('.tok-create__more').scrollIntoViewIfNeeded();
   await expect(modal.locator('.tok-create__more')).toBeInViewport();
 
-  await modal.getByRole('switch', { name: '限制模型' }).click();
+  await modal.getByRole('switch', { name: '可用模型' }).click();
   await expect(modal.locator('.tok-scope2')).toBeVisible();
   const expandedBox = await modal.boundingBox();
-  expect(Math.round(expandedBox!.width)).toBe(640);
+  expect(Math.round(expandedBox!.width)).toBe(800);
 });
 
 /* The chat entry point was one item of the row's "…" menu, and that menu is
@@ -375,22 +375,51 @@ test('default create form fits a laptop viewport and keeps 640px width on scope 
  * key-safety rules are still covered by chatTemplate.test.ts, so the moment
  * chat gets an entry point again, its safety is already asserted. */
 
-for (const allowAll of [true, false]) {
-  test(`empty restricted scope blocks saving until ${allowAll ? 'turning off 限制模型' : 'selecting a model'}`, async ({
+/* 可用模型 is off by default (every model). Switching it on ticks every model;
+ * unticking takes one away. It reaches the server as `*` followed by the
+ * excluded names, so models added later stay usable. */
+test('unticking a model sends the everything-except scope', async ({
+  page,
+}) => {
+  await setupConnection(page);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '创建密钥', exact: true }).click();
+  const modal = page.locator('.tok-create-modal');
+  await modal.locator('#token-name').fill('Except scope');
+  await modal.getByRole('switch', { name: '可用模型' }).click();
+  const scope = modal.locator('.tok-scope2');
+  await scope.getByRole('searchbox', { name: '搜索模型' }).fill('gpt-6-astra');
+  const astra = scope.getByRole('checkbox', { name: 'gpt-6-astra' });
+  await expect(astra).toBeChecked();
+  await astra.click();
+  await expect(astra).not.toBeChecked();
+
+  const requestPromise = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === '/api/token/',
+  );
+  await modal.getByRole('button', { name: '创建', exact: true }).click();
+  const payload = (await requestPromise).postDataJSON();
+  expect(payload.model_limits_enabled).toBe(true);
+  expect(payload.model_limits).toBe('*,-gpt-6-astra');
+  expect(payload.model_scope_vendors ?? []).toEqual([]);
+});
+
+/* Switched on with nothing unticked is every model, saved as off; unticking
+ * every model is the one state that must not save. */
+for (const untickAll of [false, true]) {
+  test(`switched-on scope ${untickAll ? 'with no model left blocks saving' : 'with every model saves as all'}`, async ({
     page,
   }) => {
     await setupConnection(page);
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: '创建密钥', exact: true }).click();
     const modal = page.locator('.tok-create-modal');
-    await modal.locator('#token-name').fill('Restricted regression');
-    const scopeSwitch = modal.getByRole('switch', { name: '限制模型' });
-    await scopeSwitch.click();
+    await modal.locator('#token-name').fill('Scope regression');
+    await modal.getByRole('switch', { name: '可用模型' }).click();
     const scope = modal.locator('.tok-scope2');
-    const create = modal.getByRole('button', {
-      name: '创建并接入',
-      exact: true,
-    });
+    const create = modal.getByRole('button', { name: '创建', exact: true });
     const writes: string[] = [];
     page.on('request', (request) => {
       if (
@@ -399,18 +428,19 @@ for (const allowAll of [true, false]) {
       )
         writes.push(request.postData() || '');
     });
-    // Narrowed but empty is the one state that must not save: it would read
-    // as "everything" at the gateway while the editor says otherwise.
-    await create.click();
-    await expect(scope.getByRole('alert')).toBeVisible();
-    expect(writes).toHaveLength(0);
 
-    if (allowAll) {
-      await scopeSwitch.click();
-    } else {
-      await scope.getByRole('textbox', { name: '搜模型' }).fill('gpt-6-astra');
-      await scope.getByRole('checkbox', { name: 'gpt-6-astra' }).click();
+    if (untickAll) {
+      const groups = scope.locator('.tok-scope2__ghead [role="checkbox"]');
+      const count = await groups.count();
+      for (let index = 0; index < count; index += 1) {
+        await groups.nth(index).click();
+      }
+      await create.click();
+      await expect(scope.getByRole('alert')).toBeVisible();
+      expect(writes).toHaveLength(0);
+      return;
     }
+
     const requestPromise = page.waitForRequest(
       (request) =>
         request.method() === 'POST' &&
@@ -418,40 +448,10 @@ for (const allowAll of [true, false]) {
     );
     await create.click();
     const payload = (await requestPromise).postDataJSON();
-    expect(payload.model_limits_enabled).toBe(!allowAll);
-    expect(payload.model_limits).toBe(allowAll ? '' : 'gpt-6-astra');
+    expect(payload.model_limits_enabled).toBe(false);
+    expect(payload.model_limits).toBe('');
   });
 }
-
-/* 排除 is a standing rule, not a snapshot of today's catalog:
- * models added later stay callable. It reaches the server as `*` followed
- * by the excluded names. */
-test('excluding a model sends the everything-except scope', async ({
-  page,
-}) => {
-  await setupConnection(page);
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: '创建密钥', exact: true }).click();
-  const modal = page.locator('.tok-create-modal');
-  await modal.locator('#token-name').fill('Except scope');
-  await modal.getByRole('switch', { name: '限制模型' }).click();
-  const scope = modal.locator('.tok-scope2');
-  await scope.getByRole('radio', { name: '排除' }).click();
-  await scope.getByRole('textbox', { name: '搜模型' }).fill('gpt-6-astra');
-  await scope.getByRole('checkbox', { name: 'gpt-6-astra' }).click();
-  await expect(scope).toContainText('新模型默认可调');
-
-  const requestPromise = page.waitForRequest(
-    (request) =>
-      request.method() === 'POST' &&
-      new URL(request.url()).pathname === '/api/token/',
-  );
-  await modal.getByRole('button', { name: '创建并接入', exact: true }).click();
-  const payload = (await requestPromise).postDataJSON();
-  expect(payload.model_limits_enabled).toBe(true);
-  expect(payload.model_limits).toBe('*,-gpt-6-astra');
-  expect(payload.model_scope_vendors ?? []).toEqual([]);
-});
 
 test('external import keeps the dialog open and retries without stale saves', async ({
   page,

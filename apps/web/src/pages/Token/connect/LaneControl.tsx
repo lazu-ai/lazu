@@ -41,15 +41,15 @@ export function LaneControl({
 }) {
   const laneName = (lane: Lane) =>
     lane === 'direct'
-      ? t('page.console.token.form.laneDirect', { defaultValue: '稳定' })
-      : t('page.console.token.form.laneCheap', { defaultValue: 'Agent' });
+      ? t('page.console.token.form.laneDirect', { defaultValue: '标准' })
+      : t('page.console.token.form.laneCheap', { defaultValue: 'Agent 专线' });
 
   if (offer.kind === 'direct-only') {
     return (
       <span className='tok-lane__only'>
         <span className='tok-lane__dot' aria-hidden='true' />
         {t('page.console.token.connect.laneDirectOnly', {
-          defaultValue: '仅稳定线路',
+          defaultValue: '仅标准线路',
         })}
         {offer.directPrice ? (
           <span className='tok-lane__price'>{offer.directPrice}</span>
@@ -112,7 +112,7 @@ export function LaneControl({
         <span className={cn('tok-lane__note', conflict && 'is-warn')}>
           {conflict
             ? t('page.console.token.connect.laneConflict', {
-                defaultValue: '这个工具的请求会被拒绝，请改为稳定',
+                defaultValue: '这个工具的请求会被拒绝，请改为标准',
               })
             : t('page.console.token.connect.laneClientOnly', {
                 client: laneClientName(offer.lockedTo),
@@ -161,8 +161,8 @@ export function LaneTable({
 
   const laneName = (lane: Lane) =>
     lane === 'direct'
-      ? t('page.console.token.form.laneDirect', { defaultValue: '稳定' })
-      : t('page.console.token.form.laneCheap', { defaultValue: 'Agent' });
+      ? t('page.console.token.form.laneDirect', { defaultValue: '标准' })
+      : t('page.console.token.form.laneCheap', { defaultValue: 'Agent 专线' });
 
   return (
     <div className='tok-connect__field tok-connect__extras'>
@@ -174,7 +174,7 @@ export function LaneTable({
         </span>
         <span className='tok-connect__note'>
           {t('page.console.token.connect.laneTableNote', {
-            defaultValue: '只列出有得选的；其余模型只有稳定线路',
+            defaultValue: '只列出有得选的；其余模型只有标准线路',
           })}
         </span>
       </div>

@@ -297,10 +297,14 @@ a member's Keys may use, and each Key may lower it further.
   scope narrows it further. They are enforced wherever the Key's own
   allowlist is (routing, `/v1/models`, media jobs).
 
-**The control.** `components/ui/effort-cap.tsx`: the six English words in
-mono in a row, an ink line filled to the cap with a knob under the chosen
-word; words below the cap in ink, above it faint; words above a ceiling (the
-member cap, for a Key) are disabled. The words are never translated. Tables
+**The control.** `components/ui/effort-cap.tsx` (revised 2026-11-20, owner
+pick 「整条可点可拖的刻度条」): a track of six stops, filled to the cap, with
+a knob on the chosen stop and each level's name under its stop. The whole
+control is the hit area: a click on the track or a name moves the cap there,
+the knob drags, and the arrow keys step it (`role="slider"`). Levels above a
+ceiling (the member cap, for a Key) are faint and cannot be chosen. The names
+are translated (zh 最低 · 低 · 中 · 高 · 很高 · 最高); English keeps the
+protocol words. The Key form labels it 「思考深度上限」 on its own row. Tables
 show `≤ medium` in a mono badge, or 「全部深度」 when uncapped. The control
 appears in the Key create/edit form after 线路, in the member edit dialog and
 in project settings' 新成员默认 card.

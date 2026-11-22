@@ -386,7 +386,10 @@ export default function SettingsPage() {
             hint={t('projects.settings.effortHint')}
             label={t('projects.settings.effort')}
             value={
-              <div className='lazu-effort' data-testid='project-effort-setting'>
+              <div
+                data-testid='project-effort-setting'
+                style={{ maxWidth: '100%', width: 380 }}
+              >
                 {d ? (
                   <EffortCapControl
                     aria-label={t('projects.settings.effort')}
@@ -402,7 +405,8 @@ export default function SettingsPage() {
                   <div
                     style={{ visibility: revealDetail ? 'visible' : 'hidden' }}
                   >
-                    <PendingBlock height={30} />
+                    {/* The control's own height: knob row and the labels. */}
+                    <PendingBlock height={42} />
                   </div>
                 )}
               </div>
