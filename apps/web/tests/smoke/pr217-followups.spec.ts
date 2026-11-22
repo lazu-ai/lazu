@@ -145,9 +145,7 @@ test('key usage queries immutable identity and labels expired keys', async ({
   await app.expectNoUnexpectedErrors();
 });
 
-test('wallet restores custom checkout amounts and wraps its mobile equation', async ({
-  page,
-}) => {
+test('wallet restores custom checkout amounts on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const app = await setupMockedApp(page, {
     status: { enable_stripe_topup: true },
@@ -157,10 +155,15 @@ test('wallet restores custom checkout amounts and wraps its mobile equation', as
   );
   await expectRouteReady(page, '/console/wallet');
   await expect(page.locator('#wallet-custom-amount')).toHaveValue('42');
-  await expect(page.locator('.wal-balance-equation')).toHaveCSS(
-    'display',
-    'grid',
-  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      ),
+    )
+    .toBeLessThanOrEqual(1);
   await page.locator('#wallet-custom-amount').fill('43');
   await expect(page.locator('#wallet-custom-amount')).toHaveValue('43');
   await page.screenshot({

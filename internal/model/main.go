@@ -552,6 +552,9 @@ func migrateDB() error {
 	if err = migrateSchema33Core(coreDB); err != nil {
 		return err
 	}
+	if err = coreDB.Exec("CREATE INDEX IF NOT EXISTS idx_wallet_ledgers_account_events ON wallet_ledgers (user_id, created_at DESC, id DESC) WHERE kind <> 'spend'").Error; err != nil {
+		return err
+	}
 	// Last migration: its transaction records the incompatible rollback floor.
 	// No schema work may remain after that marker becomes visible to replicas.
 	return cleanupLegacyPricingSeeds(coreDB)

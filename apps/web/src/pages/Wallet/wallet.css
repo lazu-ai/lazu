@@ -1,387 +1,1424 @@
-/* 钱包 — Billing 对账 + TopUp 充值合并页。
-   Implements the composition locked in brand/foundations/yunmu-console.md.
-   Palette and elevation come from the locked Yunmu brand tokens. */
+/* 钱包 — 充值 and 账单 as two tabs of one page.
+   The wallet is set in one sans face: the page title, every figure and every
+   table, with tabular figures so columns line up. Each view has one large
+   figure (the balance); mono is kept for identifiers (充值编号, 发票编号,
+   model names) and the chart axis. Cards are white on the page ground with a
+   hairline and a 12px radius; the selected amount tile is outlined in ink. */
 
-/* The pinned payment record (Stripe return, payment e-mails) sits above the
-   whole layout, full width, with the page's own gap below it. */
-.wal-record {
-  margin-bottom: 24px;
-}
+/* ---- page head --------------------------------------------------------- */
 
-.wal-layout {
-  align-items: start;
-  display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-}
-
-.wal-main {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-
-/* Hairline-joined metric band: one sheet split by 1px gaps, not four cards. */
-.wal-band {
-  background: var(--lazu-border);
-  border: 1px solid var(--lazu-border);
-  border-radius: 18px;
-  box-shadow: var(--yunmu-shadow);
-  display: grid;
-  gap: 1px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  overflow: hidden;
-}
-
-.wal-band__cell {
-  background: var(--lazu-surface-solid);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 18px;
-}
-
-.wal-band__cell > span {
-  color: var(--lazu-text-faint);
-  font-family: var(--lazu-font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.wal-band__cell > strong {
-  font-size: 19px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
+.wallet-page.console-page-shell.console-review
+  > .console-page-topbar
+  .console-page-topbar__title {
+  font-family: var(--lazu-font-sans);
+  font-size: 26px;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
-.wal-band__cell > small {
-  color: var(--lazu-text-muted);
-  font-size: 11px;
-}
-
-/* Floating paper sheets — the plaza card recipe. */
-.wal-card {
-  background: var(--lazu-surface);
-  border: 1px solid var(--lazu-border);
-  border-radius: 18px;
-  box-shadow: var(--yunmu-shadow);
-}
-
-.wal-chart-card {
-  padding: 16px 20px;
-}
-
-.wal-chart-card__head {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 20px;
-  justify-content: space-between;
-}
-
-.wal-chart-card__head > b {
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.wal-chart-card__figures {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.wal-chart-card__figures span {
-  color: var(--lazu-text-muted);
-  font-size: 12.5px;
-}
-
-.wal-chart-card__figures b {
-  color: var(--lazu-ink);
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-
-.wal-chart-card__canvas {
-  height: 190px;
-  margin-top: 12px;
-}
-
-.wal-chart-card__foot {
-  color: var(--lazu-text-faint);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 11.5px;
-  gap: 10px;
-  justify-content: space-between;
+.wallet-page .console-page-tabs {
+  gap: 28px;
   margin-top: 4px;
 }
 
-.wal-ledger-card {
-  padding: 10px 16px;
+.wallet-page .console-page-tabs .lazu-tabs-list {
+  gap: 28px;
 }
 
-.wal-ledger {
-  border-collapse: collapse;
-  font-size: 12.5px;
+.wallet-page .console-page-tabs .lazu-tabs-trigger {
+  font-size: 14px;
+  font-weight: 400;
+  padding: 10px 0 11px;
+}
+
+.wallet-page .console-page-tabs .lazu-tabs-trigger[data-selected],
+.wallet-page .console-page-tabs .lazu-tabs-trigger[data-active] {
+  font-weight: 600;
+}
+
+.wallet-page .console-page-tabs .lazu-tabs-trigger[data-selected]::after,
+.wallet-page .console-page-tabs .lazu-tabs-trigger[data-active]::after {
+  background: var(--lazu-ink);
+}
+
+.wallet-page.console-page-shell.console-review > .console-page-body {
+  padding-top: 28px;
+}
+
+.wal-body,
+.wal-day,
+.wal-topups-dialog {
+  font-variant-numeric: tabular-nums;
+  line-height: normal;
+}
+
+.wal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   width: 100%;
 }
 
-.wal-ledger th {
-  border-bottom: 1px solid var(--lazu-border);
-  color: var(--lazu-text-faint);
-  font-size: var(--lazu-row-label);
-  font-weight: 550;
-  letter-spacing: 0.08em;
-  padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
-  text-align: left;
-  text-transform: uppercase;
-  white-space: nowrap;
+/* ---- shared pieces ------------------------------------------------------ */
+
+.wal-card {
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border);
+  border-radius: 12px;
+  box-sizing: border-box;
 }
 
-.wal-ledger td {
-  border-bottom: 1px solid var(--lazu-border);
-  font-family: var(--lazu-font-mono);
-  font-size: var(--lazu-row-text);
-  padding: var(--lazu-row-padding-y) var(--lazu-row-padding-x);
-  vertical-align: middle;
+.wal-card__head {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 20px 24px 14px;
 }
 
-.wal-ledger tbody tr:last-child td {
-  border-bottom: 0;
+.wal-h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
 }
 
-.wal-ledger tbody tr:hover td {
-  background: var(--lazu-surface-muted);
+.wal-label {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin: 0;
 }
 
-.wal-ledger .wal-ledger__num {
+/* The view's one large figure. */
+.wal-hero {
+  font-family: var(--lazu-font-sans);
+  font-size: 44px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  text-align: right;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  margin: 0;
 }
 
-.wal-ledger th.wal-ledger__num {
-  text-align: right;
+.wal-figure {
+  font-variant-numeric: tabular-nums;
 }
 
-.wal-ledger__credit {
-  color: var(--lazu-success);
-}
-
-.wal-ledger__date-link {
-  color: var(--lazu-evidence);
+.wal-mono {
   font-family: var(--lazu-font-mono);
+}
+
+.wal-muted {
+  color: var(--lazu-text-muted);
+}
+
+.wal-link {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--lazu-evidence);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 4px;
+  padding: 0;
   text-decoration: none;
 }
 
-.wal-ledger__date-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.wal-link:hover {
+  color: var(--lazu-evidence-strong);
 }
 
-.wal-ledger__idle {
-  color: var(--lazu-text-faint);
+.wal-link:focus-visible,
+.wal-row-link:focus-visible,
+.wal-tile:focus-visible,
+.wal-months__bar:focus-visible,
+.wal-days__bar:focus-visible,
+.wal-icon-button:focus-visible,
+.wal-seg__item:focus-visible {
+  outline: 2px solid var(--lazu-evidence);
+  outline-offset: 2px;
 }
 
-.wal-ledger__empty,
-.wal-chart-card__empty {
-  color: var(--lazu-text-faint);
-  display: grid;
-  font-size: 12.5px;
-  min-height: 120px;
-  place-items: center;
+.wal-empty {
+  color: var(--lazu-text-muted);
+  font-size: 13px;
+  margin: 0;
+  padding: 18px 20px;
   text-align: center;
 }
 
-.wal-chart-card__empty {
-  min-height: 190px;
-}
-.wal-methods {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.wal-method {
-  background: var(--lazu-surface-selected);
+.wallet-page .lazu-badge,
+.wal-day .lazu-badge,
+.wal-topups-dialog .lazu-badge {
   border: 0;
-  border-radius: 999px;
-  color: var(--lazu-text-faint);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 6px 13px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  height: 22px;
+  padding: 0 8px;
 }
 
-.wal-method[aria-pressed='true'] {
-  background: var(--lazu-evidence-soft);
-  color: var(--lazu-evidence);
-}
-
-.wal-summary {
-  align-items: baseline;
-  border-bottom: 1px solid var(--lazu-border);
-  display: flex;
-  font-size: 12.5px;
-  padding-bottom: 10px;
-}
-
-.wal-summary span {
+.wallet-page .lazu-badge--neutral,
+.wal-topups-dialog .lazu-badge--neutral {
+  background: var(--lazu-surface-selected);
   color: var(--lazu-text-muted);
 }
 
-.wal-summary b small {
-  color: var(--lazu-text-faint);
-  display: block;
-  font-size: 11.5px;
-  font-weight: 400;
-  margin-top: 2px;
-  text-align: right;
-}
-.wal-summary b {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  margin-left: auto;
+.wallet-page.console-page-shell.console-review .lazu-button,
+.lazu-modal-content.wal-day .lazu-button,
+.lazu-modal-content.wal-topups-dialog .lazu-button {
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 6px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 14px;
 }
 
-.wal-note {
-  color: var(--lazu-text-faint);
-  font-size: 11.5px;
+.wallet-page.console-page-shell.console-review .lazu-button--secondary,
+.lazu-modal-content.wal-day .lazu-button--secondary,
+.lazu-modal-content.wal-topups-dialog .lazu-button--secondary {
+  border-color: var(--lazu-border-strong);
 }
 
-@media (max-width: 1020px) {
-  .wal-layout {
-    grid-template-columns: 1fr;
-  }
-}
+/* ---- 充值 --------------------------------------------------------------- */
 
-/* Approved balance-first wallet: two top panels, full-width ledger below. */
-.wallet-page .wal-layout {
+.wal-topup {
+  align-items: stretch;
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
-  align-items: start;
   gap: 20px;
+  grid-template-columns: 360px minmax(0, 1fr);
 }
-.wallet-page .wal-main {
-  display: contents;
-}
-.wallet-page .wal-balance-summary {
-  grid-column: 1/-1;
-  grid-row: 1;
+
+.wal-topup__account {
+  display: flex;
+  flex-direction: column;
   padding: 24px;
 }
-/* Top-up is the full-width row right under the balance (option C). */
-.wallet-page .wal-topup-bar {
-  grid-column: 1/-1;
-  grid-row: 2;
+
+.wal-topup__account-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 22px;
 }
-/* 推荐好友 sits under the top-up it pays out of. */
-.wallet-page .wal-aside {
-  grid-column: 1/-1;
-  grid-row: 3;
+
+.wal-topup__balance-value {
+  margin-top: 18px;
 }
-/* Spend trend before the ledger: the curve explains the movement the ledger
-   then itemises. */
-.wallet-page .wal-chart-card {
-  grid-column: 1/-1;
-  grid-row: 4;
+
+.wal-topup__account > .lazu-pending {
+  margin-top: 18px;
 }
-.wallet-page .wal-ledger-card {
-  grid-column: 1/-1;
-  grid-row: 5;
-}
-.wal-balance-value {
-  display: block;
-  font-size: 44px;
-  font-weight: 600;
-  margin: 14px 0 8px;
-  font-variant-numeric: tabular-nums;
-}
-.wal-balance-summary > p {
-  font-size: 12px;
-  color: var(--lazu-text-muted);
-}
-.wal-balance-equation {
-  align-items: baseline;
+
+.wal-topup__remind {
+  align-items: center;
   border-top: 1px solid var(--lazu-border);
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 22px;
-  padding-top: 18px;
-}
-.wal-balance-equation > div {
-  align-items: baseline;
-  display: flex;
-  flex: 1;
-  gap: 14px;
-  min-width: 0;
-}
-.wal-balance-cell {
-  display: block;
-  min-width: 0;
-}
-.wal-balance-operator {
-  color: var(--lazu-text-faint);
-  font-family: var(--lazu-font-mono);
-  font-size: 17px;
-  flex: none;
-}
-.wal-balance-equation small {
-  color: var(--lazu-text-muted);
-  display: block;
-  font-size: 12px;
-}
-.wal-balance-equation strong {
-  display: block;
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-  margin-top: 2px;
-}
-.wal-ledger-card > h2 {
-  font-size: 18px;
-  margin: 8px 0 20px;
+  font-size: 13px;
+  gap: 12px;
+  justify-content: space-between;
+  margin: auto -24px -24px;
+  padding: 16px 24px;
 }
 
-/* No payment method: a dashed slot across the top-up's own row. */
+.wal-topup__account > :nth-child(2) {
+  margin-bottom: 28px;
+}
+
+.wal-topup__pick {
+  padding: 24px;
+}
+
+.wal-topup__tiles {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.wal-tile {
+  align-items: center;
+  background: var(--lazu-surface);
+  border: 1px solid var(--lazu-border-strong);
+  border-radius: 10px;
+  box-sizing: border-box;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: flex;
+  font: 500 17px var(--lazu-font-sans);
+  font-variant-numeric: tabular-nums;
+  height: 60px;
+  justify-content: center;
+  padding: 0;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.wal-tile:hover {
+  background: var(--lazu-surface-muted);
+}
+
+.wal-tile[aria-pressed='true'] {
+  background: var(--lazu-surface);
+  border-color: var(--lazu-ink);
+  box-shadow: inset 0 0 0 1px var(--lazu-ink);
+}
+
+.wal-topup__custom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.wal-topup__custom-wrap {
+  position: relative;
+}
+
+.wal-topup__custom-unit {
+  color: var(--lazu-text-muted);
+  font-size: 15px;
+  left: 14px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.wallet-page .wal-topup__custom {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  height: 44px;
+  padding-left: 28px;
+}
+
+.wal-topup__error {
+  color: var(--lazu-danger);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.wal-topup__bonus {
+  color: var(--lazu-evidence-strong);
+  font-size: 12.5px;
+  margin: 14px 0 0;
+}
+
+.wal-topup__methods {
+  margin-top: 16px;
+}
+
+.wal-topup__foot {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.wallet-page.console-page-shell.console-review .wal-topup__pay {
+  font-size: 15px;
+  height: 48px;
+  min-height: 48px;
+  min-width: 240px;
+  padding: 0 22px;
+}
+
+.wal-topup__note {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.wallet-page .wal-switch {
+  border: 0;
+  flex: none;
+  height: 20px;
+  padding: 2px;
+  width: 36px;
+}
+
+.wallet-page .wal-switch:not([data-checked]) {
+  background: var(--lazu-border-strong);
+}
+
+.wallet-page .wal-switch .lazu-switch__thumb {
+  background: var(--lazu-control-knob);
+  box-shadow: none;
+  height: 16px;
+  width: 16px;
+}
+
+.wallet-page .wal-switch[data-checked] .lazu-switch__thumb {
+  transform: translateX(16px);
+}
+
+.wal-seg {
+  background: var(--lazu-surface-muted);
+  border-radius: 10px;
+  display: inline-flex;
+  padding: 3px;
+}
+
+.wal-seg__item {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--lazu-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+.wal-seg__item[aria-pressed='true'] {
+  background: var(--lazu-surface);
+  border-color: var(--lazu-border);
+  color: var(--lazu-ink);
+  font-weight: 500;
+}
+
+/* No payment method configured: the card says why and offers the way on. */
 .wal-topup-empty {
   align-items: center;
-  border: 1.5px dashed var(--lazu-border-strong);
-  border-radius: 12px;
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px 20px;
-  justify-content: space-between;
-  padding: 18px 22px;
+  flex-direction: column;
+  gap: 14px;
+  margin-inline: auto;
+  max-width: 520px;
+  padding: 30px 32px;
+  text-align: center;
+  width: 100%;
 }
 
-.wal-topup-empty__copy {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.wal-topup-empty__copy strong {
+.wal-topup-empty strong {
   font-size: 15px;
   font-weight: 600;
 }
 
-.wal-topup-empty__copy span {
+.wal-topup-empty p {
   color: var(--lazu-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ---- 账单 --------------------------------------------------------------- */
+
+.wal-bill {
+  display: contents;
+}
+
+.wal-bill__head {
+  align-items: flex-end;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.wal-bill__balance {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wal-bill__balance-line {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.wal-bill__title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.wal-bill__title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  margin: 0;
+}
+
+.wal-month__back {
+  margin-bottom: -8px;
+}
+
+.wal-month__head {
+  align-items: center;
+}
+
+.wal-bill__error {
+  padding: 14px 20px;
+}
+
+/* 每月消耗: six bars over the month axis, then the month table, in one card. */
+.wal-months {
+  overflow: hidden;
+}
+
+.wal-months__bars,
+.wal-months__axis {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding-inline: 24px;
+}
+
+.wal-months__bars {
+  align-items: end;
+  height: 168px;
+  padding-top: 8px;
+}
+
+.wal-months__bar {
+  align-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.wal-months__value {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  min-height: 1lh;
+}
+
+.wal-months__bar[data-empty] .wal-months__value {
+  color: color-mix(in srgb, var(--lazu-text-muted) 60%, transparent);
+}
+
+.wal-months__fill {
+  background: var(--lazu-chart-1);
+  border-radius: 2px 2px 0 0;
+  display: block;
+  max-width: 40px;
+  width: 100%;
+}
+
+.wal-months__bar[data-current] .wal-months__fill {
+  background: color-mix(in srgb, var(--lazu-chart-1) 45%, transparent);
+}
+
+.wal-months__bar[data-empty] .wal-months__fill {
+  background: transparent;
+  border: 1px dashed var(--lazu-border-strong);
+  border-bottom: 0;
+  box-sizing: border-box;
+  height: 4px;
+}
+
+.wal-months__bar:hover .wal-months__fill {
+  filter: brightness(1.12);
+}
+
+.wal-months__axis {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin-bottom: 20px;
+  padding-top: 8px;
+  text-align: center;
+}
+
+.wal-table-card {
+  overflow: hidden;
+}
+
+.wal-records {
+  overflow: hidden;
+}
+
+.wal-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.wal-table th {
+  border-bottom: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 10px 16px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.wal-card__head + .wal-table th,
+.wal-table-card > .wal-table th {
+  border-top: 1px solid var(--lazu-border);
+}
+
+.wal-months .wal-table-card .wal-table th {
+  border-top: 0;
+}
+
+.wal-table td {
+  border-bottom: 1px solid var(--lazu-border);
+  font-size: 13px;
+  padding: 12px 16px;
+}
+
+.wal-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.wal-table .wal-table__first {
+  padding-left: 24px;
+}
+
+.wal-table .wal-table__last {
+  padding-right: 24px;
+}
+
+.wal-table .wal-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.wal-table td[data-zero] {
+  color: var(--lazu-text-muted);
+}
+
+.wal-table__strong {
+  font-weight: 500;
+}
+
+.wal-table__month {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.wal-table__chevron {
+  color: var(--lazu-text-muted);
+  line-height: 0;
+  width: 24px;
+}
+
+.wal-table__row {
+  cursor: pointer;
+}
+
+.wal-table__row:hover td {
+  background: var(--lazu-surface-muted);
+}
+
+.wal-table__row[data-today] td {
+  color: var(--lazu-text-muted);
+}
+
+.wal-table__tag {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.wal-row-link {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.wal-table__more {
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+.wal-records__pager {
+  border-top: 1px solid var(--lazu-border);
+  padding: 10px 16px;
+}
+
+/* 充值记录: a row opens in place, on a neutral tint, onto its numbers and
+   documents. */
+.wal-topups__chevron {
+  color: var(--lazu-text-muted);
+  height: 24px;
+  width: 24px;
+}
+
+.wal-topups__chevron svg {
+  transition: transform var(--lazu-motion-base, 140ms);
+}
+
+.wal-topups__chevron[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.wal-topups .wal-topups__time {
+  color: var(--lazu-text-muted);
+  white-space: nowrap;
+  width: 170px;
+}
+
+.wal-topups .wal-topups__money {
+  width: 230px;
+}
+
+.wal-topups .wal-topups__status {
+  width: 110px;
+}
+
+.wal-topups .wal-topups__item > tr:last-child td {
+  border-bottom: 1px solid var(--lazu-border);
+}
+
+.wal-topups .wal-topups__item:last-child > tr:last-child td {
+  border-bottom: 0;
+}
+
+.wal-topups__item[data-open] td {
+  background: var(--lazu-surface-muted);
+}
+
+.wal-topups__item[data-open] > tr:first-child td {
+  border-bottom: 0;
+}
+
+.wal-topups__item[data-dim] > tr:first-child td {
+  color: var(--lazu-text-muted);
+}
+
+.wal-topups__credited {
+  color: var(--lazu-text-muted);
+  font-size: 12.5px;
+  margin-left: 6px;
+}
+
+.wal-topups__detail td {
+  padding-bottom: 20px;
+  padding-top: 6px;
+}
+
+.wal-topups .lazu-topup-row {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wal-topups .lazu-topup-row__facts {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr 1.3fr;
+  margin: 0;
+}
+
+.wal-topups .lazu-topup-record__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-size: 13px;
 }
 
-@media (max-width: 800px) {
-  .wallet-page .wal-layout {
+.wal-topups .lazu-topup-record__fact dt {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.wal-topups .lazu-topup-record__fact dd {
+  margin: 0;
+}
+
+.wal-topups .lazu-topup-record__mono {
+  font-family: var(--lazu-font-mono);
+  font-size: 12.5px;
+}
+
+.wal-topups .lazu-topup-row__docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wal-topups .lazu-topup-row__docs .lazu-button {
+  border-radius: 8px;
+  font-size: 12.5px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+/* ---- 充值记录 as a dialog ------------------------------------------------ */
+
+.lazu-modal-content.wal-topups-dialog {
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(86dvh, 760px);
+  max-width: min(94vw, 780px);
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+}
+
+.wal-topups-dialog__head {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  padding: 18px 24px;
+}
+
+.wal-dialog__title {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.wal-topups-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wal-topups-dialog__body .wal-topups th {
+  border-top: 0;
+}
+
+.wal-topups-dialog .wal-topups .wal-topups__time {
+  width: 150px;
+}
+
+.wal-topups-dialog .wal-topups .wal-topups__money {
+  width: 210px;
+}
+
+.wal-topups-dialog .wal-topups .wal-topups__status {
+  width: 90px;
+}
+
+.wal-topups-dialog__lone {
+  background: var(--lazu-surface-muted);
+  border-bottom: 1px solid var(--lazu-border);
+  padding: 18px 24px;
+}
+
+.wal-topups-dialog__foot {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  flex: none;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 24px;
+}
+
+.wal-topups-dialog__actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+/* ---- a month ------------------------------------------------------------ */
+
+.wal-sum {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.wal-sum > div {
+  border-left: 1px solid var(--lazu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 24px;
+}
+
+.wal-sum > div:first-child {
+  border-left: 0;
+}
+
+.wal-sum dt {
+  color: var(--lazu-text-muted);
+  font-size: 12px;
+}
+
+.wal-sum dd {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.wal-days {
+  padding-bottom: 20px;
+}
+
+.wal-days__plot {
+  padding-inline: 24px;
+}
+
+.wal-days__bars {
+  align-items: flex-end;
+  display: flex;
+  gap: 8px;
+  height: 200px;
+}
+
+.wal-days__bar {
+  align-items: flex-end;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+}
+
+.wal-days__bar > span {
+  background: var(--lazu-chart-1);
+  border-radius: 2px 2px 0 0;
+  display: block;
+  width: 100%;
+}
+
+.wal-days__bar[data-today] > span {
+  background: color-mix(in srgb, var(--lazu-chart-1) 45%, transparent);
+}
+
+.wal-days__bar[data-future] {
+  cursor: default;
+}
+
+.wal-days__bar[data-future] > span {
+  background: transparent;
+  border: 1px dashed var(--lazu-border-strong);
+  border-bottom: 0;
+  box-sizing: border-box;
+  height: 6px;
+}
+
+.wal-days__bar:not([data-future]):hover > span {
+  filter: brightness(1.12);
+}
+
+.wal-days__axis {
+  border-top: 1px solid var(--lazu-border);
+  color: var(--lazu-text-muted);
+  display: flex;
+  font-family: var(--lazu-font-mono);
+  font-size: 12px;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+/* ---- the day dialog ----------------------------------------------------- */
+
+.lazu-modal-content.wal-day {
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-width: min(92vw, 560px);
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+}
+
+.wal-day__head {
+  align-items: center;
+  border-bottom: 1px solid var(--lazu-border);
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 24px 18px;
+}
+
+.wal-day__total {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.wal-day__amount {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.wal-icon-button {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--lazu-ink);
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.wal-icon-button:hover {
+  background: var(--lazu-surface-selected);
+}
+
+.wal-day__head .wal-icon-button,
+.wal-topups-dialog__head .wal-icon-button {
+  border: 1px solid var(--lazu-border-strong);
+  height: 34px;
+  width: 34px;
+}
+
+.wal-day__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wal-day__body .wal-table th {
+  border-top: 0;
+}
+
+.wal-table td.wal-day__model {
+  font-size: 12.5px;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.wal-day__foot {
+  align-items: center;
+  border-top: 1px solid var(--lazu-border);
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 24px;
+}
+
+.wal-day__nav {
+  display: flex;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  body
+    .lazu-modal-content.lazu-modal-content--sheet-full.console-review-controls.wal-day[role='dialog'] {
+    max-width: calc(100vw - 32px);
+    width: min(560px, calc(100vw - 32px));
+  }
+}
+
+/* ---- phone ---------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  .lazu-modal-content.wal-topups-dialog {
+    border-radius: 0;
+    max-height: 100dvh;
+    max-width: 100vw;
+  }
+
+  .wal-topup {
+    gap: 12px;
     grid-template-columns: minmax(0, 1fr);
   }
-  .wal-balance-equation {
+
+  .wal-topup__account {
+    padding: 18px 16px 0;
+  }
+
+  .wal-topup__account .wal-hero {
+    font-size: 44px;
+    margin: 14px 0 18px;
+  }
+
+  .wal-topup__remind {
+    margin: 0 -16px;
+    padding: 14px 16px;
+  }
+
+  .wal-topup__pick {
+    padding: 18px 16px 16px;
+  }
+
+  .wal-topup__tiles {
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .wal-tile {
+    font-size: 18px;
+    height: 56px;
+  }
+
+  .wal-tile--custom {
+    font-size: 17px;
+  }
+
+  .wal-topup__foot {
+    flex-direction: column-reverse;
+    margin-top: 16px;
+  }
+
+  .wallet-page.console-page-shell.console-review .wal-topup__pay {
+    width: 100%;
+  }
+
+  .wal-body {
+    gap: 12px;
+  }
+
+  .wal-bill__head {
+    align-items: flex-end;
+  }
+
+  .wal-bill__balance-line {
+    gap: 10px;
+  }
+
+  .wal-bill__head .wal-hero {
+    font-size: 44px;
+  }
+
+  .wal-card__head {
+    padding: 16px 16px 10px;
+  }
+
+  .wal-months__bars,
+  .wal-months__axis {
+    gap: 8px;
+    padding-inline: 16px;
+  }
+
+  .wal-months__bars {
+    height: 140px;
+    padding-top: 4px;
+  }
+
+  .wal-months__value {
+    font-size: 10.5px;
+  }
+
+  .wal-months__axis {
+    font-size: 11.5px;
+    margin-bottom: 14px;
+  }
+
+  .wal-table th,
+  .wal-table td {
+    padding-inline: 8px;
+  }
+
+  .wal-table .wal-table__first {
+    padding-left: 16px;
+  }
+
+  .wal-table .wal-table__last {
+    padding-right: 16px;
+  }
+
+  .wal-table td {
+    font-size: 12.5px;
+    padding-block: 14px;
+  }
+
+  .wal-table__month {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .wal-table__month .lazu-badge {
+    font-size: 11px;
+    height: 20px;
+    padding: 0 6px;
+  }
+
+  .wal-table__chevron {
+    display: none;
+  }
+
+  /* 充值记录 rows become two lines: amount and status, then time and
+     method. */
+  .wal-topups thead {
+    display: none;
+  }
+
+  .wal-topups,
+  .wal-topups tbody {
+    display: block;
+  }
+
+  .wal-topups .wal-topups__item > tr:first-child {
     display: grid;
+    gap: 4px 10px;
+    grid-template-areas:
+      'money money status'
+      'time method method';
+    grid-template-columns: auto 1fr auto;
+    padding: 13px 16px;
+  }
+
+  .wal-topups .wal-topups__item > tr:first-child td {
+    border: 0;
+    padding: 0;
+    width: auto;
+  }
+
+  .wal-topups .wal-topups__item {
+    border-top: 1px solid var(--lazu-border);
+  }
+
+  .wal-topups .wal-topups__item > tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .wal-topups__item[data-open] {
+    background: var(--lazu-surface-muted);
+  }
+
+  .wal-topups .wal-topups__money {
+    grid-area: money;
+    text-align: left;
+  }
+
+  .wal-topups .wal-topups__status {
+    align-self: center;
+    grid-area: status;
+  }
+
+  .wal-topups .wal-topups__time {
+    font-size: 12px;
+    grid-area: time;
+  }
+
+  .wal-topups .wal-topups__method {
+    color: var(--lazu-text-muted);
+    font-size: 12px;
+    grid-area: method;
+  }
+
+  .wal-topups .wal-topups__method::before {
+    content: '· ';
+  }
+
+  .wal-topups .wal-topups__item > tr:first-child .wal-table__chevron {
+    display: none;
+  }
+
+  .wal-topups .wal-topups__detail {
+    display: block;
+  }
+
+  .wal-topups .wal-topups__detail td {
+    display: block;
+    padding: 4px 16px 16px;
+  }
+
+  .wal-topups .lazu-topup-row__facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .wal-topups .lazu-topup-record__fact {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .wal-topups .lazu-topup-record__fact dd {
+    text-align: right;
+  }
+
+  .wal-sum {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wal-sum > div {
+    padding: 16px;
+  }
+
+  .wal-sum > div:nth-child(3) {
+    border-left: 0;
+  }
+
+  .wal-sum > div:nth-child(n + 3) {
+    border-top: 1px solid var(--lazu-border);
+  }
+
+  .wal-sum dd {
+    font-size: 20px;
+  }
+
+  .wal-days__plot {
+    padding-inline: 16px;
+  }
+
+  .wal-days__bars {
+    gap: 3px;
+    height: 140px;
+  }
+}
+
+/* The console's dialog chrome sets dialogs to 600px; 充值记录 needs 780px
+   for its five columns. Same selector shape as that rule so it outranks it. */
+@media (min-width: 768px) {
+  body:has(.console-review)
+    .lazu-modal-content.wal-topups-dialog:not(.whats-new-panel):not(
+      .lazu-modal-content--wide
+    ):not(.lazu-modal-content--xwide) {
+    max-width: calc(100vw - 32px);
+    width: min(780px, calc(100vw - 32px));
+  }
+}
+
+.wal-topups .wal-topups__method {
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .wal-topups .wal-topups__item > tr:first-child {
+    column-gap: 4px;
+  }
+
+  .wal-topups .wal-topups__item td,
+  .wal-topups .wal-table__row:hover td {
+    background: transparent;
+  }
+}
+
+/* Month and day tables split their four columns evenly, as the design does. */
+.wal-table-card > .wal-table {
+  table-layout: fixed;
+}
+
+.wal-table-card > .wal-table .wal-table__chevron {
+  width: 64px;
+}
+
+@media (max-width: 767px) {
+  .wal-months .wal-table-card > .wal-table th:first-child {
+    width: 34%;
+  }
+}
+
+.wal-icon-button.wal-topups__chevron {
+  height: 24px;
+  width: 24px;
+}
+
+.wal-topups__credited {
+  margin-left: 0;
+}
+
+/* Under a card heading the column labels sit directly on the heading's
+   space; only the rule below them separates them from the rows. */
+.wal-card__head + .wal-table th,
+.wal-table-card > .wal-card__head + .wal-table th {
+  border-top: 0;
+}
+
+/* 充值记录 columns follow the design grid: 24px sides, 16px between
+   columns, fixed widths for time, amount and status. */
+@media (min-width: 768px) {
+  .wal-topups {
+    table-layout: fixed;
+  }
+
+  .wal-topups thead th,
+  .wal-topups .wal-table__row > td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .wal-topups thead .wal-table__first,
+  .wal-topups .wal-table__row > .wal-table__first {
+    padding-left: 24px;
+  }
+
+  .wal-topups thead .wal-table__last,
+  .wal-topups .wal-table__row > td:last-child {
+    padding-right: 24px;
+  }
+
+  .wal-topups thead th:nth-child(1) {
+    width: 202px;
+  }
+
+  .wal-topups thead th:nth-child(2) {
+    width: 246px;
+  }
+
+  .wal-topups thead th:nth-child(4) {
+    width: 126px;
+  }
+
+  .wal-topups thead th:nth-child(5) {
+    width: 56px;
+  }
+
+  .wal-topups-dialog .wal-topups thead th:nth-child(1) {
+    width: 182px;
+  }
+
+  .wal-topups-dialog .wal-topups thead th:nth-child(2) {
+    width: 226px;
+  }
+
+  .wal-topups-dialog .wal-topups thead th:nth-child(4) {
+    width: 106px;
+  }
+}
+
+/* The custom amount reads at 16px, the unit at the size of the labels. */
+.wallet-page .wal-topup__custom {
+  font-size: 16px;
+}
+
+.wal-topup__custom-unit {
+  font-size: 13px;
+}
+
+@media (max-width: 767px) {
+  /* Cards line up with the tabs above them, as in the design. */
+  .wallet-page.console-page-shell.console-review > .console-page-body {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 16px;
+  }
+
+  .wal-topup__foot > span:empty {
+    display: none;
+  }
+
+  .wallet-page.console-page-shell.console-review .wal-topup__pay {
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .wal-topups .wal-topups__year {
+    display: none;
   }
 }

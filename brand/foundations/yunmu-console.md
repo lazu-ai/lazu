@@ -343,10 +343,10 @@ above; it preserves the lane as the unit of evidence and comparison.
 Owner-approved continuation of the 2026-09-20 Seal canvas
 `archive:brand/canvases.md`, reconfirmed during PR #252 repair.
 
-- Console page headings use Instrument Serif at `--lazu-console-heading-size`.
-  Display money uses `--lazu-console-money-size` or `--lazu-display-stat`,
-  regular weight and tabular figures. Body, controls and dense table values
-  retain Geist / IBM Plex Mono; serif is never used below 20px.
+- Console page headings and display money were set in Instrument Serif
+  (superseded 2026-11-21, see [Console type](#console-type-2026-11-21)).
+  Body, controls and dense table values retain Geist / IBM Plex Mono; serif
+  is never used below 20px.
 - The Models catalogue is explicitly excluded: preserve its card structure,
   sans price typography and semantic status colours. Do not replace it with
   the canvas price table or apply the console money override to its cards.
@@ -364,6 +364,27 @@ Owner-approved continuation of the 2026-09-20 Seal canvas
 This amendment supersedes the public-only display restriction for these
 console headings and display-money values, and Quiet Precision's bold KPI
 rule for display money only. All other data typography remains unchanged.
+
+## Console type (2026-11-21)
+
+Owner-approved before/after canvas (2026-11-21). The console is set in one
+sans face; the serif stays on the wordmark and the public pages (home, sign-in,
+key lookup, docs).
+
+- Page titles: Geist 600 at `--lazu-console-heading-size` (26px),
+  letter-spacing −0.02em, the same on every page and on phones.
+- Display money (overview cards, usage spend, payment record, wallet balance):
+  Geist 600 with tabular figures and letter-spacing −0.025em (−0.035em at
+  44px and above), so money sits in the same face as the rates and counts
+  beside it. Usage spend is 44px (40px on a phone). These sizes are maximums:
+  an amount too long for its column is set smaller, never wrapped, cut or
+  run into the next column, and the row keeps its height.
+- Mono stays for identifiers, code and chart axes. Page titles and display
+  money never use `--lazu-font-display`; the status-page mark
+  (`paper-states.md`) and artwork keep it.
+
+This supersedes the heading and display-money lines of the 2026-09-21 Seal
+refinement and the "Instrument Serif" wording of the 2026-10-14 page head.
 
 ## Locked console overview (2026-09-30)
 
@@ -397,8 +418,8 @@ rules, then the pages built on them.
 
 1. **One page head.** Every console page's title sits at the same place —
    12px / 16px insets inside the content column (290px from the window edge
-   at 1440), 10px under the top bar (86px), Instrument Serif at
-   `--lazu-console-heading-size`. Actions align to the title's bottom and
+   at 1440), 10px under the top bar (86px), set as in
+   [Console type](#console-type-2026-11-21) at `--lazu-console-heading-size`. Actions align to the title's bottom and
    never push it down. The overview's own head and the Models page use the
    same geometry.
 2. **Two switch controls.** Peer views (a different block of content) use the
@@ -425,3 +446,37 @@ search · 筛选) with removable chips and its four views on the head strip;
 platform settings rows share one control column so every explanation starts at
 the same x; the phone shell shows only the page name, service status and
 updates in its top bar, and its tab bar uses the sidebar's names.
+
+## Locked wallet (2026-11-19)
+
+The wallet has two peer views on the page head's underline strip: 充值 and
+账单. Both read from the authoritative wallet ledger and the account's own
+top-up orders.
+
+1. **充值 is two cards side by side** (stacked on a phone): a 360px balance
+   card (the balance as the one large figure, a 余额偏低 warning badge when it
+   is under the account's low-balance threshold, and the account's own
+   low-balance mail switch at its foot) and the amount card: a 3 × 2 grid of
+   preset tiles with 自定义 last, the selected tile outlined in ink, the
+   custom amount field, the methods, and a pay button that names the amount
+   ("前往支付 $20.00") and opens checkout directly; there is no confirmation
+   step. A deployment without a payment method shows the contact slot in the
+   amount card's place.
+2. **账单 lists months, not days.** The balance and 导出 CSV head the view,
+   then a 每月消耗 bar card for the last six months, a month table (入账 ·
+   消耗 · 月末结余, the current month badged 本月) and the 充值记录 for the
+   same six months. Rows open their month. 充值记录 rows open in place onto
+   their numbers and documents; 历史记录 opens all of them in a 780px dialog.
+3. **A month** shows 期初 · 入账 · 消耗 · 结余, one bar per day (days still
+   to come are a faint stub), and a day table that starts with ten rows and
+   a 显示全部 link. Today's row is muted. Its 充值记录 covers only that month.
+4. **A day opens as a centered 560px dialog** (a full-height sheet on a
+   phone): the date, its request count and spend in the header, one row per
+   model, and a footer with the link to that day's request log and
+   前一天 / 后一天. A failed usage read shows "—", never zero.
+5. The month, the day and an opened receipt live in the URL
+   (`?tab=bill&month=YYYY-MM&day=YYYY-MM-DD`, `top_up_id`), so the back button
+   and a shared link return to the same view.
+6. **Type.** The wallet is set in the sans face throughout, the page title
+   and the one large balance figure included; money uses tabular figures.
+   Mono is kept for identifiers (充值编号, 发票编号) and the daily chart's axis.
