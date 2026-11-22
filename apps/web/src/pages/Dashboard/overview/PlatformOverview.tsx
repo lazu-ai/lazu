@@ -23,6 +23,7 @@ import {
 } from '../../../components/ui/agent-badge';
 import { ComboChart } from '../../../components/ui/combo-chart';
 import {
+  figureEms,
   formatCount,
   formatMicroUsd,
   formatMicroUsdCompact,
@@ -175,6 +176,18 @@ export default function PlatformOverview({ range, onRange, onExport }: Props) {
   const clients = data?.clients || [];
   const clientTotal = clients.reduce((sum, c) => sum + c.request_count, 0);
 
+  const moneyEms = pending
+    ? []
+    : [revenue, margin].map((value) => figureEms(formatMicroUsd(value)));
+  // Revenue and margin share one size: side by side they share the group's
+  // room, wrapped on a phone each has all of it.
+  const moneyWidth = moneyEms.length
+    ? {
+        '--money-sum': moneyEms[0] + moneyEms[1],
+        '--money-max': Math.max(...moneyEms),
+      }
+    : undefined;
+
   return (
     <div className='ov-page'>
       <OverviewHeader
@@ -242,7 +255,10 @@ export default function PlatformOverview({ range, onRange, onExport }: Props) {
             </div>
           </div>
         </div>
-        <div className='ov-group'>
+        <div
+          className='ov-group ov-group--money'
+          style={moneyWidth as React.CSSProperties}
+        >
           <span className='ov-group__name'>
             {t(`${ns}.group.revenue`, { defaultValue: '收入' })}
           </span>

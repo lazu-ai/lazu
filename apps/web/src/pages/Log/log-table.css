@@ -677,6 +677,7 @@
 }
 
 .spend-card__hero {
+  container-type: inline-size;
   display: flex;
   flex: 0 0 200px;
   flex-direction: column;
@@ -690,11 +691,14 @@
 }
 
 .spend-card__value {
-  font-family: var(--lazu-font-display);
-  font-size: 52px;
+  font-family: var(--lazu-font-sans);
+  font-size: min(44px, calc(100cqi / var(--money-max, 1)));
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 44px;
   margin-top: 8px;
+  white-space: nowrap;
 }
 
 .spend-card__bars {
@@ -773,7 +777,8 @@
   }
 
   .spend-card__value {
-    font-size: 40px;
+    font-size: min(40px, calc(100cqi / var(--money-max, 1)));
+    line-height: 40px;
   }
 
   .spend-card__bars {

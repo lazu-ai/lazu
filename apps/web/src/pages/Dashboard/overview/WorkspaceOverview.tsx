@@ -19,6 +19,7 @@ import { relativeTime } from './PlatformOverview';
 import { AgentBadge } from '../../../components/ui/agent-badge';
 import { ComboChart } from '../../../components/ui/combo-chart';
 import {
+  figureEms,
   formatCount,
   formatMicroUsd,
   formatMicroUsdCompact,
@@ -165,9 +166,17 @@ export default function WorkspaceOverview({
 
       <section
         className='ov-panel ov-kpis'
-        style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 1.25fr' }}
+        style={
+          {
+            gridTemplateColumns: '1fr 1fr 1fr 1fr 1.25fr',
+            '--money-max': Math.max(
+              pending ? 1 : figureEms(formatMicroUsd(spend)),
+              balance === undefined ? 1 : figureEms(formatMicroUsd(balance)),
+            ),
+          } as React.CSSProperties
+        }
       >
-        <div className='ov-kpi'>
+        <div className='ov-kpi ov-kpi--money'>
           <span className='ov-label'>
             {t(`${ns}.spend`, { defaultValue: '消耗' })}
           </span>
@@ -186,7 +195,7 @@ export default function WorkspaceOverview({
             />
           )}
         </div>
-        <div className='ov-kpi'>
+        <div className='ov-kpi ov-kpi--money'>
           <span className='ov-label'>
             {t(`${ns}.balance`, { defaultValue: '可用余额' })}
           </span>

@@ -19,7 +19,12 @@ func TestDeepSeekCalendar(t *testing.T) {
 		{"2026-10-01T02:00:00Z", 1}, {"2026-10-07T02:00:00Z", 1},
 		{"2026-10-08T02:00:00Z", 2}, {"2026-02-23T02:00:00Z", 1},
 		{"2026-05-05T10:00:00+08:00", 1}, {"2026-10-20T10:00:00+08:00", 2},
-		{"2027-02-01T02:00:00Z", 1}, // no verified holiday data: no invented surcharge
+		{"2027-02-01T02:00:00Z", 2}, // verified 2027 regular Monday
+		{"2027-02-05T02:00:00Z", 1}, // 2027 Spring Festival Eve
+		{"2027-02-14T02:00:00Z", 1}, // 2027 make-up Sunday is still off-peak
+		{"2027-06-09T02:00:00Z", 1}, // 2027 Dragon Boat Festival
+		{"2027-09-15T02:00:00Z", 1}, // 2027 Mid-Autumn Festival
+		{"2028-02-01T02:00:00Z", 1}, // no verified holiday data: no invented surcharge
 	} {
 		t.Run(tt.at, func(t *testing.T) {
 			at, err := time.Parse(time.RFC3339, tt.at)
@@ -33,10 +38,10 @@ func TestDeepSeekCalendar(t *testing.T) {
 	}
 }
 func TestCalendarExpiryAlert(t *testing.T) {
-	if err := CheckCoverage(time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)); err != nil {
+	if err := CheckCoverage(time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)); err != nil {
 		t.Fatal(err)
 	}
-	if err := CheckCoverage(time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)); err == nil {
+	if err := CheckCoverage(time.Date(2027, 12, 1, 0, 0, 0, 0, time.UTC)); err == nil {
 		t.Fatal("missing next-year coverage must alert before expiry")
 	}
 }

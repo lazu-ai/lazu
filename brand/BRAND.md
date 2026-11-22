@@ -314,8 +314,8 @@ light-code rule of the 2026-09-21 Docs board.
 ## Locked Seal continuation (2026-09-21)
 
 Owner reconfirmed the approved Console / Docs canvas during PR #252 repair.
-Console headings and display money extend the Seal serif; dense tables and
-controls stay sans/mono, and Models retains its previous typography and status
-colours. See `foundations/yunmu-console.md` § Locked Seal refinement for the
-explicit exception to the public-only wording above. Docs request/receipt
+Models retains its previous typography and status colours. (Amended
+2026-11-21: console headings and display money no longer use the serif; the
+console is sans throughout and the serif is public-only again, as above. See
+`foundations/yunmu-console.md` § Console type.) Docs request/receipt
 composition is specified in `foundations/public-web-system.md` below.

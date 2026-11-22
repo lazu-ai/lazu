@@ -334,13 +334,13 @@ body[theme-mode='dark'] .app-shell-v2--console .console-page-topbar {
   }
 }
 
-/* Console page titles are set in the wordmark's serif, like the money under
-   them. 32px keeps every title well clear of the serif's 20px floor. */
+/* Console page titles are set in the sans, semibold, like the figures under
+   them. The serif is kept for the wordmark and the public pages. */
 .console-page-topbar__title {
-  font-family: var(--lazu-font-display);
+  font-family: var(--lazu-font-sans);
   font-size: var(--lazu-console-heading-size);
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   line-height: 1.05;
 }
 

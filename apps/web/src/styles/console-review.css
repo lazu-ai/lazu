@@ -17,11 +17,11 @@
 .console-page-shell.console-review
   > .console-page-topbar
   .console-page-topbar__title {
-  font-family: var(--lazu-font-display);
+  font-family: var(--lazu-font-sans);
   font-size: var(--lazu-console-heading-size);
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.05;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 /* Every head sits on a rule. With peer views the tab row draws it; without
    them the head does. (yunmu.css says the same for unscoped pages; this file
@@ -424,20 +424,6 @@
   font-size: 18px;
   color: var(--lazu-ink);
 }
-.console-page-shell.console-review .wal-layout {
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
-  gap: 24px;
-}
-.console-page-shell.console-review .wal-ledger-card {
-  background: transparent;
-  border: 0;
-  padding: 0;
-}
-.console-page-shell.console-review .wal-ledger-card .lazu-table-wrap {
-  background: var(--lazu-surface);
-  border: 1px solid var(--lazu-border);
-  border-radius: var(--lazu-radius-surface);
-}
 .console-page-shell.console-review.search-services-page .lazu-data-card {
   padding: 0;
   box-shadow: none;
@@ -472,11 +458,6 @@
 }
 .console-page-shell.console-review .ann-list {
   max-height: 720px;
-}
-@media (max-width: 800px) {
-  .console-page-shell.console-review .wal-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 .platform-overview__notice {
   display: flex;
@@ -750,20 +731,6 @@ body:has(.console-review) .lazu-modal-content:not(.whats-new-panel) {
   background: var(--lazu-surface-selected);
 }
 
-.console-page-shell.console-review .wal-ledger {
-  border-collapse: separate;
-  border-spacing: 0;
-  border: 1px solid var(--lazu-border);
-  border-radius: var(--lazu-radius-surface);
-  overflow: hidden;
-  background: var(--lazu-surface);
-}
-.console-page-shell.console-review .wal-ledger th {
-  background: var(--lazu-surface-muted);
-}
-.console-page-shell.console-review .wal-ledger :is(th, td) {
-  padding: 16px;
-}
 .console-page-shell.console-review .model-ops__table--models th:nth-child(2) {
   width: auto;
 }

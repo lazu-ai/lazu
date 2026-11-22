@@ -331,7 +331,7 @@ test('Stripe return lands in the wallet and pins the payment record', async ({
     record.getByRole('link', { name: 'View receipt', exact: true }),
   ).toHaveAttribute('href', /document=receipt/);
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).toHaveAttribute('href', /document=invoice_page/);
   await expect(page.locator('.pj-wallet-page')).toBeVisible();
   await page.waitForTimeout(3_500);
@@ -678,7 +678,7 @@ test('payment record never names the personal project', async ({ page }) => {
   await expect(record).not.toContainText('grace-1');
   await expect(record).toContainText('Stripe is preparing it');
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).toHaveAttribute('aria-disabled', 'true');
 });
 
@@ -763,7 +763,7 @@ test('payment return verifies the order with the rollout switch disabled', async
   });
   await page.goto('/payment/success?project_id=p_orbit&top_up_id=flag-off');
   await expect(page.locator('.wallet-page')).toBeVisible();
-  const record = page.locator('.lazu-topup-record');
+  const record = page.getByRole('dialog', { name: 'Top-ups' });
   await expect(record).toContainText('Confirming this payment with Stripe');
   await expect(record).toContainText('$5.00');
   await expect(record).not.toContainText('Added to');
@@ -798,7 +798,7 @@ test('fully discounted payment stops polling when the invoice is ready', async (
   await page.goto('/payment/success?project_id=p_orbit&top_up_id=free-return');
   const record = page.locator('.lazu-topup-record');
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).not.toHaveAttribute('aria-disabled', 'true');
   await expect(record).toContainText('Stripe issues no receipt');
   await expect.poll(() => polls).toBe(1);
@@ -1240,14 +1240,18 @@ test('flag-off failed payment lands in the legacy wallet without a project notic
     '/payment/success?project_id=p_orbit&top_up_id=flag-off-wallet',
   );
   await expect(page.locator('.wallet-page')).toBeVisible();
-  const record = page.locator('.lazu-topup-record');
+  const record = page.getByRole('dialog', { name: 'Top-ups' });
   await expect(record).toContainText('Nothing was charged.');
-  await expect(record).toContainText('No documents.');
+  await expect(record.getByRole('button', { name: 'Receipt' })).toHaveCount(0);
   await expect(
     page.getByText('Unable to open this project wallet', { exact: true }),
   ).toHaveCount(0);
-  await record.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(page.locator('.lazu-topup-record')).toHaveCount(0);
+  // The footer's Close button; the head has an icon button of the same name.
+  await record
+    .getByRole('button', { name: 'Close', exact: true })
+    .last()
+    .click();
+  await expect(record).toHaveCount(0);
   await expect(page).not.toHaveURL(/top_up_id/);
 });
 
@@ -1371,10 +1375,72 @@ test('former payer can open their payment without current project membership', a
   await page.goto(
     '/console/wallet?project_id=p_orbit&top_up_id=email-document',
   );
-  const record = page.locator('.lazu-topup-record');
-  await expect(record).toContainText('Added to your Lazu account');
+  const record = page.getByRole('dialog', { name: 'Top-ups' });
+  await expect(record).toContainText('Paid');
   await expect(record).toContainText('INV-2026-001');
   await expect(page).toHaveURL(/top_up_id=email-document/);
+});
+
+test('a linked payment that cannot be found still shows above a full top-up list', async ({
+  page,
+}) => {
+  const user = {
+    id: 'u_payer',
+    username: 'Payer',
+    role: 1,
+    features: { projects: true },
+    projects: [],
+  };
+  await setupMockedApp(page, {
+    language: 'en',
+    user,
+    payloadFor: (raw: string) => {
+      const url = new URL(raw);
+      if (url.pathname === '/api/user/self') return ok(user);
+      if (url.pathname === '/api/user/topup/self')
+        return ok({
+          items: [
+            {
+              id: 1,
+              public_id: 'listed-topup',
+              amount: 10,
+              paid_amount: 10,
+              credited_microusd: 10000000,
+              payment_method: 'alipay',
+              status: 'success',
+              create_time: 1789000000,
+              complete_time: 1789000060,
+            },
+          ],
+          total: 1,
+        });
+      return undefined;
+    },
+  });
+  await page.route('**/api/user/payments/someone-else', async (route) => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: false,
+        error: {
+          code: 'payment_not_found',
+          type: 'not_found_error',
+          request_id: 'req_mock',
+        },
+      }),
+    });
+  });
+  await page.goto('/console/wallet?top_up_id=someone-else');
+  const dialog = page.getByRole('dialog', { name: 'Top-ups' });
+  await expect(dialog).toContainText(
+    'This payment was not found or is unavailable to this account.',
+  );
+  await expect(
+    dialog.getByRole('button', { name: 'Switch Lazu account' }),
+  ).toBeVisible();
+  await expect(dialog).toContainText('Alipay');
+  await expect(dialog).toContainText('1 top-ups');
 });
 
 for (const [status, label] of [
@@ -1464,7 +1530,7 @@ test('legacy paid payment explains the missing Stripe invoice', async ({
   await expect(record).toContainText('Added to your Lazu account');
   await expect(record).toContainText('This top-up has no Stripe invoice');
   await expect(
-    record.getByRole('link', { name: 'View on Stripe', exact: true }),
+    record.getByRole('link', { name: 'View invoice online', exact: true }),
   ).toHaveAttribute('aria-disabled', 'true');
   await expect(record).not.toContainText('Chinese VAT');
 });
@@ -2538,7 +2604,7 @@ test('topup bar holds unknown balance slots until the wallet responds', async ({
   expect(after).toEqual(before);
 });
 
-test('legacy topup bar estimates days from account daily spend', async ({
+test('account wallet names the chosen amount on the pay button', async ({
   page,
 }) => {
   await setup(page, (url) => {
@@ -2553,14 +2619,14 @@ test('legacy topup bar estimates days from account daily spend', async ({
         features: { projects: false },
         projects: [],
       });
-    if (url.pathname === '/api/data/dashboard/self')
-      return ok({ totals: { amount_microusd: 27_000_000 }, time_series: [] });
   });
   await page.goto('/console/wallet');
   await expect(page.locator('.wallet-page')).toBeVisible();
-  await expect(page.locator('.lazu-topup-bar__fact').first()).toContainText(
-    /days/,
-  );
+  await page.getByRole('button', { name: '$50', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: '$50', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.wal-topup__pay')).toContainText('$50.00');
 });
 
 for (const status of ['pending', 'expired', 'failed'] as const) {
