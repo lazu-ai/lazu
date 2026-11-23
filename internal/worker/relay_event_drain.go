@@ -35,9 +35,6 @@ func (t *RelayEventDrainTask) Run(ctx context.Context) error {
 
 	drainCtx, cancel := context.WithTimeout(ctx, timeBudget)
 	defer cancel()
-	if common.DataExportEnabled {
-		defer model.SaveUsageDataCache()
-	}
 
 	totalProcessed := 0
 	for {

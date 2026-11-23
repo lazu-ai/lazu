@@ -276,9 +276,6 @@ func RefreshControlPlaneSnapshots(ctx context.Context) error {
 	if err := refreshRouteHealthCacheFromCore(); err != nil {
 		return err
 	}
-	if err := RecalculateRetiredModelRatingRanks(); err != nil {
-		return err
-	}
 	return warmCatalogCacheFromCore()
 }
 func logControlRefresh(kind string, err error) {

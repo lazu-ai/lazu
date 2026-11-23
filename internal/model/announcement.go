@@ -841,38 +841,6 @@ func UnpublishAnnouncement(id uint) error {
 	}).Error
 }
 
-func MigrateLegacyAnnouncements(db *gorm.DB) error {
-	if db == nil {
-		return nil
-	}
-	var existing int64
-	if err := db.Model(&Announcement{}).Where("source = ?", AnnouncementSourceLegacySetting).Count(&existing).Error; err != nil {
-		return err
-	}
-	if existing > 0 {
-		return nil
-	}
-	raw := legacyAnnouncementOptionValue(db)
-	rows, err := legacyAnnouncementRowsFromJSON(raw, time.Now().UTC())
-	if err != nil {
-		return nil
-	}
-	if len(rows) == 0 {
-		return nil
-	}
-	return db.Create(&rows).Error
-}
-
-func BackfillAnnouncementPublicationFields(db *gorm.DB) error {
-	if db == nil {
-		return nil
-	}
-	if err := db.Model(&Announcement{}).Where("audiences IS NULL").Update("audiences", JSONValue(`["console"]`)).Error; err != nil {
-		return err
-	}
-	return db.Exec(`UPDATE announcements SET version = (SELECT version FROM release_deployments WHERE release_deployments.id = announcements.source_deployment_id) WHERE source = ? AND source_deployment_id IS NOT NULL AND (version IS NULL OR version = '')`, AnnouncementSourceDeploy).Error
-}
-
 func SyncLegacyAnnouncements(raw string) error {
 	if CoreDB() == nil {
 		return nil
@@ -956,16 +924,6 @@ func legacyAnnouncementRowsFromJSON(raw string, now time.Time) ([]Announcement, 
 		})
 	}
 	return rows, nil
-}
-
-func legacyAnnouncementOptionValue(db *gorm.DB) string {
-	for _, key := range []string{"console_setting.announcements", "Announcements"} {
-		var option Option
-		if err := db.Where("key = ?", key).First(&option).Error; err == nil {
-			return option.Value
-		}
-	}
-	return ""
 }
 
 func parseLegacyAnnouncementTime(value any, fallback time.Time) time.Time {

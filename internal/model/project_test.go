@@ -96,109 +96,6 @@ func TestProjectSignupCreatesOneDefaultAndTokenInheritsIt(t *testing.T) {
 	}
 }
 
-func TestProjectMigrationPreservesBudgetAndSharedAttribution(t *testing.T) {
-	db := setupProjectTestDB(t, false)
-	owner := User{Username: "legacy", Quota: 456}
-	other := User{Username: "second", Quota: 789}
-	for _, u := range []*User{&owner, &other} {
-		if err := db.Create(u).Error; err != nil {
-			t.Fatal(err)
-		}
-	}
-	token := Token{UserId: owner.Id, Key: strings.Repeat("b", 48)}
-	if err := db.Create(&token).Error; err != nil {
-		t.Fatal(err)
-	}
-	budgets := []SpendBudget{{Scope: SpendBudgetScopeOrg, LimitMicrousd: 5000, Enabled: true}, {Scope: SpendBudgetScopeUser, UserID: owner.Id, LimitMicrousd: 1000, Enabled: true}, {Scope: SpendBudgetScopeToken, TokenID: token.Id, LimitMicrousd: 100, Enabled: true}}
-	for i := range budgets {
-		if err := db.Create(&budgets[i]).Error; err != nil {
-			t.Fatal(err)
-		}
-	}
-	charge := SpendBudgetCharge{BudgetID: budgets[1].ID, UserID: owner.Id, TokenID: token.Id, AmountMicrousd: 90, RequestID: "original-charge"}
-	reservation := SpendBudgetReservation{BudgetID: budgets[1].ID, UserID: owner.Id, TokenID: token.Id, ReservedMicrousd: 10, RequestID: "original-reservation"}
-	topup := TopUp{UserId: owner.Id, TradeNo: "original-payment", Amount: 100}
-	job := MediaJob{PublicID: "job_legacy", UserID: owner.Id, TokenID: &token.Id, Status: MediaJobStatusRunning}
-	file := File{UserID: owner.Id, TokenID: &token.Id, Filename: "old.bin", Purpose: "assistants", StorageKey: "legacy"}
-	for _, row := range []interface{}{&charge, &reservation, &topup, &job, &file} {
-		if err := db.Create(row).Error; err != nil {
-			t.Fatal(err)
-		}
-	}
-	migrateProjectTestTables(t, db)
-	if err := migrateTeamProjects(db); err != nil {
-		t.Fatal(err)
-	}
-	var project Project
-	db.Where("owner_user_id = ?", owner.Id).First(&project)
-	if project.ID == 0 {
-		t.Fatal("no default")
-	}
-	db.First(&token, token.Id)
-	if token.ProjectID != project.ID {
-		t.Fatal("token attribution lost")
-	}
-	for i := range budgets {
-		db.First(&budgets[i], budgets[i].ID)
-		want := project.ID
-		if i == 0 {
-			want = 0
-		}
-		if budgets[i].ProjectID != want {
-			t.Fatalf("budget %d wrong project", i)
-		}
-	}
-	db.First(&charge, charge.ID)
-	if charge.ProjectID != project.ID || charge.AmountMicrousd != 90 || charge.RequestID != "original-charge" {
-		t.Fatalf("charge changed: %+v", charge)
-	}
-	db.First(&reservation, reservation.ID)
-	if reservation.ProjectID != project.ID || reservation.ReservedMicrousd != 10 {
-		t.Fatal("reservation lost")
-	}
-	db.First(&topup, topup.Id)
-	if topup.ProjectID != project.ID || topup.PaidByUserID != owner.Id || topup.StripeCustomerID != "" {
-		t.Fatal("topup attribution")
-	}
-	db.First(&job, job.ID)
-	if job.ProjectID != project.ID || job.ActorUserID != owner.Id || job.PayerUserID != owner.Id {
-		t.Fatal("async job attribution")
-	}
-	if err := db.Where("id = ?", file.ID).First(&file).Error; err != nil {
-		t.Fatal(err)
-	}
-	if file.ProjectID != project.ID || file.ActorUserID != owner.Id {
-		t.Fatal("file attribution")
-	}
-	// Simulate later shared ownership. Startup must not reinterpret a member's
-	// shared credential as belonging to that member's own default project.
-	if err := db.Model(&token).Update("user_id", other.Id).Error; err != nil {
-		t.Fatal(err)
-	}
-	db.Model(&project).Update("name", "shared-name")
-	if err := migrateTeamProjects(db); err != nil {
-		t.Fatal(err)
-	}
-	db.First(&token, token.Id)
-	if token.ProjectID != project.ID {
-		t.Fatal("second startup moved shared key")
-	}
-	db.First(&project, project.ID)
-	if project.Name != "shared-name" {
-		t.Fatal("second startup reset shared settings")
-	}
-	var saved User
-	db.First(&saved, owner.Id)
-	if saved.Quota != 456 {
-		t.Fatal("migration moved money")
-	}
-	var n int64
-	db.Model(&Project{}).Count(&n)
-	if n != 2 {
-		t.Fatalf("not idempotent: %d projects", n)
-	}
-}
-
 func TestProjectPermissionMatrix(t *testing.T) {
 	settings := DefaultProjectSettings()
 	roles := []string{ProjectRoleOwner, ProjectRoleAdmin, ProjectRoleMember}
@@ -1780,30 +1677,20 @@ func TestProjectInviteAcceptanceAndRevocationRace(t *testing.T) {
 	}
 }
 
-func TestProjectMigrationPreservesDeletedOwnerAndDetectsOrphans(t *testing.T) {
+func TestProjectAttributionRejectsOrphanKey(t *testing.T) {
 	db := setupProjectTestDB(t, true)
-	user := User{Username: "deleted-owner"}
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatal(err)
-	}
-	if _, err := DeleteSelfUser(user.Id); err != nil {
-		t.Fatal(err)
-	}
-	if err := migrateTeamProjects(db); err != nil {
-		t.Fatalf("deleted account blocked restart: %v", err)
-	}
-	var count int64
-	db.Model(&ProjectMember{}).Where("user_id = ? AND status = ?", user.Id, ProjectMemberRemoved).Count(&count)
-	if count != 1 {
-		t.Fatal("migration revived deleted owner")
-	}
 	token := Token{UserId: 9999, Key: "orphan-credential", ProjectID: 9999}
 	if err := db.Create(&token).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := migrateTeamProjects(db); err == nil {
-		t.Fatal("orphan passed migration validation")
+	audit, err := readProjectMigrationAudit(db)
+	if err != nil {
+		t.Fatal(err)
 	}
+	if audit.Validate() == nil {
+		t.Fatal("orphan passed attribution check")
+	}
+
 }
 
 func TestProjectReceiptRequiresMatchingLogicalKeyAndProject(t *testing.T) {

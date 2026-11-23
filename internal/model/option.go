@@ -30,23 +30,32 @@ var ignoredLegacyRuntimeOptionKeys = map[string]struct{}{
 	"RetryTimes": {},
 	// Folded into email_setting.low_balance_threshold_usd, which was already
 	// the value the gateway actually read. See migrateQuotaRemindThreshold.
-	"QuotaRemindThreshold":                   {},
-	"MinTopUp":                               {},
-	"Price":                                  {},
-	"ServerAddress":                          {},
-	"SMTPAccount":                            {},
-	"SMTPToken":                              {},
-	"StripeApiSecret":                        {},
-	"StripePriceId":                          {},
-	"StripePromotionCodesEnabled":            {},
-	"StripeSecretKey":                        {},
-	"StripeWebhookSecret":                    {},
-	"TopUpLink":                              {},
-	"DisplayInCurrencyEnabled":               {},
-	"USDExchangeRate":                        {},
-	"CustomCurrencySymbol":                   {},
-	"CustomCurrencyExchangeRate":             {},
-	"general_setting.custom_currency_symbol": {},
+	"QuotaRemindThreshold":                          {},
+	"LogConsumeEnabled":                             {},
+	"DisplayTokenStatEnabled":                       {},
+	"DataExportEnabled":                             {},
+	"DataExportInterval":                            {},
+	"WorkerUrl":                                     {},
+	"WorkerValidKey":                                {},
+	"WorkerAllowHttpImageRequestEnabled":            {},
+	"global.pass_through_request_enabled":           {},
+	"general_setting.quota_display_type":            {},
+	"MinTopUp":                                      {},
+	"Price":                                         {},
+	"ServerAddress":                                 {},
+	"SMTPAccount":                                   {},
+	"SMTPToken":                                     {},
+	"StripeApiSecret":                               {},
+	"StripePriceId":                                 {},
+	"StripePromotionCodesEnabled":                   {},
+	"StripeSecretKey":                               {},
+	"StripeWebhookSecret":                           {},
+	"TopUpLink":                                     {},
+	"DisplayInCurrencyEnabled":                      {},
+	"USDExchangeRate":                               {},
+	"CustomCurrencySymbol":                          {},
+	"CustomCurrencyExchangeRate":                    {},
+	"general_setting.custom_currency_symbol":        {},
 	"general_setting.custom_currency_exchange_rate": {},
 }
 
@@ -123,9 +132,6 @@ func initializeOptionMapDefaults() {
 	common.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(common.AutomaticDisableChannelEnabled)
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["SessionChannelAffinityEnabled"] = strconv.FormatBool(common.SessionChannelAffinityEnabled)
-	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
-	common.OptionMap["DisplayTokenStatEnabled"] = strconv.FormatBool(common.DisplayTokenStatEnabled)
-	common.OptionMap["DataExportEnabled"] = strconv.FormatBool(common.DataExportEnabled)
 	common.OptionMap["ProjectsEnabled"] = strconv.FormatBool(common.ProjectsEnabled)
 	common.OptionMap["ProjectsAllowedUsers"] = common.ProjectsAllowedUsers
 	common.OptionMap[AccessAddressesOptionKey] = ""
@@ -145,9 +151,6 @@ func initializeOptionMapDefaults() {
 	common.OptionMap["SystemName"] = common.SystemName
 	common.OptionMap["Logo"] = common.Logo
 	common.OptionMap["SidebarModulePreset"] = "saas"
-	common.OptionMap["WorkerUrl"] = system_setting.WorkerUrl
-	common.OptionMap["WorkerValidKey"] = system_setting.WorkerValidKey
-	common.OptionMap["WorkerAllowHttpImageRequestEnabled"] = strconv.FormatBool(system_setting.WorkerAllowHttpImageRequestEnabled)
 	common.OptionMap["QuotaForNewUser"] = strconv.FormatInt(common.QuotaForNewUser.Int64(), 10)
 	common.OptionMap["PreConsumedQuota"] = strconv.Itoa(common.PreConsumedQuota)
 	common.OptionMap["MinTopUpUSD"] = strconv.Itoa(setting.StripeMinTopUp)
@@ -159,7 +162,6 @@ func initializeOptionMapDefaults() {
 	common.OptionMap["RateLimitUnpaidRPM"] = strconv.Itoa(setting.RateLimitUnpaidRPM)
 	common.OptionMap["RateLimitUnpaidTPM"] = strconv.Itoa(setting.RateLimitUnpaidTPM)
 	common.OptionMap["ChannelLanes"] = setting.ChannelLanes2JSONString()
-	common.OptionMap["DataExportInterval"] = strconv.Itoa(common.DataExportInterval)
 	common.OptionMap["DataExportDefaultTime"] = common.DataExportDefaultTime
 	common.OptionMap["ModelRequestRateLimitEnabled"] = strconv.FormatBool(setting.ModelRequestRateLimitEnabled)
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
@@ -243,9 +245,6 @@ func loadOptionsFromDatabase() {
 			common.SysLog("failed to update option map: " + err.Error())
 		}
 	}
-	for _, notice := range deprecatedOptionNotices(options) {
-		common.SysLog("deprecated setting: " + notice)
-	}
 }
 
 func SyncOptions(frequency int) {
@@ -300,9 +299,6 @@ func updateOptionMap(key string, value string) (err error) {
 		common.SysDebug("ignored legacy option: " + key)
 		return nil
 	}
-	if key == "general_setting.quota_display_type" {
-		value = operation_setting.NormalizeQuotaDisplayType(value)
-	}
 
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
@@ -335,20 +331,14 @@ func updateOptionMap(key string, value string) (err error) {
 			common.AutomaticEnableChannelEnabled = boolValue
 		case "SessionChannelAffinityEnabled":
 			common.SessionChannelAffinityEnabled = boolValue
-		case "LogConsumeEnabled":
-			common.LogConsumeEnabled = boolValue
-		case "DisplayTokenStatEnabled":
-			common.DisplayTokenStatEnabled = boolValue
-		case "DataExportEnabled":
-			common.DataExportEnabled = boolValue
+
 		case "ProjectsEnabled":
 			common.ProjectsEnabled = boolValue
 		case "ModelRequestRateLimitEnabled":
 			setting.ModelRequestRateLimitEnabled = boolValue
 		case "SMTPSSLEnabled":
 			common.SMTPSSLEnabled = boolValue
-		case "WorkerAllowHttpImageRequestEnabled":
-			system_setting.WorkerAllowHttpImageRequestEnabled = boolValue
+
 		}
 	}
 	switch key {
@@ -374,10 +364,7 @@ func updateOptionMap(key string, value string) (err error) {
 		if value != "" {
 			common.SMTPFrom = value
 		}
-	case "WorkerUrl":
-		system_setting.WorkerUrl = value
-	case "WorkerValidKey":
-		system_setting.WorkerValidKey = value
+
 	case "Footer":
 		common.Footer = value
 	case "SystemName":
@@ -410,8 +397,7 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.RateLimitUnpaidTPM, _ = strconv.Atoi(value)
 	case "ChannelLanes":
 		err = setting.UpdateChannelLanesByJSONString(value)
-	case "DataExportInterval":
-		common.DataExportInterval, _ = strconv.Atoi(value)
+
 	case "DataExportDefaultTime":
 		common.DataExportDefaultTime = value
 	case "ChannelDisableThreshold":

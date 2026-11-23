@@ -410,7 +410,7 @@ npm run build
 
 Self-hosted deployments should provide `DATABASE_URL`, `ROOT_USERNAME`, and `ROOT_PASSWORD` at first startup. The backend migrates the schema and syncs the root account on startup; there is no browser-based install wizard.
 
-Migration support window: a deployment upgrades in one step from any schema version released in the last six months. A version's migration code may be deleted six months after it shipped; the same change raises `schemaUpgradeFloor` in `internal/model/schema_version.go` and names the gate release older deployments upgrade through first (docs/DEPLOYMENT.md, Upgrade path).
+Direct upgrades start at schema 16. For schema 15 and below, upgrade through v0.7.297. For schemas 16 and later, retain each migration for at least six months after its release. A floor increase names the tested intermediate release in docs/DEPLOYMENT.md.
 
 PostgreSQL is the only supported database for deployments. SQLite is for tests only: new features need no SQLite path, and an existing SQLite branch may be removed when the code around it changes.
 

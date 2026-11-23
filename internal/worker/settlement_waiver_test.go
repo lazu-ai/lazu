@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -118,50 +117,6 @@ func TestSettlementFailureForcedRetryCannotEvadePlatformWaiver(t *testing.T) {
 			}
 			if _, err := reconcileSettlementFailure(source, time.Now().UTC()); err == nil {
 				t.Fatal("explicit retry accepted changed waived source")
-			}
-			assertWaivedSettlementWorkerUnchanged(t, db, source)
-		})
-	}
-}
-
-func TestSettlementOutboxExplicitRetryCannotReplayPlatformWaiver(t *testing.T) {
-	for _, identity := range []string{"original", "same-request-new-ref", "same-ref-new-request"} {
-		t.Run(identity, func(t *testing.T) {
-			db, source := withWaivedSettlementWorkerTestDB(t)
-			outbox := model.SettlementOutbox{
-				ProjectID: source.ProjectID, ActorUserID: source.ActorUserID,
-				RequestID: source.RequestID, UserID: source.UserID, TokenID: source.TokenID,
-				TokenKey: source.TokenKey, QuotaDelta: source.QuotaDelta, PreConsumed: source.PreConsumed,
-				RefType: source.RefType, RefID: source.RefID, Status: model.SettlementFailureStatusOpen,
-			}
-			if identity == "same-request-new-ref" {
-				outbox.RefID = "replacement-ref"
-			}
-			if identity == "same-ref-new-request" {
-				outbox.RequestID = "replacement-request"
-			}
-			for range 2 {
-				outcome, err := reconcileSettlementOutbox(outbox, time.Now().UTC())
-				if err != nil || outcome != model.SettlementFailureStatusManualReview {
-					t.Fatalf("explicit outbox replay outcome=%q err=%v", outcome, err)
-				}
-				assertWaivedSettlementWorkerUnchanged(t, db, source)
-			}
-			// A later durable duplicate invalidates the retained waiver evidence;
-			// the worker must stop before claiming it, rather than silently pay it.
-			if err := db.Create(&outbox).Error; err != nil {
-				t.Fatal(err)
-			}
-			stats, err := ReconcileSettlementOutboxOnce(context.Background(), time.Now().UTC())
-			if err == nil || stats.Claimed != 0 {
-				t.Fatalf("duplicate outbox was claimed: stats=%+v err=%v", stats, err)
-			}
-			var retained model.SettlementOutbox
-			if err := db.First(&retained, outbox.ID).Error; err != nil {
-				t.Fatal(err)
-			}
-			if retained.Status != model.SettlementFailureStatusOpen || retained.Attempts != 0 {
-				t.Fatal("worker mutated conflicting outbox before rejecting it")
 			}
 			assertWaivedSettlementWorkerUnchanged(t, db, source)
 		})

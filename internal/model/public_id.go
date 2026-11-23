@@ -121,27 +121,6 @@ func ResolvePublicIntIDs(table string, identifiers []string) ([]int, error) {
 	return ids, nil
 }
 
-func migrateLazuPublicIDs(db *gorm.DB) error {
-	specs := []struct {
-		table  string
-		prefix string
-	}{
-		{table: "users", prefix: common.PublicUserIDPrefix},
-		{table: "tokens", prefix: common.PublicTokenIDPrefix},
-		{table: "channels", prefix: common.PublicChannelIDPrefix},
-		{table: "vendors", prefix: common.PublicVendorIDPrefix},
-	}
-	for _, spec := range specs {
-		if err := backfillIntPublicIDs(db, spec.table, spec.prefix); err != nil {
-			return err
-		}
-	}
-	if err := backfillFilePublicIDs(db); err != nil {
-		return err
-	}
-	return backfillIntPublicIDs(db, "logs", common.PublicLogIDPrefix)
-}
-
 func migrateLazuLogPublicIDs(db *gorm.DB) error {
 	return backfillIntPublicIDs(db, "logs", common.PublicLogIDPrefix)
 }
@@ -166,89 +145,6 @@ func backfillIntPublicIDs(db *gorm.DB, table string, prefix string) error {
 		if err := db.Table(table).
 			Where("id = ? AND (public_id IS NULL OR public_id = '')", row.ID).
 			Update("public_id", common.GeneratePublicID(prefix)).Error; err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func backfillFilePublicIDs(db *gorm.DB) error {
-	if db == nil || !db.Migrator().HasTable("files") || !db.Migrator().HasColumn("files", "public_id") {
-		return nil
-	}
-	var rows []struct {
-		ID string `gorm:"column:id"`
-	}
-	if err := db.Table("files").
-		Select("id").
-		Where("public_id IS NULL OR public_id = ''").
-		Find(&rows).Error; err != nil {
-		return err
-	}
-	for _, row := range rows {
-		if row.ID == "" {
-			continue
-		}
-		if err := db.Table("files").
-			Where("id = ? AND (public_id IS NULL OR public_id = '')", row.ID).
-			Update("public_id", row.ID).Error; err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func migrateLegacyTokenKeys(db *gorm.DB) error {
-	if db == nil || !db.Migrator().HasTable(&Token{}) {
-		return nil
-	}
-	var rows []struct {
-		ID  int    `gorm:"column:id"`
-		Key string `gorm:"column:key"`
-	}
-	if err := db.Table("tokens").
-		Select("id, "+commonKeyCol).
-		Where(commonKeyCol+" NOT LIKE ?", common.APITokenPrefix+"%").
-		Find(&rows).Error; err != nil {
-		return err
-	}
-	for _, row := range rows {
-		if row.ID <= 0 || row.Key == "" {
-			continue
-		}
-		normalized := common.NormalizeAPIKey(row.Key)
-		if normalized == row.Key {
-			continue
-		}
-		if err := db.Table("tokens").
-			Where("id = ? AND "+commonKeyCol+" = ?", row.ID, row.Key).
-			Update("key", normalized).Error; err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func migrateTokenKeyDigests(db *gorm.DB) error {
-	if db == nil || !db.Migrator().HasTable(&Token{}) || !db.Migrator().HasColumn(&Token{}, "key_digest") {
-		return nil
-	}
-	var rows []struct {
-		ID        int    `gorm:"column:id"`
-		Key       string `gorm:"column:key"`
-		KeyDigest string `gorm:"column:key_digest"`
-	}
-	if err := db.Table("tokens").
-		Select("id, " + commonKeyCol + ", key_digest").
-		Where("(key_digest IS NULL OR key_digest = '') AND " + commonKeyCol + " IS NOT NULL AND " + commonKeyCol + " != ''").
-		Find(&rows).Error; err != nil {
-		return err
-	}
-	for _, row := range rows {
-		if row.ID <= 0 || row.Key == "" {
-			continue
-		}
-		if err := backfillTokenKeyDigestWithDB(db, row.ID, row.Key); err != nil {
 			return err
 		}
 	}

@@ -1510,19 +1510,6 @@ func UpdateUserAccessToken(userID int, accessToken string) error {
 	return invalidateUserCache(userID)
 }
 
-func SetUserHasToppedUp(userID int, hasToppedUp bool) error {
-	if userID <= 0 {
-		return ErrUserNotFound
-	}
-	if err := CoreDB().Model(&User{}).Where("id = ?", userID).Update("has_topped_up", hasToppedUp).Error; err != nil {
-		return err
-	}
-	if err := invalidateUserCache(userID); err != nil {
-		return err
-	}
-	return InvalidateUserTokensCache(userID)
-}
-
 func SetUserQuotaWithLedger(userID int, newQuota billing.MicroUSD, kind, refType, refID string, metadata map[string]any) (delta billing.MicroUSD, err error) {
 	if userID == 0 {
 		return 0, ErrUserNotFound
@@ -1886,12 +1873,6 @@ func GetUserQuota(id int, fromDB bool) (quota billing.MicroUSD, err error) {
 	}
 
 	return user.Quota, nil
-}
-
-func GetUserUsedQuota(id int) (quota billing.MicroUSD, err error) {
-	var user User
-	err = CoreDB().Select("used_quota").Where("id = ?", id).First(&user).Error
-	return user.UsedQuota, err
 }
 
 // GetRootUser returns the oldest administrator. Several accounts can hold the

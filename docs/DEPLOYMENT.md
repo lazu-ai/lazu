@@ -207,12 +207,9 @@ object store or a LAN image host: list that host or its subnet and leave
 `allow_private_ip` off. Ports and the domain lists still apply to listed
 sources.
 
-Two paths check less. With `HTTP_PROXY` / `HTTPS_PROXY` set, the proxy
-resolves the name and dials; the gateway still refuses the URL and every
-redirect hop by policy, but cannot pin the address the proxy connects to.
-When a Cloudflare worker (`WorkerUrl`) does the fetching, the policy is
-checked before the URL is handed over, and the worker follows redirects on
-its own.
+With `HTTP_PROXY` or `HTTPS_PROXY` set, the proxy resolves the name and
+opens the connection. The gateway checks the URL and each redirect against
+policy. Address pinning requires a direct connection.
 
 ### Outbound connections
 
@@ -527,16 +524,12 @@ unknown paths continue to return their normal responses.
 
 ## Upgrade path
 
-A release upgrades a deployment in one step from any schema version released in
-the last six months; it runs every migration in between on start (or through
-`lazu-migrate`). Migration code for older schema versions may be removed, and a
-release that removes it refuses to start on such a database with a message
-naming the release to upgrade to first, then to the current one.
-
-Today every schema version is inside the window: version 1 shipped with v0.1.0
-on 2026-07-13, so any lazu release upgrades directly. Version 1's code may go
-from 2027-01-13; the inherited-schema cleanup as a whole (schema versions 1–15, up
-to v0.7.108, 2026-09-30) from 2027-03-30.
+Fresh databases initialize directly. Schema 16 and newer upgrade in one step.
+For schema 15 and older, including a populated installation without a version
+marker, run the **v0.7.297** migrator against both configured stores first.
+Confirm both schema scopes have reached 39 before starting the newer release.
+Back up the databases before upgrading. For schema 16 onward, the direct-upgrade
+support window remains six months from each schema release.
 
 ## Changing Credentials
 
@@ -582,24 +575,28 @@ startup.
 
 Change operational values directly in the console UI. These values are stored in the database `option` table and do not require a backend restart.
 
-## Deprecated settings
+## Retired routes and settings
 
-A setting on its way out stays readable for at least 90 days. While it is
-configured away from its default, `lazu-backend` logs a line starting with
-`deprecated setting:` at startup that names the replacement and the removal
-date. In code the setting carries `// Deprecated: delete after <date>`; CI
-fails once that date has passed, so the removal is not forgotten.
+Consumption logs are always recorded. Bound their retention with
+`LOG_RETENTION_DAYS`. Money in log messages uses USD. Media fetches and
+notifications connect directly under the configured fetch policy. Relay
+requests always apply channel model mapping and field policy.
 
-| Setting                                                             | Configured as          | After removal                                                                                                                                                  | Replacement                                                                       | Removed after |
-| ------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------- |
-| `LogConsumeEnabled`                                                 | `false`                | Consume logs are always written. The usage pages, usage digests and route health read them.                                                                    | Bound storage with `LOG_RETENTION_DAYS` (Retention And Disk Maintenance).         | 2027-01-24    |
-| `WorkerUrl`, `WorkerValidKey`, `WorkerAllowHttpImageRequestEnabled` | `WorkerUrl` set        | Media downloads and webhooks connect directly.                                                                                                                 | The media fetch policy (Fetching client-supplied media URLs) checks each address. | 2027-01-24    |
-| `general_setting.quota_display_type`                                | `TOKENS`               | Amounts in log text read in USD, as the console already shows them.                                                                                            | None needed.                                                                      | 2027-01-24    |
-| `DataExportEnabled`, `DataExportInterval`                           | `DataExportEnabled` on | The hourly `usage_data` table stops being written, then goes, with `GET /api/data/` and `GET /api/data/self`. The dashboard and usage pages do not read it.    | Export the table first if you keep it: `pg_dump --table=usage_data`.              | 2027-02-01    |
-| `SETTLEMENT_OUTBOX_ENABLED` (environment)                           | `true`                 | The settlement outbox and its reconciler are gone. Failed settlements are still recovered by the failure reconciler (`SETTLEMENT_FAILURE_RECONCILER_ENABLED`). | Keep it on until the outbox holds no unresolved rows, then unset it.              | 2027-01-24    |
+The old community, ranking, playground and dashboard billing APIs have been
+removed. Use the wallet for balance, `/api/usage/summary` for key usage,
+`/api/log/self/tasks` for console tasks and `/api/data/dashboard/self` for
+dashboard data. Use `/api/announcements` as the canonical announcement URL.
 
-If you rely on one of these, open an issue before the removal date with what
-it does for you.
+Before upgrading, export any historical `usage_data` tables you need in Core
+and Telemetry with `pg_dump -Fc --table=public.usage_data`. Verify each dump
+with `pg_restore` into an empty database. This release stops hourly exports
+and leaves existing tables in place. The current dashboard rollups and CSV
+export continue independently.
+
+Deployments that enabled `SETTLEMENT_OUTBOX_ENABLED` must finish reconciling
+outbox entries on v0.7.297. Check `settlement_outboxes` for rows whose status
+differs from `resolved` before upgrading. Settlement failures and decision
+refunds retain their own reconciliation jobs.
 
 ## Request content logging
 

@@ -127,31 +127,6 @@ func TestTokenInsertStoresPlaintextAndDigest(t *testing.T) {
 	}
 }
 
-func TestMigrateTokenKeyDigestsBackfillsLegacyWithoutClearing(t *testing.T) {
-	db := setupTokenKeyStorageTestDB(t, "token_key_storage_backfill")
-	withTokenKeyStorageGlobals(t, db)
-
-	legacyKey := "sk-lazu-legacyabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN" // secret-scan: allow -- test fixture
-	if err := db.Exec(`INSERT INTO tokens (id, user_id, public_id, "key", status, name, expired_time, remain_quota) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		7, 1, "tok_legacy", legacyKey, common.TokenStatusEnabled, "legacy", -1, 100).Error; err != nil {
-		t.Fatalf("insert legacy token failed: %v", err)
-	}
-	if err := migrateTokenKeyDigests(db); err != nil {
-		t.Fatalf("migrate token key digests failed: %v", err)
-	}
-
-	var row Token
-	if err := db.First(&row, 7).Error; err != nil {
-		t.Fatalf("load token failed: %v", err)
-	}
-	if row.Key != legacyKey {
-		t.Fatalf("legacy key should remain during compatibility phase, got %q", row.Key)
-	}
-	if row.KeyDigest != TokenKeyDigest(legacyKey) {
-		t.Fatalf("expected digest backfill, got %q", row.KeyDigest)
-	}
-}
-
 func TestTokenUpdateSurfacesCacheFenceFailureAfterCommit(t *testing.T) {
 	db := setupTokenKeyStorageTestDB(t, "token_update_cache_fence_failure")
 	withTokenKeyStorageGlobals(t, db)

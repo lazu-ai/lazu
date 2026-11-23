@@ -9,9 +9,6 @@ GET /api/auth/oauth/:provider/callback  # webhook: identity provider redirects t
 GET /api/auth/oidc/callback  # webhook: identity provider redirects the browser here
 GET /api/channel/models_enabled  # pending: no caller in this repository; the route table decides
 GET /api/channel/update_balance/:id  # pending: the console dropped its per-channel balance action; the route table decides
-GET /api/community/models  # pending: no caller in this repository; the route table decides
-GET /api/community/models/:id  # pending: no caller in this repository; the route table decides
-GET /api/community/stats  # pending: no caller in this repository; the route table decides
 GET /api/mail/chart/:file  # webhook: links and images in sent email
 GET /api/mail/unsubscribe  # webhook: links and images in sent email
 GET /api/model_info/reviews/count  # pending: no caller in this repository; the route table decides
@@ -28,8 +25,6 @@ GET /api/user/token  # pending: no caller in this repository; the route table de
 GET /api/v1/models/info  # pending: no caller in this repository; the route table decides
 GET /api/vendors/:id  # pending: no caller in this repository; the route table decides
 GET /api/vendors/search  # pending: no caller in this repository; the route table decides
-GET /dashboard/billing/subscription  # pending: deprecated OpenAI dashboard alias with no removal date yet
-GET /dashboard/billing/usage  # pending: deprecated OpenAI dashboard alias with no removal date yet
 GET /ja/models  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /ja/models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /ja/privacy  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
@@ -41,8 +36,6 @@ GET /models.md  # browser: public page or its Markdown copy, linked from server-
 GET /models/:vendor/*model  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /privacy.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
 GET /terms.md  # browser: public page or its Markdown copy, linked from server-rendered pages and crawlers
-GET /v1/dashboard/billing/subscription  # pending: deprecated OpenAI dashboard alias with no removal date yet
-GET /v1/dashboard/billing/usage  # pending: deprecated OpenAI dashboard alias with no removal date yet
 GET /v1/media/jobs  # external-api: OpenAI-compatible endpoint SDK clients call
 GET /v1/media/jobs/:id  # external-api: OpenAI-compatible endpoint SDK clients call
 GET /v1/realtime  # external-api: OpenAI-compatible endpoint SDK clients call
@@ -83,10 +76,8 @@ POST /api/channel/:id/key  # pending: no caller in this repository; the route ta
 POST /api/channel_health/route_retreat/clear  # external-api: operators clear a repaired route's temporary breaker retreat
 POST /api/channel/copy/:id  # pending: the console dropped its copy-channel action; the route table decides
 POST /api/channel/multi_key/manage  # pending: no caller in this repository; the route table decides
-POST /api/community/export  # pending: no caller in this repository; the route table decides
 POST /api/credentials/ephemeral  # pending: no caller in this repository; the route table decides
 POST /api/mail/unsubscribe  # webhook: links and images in sent email
-POST /api/models/rankings/recalculate  # pending: no caller in this repository; the route table decides
 POST /api/ops/mail/digest/copy  # pending: no caller in this repository; the route table decides
 POST /api/stripe/webhook  # webhook: called by the payment or chat provider
 POST /api/telegram/webhook  # webhook: called by the payment or chat provider

@@ -5,6 +5,12 @@ description: "Lazu API、モデルカタログ、ドキュメントの変更を�
 
 # 更新履歴
 
+## 未リリース — 旧 API と設定の廃止
+
+- 以前告知した廃止日を今回のリリースに繰り上げます。コミュニティ、ランキング、Playground、旧残高照会、重複するユーザー API、管理者の入金済みマークを削除しました。残高はウォレットで確認できます。利用量、タスク、ダッシュボードには `/api/usage/summary`、`/api/log/self/tasks`、`/api/data/dashboard/self` を使用してください。
+- 消費ログは常に記録され、金額は米ドルで表示されます。メディア取得は直接接続し、チャネルのフィールド設定は常に有効です。旧決済 outbox と時間別集計への書き込みを終了しました。更新前に既存の `usage_data` をバックアップし、未処理の outbox を v0.7.297 で精算してください。
+- スキーマ 15 以前は v0.7.297 を経由して更新してください。新規インストールとスキーマ 16 以降は直接更新できます。
+
 ## 未リリース — アカウントのセキュリティ整理
 
 - 新規登録はメール認証コードまたは有効な外部認証を使用します。ユーザー名とパスワードによる登録と `/register` を削除しました。既存ユーザーのパスワードログインは利用できます。
@@ -12,7 +18,7 @@ description: "Lazu API、モデルカタログ、ドキュメントの変更を�
 - 機能しない `POST /api/user/reset` を削除しました。パスワードの再設定は `/api/user/reset/v2` を引き続き使用します。
 - `/api/log/token`、`/api/user/used-models`、`/api/user/models/classified`、`/api/user/self/stripe/pay`、`/api/user/stripe/amount` を削除しました。`/api/log/self`、モデルカタログ、`/api/user/stripe/pay` を使用してください。
 - 未実装の `/v1/fine-tunes*`、`/v1/images/variations`、`DELETE /v1/models/:model` を削除しました。これらの削除は以前の廃止予定日に優先し、互換リダイレクトはありません。
-- 管理用ルート `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*`、`/api/workers/*` を、予定（2026-12-01 以降）より前に削除しました。チャネルごとの操作とお知らせ機能（公開時にメール送信も可能）を使用してください。`config.yaml` の定期アップロードとデータベースのバックアップは引き続き動作します。`GET /api/data/` と、その読み出し元の `usage_data` テーブルは 2027-02-01 まで残します。
+- 管理用ルート `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*`、`/api/workers/*` を、予定（2026-12-01 以降）より前に削除しました。チャネルごとの操作とお知らせ機能（公開時にメール送信も可能）を使用してください。`config.yaml` の定期アップロードとデータベースのバックアップは引き続き動作します。
 
 ## 2026-10-29 — 検索エンドポイントを削除
 

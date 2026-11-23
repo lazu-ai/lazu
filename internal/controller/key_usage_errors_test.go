@@ -81,11 +81,6 @@ func TestPublicInspectTokenUsageBlankKeyIsInvalidField(t *testing.T) {
 	}
 }
 
-func TestGetTokenUsageWithoutBearerIsInvalidAPIKey(t *testing.T) {
-	w, body := serveKeyUsage(t, http.MethodGet, "/api/usage/token/", "/api/usage/token/", nil, GetTokenUsage)
-	assertKeyUsageError(t, w, body, http.StatusUnauthorized, "invalid_api_key", true)
-}
-
 func TestDeleteHistoryLogsRequiresTargetTimestamp(t *testing.T) {
 	w, body := serveKeyUsage(t, http.MethodDelete, "/api/log/", "/api/log/", nil, DeleteHistoryLogs)
 	assertKeyUsageError(t, w, body, http.StatusBadRequest, "invalid_request", true)
@@ -106,14 +101,6 @@ func TestExportUserUsageRejectsUnknownFormat(t *testing.T) {
 	w, body := serveKeyUsage(t, http.MethodGet, "/api/data/export", "/api/data/export?format=pdf", nil, ExportUserUsage)
 	assertKeyUsageError(t, w, body, http.StatusBadRequest, "usage_export_format_unsupported", true)
 	if body.Error.Details["format"] != "pdf" {
-		t.Fatalf("details = %#v", body.Error.Details)
-	}
-}
-
-func TestGetUserUsageDataRejectsWindowOverThirtyDays(t *testing.T) {
-	w, body := serveKeyUsage(t, http.MethodGet, "/api/data/self", "/api/data/self?start_timestamp=0&end_timestamp=5000000", nil, GetUserUsageData)
-	assertKeyUsageError(t, w, body, http.StatusBadRequest, "usage_range_too_long", true)
-	if body.Error.Details["max_days"] != float64(usageDataMaxDays) {
 		t.Fatalf("details = %#v", body.Error.Details)
 	}
 }
@@ -156,10 +143,4 @@ func TestGetUsageSummaryRejectsUnknownGranularity(t *testing.T) {
 func TestGetUsageSummaryWithoutKeyIsInvalidAPIKey(t *testing.T) {
 	w, body := serveKeyUsage(t, http.MethodGet, "/api/usage/summary", "/api/usage/summary", nil, GetUsageSummary)
 	assertKeyUsageError(t, w, body, http.StatusUnauthorized, "invalid_api_key", false)
-}
-
-func TestPlaygroundRejectsAccessTokenInOpenAIEnvelope(t *testing.T) {
-	useAccessToken := func(c *gin.Context) { c.Set("use_access_token", true) }
-	w, body := serveKeyUsage(t, http.MethodPost, "/pg/chat/completions", "/pg/chat/completions", []byte(`{}`), Playground, useAccessToken)
-	assertKeyUsageError(t, w, body, http.StatusForbidden, "access_denied", false)
 }

@@ -165,13 +165,6 @@ func ProjectLogViews(project Project, logs []*Log) ([]ProjectLogView, error) {
 	}
 	return result, nil
 }
-func ProjectUsageData(access ProjectLogAccess, start, end int64) ([]UsageData, error) {
-	rows := []UsageData{}
-	query := ProjectLogsQuery(access, ProjectLogFilter{Type: LogTypeConsume, Start: start, End: end})
-	hour := "logs.created_at - (logs.created_at % 3600)"
-	err := query.Select("logs.user_id, logs.username, logs.model_name, " + hour + " AS created_at, COUNT(*) AS count, COALESCE(SUM(prompt_tokens + completion_tokens),0) AS token_used, COALESCE(SUM(amount_microusd),0) AS amount_microusd").Group("logs.user_id, logs.username, logs.model_name, " + hour).Order("created_at ASC").Scan(&rows).Error
-	return rows, err
-}
 func ReadProjectLedgerSpend(projectID, actorID int, start, end int64) (billing.MicroUSD, error) {
 	var amount billing.MicroUSD
 	query := CoreDB().Model(&ProjectSpend{}).Where("project_id = ? AND occurred_at >= ? AND occurred_at < ?", projectID, time.Unix(start, 0).UTC(), time.Unix(end, 0).UTC())

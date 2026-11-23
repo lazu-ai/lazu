@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestAutomaticLogRetentionPreservesRankingWindow(t *testing.T) {
+func TestAutomaticLogRetentionPreservesMinimumWindow(t *testing.T) {
 	for _, tt := range []struct {
 		days int
 		want int64

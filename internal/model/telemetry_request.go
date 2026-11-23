@@ -352,20 +352,9 @@ func persistRelayResultBatchTx(tx *gorm.DB, events []relayResultEvent, diagnosti
 
 func projectCommittedTelemetry(committed []Log) {
 	noteProjectBudgetRejections(committed)
-	// Core activity and optional RAM usage export run after the canonical
-	// telemetry facts and rollups commit. Export remains best-effort.
 	for i := range committed {
 		if committed[i].Type == LogTypeConsume {
 			StampUserRequestActivity(committed[i].UserId, committed[i].CreatedAt)
-			if common.DataExportEnabled {
-				row := &committed[i]
-				tokens, err := checkedTelemetryTokenTotal(row.PromptTokens, row.CompletionTokens)
-				if err != nil || tokens > int64(^uint(0)>>1) {
-					common.SysLog("usage export token counter is out of range")
-					continue
-				}
-				LogUsageData(row.UserId, row.Username, row.ModelName, row.AmountMicrousd, row.CreatedAt, int(tokens))
-			}
 		}
 	}
 }

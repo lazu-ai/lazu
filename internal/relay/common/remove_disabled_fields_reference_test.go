@@ -7,17 +7,13 @@ import (
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/dto"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
 // removeDisabledFieldsReference is RemoveDisabledFields before it learned to
 // skip absent top-level keys; the current one must match it byte for byte.
-func removeDisabledFieldsReference(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings, channelPassThroughEnabled bool) ([]byte, error) {
-	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || channelPassThroughEnabled {
-		return jsonData, nil
-	}
+func removeDisabledFieldsReference(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings) ([]byte, error) {
 	fields := []struct {
 		path   string
 		remove bool
@@ -68,12 +64,10 @@ func TestRemoveDisabledFieldsMatchesReference(t *testing.T) {
 	}
 	for i, body := range bodies {
 		for j, other := range settings {
-			for _, passThrough := range []bool{false, true} {
-				want, wantErr := removeDisabledFieldsReference([]byte(body), other, passThrough)
-				got, gotErr := RemoveDisabledFields([]byte(body), other, passThrough)
-				if (wantErr == nil) != (gotErr == nil) || !bytes.Equal(want, got) {
-					t.Fatalf("%s: want %s (%v), got %s (%v)", fmt.Sprintf("body=%d settings=%d pass=%t", i, j, passThrough), want, wantErr, got, gotErr)
-				}
+			want, wantErr := removeDisabledFieldsReference([]byte(body), other)
+			got, gotErr := RemoveDisabledFields([]byte(body), other)
+			if (wantErr == nil) != (gotErr == nil) || !bytes.Equal(want, got) {
+				t.Fatalf("%s: want %s (%v), got %s (%v)", fmt.Sprintf("body=%d settings=%d", i, j), want, wantErr, got, gotErr)
 			}
 		}
 	}

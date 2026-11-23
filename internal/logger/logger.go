@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/lazu-ai/lazu/internal/common"
-	"github.com/lazu-ai/lazu/internal/setting/operation_setting"
 	"github.com/lazu-ai/lazu/pkg/billing"
 
 	"github.com/gin-gonic/gin"
@@ -105,21 +104,9 @@ func logHelper(ctx context.Context, level string, msg string) {
 }
 
 func LogQuota(quota billing.MicroUSD) string {
-	q := float64(quota)
-	switch operation_setting.GetQuotaDisplayType() {
-	case operation_setting.QuotaDisplayTypeTokens:
-		return fmt.Sprintf("%d 点额度", quota)
-	default: // USD
-		return fmt.Sprintf("＄%.6f 额度", q/float64(billing.MicroUSDPerUSD))
-	}
+	return fmt.Sprintf("＄%.6f 额度", float64(quota)/float64(billing.MicroUSDPerUSD))
 }
 
 func FormatQuota(quota billing.MicroUSD) string {
-	q := float64(quota)
-	switch operation_setting.GetQuotaDisplayType() {
-	case operation_setting.QuotaDisplayTypeTokens:
-		return fmt.Sprintf("%d", quota)
-	default:
-		return fmt.Sprintf("＄%.6f", q/float64(billing.MicroUSDPerUSD))
-	}
+	return fmt.Sprintf("＄%.6f", float64(quota)/float64(billing.MicroUSDPerUSD))
 }

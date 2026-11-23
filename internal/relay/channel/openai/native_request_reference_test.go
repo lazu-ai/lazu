@@ -105,7 +105,7 @@ func convertNativeRequestReference(a *Adaptor, body []byte, info *relaycommon.Re
 	if err != nil {
 		return nil, err
 	}
-	body, err = relaycommon.RemoveDisabledFields(body, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+	body, err = relaycommon.RemoveDisabledFields(body, info.ChannelOtherSettings)
 	if err != nil {
 		return nil, err
 	}

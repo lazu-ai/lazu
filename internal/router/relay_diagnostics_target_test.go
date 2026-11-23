@@ -40,15 +40,15 @@ func TestNativeRedisRelayTimingRequiresActualLogTarget(t *testing.T) {
 	}
 	client := redis.NewClient(options)
 	previousClient, previousStream := common.RDB, common.RelayEventStream
-	previousRedis, previousQueue, previousConsumer, previousLogs := common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled, common.LogConsumeEnabled
+	previousRedis, previousQueue, previousConsumer := common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled
 	stream := "lazu:test:router-diagnostic-target:" + common.GenerateRequestID()
 	common.RDB, common.RelayEventStream = client, stream
-	common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled, common.LogConsumeEnabled = true, true, true, true
+	common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled = true, true, true
 	defer func() {
 		drainRelayDiagnosticFixture(t)
 		_ = client.Del(context.Background(), stream, stream+":failures", stream+":dead", stream+":dead_count").Err()
 		common.RDB, common.RelayEventStream = previousClient, previousStream
-		common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled, common.LogConsumeEnabled = previousRedis, previousQueue, previousConsumer, previousLogs
+		common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled = previousRedis, previousQueue, previousConsumer
 		model.SetTelemetryDB(previousTelemetry)
 		_ = client.Close()
 	}()

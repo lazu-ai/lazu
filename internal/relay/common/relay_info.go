@@ -17,7 +17,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/ledger"
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
 	relayconstant "github.com/lazu-ai/lazu/internal/relay/constant"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 	"github.com/lazu-ai/lazu/pkg/billing"
 
@@ -404,12 +403,6 @@ func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 		info.RelayMode = c.GetInt("relay_mode")
 	}
 
-	if strings.HasPrefix(c.Request.URL.Path, "/pg") {
-		info.IsPlayground = true
-		info.RequestURLPath = strings.TrimPrefix(info.RequestURLPath, "/pg")
-		info.RequestURLPath = "/v1" + info.RequestURLPath
-	}
-
 	userSetting, ok := common.GetContextKeyType[dto.UserSetting](c, constant.ContextKeyUserSetting)
 	if ok {
 		info.UserSetting = userSetting
@@ -538,17 +531,14 @@ func (info *RelayInfo) HasSendResponse() bool {
 // store: 数据存储授权字段，涉及用户隐私（仅 OpenAI、Responses API 支持，默认允许透传，禁用后可能导致 Codex 无法使用）
 // safety_identifier: 安全标识符，用于向 OpenAI 报告违规用户（仅 OpenAI 支持，涉及用户隐私）
 // stream_options.include_obfuscation: Responses API 流混淆控制字段（默认过滤）
-func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings, channelPassThroughEnabled bool) ([]byte, error) {
-	jsonData, _, err := RemoveDisabledFieldsReporting(jsonData, channelOtherSettings, channelPassThroughEnabled)
+func RemoveDisabledFields(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings) ([]byte, error) {
+	jsonData, _, err := RemoveDisabledFieldsReporting(jsonData, channelOtherSettings)
 	return jsonData, err
 }
 
 // RemoveDisabledFieldsReporting is RemoveDisabledFields that also names the
 // fields it took out, for the caller to tell the client (WarnFieldsDropped).
-func RemoveDisabledFieldsReporting(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings, channelPassThroughEnabled bool) ([]byte, []string, error) {
-	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || channelPassThroughEnabled {
-		return jsonData, nil, nil
-	}
+func RemoveDisabledFieldsReporting(jsonData []byte, channelOtherSettings dto.ChannelOtherSettings) ([]byte, []string, error) {
 	var removed []string
 
 	fields := []struct {

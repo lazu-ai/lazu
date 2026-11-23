@@ -11,7 +11,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/types"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // Functions only tests in this package call. They seed state or read it
@@ -62,35 +61,6 @@ func resetMediaJobTypicalCache() {
 	mediaJobTypicalMu.Lock()
 	mediaJobTypicalCache = map[string]mediaJobTypical{}
 	mediaJobTypicalMu.Unlock()
-}
-
-// From model_metadata.go.
-func modelRequestIncrementConflictClause(now time.Time) clause.OnConflict {
-	return clause.OnConflict{
-		Columns: []clause.Column{{Name: "model_name"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"total_requests": incrementCurrentTableColumn("total_requests"),
-			"updated_at":     now,
-		}),
-	}
-}
-
-// From model_metadata.go.
-func incrementCurrentTableColumn(columnName string) clause.Expr {
-	return gorm.Expr("? + 1", clause.Column{
-		Table: clause.CurrentTable,
-		Name:  columnName,
-	})
-}
-
-// From model_metadata.go.
-func ResetWeeklyStats() error {
-	return resetModelRequestCounter(CoreDB(), "weekly_requests")
-}
-
-// From model_metadata.go.
-func ResetMonthlyStats() error {
-	return resetModelRequestCounter(CoreDB(), "monthly_requests")
 }
 
 // From project_billing.go.

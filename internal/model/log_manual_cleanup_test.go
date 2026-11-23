@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestDeleteOldLogPreservesRankingWindow(t *testing.T) {
+func TestDeleteOldLogPreservesMinimumWindow(t *testing.T) {
 	for _, tt := range []struct {
 		name      string
 		cutoffAge int
@@ -19,7 +19,7 @@ func TestDeleteOldLogPreservesRankingWindow(t *testing.T) {
 	}{
 		{"future cutoff", -1, true, 0},
 		{"current cutoff", 0, true, 0},
-		{"inside ranking window", 29, true, 0},
+		{"inside retention window", 29, true, 0},
 		{"ranking boundary", 30, false, 2},
 		{"older cutoff", 31, false, 1},
 	} {

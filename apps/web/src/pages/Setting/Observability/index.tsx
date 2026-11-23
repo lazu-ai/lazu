@@ -18,47 +18,9 @@ const createSections = (t: TFunction): SettingSection[] => [
     }),
     description: t('page.console.settingV2.obs.rollup.description'),
     fields: [
-      /* Kept, and first: nothing loads LogConsumeEnabled from env or yaml, so
-         this switch is the only way a deployment that turned consumption logs
-         off can turn them back on. Everything below reads those logs. */
-      {
-        key: 'LogConsumeEnabled',
-        kind: 'boolean',
-        danger: true,
-        label: t('page.console.settingV2.ops.field.logConsume'),
-        description: t('page.console.settingV2.ops.field.logConsumeHelp'),
-      },
-      /* Named "数据导出" for as long as it has existed, but it exports nothing:
-         it drives SaveUsageDataCache, which folds consumption logs into the
-         usage table the dashboard reads. */
-      {
-        key: 'DataExport',
-        kind: 'group',
-        label: t('page.console.settingV2.obs.field.rollup'),
-        description: t('page.console.settingV2.obs.field.rollupHelp'),
-        parts: [
-          { key: 'DataExportEnabled', kind: 'boolean' },
-          {
-            key: 'DataExportInterval',
-            kind: 'number',
-            lead: t('page.console.settingV2.obs.lead.every', {
-              defaultValue: '每',
-            }),
-            unit: t('page.console.settingV2.upstream.unit.minutes', {
-              defaultValue: '分钟',
-            }),
-          },
-        ],
-      },
-      /* Kept after all: getDefaultTime reads it to pick the dashboard's first
-         bucket size. It was removed as write-only, which was wrong, and left a
-         stored value in force with no way to change it. Month is not offered —
-         the dashboard only knows hour, day and week, and quietly treated a
-         stored "month" as hour. */
       {
         key: 'DataExportDefaultTime',
         kind: 'select',
-        indent: true,
         label: t('page.console.settingV2.obs.field.defaultTimeRange'),
         description: t('page.console.settingV2.obs.field.defaultTimeRangeHelp'),
         options: [

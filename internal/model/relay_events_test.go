@@ -3,7 +3,6 @@ package model
 import (
 	"encoding/json"
 	"math"
-	"strconv"
 	"testing"
 	"time"
 
@@ -94,12 +93,9 @@ func TestParseAutoClaimRelayEventReplySupportsRedis7(t *testing.T) {
 func TestHandleRelayConsumeLogEventWritesLogAndModelCounter(t *testing.T) {
 	db := withPricingTestDB(t, "relay_event_consume_log")
 	previousLogDB := telemetryDB
-	previousDataExport := common.DataExportEnabled
 	telemetryDB = db
-	common.DataExportEnabled = false
 	t.Cleanup(func() {
 		telemetryDB = previousLogDB
-		common.DataExportEnabled = previousDataExport
 	})
 	if err := db.AutoMigrate(&ModelMetadata{}); err != nil {
 		t.Fatalf("failed to migrate model metadata: %v", err)
@@ -158,43 +154,6 @@ func TestHandleRelayConsumeLogEventWritesLogAndModelCounter(t *testing.T) {
 	}
 	if meta.TotalRequests != 1 {
 		t.Fatalf("expected model counters to increment once, got %+v", meta)
-	}
-}
-
-func TestConsumeLogSideEffectsBucketsUsageByLogCreatedAt(t *testing.T) {
-	previousDataExport := common.DataExportEnabled
-	CacheUsageDataLock.Lock()
-	previousUsageCache := CacheUsageData
-	CacheUsageData = make(map[string]*UsageData)
-	CacheUsageDataLock.Unlock()
-	t.Cleanup(func() {
-		common.DataExportEnabled = previousDataExport
-		CacheUsageDataLock.Lock()
-		CacheUsageData = previousUsageCache
-		CacheUsageDataLock.Unlock()
-	})
-	common.DataExportEnabled = true
-
-	requestCreatedAt := int64(1712345678)
-	consumeLogSideEffects(&Log{
-		UserId:           7,
-		Username:         "queued-user",
-		AmountMicrousd:   42,
-		CreatedAt:        requestCreatedAt,
-		PromptTokens:     3,
-		CompletionTokens: 4,
-	}, false)
-
-	CacheUsageDataLock.Lock()
-	defer CacheUsageDataLock.Unlock()
-	if len(CacheUsageData) != 1 {
-		t.Fatalf("expected one usage cache entry, got %d", len(CacheUsageData))
-	}
-	for _, usageData := range CacheUsageData {
-		expectedBucket := requestCreatedAt - requestCreatedAt%3600
-		if usageData.CreatedAt != expectedBucket {
-			t.Fatalf("expected usage bucket %d from log created_at, got %d", expectedBucket, usageData.CreatedAt)
-		}
 	}
 }
 
@@ -292,93 +251,12 @@ func TestRecordRoutingOutcomeUpsertRefreshesCostFields(t *testing.T) {
 	}
 }
 
-func TestBackfillRoutingDecisionIdempotencyKeys(t *testing.T) {
-	db := withPricingTestDB(t, "routing_decision_idempotency_backfill")
-	if err := db.AutoMigrate(&RoutingDecision{}); err != nil {
-		t.Fatalf("failed to migrate routing decisions: %v", err)
-	}
-	decisionTime := time.Now().UTC()
-	rows := []RoutingDecision{
-		{
-			RequestID:    "legacy-request",
-			DecisionAt:   decisionTime,
-			IsPrimary:    true,
-			StrategyName: "test",
-		},
-		{
-			RequestID:    "legacy-request",
-			DecisionAt:   decisionTime.Add(time.Second),
-			IsPrimary:    true,
-			StrategyName: "test",
-		},
-		{
-			RequestID:    "another-request",
-			DecisionAt:   decisionTime,
-			IsPrimary:    true,
-			StrategyName: "test",
-		},
-	}
-	if err := db.Create(&rows).Error; err != nil {
-		t.Fatalf("failed to create legacy decisions: %v", err)
-	}
-
-	if err := backfillRoutingDecisionIdempotencyKeys(db); err != nil {
-		t.Fatalf("backfill failed: %v", err)
-	}
-	var stored []RoutingDecision
-	if err := db.Order("id ASC").Find(&stored).Error; err != nil {
-		t.Fatalf("failed to load backfilled decisions: %v", err)
-	}
-	if got, want := *stored[0].IdempotencyKey, "primary:legacy-request"; got != want {
-		t.Fatalf("canonical key = %q, want %q", got, want)
-	}
-	if got, want := *stored[1].IdempotencyKey, "legacy-primary:"+strconv.FormatInt(stored[1].ID, 10); got != want {
-		t.Fatalf("duplicate key = %q, want %q", got, want)
-	}
-	if got, want := *stored[2].IdempotencyKey, "primary:another-request"; got != want {
-		t.Fatalf("second canonical key = %q, want %q", got, want)
-	}
-	if err := backfillRoutingDecisionIdempotencyKeys(db); err != nil {
-		t.Fatalf("repeat backfill failed: %v", err)
-	}
-}
-
-func TestBackfillRoutingDecisionIdempotencyKeysSkipsOversizedHistory(t *testing.T) {
-	db := withPricingTestDB(t, "routing_decision_idempotency_backfill_limit")
-	if err := db.AutoMigrate(&RoutingDecision{}); err != nil {
-		t.Fatalf("failed to migrate routing decisions: %v", err)
-	}
-	rows := []RoutingDecision{
-		{RequestID: "legacy-1", DecisionAt: time.Now().UTC(), IsPrimary: true, StrategyName: "test"},
-		{RequestID: "legacy-2", DecisionAt: time.Now().UTC(), IsPrimary: true, StrategyName: "test"},
-	}
-	if err := db.Create(&rows).Error; err != nil {
-		t.Fatalf("failed to create legacy decisions: %v", err)
-	}
-
-	if err := backfillRoutingDecisionIdempotencyKeysWithLimit(db, 1); err != nil {
-		t.Fatalf("bounded backfill failed: %v", err)
-	}
-	var stored []RoutingDecision
-	if err := db.Order("id ASC").Find(&stored).Error; err != nil {
-		t.Fatalf("failed to load legacy decisions: %v", err)
-	}
-	for _, row := range stored {
-		if row.IdempotencyKey != nil {
-			t.Fatalf("oversized history should remain untouched, row %d has key %q", row.ID, *row.IdempotencyKey)
-		}
-	}
-}
-
 func TestHandleRelayResultEventWritesConsumeLogAndRoutingOutcome(t *testing.T) {
 	db := withPricingTestDB(t, "relay_result_event")
 	previousLogDB := telemetryDB
-	previousDataExport := common.DataExportEnabled
 	telemetryDB = db
-	common.DataExportEnabled = false
 	t.Cleanup(func() {
 		telemetryDB = previousLogDB
-		common.DataExportEnabled = previousDataExport
 	})
 	if err := db.AutoMigrate(&ModelMetadata{}, &RoutingDecision{}, &RoutingOutcome{}); err != nil {
 		t.Fatalf("failed to migrate relay result tables: %v", err)
@@ -443,12 +321,9 @@ func TestHandleRelayResultEventWritesConsumeLogAndRoutingOutcome(t *testing.T) {
 func TestHandleRelayResultEventBatchIsIdempotent(t *testing.T) {
 	db := withPricingTestDB(t, "relay_result_event_batch")
 	previousLogDB := telemetryDB
-	previousDataExport := common.DataExportEnabled
 	telemetryDB = db
-	common.DataExportEnabled = false
 	t.Cleanup(func() {
 		telemetryDB = previousLogDB
-		common.DataExportEnabled = previousDataExport
 	})
 	if err := db.AutoMigrate(&ModelMetadata{}, &RoutingDecision{}, &RoutingOutcome{}); err != nil {
 		t.Fatalf("failed to migrate relay result batch tables: %v", err)
@@ -513,19 +388,9 @@ func TestHandleRelayResultEventBatchIsIdempotent(t *testing.T) {
 func TestCreateConsumeLogsBatchRunsSideEffectsOnlyForUniqueInsertedRows(t *testing.T) {
 	db := withPricingTestDB(t, "relay_result_event_batch_side_effects")
 	previousLogDB := telemetryDB
-	previousDataExport := common.DataExportEnabled
-	CacheUsageDataLock.Lock()
-	previousUsageCache := CacheUsageData
-	CacheUsageData = make(map[string]*UsageData)
-	CacheUsageDataLock.Unlock()
 	telemetryDB = db
-	common.DataExportEnabled = true
 	t.Cleanup(func() {
 		telemetryDB = previousLogDB
-		common.DataExportEnabled = previousDataExport
-		CacheUsageDataLock.Lock()
-		CacheUsageData = previousUsageCache
-		CacheUsageDataLock.Unlock()
 	})
 
 	createdAt := int64(1712345678)
@@ -563,17 +428,6 @@ func TestCreateConsumeLogsBatchRunsSideEffectsOnlyForUniqueInsertedRows(t *testi
 	}
 	if logCount != 1 {
 		t.Fatalf("expected one inserted consume log, got %d", logCount)
-	}
-	CacheUsageDataLock.Lock()
-	defer CacheUsageDataLock.Unlock()
-	totalCount := 0
-	totalTokens := 0
-	for _, usage := range CacheUsageData {
-		totalCount += usage.Count
-		totalTokens += usage.TokenUsed
-	}
-	if totalCount != 1 || totalTokens != 5 {
-		t.Fatalf("expected side effects once with 5 tokens, got count=%d tokens=%d cache=%+v", totalCount, totalTokens, CacheUsageData)
 	}
 }
 

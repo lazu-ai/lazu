@@ -64,7 +64,7 @@ func TestSetProtocolWarningHeaderIsScopedToThePlan(t *testing.T) {
 // A field the channel's settings keep from the upstream is named, so a client
 // asking for fast mode learns it was served at standard speed.
 func TestRemovedFieldsAreWarned(t *testing.T) {
-	body, removed, err := RemoveDisabledFieldsReporting([]byte(`{"model":"m","speed":"fast","service_tier":"auto","max_tokens":1}`), dto.ChannelOtherSettings{AllowServiceTier: true}, false)
+	body, removed, err := RemoveDisabledFieldsReporting([]byte(`{"model":"m","speed":"fast","service_tier":"auto","max_tokens":1}`), dto.ChannelOtherSettings{AllowServiceTier: true})
 	if err != nil || string(body) != `{"model":"m","service_tier":"auto","max_tokens":1}` || len(removed) != 1 || removed[0] != "speed" {
 		t.Fatalf("body %s removed %v err %v", body, removed, err)
 	}

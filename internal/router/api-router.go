@@ -1,9 +1,13 @@
 package router
 
 import (
+	"strconv"
+
 	"github.com/lazu-ai/lazu/internal/controller"
 	filecontroller "github.com/lazu-ai/lazu/internal/controller/files"
+	"github.com/lazu-ai/lazu/internal/httperr"
 	"github.com/lazu-ai/lazu/internal/middleware"
+	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -38,12 +42,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			credentialRoute.POST("/ephemeral", controller.IssueEphemeralCredential)
 		}
-		apiRouter.GET("/models/rankings", retiring(userSunset, ""), controller.GetModelRankings)
-		apiRouter.GET("/community/models", retiring(userSunset, ""), controller.GetCommunityModels)
-		apiRouter.GET("/community/models/:id", retiring(userSunset, ""), controller.GetCommunityModelByID)
-		apiRouter.GET("/community/stats", retiring(userSunset, ""), controller.GetCommunityStats)
 		apiRouter.GET("/v1/models/info", controller.GetPublicModelList)
-		apiRouter.POST("/community/export", retiring(userSunset, ""), middleware.RootAuth(), controller.ExportCommunityModels)
 		apiRouter.GET("/reset_password", middleware.MailSendRateLimit(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset/v2", middleware.LoginRateLimit(), controller.ResetPasswordV2)
 		apiRouter.POST("/stripe/webhook", controller.StripeWebhook)
@@ -187,11 +186,6 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.DELETE("/:id", controller.DeleteUser)
 
 			}
-			rootRoute := userRoute.Group("/")
-			rootRoute.Use(middleware.RootAuth())
-			{
-				rootRoute.PUT("/:id/has_topped_up", retiring(userSunset, ""), controller.SetUserHasToppedUp)
-			}
 		}
 		accessAddressRoute := apiRouter.Group("/access-address")
 		accessAddressRoute.Use(middleware.RootAuth())
@@ -215,10 +209,6 @@ func SetApiRouter(router *gin.Engine) {
 		announcementRoute.Use(middleware.UserAuth())
 		{
 			announcementRoute.GET("", controller.ListAnnouncements)
-			announcementRoute.GET("/", func(c *gin.Context) {
-				markDeprecatedAlias(c, "/api/announcements")
-				controller.ListAnnouncements(c)
-			})
 			announcementRoute.GET("/unseen", controller.ListUnseenAnnouncements)
 			announcementRoute.POST("/:id/dismiss", controller.DismissAnnouncement)
 		}
@@ -331,11 +321,6 @@ func SetApiRouter(router *gin.Engine) {
 
 		usageRoute := apiRouter.Group("/usage")
 		{
-			tokenUsageRoute := usageRoute.Group("/token")
-			tokenUsageRoute.Use(retiring(userSunset, "/api/usage/summary"), middleware.TokenAuth(), middleware.RejectEphemeralCredentialOutsideRelay())
-			{
-				tokenUsageRoute.GET("/", controller.GetTokenUsage)
-			}
 			usageRoute.GET("/summary", middleware.TokenAuth(), middleware.RejectEphemeralCredentialOutsideRelay(), controller.GetUsageSummary)
 			usageRoute.GET("/requests/:request_id", middleware.TokenAuth(), middleware.RejectEphemeralCredentialOutsideRelay(), controller.GetUsageRequestDetail)
 		}
@@ -350,16 +335,12 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/sessions/:session_id", middleware.RootAuth(), controller.GetAllLogSessionDetail)
 		logRoute.GET("/search", middleware.RootAuth(), controller.SearchAllLogs)
 		logRoute.GET("/self", middleware.UserAuth(), controller.GetUserLogs)
-		logRoute.GET("/self/in_flight", retiring(userSunset, "/api/log/self/tasks"), middleware.UserAuth(), controller.GetUserInFlightMediaJobs)
 		logRoute.GET("/self/tasks", middleware.UserAuth(), controller.GetUserTasks)
-		logRoute.GET("/self/tasks/:id", retiring(userSunset, ""), middleware.UserAuth(), controller.GetUserTask)
 		logRoute.GET("/self/sessions", middleware.UserAuth(), controller.GetUserLogSessions)
 		logRoute.GET("/self/sessions/:session_id", middleware.UserAuth(), controller.GetUserLogSessionDetail)
 		logRoute.GET("/self/search", middleware.UserAuth(), controller.SearchUserLogs)
 
 		dataRoute := apiRouter.Group("/data")
-		dataRoute.GET("/", retiring(userSunset, ""), middleware.RootAuth(), controller.GetAllUsageData)
-		dataRoute.GET("/self", retiring(userSunset, "/api/data/dashboard/self"), middleware.UserAuth(), controller.GetUserUsageData)
 		dataRoute.GET("/dashboard", middleware.UserAuth(), controller.GetUserDashboardUsage)
 		dataRoute.GET("/overview", middleware.UserAuth(), controller.GetOverview)
 		dataRoute.GET("/dashboard/self", middleware.UserAuth(), controller.GetSelfDashboardUsage)
@@ -385,13 +366,6 @@ func SetApiRouter(router *gin.Engine) {
 			pricePlanRoute.DELETE("/:id/members/:user", controller.RemovePricePlanMember)
 		}
 
-		// Model ranking admin controls
-		modelRankingAdmin := apiRouter.Group("/models/rankings")
-		modelRankingAdmin.Use(retiring(userSunset, ""), middleware.RootAuth())
-		{
-			modelRankingAdmin.POST("/recalculate", controller.RecalculateModelRankings)
-		}
-
 		prefillGroupRoute := apiRouter.Group("/prefill_group")
 		prefillGroupRoute.Use(middleware.RootAuth())
 		{
@@ -413,7 +387,15 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		modelsRoute := apiRouter.Group("/models")
-		modelsRoute.Use(middleware.RootAuth())
+		modelsRoute.Use(func(c *gin.Context) {
+			if id := c.Param("id"); id != "" {
+				if _, err := strconv.Atoi(id); err != nil {
+					httperr.Abort(c, types.Err(types.ErrorCodeEndpointNotSupported, types.D{"path": c.Request.Method + " " + c.Request.URL.Path}))
+					return
+				}
+			}
+			c.Next()
+		}, middleware.RootAuth())
 		{
 			modelsRoute.GET("/sync_upstream/preview", controller.SyncUpstreamPreview)
 			modelsRoute.POST("/sync_upstream", controller.SyncUpstreamModels)

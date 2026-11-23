@@ -1300,7 +1300,7 @@ func mediaJobBillingResultFromReservation(job MediaJob, reservedQuota billing.Mi
 
 func recordMediaJobConsumeLog(job MediaJob, result MediaJobBillingResult, now time.Time) {
 	defer releaseMediaJobSpendBudgetReservation(job)
-	if !common.LogConsumeEnabled || TelemetryDB() == nil {
+	if TelemetryDB() == nil {
 		return
 	}
 	// The row written when the job was accepted becomes the charge: one row
@@ -1342,7 +1342,7 @@ const mediaJobPendingMarker = `"pending":true`
 // nothing and adds no usage slice; settlement or failure later completes the
 // same row. A job already settled (a fast worker) is left alone.
 func RecordMediaJobPendingLog(job MediaJob, now time.Time) {
-	if !common.LogConsumeEnabled || TelemetryDB() == nil || strings.TrimSpace(job.RequestID) == "" {
+	if TelemetryDB() == nil || strings.TrimSpace(job.RequestID) == "" {
 		return
 	}
 	if mediaJobLogExists(job, LogTypeConsume) || mediaJobLogExists(job, LogTypeError) {
@@ -1450,7 +1450,7 @@ func buildMediaJobConsumeLog(job MediaJob, result MediaJobBillingResult, now tim
 // log. The worker calls it; a submission refused synchronously logs its
 // error through the request instead.
 func RecordMediaJobFailureLog(jobID uint, now time.Time) {
-	if !common.LogConsumeEnabled || TelemetryDB() == nil || CoreDB() == nil {
+	if TelemetryDB() == nil || CoreDB() == nil {
 		return
 	}
 	var job MediaJob

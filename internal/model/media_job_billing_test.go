@@ -19,10 +19,8 @@ func setupMediaJobBillingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	originalDB := coreDB
 	originalLogDB := telemetryDB
-	originalLogConsumeEnabled := common.LogConsumeEnabled
 	originalRedisEnabled := common.RedisEnabled
 	originalPricingSnapshotEnabled := common.PricingSnapshotEnabled
-	common.LogConsumeEnabled = true
 	common.RedisEnabled = false
 	common.PricingSnapshotEnabled = false
 	name := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
@@ -56,7 +54,6 @@ func setupMediaJobBillingTestDB(t *testing.T) *gorm.DB {
 		_ = sqlDB.Close()
 		coreDB = originalDB
 		telemetryDB = originalLogDB
-		common.LogConsumeEnabled = originalLogConsumeEnabled
 		common.RedisEnabled = originalRedisEnabled
 		common.PricingSnapshotEnabled = originalPricingSnapshotEnabled
 	})

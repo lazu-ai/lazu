@@ -293,61 +293,6 @@ func TestMigrateLOGDBOmitsRemovedAuditTables(t *testing.T) {
 	}
 }
 
-func TestMigrateUserHasToppedUpFromSuccessfulTopUps(t *testing.T) {
-	db, err := gorm.Open(gormsqlite.Open("file:migrate_has_topped_up?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("failed to open sqlite: %v", err)
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("failed to get sql db: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := sqlDB.Close(); err != nil {
-			t.Fatalf("failed to close sqlite db: %v", err)
-		}
-	})
-
-	if err := db.AutoMigrate(&User{}, &TopUp{}); err != nil {
-		t.Fatalf("failed to migrate test tables: %v", err)
-	}
-	if err := db.Create([]User{
-		{Id: 1, Username: "paid"},
-		{Id: 2, Username: "pending"},
-		{Id: 3, Username: "already-paid", HasToppedUp: true},
-	}).Error; err != nil {
-		t.Fatalf("failed to seed users: %v", err)
-	}
-	if err := db.Create([]TopUp{
-		{UserId: 1, TradeNo: "success-1", Status: common.TopUpStatusSuccess},
-		{UserId: 2, TradeNo: "pending-2", Status: common.TopUpStatusPending},
-		{UserId: 3, TradeNo: "success-3", Status: common.TopUpStatusSuccess},
-	}).Error; err != nil {
-		t.Fatalf("failed to seed topups: %v", err)
-	}
-
-	if err := migrateUserHasToppedUpFromTopUps(db); err != nil {
-		t.Fatalf("migration failed: %v", err)
-	}
-
-	var users []User
-	if err := db.Order("id asc").Find(&users).Error; err != nil {
-		t.Fatalf("failed to load users: %v", err)
-	}
-	if len(users) != 3 {
-		t.Fatalf("expected 3 users, got %d", len(users))
-	}
-	if !users[0].HasToppedUp {
-		t.Fatal("expected successful historical topup to mark user as topped up")
-	}
-	if users[1].HasToppedUp {
-		t.Fatal("expected pending historical topup to stay unverified")
-	}
-	if !users[2].HasToppedUp {
-		t.Fatal("expected existing topped-up flag to remain true")
-	}
-}
-
 func removedAuditTableNames() []string {
 	return []string{
 		strings.Join([]string{"request", "logs"}, "_"),

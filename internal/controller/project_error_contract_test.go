@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -118,38 +117,4 @@ func TestProjectAndWalletFailuresUseTheErrorCatalog(t *testing.T) {
 		t.Fatal("unknown member filter was accepted")
 	}
 	assertConsoleError(t, w, http.StatusNotFound, "project_member_not_found")
-}
-
-// /v1/dashboard/billing answers in the OpenAI envelope with a real status; the
-// cause of a failed read stays in the server log.
-func TestDashboardBillingFailureUsesOpenAIEnvelope(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	setupMediaJobControllerTestDB(t)
-	previous := common.DisplayTokenStatEnabled
-	common.DisplayTokenStatEnabled = true
-	t.Cleanup(func() { common.DisplayTokenStatEnabled = previous })
-	for name, handler := range map[string]gin.HandlerFunc{"subscription": GetSubscription, "usage": GetUsage} {
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest(http.MethodGet, "/v1/dashboard/billing/"+name, nil)
-		// The authenticated Key vanished between auth and the read.
-		c.Set("token_id", 987654)
-		handler(c)
-		if w.Code != http.StatusInternalServerError {
-			t.Fatalf("%s: expected 500, got %d %s", name, w.Code, w.Body.String())
-		}
-		var payload struct {
-			Success *bool `json:"success"`
-			Error   struct {
-				Code string `json:"code"`
-				Type string `json:"type"`
-			} `json:"error"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
-			t.Fatal(err)
-		}
-		if payload.Success != nil || payload.Error.Code != "internal_error" || payload.Error.Type != "api_error" {
-			t.Fatalf("%s: unexpected envelope %s", name, w.Body.String())
-		}
-	}
 }

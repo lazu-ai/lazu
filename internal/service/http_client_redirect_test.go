@@ -84,7 +84,7 @@ func credentialedClients(t *testing.T) map[string]*http.Client {
 		"relay streaming":        GetRelayStreamingHttpClient(),
 		"relay via http proxy":   httpProxy,
 		"relay via socks5 proxy": socksProxy,
-		"internal worker":        GetInternalHttpClient(),
+		"internal service":       GetInternalHttpClient(),
 	}
 }
 

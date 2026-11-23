@@ -353,9 +353,6 @@ func accountLog(userId int, logType int, content string) *Log {
 }
 
 func RecordLog(userId int, logType int, content string) {
-	if logType == LogTypeConsume && !common.LogConsumeEnabled {
-		return
-	}
 	log := accountLog(userId, logType, content)
 	err := publishConsumeLogEvent(log)
 	if err != nil {
@@ -364,9 +361,6 @@ func RecordLog(userId int, logType int, content string) {
 }
 
 func RecordLogWithAdminInfo(userId int, logType int, content string, adminInfo map[string]interface{}) {
-	if logType == LogTypeConsume && !common.LogConsumeEnabled {
-		return
-	}
 	log := accountLog(userId, logType, content)
 	if len(adminInfo) > 0 {
 		log.Other = common.MapToJsonStr(map[string]interface{}{
@@ -520,9 +514,6 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			params.PayerUserID = common.GetContextKeyInt(c, constant.ContextKeyPayerUserID)
 			userId = c.GetInt("id")
 		}
-	}
-	if !common.LogConsumeEnabled {
-		return
 	}
 	if common.ShouldLog(common.LogLevelInfo) {
 		logger.LogInfo(c, fmt.Sprintf("record consume log: userId=%d model=%s amount_microusd=%d", userId, params.ModelName, params.AmountMicrousd))
@@ -1326,16 +1317,16 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 	if TelemetryDB() != nil && TelemetryDB().Dialector.Name() == "postgres" {
 		now := time.Now().UTC()
 		days := int(now.Sub(time.Unix(targetTimestamp, 0)).Hours() / 24)
-		if days < ModelRankingWindowDays {
-			return 0, types.Err(types.ErrorCodeLogCleanupCutoffTooRecent, types.D{"min_days": ModelRankingWindowDays})
+		if days < MinimumLogRetentionDays {
+			return 0, types.Err(types.ErrorCodeLogCleanupCutoffTooRecent, types.D{"min_days": MinimumLogRetentionDays})
 		}
 		return 0, MaintainTelemetryPartitions(ctx, now, days)
 	}
 
 	// Manual cleanup must preserve the same source window as automatic retention.
-	latestCutoff := time.Now().Add(-ModelRankingWindowDays * 24 * time.Hour).Unix()
+	latestCutoff := time.Now().Add(-MinimumLogRetentionDays * 24 * time.Hour).Unix()
 	if targetTimestamp > latestCutoff {
-		return 0, types.Err(types.ErrorCodeLogCleanupCutoffTooRecent, types.D{"min_days": ModelRankingWindowDays})
+		return 0, types.Err(types.ErrorCodeLogCleanupCutoffTooRecent, types.D{"min_days": MinimumLogRetentionDays})
 	}
 	var total int64 = 0
 

@@ -232,7 +232,6 @@ func startAPIWriters() func() {
 		}()
 	}
 	start(func() { model.RunRelayEventConsumer(ctx) })
-	start(func() { model.RunUsageDataUpdater(ctx) })
 	if engine := model.GatewayLedger(); engine != nil {
 		start(func() {
 			engine.Run(ctx, fmt.Sprintf("ledger-api-%d", os.Getpid()), func(err error) { common.SysError("ledger writer: " + err.Error()) })
@@ -241,7 +240,6 @@ func startAPIWriters() func() {
 	return func() {
 		cancel()
 		workers.Wait()
-		model.SaveUsageDataCache()
 	}
 }
 
@@ -339,10 +337,6 @@ func InitResources() error {
 	if err = model.InitGatewayLedger(); err != nil {
 		return err
 	}
-	if err = runStartupStep("retired_referral_cache_invalidation", model.InvalidateRetiredReferralCreditUserCaches); err != nil {
-		common.FatalLog("failed to invalidate migrated referral credit caches: " + err.Error())
-		return err
-	}
 
 	if rootSyncOnStart() {
 		if err = runStartupStep("root_sync", model.SyncRootUserFromConfig); err != nil {
@@ -355,12 +349,6 @@ func InitResources() error {
 	runStartupTask("pricing", func() {
 		model.WarmCatalogCacheFromCore()
 	})
-	if apiBackgroundTasksEnabled() {
-		if err = runStartupStep("retired_model_rank_recalculation", model.RecalculateRetiredModelRatingRanks); err != nil {
-			common.FatalLog("failed to recalculate migrated model rankings: " + err.Error())
-			return err
-		}
-	}
 
 	// File retention owns this container's ephemeral JSONL/log shards, so it
 	// must stay local even when database-wide maintenance moves to Jobs.
@@ -368,7 +356,6 @@ func InitResources() error {
 	if apiBackgroundTasksEnabled() {
 		service.StartLogRetention()
 		service.StartUserFileCleanup()
-		service.StartModelRankingScheduler()
 	}
 
 	// The digest is safe on replicated/hosted API processes because Redis

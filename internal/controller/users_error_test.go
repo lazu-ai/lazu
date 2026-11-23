@@ -308,7 +308,6 @@ func TestAdminUserMutationsRejectMalformedBodies(t *testing.T) {
 		wrongType string
 	}{
 		{"quota/adjust", AdjustUserQuota, `{"delta_microusd":"not-an-amount","reason":"refund"}`},
-		{"has_topped_up", SetUserHasToppedUp, `{"has_topped_up":"not-a-boolean"}`},
 	} {
 		for _, payload := range []string{"", "{", tc.wrongType} {
 			t.Run(tc.name+"/"+payload, func(t *testing.T) {

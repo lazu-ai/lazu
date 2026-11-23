@@ -79,16 +79,9 @@ const (
 	schemaVersionLog     = "log"
 )
 
-// Migration support window (AGENTS.md, Deployment Notes): a deployment
-// upgrades in one step from any schema version released in the last six
-// months. A version's migration code may be deleted six months after it
-// shipped; schemaUpgradeFloor then rises to the oldest version still handled,
-// and a deployment below it upgrades through schemaUpgradeGateRelease first.
-// The oldest version, 1, shipped on 2026-07-13, so nothing is refused yet;
-// v15 and earlier (the inherited-schema cleanup) may go from 2027-03-30.
-var (
-	schemaUpgradeFloor       = 0
-	schemaUpgradeGateRelease = ""
+const (
+	schemaUpgradeFloor       = 16
+	schemaUpgradeGateRelease = "v0.7.297"
 )
 
 // checkSchemaUpgradeFloor refuses a stored schema older than this release can
@@ -161,6 +154,7 @@ func runSchemaMigrations(db *gorm.DB, scope string, migrate func() error) error 
 	}
 	defer release()
 
+	versioned := false
 	if db.Migrator().HasTable(&SchemaVersion{}) {
 		var existing SchemaVersion
 		err := db.Where("scope = ?", scope).First(&existing).Error
@@ -176,6 +170,7 @@ func runSchemaMigrations(db *gorm.DB, scope string, migrate func() error) error 
 			)
 		}
 		if err == nil {
+			versioned = true
 			if err := checkSchemaUpgradeFloor(scope, existing.Version); err != nil {
 				return err
 			}
@@ -184,8 +179,21 @@ func runSchemaMigrations(db *gorm.DB, scope string, migrate func() error) error 
 			return fmt.Errorf("read existing %s schema version: %w", scope, err)
 		}
 	}
+	if !versioned {
+		if err := checkUnversionedSchema(db, scope); err != nil {
+			return err
+		}
+	}
 	if err := db.AutoMigrate(&SchemaVersion{}); err != nil {
 		return fmt.Errorf("prepare schema version table: %w", err)
+	}
+	if !versioned {
+		// A fresh install may stop after creating users or logs. Keep its
+		// starting release distinct from the marker for a completed migration.
+		start := SchemaVersion{Scope: scope + "_bootstrap", Version: SchemaVersionCurrent, AppliedAt: time.Now().UTC()}
+		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&start).Error; err != nil {
+			return err
+		}
 	}
 	if err := migrate(); err != nil {
 		return err
@@ -202,6 +210,39 @@ func runSchemaMigrations(db *gorm.DB, scope string, migrate func() error) error 
 		return fmt.Errorf("record %s schema version: %w", scope, err)
 	}
 	return cacheValidatedSchemaVersion(db, scope)
+}
+
+// Populated stores need a known upgrade origin. A split telemetry store can
+// already contain logs when a previous release finished copying Core history
+// but stopped before writing the final log version.
+func checkUnversionedSchema(db *gorm.DB, scope string) error {
+	anchor := "users"
+	if scope == schemaVersionLog {
+		anchor = "logs"
+	}
+	if !db.Migrator().HasTable(anchor) {
+		return nil
+	}
+	if db.Migrator().HasTable(&SchemaVersion{}) {
+		scopes := []string{scope + "_bootstrap"}
+		if scope == schemaVersionLog {
+			scopes = append(scopes, schemaVersionPrimary, "telemetry_copy_core_v24")
+		}
+		var markers []SchemaVersion
+		if err := db.Where("scope IN ?", scopes).Find(&markers).Error; err != nil {
+			return err
+		}
+		for _, marker := range markers {
+			version := marker.Version
+			if marker.Scope == "telemetry_copy_core_v24" {
+				version = 26 // The store split shipped in schema 26.
+			}
+			if version >= schemaUpgradeFloor {
+				return nil
+			}
+		}
+	}
+	return checkSchemaUpgradeFloor(scope, 0)
 }
 
 func ValidateSchemaVersion() error {
@@ -225,14 +266,23 @@ func validateSchemaVersion(db *gorm.DB, scope string) error {
 		return nil
 	}
 	if !db.Migrator().HasTable(&SchemaVersion{}) {
+		if err := checkUnversionedSchema(db, scope); err != nil {
+			return err
+		}
 		return fmt.Errorf("%s schema is not initialized; run lazu-migrate before starting the service", scope)
 	}
 	var record SchemaVersion
 	if err := db.Where("scope = ?", scope).First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := checkUnversionedSchema(db, scope); err != nil {
+				return err
+			}
 			return fmt.Errorf("%s schema version is missing; run lazu-migrate", scope)
 		}
 		return fmt.Errorf("read %s schema version: %w", scope, err)
+	}
+	if err := checkSchemaUpgradeFloor(scope, record.Version); err != nil {
+		return err
 	}
 	if record.Version != SchemaVersionCurrent {
 		return fmt.Errorf(

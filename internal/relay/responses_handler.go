@@ -14,7 +14,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -82,12 +81,6 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
-	} else if (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) && !bridged && !degradedNative {
-		body, err := common.GetRequestBody(c)
-		if err != nil {
-			return types.NewRequestBodyError(err)
-		}
-		outboundBody = body
 	} else if bridged {
 		body, _, encodeErr := BridgeBody(c, info, adaptor)
 		if encodeErr != nil {
@@ -117,7 +110,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *type
 		}
 
 		// remove disabled fields for OpenAI Responses API
-		jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+		jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings)
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}

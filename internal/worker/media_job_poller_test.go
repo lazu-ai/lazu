@@ -69,9 +69,7 @@ func setupMediaJobWorkerTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	originalDB := model.CoreDB()
 	originalLogDB := model.ConfiguredTelemetryDB()
-	originalLogConsumeEnabled := common.LogConsumeEnabled
 	originalRedisEnabled := common.RedisEnabled
-	common.LogConsumeEnabled = true
 	common.RedisEnabled = false
 	name := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
 	db, err := gorm.Open(gormsqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", name)), &gorm.Config{})
@@ -106,7 +104,6 @@ func setupMediaJobWorkerTestDB(t *testing.T) *gorm.DB {
 		_ = sqlDB.Close()
 		model.SetCoreDB(originalDB)
 		model.SetTelemetryDB(originalLogDB)
-		common.LogConsumeEnabled = originalLogConsumeEnabled
 		common.RedisEnabled = originalRedisEnabled
 	})
 	return db

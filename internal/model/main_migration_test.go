@@ -18,7 +18,7 @@ func isolatedMigrationInit(t *testing.T, initialize func() error) *gorm.DB {
 	previousPG, previousSQLite := common.UsingPostgreSQL, common.UsingSQLite
 	previousGroup, previousKey, previousTrue, previousFalse := commonGroupCol, commonKeyCol, commonTrueVal, commonFalseVal
 	previousLogGroup, previousLogKey := logGroupCol, logKeyCol
-	common.IsMasterNode, common.PricingSnapshotEnabled = false, false
+	common.IsMasterNode, common.PricingSnapshotEnabled = true, false
 	common.SQLitePath = filepath.Join(t.TempDir(), "offline-init.db")
 	t.Setenv("DATABASE_URL", "local")
 	t.Setenv("LAZU_MIGRATION_MODE", "auto")

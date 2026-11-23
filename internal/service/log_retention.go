@@ -49,7 +49,7 @@ func RunLogRetentionOnce(now time.Time) {
 	if purged > 0 {
 		common.SysWarn(fmt.Sprintf("cleared %d deleted account(s) past their restore window", purged))
 	}
-	// Content retention is independent from the request-metadata/ranking window.
+	// Content retention is independent from the request-metadata retention window.
 	// Disabling LOG_RETENTION_DAYS must not leave another copy of prompts forever.
 	contentDays := common.RequestContentRetentionDays()
 	if contentDays > 0 && int64(contentDays) <= maxLogRetentionDays {
@@ -68,9 +68,9 @@ func RunLogRetentionOnce(now time.Time) {
 		common.SysError(fmt.Sprintf("LOG_RETENTION_DAYS=%d exceeds the supported maximum of %d; skipping database log cleanup", days, maxLogRetentionDays))
 		return
 	}
-	if days < model.ModelRankingWindowDays {
-		common.SysWarn(fmt.Sprintf("LOG_RETENTION_DAYS=%d is shorter than the model ranking window; retaining %d days of database logs", days, model.ModelRankingWindowDays))
-		days = model.ModelRankingWindowDays
+	if days < model.MinimumLogRetentionDays {
+		common.SysWarn(fmt.Sprintf("LOG_RETENTION_DAYS=%d is shorter than the minimum log retention window; retaining %d days of database logs", days, model.MinimumLogRetentionDays))
+		days = model.MinimumLogRetentionDays
 	}
 	// Ranking windows use elapsed 24-hour days, including across DST changes.
 	model.PurgeLogData(now.Add(-time.Duration(days) * 24 * time.Hour))

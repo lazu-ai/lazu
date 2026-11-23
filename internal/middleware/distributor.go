@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/tidwall/gjson"
 	"io"
 	"net/http"
 	"slices"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
@@ -152,22 +153,6 @@ func Distribute() func(c *gin.Context) {
 				}
 				userGroup := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
 				tokenGroup := common.GetContextKeyString(c, constant.ContextKeyTokenGroup)
-				// check path is /pg/chat/completions
-				if strings.HasPrefix(c.Request.URL.Path, "/pg/chat/completions") {
-					playgroundRequest := &dto.PlayGroundRequest{}
-					err = common.UnmarshalBodyReusable(c, playgroundRequest)
-					if err != nil {
-						abortRequestBodyError(c, err)
-						return
-					}
-					if playgroundRequest.Group != "" {
-						if playgroundRequest.Group != "default" && playgroundRequest.Group != userGroup {
-							abortWithCode(c, types.ErrorCodeGroupAccessDenied)
-							return
-						}
-						userGroup = playgroundRequest.Group
-					}
-				}
 				groupCandidates := []string{model.ChannelLaneDirect}
 
 				rawBody, _ := common.GetRequestBody(c)
@@ -1325,14 +1310,6 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 			relayMode = relayconstant.RelayModeAudioTranscription
 		}
 		c.Set("relay_mode", relayMode)
-	}
-	if strings.HasPrefix(c.Request.URL.Path, "/pg/chat/completions") {
-		// playground chat completions
-		err = common.UnmarshalBodyReusable(c, &modelRequest)
-		if err != nil {
-			return nil, false, fmt.Errorf("invalid request: %w", err)
-		}
-		common.SetContextKey(c, constant.ContextKeyTokenGroup, modelRequest.Group)
 	}
 	return &modelRequest, shouldSelectChannel, nil
 }

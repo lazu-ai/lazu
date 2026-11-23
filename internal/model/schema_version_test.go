@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -155,9 +156,6 @@ func TestPR380DefaultMigrationInitializesFreshDatabase(t *testing.T) {
 
 func TestRunSchemaMigrationsRefusesSchemaBelowUpgradeFloor(t *testing.T) {
 	db := withSchemaVersionTestDB(t)
-	previousFloor, previousGate := schemaUpgradeFloor, schemaUpgradeGateRelease
-	schemaUpgradeFloor, schemaUpgradeGateRelease = 16, "v0.7.113"
-	t.Cleanup(func() { schemaUpgradeFloor, schemaUpgradeGateRelease = previousFloor, previousGate })
 	if err := db.AutoMigrate(&SchemaVersion{}); err != nil {
 		t.Fatalf("create schema version table: %v", err)
 	}
@@ -169,7 +167,7 @@ func TestRunSchemaMigrationsRefusesSchemaBelowUpgradeFloor(t *testing.T) {
 		migrationRan = true
 		return nil
 	})
-	if err == nil || !strings.Contains(err.Error(), "upgrade to lazu v0.7.113 first") || !strings.Contains(err.Error(), "version 15") {
+	if err == nil || !strings.Contains(err.Error(), "upgrade to lazu v0.7.297 first") || !strings.Contains(err.Error(), "version 15") {
 		t.Fatalf("expected the upgrade floor refusal, got %v", err)
 	}
 	if migrationRan {
@@ -178,9 +176,6 @@ func TestRunSchemaMigrationsRefusesSchemaBelowUpgradeFloor(t *testing.T) {
 }
 
 func TestRunSchemaMigrationsAllowsFreshDatabaseAndFloor(t *testing.T) {
-	previousFloor, previousGate := schemaUpgradeFloor, schemaUpgradeGateRelease
-	schemaUpgradeFloor, schemaUpgradeGateRelease = 16, "v0.7.113"
-	t.Cleanup(func() { schemaUpgradeFloor, schemaUpgradeGateRelease = previousFloor, previousGate })
 	// A fresh database has no version row: nothing to upgrade from.
 	fresh := withSchemaVersionTestDB(t)
 	if err := runSchemaMigrations(fresh, schemaVersionPrimary, func() error { return nil }); err != nil {
@@ -191,9 +186,36 @@ func TestRunSchemaMigrationsAllowsFreshDatabaseAndFloor(t *testing.T) {
 	}
 }
 
-func TestSchemaUpgradeFloorRefusesNothingToday(t *testing.T) {
-	// Every shipped version is younger than six months (version 1: 2026-07-13).
-	if err := checkSchemaUpgradeFloor(schemaVersionPrimary, 1); err != nil {
-		t.Fatalf("version 1 is still inside the support window: %v", err)
+func TestUnversionedLegacyDatabaseRequiresGate(t *testing.T) {
+	db := withSchemaVersionTestDB(t)
+	if err := db.Exec("CREATE TABLE users (id integer primary key)").Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, run := range []func() error{ValidateSchemaVersion, RunPrimaryMigrations} {
+		err := run()
+		if err == nil || !strings.Contains(err.Error(), schemaUpgradeGateRelease) || db.Migrator().HasTable(&SchemaVersion{}) {
+			t.Fatalf("unversioned legacy store: %v", err)
+		}
+	}
+}
+
+func TestInterruptedFreshSchemaCanResumeWithoutOpeningLegacyUpgrade(t *testing.T) {
+	db := withSchemaVersionTestDB(t)
+	interrupted := errors.New("interrupted")
+	err := runSchemaMigrations(db, schemaVersionPrimary, func() error {
+		if err := db.Exec("CREATE TABLE users (id integer primary key)").Error; err != nil {
+			return err
+		}
+		return interrupted
+	})
+	if !errors.Is(err, interrupted) {
+		t.Fatalf("first run: %v", err)
+	}
+	var completed int64
+	if err := db.Model(&SchemaVersion{}).Where("scope = ?", schemaVersionPrimary).Count(&completed).Error; err != nil || completed != 0 {
+		t.Fatalf("incomplete migration recorded as complete: %d, %v", completed, err)
+	}
+	if err := runSchemaMigrations(db, schemaVersionPrimary, func() error { return nil }); err != nil {
+		t.Fatalf("retry: %v", err)
 	}
 }
