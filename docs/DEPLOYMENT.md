@@ -528,7 +528,8 @@ Fresh databases initialize directly. Schema 16 and newer upgrade in one step.
 For schema 15 and older, including a populated installation without a version
 marker, run the **v0.7.297** migrator against both configured stores first.
 Confirm both schema scopes have reached 39 before starting the newer release.
-Back up the databases before upgrading.
+Back up the databases before upgrading. For schema 16 onward, the direct-upgrade
+support window remains six months from each schema release.
 
 ## Changing Credentials
 
