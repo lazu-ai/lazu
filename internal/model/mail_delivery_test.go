@@ -28,7 +28,7 @@ func TestMailArchiveSealsBodiesAndKeepsCredentialsOut(t *testing.T) {
 	}
 	body := "<p>" + strings.Repeat("usage ", 200) + "</p>"
 	RecordMailDelivery(common.MailRecord{Meta: common.MailMeta{Kind: common.MailKindBalance}, Subject: "Low balance", Receiver: "reader@example.com", HTML: body, ProviderID: "re_1"})
-	RecordMailDelivery(common.MailRecord{Meta: common.MailMeta{Kind: common.MailKindAuth, Sensitive: true}, Subject: "Your code", Receiver: "reader@example.com", HTML: "code 123456", Err: errors.New("provider down")})
+	RecordMailDelivery(common.MailRecord{Meta: common.MailMeta{Kind: common.MailKindAuth, Sensitive: true}, Subject: "Your code 123456", Receiver: "reader@example.com", HTML: "code 123456", Err: errors.New("provider echoed 123456")})
 
 	var rows []MailDelivery
 	if err := coreDB.Order("id").Find(&rows).Error; err != nil || len(rows) != 2 {
@@ -40,9 +40,37 @@ func TestMailArchiveSealsBodiesAndKeepsCredentialsOut(t *testing.T) {
 	if got, err := rows[0].HTML(); err != nil || got != body {
 		t.Fatalf("body did not round-trip: %v", err)
 	}
-	if rows[1].Body != "" || rows[1].HasBody || rows[1].Status != MailStatusFailed || rows[1].Error == "" {
+	if rows[1].Body != "" || rows[1].HasBody || rows[1].Status != MailStatusFailed || rows[1].Subject != sensitiveMailSubject || rows[1].Error != sensitiveMailFailure {
 		t.Fatalf("credential mail kept its body or lost its failure: %+v", rows[1])
 	}
+}
+
+func TestSensitiveMailHistoryAndResend(t *testing.T) {
+	setupMailTestDB(t)
+	old := MailDelivery{Kind: common.MailKindAuth, Subject: "Test credential", Error: "provider echoed credential", Body: "legacy body", HasBody: true, Status: MailStatusFailed}
+	if err := coreDB.Create(&old).Error; err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if err := redactSensitiveMailHistory(coreDB); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func() {
+		t.Helper()
+		var row MailDelivery
+		if err := coreDB.First(&row, old.ID).Error; err != nil {
+			t.Fatal(err)
+		}
+		if !row.Sensitive || row.Subject != sensitiveMailSubject || row.Error != sensitiveMailFailure || row.Body != "" || row.Snapshot != "" || row.HasBody {
+			t.Fatal("sensitive content was retained")
+		}
+	}
+	check()
+	if err := recordMailDelivery(common.MailRecord{Meta: common.MailMeta{Kind: common.MailKindAuth, DeliveryID: old.ID}, Subject: "Your code 567890", HTML: "567890", Err: errors.New("567890")}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	check()
 }
 
 func TestClaimMailDeliveryLetsOnePeriodGoOutOnce(t *testing.T) {
