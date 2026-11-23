@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/common"
@@ -145,5 +146,31 @@ func TestInventoryLeavesTheCatalogueAndTheRouter(t *testing.T) {
 	}
 	if len(grid) != 2 {
 		t.Fatalf("grid = %+v, want inventory to stay visible to operators", grid)
+	}
+}
+
+func TestChannelUpdateRollsBackOnAbilityFailure(t *testing.T) {
+	db := setupChannelHealthTestDB(t)
+	channel := Channel{Name: "original", Type: 1, Group: ChannelLaneDirect, Models: "before", Status: common.ChannelStatusEnabled}
+	if err := channel.Insert(); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("CREATE TRIGGER refuse_test_ability BEFORE INSERT ON abilities WHEN NEW.model = 'after' BEGIN SELECT RAISE(ABORT, 'ability write failed'); END").Error; err != nil {
+		t.Fatal(err)
+	}
+	channel.Name, channel.Models = "edited", "after"
+	if err := channel.Update(); err == nil || !strings.Contains(err.Error(), "ability write failed") {
+		t.Fatalf("unexpected update result: %v", err)
+	}
+	var saved Channel
+	if err := db.First(&saved, channel.Id).Error; err != nil {
+		t.Fatal(err)
+	}
+	var abilities []Ability
+	if err := db.Where("channel_id = ?", channel.Id).Find(&abilities).Error; err != nil {
+		t.Fatal(err)
+	}
+	if saved.Name != "original" || saved.Models != "before" || len(abilities) != 1 || abilities[0].Model != "before" {
+		t.Fatal("partial channel edit committed")
 	}
 }
