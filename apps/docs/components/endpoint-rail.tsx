@@ -118,7 +118,7 @@ const COPY: Record<string, Copy> = {
     blocked:
       "The browser stopped this request before it reached the API. Copy the cURL command and run it in a terminal instead.",
     blockedTag: "Blocked by the browser",
-    receipt: "Your receipt",
+    receipt: "Your usage record",
     fromHeaders: "request and response",
     requestId: "Request ID",
     providerRegion: "Gateway · region",
@@ -153,7 +153,7 @@ const COPY: Record<string, Copy> = {
     blocked:
       "请求在到达 API 之前被浏览器拦下了。请复制 cURL 命令在终端里运行。",
     blockedTag: "被浏览器拦截",
-    receipt: "你的回执",
+    receipt: "你的用量记录",
     fromHeaders: "请求与响应",
     requestId: "请求 ID",
     providerRegion: "网关节点 · 区域",
@@ -187,7 +187,7 @@ const COPY: Record<string, Copy> = {
     copied: "已複製",
     blocked: "請求在抵達 API 前被瀏覽器擋下了。請複製 cURL 指令在終端機執行。",
     blockedTag: "被瀏覽器攔截",
-    receipt: "你的回執",
+    receipt: "你的用量記錄",
     fromHeaders: "請求與回應",
     requestId: "請求 ID",
     providerRegion: "閘道節點 · 區域",

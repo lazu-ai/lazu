@@ -13,7 +13,7 @@ description: "Lazu 每个模型怎么定价：稳定线路走官方 API，Agent 
 
 ## 读取当前价格
 
-使用 API Key 查询 `/api/models/catalog`：此入口的 `pricing` 是按当前 Key 上下文调整的目录价格，`lanes` 描述已发布通道价格和可用状态。不要混用公开 `/v1/models` 或会话目录的价格结构。估算时核对实际服务通道和适用的峰时安排；缺失价格字段不代表零价，最终费用按请求回执核对。
+使用 API Key 查询 `/api/models/catalog`：此入口的 `pricing` 是按当前 Key 上下文调整的目录价格，`lanes` 描述已发布通道价格和可用状态。不要混用公开 `/v1/models` 或会话目录的价格结构。估算时核对实际服务通道和适用的峰时安排；缺失价格字段不代表零价，最终费用按用量记录核对。
 
 ```bash
 curl --fail-with-body https://api.lazu.ai/api/models/catalog \
@@ -27,6 +27,6 @@ curl --fail-with-body https://api.lazu.ai/api/models/catalog \
 
 ## 价格变化
 
-价格与可用路由可能调整。估算新工作负载前刷新目录，保留请求 ID 和回执用于对账；不要用今天的目录价格重新推算旧请求账单。
+价格与可用路由可能调整。估算新工作负载前刷新目录，保留请求 ID 和用量记录用于对账；不要用今天的目录价格重新推算旧请求账单。
 
 [计费说明](/zh/billing)

@@ -50,11 +50,11 @@ Each route below now answers with `Deprecation`, `Sunset` and, where something r
 - `/api/community/*` and `/api/models/rankings`.
 - Admin, after 2026-12-01: `/api/channel/tag/*` and `/api/channel/batch*` (use per-channel actions), `POST /api/notification/email/{send,announcement}` (use announcements), `/api/upload/*` (use the scheduled upload in `config.yaml`), `/api/workers/*` and `GET /api/data/` (the `usage_data` table it reads is deprecated too).
 
-## 2026-09-30 — Agent sessions, receipts and long-context prices
+## 2026-09-30 — Agent sessions, usage records and long-context prices
 
-- Rebuilt Agent sessions around tasks, models and individual request receipts.
+- Rebuilt Agent sessions around tasks, models and per-request usage records.
 - Added session activity views and subagent lanes. These show gateway activity; local tools are outside the observation boundary.
-- Connected long-context pricing to cost calculation, request receipts and public model pages. The actual tier depends on the configured model and lane.
+- Connected long-context pricing to cost calculation, usage records and public model pages. The actual tier depends on the configured model and lane.
 - Corrected sitemap modification dates to reflect actual content changes.
 
 These dates refer to changes merged into the source repository. A self-hosted installation's availability depends on its deployed version. [Reconcile a session's costs](/agent-session-costs) using the exported details.

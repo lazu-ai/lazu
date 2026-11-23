@@ -59,11 +59,11 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 - `/api/community/*` 和 `/api/models/rankings`。
 - 管理接口（2026-12-01 之后删除）：`/api/channel/tag/*`、`/api/channel/batch*`（改用逐个渠道操作），`POST /api/notification/email/{send,announcement}`（改用公告），`/api/upload/*`（改用 `config.yaml` 里的定时上传），`/api/workers/*`，`GET /api/data/`（它读取的 `usage_data` 表也已弃用）。
 
-## 2026-09-30 — Agent 会话、请求回执与长上下文价格
+## 2026-09-30 — Agent 会话、用量记录与长上下文价格
 
-- 围绕任务、模型和逐请求回执重做 Agent 会话。
+- 围绕任务、模型和每次请求的用量记录重做 Agent 会话。
 - 增加会话活动视图与子代理线路；展示范围是网关活动，不包含本地工具执行。
-- 将长上下文价格接入成本计算、请求回执与公开模型页；实际阶梯取决于模型与线路配置。
+- 将长上下文价格接入成本计算、用量记录与公开模型页；实际阶梯取决于模型与线路配置。
 - sitemap 的修改日期改为真实内容变更时间。
 
 以上日期指源码合并时间，自部署实例是否可用取决于部署版本。可按[会话费用核对指南](/zh/agent-session-costs)复算导出的明细。

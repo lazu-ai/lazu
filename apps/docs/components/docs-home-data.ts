@@ -113,7 +113,7 @@ const TEXT: Record<
   en: {
     eyebrow: "Lazu API documentation",
     title: "Build on one key.",
-    lede: "An OpenAI-compatible gateway to the models your key can reach. Discover a model, call its endpoint, read the receipt.",
+    lede: "An OpenAI-compatible gateway to the models your key can reach. Discover a model, call its endpoint, read the usage record.",
     search: "Search docs or paste an error code",
     groups: ["Start", "Endpoints", "Reference"],
     benchLabel: "Hello, Lazu",
@@ -125,7 +125,7 @@ const TEXT: Record<
   zh: {
     eyebrow: "Lazu API 文档",
     title: "一个 Key，接入所有模型。",
-    lede: "OpenAI 兼容的网关，接入你的 Key 可用的所有模型。先查模型，再调接口，最后看回执。",
+    lede: "OpenAI 兼容的网关，接入你的 Key 可用的所有模型。先查模型，再调接口，最后看用量记录。",
     search: "搜索文档，或粘贴错误码",
     groups: ["开始", "接口", "参考"],
     benchLabel: "Hello, Lazu",
@@ -137,7 +137,7 @@ const TEXT: Record<
   "zh-TW": {
     eyebrow: "Lazu API 文件",
     title: "一把 Key，接入所有模型。",
-    lede: "OpenAI 相容的閘道，接入你的 Key 可用的所有模型。先查模型，再呼叫介面，最後看回執。",
+    lede: "OpenAI 相容的閘道，接入你的 Key 可用的所有模型。先查模型，再呼叫介面，最後看用量記錄。",
     search: "搜尋文件，或貼上錯誤碼",
     groups: ["開始", "端點", "參考"],
     benchLabel: "Hello, Lazu",

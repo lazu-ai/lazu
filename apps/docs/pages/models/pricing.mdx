@@ -13,7 +13,7 @@ The stable lane runs on each maker's official API, is billed at the list price, 
 
 ## Read current prices
 
-Use `/api/models/catalog` with your API key: its `pricing` object is the adjusted catalog price for that key, while `lanes` describes published lane prices and availability. Do not substitute the public `/v1/models` or session-based catalog pricing shape for this route. Check the serving lane and any applicable peak schedule when estimating. Missing price fields do not mean zero. The final request receipt records the charge.
+Use `/api/models/catalog` with your API key: its `pricing` object is the adjusted catalog price for that key, while `lanes` describes published lane prices and availability. Do not substitute the public `/v1/models` or session-based catalog pricing shape for this route. Check the serving lane and any applicable peak schedule when estimating. Missing price fields do not mean zero. The usage record shows the final charge.
 
 ```bash
 curl --fail-with-body https://api.lazu.ai/api/models/catalog \
@@ -27,6 +27,6 @@ Inspect your API key settings and the model’s current lanes. Choosing the agen
 
 ## Price changes
 
-Prices and available routes can change. Refresh the catalog before estimating a new workload; preserve the request ID and receipt for reconciliation. Do not infer a new price for an old request from today’s catalog.
+Prices and available routes can change. Refresh the catalog before estimating a new workload; preserve the request ID and usage record for reconciliation. Do not infer a new price for an old request from today’s catalog.
 
 [Billing](/billing)
