@@ -18,28 +18,12 @@ func TestRemoveDisabledFieldsDefaultFiltering(t *testing.T) {
 		"stream_options":{"include_usage":true,"include_obfuscation":false}
 	}`)
 
-	got, err := RemoveDisabledFields(input, dto.ChannelOtherSettings{}, false)
+	got, err := RemoveDisabledFields(input, dto.ChannelOtherSettings{})
 	if err != nil {
 		t.Fatalf("RemoveDisabledFields returned error: %v", err)
 	}
 
 	assertJSONEqual(t, got, []byte(`{"store":true,"stream_options":{"include_usage":true}}`))
-}
-
-func TestRemoveDisabledFieldsSkipWhenChannelPassThroughEnabled(t *testing.T) {
-	input := []byte(`{
-		"service_tier":"flex",
-		"inference_geo":"eu",
-		"safety_identifier":"user-123",
-		"stream_options":{"include_obfuscation":false}
-	}`)
-
-	got, err := RemoveDisabledFields(input, dto.ChannelOtherSettings{}, true)
-	if err != nil {
-		t.Fatalf("RemoveDisabledFields returned error: %v", err)
-	}
-
-	assertJSONEqual(t, got, input)
 }
 
 func assertJSONEqual(t *testing.T, got, want []byte) {

@@ -58,7 +58,6 @@ func SetRouter(router *gin.Engine) {
 	}
 	SetPublicSiteRouter(router)
 	SetApiRouter(router)
-	SetDashboardRouter(router)
 	SetRelayRouter(router)
 
 	frontendBaseURL := os.Getenv("FRONTEND_BASE_URL")

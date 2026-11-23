@@ -223,13 +223,6 @@ const createSections = (
           'page.console.settingV2.upstream.field.sessionAffinityHelp',
         ),
       },
-      {
-        key: 'global.pass_through_request_enabled',
-        kind: 'boolean',
-        danger: true,
-        label: t('page.console.settingV2.upstream.field.passThrough'),
-        description: t('page.console.settingV2.upstream.field.passThroughHelp'),
-      },
     ],
   },
   /* Rate limiting used to be defined twice — once here under a group called

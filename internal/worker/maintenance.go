@@ -29,14 +29,3 @@ func (t *UserFileCleanupTask) Interval() time.Duration {
 func (t *UserFileCleanupTask) Run(_ context.Context) error {
 	return service.RunUserFileCleanupOnce(service.NowUnix())
 }
-
-type ModelRankingRefreshTask struct{}
-
-func NewModelRankingRefreshTask() *ModelRankingRefreshTask { return &ModelRankingRefreshTask{} }
-func (t *ModelRankingRefreshTask) Name() string            { return "model_ranking_refresh" }
-func (t *ModelRankingRefreshTask) Interval() time.Duration {
-	return time.Hour
-}
-func (t *ModelRankingRefreshTask) Run(_ context.Context) error {
-	return service.RunModelRankingRefresh()
-}

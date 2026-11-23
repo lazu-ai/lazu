@@ -13,7 +13,6 @@ const mockedStatus = {
   docs_link: 'https://lazu.ai/docs',
   user_agreement_enabled: false,
   privacy_policy_enabled: false,
-  enable_data_export: true,
   micro_usd_per_usd: 1000000,
   ...extensionStatus,
 };
@@ -1117,7 +1116,6 @@ function payloadFor(
       unmatched: ['gemini-image-4'],
     });
   }
-  if (pathname.startsWith('/api/models/rankings')) return page([model]);
   if (pathname === '/api/models/' || pathname === '/api/models/search') {
     // The list endpoint carries full-catalog vendor counts alongside the page,
     // which is what the 厂牌 filter counts are built from.
@@ -1315,7 +1313,6 @@ export async function setupMockedApp(page, options = {}) {
         'micro_usd_per_usd',
         String(status.micro_usd_per_usd),
       );
-      localStorage.setItem('enable_data_export', 'true');
     },
     { consoleScope, language, status, user },
   );

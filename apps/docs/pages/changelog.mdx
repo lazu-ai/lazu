@@ -5,6 +5,12 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 
 # Changelog
 
+## Unreleased — Legacy API and settings retirement
+
+- This release advances the previously announced removal dates. Removed the community and ranking APIs, playground, legacy balance queries, redundant user routes and the root top-up marker. Use the wallet, `/api/usage/summary`, `/api/log/self/tasks` and `/api/data/dashboard/self`.
+- Consumption logs are always recorded. Amounts in log messages are displayed in USD. Media fetches connect directly and channel field policy always applies. The old settlement outbox and hourly usage writer have been retired. Archive existing `usage_data` before upgrading and finish outstanding outbox work on v0.7.297.
+- Schema 15 and earlier upgrade through v0.7.297. Fresh databases and schema 16 or newer upgrade directly.
+
 ## Unreleased — Account security cleanup
 
 - New accounts use email verification codes or enabled identity providers. Username/password registration and `/register` are removed; existing users can still sign in with a password.
@@ -12,7 +18,7 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 - Removed `POST /api/user/reset` (the inactive reset stub); password reset continues through `/api/user/reset/v2`.
 - Removed `/api/log/token`, `/api/user/used-models`, `/api/user/models/classified`, `/api/user/self/stripe/pay`, and `/api/user/stripe/amount`. Use `/api/log/self`, the model catalog and `/api/user/stripe/pay`.
 - Removed the unimplemented `/v1/fine-tunes*`, `/v1/images/variations` and `DELETE /v1/models/:model` routes. These removals supersede their previously announced sunset dates; no compatibility redirects remain.
-- Removed the admin routes `/api/channel/tag/*`, `/api/channel/batch*`, `POST /api/notification/email/{send,announcement}`, `/api/upload/*` and `/api/workers/*` ahead of their 2026-12-01 sunset. Use per-channel actions and announcements (publishing one can email users). Scheduled uploads and database backups keep running from `config.yaml`. `GET /api/data/` stays until 2027-02-01, with the `usage_data` table it reads.
+- Removed the admin routes `/api/channel/tag/*`, `/api/channel/batch*`, `POST /api/notification/email/{send,announcement}`, `/api/upload/*` and `/api/workers/*` ahead of their 2026-12-01 sunset. Use per-channel actions and announcements (publishing one can email users). Scheduled uploads and database backups keep running from `config.yaml`.
 
 ## 2026-10-29 — Search endpoint removed
 

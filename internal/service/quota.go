@@ -404,16 +404,6 @@ func postConsumeQuota(relayInfo *relaycommon.RelayInfo, quota billing.MicroUSD, 
 		return nil
 	}
 	refID, metadata := relayQuotaLedgerEventData(relayInfo, "relay_settlement", preConsumedQuota)
-	var outbox *model.SettlementOutbox
-	if common.SettlementOutboxEnabled && recordFailure && quota != 0 {
-		outbox, err = recordSettlementOutbox(relayInfo, quota, preConsumedQuota, refID, metadata)
-		if err != nil {
-			return err
-		}
-	}
-	if outbox != nil {
-		relayInfo.SettledChargeMicrousd = quota + preConsumedQuota
-	}
 	timer := common.StartHotPathStage(common.HotPathStageSettlementPost)
 	err = model.AdjustRelayQuotaWithLedger(model.AdjustRelayQuotaWithLedgerInput{
 		AcceptedSettlement: true,
@@ -444,11 +434,6 @@ func postConsumeQuota(relayInfo *relaycommon.RelayInfo, quota billing.MicroUSD, 
 			return budgetErr
 		}
 	}
-	if outbox != nil {
-		if resolveErr := model.ResolveSettlementOutbox(outbox.ID, time.Now().UTC()); resolveErr != nil {
-			common.SysLog("failed to resolve settlement outbox after successful settlement: " + resolveErr.Error())
-		}
-	}
 
 	if sendEmail {
 		if (quota + preConsumedQuota) != 0 {
@@ -460,29 +445,6 @@ func postConsumeQuota(relayInfo *relaycommon.RelayInfo, quota billing.MicroUSD, 
 	releaseSpendBudgetReservationForRelay(relayInfo)
 
 	return nil
-}
-
-func recordSettlementOutbox(relayInfo *relaycommon.RelayInfo, quota billing.MicroUSD, preConsumedQuota billing.MicroUSD, refID string, metadata map[string]any) (*model.SettlementOutbox, error) {
-	if relayInfo == nil || quota == 0 {
-		return nil, nil
-	}
-	row := model.SettlementOutbox{
-		ProjectID: relayInfo.ProjectID, ActorUserID: relayInfo.ActorID(),
-		RequestID:      relayInfo.RequestID,
-		UserID:         relayInfo.BillingUserID(),
-		TokenID:        relayInfo.TokenId,
-		TokenKey:       relayInfo.TokenKey,
-		TokenUnlimited: relayInfo.TokenUnlimited,
-		IsPlayground:   relayInfo.IsPlayground,
-		QuotaDelta:     quota,
-		PreConsumed:    preConsumedQuota,
-		RefType:        "relay_settlement",
-		RefID:          refID,
-		PricingVersion: relayInfo.PriceData.PricingVersion,
-		Status:         model.SettlementFailureStatusOpen,
-		Metadata:       common.MapToJsonStr(metadata),
-	}
-	return model.RecordSettlementOutbox(row)
 }
 
 func recordSettlementFailure(relayInfo *relaycommon.RelayInfo, quota billing.MicroUSD, preConsumedQuota billing.MicroUSD, refID string, metadata map[string]any, settleErr error) {

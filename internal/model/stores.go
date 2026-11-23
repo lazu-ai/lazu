@@ -40,7 +40,7 @@ func telemetrySchemaModels() []interface{} {
 		&Log{}, &RoutingDecision{}, &RoutingOutcome{}, &RoutingAttemptOutcome{},
 		&AgentSession{}, &AgentSessionThread{}, &AgentSessionModel{}, &AgentSessionMessage{},
 		&ModelRequestCounter{}, &DashboardUsageHourlyTotal{}, &DashboardUsageHourlyDimension{},
-		&DashboardUsageDailyDimension{}, &DigestUsageHour{}, &UsageData{}, &DashboardUsageHourlySlice{},
+		&DashboardUsageDailyDimension{}, &DigestUsageHour{}, &DashboardUsageHourlySlice{},
 		&ChannelProbeResult{}, &RouteHealthHourly{}, &RouteHealthRollupState{}, &GatewayTimingDaily{}, &MailDelivery{}, &TelemetryEventReceipt{}, &TelemetryChannel{}, &TelemetryAbility{},
 		&TelemetryFinancialReceipt{},
 	}, extensions.telemetryModels...)

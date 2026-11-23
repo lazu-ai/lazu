@@ -13,12 +13,12 @@ import (
 
 func TestConsumeInfoIsCompactWhileDurableFactsRemainComplete(t *testing.T) {
 	withRelayResultQueueTestFlags(t)
-	previousEnabled, previousLevel, previousWriter := common.LogConsumeEnabled, common.LogLevel, gin.DefaultWriter
-	common.LogConsumeEnabled, common.LogLevel = true, common.LogLevelInfo
+	previousLevel, previousWriter := common.LogLevel, gin.DefaultWriter
+	common.LogLevel = common.LogLevelInfo
 	var output bytes.Buffer
 	gin.DefaultWriter = &output
 	t.Cleanup(func() {
-		common.LogConsumeEnabled, common.LogLevel, gin.DefaultWriter = previousEnabled, previousLevel, previousWriter
+		common.LogLevel, gin.DefaultWriter = previousLevel, previousWriter
 	})
 	for _, enabled := range []bool{true, false} {
 		output.Reset()

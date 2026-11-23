@@ -102,7 +102,7 @@ func TestValidateOutboundResponsesStoreAfterChannelPolicy(t *testing.T) {
 	t.Run("disable_store channel makes server-side state usable again", func(t *testing.T) {
 		// The channel strips `store`, so upstream defaults it to true and can
 		// resolve previous_response_id. Rejecting this would be a regression.
-		outbound, err := relaycommon.RemoveDisabledFields(clientBody, dto.ChannelOtherSettings{DisableStore: true}, false)
+		outbound, err := relaycommon.RemoveDisabledFields(clientBody, dto.ChannelOtherSettings{DisableStore: true})
 		if err != nil {
 			t.Fatalf("RemoveDisabledFields: %v", err)
 		}
@@ -115,7 +115,7 @@ func TestValidateOutboundResponsesStoreAfterChannelPolicy(t *testing.T) {
 	})
 
 	t.Run("default channel keeps store false and is rejected", func(t *testing.T) {
-		outbound, err := relaycommon.RemoveDisabledFields(clientBody, dto.ChannelOtherSettings{}, false)
+		outbound, err := relaycommon.RemoveDisabledFields(clientBody, dto.ChannelOtherSettings{})
 		if err != nil {
 			t.Fatalf("RemoveDisabledFields: %v", err)
 		}

@@ -1162,8 +1162,8 @@ func dashboardHourPastLogRetention(start time.Time, now time.Time) bool {
 		return false
 	}
 	days := common.LogRetentionDays
-	if days < ModelRankingWindowDays {
-		days = ModelRankingWindowDays
+	if days < MinimumLogRetentionDays {
+		days = MinimumLogRetentionDays
 	}
 	return start.Before(now.AddDate(0, 0, -(days - 1)))
 }

@@ -24,8 +24,8 @@ func effectiveTelemetryLogRetentionDays(days int) int {
 	if days <= 0 || int64(days) > int64((1<<63-1)/(24*time.Hour)) {
 		return 0
 	}
-	if days < ModelRankingWindowDays {
-		return ModelRankingWindowDays
+	if days < MinimumLogRetentionDays {
+		return MinimumLogRetentionDays
 	}
 	return days
 }

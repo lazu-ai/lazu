@@ -15,7 +15,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -74,12 +73,6 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		body, _, bridgeErr := BridgeBody(c, info, adaptor)
 		if bridgeErr != nil {
 			return bridgeErr
-		}
-		requestBody = bytes.NewReader(body)
-	} else if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
-		body, err := common.GetRequestBody(c)
-		if err != nil {
-			return types.NewRequestBodyError(err)
 		}
 		requestBody = bytes.NewReader(body)
 	} else {

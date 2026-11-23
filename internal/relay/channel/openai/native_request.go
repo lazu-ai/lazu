@@ -110,7 +110,7 @@ func (a *Adaptor) ConvertNativeRequest(body []byte, info *relaycommon.RelayInfo,
 	if err != nil {
 		return nil, err
 	}
-	body, err = relaycommon.RemoveDisabledFields(body, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+	body, err = relaycommon.RemoveDisabledFields(body, info.ChannelOtherSettings)
 	if err != nil {
 		return nil, err
 	}

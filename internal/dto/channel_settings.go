@@ -7,18 +7,17 @@ import (
 )
 
 type ChannelSettings struct {
-	DecisionDialect        string `json:"decision_dialect,omitempty"`
-	CFAccountID            string `json:"cf_account_id,omitempty"`
-	DecisionTimeoutMS      int    `json:"decision_timeout_ms,omitempty"`
-	MaxRPS                 int    `json:"max_rps,omitempty"`
-	MaxInFlight            int    `json:"max_in_flight,omitempty"`
-	SharedLimitGroup       string `json:"shared_limit_group,omitempty"`
-	SharedMaxRPS           int    `json:"shared_max_rps,omitempty"`
-	SharedMaxInFlight      int    `json:"shared_max_in_flight,omitempty"`
-	ForceFormat            bool   `json:"force_format,omitempty"`
-	ThinkingToContent      bool   `json:"thinking_to_content,omitempty"`
-	Proxy                  string `json:"proxy"`
-	PassThroughBodyEnabled bool   `json:"pass_through_body_enabled,omitempty"`
+	DecisionDialect   string `json:"decision_dialect,omitempty"`
+	CFAccountID       string `json:"cf_account_id,omitempty"`
+	DecisionTimeoutMS int    `json:"decision_timeout_ms,omitempty"`
+	MaxRPS            int    `json:"max_rps,omitempty"`
+	MaxInFlight       int    `json:"max_in_flight,omitempty"`
+	SharedLimitGroup  string `json:"shared_limit_group,omitempty"`
+	SharedMaxRPS      int    `json:"shared_max_rps,omitempty"`
+	SharedMaxInFlight int    `json:"shared_max_in_flight,omitempty"`
+	ForceFormat       bool   `json:"force_format,omitempty"`
+	ThinkingToContent bool   `json:"thinking_to_content,omitempty"`
+	Proxy             string `json:"proxy"`
 }
 
 func (s ChannelSettings) ValidateDecisionSettings() error {

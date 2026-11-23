@@ -11,7 +11,6 @@ import (
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/service"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -46,35 +45,27 @@ func RerankHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 	}
 
 	var requestBody io.Reader
-	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
-		body, err := common.GetRequestBody(c)
-		if err != nil {
-			return types.NewRequestBodyError(err)
-		}
-		requestBody = bytes.NewBuffer(body)
-	} else {
-		convertedRequest, err := rerankConverter.ConvertRerankRequest(c, info.RelayMode, *request)
-		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-		jsonData, err := common.Marshal(convertedRequest)
-		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-
-		// apply param override
-		if len(info.ParamOverride) > 0 {
-			jsonData, err = relaycommon.ApplyParamOverride(jsonData, info.ParamOverride)
-			if err != nil {
-				return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
-			}
-		}
-
-		if common.DebugEnabled {
-			println(fmt.Sprintf("Rerank request body: %s", string(jsonData)))
-		}
-		requestBody = bytes.NewBuffer(jsonData)
+	convertedRequest, err := rerankConverter.ConvertRerankRequest(c, info.RelayMode, *request)
+	if err != nil {
+		return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
+	jsonData, err := common.Marshal(convertedRequest)
+	if err != nil {
+		return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+	}
+
+	// apply param override
+	if len(info.ParamOverride) > 0 {
+		jsonData, err = relaycommon.ApplyParamOverride(jsonData, info.ParamOverride)
+		if err != nil {
+			return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
+		}
+	}
+
+	if common.DebugEnabled {
+		println(fmt.Sprintf("Rerank request body: %s", string(jsonData)))
+	}
+	requestBody = bytes.NewBuffer(jsonData)
 
 	resp, err := adaptor.DoRequest(c, info, requestBody)
 	if err != nil {

@@ -42,8 +42,20 @@ func TestOfflineSchemaCommandWithoutRedis(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			core, coreURL := offlineSchemaFixture(t, coreDSN, "core")
 			telemetry, telemetryURL := offlineSchemaFixture(t, telemetryDSN, "telemetry")
+			stores := []struct {
+				db    *gorm.DB
+				scope string
+			}{{core, "primary"}, {telemetry, "log"}}
 			if withHistory {
-				if err := core.AutoMigrate(&model.User{}); err != nil {
+				for _, store := range stores {
+					if err := store.db.AutoMigrate(&model.SchemaVersion{}); err != nil {
+						t.Fatal(err)
+					}
+					if err := store.db.Create(&model.SchemaVersion{Scope: store.scope, Version: 26, AppliedAt: time.Now().UTC()}).Error; err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := core.AutoMigrate(&model.User{}, &model.Project{}, &model.ProjectMember{}); err != nil {
 					t.Fatal(err)
 				}
 				if err := core.Create(&model.User{Id: 1, Username: "offline-digest-owner", Status: common.UserStatusEnabled}).Error; err != nil {
@@ -85,10 +97,7 @@ func TestOfflineSchemaCommandWithoutRedis(t *testing.T) {
 			if since, err := strconv.ParseInt(marker.Value, 10, 64); err != nil || since <= 0 {
 				t.Fatalf("offline schema did not persist digest completion: %+v", marker)
 			}
-			for _, check := range []struct {
-				db    *gorm.DB
-				scope string
-			}{{core, "primary"}, {telemetry, "log"}} {
+			for _, check := range stores {
 				var version model.SchemaVersion
 				if err := check.db.Where("scope = ?", check.scope).First(&version).Error; err != nil {
 					t.Fatal(err)

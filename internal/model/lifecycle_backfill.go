@@ -1,174 +1,12 @@
 package model
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
-
-// Schema version 15 (2026-09-30) cleans the schema and adds the lifecycle data
-// growth metrics need:
-//
-//   - drops the routing research platform's experiment and request-feature
-//     columns, and the inherited upstream-fork columns nothing reads any more;
-//   - moves legacy OIDC identities off the users row into user_identities;
-//   - backfills users.created_at (with its evidence), first/last request and
-//     first top-up, and tokens.last_used_at, so they are correct from the first
-//     request after the upgrade rather than only for new accounts.
-//
-// Every step is idempotent: a second run finds nothing to backfill and every
-// column already gone.
-func migrateSchemaV15(db *gorm.DB) error {
-	if db == nil {
-		return nil
-	}
-	if err := moveLegacyOIDCIdentities(db); err != nil {
-		return fmt.Errorf("move legacy OIDC identities: %w", err)
-	}
-	if err := copyLegacyStripeCustomers(db); err != nil {
-		return fmt.Errorf("copy legacy Stripe customers: %w", err)
-	}
-	for table, columns := range retiredSchemaV15Columns() {
-		for _, column := range columns {
-			if err := dropLegacyColumn(db, table, column); err != nil {
-				return fmt.Errorf("drop %s.%s: %w", table, column, err)
-			}
-		}
-	}
-	// Indexes superseded by the (column, created_at) composites, and a second
-	// index on a column that already has a unique constraint.
-	logDB := TelemetryDB()
-	if logDB == nil {
-		logDB = db
-	}
-	for _, index := range []string{"idx_created_at_id", "idx_logs_user_id", "idx_logs_token_id", "idx_logs_channel_id"} {
-		if logDB.Migrator().HasIndex(&Log{}, index) {
-			if err := logDB.Migrator().DropIndex(&Log{}, index); err != nil {
-				return fmt.Errorf("drop logs index %s: %w", index, err)
-			}
-		}
-	}
-	if db.Migrator().HasIndex(&TopUp{}, "idx_top_ups_trade_no") {
-		if err := db.Migrator().DropIndex(&TopUp{}, "idx_top_ups_trade_no"); err != nil {
-			return fmt.Errorf("drop top_ups trade_no index: %w", err)
-		}
-	}
-	for _, table := range []string{"fx_rates", "log_insights"} {
-		if db.Migrator().HasTable(table) {
-			if err := db.Migrator().DropTable(table); err != nil {
-				return fmt.Errorf("drop table %s: %w", table, err)
-			}
-		}
-	}
-	return nil
-}
-
-func retiredSchemaV15Columns() map[string][]string {
-	return map[string][]string{
-		"routing_decision": retiredRoutingDecisionColumns,
-		"routing_outcome":  retiredRoutingOutcomeColumns,
-		// request_count was written on every request and read only by an
-		// unused filter; tier_last_changed_at was never read; OIDC identities
-		// live in user_identities; the Stripe customer lives on the project.
-		"users": {"request_count", "tier_last_changed_at", "oidc_issuer", "oidc_subject", "stripe_customer"},
-		// Retired in 2026-09-10 (one kind of Key); accessed_time was seeded at
-		// creation and replaced by last_used_at.
-		"tokens": {"steward_user_id", "removal_grace_until", "is_service", "accessed_time"},
-		// Written and never read.
-		"channels": {"other_info", "balance", "balance_updated_time", "used_quota"},
-		// A copy of channels.tag; abilities follow the channel's tag by id.
-		"abilities": {"tag"},
-		// money always equalled amount; the rest were written and never read.
-		"top_ups":    {"money", "presentment_amount", "bonus_credit_rate", "paid_currency"},
-		"media_jobs": {"webhook_url"},
-	}
-}
-
-// moveLegacyOIDCIdentities gives every account that still carries its OIDC
-// identity on the users row a namespaced user_identities row, so the columns
-// can be dropped without locking anyone out.
-func moveLegacyOIDCIdentities(db *gorm.DB) error {
-	if !db.Migrator().HasTable(&UserIdentity{}) ||
-		!db.Migrator().HasColumn("users", "oidc_issuer") ||
-		!db.Migrator().HasColumn("users", "oidc_subject") {
-		return nil
-	}
-	type legacyRow struct {
-		ID      int
-		Issuer  string
-		Subject string
-		Email   string
-	}
-	// Identity rows written before issuer namespacing hold the raw subject.
-	// Login no longer reads the legacy columns, so rewrite each such row now,
-	// but only when its user's columns prove the same issuer and subject.
-	var raw []struct {
-		ID      int
-		Issuer  string
-		Subject string
-	}
-	if err := db.Table("user_identities").
-		Select("user_identities.id AS id, users.oidc_issuer AS issuer, user_identities.subject AS subject").
-		Joins("JOIN users ON users.id = user_identities.user_id").
-		Where("user_identities.provider = ? AND user_identities.subject NOT LIKE ?", "oidc", "v1:%").
-		Where("TRIM(COALESCE(users.oidc_issuer, '')) <> '' AND TRIM(COALESCE(users.oidc_subject, '')) = user_identities.subject").
-		Scan(&raw).Error; err != nil {
-		return err
-	}
-	for _, row := range raw {
-		if err := db.Model(&UserIdentity{}).Where("id = ?", row.ID).
-			Update("subject", legacyOIDCSubject(row.Issuer, row.Subject)).Error; err != nil {
-			return fmt.Errorf("identity %d: %w", row.ID, err)
-		}
-	}
-
-	var rows []legacyRow
-	if err := db.Table("users").
-		Select("users.id AS id, users.oidc_issuer AS issuer, users.oidc_subject AS subject, users.email AS email").
-		Joins("LEFT JOIN user_identities ON user_identities.user_id = users.id AND user_identities.provider = ?", "oidc").
-		Where("TRIM(COALESCE(users.oidc_issuer, '')) <> '' AND TRIM(COALESCE(users.oidc_subject, '')) <> ''").
-		Where("user_identities.id IS NULL").
-		Scan(&rows).Error; err != nil {
-		return err
-	}
-	for _, row := range rows {
-		identity := UserIdentity{
-			UserID:   row.ID,
-			Provider: "oidc",
-			Subject:  legacyOIDCSubject(row.Issuer, row.Subject),
-			Email:    row.Email,
-		}
-		if err := db.Create(&identity).Error; err != nil {
-			return fmt.Errorf("user %d: %w", row.ID, err)
-		}
-	}
-	return nil
-}
-
-// legacyOIDCSubject is the namespaced subject login looks up: the issuer
-// (without a trailing slash) and raw subject, hashed together.
-func legacyOIDCSubject(issuer string, subject string) string {
-	issuer = strings.TrimRight(strings.TrimSpace(issuer), "/")
-	sum := sha256.Sum256([]byte(issuer + "\x00" + strings.TrimSpace(subject)))
-	return "v1:" + hex.EncodeToString(sum[:])
-}
-
-// copyLegacyStripeCustomers moves users.stripe_customer onto the owner's
-// project before the column is dropped, where the project has none yet.
-func copyLegacyStripeCustomers(db *gorm.DB) error {
-	if !db.Migrator().HasColumn("users", "stripe_customer") || !db.Migrator().HasTable(&Project{}) {
-		return nil
-	}
-	return db.Exec(`UPDATE projects SET stripe_customer_id = (
-		SELECT users.stripe_customer FROM users WHERE users.id = projects.owner_user_id)
-	WHERE COALESCE(stripe_customer_id, '') = '' AND EXISTS (
-		SELECT 1 FROM users WHERE users.id = projects.owner_user_id AND COALESCE(users.stripe_customer, '') <> '')`).Error
-}
 
 type userTimeRow struct {
 	UserID int   `gorm:"column:user_id"`
@@ -459,9 +297,7 @@ func backfillTokenLastUsedAt(db *gorm.DB, logDB *gorm.DB) error {
 }
 
 // backfillLifecycleFromLogs fills user and Key activity from the request
-// log. It runs from InitLogDB, after TelemetryDB() exists: migrateSchemaV15 runs
-// inside InitDB, where the log database is not open yet. Idempotent: it only
-// fills empty stamps or widens them.
+// log when the separate telemetry store is available.
 func backfillLifecycleFromLogs(db *gorm.DB, logDB *gorm.DB) error {
 	if db == nil {
 		return nil

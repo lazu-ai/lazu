@@ -242,7 +242,7 @@ func TestPricingErrors(t *testing.T) {
 	assertCatalogError(t, badID, http.StatusBadRequest, types.ErrorCodeInvalidRequest)
 }
 
-func TestModelCatalogAndCommunityErrors(t *testing.T) {
+func TestModelCatalogErrors(t *testing.T) {
 	setupModelsErrorTestDB(t)
 
 	// /v1 control-plane routes answer in the OpenAI envelope with a real status.
@@ -261,13 +261,9 @@ func TestModelCatalogAndCommunityErrors(t *testing.T) {
 		t.Fatalf("internal cause leaked: %s", body.Error.Message)
 	}
 
-	unknownCommunity := callModelsHandler(GetCommunityModelByID, handlerCall{
-		method: http.MethodGet, target: "/api/community/models/nope", params: gin.Params{{Key: "id", Value: "nope"}},
-	})
-	assertCatalogError(t, unknownCommunity, http.StatusNotFound, types.ErrorCodeModelNotFound)
 }
 
-func TestModelRankingAndMissingModelsHideDatabaseErrors(t *testing.T) {
+func TestMissingModelsHideDatabaseErrors(t *testing.T) {
 	db := setupModelsErrorTestDB(t)
 	// Missing-models reads the enabled abilities, then the models table.
 	if err := db.Create(&model.Ability{Group: model.ChannelLaneDirect, Model: "orphan-model", ChannelId: 1, Enabled: true}).Error; err != nil {
@@ -276,7 +272,7 @@ func TestModelRankingAndMissingModelsHideDatabaseErrors(t *testing.T) {
 	if err := db.Migrator().DropTable(&model.Model{}, &model.ModelMetadata{}); err != nil {
 		t.Fatal(err)
 	}
-	for name, handler := range map[string]gin.HandlerFunc{"missing": GetMissingModels, "rankings": GetModelRankings} {
+	for name, handler := range map[string]gin.HandlerFunc{"missing": GetMissingModels} {
 		recorder := callModelsHandler(handler, handlerCall{method: http.MethodGet, target: "/api/models/" + name})
 		body := assertCatalogError(t, recorder, http.StatusInternalServerError, types.ErrorCodeInternalError)
 		if strings.Contains(strings.ToLower(body.Error.Message), "no such table") {

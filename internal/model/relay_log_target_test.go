@@ -43,10 +43,10 @@ func TestRequestLogTargetIsBoundToCapturedRequest(t *testing.T) {
 
 func TestRequestLogTargetRequiresSuccessfulIndependentWrite(t *testing.T) {
 	_, db := isolatedTelemetryStores(t)
-	previousRedis, previousQueue, previousLogs := common.RedisEnabled, common.RelayEventQueueEnabled, common.LogConsumeEnabled
-	common.RedisEnabled, common.RelayEventQueueEnabled, common.LogConsumeEnabled = false, false, true
+	previousRedis, previousQueue := common.RedisEnabled, common.RelayEventQueueEnabled
+	common.RedisEnabled, common.RelayEventQueueEnabled = false, false
 	t.Cleanup(func() {
-		common.RedisEnabled, common.RelayEventQueueEnabled, common.LogConsumeEnabled = previousRedis, previousQueue, previousLogs
+		common.RedisEnabled, common.RelayEventQueueEnabled = previousRedis, previousQueue
 	})
 	for _, kind := range []string{"consume", "error"} {
 		t.Run(kind, func(t *testing.T) {
@@ -86,10 +86,10 @@ func TestRequestLogTargetRequiresSuccessfulIndependentWrite(t *testing.T) {
 
 func TestRequestLogTargetManualRoutingAndFailedPublish(t *testing.T) {
 	_, db := isolatedTelemetryStores(t)
-	previousClient, previousRedis, previousQueue, previousLogs := common.RDB, common.RedisEnabled, common.RelayEventQueueEnabled, common.LogConsumeEnabled
-	common.RDB, common.RedisEnabled, common.RelayEventQueueEnabled, common.LogConsumeEnabled = nil, false, false, true
+	previousClient, previousRedis, previousQueue := common.RDB, common.RedisEnabled, common.RelayEventQueueEnabled
+	common.RDB, common.RedisEnabled, common.RelayEventQueueEnabled = nil, false, false
 	t.Cleanup(func() {
-		common.RDB, common.RedisEnabled, common.RelayEventQueueEnabled, common.LogConsumeEnabled = previousClient, previousRedis, previousQueue, previousLogs
+		common.RDB, common.RedisEnabled, common.RelayEventQueueEnabled = previousClient, previousRedis, previousQueue
 	})
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest("POST", "/v1/videos", nil)

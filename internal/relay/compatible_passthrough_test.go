@@ -3,8 +3,6 @@ package relay
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
-	"io"
 	"net/http/httptest"
 	"testing"
 
@@ -12,23 +10,11 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/constant"
 	"github.com/lazu-ai/lazu/internal/dto"
-	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/tidwall/gjson"
 )
 
-type captureRawAdaptor struct {
-	channel.BaseAdaptor // Deliberately has no ConvertNativeRequest method.
-	body                []byte
-}
-
-func (a *captureRawAdaptor) Init(*relaycommon.RelayInfo) {}
-func (a *captureRawAdaptor) DoRequest(_ *gin.Context, _ *relaycommon.RelayInfo, body io.Reader) (interface{}, error) {
-	a.body, _ = io.ReadAll(body)
-	return nil, errors.New("stop after outbound capture")
-}
-
-func TestRawPassThroughStripsPrivateMetadataWithoutMutatingRetryBody(t *testing.T) {
+func TestChatStripsPrivateMetadataWithoutMutatingRetryBody(t *testing.T) {
 	for _, metadata := range []string{`{"lazu":{"route":"private"}}`, `{"lazu":{"route":"private"},"caller":"keep","number":9007199254740993}`} {
 		t.Run(metadata, func(t *testing.T) {
 			raw := []byte(`{"model":"test","messages":[{"role":"user","content":"hi"}],"vendor_number":9007199254740993,"metadata":` + metadata + `}`)
@@ -42,28 +28,22 @@ func TestRawPassThroughStripsPrivateMetadataWithoutMutatingRetryBody(t *testing.
 			c.Set(common.KeyRequestBody, raw)
 			common.SetContextKey(c, constant.ContextKeyChannelType, constant.ChannelTypeOpenAI)
 			common.SetContextKey(c, constant.ContextKeyOriginalModel, "test")
-			common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{PassThroughBodyEnabled: true})
-			adapter := &captureRawAdaptor{}
-			old := adaptorFactories[constant.APITypeOpenAI]
-			adaptorFactories[constant.APITypeOpenAI] = func() channel.BaseAdaptor { return adapter }
-			defer func() { adaptorFactories[constant.APITypeOpenAI] = old }()
+			adapter := useProbe(t, constant.APITypeOpenAI)
 			info := &relaycommon.RelayInfo{Request: &request, OriginModelName: "test"}
 			for attempt := 0; attempt < 2; attempt++ {
 				_ = TextHelper(c, info)
-				if len(adapter.body) == 0 {
-					t.Fatal("pass-through did not reach the adapter")
+				body := adapter.last(t)
+				if gjson.GetBytes(body, "metadata.lazu").Exists() {
+					t.Fatalf("private metadata leaked: %s", body)
 				}
-				if gjson.GetBytes(adapter.body, "metadata.lazu").Exists() {
-					t.Fatalf("private metadata leaked: %s", adapter.body)
-				}
-				if gjson.GetBytes(adapter.body, "vendor_number").Raw != "9007199254740993" {
+				if gjson.GetBytes(body, "vendor_number").Raw != "9007199254740993" {
 					t.Fatal("unknown field changed")
 				}
 				if gjson.Get(metadata, "caller").Exists() {
-					if gjson.GetBytes(adapter.body, "metadata.caller").Str != "keep" || gjson.GetBytes(adapter.body, "metadata.number").Raw != "9007199254740993" {
+					if gjson.GetBytes(body, "metadata.caller").Str != "keep" || gjson.GetBytes(body, "metadata.number").Raw != "9007199254740993" {
 						t.Fatal("caller metadata changed")
 					}
-				} else if gjson.GetBytes(adapter.body, "metadata").Exists() {
+				} else if gjson.GetBytes(body, "metadata").Exists() {
 					t.Fatal("empty metadata retained")
 				}
 				cached, _ := common.GetRequestBody(c)

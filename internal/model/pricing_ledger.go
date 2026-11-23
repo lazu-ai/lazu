@@ -23,7 +23,6 @@ import (
 )
 
 const defaultPricingSeedVersion int64 = 1
-const defaultPricingSeedSource = "default_pricing_seed"
 const openingBalanceRefType = "opening_balance"
 
 const (

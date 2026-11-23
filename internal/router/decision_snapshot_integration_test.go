@@ -70,12 +70,12 @@ func TestNativeRedisDecisionIntegrationSnapshotsOnce(t *testing.T) {
 			db := model.CoreDB()
 			oldTelemetry := model.ConfiguredTelemetryDB()
 			oldClient, oldStream := common.RDB, common.RelayEventStream
-			oldRedis, oldQueue, oldConsumer, oldLogs := common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled, common.LogConsumeEnabled
+			oldRedis, oldQueue, oldConsumer := common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled
 			oldSQLite, oldMemory, oldMetrics := common.UsingSQLite, common.MemoryCacheEnabled, metrics.Default
 			client := redis.NewClient(options)
 			stream := "lazu:test:decision-snapshot:" + common.GenerateRequestID()
 			common.RDB, common.RelayEventStream = client, stream
-			common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled, common.LogConsumeEnabled = true, true, true, true
+			common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled = true, true, true
 			common.UsingSQLite, common.MemoryCacheEnabled = true, false
 			model.SetTelemetryDB(db)
 			meter := &decisionSnapshotMetrics{Store: metrics.NewInMemoryStore()}
@@ -84,7 +84,7 @@ func TestNativeRedisDecisionIntegrationSnapshotsOnce(t *testing.T) {
 				drainRelayDiagnosticFixture(t)
 				_ = client.Del(context.Background(), stream, stream+":failures", stream+":dead", stream+":dead_count", stream+":dropped").Err()
 				common.RDB, common.RelayEventStream = oldClient, oldStream
-				common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled, common.LogConsumeEnabled = oldRedis, oldQueue, oldConsumer, oldLogs
+				common.RedisEnabled, common.RelayEventQueueEnabled, common.RelayEventConsumerEnabled = oldRedis, oldQueue, oldConsumer
 				common.UsingSQLite, common.MemoryCacheEnabled, metrics.Default = oldSQLite, oldMemory, oldMetrics
 				model.SetTelemetryDB(oldTelemetry)
 				_ = client.Close()

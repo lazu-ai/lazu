@@ -1292,37 +1292,6 @@ func UpdateUser(c *gin.Context) {
 	return
 }
 
-func SetUserHasToppedUp(c *gin.Context) {
-	id, err := resolveUserID(c.Param("id"))
-	if err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	var payload struct {
-		HasToppedUp bool `json:"has_topped_up"`
-	}
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		httperr.Invalid(c, "body")
-		return
-	}
-	before, err := model.GetUserById(id, false)
-	if err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	if err := model.SetUserHasToppedUp(id, payload.HasToppedUp); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	after := *before
-	after.HasToppedUp = payload.HasToppedUp
-	model.WriteAdminAuditLog(c, "user.has_topped_up.update", "user", before.PublicID, before.Username, before, after)
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-}
-
 func UpdateSelf(c *gin.Context) {
 	var requestData map[string]interface{}
 	err := json.NewDecoder(c.Request.Body).Decode(&requestData)

@@ -55,18 +55,10 @@ export const accessSchema = z.object({
 /* Observability: how usage is summarised and how a failing upstream is taken
  * out of rotation.
  *
- * LogConsumeEnabled stays on this surface. It was briefly removed on the
- * assumption that env/yaml could set it, but nothing loads it from either: a
- * deployment with a stored `false` would have had no way back to consumption
- * logs short of editing the database.
- *
  * DataExportDefaultTime stays: the dashboard reads it for its first bucket size.
  */
 export const observabilityDefaults = {
-  LogConsumeEnabled: true,
-  DataExportEnabled: false,
   DataExportDefaultTime: 'hour',
-  DataExportInterval: 5,
   AutomaticDisableChannelEnabled: false,
   AutomaticEnableChannelEnabled: false,
   ChannelDisableThreshold: 5,
@@ -79,10 +71,7 @@ export const observabilityDefaults = {
 };
 
 export const observabilitySchema = z.object({
-  LogConsumeEnabled: boolField,
-  DataExportEnabled: boolField,
   DataExportDefaultTime: stringField,
-  DataExportInterval: intField,
   AutomaticDisableChannelEnabled: boolField,
   AutomaticEnableChannelEnabled: boolField,
   ChannelDisableThreshold: numberField,
@@ -184,7 +173,6 @@ export const upstreamDefaults = {
   'general_setting.ping_interval_enabled': false,
   'general_setting.ping_interval_seconds': 0,
   SessionChannelAffinityEnabled: true,
-  'global.pass_through_request_enabled': false,
   ModelRequestRateLimitEnabled: false,
   ModelRequestRateLimitDurationMinutes: 0,
   ModelRequestRateLimitCount: 0,
@@ -211,7 +199,6 @@ export const upstreamSchema = z.object({
   'general_setting.ping_interval_enabled': boolField,
   'general_setting.ping_interval_seconds': intField,
   SessionChannelAffinityEnabled: boolField,
-  'global.pass_through_request_enabled': boolField,
   ModelRequestRateLimitEnabled: boolField,
   ModelRequestRateLimitDurationMinutes: intField,
   ModelRequestRateLimitCount: intField,

@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -11,8 +10,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/model"
-	"github.com/lazu-ai/lazu/internal/types"
-	"gorm.io/gorm"
 )
 
 // consoleTaskPromptMax trims a prompt shown in a table row.
@@ -69,7 +66,7 @@ func GetUserTasks(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{
-		"items":     consoleTaskViews(c.Request.Context(), rows, false, now),
+		"items":     consoleTaskViews(c.Request.Context(), rows, now),
 		"total":     total,
 		"page":      page.GetPage(),
 		"page_size": page.GetPageSize(),
@@ -103,7 +100,7 @@ func GetAllTasks(c *gin.Context) {
 		logFailure(c, err)
 		return
 	}
-	items := consoleTaskViews(c.Request.Context(), rows, false, now)
+	items := consoleTaskViews(c.Request.Context(), rows, now)
 	userIDs := make([]int, 0, len(rows))
 	for _, row := range rows {
 		userIDs = append(userIDs, row.ActorID())
@@ -122,26 +119,8 @@ func GetAllTasks(c *gin.Context) {
 	})
 }
 
-// GetUserTask is one job of the Tasks view, with its request.
-func GetUserTask(c *gin.Context) {
-	access, ok := projectLogAccess(c)
-	if !ok {
-		return
-	}
-	job, err := model.GetMediaJobForConsole(consoleTaskPrincipal(access), c.Param("id"))
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			writeControlPlaneCatalogError(c, types.ErrorCodeMediaJobNotFound, types.D{"field": "id", "job_id": c.Param("id")})
-			return
-		}
-		logFailure(c, err)
-		return
-	}
-	common.ApiSuccess(c, consoleTaskViews(c.Request.Context(), []model.MediaJob{*job}, true, time.Now())[0])
-}
-
-func consoleTaskViews(ctx context.Context, jobs []model.MediaJob, includeRequest bool, now time.Time) []dto.ConsoleTaskObject {
-	views, stored := mediaJobViews(ctx, jobs, includeRequest, now)
+func consoleTaskViews(ctx context.Context, jobs []model.MediaJob, now time.Time) []dto.ConsoleTaskObject {
+	views, stored := mediaJobViews(ctx, jobs, false, now)
 	tokenIDs := make([]int, 0, len(jobs))
 	for _, job := range jobs {
 		if job.TokenID != nil && *job.TokenID > 0 {

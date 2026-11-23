@@ -16,7 +16,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -78,12 +77,6 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 			return bridgeErr
 		}
 		requestBody = bytes.NewBuffer(body)
-	} else if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
-		body, err := common.GetRequestBody(c)
-		if err != nil {
-			return types.NewRequestBodyError(err)
-		}
-		requestBody = bytes.NewBuffer(body)
 	} else {
 		claudeConverter, converterErr := requireClaudeRequestConverter(adaptor, info)
 		if converterErr != nil {
@@ -108,7 +101,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 
 		// remove disabled fields for Claude API
 		var dropped []string
-		jsonData, dropped, err = relaycommon.RemoveDisabledFieldsReporting(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+		jsonData, dropped, err = relaycommon.RemoveDisabledFieldsReporting(jsonData, info.ChannelOtherSettings)
 		if err != nil {
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}

@@ -618,6 +618,7 @@ func buildModelCatalogItemsWithOptions(modelNames []string, options catalogBuild
 	}
 
 	metadataByModel := loadCatalogMetadataByModel(modelNames)
+	popularity := model.CatalogPopularity(time.Now())
 	owners := model.CatalogModelOwners(modelNames)
 	healthByModel := map[string]dto.ModelCatalogHealth{}
 	if options.includeHealth {
@@ -742,9 +743,13 @@ func buildModelCatalogItemsWithOptions(modelNames []string, options catalogBuild
 			}
 		}
 		if hasMetadata {
-			item.IsNew = metadata.IsNew
+			released := metadata.FirstSeenAt
+			if metadata.ReleasedAt != nil {
+				released = *metadata.ReleasedAt
+			}
+			item.IsNew = !released.IsZero() && time.Since(released) <= 30*24*time.Hour
 			item.IsFeatured = metadata.IsFeatured
-			item.Popularity = metadata.PopularityScore
+			item.Popularity = popularity[modelName]
 		}
 		if health, ok := healthByModel[modelName]; ok {
 			// Keep the optional top-level field for API compatibility, but derive

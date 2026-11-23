@@ -8,6 +8,26 @@ import (
 	common2 "github.com/lazu-ai/lazu/internal/common"
 )
 
+// UpstreamMetadata removes gateway-only metadata while preserving customer values.
+func UpstreamMetadata(raw json.RawMessage) json.RawMessage {
+	if !bytes.Contains(raw, []byte("lazu")) && !bytes.Contains(raw, []byte{'\\'}) {
+		return raw
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return raw
+	}
+	if _, ok := fields["lazu"]; !ok {
+		return raw
+	}
+	delete(fields, "lazu")
+	if len(fields) == 0 {
+		return nil
+	}
+	encoded, _ := json.Marshal(fields)
+	return encoded
+}
+
 // MergeUnknownTopLevelFields merges unknown top-level fields from originalBody into convertedBody.
 // Existing keys in convertedBody always win.
 func MergeUnknownTopLevelFields(originalBody, convertedBody []byte) ([]byte, error) {
@@ -29,6 +49,12 @@ func MergeUnknownTopLevelFields(originalBody, convertedBody []byte) ([]byte, err
 
 	for key, value := range originalMap {
 		if _, exists := convertedMap[key]; !exists {
+			if key == "metadata" {
+				value = UpstreamMetadata(value)
+				if len(value) == 0 {
+					continue
+				}
+			}
 			convertedMap[key] = value
 		}
 	}

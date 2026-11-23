@@ -33,10 +33,10 @@ func TestDistributeSuppressedDecisionsCapturesSettlementTelemetry(t *testing.T) 
 		t.Run(modelName, func(t *testing.T) {
 			cleanup := setupDistributorTestDB(t)
 			defer cleanup()
-			oldMetrics, oldConsume, oldQueue := metrics.Default, common.LogConsumeEnabled, common.RelayEventQueueEnabled
-			metrics.Default, common.LogConsumeEnabled, common.RelayEventQueueEnabled = metrics.NewInMemoryStore(), true, false
+			oldMetrics, oldQueue := metrics.Default, common.RelayEventQueueEnabled
+			metrics.Default, common.RelayEventQueueEnabled = metrics.NewInMemoryStore(), false
 			defer func() {
-				metrics.Default, common.LogConsumeEnabled, common.RelayEventQueueEnabled = oldMetrics, oldConsume, oldQueue
+				metrics.Default, common.RelayEventQueueEnabled = oldMetrics, oldQueue
 			}()
 			channel := &model.Channel{Id: 7491, Type: constant.ChannelTypeOpenAI, Key: "synthetic-upstream-key", Status: common.ChannelStatusEnabled, Name: "decision-capture", Models: modelName, Group: model.ChannelLaneDirect}
 			if err := model.CoreDB().Create(channel).Error; err != nil {

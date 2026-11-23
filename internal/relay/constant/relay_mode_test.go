@@ -8,7 +8,6 @@ func TestPath2RelayMode_TransportCriticalPaths(t *testing.T) {
 		want int
 	}{
 		{path: "/v1/chat/completions", want: RelayModeChatCompletions},
-		{path: "/pg/chat/completions", want: RelayModeChatCompletions},
 		{path: "/v1/responses", want: RelayModeResponses},
 		{path: "/v1/realtime", want: RelayModeRealtime},
 		{path: "/v1/messages", want: RelayModeUnknown},

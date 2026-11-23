@@ -84,9 +84,6 @@ func TestFlushRelayResultEventClearsFlushMarker(t *testing.T) {
 
 func TestProjectConsumeLogInheritsTrustedActorAndBillingSnapshot(t *testing.T) {
 	withRelayResultQueueTestFlags(t)
-	oldEnabled := common.LogConsumeEnabled
-	common.LogConsumeEnabled = true
-	t.Cleanup(func() { common.LogConsumeEnabled = oldEnabled })
 	for _, actor := range []int{20, 0} {
 		c := newRelayResultQueueTestContext()
 		c.Set("id", actor)
@@ -108,9 +105,6 @@ func TestProjectConsumeLogInheritsTrustedActorAndBillingSnapshot(t *testing.T) {
 
 func TestConsumeLogRecordsTheAddressTheRequestWasSentTo(t *testing.T) {
 	withRelayResultQueueTestFlags(t)
-	oldEnabled := common.LogConsumeEnabled
-	common.LogConsumeEnabled = true
-	t.Cleanup(func() { common.LogConsumeEnabled = oldEnabled })
 	c := newRelayResultQueueTestContext()
 	c.Request = httptest.NewRequest("POST", "/v1/chat/completions", nil)
 	c.Request.Host = "API.Example.com:443"

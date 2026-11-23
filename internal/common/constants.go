@@ -16,14 +16,7 @@ var SystemName = "Lazu"
 var Footer = ""
 var Logo = ""
 
-var DisplayTokenStatEnabled = true
-
-// Deprecated: delete after 2027-02-01, with DataExportInterval and the
-// usage_data table (model/option_deprecations.go; docs/DEPLOYMENT.md,
-// Deprecated settings).
-var DataExportEnabled = true
-var DataExportInterval = 5         // unit: minute
-var DataExportDefaultTime = "hour" // unit: minute
+var DataExportDefaultTime = "hour" // Initial dashboard bucket size.
 
 // Team projects are a runtime switch, not a build-time one: an admin turns
 // them on from the settings page and SyncOptions picks it up. The
@@ -83,9 +76,6 @@ var EmailLoginAuthServerList = []string{
 var DebugEnabled bool
 var MemoryCacheEnabled bool
 
-// Deprecated: delete after 2027-01-24 (consume logs always written; see
-// model/option_deprecations.go and docs/DEPLOYMENT.md, Deprecated settings).
-var LogConsumeEnabled = true
 var ModelLogEnabled = false
 var ModelLogPath = ""
 var ErrorLogPath = ""
@@ -130,10 +120,6 @@ var RelayEventConsumer = ""
 var RelayEventConsumerEnabled = true
 var RedisVerificationCodeEnabled = false
 
-// Deprecated: delete after 2027-01-24, with the outbox reconciler (failed
-// settlements are recovered by the failure reconciler; see
-// env_deprecations.go and docs/DEPLOYMENT.md, Deprecated settings).
-var SettlementOutboxEnabled = false
 var MetricsEnabled = false
 var MetricsToken = ""
 var OIDCEnabled = false

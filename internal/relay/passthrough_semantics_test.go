@@ -80,52 +80,45 @@ func assertField(t *testing.T, body []byte, path string, want bool) {
 	}
 }
 
-// With pass-through on, a same-protocol request reaches the upstream as the
-// client sent it: fields the channel would otherwise strip stay, and unknown
-// fields keep their exact bytes. With it off, the channel's field policy
-// applies and unknown fields still go through. Chat and Messages behave the
-// same way.
-func TestPassThroughDecidesFieldPolicyOnSameProtocolPaths(t *testing.T) {
+// Native Chat and Messages apply field policy while retaining unknown fields.
+func TestChannelFieldPolicyOnSameProtocolPaths(t *testing.T) {
 	chat := []byte(`{"model":"m","messages":[{"role":"user","content":"hi"}],"stream":true,` +
 		`"stream_options":{"include_usage":true,"include_obfuscation":true},` +
 		`"service_tier":"priority","safety_identifier":"user-1","store":true,"vendor_x":9007199254740993}`)
 	messages := []byte(`{"model":"m","max_tokens":16,"messages":[{"role":"user","content":"hi"}],` +
 		`"service_tier":"auto","vendor_x":9007199254740993}`)
-	for _, passThrough := range []bool{true, false} {
-		mode := map[bool]string{true: "pass-through", false: "field policy"}[passThrough]
-		t.Run("chat/"+mode, func(t *testing.T) {
-			probe := useProbe(t, constant.APITypeOpenAI)
-			var request dto.GeneralOpenAIRequest
-			if err := json.Unmarshal(chat, &request); err != nil {
-				t.Fatal(err)
-			}
-			c := probeContext("/v1/chat/completions", chat, constant.ChannelTypeOpenAI, "m", dto.ChannelSettings{PassThroughBodyEnabled: passThrough})
-			_ = TextHelper(c, &relaycommon.RelayInfo{Request: &request, OriginModelName: "m", IsStream: true})
-			body := probe.last(t)
-			for _, field := range disabledByDefault {
-				assertField(t, body, field, passThrough)
-			}
-			assertField(t, body, "store", true)
-			if got := gjson.GetBytes(body, "vendor_x").Raw; got != "9007199254740993" {
-				t.Fatalf("unknown field changed: %s", got)
-			}
-		})
-		t.Run("messages/"+mode, func(t *testing.T) {
-			withEmptyCatalog(t)
-			probe := useProbe(t, constant.APITypeAnthropic)
-			var request dto.ClaudeRequest
-			if err := json.Unmarshal(messages, &request); err != nil {
-				t.Fatal(err)
-			}
-			c := probeContext("/v1/messages", messages, constant.ChannelTypeAnthropic, "m", dto.ChannelSettings{PassThroughBodyEnabled: passThrough})
-			_ = ClaudeHelper(c, &relaycommon.RelayInfo{Request: &request, OriginModelName: "m"})
-			body := probe.last(t)
-			assertField(t, body, "service_tier", passThrough)
-			if got := gjson.GetBytes(body, "vendor_x").Raw; got != "9007199254740993" {
-				t.Fatalf("unknown field changed: %s", got)
-			}
-		})
-	}
+	t.Run("chat", func(t *testing.T) {
+		probe := useProbe(t, constant.APITypeOpenAI)
+		var request dto.GeneralOpenAIRequest
+		if err := json.Unmarshal(chat, &request); err != nil {
+			t.Fatal(err)
+		}
+		c := probeContext("/v1/chat/completions", chat, constant.ChannelTypeOpenAI, "m", dto.ChannelSettings{})
+		_ = TextHelper(c, &relaycommon.RelayInfo{Request: &request, OriginModelName: "m", IsStream: true})
+		body := probe.last(t)
+		for _, field := range disabledByDefault {
+			assertField(t, body, field, false)
+		}
+		assertField(t, body, "store", true)
+		if got := gjson.GetBytes(body, "vendor_x").Raw; got != "9007199254740993" {
+			t.Fatalf("unknown field changed: %s", got)
+		}
+	})
+	t.Run("messages", func(t *testing.T) {
+		withEmptyCatalog(t)
+		probe := useProbe(t, constant.APITypeAnthropic)
+		var request dto.ClaudeRequest
+		if err := json.Unmarshal(messages, &request); err != nil {
+			t.Fatal(err)
+		}
+		c := probeContext("/v1/messages", messages, constant.ChannelTypeAnthropic, "m", dto.ChannelSettings{})
+		_ = ClaudeHelper(c, &relaycommon.RelayInfo{Request: &request, OriginModelName: "m"})
+		body := probe.last(t)
+		assertField(t, body, "service_tier", false)
+		if got := gjson.GetBytes(body, "vendor_x").Raw; got != "9007199254740993" {
+			t.Fatalf("unknown field changed: %s", got)
+		}
+	})
 }
 
 // A failed attempt must not leave its rewrites on the request a retry starts
@@ -165,37 +158,30 @@ func TestClaudeRetryStartsFromTheClientsRequest(t *testing.T) {
 	}
 }
 
-// The hub path builds its body from the IR, so it has no raw body to pass
-// through; it honours the same switch by not stripping the channel's
-// disabled fields when pass-through is on, and stripping them when it is off,
-// as the same-protocol paths do.
-func TestPassThroughDecidesFieldPolicyOnTheHubPath(t *testing.T) {
+func TestChannelFieldPolicyOnTheHubPath(t *testing.T) {
 	raw := []byte(`{"model":"claude-x","max_tokens":16,"service_tier":"auto","messages":[{"role":"user","content":"hi"}]}`)
-	for _, passThrough := range []bool{true, false} {
-		mode := map[bool]string{true: "pass-through", false: "field policy"}[passThrough]
-		t.Run(mode, func(t *testing.T) {
-			withEmptyCatalog(t)
-			parsed, err := textgenruntime.Parse(textgen.ProtocolAnthropic, raw)
-			if err != nil {
-				t.Fatal(err)
-			}
-			probe := useProbe(t, constant.APITypeOpenAI)
-			c := probeContext("/v1/messages", raw, constant.ChannelTypeOpenAI, "chat-model", dto.ChannelSettings{PassThroughBodyEnabled: passThrough})
-			info := &relaycommon.RelayInfo{
-				Request:         parsed.Wire,
-				OriginModelName: "chat-model",
-				ProtocolRequest: parsed.Semantic,
-				ProtocolPlan: &textgen.RelayPlan{
-					ClientProtocol:   parsed.Client,
-					UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIChat},
-				},
-			}
-			_ = ClaudeHelper(c, info)
-			body := probe.last(t)
-			if !gjson.GetBytes(body, "messages").IsArray() {
-				t.Fatalf("not a Chat body: %s", body)
-			}
-			assertField(t, body, "service_tier", passThrough)
-		})
-	}
+	t.Run("bridge", func(t *testing.T) {
+		withEmptyCatalog(t)
+		parsed, err := textgenruntime.Parse(textgen.ProtocolAnthropic, raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		probe := useProbe(t, constant.APITypeOpenAI)
+		c := probeContext("/v1/messages", raw, constant.ChannelTypeOpenAI, "chat-model", dto.ChannelSettings{})
+		info := &relaycommon.RelayInfo{
+			Request:         parsed.Wire,
+			OriginModelName: "chat-model",
+			ProtocolRequest: parsed.Semantic,
+			ProtocolPlan: &textgen.RelayPlan{
+				ClientProtocol:   parsed.Client,
+				UpstreamProtocol: textgen.Protocol{Family: textgen.ProtocolOpenAIChat},
+			},
+		}
+		_ = ClaudeHelper(c, info)
+		body := probe.last(t)
+		if !gjson.GetBytes(body, "messages").IsArray() {
+			t.Fatalf("not a Chat body: %s", body)
+		}
+		assertField(t, body, "service_tier", false)
+	})
 }

@@ -105,17 +105,6 @@ func ListMediaJobsForConsole(principal ProjectPrincipal, filter MediaJobConsoleF
 	return rows, total, err
 }
 
-// GetMediaJobForConsole finds one job a console principal may see.
-func GetMediaJobForConsole(principal ProjectPrincipal, publicID string) (*MediaJob, error) {
-	var row MediaJob
-	err := requestResourceScope(CoreDB(), principal.ActorUserID, []ProjectPrincipal{principal}).
-		Where("public_id = ?", strings.TrimSpace(publicID)).First(&row).Error
-	if err != nil {
-		return nil, err
-	}
-	return &row, nil
-}
-
 // SummarizeMediaJobsForConsole adds up the jobs that match filter, ignoring
 // its status so the strip reads the same whichever status tab is open.
 func SummarizeMediaJobsForConsole(principal ProjectPrincipal, filter MediaJobConsoleFilter, now time.Time) (MediaJobConsoleSummary, error) {

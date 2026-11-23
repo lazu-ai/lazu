@@ -35,8 +35,8 @@ func setupAnnouncementTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestDocsChangelogAudiencePaginationAndBackfill(t *testing.T) {
-	db := setupAnnouncementTestDB(t)
+func TestDocsChangelogAudiencePagination(t *testing.T) {
+	setupAnnouncementTestDB(t)
 	base := time.Date(2026, 9, 25, 0, 0, 0, 0, time.UTC)
 	makeRow := func(title string, audience []string, published *time.Time) *Announcement {
 		t.Helper()
@@ -68,29 +68,10 @@ func TestDocsChangelogAudiencePaginationAndBackfill(t *testing.T) {
 	if err != nil || len(page) != 1 || page[0].ID != second.ID || page[0].Title != "second" || cursor != 0 {
 		t.Fatalf("second page: %#v %d %v", page, cursor, err)
 	}
-	if err := db.Model(second).Updates(map[string]any{"audiences": nil, "version": ""}).Error; err != nil {
-		t.Fatal(err)
-	}
-	deployment := ReleaseDeployment{Version: "v0.0.1", CommitSHA: "abc1234", ReleaseNoteStatus: ReleaseNoteStatusGenerated}
-	if err := db.Create(&deployment).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Model(second).Updates(map[string]any{"source": AnnouncementSourceDeploy, "source_deployment_id": deployment.ID}).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := BackfillAnnouncementPublicationFields(db); err != nil {
-		t.Fatal(err)
-	}
-	var backfilled Announcement
-	if err := db.First(&backfilled, second.ID).Error; err != nil {
-		t.Fatal(err)
-	}
-	if backfilled.Version != "v0.0.1" || string(backfilled.Audiences) != `["console"]` {
-		t.Fatalf("backfill: %#v", backfilled)
-	}
+
 }
 
-func TestAnnouncementLocaleDismissAndLegacyMigration(t *testing.T) {
+func TestAnnouncementLocaleAndDismiss(t *testing.T) {
 	db := setupAnnouncementTestDB(t)
 
 	row, err := UpsertAnnouncement(AnnouncementUpsert{
@@ -139,24 +120,6 @@ func TestAnnouncementLocaleDismissAndLegacyMigration(t *testing.T) {
 		t.Fatalf("dismissed announcement should not be unseen: %#v", unseen)
 	}
 
-	publishDate := time.Now().UTC().AddDate(0, 0, -1).Format(time.RFC3339)
-	legacy := fmt.Sprintf(
-		`[{"title":"旧公告","content":"迁移到新公告表","type":"maintenance","publishDate":%q}]`,
-		publishDate,
-	)
-	if err := db.Create(&Option{Key: "console_setting.announcements", Value: legacy}).Error; err != nil {
-		t.Fatalf("create legacy option: %v", err)
-	}
-	if err := MigrateLegacyAnnouncements(db); err != nil {
-		t.Fatalf("migrate legacy announcements: %v", err)
-	}
-	items, err := ListPublishedAnnouncements(20, "en-US", 0)
-	if err != nil {
-		t.Fatalf("list migrated announcements: %v", err)
-	}
-	if len(items) != 2 {
-		t.Fatalf("expected original plus migrated announcements, got %d", len(items))
-	}
 }
 
 func TestUpsertAnnouncementRespectsUnpublishedCreate(t *testing.T) {

@@ -209,13 +209,11 @@ deployment status as a band under its header and a floating unsaved-changes
 pill. Retired from the surface: `Notice` (nothing requested `/api/notice`;
 announcements own that job). `DataExportDefaultTime` stays — the dashboard reads
 it for its first bucket size, offered as hour, day or week only.
-`LogConsumeEnabled` stays: nothing loads it from env or
-yaml, so the console switch is the only way back on. Merged:
+Consumption logging is always on. The retired hourly usage export has no
+switch. The dashboard reads its own rollups.
 `QuotaRemindThreshold` folds into `email_setting.low_balance_threshold_usd`,
-which the gateway already read whenever low-balance mail was enabled — a
-startup migration carries the old value over. Renamed: `DataExportEnabled` is
-"定时汇总", because it drives the usage rollup the dashboard reads and exports
-nothing. `PasswordLoginEnabled` stays off the surface: its option row is
+which the gateway reads for low-balance mail. A startup migration carries the
+old value over. `PasswordLoginEnabled` stays off the surface: its option row is
 deleted at startup with the retired GitHub OAuth keys, so a switch would
 silently revert.
 2. Explanations use the muted text token on a solid surface. Inline changes

@@ -137,10 +137,9 @@ func buildWorkerTasks(resources *workerResources, oneShot bool) []worker.Task {
 		}
 		configuredTasks = append(configuredTasks,
 			worker.NewControlPlaneSnapshotTask(),
-			worker.NewModelRankingRefreshTask(),
 			zeroTokenMonitor,
 			worker.NewSettlementFailureReconcilerTask(),
-			worker.NewSettlementOutboxReconcilerTask(),
+			worker.NewDecisionRefundTask(),
 			worker.NewProjectNotificationTask(),
 			worker.NewGatewayPerformanceTask(),
 			worker.NewUsageDigestTask(),
@@ -436,7 +435,6 @@ func main() {
 	defer stop()
 	if !oneShot && resources.databaseReady {
 		model.StartRelayEventConsumer(ctx)
-		go model.UpdateUsageData()
 		if engine := model.GatewayLedger(); engine != nil {
 			go engine.Run(ctx, fmt.Sprintf("ledger-jobs-%d", os.Getpid()), func(err error) { common.SysError("ledger writer: " + err.Error()) })
 		}

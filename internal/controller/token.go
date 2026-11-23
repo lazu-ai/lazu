@@ -388,59 +388,6 @@ func RevealTokenKey(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{"key": key, "notification_status": notification})
 }
 
-func GetTokenUsage(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-	parts := strings.Split(authHeader, " ")
-	if authHeader == "" || len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		httperr.Code(c, types.ErrorCodeInvalidAPIKey)
-		return
-	}
-	tokenKey := parts[1]
-
-	token, err := model.GetTokenByKey(common.NormalizeAPIKey(tokenKey), false)
-	if err != nil {
-		credentialFailure(c, err)
-		return
-	}
-
-	token, err = model.ResolveTokenCredential(token.Id, tokenKey, time.Now().UTC())
-	if err != nil {
-		credentialFailure(c, err)
-		return
-	}
-	if _, err := model.ResolveProjectPrincipal(model.CoreDB(), token.Id, time.Now().UTC()); err != nil {
-		credentialFailure(c, err)
-		return
-	}
-
-	expiredAt := token.ExpiredTime
-	if expiredAt == -1 {
-		expiredAt = 0
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    true,
-		"message": "ok",
-		"data": gin.H{
-			"object":                "token_usage",
-			"name":                  token.Name,
-			"total_granted":         token.RemainQuota + token.UsedQuota,
-			"total_used":            token.UsedQuota,
-			"total_available":       tokenDisplayRemaining(c, []*model.Token{token})[token.Id],
-			"unlimited_quota":       token.UnlimitedQuota,
-			"product":               token.Product,
-			"metadata":              token.Metadata,
-			"rate_limits_enabled":   token.RateLimitsEnabled,
-			"rpm_limit":             token.RPMLimit,
-			"tpm_limit":             token.TPMLimit,
-			"effective_rate_limits": publicTokenRateLimitPayload(c, token),
-			"model_limits":          token.GetModelLimitsMap(),
-			"model_limits_enabled":  token.ModelLimitsEnabled,
-			"expires_at":            expiredAt,
-		},
-	})
-}
-
 func normalizeTokenInputKey(raw string) string {
 	return common.NormalizeAPIKey(raw)
 }

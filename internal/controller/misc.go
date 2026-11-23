@@ -56,9 +56,7 @@ func GetStatus(c *gin.Context) {
 		"source_url":               common.SiteSourceURL(),
 		"source_star":              sourceStarEnabled(),
 		"micro_usd_per_usd":        billing.MicroUSDPerUSD,
-		"quota_display_type":       operation_setting.GetQuotaDisplayType(),
 		"enable_batch_update":      false,
-		"enable_data_export":       common.DataExportEnabled,
 		"data_export_default_time": common.DataExportDefaultTime,
 
 		// 面板启用开关

@@ -138,49 +138,6 @@ func TestConsoleTasksReadLikeTheUsageLog(t *testing.T) {
 	}
 }
 
-func TestConsoleTaskDetailIncludesTheRequest(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	db := setupMediaJobControllerTestDB(t)
-	user := model.User{Id: 604, Username: "task-detail-owner"}
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatal(err)
-	}
-	job := seedConsoleTask(t, db, user.Id, nil, "req-task-detail", model.MediaJobStatusRunning,
-		`{"prompt":"a red fox in snow","seconds":4}`, `{}`, "", time.Now().UTC())
-
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/log/self/tasks/"+job.PublicID, nil)
-	c.Params = gin.Params{{Key: "id", Value: job.PublicID}}
-	c.Set("id", user.Id)
-	GetUserTask(c)
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status %d body=%s", recorder.Code, recorder.Body.String())
-	}
-	var body struct {
-		Data struct {
-			ID      string          `json:"id"`
-			Request json.RawMessage `json:"request"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
-	}
-	if body.Data.ID != job.PublicID || len(body.Data.Request) == 0 {
-		t.Fatalf("detail = %s", recorder.Body.String())
-	}
-
-	other := httptest.NewRecorder()
-	c2, _ := gin.CreateTestContext(other)
-	c2.Request = httptest.NewRequest(http.MethodGet, "/api/log/self/tasks/mjob_missing", nil)
-	c2.Params = gin.Params{{Key: "id", Value: "mjob_missing"}}
-	c2.Set("id", user.Id)
-	GetUserTask(c2)
-	if other.Code != http.StatusNotFound {
-		t.Fatalf("missing job: status %d", other.Code)
-	}
-}
-
 func TestConsoleTaskSpecReadsTheProviderShape(t *testing.T) {
 	// A tasks-preset provider body as stored on the job.
 	tasks := consoleTaskSpec(map[string]any{

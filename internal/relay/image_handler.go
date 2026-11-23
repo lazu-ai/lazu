@@ -13,7 +13,6 @@ import (
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/service"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
@@ -52,40 +51,32 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.La
 	if dto.IsSeedream(request.Model) && len(info.ParamOverride) > 0 {
 		return types.NewError(fmt.Errorf("Seedream request overrides are unsupported because they alter reserved image usage"), types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
 	}
-	if !dto.IsSeedream(request.Model) && (model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled) {
-		body, err := common.GetRequestBody(c)
+	convertedRequest, err := imageConverter.ConvertImageRequest(c, info, *request)
+	if err != nil {
+		return types.NewError(err, types.ErrorCodeConvertRequestFailed)
+	}
+
+	switch convertedRequest.(type) {
+	case *bytes.Buffer:
+		requestBody = convertedRequest.(io.Reader)
+	default:
+		jsonData, err := common.Marshal(convertedRequest)
 		if err != nil {
-			return types.NewRequestBodyError(err)
-		}
-		requestBody = bytes.NewBuffer(body)
-	} else {
-		convertedRequest, err := imageConverter.ConvertImageRequest(c, info, *request)
-		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed)
+			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 
-		switch convertedRequest.(type) {
-		case *bytes.Buffer:
-			requestBody = convertedRequest.(io.Reader)
-		default:
-			jsonData, err := common.Marshal(convertedRequest)
+		// apply param override
+		if len(info.ParamOverride) > 0 {
+			jsonData, err = relaycommon.ApplyParamOverride(jsonData, info.ParamOverride)
 			if err != nil {
-				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+				return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
 			}
-
-			// apply param override
-			if len(info.ParamOverride) > 0 {
-				jsonData, err = relaycommon.ApplyParamOverride(jsonData, info.ParamOverride)
-				if err != nil {
-					return types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid, types.ErrOptionWithSkipRetry())
-				}
-			}
-
-			if common.DebugEnabled {
-				logger.LogDebug(c, fmt.Sprintf("image request body: %s", string(jsonData)))
-			}
-			requestBody = bytes.NewBuffer(jsonData)
 		}
+
+		if common.DebugEnabled {
+			logger.LogDebug(c, fmt.Sprintf("image request body: %s", string(jsonData)))
+		}
+		requestBody = bytes.NewBuffer(jsonData)
 	}
 
 	statusCodeMappingStr := c.GetString("status_code_mapping")

@@ -97,30 +97,6 @@ func (channel *Channel) GetSourceType() string {
 	return NormalizeChannelSourceType(channel.SourceType)
 }
 
-// BackfillChannelSourceTypes gives every pre-existing channel the explicit
-// 未分类 value.
-//
-// It deliberately does NOT guess. The only signals a channel row carries are
-// its protocol adapter id and its base URL, and neither distinguishes a
-// first-party account from a cloud resale or a reverse gateway — an Anthropic
-// key and a Bedrock deployment can both sit on the default endpoint. Writing
-// "官方" for those rows would record a guess as a fact and leave an operator no
-// way to tell which rows were guessed, so they are marked undecided and the
-// 来源 tab surfaces them for review.
-//
-// Idempotent: it only touches rows that have never been classified.
-func BackfillChannelSourceTypes(db *gorm.DB) error {
-	if db == nil || !db.Migrator().HasTable(&Channel{}) {
-		return nil
-	}
-	if !db.Migrator().HasColumn(&Channel{}, "source_type") {
-		return nil
-	}
-	return db.Model(&Channel{}).
-		Where("source_type IS NULL OR source_type = ?", "").
-		Update("source_type", ChannelSourceUnclassified).Error
-}
-
 type Channel struct {
 	Id                 int     `json:"-"`
 	PublicID           string  `json:"id" gorm:"type:varchar(64);uniqueIndex"`

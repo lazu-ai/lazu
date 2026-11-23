@@ -2,9 +2,10 @@ package relay
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lazu-ai/lazu/internal/common"
@@ -107,7 +108,7 @@ func BridgeBody(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Bas
 	if err != nil {
 		return nil, true, types.NewError(err, types.ErrorCodeJsonMarshalFailed, types.ErrOptionWithSkipRetry())
 	}
-	jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+	jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings)
 	if err != nil {
 		return nil, true, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}

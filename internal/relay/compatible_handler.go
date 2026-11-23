@@ -20,15 +20,12 @@ import (
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
 	"github.com/lazu-ai/lazu/internal/service"
-	"github.com/lazu-ai/lazu/internal/setting/model_setting"
 	"github.com/lazu-ai/lazu/internal/types"
 	usagepkg "github.com/lazu-ai/lazu/internal/usage"
 	"github.com/lazu-ai/lazu/packages/domain/providercap"
 	"github.com/lazu-ai/lazu/pkg/billing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
 func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.LazuError) {
@@ -48,7 +45,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 	request := &requestCopy
 	var err error
 
-	stripLazuFromRequest(request)
+	request.Metadata = relaycommon.UpstreamMetadata(request.Metadata)
 	stripProviderSpecificToolCallMetadata(request, info)
 
 	if request.WebSearchOptions != nil {
@@ -87,7 +84,6 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 	adaptor.Init(info)
 	var requestBody io.Reader
 
-	passThroughBodyEnabled := model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled
 	bridged := planBridges(info)
 	// A degraded native plan is sent encoded from the IR: the client's wire
 	// still carries the feature the degradation stood in for.
@@ -124,20 +120,6 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 		requestBody = bytes.NewReader(body)
-	} else if passThroughBodyEnabled && !bridged && !degradedNative {
-		body, err := common.GetRequestBody(c)
-		if err != nil {
-			return types.NewRequestBodyError(err)
-		}
-		// Sanitize the outbound copy only; retries retain the immutable client body.
-		body, err = stripLazuFromRawBody(body)
-		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-		if common.DebugEnabled {
-			println("requestBody: ", string(body))
-		}
-		requestBody = bytes.NewBuffer(body)
 	} else {
 		if bridged {
 			body, _, encodeErr := BridgeBody(c, info, adaptor)
@@ -168,7 +150,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.Laz
 			}
 
 			// remove disabled fields for OpenAI API
-			jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+			jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings)
 			if err != nil {
 				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 			}
@@ -282,22 +264,9 @@ func settleTerminalProtocolStream(c *gin.Context, info *relaycommon.RelayInfo, r
 }
 
 func stripLazuMetadataFromSemantic(request *textgen.Request) {
-	if request == nil || len(request.Metadata.Metadata) == 0 {
-		return
+	if request != nil {
+		request.Metadata.Metadata = relaycommon.UpstreamMetadata(request.Metadata.Metadata)
 	}
-	var metadata map[string]interface{}
-	if err := common.Unmarshal(request.Metadata.Metadata, &metadata); err != nil {
-		return
-	}
-	if _, ok := metadata["lazu"]; !ok {
-		return
-	}
-	delete(metadata, "lazu")
-	if len(metadata) == 0 {
-		request.Metadata.Metadata = nil
-		return
-	}
-	request.Metadata.Metadata, _ = common.Marshal(metadata)
 }
 
 func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent string) {
@@ -516,42 +485,6 @@ func stripProviderSpecificToolCallMetadata(req *dto.GeneralOpenAIRequest, info *
 		if changed {
 			req.Messages[messageIndex].SetToolCalls(toolCalls)
 		}
-	}
-}
-
-func stripLazuFromRawBody(body []byte) ([]byte, error) {
-	var err error
-	// Remove duplicate private keys too, without re-encoding caller numbers.
-	for gjson.GetBytes(body, "metadata.lazu").Exists() {
-		body, err = sjson.DeleteBytes(body, "metadata.lazu")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if metadata := gjson.GetBytes(body, "metadata"); metadata.IsObject() && len(metadata.Map()) == 0 {
-		return sjson.DeleteBytes(body, "metadata")
-	}
-	return body, nil
-}
-
-func stripLazuFromRequest(req *dto.GeneralOpenAIRequest) {
-	if req == nil || len(req.Metadata) == 0 {
-		return
-	}
-	var m map[string]any
-	if err := json.Unmarshal(req.Metadata, &m); err != nil {
-		return
-	}
-	if _, ok := m["lazu"]; !ok {
-		return
-	}
-	delete(m, "lazu")
-	if len(m) == 0 {
-		req.Metadata = nil
-		return
-	}
-	if b, err := json.Marshal(m); err == nil {
-		req.Metadata = b
 	}
 }
 

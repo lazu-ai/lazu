@@ -5,6 +5,12 @@ description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序�
 
 # 更新日誌
 
+## 尚未發布 — 舊介面與設定清理
+
+- 本版提前執行先前公告的退役計畫。移除社群模型、排行、Playground、舊餘額查詢、重複的使用者介面與管理員儲值標記。餘額請見錢包，用量、任務及儀表板分別使用 `/api/usage/summary`、`/api/log/self/tasks` 與 `/api/data/dashboard/self`。
+- 一律記錄消費日誌，金額以美元顯示。媒體直接連線，渠道欄位過濾一律生效。停止舊結算 outbox 與每小時用量寫入。升級前請備份現有 `usage_data`，並在 v0.7.297 處理完未結 outbox。
+- 資料庫版本 15 及以前請先升至 v0.7.297。新安裝與版本 16 起可直接使用本版。
+
 ## 尚未發布 — 帳戶安全清理
 
 - 新帳戶使用信箱驗證碼或已啟用的第三方登入。使用者名稱／密碼註冊和 `/register` 已移除；既有使用者仍可用密碼登入。
@@ -12,7 +18,7 @@ description: "Lazu API、模型目錄和文件的更新記錄，依時間倒序�
 - 移除沒有實際功能的 `POST /api/user/reset`；密碼重設繼續使用 `/api/user/reset/v2`。
 - 移除 `/api/log/token`、`/api/user/used-models`、`/api/user/models/classified`、`/api/user/self/stripe/pay` 和 `/api/user/stripe/amount`。請使用 `/api/log/self`、模型目錄和 `/api/user/stripe/pay`。
 - 移除未實作的 `/v1/fine-tunes*`、`/v1/images/variations` 和 `DELETE /v1/models/:model`。以上移除取代先前公告的退役日期，不保留相容重新導向。
-- 提前移除管理介面 `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*` 和 `/api/workers/*`（原定 2026-12-01 之後刪除）。請改用逐一渠道操作和公告（發布公告時可同時寄信）。`config.yaml` 裡的排程上傳和資料庫備份照常執行。`GET /api/data/` 和它讀取的 `usage_data` 表保留到 2027-02-01。
+- 提前移除管理介面 `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*` 和 `/api/workers/*`（原定 2026-12-01 之後刪除）。請改用逐一渠道操作和公告（發布公告時可同時寄信）。`config.yaml` 裡的排程上傳和資料庫備份照常執行。
 
 ## 2026-10-29 — 移除搜尋介面
 
