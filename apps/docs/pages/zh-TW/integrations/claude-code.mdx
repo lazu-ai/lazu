@@ -1,0 +1,16 @@
+---
+title: "在 Claude Code 中使用 Lazu"
+description: "將 Claude Code 接入 Lazu 原生 Anthropic Messages 介面，支援 Prompt Cache 與金鑰預算上限。"
+---
+
+# Claude Code
+
+注意：`ANTHROPIC_BASE_URL` **不要**加 `/v1`，Claude Code 會自動拼接 `/v1/messages`：
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.lazu.ai"
+export ANTHROPIC_AUTH_TOKEN="YOUR_LAZU_API_KEY"
+export ANTHROPIC_MODEL="claude-sonnet-5-5"
+```
+
+可於[控制台](https://lazu.ai/console/token)建立金鑰並設定預算上限，啟動 `claude` 後用 `/status` 確認連線。

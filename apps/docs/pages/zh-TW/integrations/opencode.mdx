@@ -1,0 +1,29 @@
+---
+title: "在 OpenCode 中使用 Lazu"
+description: "在 OpenCode 設定 Lazu 作為 OpenAI 相容供應商。"
+---
+
+# OpenCode
+
+在 `opencode.json` 加入以下設定並匯出 `LAZU_API_KEY`：
+
+```json
+{
+  "provider": {
+    "lazu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Lazu",
+      "options": {
+        "baseURL": "https://api.lazu.ai/v1",
+        "apiKey": "{env:LAZU_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-5-5": { "name": "Claude Sonnet 5.5" },
+        "gpt-6.2-astra": { "name": "GPT-6.2 Astra" },
+        "gemini-4-hydrogen": { "name": "Gemini 4 Hydrogen" },
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  }
+}
+```

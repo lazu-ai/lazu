@@ -96,6 +96,23 @@
  * =================================================================== */
 html,
 body {
+  background: var(--lazu-page);
+  color: var(--d-ink);
+  font-family: var(--lazu-font-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Paint the ambient paper wash on a compositor-promoted fixed layer instead of
+ * `background-attachment: fixed` on html/body, which forces main-thread
+ * full-viewport repaints on every scroll frame. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  transform: translateZ(0);
   background:
     radial-gradient(
       1100px 560px at 6% -180px,
@@ -113,12 +130,6 @@ body {
       var(--lazu-page) 52%,
       var(--lazu-page-bottom) 100%
     );
-  /* Keep the ambient lights in the same place on short and long pages. */
-  background-attachment: fixed;
-  color: var(--d-ink);
-  font-family: var(--lazu-font-sans);
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
 }
 
 /* Vocs sets running text at 300; Brand body copy is Geist 400. */
@@ -139,6 +150,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  transform: translateZ(0);
   opacity: var(--lazu-grid-opacity);
   background-image:
     linear-gradient(var(--lazu-grid-line) 1px, transparent 1px),
@@ -181,10 +193,9 @@ a:hover {
   padding: 0 !important;
   background: color-mix(
     in srgb,
-    var(--lazu-page-top) 72%,
+    var(--lazu-page-top) 94%,
     transparent
   ) !important;
-  backdrop-filter: blur(14px) saturate(1.1);
   border-bottom: 1px solid var(--d-line);
   z-index: 30 !important;
 }

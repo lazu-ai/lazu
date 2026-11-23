@@ -1,0 +1,33 @@
+---
+title: "在 Codex CLI 中使用 Lazu"
+description: "将 OpenAI Codex CLI 接入 Lazu 原生 Responses API（wire_api = responses），支持 GPT-6.2 系列模型。"
+---
+
+# Codex CLI
+
+Lazu 原生支持 OpenAI `/v1/responses` 接口（`wire_api = "responses"`），可完整保留 Codex CLI 的工具调用、推理强度控制与缓存能力。
+
+## 1. 设置环境变量
+
+```bash
+export LAZU_API_KEY="YOUR_LAZU_API_KEY"
+```
+
+## 2. 编辑 `~/.codex/config.toml`
+
+```toml
+model_provider = "lazu"
+model = "gpt-6.2-astra"
+
+[model_providers.lazu]
+name = "Lazu"
+base_url = "https://api.lazu.ai/v1"
+env_key = "LAZU_API_KEY"
+wire_api = "responses"
+```
+
+## 推荐模型与注意事项
+
+- 推荐模型：`gpt-6.2-astra`（旗舰）、`gpt-6.2-sol`（高速）、`gpt-6.1-terra`
+- 务必保留 `wire_api = "responses"`，不要降级为 `chat_completions`。
+- 也可以在[控制台](https://lazu.ai/console/token)直接点击 Key 旁的接入入口一键生成配置脚本。

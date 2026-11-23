@@ -6,8 +6,9 @@
 export type DocsLocale = "en" | "zh" | "zh-TW" | "ja";
 
 type SidebarCopy = {
-  groups: [string, string, string, string, string, string, string];
+  groups: [string, string, string, string, string, string, string, string];
   pages: [
+    string,
     string,
     string,
     string,
@@ -50,6 +51,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Billing",
       "Reference",
       "Compare",
+      "Integrations",
     ],
     pages: [
       "Introduction",
@@ -81,10 +83,20 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu vs Helicone",
       "Lazu vs Kong AI Gateway",
       "Lazu vs OpenRouter",
+      "Overview",
     ],
   },
   zh: {
-    groups: ["开始", "模型", "接口", "限额", "计费", "参考", "对比"],
+    groups: [
+      "开始",
+      "模型",
+      "接口",
+      "限额",
+      "计费",
+      "参考",
+      "对比",
+      "接入指南",
+    ],
     pages: [
       "介绍",
       "快速开始",
@@ -115,10 +127,20 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu 与 Helicone",
       "Lazu 与 Kong AI Gateway",
       "Lazu 与 OpenRouter",
+      "总览",
     ],
   },
   "zh-TW": {
-    groups: ["開始", "模型", "端點", "限額", "計費", "參考", "比較"],
+    groups: [
+      "開始",
+      "模型",
+      "端點",
+      "限額",
+      "計費",
+      "參考",
+      "比較",
+      "接入指南",
+    ],
     pages: [
       "介紹",
       "快速開始",
@@ -149,6 +171,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu 與 Helicone",
       "Lazu 與 Kong AI Gateway",
       "Lazu 與 OpenRouter",
+      "總覽",
     ],
   },
   ja: {
@@ -160,6 +183,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "請求",
       "リファレンス",
       "比較",
+      "連携ガイド",
     ],
     pages: [
       "概要",
@@ -191,13 +215,14 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu と Helicone",
       "Lazu と Kong AI Gateway",
       "Lazu と OpenRouter",
+      "概要",
     ],
   },
 };
 
 function createSidebar(prefix: string, copy: SidebarCopy) {
   const link = (route: string) => `${prefix}${route}` || "/";
-  const [start, models, endpoints, , billing, reference, compare] =
+  const [start, models, endpoints, , billing, reference, compare, integrations] =
     copy.groups;
   const p = copy.pages;
   return [
@@ -208,6 +233,18 @@ function createSidebar(prefix: string, copy: SidebarCopy) {
         { link: link("/"), text: p[0] },
         { link: link("/quickstart"), text: p[1] },
         { link: link("/authentication"), text: p[2] },
+      ],
+    },
+    {
+      text: integrations,
+      collapsed: false,
+      items: [
+        { link: link("/integrations/overview"), text: p[29] },
+        { link: link("/integrations/cc-connect"), text: "cc-connect" },
+        { link: link("/integrations/claude-code"), text: "Claude Code" },
+        { link: link("/integrations/codex"), text: "Codex CLI" },
+        { link: link("/integrations/opencode"), text: "OpenCode" },
+        { link: link("/integrations/goose"), text: "Goose" },
       ],
     },
     {

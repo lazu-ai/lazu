@@ -1,0 +1,40 @@
+---
+title: "在 Goose 中使用 Lazu（自定义 Provider JSON）"
+description: "通过自定义 Provider JSON 将 Lazu 接入 Goose，支持自动通过 /v1/models 发现模型。"
+---
+
+# Goose
+
+[Goose](https://block.github.io/goose/docs/getting-started/providers#custom-providers) 推荐通过自定义 provider JSON 接入第三方网关。
+
+## 1. 保存配置文件
+
+将以下内容保存为 `~/.config/goose/custom_providers/lazu.json`：
+
+```json
+{
+  "name": "lazu",
+  "engine": "openai",
+  "display_name": "Lazu",
+  "description": "AI gateway for Claude, GPT, Gemini, and DeepSeek models",
+  "api_key_env": "LAZU_API_KEY",
+  "base_url": "https://api.lazu.ai/v1/chat/completions",
+  "models_path": "/v1/models",
+  "models": [
+    { "name": "claude-sonnet-5-5", "context_limit": 1000000 },
+    { "name": "claude-opus-5-5", "context_limit": 1000000 },
+    { "name": "gpt-6.2-astra", "context_limit": 1050000 },
+    { "name": "gemini-4-hydrogen", "context_limit": 1048576 },
+    { "name": "deepseek-v4-pro", "context_limit": 1000000 }
+  ]
+}
+```
+
+## 2. 设置 Key 并运行配置
+
+```bash
+export LAZU_API_KEY="YOUR_LAZU_API_KEY"
+goose configure
+```
+
+在交互向导里选择 **Lazu** 即可。

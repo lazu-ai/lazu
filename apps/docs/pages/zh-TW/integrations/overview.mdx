@@ -1,0 +1,26 @@
+---
+title: "用戶端與工具接入總覽"
+description: "將 Claude Code、Codex CLI、OpenCode、cc-connect、Goose 與任意 OpenAI 相容用戶端接入 Lazu。"
+---
+
+# 用戶端與工具接入
+
+Lazu 在同一個 API 位址（`https://api.lazu.ai`）下提供原生 **Anthropic Messages**、**OpenAI Responses**、**OpenAI Chat Completions** 與 **Gemini** 介面，在[控制台](https://lazu.ai/console/token)建立一把金鑰即可通用。
+
+## 支援的工具
+
+| 工具 | 接入方式 | 位址與協定 | 指南 |
+| --- | --- | --- | --- |
+| **cc-connect** | 官方內建預設 | `cc-connect provider presets` → 選擇 Lazu | [cc-connect](/zh-TW/integrations/cc-connect) |
+| **Claude Code** | 原生 Anthropic Messages | `https://api.lazu.ai`（`/v1/messages`） | [Claude Code](/zh-TW/integrations/claude-code) |
+| **Codex CLI** | 原生 OpenAI Responses | `https://api.lazu.ai/v1`（`wire_api = "responses"`） | [Codex CLI](/zh-TW/integrations/codex) |
+| **OpenCode** | OpenAI 相容協定 | `https://api.lazu.ai/v1` | [OpenCode](/zh-TW/integrations/opencode) |
+| **Goose** | 自訂 Provider JSON | `https://api.lazu.ai/v1/chat/completions` | [Goose](/zh-TW/integrations/goose) |
+
+## 給用戶端與開源專案維護者
+
+| 端點 | 驗證 | 回傳內容 |
+| --- | --- | --- |
+| `GET https://api.lazu.ai/v1/models` | 公開（免金鑰） | 標準 OpenAI `{ "object": "list", "data": [...] }`（含上下文、價格、能力與支援端點） |
+| `GET https://lazu.ai/api/pricing` | 公開（免金鑰） | 即時模型目錄與美元/百萬 token 價格 |
+| `GET https://api.lazu.ai/api/models/catalog` | Bearer 金鑰 | 依金鑰權限篩選後的可用模型目錄 |

@@ -1,0 +1,38 @@
+---
+title: "在 cc-connect 中使用 Lazu（官方内置预设）"
+description: "通过 cc-connect 官方内置的 Lazu 预设，在飞书、钉钉、企业微信、Telegram 或 Slack 里遥控本地 Claude Code、Codex 与 OpenCode。"
+---
+
+# cc-connect
+
+[cc-connect](https://github.com/chenhg5/cc-connect) 可以把你本地的 Claude Code、Codex、OpenCode 接到飞书、钉钉、企业微信、Telegram、Slack、Discord 里远程操作。**Lazu** 已进入 `cc-connect` 官方内置预设列表，无需手动填写 Base URL 或协议参数。
+
+## 1. 安装 cc-connect
+
+```bash
+npm install -g cc-connect
+```
+
+## 2. 选择内置的 Lazu 预设
+
+在终端查看预设列表：
+
+```bash
+cc-connect provider presets
+```
+
+或打开 Web 管理台（需在另一个终端运行 `cc-connect` 启动服务）：
+
+```bash
+cc-connect web
+```
+
+进入 **Providers（服务商）→ 从预设添加（Add from Preset）**，选择 **Lazu**，粘贴在[控制台](https://lazu.ai/console/token)创建的 API Key 即可。
+
+## 预设包含的 Agent 配置
+
+| Agent | Base URL | 默认模型 | 协议 |
+| --- | --- | --- | --- |
+| `claudecode` | `https://api.lazu.ai` | `claude-sonnet-5-5` | 原生 Anthropic Messages |
+| `codex` | `https://api.lazu.ai/v1` | `gpt-6.2-astra` | 原生 OpenAI Responses（`wire_api: "responses"`） |
+| `opencode` | `https://api.lazu.ai/v1` | `claude-sonnet-5-5` | OpenAI 兼容 |

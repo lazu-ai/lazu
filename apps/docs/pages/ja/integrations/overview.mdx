@@ -1,0 +1,26 @@
+---
+title: "クライアント連携ガイド概要"
+description: "Claude Code、Codex CLI、OpenCode、cc-connect、Goose および OpenAI 互換クライアントを Lazu に接続する方法。"
+---
+
+# クライアント連携
+
+Lazu は単一のオリジン（`https://api.lazu.ai`）でネイティブの **Anthropic Messages**、**OpenAI Responses**、**OpenAI Chat Completions**、**Gemini** を提供しています。[コンソール](https://lazu.ai/console/token)で作成した 1 つのキーで共通利用できます。
+
+## 対応ツール一覧
+
+| ツール | 連携方式 | エンドポイント | ガイド |
+| --- | --- | --- | --- |
+| **cc-connect** | 標準プリセット | `cc-connect provider presets` → Lazu | [cc-connect](/ja/integrations/cc-connect) |
+| **Claude Code** | ネイティブ Messages | `https://api.lazu.ai` | [Claude Code](/ja/integrations/claude-code) |
+| **Codex CLI** | ネイティブ Responses | `https://api.lazu.ai/v1` (`wire_api = "responses"`) | [Codex CLI](/ja/integrations/codex) |
+| **OpenCode** | OpenAI 互換 | `https://api.lazu.ai/v1` | [OpenCode](/ja/integrations/opencode) |
+| **Goose** | カスタム JSON | `https://api.lazu.ai/v1/chat/completions` | [Goose](/ja/integrations/goose) |
+
+## クライアント開発者向け
+
+| エンドポイント | 認証 | 内容 |
+| --- | --- | --- |
+| `GET https://api.lazu.ai/v1/models` | 公開（キー不要） | OpenAI 互換のモデル一覧（コンテキスト長・料金・機能付き） |
+| `GET https://lazu.ai/api/pricing` | 公開（キー不要） | 自動同期向けのライブカタログ・料金 JSON |
+| `GET https://api.lazu.ai/api/models/catalog` | Bearer キー | キー単位の許可・除外ルールを反映したカタログ |

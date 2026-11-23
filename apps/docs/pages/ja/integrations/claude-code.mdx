@@ -1,0 +1,16 @@
+---
+title: "Claude Code で Lazu を使う"
+description: "Claude Code を Lazu のネイティブ Anthropic Messages エンドポイントに接続します。"
+---
+
+# Claude Code
+
+`ANTHROPIC_BASE_URL` の末尾に `/v1` は**付けない**でください（Claude Code が `/v1/messages` を自動付与します）：
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.lazu.ai"
+export ANTHROPIC_AUTH_TOKEN="YOUR_LAZU_API_KEY"
+export ANTHROPIC_MODEL="claude-sonnet-5-5"
+```
+
+[コンソール](https://lazu.ai/console/token)で API キーを発行し、`claude` 起動後に `/status` で接続を確認してください。

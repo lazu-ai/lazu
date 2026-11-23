@@ -1,0 +1,38 @@
+---
+title: "Use Lazu with cc-connect (built-in preset)"
+description: "Select Lazu from cc-connect's built-in provider presets to control Claude Code, Codex, and OpenCode from Telegram, Slack, Discord, Lark, or DingTalk."
+---
+
+# cc-connect
+
+[cc-connect](https://github.com/chenhg5/cc-connect) bridges local coding agents (Claude Code, Codex, OpenCode) into Telegram, Slack, Discord, Lark/Feishu, and DingTalk. **Lazu** is included as an official built-in provider preset.
+
+## 1. Install cc-connect
+
+```bash
+npm install -g cc-connect
+```
+
+## 2. Select the built-in Lazu preset
+
+In the CLI, verify the live preset list:
+
+```bash
+cc-connect provider presets
+```
+
+Or open the Web UI:
+
+```bash
+cc-connect web
+```
+
+Go to **Providers → Add from Preset**, pick **Lazu**, and paste your API key from the [Lazu console](https://lazu.ai/console/token).
+
+## Included agent presets
+
+| Agent | Base URL | Default model | Protocol |
+| --- | --- | --- | --- |
+| `claudecode` | `https://api.lazu.ai` | `claude-sonnet-5-5` | Native Anthropic Messages |
+| `codex` | `https://api.lazu.ai/v1` | `gpt-6.2-astra` | Native OpenAI Responses (`wire_api: "responses"`) |
+| `opencode` | `https://api.lazu.ai/v1` | `claude-sonnet-5-5` | OpenAI-compatible |

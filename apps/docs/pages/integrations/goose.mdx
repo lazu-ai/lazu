@@ -1,0 +1,40 @@
+---
+title: "Use Lazu with Goose (custom provider JSON)"
+description: "Install Lazu as a custom OpenAI-compatible provider in Goose using the provider-maintained JSON definition."
+---
+
+# Goose
+
+[Goose](https://block.github.io/goose/docs/getting-started/providers#custom-providers) loads third-party OpenAI-compatible gateways via custom provider JSON files.
+
+## 1. Save the provider JSON
+
+Save the following file to `~/.config/goose/custom_providers/lazu.json`:
+
+```json
+{
+  "name": "lazu",
+  "engine": "openai",
+  "display_name": "Lazu",
+  "description": "AI gateway for Claude, GPT, Gemini, and DeepSeek models",
+  "api_key_env": "LAZU_API_KEY",
+  "base_url": "https://api.lazu.ai/v1/chat/completions",
+  "models_path": "/v1/models",
+  "models": [
+    { "name": "claude-sonnet-5-5", "context_limit": 1000000 },
+    { "name": "claude-opus-5-5", "context_limit": 1000000 },
+    { "name": "gpt-6.2-astra", "context_limit": 1050000 },
+    { "name": "gemini-4-hydrogen", "context_limit": 1048576 },
+    { "name": "deepseek-v4-pro", "context_limit": 1000000 }
+  ]
+}
+```
+
+## 2. Set your key and configure Goose
+
+```bash
+export LAZU_API_KEY="YOUR_LAZU_API_KEY"
+goose configure
+```
+
+Select **Lazu** as your provider and choose any model from the list (or auto-discovered via `/v1/models`).

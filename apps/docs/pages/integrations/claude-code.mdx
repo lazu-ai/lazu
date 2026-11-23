@@ -1,0 +1,34 @@
+---
+title: "Use Lazu with Claude Code"
+description: "Connect Claude Code to Lazu's native Anthropic Messages endpoint with prompt caching, per-key hard budgets, and per-session cost tracking."
+---
+
+# Claude Code
+
+Lazu speaks Anthropic's native `/v1/messages` protocol, preserves prompt-cache headers and thinking blocks, and stops cleanly with HTTP `402` when a key's budget is exhausted instead of looping retries.
+
+## 1. Create a key
+
+Create an API key in the [Lazu console](https://lazu.ai/console/token). You can set a hard USD budget cap per key.
+
+## 2. Configure environment variables
+
+Do **not** append `/v1` to `ANTHROPIC_BASE_URL` — Claude Code appends `/v1/messages` automatically:
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.lazu.ai"
+export ANTHROPIC_AUTH_TOKEN="YOUR_LAZU_API_KEY"
+export ANTHROPIC_MODEL="claude-sonnet-5-5"
+```
+
+Optional model slots for `/model opus` and `/model haiku`:
+
+```bash
+export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-opus-5-5"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-sonnet-5-5"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="claude-haiku-5-5"
+```
+
+## 3. Verify
+
+Run `claude` and execute `/status` to confirm the active model and endpoint, then check your session's cache hit rate and per-call cost in the [console](https://lazu.ai/console/usage).
