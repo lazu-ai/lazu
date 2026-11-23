@@ -571,26 +571,6 @@ func UpdateAbilityStatus(channelId int, status bool) error {
 	return CoreDB().Model(&Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error
 }
 
-// The tag lives on the channel; abilities follow it through channel_id.
-func abilityChannelIDsByTag(tag string) *gorm.DB {
-	return CoreDB().Model(&Channel{}).Select("id").Where("tag = ?", tag)
-}
-
-func UpdateAbilityStatusByTag(tag string, status bool) error {
-	return CoreDB().Model(&Ability{}).Where("channel_id IN (?)", abilityChannelIDsByTag(tag)).Select("enabled").Update("enabled", status).Error
-}
-
-func UpdateAbilityByTag(tag string, priority *int64, weight *uint) error {
-	ability := Ability{}
-	if priority != nil {
-		ability.Priority = priority
-	}
-	if weight != nil {
-		ability.Weight = *weight
-	}
-	return CoreDB().Model(&Ability{}).Where("channel_id IN (?)", abilityChannelIDsByTag(tag)).Updates(ability).Error
-}
-
 var fixLock = sync.Mutex{}
 
 func FixAbility() (int, int, error) {

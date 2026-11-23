@@ -12,6 +12,7 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 - Removed `POST /api/user/reset` (the inactive reset stub); password reset continues through `/api/user/reset/v2`.
 - Removed `/api/log/token`, `/api/user/used-models`, `/api/user/models/classified`, `/api/user/self/stripe/pay`, and `/api/user/stripe/amount`. Use `/api/log/self`, the model catalog and `/api/user/stripe/pay`.
 - Removed the unimplemented `/v1/fine-tunes*`, `/v1/images/variations` and `DELETE /v1/models/:model` routes. These removals supersede their previously announced sunset dates; no compatibility redirects remain.
+- Removed the admin routes `/api/channel/tag/*`, `/api/channel/batch*`, `POST /api/notification/email/{send,announcement}`, `/api/upload/*` and `/api/workers/*` ahead of their 2026-12-01 sunset. Use per-channel actions and announcements (publishing one can email users). Scheduled uploads and database backups keep running from `config.yaml`. `GET /api/data/` stays until 2027-02-01, with the `usage_data` table it reads.
 
 ## 2026-10-29 — Search endpoint removed
 

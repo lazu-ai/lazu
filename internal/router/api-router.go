@@ -278,12 +278,6 @@ func SetApiRouter(router *gin.Engine) {
 			channelHealthRoute.PUT("/route_role", middleware.RootAuth(), controller.UpdateChannelHealthRouteRole)
 			channelHealthRoute.POST("/route_retreat/clear", middleware.RootAuth(), controller.ClearChannelHealthRouteRetreat)
 		}
-		notificationRoute := apiRouter.Group("/notification")
-		notificationRoute.Use(retiring(adminSunset, "/api/admin/announcements"), middleware.RootAuth())
-		{
-			notificationRoute.POST("/email/send", controller.SendBroadcastEmail)
-			notificationRoute.POST("/email/announcement", controller.SendAnnouncementEmail)
-		}
 		channelRoute := apiRouter.Group("/channel")
 		channelRoute.Use(middleware.RootAuth())
 		{
@@ -302,16 +296,10 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.PUT("/", controller.UpdateChannel)
 			channelRoute.PUT("/:id/status", controller.UpdateChannelStatusById)
 			channelRoute.DELETE("/disabled", controller.DeleteDisabledChannel)
-			channelRoute.POST("/tag/disabled", retiring(adminSunset, ""), controller.DisableTagChannels)
-			channelRoute.POST("/tag/enabled", retiring(adminSunset, ""), controller.EnableTagChannels)
-			channelRoute.PUT("/tag", retiring(adminSunset, ""), controller.EditTagChannels)
 			channelRoute.DELETE("/:id", controller.DeleteChannel)
-			channelRoute.POST("/batch", retiring(adminSunset, ""), controller.DeleteChannelBatch)
 			channelRoute.POST("/fix", controller.FixChannelsAbilities)
 			channelRoute.GET("/fetch_models/:id", controller.FetchUpstreamModels)
 			channelRoute.POST("/fetch_models", controller.FetchModels)
-			channelRoute.POST("/batch/tag", retiring(adminSunset, ""), controller.BatchSetChannelTag)
-			channelRoute.GET("/tag/models", retiring(adminSunset, ""), controller.GetTagModels)
 			channelRoute.POST("/copy/:id", controller.CopyChannel)
 			channelRoute.POST("/multi_key/manage", controller.ManageMultiKeys)
 		}
@@ -370,7 +358,7 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/self/search", middleware.UserAuth(), controller.SearchUserLogs)
 
 		dataRoute := apiRouter.Group("/data")
-		dataRoute.GET("/", retiring(adminSunset, ""), middleware.RootAuth(), controller.GetAllUsageData)
+		dataRoute.GET("/", retiring(userSunset, ""), middleware.RootAuth(), controller.GetAllUsageData)
 		dataRoute.GET("/self", retiring(userSunset, "/api/data/dashboard/self"), middleware.UserAuth(), controller.GetUserUsageData)
 		dataRoute.GET("/dashboard", middleware.UserAuth(), controller.GetUserDashboardUsage)
 		dataRoute.GET("/overview", middleware.UserAuth(), controller.GetOverview)
@@ -482,24 +470,6 @@ func SetApiRouter(router *gin.Engine) {
 			modelInfoRoute.GET("/lookup", controller.LookupModelInfo)
 			modelInfoRoute.GET("/makers", controller.GetModelMakers)
 			modelInfoRoute.PUT("/makers", controller.UpdateModelMakerOrder)
-		}
-
-		// Manual upload trigger (Admin)
-		uploadRoute := apiRouter.Group("/upload")
-		uploadRoute.Use(retiring(adminSunset, ""), middleware.RootAuth())
-		{
-			uploadRoute.POST("/run", controller.UploadNow)
-			uploadRoute.GET("/pending-files", controller.GetPendingFiles)
-			uploadRoute.POST("/single", controller.UploadSingleFile)
-		}
-
-		// Manual worker triggers (Admin)
-		workersRoute := apiRouter.Group("/workers")
-		workersRoute.Use(retiring(adminSunset, ""), middleware.RootAuth())
-		{
-			workersRoute.GET("/status", controller.GetWorkerStatuses)
-			workersRoute.GET("/status/:name", controller.GetWorkerStatus)
-			workersRoute.POST("/channel-test", controller.TriggerChannelTest)
 		}
 
 		for _, register := range apiRoutes {

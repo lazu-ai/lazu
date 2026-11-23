@@ -23,8 +23,6 @@ func markDeprecatedAlias(c *gin.Context, canonicalPath string) {
 // dates by the delay.
 var (
 	retirementNotice = time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC)
-	// Deprecated: delete after 2026-12-01 (admin routes marked with adminSunset).
-	adminSunset = time.Date(2026, time.December, 1, 0, 0, 0, 0, time.UTC)
 	// Deprecated: delete after 2027-02-01 (user and public routes marked with userSunset).
 	userSunset = time.Date(2027, time.February, 1, 0, 0, 0, 0, time.UTC)
 )
