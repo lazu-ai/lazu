@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -32,6 +33,12 @@ func RedisKeyCacheSeconds() int {
 
 // InitRedisClient This function is called after init()
 func InitRedisClient() (err error) {
+	if RedisVerificationCodeEnabled && os.Getenv("REDIS_CONN_STRING") == "" {
+		return errors.New("Redis verification requires REDIS_CONN_STRING")
+	}
+	if RedisVerificationCodeEnabled && strings.TrimSpace(os.Getenv("CRYPTO_SECRET")) == "" && strings.TrimSpace(os.Getenv("SESSION_SECRET")) == "" {
+		return errors.New("Redis verification requires a stable CRYPTO_SECRET or SESSION_SECRET shared by API instances")
+	}
 	if os.Getenv("REDIS_CONN_STRING") == "" {
 		RedisEnabled = false
 		SysDebug("REDIS_CONN_STRING not set, Redis is not enabled")

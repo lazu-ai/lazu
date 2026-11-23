@@ -1,6 +1,8 @@
 package common
 
 import (
+	"context"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -9,154 +11,6 @@ import (
 
 	"github.com/go-redis/redis/v8"
 )
-
-func resetVerificationTestState(t *testing.T) {
-	t.Helper()
-	originalRedisVerification := RedisVerificationCodeEnabled
-	originalRedisEnabled := RedisEnabled
-	originalRDB := RDB
-	originalValidMinutes := VerificationValidMinutes
-	verificationMutex.Lock()
-	originalMap := verificationMap
-	originalAttempts := verificationAttempts
-	verificationMap = make(map[string]verificationValue)
-	verificationAttempts = make(map[string]verificationAttempt)
-	verificationMutex.Unlock()
-	t.Cleanup(func() {
-		RedisVerificationCodeEnabled = originalRedisVerification
-		RedisEnabled = originalRedisEnabled
-		RDB = originalRDB
-		VerificationValidMinutes = originalValidMinutes
-		verificationMutex.Lock()
-		verificationMap = originalMap
-		verificationAttempts = originalAttempts
-		verificationMutex.Unlock()
-	})
-	RedisVerificationCodeEnabled = false
-	RedisEnabled = false
-	RDB = nil
-	VerificationValidMinutes = 10
-}
-
-func TestVerificationAttemptsExpireInMemory(t *testing.T) {
-	resetVerificationTestState(t)
-	verificationMutex.Lock()
-	verificationAttempts["aexpired@example.com"] = verificationAttempt{
-		count:     4,
-		expiresAt: time.Now().Add(-time.Minute),
-	}
-	verificationMutex.Unlock()
-
-	if attempts := recordVerificationFailureMemory("fresh@example.com", EmailAuthPurpose); attempts != 1 {
-		t.Fatalf("fresh counter should start at one, got %d", attempts)
-	}
-	verificationMutex.Lock()
-	_, expiredStillPresent := verificationAttempts["aexpired@example.com"]
-	verificationMutex.Unlock()
-	if expiredStillPresent {
-		t.Fatal("expired verification-attempt entry was not removed")
-	}
-}
-
-func TestVerificationCodeMemoryFallbackIsOneTime(t *testing.T) {
-	resetVerificationTestState(t)
-
-	RegisterVerificationCodeWithKey("user@example.com", "123456", "test-verification")
-	if !VerifyCodeWithKey("user@example.com", "123456", "test-verification") {
-		t.Fatal("expected verification code to pass")
-	}
-	if VerifyCodeWithKey("user@example.com", "123456", "test-verification") {
-		t.Fatal("expected verification code to be one-time")
-	}
-}
-
-func TestVerificationCodeMemoryFallbackIsAtomicallyConsumed(t *testing.T) {
-	resetVerificationTestState(t)
-
-	RegisterVerificationCodeWithKey("user@example.com", "123456", PasswordResetPurpose)
-	const contenders = 32
-	start := make(chan struct{})
-	var successes atomic.Int32
-	var wg sync.WaitGroup
-	for range contenders {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-start
-			if VerifyCodeWithKey("user@example.com", "123456", PasswordResetPurpose) {
-				successes.Add(1)
-			}
-		}()
-	}
-	close(start)
-	wg.Wait()
-
-	if got := successes.Load(); got != 1 {
-		t.Fatalf("expected exactly one successful token consumer, got %d", got)
-	}
-}
-
-func TestVerificationCodeMemorySurvivesWrongAttempt(t *testing.T) {
-	resetVerificationTestState(t)
-
-	RegisterVerificationCodeWithKey("user@example.com", "123456", "test-verification")
-	if VerifyCodeWithKey("user@example.com", "000000", "test-verification") {
-		t.Fatal("expected wrong verification code to fail")
-	}
-	if !VerifyCodeWithKey("user@example.com", "123456", "test-verification") {
-		t.Fatal("expected verification code to remain valid after a wrong attempt")
-	}
-}
-
-func TestVerificationCodeRedisDisabledFallsBackToMemory(t *testing.T) {
-	resetVerificationTestState(t)
-	RedisVerificationCodeEnabled = true
-	RedisEnabled = false
-
-	RegisterVerificationCodeWithKey("user@example.com", "abcdef", PasswordResetPurpose)
-	if !VerifyCodeWithKey("user@example.com", "abcdef", PasswordResetPurpose) {
-		t.Fatal("expected memory fallback to pass when redis is disabled")
-	}
-}
-
-func TestVerificationCodeRedisErrorDoesNotAcceptMemoryFallback(t *testing.T) {
-	resetVerificationTestState(t)
-	client := redis.NewClient(&redis.Options{
-		Addr:         "127.0.0.1:0",
-		DialTimeout:  time.Millisecond,
-		ReadTimeout:  time.Millisecond,
-		WriteTimeout: time.Millisecond,
-		MaxRetries:   -1,
-	})
-	t.Cleanup(func() {
-		_ = client.Close()
-	})
-	RedisVerificationCodeEnabled = true
-	RedisEnabled = true
-	RDB = client
-
-	registerVerificationCodeMemory("user@example.com", "abcdef", PasswordResetPurpose)
-	if VerifyCodeWithKey("user@example.com", "abcdef", PasswordResetPurpose) {
-		t.Fatal("expected redis verification errors to fail closed instead of accepting memory fallback")
-	}
-
-	RedisEnabled = false
-	if !VerifyCodeWithKey("user@example.com", "abcdef", PasswordResetPurpose) {
-		t.Fatal("expected failed-closed redis attempt to leave memory fallback unconsumed")
-	}
-}
-
-func TestVerificationRedisKeyDoesNotExposeEmail(t *testing.T) {
-	resetVerificationTestState(t)
-
-	key := verificationRedisKey("User@Example.com", "test-verification")
-	if key == "" || key == "User@Example.com" {
-		t.Fatalf("unexpected redis key: %q", key)
-	}
-	if strings.Contains(strings.ToLower(key), "example.com") || strings.Contains(strings.ToLower(key), "user") {
-		t.Fatalf("redis key should not expose email: %q", key)
-	}
-}
 
 func TestGenerateNumericVerificationCodeIsAllDigits(t *testing.T) {
 	for attempt := 0; attempt < 200; attempt++ {
@@ -177,5 +31,165 @@ func TestGenerateNumericVerificationCodeIsAllDigits(t *testing.T) {
 	}
 	if _, err := GenerateNumericVerificationCode(0); err == nil {
 		t.Fatal("a zero-length code should be refused")
+	}
+}
+
+func useVerificationStore(t *testing.T, remote bool) *redis.Client {
+	t.Helper()
+	previousMode, previousRedis, previousClient := RedisVerificationCodeEnabled, RedisEnabled, RDB
+	t.Cleanup(func() { RedisVerificationCodeEnabled, RedisEnabled, RDB = previousMode, previousRedis, previousClient })
+	RedisVerificationCodeEnabled, RedisEnabled, RDB = remote, remote, nil
+	if !remote {
+		return nil
+	}
+	url := os.Getenv("TEST_REDIS_URL")
+	if url == "" {
+		t.Skip("TEST_REDIS_URL is not configured")
+	}
+	options, err := redis.ParseURL(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	RDB = redis.NewClient(options)
+	client := RDB
+	t.Cleanup(func() { _ = client.Close() })
+	if err = client.Ping(context.Background()).Err(); err != nil {
+		t.Fatal(err)
+	}
+	return client
+}
+
+func TestVerificationStores(t *testing.T) {
+	for _, mode := range []string{"memory", "redis"} {
+		t.Run(mode, func(t *testing.T) {
+			client := useVerificationStore(t, mode == "redis")
+			key := GeneratePublicID("test") + "@example.test"
+			first := VerificationCode{Purpose: "new-address", Code: "234567"}
+			second := VerificationCode{Purpose: "old-address", Code: "345678"}
+			wrong := VerificationCode{Purpose: second.Purpose, Code: "000000"}
+			issue := func(codes ...VerificationCode) {
+				t.Helper()
+				if err := IssueVerificationCodes(key, codes...); err != nil {
+					t.Fatal(err)
+				}
+			}
+			check := func(want VerificationResult, codes ...VerificationCode) {
+				t.Helper()
+				got, err := ConsumeVerificationCodes(strings.ToUpper(key), codes...)
+				if err != nil || got != want {
+					t.Fatalf("result=%v want=%v error=%v", got, want, err)
+				}
+			}
+			issue(first, second)
+			check(VerificationInvalid, first, wrong)
+			check(VerificationAccepted, first, second)
+			check(VerificationInvalid, first)
+			issue(second)
+			for i := 1; i < MaxVerificationAttempts; i++ {
+				check(VerificationInvalid, wrong)
+			}
+			check(VerificationExhausted, wrong)
+			check(VerificationInvalid, second)
+			issue(wrong)
+			for i := 1; i < MaxVerificationAttempts; i++ {
+				check(VerificationInvalid, second)
+			}
+			issue(second)
+			check(VerificationInvalid, wrong)
+			check(VerificationAccepted, second)
+			// A mailbox with no code follows the same attempt-limit responses.
+			for i := 1; i < MaxVerificationAttempts; i++ {
+				check(VerificationInvalid, wrong)
+			}
+			check(VerificationExhausted, wrong)
+			reset := VerificationCode{Purpose: PasswordResetPurpose, Code: "test-reset-token"}
+			issue(reset)
+			for i := 0; i < MaxVerificationAttempts+1; i++ {
+				check(VerificationInvalid, VerificationCode{Purpose: PasswordResetPurpose, Code: "wrong"})
+			}
+			check(VerificationAccepted, reset)
+			issue(first)
+			entries, err := verificationEntries(key, []VerificationCode{first})
+			if err != nil {
+				t.Fatal(err)
+			}
+			entry := entries[0]
+			if strings.Contains(entry.key, key) || strings.Contains(entry.key, "example.test") {
+				t.Fatal("key contains identity")
+			}
+			if client != nil {
+				ctx := context.Background()
+				hash, err := client.HGetAll(ctx, entry.key).Result()
+				if err != nil || hash["digest"] != entry.digest || hash["digest"] == first.Code || len(hash) != 2 {
+					t.Fatalf("unexpected stored fields (err=%v)", err)
+				}
+				ttl, err := client.TTL(ctx, entry.key).Result()
+				if err != nil || ttl < 9*time.Minute || ttl > 10*time.Minute {
+					t.Fatalf("issue TTL=%v err=%v", ttl, err)
+				}
+				if err := client.PExpire(ctx, entry.key, 200*time.Millisecond).Err(); err != nil {
+					t.Fatal(err)
+				}
+				check(VerificationInvalid, VerificationCode{Purpose: first.Purpose, Code: "wrong"})
+				time.Sleep(250 * time.Millisecond)
+			} else {
+				verificationMemory.Lock()
+				v := verificationMemory.values[entry.key]
+				v.expires = time.Now().Add(-time.Minute)
+				verificationMemory.values[entry.key] = v
+				verificationMemory.Unlock()
+			}
+			check(VerificationInvalid, first)
+			issue(first)
+			const contenders = 12
+			var successes atomic.Int32
+			var wg sync.WaitGroup
+			for range contenders {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					got, err := ConsumeVerificationCodes(key, first)
+					if err != nil {
+						t.Error(err)
+					}
+					if got == VerificationAccepted {
+						successes.Add(1)
+					}
+				}()
+			}
+			wg.Wait()
+			if successes.Load() != 1 {
+				t.Fatalf("accepted %d times", successes.Load())
+			}
+		})
+	}
+}
+
+func TestVerificationUnavailableNeverUsesMemory(t *testing.T) {
+	useVerificationStore(t, false)
+	key := GeneratePublicID("test")
+	proof := VerificationCode{Purpose: EmailAuthPurpose, Code: "112233"}
+	if err := IssueVerificationCodes(key, proof); err != nil {
+		t.Fatal(err)
+	}
+	RedisVerificationCodeEnabled = true
+	if err := IssueVerificationCodes(key, proof); err == nil {
+		t.Fatal("unavailable store accepted issue")
+	}
+	if _, err := ConsumeVerificationCodes(key, proof); err == nil {
+		t.Fatal("redis verify read memory")
+	}
+	RedisEnabled = true
+	RDB = redis.NewClient(&redis.Options{Addr: "127.0.0.1:0", MaxRetries: -1})
+	_ = RDB.Close()
+	if err := IssueVerificationCodes(key, proof); err == nil {
+		t.Fatal("closed store accepted issue")
+	}
+	if _, err := ConsumeVerificationCodes(key, proof); err == nil {
+		t.Fatal("closed store allowed verification")
+	}
+	RedisVerificationCodeEnabled = false
+	if got, err := ConsumeVerificationCodes(key, proof); got != VerificationAccepted || err != nil {
+		t.Fatal("unavailable Redis changed memory state")
 	}
 }

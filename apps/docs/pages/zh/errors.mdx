@@ -152,6 +152,7 @@ X-Lazu-Request-Id: req_lazu_01KSBV4MC6THZ9TCZEM38KPYRX
 | <a id="lz-2207"></a>`LZ-2207` | `verification_code_attempts_exhausted` | 429 | `rate_limit_error` | 验证码错误次数过多，已失效。请重新获取验证码。 |
 | <a id="lz-2210"></a>`LZ-2210` | `email_code_auth_disabled` | 403 | `permission_error` | 邮箱验证码登录已关闭。请换用其他登录方式。 |
 | <a id="lz-2211"></a>`LZ-2211` | `email_transport_unavailable` | 503 | `api_error` | 暂时无法发送邮箱验证码。请换用其他登录方式。 |
+| <a id="lz-2212"></a>`LZ-2212` | `verification_unavailable` | 503 | `api_error` | 邮箱验证暂时不可用，请稍后重试。 |
 | <a id="lz-2215"></a>`LZ-2215` | `original_password_incorrect` | 400 | `invalid_request_error` | 当前密码不正确。请检查后再试。 |
 | <a id="lz-2216"></a>`LZ-2216` | `oauth_provider_not_configured` | 404 | `not_found_error` | 这个登录方式暂不可用。请换用其他方式。 |
 | <a id="lz-2217"></a>`LZ-2217` | `oauth_cancelled` | 400 | `invalid_request_error` | 你取消了授权，登录没有完成。 |

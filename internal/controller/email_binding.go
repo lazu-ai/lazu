@@ -88,35 +88,37 @@ func StartEmailBinding(c *gin.Context) {
 	}
 	lang := requestMailLang(c)
 	enqueueAuthEmailJob("email-binding-request", func() {
-		key := emailBindingKey(user, request.Email)
-		sendEmailBindingCode(key, request.Email, request.Email, emailBindingPurpose, lang)
-		if needsCurrent {
-			sendEmailBindingCode(key, user.Email, request.Email, emailBindingCurrentPurpose, lang)
-		}
+		sendEmailBindingCodes(user, request.Email, lang, needsCurrent)
 	})
 	// No target-owner lookup in this response: it must not enumerate accounts.
 	common.ApiSuccess(c, gin.H{"current_email_required": needsCurrent})
 }
 
-func sendEmailBindingCode(key, email, target, purpose, lang string) {
-	code, err := common.GenerateNumericVerificationCode(6)
-	if err != nil {
-		common.SysError("failed to generate email binding code")
+func sendEmailBindingCodes(user *model.User, target, lang string, needsCurrent bool) {
+	proofs := []common.VerificationCode{{Purpose: emailBindingPurpose}}
+	if needsCurrent {
+		proofs = append(proofs, common.VerificationCode{Purpose: emailBindingCurrentPurpose})
+	}
+	for i := range proofs {
+		code, err := common.GenerateNumericVerificationCode(6)
+		if err != nil {
+			common.SysError("failed to generate email binding code")
+			return
+		}
+		proofs[i].Code = code
+	}
+	if err := common.IssueVerificationCodes(emailBindingKey(user, target), proofs...); err != nil {
+		common.SysError("could not store email binding codes: " + err.Error())
 		return
 	}
-	common.RegisterVerificationCodeWithKey(key, code, purpose)
-	common.ClearVerificationFailures(key, purpose)
-	subject, body := authEmailBindingMail(lang, code, target)
-	sendAuthEmail(subject, email, body)
-}
-
-func consumeEmailBindingCode(key, code, purpose string) bool {
-	if !common.VerifyCodeWithKey(key, strings.TrimSpace(code), purpose) {
-		common.RecordVerificationFailure(key, purpose)
-		return false
+	for _, proof := range proofs {
+		recipient := target
+		if proof.Purpose == emailBindingCurrentPurpose {
+			recipient = user.Email
+		}
+		subject, body := authEmailBindingMail(lang, proof.Code, target)
+		sendAuthEmail(subject, recipient, body)
 	}
-	common.ClearVerificationFailures(key, purpose)
-	return true
 }
 
 func EmailBind(c *gin.Context) {
@@ -154,12 +156,15 @@ func bindEmail(user *model.User, request *emailBindingRequest) error {
 		if current.Status != common.UserStatusEnabled || key != emailBindingKey(user, request.Email) {
 			return types.Err(types.ErrorCodeSessionInvalid)
 		}
-		// Consume the new-address proof first; neither code can be reused to probe
-		// other accounts or change a different target mailbox.
-		if !consumeEmailBindingCode(key, request.Code, emailBindingPurpose) {
-			return types.Err(types.ErrorCodeVerificationCodeInvalid)
+		proofs := []common.VerificationCode{{Purpose: emailBindingPurpose, Code: strings.TrimSpace(request.Code)}}
+		if emailBindingNeedsCurrent(&current, request.Email) {
+			proofs = append(proofs, common.VerificationCode{Purpose: emailBindingCurrentPurpose, Code: strings.TrimSpace(request.CurrentCode)})
 		}
-		if emailBindingNeedsCurrent(&current, request.Email) && !consumeEmailBindingCode(key, request.CurrentCode, emailBindingCurrentPurpose) {
+		result, err := common.ConsumeVerificationCodes(key, proofs...)
+		if err != nil {
+			return types.WrapErr(err, types.ErrorCodeVerificationUnavailable)
+		}
+		if result != common.VerificationAccepted {
 			return types.Err(types.ErrorCodeVerificationCodeInvalid)
 		}
 		var owners int64

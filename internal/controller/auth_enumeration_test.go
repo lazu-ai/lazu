@@ -71,7 +71,7 @@ func TestResetUserPasswordTokenBindsCanonicalOwnerAndSessionVersion(t *testing.T
 
 	firstToken := "first-reset-token"
 	firstKey := model.PasswordResetVerificationKey(user.Id, user.SessionVersion)
-	common.RegisterVerificationCodeWithKey(firstKey, firstToken, common.PasswordResetPurpose)
+	issueTestCode(t, firstKey, firstToken, common.PasswordResetPurpose)
 	if _, err := model.ResetUserPasswordWithToken("canonical@EXAMPLE.com", user.Id, user.SessionVersion, firstToken, "replacement-password"); err != nil {
 		t.Fatalf("case-insensitive reset failed: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestResetUserPasswordTokenBindsCanonicalOwnerAndSessionVersion(t *testing.T
 	staleProfile.NeedsPassword = true
 	secondToken := "second-reset-token"
 	secondKey := model.PasswordResetVerificationKey(stored.Id, stored.SessionVersion)
-	common.RegisterVerificationCodeWithKey(secondKey, secondToken, common.PasswordResetPurpose)
+	issueTestCode(t, secondKey, secondToken, common.PasswordResetPurpose)
 	secondReset, err := model.ResetUserPasswordWithToken("canonical@example.com", stored.Id, stored.SessionVersion, secondToken, "second-replacement-password")
 	if err != nil {
 		t.Fatalf("second reset failed: %v", err)
@@ -267,7 +267,7 @@ func TestResetTokenStaysConsumedWhenDatabaseUpdateFails(t *testing.T) {
 	}
 	token := "one-time-reset-token"
 	verificationKey := model.PasswordResetVerificationKey(user.Id, user.SessionVersion)
-	common.RegisterVerificationCodeWithKey(verificationKey, token, common.PasswordResetPurpose)
+	issueTestCode(t, verificationKey, token, common.PasswordResetPurpose)
 
 	callbackName := "test:fail-password-reset-update"
 	if err := model.CoreDB().Callback().Update().Before("gorm:update").Register(callbackName, func(tx *gorm.DB) {
@@ -690,7 +690,7 @@ func TestResetTokenClaimsAreCheckedBeforeConsumption(t *testing.T) {
 		t.Fatalf("seed user: %v", err)
 	}
 	token := "claims-bound-token"
-	common.RegisterVerificationCodeWithKey(model.PasswordResetVerificationKey(user.Id, user.SessionVersion), token, common.PasswordResetPurpose)
+	issueTestCode(t, model.PasswordResetVerificationKey(user.Id, user.SessionVersion), token, common.PasswordResetPurpose)
 	if _, err := model.ResetUserPasswordWithToken(user.Email, user.Id+1, user.SessionVersion, token, "replacement-password"); err == nil {
 		t.Fatal("wrong owner claim unexpectedly reset a password")
 	}

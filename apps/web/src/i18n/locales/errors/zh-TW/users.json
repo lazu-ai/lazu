@@ -4,6 +4,7 @@
   "registration_closed": "目前不開放註冊新帳號。如需帳號，請聯絡管理員。",
   "verification_code_invalid": "驗證碼錯誤或已過期。請檢查，或重新取得。",
   "verification_code_attempts_exhausted": "驗證碼錯誤次數過多，已失效。請重新取得驗證碼。",
+  "verification_unavailable": "電子郵件驗證暫時無法使用，請稍後再試。",
   "email_code_auth_disabled": "電子郵件驗證碼登入已關閉。請改用其他登入方式。",
   "email_transport_unavailable": "暫時無法寄送電子郵件驗證碼。請改用其他登入方式。",
   "original_password_incorrect": "目前的密碼不正確。請檢查後再試。",

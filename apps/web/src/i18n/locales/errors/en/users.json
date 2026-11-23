@@ -4,6 +4,7 @@
   "registration_closed": "New registrations are closed. Contact the administrator if you need an account.",
   "verification_code_invalid": "The verification code is incorrect or has expired. Check it, or request a new one.",
   "verification_code_attempts_exhausted": "Too many incorrect attempts, so this code no longer works. Request a new code.",
+  "verification_unavailable": "Email verification is temporarily unavailable. Please try again shortly.",
   "email_code_auth_disabled": "Email code sign-in is turned off. Use another sign-in method.",
   "email_transport_unavailable": "Email codes cannot be sent right now. Use another sign-in method.",
   "original_password_incorrect": "The current password is incorrect. Check it and try again.",
