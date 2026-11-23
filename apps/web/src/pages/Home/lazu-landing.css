@@ -1634,6 +1634,89 @@ body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
   }
 }
 
+.lazu-landing__eco-sub {
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 10px 0 0;
+  max-width: 58ch;
+}
+
+.lazu-landing__eco-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.lazu-landing__eco-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface, var(--lazu-surface));
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.lazu-landing__eco-card:hover {
+  border-color: var(--line-strong, var(--lazu-border-strong));
+  transform: translateY(-1px);
+}
+
+.lazu-landing__eco-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lazu-landing__eco-head b {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.lazu-landing__eco-badge {
+  font-family: var(--lazu-font-mono);
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  background: var(--lazu-surface-muted);
+  white-space: nowrap;
+}
+
+.lazu-landing__eco-badge--preset {
+  color: var(--lazu-action, #175855);
+  background: var(--lazu-success-soft, rgb(31 111 107 / 12%));
+}
+
+.lazu-landing__eco-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+@media (max-width: 920px) {
+  .lazu-landing__eco-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .lazu-landing__eco-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .brand-logo.lazu-logo--dark,
 html.dark .brand-logo.lazu-logo--light,
 body[theme-mode='dark'] .brand-logo.lazu-logo--light {

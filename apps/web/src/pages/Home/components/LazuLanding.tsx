@@ -208,8 +208,16 @@ const useAfterMount = () => {
   return ready;
 };
 
+type EcosystemCopy = {
+  badge: string;
+  body: string;
+  highlight?: boolean;
+  name: string;
+  slug: string;
+};
+
 const LazuLanding = () => {
-  const { t } = useTranslation('marketing');
+  const { i18n, t } = useTranslation('marketing');
   const statusState = useStatus();
   const actualTheme = useActualTheme();
   const shotRef = useRef<HTMLDivElement | null>(null);
@@ -235,6 +243,13 @@ const LazuLanding = () => {
     () => asArray<FaqCopy>(t('landing.faq.items', { returnObjects: true })),
     [t],
   );
+  const ecosystemItems = useMemo(
+    () =>
+      asArray<EcosystemCopy>(
+        t('landing.ecosystem.items', { returnObjects: true }),
+      ),
+    [t],
+  );
   const facts = useLandingFacts();
 
   const statValue = (key: string) =>
@@ -255,6 +270,18 @@ const LazuLanding = () => {
       getDocsBaseURL(),
     [statusState],
   );
+  const integrationHref = (slug: string) => {
+    const lang = (i18n.language || 'en').toLowerCase();
+    const prefix =
+      lang === 'zh-tw' || lang === 'zh-hant'
+        ? '/zh-TW'
+        : lang.startsWith('zh')
+          ? '/zh'
+          : lang.startsWith('ja')
+            ? '/ja'
+            : '';
+    return `${docsLink.replace(/\/+$/, '')}${prefix}/integrations/${slug}`;
+  };
 
   const barWidth = (pct: number) => (ready ? `${pct}%` : '0%');
   const balance = useCountUp(1240, 2, ready);
@@ -649,6 +676,46 @@ const LazuLanding = () => {
                     <b>{step.title}</b>
                     <p>{step.body}</p>
                   </div>
+                ))}
+              </Reveal>
+            </div>
+          </section>
+
+          {/* ---- Ecosystem & clients ---- */}
+          <section className='lazu-landing__section'>
+            <div className='lazu-landing__wrap'>
+              <Reveal className='lazu-landing__sec-head'>
+                <div className='lazu-landing__eyebrow'>
+                  {t('landing.ecosystem.eyebrow')}
+                </div>
+                <h2>{t('landing.ecosystem.title')}</h2>
+                <p className='lazu-landing__eco-sub'>
+                  {t('landing.ecosystem.subtitle')}
+                </p>
+              </Reveal>
+              <Reveal className='lazu-landing__eco-grid'>
+                {ecosystemItems.map((item) => (
+                  <a
+                    className='lazu-landing__eco-card'
+                    href={integrationHref(item.slug)}
+                    key={item.slug}
+                    rel='noreferrer'
+                    target='_blank'
+                  >
+                    <div className='lazu-landing__eco-head'>
+                      <b>{item.name}</b>
+                      <span
+                        className={`lazu-landing__eco-badge${
+                          item.highlight
+                            ? ' lazu-landing__eco-badge--preset'
+                            : ''
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    </div>
+                    <p>{item.body}</p>
+                  </a>
                 ))}
               </Reveal>
             </div>

@@ -200,6 +200,55 @@
       "ariaDoneCount": "已在 GitHub 上給 Lazu 點了 Star，目前 {{stars}} 個",
       "hint": "Lazu 以 AGPL-3.0 開源。會開啟 GitHub 視窗，只申請 Star 權限。",
       "linkHint": "Lazu 以 AGPL-3.0 開源。在 GitHub 開啟儲存庫。"
+    },
+    "ecosystem": {
+      "eyebrow": "生態與用戶端接入",
+      "title": "直接接入你正在使用的工具",
+      "subtitle": "原生協定免改程式碼，公開 /v1/models 自動探索模型；已進入 cc-connect 官方內建預設。",
+      "items": [
+        {
+          "name": "cc-connect",
+          "badge": "內建預設",
+          "highlight": true,
+          "body": "在飛書、Telegram、Slack 遠端操作本地 Agent，預設清單直接選擇 Lazu。",
+          "slug": "cc-connect"
+        },
+        {
+          "name": "Claude Code",
+          "badge": "原生 Messages",
+          "highlight": false,
+          "body": "保留 Prompt Cache 與思考區塊，預算達上限回傳標準 402 立即停止。",
+          "slug": "claude-code"
+        },
+        {
+          "name": "Codex CLI",
+          "badge": "原生 Responses",
+          "highlight": false,
+          "body": "支援 wire_api = \"responses\"，完整保留工具呼叫與推理強度。",
+          "slug": "codex"
+        },
+        {
+          "name": "OpenCode",
+          "badge": "OpenAI 相容",
+          "highlight": false,
+          "body": "填入 api.lazu.ai/v1，一站切換 Claude、GPT、Gemini 與 DeepSeek。",
+          "slug": "opencode"
+        },
+        {
+          "name": "Goose",
+          "badge": "自訂 JSON",
+          "highlight": false,
+          "body": "複製一份自訂 Provider JSON 即可匯入，自動透過 /v1/models 探索模型。",
+          "slug": "goose"
+        },
+        {
+          "name": "更多用戶端與 SDK",
+          "badge": "免金鑰探索",
+          "highlight": false,
+          "body": "Cursor、Cline、Cherry Studio、Chatbox 與任意 OpenAI SDK 通用接入。",
+          "slug": "overview"
+        }
+      ]
     }
   },
   "about": {

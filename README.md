@@ -1,20 +1,104 @@
-# Lazu
+<p align="center">
+  <a href="https://lazu.ai">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./brand/assets/logo/current/lazu-primary-paper.svg" />
+      <source media="(prefers-color-scheme: light)" srcset="./brand/assets/logo/current/lazu-primary-graphite.svg" />
+      <img alt="Lazu" src="./brand/assets/logo/current/lazu-primary-graphite.svg" height="44" />
+    </picture>
+  </a>
+</p>
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/lazu-ai/lazu?style=social)](https://github.com/lazu-ai/lazu/stargazers)
+<h3 align="center">The model account for coding agents, video, and pipelines.</h3>
 
-**The open-source gateway behind [lazu.ai](https://lazu.ai): the model account for coding agents and pipelines.** One OpenAI-compatible endpoint in front of your own Claude, GPT, Gemini and DeepSeek accounts, with a key, a budget and a usage record for every person and every agent that draws on them. Connect Claude Code, Codex, OpenCode or any SDK.
+<p align="center">
+  Consolidate your model accounts into one open-source gateway — native APIs for frontier models, plus hosted multimodal and video models.
+</p>
 
-[Self-host it](#quick-start-docker) · [API docs](https://lazu.ai/docs) · [Compared with LiteLLM, New API and other gateways](https://lazu.ai/docs/compare/overview)
+<p align="center">
+  <a href="https://lazu.ai"><strong>lazu.ai</strong></a> ·
+  <a href="https://lazu.ai/docs">Docs</a> ·
+  <a href="https://lazu.ai/docs/integrations/overview">Integrations</a> ·
+  <a href="https://lazu.ai/docs/compare/overview">Compare</a> ·
+  <a href="./LICENSE">AGPL-3.0</a> ·
+  <a href="./README.zh-CN.md">简体中文</a>
+</p>
 
-## What it does
+<p align="center">
+  <a href="https://lazu.ai">
+    <img src="./brand/assets/logo/social/lazu-github-social-1280x640.png" alt="Lazu — The model account for coding agents, video, and pipelines." width="100%" />
+  </a>
+</p>
 
-- **One endpoint, four protocols.** OpenAI Chat Completions and Responses, Anthropic Messages and Gemini `generateContent` are served natively. A request whose client format differs from the upstream's is bridged only when the conversion is lossless; otherwise it is rejected with a `400` that names the feature, never passed on with parameters quietly dropped ([design](./docs/protocol-conversion-architecture.md)).
-- **Accounts, keys and budgets.** Users, teams and projects; member and per-key budgets; lanes chosen per key and per model. Funds are reserved before the upstream call and settled from the provider's own usage counters, so an account cannot be charged for usage nobody measured ([billing contract](./docs/billing-contract.md)).
-- **A usage record per request.** Each completed request has a record with its normalized token dimensions, the source of every number (provider, local estimate, or unavailable), the billing line items and public timing, readable by the key that made it ([request details](https://lazu.ai/docs/endpoints/usage-requests)). Requests from a coding agent group into sessions, and [a script](./ops/scripts/summarize-agent-session.py) reconciles an exported session offline.
-- **Routing you can see.** Several upstream channels per model, picked by priority and weight; a failing channel leaves the rotation through its health window, and a failed attempt retries on the same model elsewhere. A public page shows each route's state.
-- **A console and a docs site.** Operators manage upstreams, pricing, users and notices in the console; users get keys, usage, wallet and the request log; the docs site ships in English, Chinese, Traditional Chinese and Japanese.
-- **Extension points instead of forks.** A deployment compiles its own features in through the hooks in [docs/EXTENSIONS.md](./docs/EXTENSIONS.md); the core does not know they exist.
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Clients["Coding Agents & Pipelines"]
+    CC["Claude Code<br/>(/v1/messages)"]
+    CX["Codex CLI<br/>(/v1/responses)"]
+    OC["OpenCode / cc-connect / SDKs<br/>(/v1/chat/completions)"]
+    VID["Video & Multimodal Jobs<br/>(/v1/videos, /v1/images)"]
+  end
+
+  subgraph Lazu["Lazu Gateway (Go · AGPL-3.0)"]
+    AUTH["Key Scope &<br/>Hard Budget Reserve"]
+    CODEC["Lossless Protocol<br/>Codec"]
+    ROUTE["Lane Router &<br/>Cache Affinity"]
+    LEDGER["Per-Call Usage<br/>& Billing Ledger"]
+    AUTH --> CODEC --> ROUTE --> LEDGER
+  end
+
+  subgraph Upstreams["Upstream Supply"]
+    ANT["Anthropic / OpenAI<br/>Gemini / DeepSeek"]
+    MOD["Hosted Open Multimodal<br/>& Video Models"]
+  end
+
+  CC --> AUTH
+  CX --> AUTH
+  OC --> AUTH
+  VID --> AUTH
+  ROUTE --> ANT
+  ROUTE --> MOD
+```
+
+## What Lazu does
+
+- **One endpoint, four native protocols.** OpenAI Chat Completions and Responses, Anthropic Messages, and Gemini `generateContent` are served natively. Cross-protocol conversion happens only when lossless; otherwise Lazu rejects with a `400` naming the unsupported feature instead of quietly dropping parameters ([design](./docs/protocol-conversion-architecture.md)).
+- **Accounts, keys, and hard budgets.** Users, teams, and projects; per-key and per-member budgets; lanes chosen per key and per model. Funds are reserved before the upstream call and settled strictly from provider usage counters ([billing contract](./docs/billing-contract.md)).
+- **A usage record per request.** Each completed request records normalized token & prompt-cache dimensions, the source of every number (provider, local estimate, or unavailable), billing line items, and public timing — readable by the key that made it ([request details](https://lazu.ai/docs/endpoints/usage-requests)). Coding agent calls group into sessions, with an offline reconciliation script ([`summarize-agent-session.py`](./ops/scripts/summarize-agent-session.py)).
+- **Visible routing and failover.** Several upstream channels per model picked by priority and weight, automatic health windows, and session affinity (`x-session-id`) to preserve prompt caches.
+- **Extension points instead of forks.** Deployments compile custom features through the generic hooks in [docs/EXTENSIONS.md](./docs/EXTENSIONS.md); the core stays standalone.
+
+### How it differs from a thin proxy
+
+| Failure mode | Thin proxy | Lazu |
+| --- | --- | --- |
+| Unsupported parameter across protocols | Silently dropped | Explicit `400` naming the field |
+| Budget or balance exhausted mid-session | Client retries in a loop | Immediate native `402` stop |
+| Cost & prompt-cache visibility | Opaque balance deduction | Per-call usage record & billing line items |
+| Client model discovery | Hardcoded model lists | Public, unauthenticated `GET /v1/models` |
+
+## Ecosystem & integrations
+
+### Built-in provider presets
+
+| Project | How to use | Guide |
+| --- | --- | --- |
+| **[cc-connect](https://github.com/chenhg5/cc-connect)** | Official built-in preset for Claude Code, Codex (`wire_api: "responses"`), and OpenCode via `cc-connect provider presets` | [cc-connect guide](https://lazu.ai/docs/integrations/cc-connect) |
+
+### First-class coding agents & clients
+
+| Client | Protocol | Guide |
+| --- | --- | --- |
+| **Claude Code** | Native Anthropic Messages (`https://api.lazu.ai`) | [Claude Code guide](https://lazu.ai/docs/integrations/claude-code) |
+| **Codex CLI** | Native OpenAI Responses (`wire_api = "responses"`) | [Codex CLI guide](https://lazu.ai/docs/integrations/codex) |
+| **OpenCode** | OpenAI-compatible (`https://api.lazu.ai/v1`) | [OpenCode guide](https://lazu.ai/docs/integrations/opencode) |
+| **Goose** | Provider-maintained custom provider JSON | [Goose guide](https://lazu.ai/docs/integrations/goose) |
+| **Cursor, Cline, Cherry Studio, Chatbox, SDKs** | OpenAI-compatible + public `GET /v1/models` | [All integrations](https://lazu.ai/docs/integrations/overview) |
+
+> **Building a client or model catalog?** `GET https://api.lazu.ai/v1/models` and `GET https://lazu.ai/api/pricing` are public (no API key required) for live model and capability discovery.
 
 ## Quick start (Docker)
 
@@ -23,10 +107,7 @@ cp .env.example .env        # set ROOT_PASSWORD and the database passwords
 docker compose --env-file .env -f platform/docker/docker-compose.yml up --build -d
 ```
 
-Open <http://localhost:3000> and sign in with `ROOT_USERNAME` / `ROOT_PASSWORD`
-(`root` / `change-me-local-root` if you left them empty). Add an upstream under
-模型运营 / Model operations, create an API key, and call
-`http://localhost:3001/v1/chat/completions` with it.
+Open <http://localhost:3000> and sign in with `ROOT_USERNAME` / `ROOT_PASSWORD` (`root` / `change-me-local-root` if you left them empty). Add an upstream under **Model operations**, create an API key, and call `http://localhost:3001/v1/chat/completions`:
 
 ```bash
 curl http://localhost:3001/v1/chat/completions \
@@ -35,180 +116,77 @@ curl http://localhost:3001/v1/chat/completions \
   -d '{"model":"<a model id from your catalog>","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-The stack runs the gateway (port `3001`), its background jobs, the web console
-(port `3000`), separate Core and Telemetry PostgreSQL stores and Redis. On first
-start the gateway creates its schema and opens its financial ledger; later
-starts leave both alone. There is no browser-based install step.
+The stack runs the gateway (`3001`), background jobs, web console (`3000`), separate Core and Telemetry PostgreSQL stores, and Redis. For optional integrations (mail, card top-ups, R2 file storage) and production checklists, see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
-### Connect a client
+---
 
-Any OpenAI SDK works with `base_url` set to `http://<your-host>:3001/v1`
-([Quickstart](https://lazu.ai/docs/quickstart)). Claude Code talks to the
-Anthropic Messages endpoint of the same host, Codex and OpenCode to the OpenAI
-endpoints; the guides for [Claude Code](https://lazu.ai/blog/claude-code-custom-api)
-and [Codex](https://lazu.ai/blog/codex-custom-provider) show the settings, with
-`https://api.lazu.ai` replaced by your own origin.
+<details>
+<summary><strong>Maintainer &amp; Local Development Guide</strong> — Workspace, <code>./run.sh</code>, Docs, Config, Security &amp; Contributing</summary>
 
-### Optional integrations
+### Workspace
 
-Everything beyond the gateway stays off until configured:
+| Path | Purpose |
+| --- | --- |
+| `apps/api/` | API server entrypoint |
+| `apps/web/` | Web console and public pages |
+| `apps/docs/` | Vocs documentation site (`en` / `zh` / `zh-TW` / `ja`) |
+| `apps/worker/` | Background jobs |
+| `internal/` | Backend controllers, services, models, relay adapters, protocol codecs, middleware, settings |
+| `packages/` | Shared contracts and pure domain rules |
+| `config/` | Backend config, env templates, seed data |
+| `ops/` | Operational scripts and deployment helpers |
+| `docs/` | Maintainer notes: contracts, architecture, deployment, glossary |
+| `brand/` | Visual and product design reference |
+| `.local-results/` | Local only, git-ignored: Playwright screenshots, traces, reports and build output; see [CONTRIBUTING.md](./CONTRIBUTING.md#本地产物local-artifacts) |
+
+Shared contract source: `packages/contracts/openapi/lazu-api-reference.v1.yaml`. Error codes and envelopes are documented in [docs/ERRORS.md](./docs/ERRORS.md).
+
+### Optional Docker integrations
+
+Everything beyond the gateway stays off until configured (`platform/docker/docker-compose.integrations.example.yml`):
 
 | Feature | Configure |
 | --- | --- |
 | Mail (sign-up codes, receipts, alerts) | `RESEND_API_KEY` and `ADMIN_EMAIL`, or `smtp` in `config/backend/config.yaml` |
 | Card top-ups | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` |
-| Files API and request captures | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without them the Files API answers `503 storage_not_configured` |
+| Files API and request captures | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` |
 | Links in mail and payments | `FRONTEND_BASE_URL`, and `site` in `config/backend/config.yaml` |
 | Probes against client-restricted upstreams | `probe_identities` in `config/backend/config.yaml` |
 
-Integration variables reach the containers through
-`platform/docker/docker-compose.integrations.example.yml`; copy it to
-`docker-compose.integrations.yml` and pass it as a second `-f`.
-
-The bundled public pages (home, models, blog, legal) are lazu.ai's. Replace the
-legal documents under 设置 / Settings before you open your deployment to others.
-
-For the full deployment checklist, see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
-
-> **👤 Looking to use Lazu?** → **[lazu.ai/docs](https://lazu.ai/docs)** for the user-facing API documentation (Quickstart, Pricing, Endpoints, Examples).
->
-> **🛠 Working on Lazu itself?** → keep reading, you're in the right place.
->
-> **⭐ Found it useful?** A star on this repository helps other teams find it.
-
----
-
-## Workspace
-
-| Path              | Purpose                                                                                                                  |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `apps/api/`       | API server entrypoint                                                                                                    |
-| `apps/web/`       | Web console and public pages                                                                                             |
-| `apps/docs/`      | Vocs documentation site (en/zh/zh-TW/ja)                                                                                 |
-| `apps/worker/`    | Background jobs                                                                                                          |
-| `internal/`       | Backend controllers, services, models, relay adapters, protocol codecs, middleware, settings                              |
-| `packages/`       | Shared contracts and pure domain rules                                                                                   |
-| `config/`         | Backend config, env templates, seed data                                                                                 |
-| `ops/`            | Operational scripts and deployment helpers                                                                               |
-| `docs/`           | Maintainer notes: contracts, architecture, deployment, glossary                                                          |
-| `brand/`          | Visual and product design reference                                                                                      |
-| `.local-results/` | Local only, git-ignored: Playwright screenshots, traces, reports and other build output; see [CONTRIBUTING.md](./CONTRIBUTING.md#本地产物local-artifacts) |
-
-Shared package sources:
-
-- `packages/contracts/openapi/lazu-api-reference.v1.yaml`: developer API reference used by the docs site
-
-Error codes, envelopes and the rules for adding errors are documented in [docs/ERRORS.md](./docs/ERRORS.md).
-
-## Local Development
+### Local development
 
 ```bash
-./run.sh
+./run.sh        # fast start using existing dependencies/caches
+./rebuild.sh    # clean dependency/cache rebuild + start
+make help       # other repository commands
 ```
 
-`./run.sh` is the fast path: it starts the existing local services without
-clearing caches or reinstalling dependencies. When dependencies or build
-caches need a clean reset, use:
+Local ports: PostgreSQL `127.0.0.1:10000`, Redis `127.0.0.1:10001`, API `3000`, web `5173`, docs `3002`.
+
+Docker stack helper: `./ops/scripts/stack.sh up --build`.
+
+### Docs
+
+Public docs source lives in `apps/docs/` (Vocs). Start with [docs/README.md](./docs/README.md) for current contracts and operations.
 
 ```bash
-./rebuild.sh
+cd apps/docs && npm install && npm run dev -- --port 3002
 ```
 
-The local development stack reads `.env`; keep production values in your
-deployment's own secret store. The local stack uses PostgreSQL on
-`127.0.0.1:10000`, Redis on `127.0.0.1:10001`, the API on `3000`, the web app
-on `5173`, and docs on `3002`.
+Canonical docs path: `https://lazu.ai/docs`.
 
-Other repository commands:
+### Config
 
-```bash
-make help
-```
+Backend config resolution order: `APP_CONFIG_FILE` → `config/backend/config.yaml` → `config/backend/config.yml` → `/app/config/backend/config.yaml` → `/app/config/backend/config.yml`.
 
-Local development intentionally has only two user-facing entrypoints:
-`./run.sh` for a fast start and `./rebuild.sh` for a clean dependency/cache
-rebuild followed by startup. The Docker stack and scripts under `ops/scripts/`
-are deployment or maintenance internals, not additional local startup paths.
+### Security
 
-## Docker Stack
-
-```bash
-./ops/scripts/stack.sh up --build
-```
-
-## Docs
-
-Public docs source lives in `apps/docs/` (Vocs). Start with
-[the maintainer index](docs/README.md) for current contracts and operations.
-
-- `apps/docs/vocs.config.ts`: Vocs site configuration, sidebar, search, theme
-- `apps/docs/pages/index.mdx`: docs home (English default)
-- `apps/docs/pages/compare/`: how Lazu differs from other gateways
-- `apps/docs/pages/examples.mdx`: public code examples
-- `apps/docs/pages/changelog.mdx`: public documentation changelog
-- `apps/docs/pages/api-reference.mdx`: Scalar-rendered OpenAPI reference
-- `apps/docs/pages/{zh,zh-TW,ja}/*`: per-locale variants
-- `docs/i18n.md`: translation glossary
-
-API reference source lives in `packages/contracts/openapi/lazu-api-reference.v1.yaml`.
-
-Docs preview:
-
-```bash
-cd apps/docs
-npm install
-npm run dev -- --port 3002
-```
-
-Docs build:
-
-```bash
-cd apps/docs
-npm run build
-```
-
-Canonical docs path: `https://lazu.ai/docs` (the web app proxies `/docs` to the docs container; `docs.lazu.ai` 301s there).
-
-Project docs should stay flat and focused. Prefer code, tests, OpenAPI, and generated docs over new Markdown.
-
-## Config
-
-Backend config resolution order:
-
-1. `APP_CONFIG_FILE`
-2. `config/backend/config.yaml`
-3. `config/backend/config.yml`
-4. `/app/config/backend/config.yaml`
-5. `/app/config/backend/config.yml`
-
-Credentials and startup settings belong in env or `config/backend/config.yaml`; changing them requires a backend container restart. Daily operational values such as pricing, notices, ratios, and toggles are changed in the console UI.
-
-Features a deployment compiles in on top of this repository attach through the hooks in [docs/EXTENSIONS.md](./docs/EXTENSIONS.md).
-
-## Security
-
-- Do not commit real config secrets.
-- Keep `config/backend/config.yaml` local or environment-provided.
-- Rotate any credential that was ever committed or pasted into logs.
+- Do not commit real config secrets; keep `config/backend/config.yaml` local or environment-provided.
 - Production deployments must use strong `SESSION_SECRET` and `CRYPTO_SECRET` values.
+- See [SECURITY.md](./SECURITY.md) to report a vulnerability privately.
 
-## Contributing
+### Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the workflow and the sign-off
-rule, [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community standards, and
-[SECURITY.md](./SECURITY.md) to report a vulnerability privately.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
-## License
-
-Lazu is distributed under the GNU Affero General Public License v3.0 or later;
-see [LICENSE](./LICENSE). If you run a modified version as a network service,
-the license requires you to offer its source to the people who use it: set
-`site.source_url` in `config/backend/config.yaml` and the console links to it.
-
-Lazu is based on [new-api](https://github.com/QuantumNous/new-api)
-(AGPL-3.0), which is based on [one-api](https://github.com/songquanpeng/one-api)
-(MIT). Their copyright and attribution are kept in [NOTICE](./NOTICE) and the
-applicable source-file headers, and the console carries the attribution the
-upstream's additional license terms require. Preserve all of these when
-distributing modified copies. Third-party licenses are listed in
-[THIRD_PARTY.md](./THIRD_PARTY.md).
+</details>
