@@ -1791,7 +1791,6 @@
     "page.console.tables.none": "None",
     "page.console.tables.refresh": "Refresh",
     "page.console.tables.reset": "Reset",
-    "page.console.tables.search": "Search",
     "page.console.tables.tableTitle": "Data list",
     "page.console.tables.unknown": "Unknown",
     "page.console.token.action.selectPage": "Select current page tokens",

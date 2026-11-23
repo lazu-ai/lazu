@@ -14,12 +14,6 @@ exports src/components/common/DocumentRenderer/legal-outline.ts plainHeadingText
 exports src/components/dashboard/time-picker-v3.tsx DEFAULT_PRESET_ID
 exports src/components/dashboard/time-picker-v3.tsx rangeToDates
 exports src/components/settings/TelegramLinkField.tsx telegramStatusKey
-exports src/components/ui/table-tools.tsx CopyButton
-exports src/components/ui/table-tools.tsx FilterActions
-exports src/components/ui/table-tools.tsx SearchField
-exports src/components/ui/table-tools.tsx TagList
-exports src/components/ui/table-tools.tsx parseTagList
-exports src/components/ui/table-tools.tsx statusBadgeVariant
 exports src/constants/channel.constants.ts MODEL_TABLE_PAGE_SIZE
 exports src/context/ConsoleScope/index.tsx CONSOLE_WORKSPACE_FALLBACK
 exports src/features/projects/ProjectContext.tsx useDirtyGuard

@@ -1791,7 +1791,6 @@
     "page.console.tables.none": "なし",
     "page.console.tables.refresh": "更新",
     "page.console.tables.reset": "リセット",
-    "page.console.tables.search": "検索",
     "page.console.tables.tableTitle": "データリスト",
     "page.console.tables.unknown": "不明",
     "page.console.token.action.selectPage": "現在のページのトークンを選択",

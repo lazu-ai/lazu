@@ -1,4 +1,4 @@
-import { Columns3, Copy, Search, X } from 'lucide-react';
+import { Columns3 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from './badge';
 import { Button } from './button';
@@ -11,10 +11,8 @@ import {
   DropdownMenuTrigger,
 } from './dropdown-menu';
 import { FilterBar } from './filter-bar';
-import { Input } from './input';
 import { Pagination } from './pagination';
 import { RefreshButton } from './refresh-button';
-import { Tag } from './tag';
 import { Toolbar, ToolbarGroup } from './toolbar';
 import { cn } from '../../lib/cn';
 import type { TFunction } from 'i18next';
@@ -113,45 +111,6 @@ export function formatUnixTime(value: unknown, fallback = '-') {
   }).format(new Date(millis));
 }
 
-export function statusBadgeVariant(status: unknown): BadgeVariant {
-  const successStatuses: readonly unknown[] = [
-    1,
-    '1',
-    true,
-    'SUCCESS',
-    'success',
-    'active',
-  ];
-  const warningStatuses: readonly unknown[] = [
-    2,
-    '2',
-    'QUEUED',
-    'SUBMITTED',
-    'IN_PROGRESS',
-  ];
-  const dangerStatuses: readonly unknown[] = [
-    0,
-    '0',
-    3,
-    '3',
-    false,
-    'FAILURE',
-    'failure',
-    'disabled',
-  ];
-
-  if (successStatuses.includes(status)) {
-    return 'success';
-  }
-  if (warningStatuses.includes(status)) {
-    return 'warning';
-  }
-  if (dangerStatuses.includes(status)) {
-    return 'danger';
-  }
-  return 'neutral';
-}
-
 export function InlineCode({
   children,
   title,
@@ -195,54 +154,6 @@ export function TextStack({
   );
 }
 
-export function parseTagList(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((v) => String(v)).filter(Boolean);
-  }
-  if (value === null || value === undefined) return [];
-  const text = String(value).trim();
-  if (!text) return [];
-  if (text.startsWith('[') || text.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) {
-        return parsed.map((v) => String(v)).filter(Boolean);
-      }
-    } catch {
-      // fall through to comma split
-    }
-  }
-  return text
-    .split(/[,\n]/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
-export function TagList({
-  items,
-  max = 3,
-  fallback = '-',
-}: {
-  fallback?: ReactNode;
-  items: unknown;
-  max?: number;
-}) {
-  const list = Array.isArray(items) ? items : parseTagList(items);
-  if (!list.length) {
-    return <span className='text-[var(--ui-text-tertiary)]'>{fallback}</span>;
-  }
-  const shown = list.slice(0, max);
-  const hidden = list.length - shown.length;
-  return (
-    <div className='flex max-w-[18rem] flex-wrap gap-1' title={list.join(', ')}>
-      {shown.map((item, idx) => (
-        <Tag key={`${item}-${idx}`}>{item}</Tag>
-      ))}
-      {hidden > 0 ? <Tag>+{hidden}</Tag> : null}
-    </div>
-  );
-}
-
 export function MetricPill({
   label,
   value,
@@ -257,29 +168,6 @@ export function MetricPill({
       <span className='text-[var(--ui-text-tertiary)]'>{label}</span>
       <span>{value}</span>
     </Badge>
-  );
-}
-
-export function SearchField({
-  label,
-  onChange,
-  placeholder,
-  value,
-}: {
-  label: ReactNode;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  value: string;
-}) {
-  return (
-    <label className='min-w-[12rem] flex-1 text-xs font-medium text-[var(--ui-text-secondary)]'>
-      <span className='mb-1 block'>{label}</span>
-      <Input
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
   );
 }
 
@@ -532,54 +420,5 @@ export function ConsoleTableFrame({
         </DataSurface>
       </div>
     </section>
-  );
-}
-
-export function FilterActions({
-  disabled,
-  onReset,
-  onSubmit,
-  t,
-}: {
-  disabled?: boolean;
-  onReset: () => void;
-  onSubmit: () => void;
-  t: TFunction;
-}) {
-  return (
-    <div className='flex flex-wrap items-end gap-2'>
-      {/* type=submit: inside a FilterBar, Enter in any field clicks this. */}
-      <Button
-        variant='secondary'
-        type='submit'
-        size='md'
-        onClick={onSubmit}
-        disabled={disabled}
-      >
-        <Search size={15} />
-        {t('page.console.tables.search')}
-      </Button>
-      <Button size='md' variant='ghost' onClick={onReset} disabled={disabled}>
-        <X size={15} />
-        {t('page.console.tables.reset')}
-      </Button>
-    </div>
-  );
-}
-
-export function CopyButton({
-  label,
-  onClick,
-  t,
-}: {
-  label?: ReactNode;
-  onClick: () => void;
-  t: TFunction;
-}) {
-  return (
-    <Button size='xs' variant='soft' onClick={onClick}>
-      <Copy size={12} />
-      {label || t('page.console.tables.copy')}
-    </Button>
   );
 }
