@@ -49,18 +49,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   letter-spacing: -0.02em;
 }
 
-.tokv2-quota {
-  display: grid;
-  gap: 3px;
-  justify-items: start;
-}
-
-.tokv2-quota small {
-  color: var(--lazu-text-muted);
-  font-size: 10.5px;
-  white-space: nowrap;
-}
-
 /* --- list ------------------------------------------------------------- */
 
 .tokv2-toolbar {
@@ -78,22 +66,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   width: auto;
 }
 
-.tokv2-toolbar__search {
-  min-width: 13rem;
-}
-
-.tokv2-toolbar__key {
-  min-width: 10rem;
-}
-
-.tokv2-toolbar-right {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 .tokv2-th-r,
 .tokv2-cell-r {
   display: block;
@@ -103,13 +75,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 .tokv2-cell-r {
   color: var(--lazu-text-muted);
   font-size: 12.5px;
-}
-
-.tokv2-scope {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  max-width: 18rem;
 }
 
 .tokv2-editlink {
@@ -186,24 +151,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
 
 /* --- editor: fields shared by create and edit -------------------------- */
 
-.tokv2-sec {
-  border-top: 1px solid var(--lazu-border);
-  padding: 13px 0 4px;
-}
-
-.tokv2-sec__title {
-  display: block;
-  font-size: 12.5px;
-  font-weight: 650;
-  margin-bottom: 9px;
-}
-
-.tokv2-grid {
-  display: grid;
-  gap: 12px 14px;
-  grid-template-columns: 1fr 1fr;
-}
-
 .tokv2-f {
   display: flex;
   flex-direction: column;
@@ -237,20 +184,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   min-width: 0;
 }
 
-.tokv2-quota-input {
-  padding-left: 1.75rem;
-}
-
-.tokv2-quota-prefix {
-  align-items: center;
-  color: var(--lazu-text-faint);
-  display: flex;
-  inset-block: 0;
-  left: 12px;
-  pointer-events: none;
-  position: absolute;
-}
-
 .tokv2-meter {
   background: var(--lazu-surface-selected);
   border-radius: 999px;
@@ -264,12 +197,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   border-radius: 999px;
   display: block;
   height: 100%;
-}
-
-.tokv2-meter__line {
-  color: var(--lazu-text-faint);
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
 }
 
 .tokv2-seg {
@@ -304,21 +231,9 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   font-size: 11.5px;
 }
 
-.tokv2-form .tokv2-sec:last-child {
-  padding-bottom: 0;
-}
-
 @media (max-width: 900px) {
-  .tokv2-grid {
-    grid-template-columns: 1fr;
-  }
-
   .tokv2-row--nowrap {
     flex-wrap: wrap;
-  }
-
-  .tokv2-toolbar-right {
-    justify-content: flex-start;
   }
 }
 
@@ -1112,48 +1027,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   grid-column: 1 / -1;
 }
 
-.tok-model__multi {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-height: var(--lazu-control-height-sm);
-}
-
-.tok-model__chip {
-  align-items: center;
-  background: var(--lazu-surface);
-  border: 1px solid var(--lazu-border);
-  border-radius: var(--lazu-radius-pill);
-  color: var(--lazu-ink);
-  display: inline-flex;
-  font-family: var(--lazu-font-mono);
-  font-size: 11.5px;
-  gap: 6px;
-  max-width: 100%;
-  min-height: 26px;
-  padding: 0 4px 0 10px;
-}
-
-.tok-model__chip-x {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: var(--lazu-radius-pill);
-  color: var(--lazu-text-faint);
-  cursor: pointer;
-  display: inline-flex;
-  height: 18px;
-  justify-content: center;
-  padding: 0;
-  width: 18px;
-}
-
-.tok-model__chip-x:hover:not(:disabled) {
-  background: var(--lazu-surface-selected);
-  color: var(--lazu-ink);
-}
-
 .tok-model__add {
   align-items: center;
   background: transparent;
@@ -1330,19 +1203,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   white-space: pre-wrap;
 }
 
-.tok-connect__toggles {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 24px;
-}
-
-.tok-connect__toggles .lazu-switch-label {
-  color: var(--lazu-text-muted);
-  font-size: 12px;
-  gap: 10px;
-}
-
 .tok-connect .lazu-modal-close {
   z-index: 2;
 }
@@ -1404,19 +1264,6 @@ button.tokv2-chip.tokv2-chip--evi:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.tok-tags__row {
-  align-items: center;
-  display: grid;
-  gap: 6px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-}
-
-.tok-tags__row .lazu-input {
-  font-size: 12px;
-  height: auto;
-  min-height: var(--lazu-control-height-sm);
 }
 
 .tok-connect__label-note {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"strings"
 	"sync"
@@ -621,11 +622,21 @@ func (channel *Channel) Insert() error {
 }
 
 func (channel *Channel) Update() error {
+	updated := *channel
+	updated.ChannelInfo.MultiKeyStatusList = maps.Clone(channel.ChannelInfo.MultiKeyStatusList)
+	if err := CoreDB().Transaction(updated.updateInTransaction); err != nil {
+		return err
+	}
+	*channel = updated
+	return nil
+}
+
+func (channel *Channel) updateInTransaction(tx *gorm.DB) error {
 	if strings.TrimSpace(channel.SourceType) != "" {
 		channel.SourceType = NormalizeChannelSourceType(channel.SourceType)
 	}
 	var existingIdentity Channel
-	if err := CoreDB().Select("type, base_url, settings").First(&existingIdentity, "id = ?", channel.Id).Error; err != nil {
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("type, base_url, settings, key").First(&existingIdentity, "id = ?", channel.Id).Error; err != nil {
 		return err
 	}
 	if err := initializeMissingProtocolDialect(channel, &existingIdentity); err != nil {
@@ -641,9 +652,10 @@ func (channel *Channel) Update() error {
 			keyStr = channel.Key
 		} else {
 			// If key is not provided, read the existing key from the database
-			if existing, err := GetChannelById(channel.Id, true); err == nil {
-				keyStr = existing.Key
+			if err := existingIdentity.decryptKeyForUse(); err != nil {
+				return err
 			}
+			keyStr = existingIdentity.Key
 		}
 		// Parse the key list (supports newline separation or JSON array)
 		keys := []string{}
@@ -678,11 +690,11 @@ func (channel *Channel) Update() error {
 	if err != nil {
 		return err
 	}
-	err = CoreDB().Model(channel).Updates(storageChannel).Error
+	err = tx.Model(channel).Updates(storageChannel).Error
 	if err != nil {
 		return err
 	}
-	if err = CoreDB().Model(channel).First(channel, "id = ?", channel.Id).Error; err != nil {
+	if err = tx.Model(channel).First(channel, "id = ?", channel.Id).Error; err != nil {
 		return err
 	}
 	if err = channel.decryptKeyForUse(); err != nil {
@@ -691,8 +703,7 @@ func (channel *Channel) Update() error {
 	if clearKey != "" {
 		channel.Key = clearKey
 	}
-	err = channel.UpdateAbilities(nil)
-	return err
+	return channel.UpdateAbilities(tx)
 }
 
 func (channel *Channel) UpdateResponseTime(responseTime int64) {

@@ -8,7 +8,7 @@ import {
 import { Checkbox } from '../../components/ui/checkbox';
 import { FieldMessage } from '../../components/ui/field';
 import { Textarea } from '../../components/ui/textarea';
-import type { ChannelFormValues } from './SourceForm';
+import type { ChannelFormValues } from '../../hooks/channels/useChannelsQuery';
 import type {
   UpstreamSyncLogEntry,
   UpstreamSyncView,

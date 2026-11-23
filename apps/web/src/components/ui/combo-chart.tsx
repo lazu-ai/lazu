@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../../lib/cn';
 
 /**
@@ -542,6 +542,3 @@ export function ComboChart({
     </figure>
   );
 }
-
-/** Wraps a render so React key churn on data changes never resets hover. */
-export const MemoComboChart = React.memo(ComboChart);

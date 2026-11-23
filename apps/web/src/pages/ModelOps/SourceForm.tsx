@@ -44,6 +44,7 @@ import {
   STATUS_CODE_MAPPING_MAX_LENGTH,
 } from '../../hooks/channels/source-overrides';
 import {
+  type ChannelFormValues,
   getDefaultChannelFormValues,
   useChannelDetailQuery,
   useChannelsQuery,
@@ -105,52 +106,6 @@ type ChannelsQuery = ReturnType<typeof useChannelsQuery>;
 type ChannelRecord = ChannelsQuery['channels'][number];
 
 type OptionItem = { label: string; value: string };
-
-export type ChannelFormValues = {
-  setting?: string;
-  decision_dialect: string;
-  cf_account_id: string;
-  decision_timeout_ms: number;
-  max_rps: number;
-  max_in_flight: number;
-  shared_limit_group: string;
-  shared_max_rps: number;
-  shared_max_in_flight: number;
-
-  auto_ban: boolean;
-  source_type: string;
-  base_url?: string;
-  claude_code_client_only: boolean;
-  claude_code_user_agent?: string;
-  groups: string[];
-  key?: string;
-  models: string[];
-  /** JSON, public name → upstream ID; "" when nothing is mapped. */
-  model_mapping?: string;
-  name: string;
-  observe_new_routes: boolean;
-  priority: number;
-  protocol_dialect: string;
-  provider_cost_prices?: string;
-  remark?: string;
-  param_override?: string;
-  header_override?: string;
-  status_code_mapping?: string;
-  settings?: string;
-  status: boolean;
-  tag?: string;
-  type: number;
-  upstream_sync_ignore: string;
-  upstream_sync_interval: number;
-  upstream_sync_notify_ops: boolean;
-  upstream_sync_on_gone: 'keep' | 'stop';
-  upstream_sync_on_new: 'auto' | 'review';
-  video_content_url_template?: string;
-  video_envelope?: string;
-  video_family?: string;
-  video_status_url_template?: string;
-  weight: number;
-};
 
 const splitFreeEntry = (value: unknown): string[] =>
   String(value || '')
@@ -458,7 +413,7 @@ export default function SourceForm({
   const lanes = useChannelLanesQuery().data ?? [];
 
   const defaultValues = useMemo(() => {
-    const values = getDefaultChannelFormValues() as ChannelFormValues;
+    const values = getDefaultChannelFormValues();
     values.groups = [channels.groups[0] || values.groups[0] || 'direct'];
     return values;
   }, [channels.groups]);

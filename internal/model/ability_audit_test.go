@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/common"
@@ -145,5 +146,34 @@ func TestInventoryLeavesTheCatalogueAndTheRouter(t *testing.T) {
 	}
 	if len(grid) != 2 {
 		t.Fatalf("grid = %+v, want inventory to stay visible to operators", grid)
+	}
+}
+
+func TestChannelEditRollsBackOnAbilityFailure(t *testing.T) {
+	db := setupChannelHealthTestDB(t)
+	channel := Channel{Name: "original", Type: 1, Group: ChannelLaneDirect, Models: "original"}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := channel.UpdateAbilities(nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("CREATE TRIGGER fail_route BEFORE INSERT ON abilities WHEN NEW.model = 'replacement' BEGIN SELECT RAISE(ABORT, 'route write failed'); END").Error; err != nil {
+		t.Fatal(err)
+	}
+	channel.Models = "replacement"
+	if err := channel.Update(); err == nil || !strings.Contains(err.Error(), "route write failed") {
+		t.Fatalf("expected injected failure, got %v", err)
+	}
+	var stored Channel
+	var routes []Ability
+	if err := db.First(&stored, channel.Id).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Where("channel_id = ?", channel.Id).Find(&routes).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Models != "original" || len(routes) != 1 || routes[0].Model != "original" {
+		t.Fatalf("partial edit: %q, %+v", stored.Models, routes)
 	}
 }

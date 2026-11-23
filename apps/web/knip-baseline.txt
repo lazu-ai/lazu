@@ -8,16 +8,12 @@ duplicates src/hooks/common/useAnnouncementsUnread.ts default+useAnnouncementsUn
 duplicates src/pages/ChannelHealth/index.tsx ChannelHealthPage+default
 duplicates src/pages/Routes/index.tsx ModelCatalogPlaza+default
 duplicates src/pages/Token/token-usage-panel.tsx TokenUsagePanel+default
-exports src/components/announcements/WhatsNewDialog.tsx openWhatsNewDialog
 exports src/components/announcements/whatsNewAutoOpen.ts WHATS_NEW_AUTO_OPEN_DAY_PREFIX
 exports src/components/auth/AuthExits.tsx default
-exports src/components/auth/AuthLayout.tsx AuthMark
-exports src/components/auth/DoorSkeleton.tsx markDoorEntry
 exports src/components/common/DocumentRenderer/legal-outline.ts plainHeadingText
 exports src/components/dashboard/time-picker-v3.tsx DEFAULT_PRESET_ID
 exports src/components/dashboard/time-picker-v3.tsx rangeToDates
 exports src/components/settings/TelegramLinkField.tsx telegramStatusKey
-exports src/components/ui/combo-chart.tsx MemoComboChart
 exports src/components/ui/table-tools.tsx CopyButton
 exports src/components/ui/table-tools.tsx FilterActions
 exports src/components/ui/table-tools.tsx SearchField

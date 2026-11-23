@@ -25,8 +25,6 @@ type AnnouncementList = {
   items?: Announcement[];
 };
 
-export { openWhatsNewDialog } from './whatsNewChannel';
-
 const dismissAnnouncement = async (id: number | string) => {
   unwrap(await API.post(`/api/announcements/${id}/dismiss`));
 };

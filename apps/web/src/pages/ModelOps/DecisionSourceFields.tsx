@@ -4,7 +4,7 @@ import { FieldLabel } from './FieldLabel';
 import { Field, FieldMessage } from '../../components/ui/field';
 import { Input } from '../../components/ui/input';
 import { Select, SelectItem } from '../../components/ui/select';
-import type { ChannelFormValues } from './SourceForm';
+import type { ChannelFormValues } from '../../hooks/channels/useChannelsQuery';
 
 const ns = 'page.console.channel.form';
 
