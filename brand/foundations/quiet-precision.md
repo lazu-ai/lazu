@@ -17,7 +17,7 @@
 3. **表格数字一律 tabular-nums**：所有金额、token 数、延迟、百分比使用 `font-variant-numeric: tabular-nums`；金额与 ID 使用 mono（`--lazu-font-mono`），右对齐。
 4. **图表单色 + 单强调**：数据可视化默认 `--lazu-chart-1`（G1 起为青 `#1F6F6B`）作唯一强调，辅线用 `--lazu-chart-2`/`--lazu-chart-3`；不引入多彩图例。图表无背景、无边框，仅底部一条 `--lazu-border` 基线。
 5. **异常升权**：表格中的退款/失败/降级行使用语义 soft 色作整行底（退款与失败 `--lazu-danger-soft`，降级 `--lazu-warning-soft`），并保持文字/图标双通道表达；正常行不加底色。
-6. **行内回执（inline receipt）**：日志/用量行点击在原行下方展开请求回执（RouteReceipt），不打开抽屉，回执代码块沿用 `--lazu-code-bg` 深底样式；回执是唯一允许的"深色区块"。
+6. **行内回执（inline receipt）**：日志/用量行点击在原行下方展开请求回执（RouteReceipt），不打开抽屉，回执代码块沿用 `--lazu-code-bg` 深底样式；回执是唯一允许的"深色区块"。「回执」只是这里的设计术语：界面和文档文案一律写「用量记录」（繁体「用量記錄」，英文 usage record），不写「回执」「收据」或 receipt（2026-11-23）。Stripe 付款收据不受此限。
 7. **筛选 chips**：列表页筛选用 pill chips（`--lazu-radius-pill`），选中态为 `--lazu-ink` 实底白字，未选中为 hairline 描边；数值筛选（如价格上限）选中时可用 `--lazu-action` 文字色。
 8. **公开首页**：沿用 `public-web-system.md`，深化仅体现在：mono 眉题 + 大字阶标题 + 回执代码块作为 hero 证据 + 发丝线分隔的事实条（stats strip）。
 9. **留白优先于分隔**：区块间优先用间距（`--lazu-space-6/8`）与单条水平发丝线，不叠加多重边框、底色、阴影。阴影规则不变（仅真实浮层）。

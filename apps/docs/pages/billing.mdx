@@ -1,11 +1,11 @@
 ---
-title: "Billing: prepaid balance, token prices and request receipts"
-description: "How Lazu bills each request: a prepaid USD balance, per-million-token prices by lane, separate cache, audio and image dimensions, and how to reconcile a charge with its receipt."
+title: "Billing: prepaid balance, token prices and usage records"
+description: "How Lazu bills each request: a prepaid USD balance, per-million-token prices by lane, separate cache, audio and image dimensions, and how to reconcile a charge with its usage record."
 ---
 
 # Billing
 
-Lazu uses prepaid balance. Charges depend on the selected model, lane and billable dimensions. Read the current catalog before estimating cost and the request receipt after completion.
+Lazu uses prepaid balance. Charges depend on the selected model, lane and billable dimensions. Read the current catalog before estimating cost and the usage record after completion.
 
 ## Prices and units
 
@@ -29,7 +29,7 @@ Use the [wallet](https://lazu.ai/console/wallet) to see available payment method
 
 ## Reconcile a request
 
-Inspect `usage.dimensions`, `billing.line_items` and the pricing version in request details. Measurement fields may distinguish provider usage, local estimates and unavailable evidence; older receipts may omit them. Search can have its own billable units: check the configured price and receipt instead of assuming it is free. Report billing discrepancies with the request ID, not your secret key.
+Inspect `usage.dimensions`, `billing.line_items` and the pricing version in request details. Measurement fields may distinguish provider usage, local estimates and unavailable evidence; older usage records may omit them. Search can have its own billable units: check the configured price and usage record instead of assuming it is free. Report billing discrepancies with the request ID, not your secret key.
 
 ```bash
 curl --fail-with-body "https://api.lazu.ai/api/usage/requests/$LAZU_REQUEST_ID" \
