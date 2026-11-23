@@ -197,20 +197,6 @@ func resolveChannelID(raw string) (int, error) {
 	return id, err
 }
 
-// resolveChannelIDs resolves a batch of channel ids; the first unknown one
-// fails the whole batch.
-func resolveChannelIDs(raws []string) ([]int, error) {
-	ids := make([]int, 0, len(raws))
-	for _, raw := range raws {
-		id, err := resolveChannelID(raw)
-		if err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
 func clearChannelInfo(channel *model.Channel) {
 	channel.Key = ""
 	if channel.ChannelInfo.IsMultiKey {
@@ -686,16 +672,6 @@ func DeleteDisabledChannel(c *gin.Context) {
 	return
 }
 
-type ChannelTag struct {
-	Tag          string  `json:"tag"`
-	NewTag       *string `json:"new_tag"`
-	Priority     *int64  `json:"priority"`
-	Weight       *uint   `json:"weight"`
-	ModelMapping *string `json:"model_mapping"`
-	Models       *string `json:"models"`
-	Groups       *string `json:"groups"`
-}
-
 type channelStatusRequest struct {
 	Status *int   `json:"status"`
 	Reason string `json:"reason"`
@@ -754,109 +730,6 @@ func UpdateChannelStatusById(c *gin.Context) {
 		gin.H{"status": previousStatus}, gin.H{"status": *req.Status, "reason": reason})
 	refreshChannelHealthInBackground("status update")
 	common.ApiSuccess(c, gin.H{"id": channel.PublicID, "status": *req.Status, "changed": true})
-}
-
-func DisableTagChannels(c *gin.Context) {
-	channelTag := ChannelTag{}
-	if err := c.ShouldBindJSON(&channelTag); err != nil {
-		httperr.Code(c, types.ErrorCodeBadRequestBody)
-		return
-	}
-	if channelTag.Tag == "" {
-		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "tag"})
-		return
-	}
-	if err := model.DisableChannelByTag(channelTag.Tag); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	model.WriteAdminAuditLog(c, "channel.tag.disable", "channel_tag", channelTag.Tag, channelTag.Tag, nil, channelTag)
-	model.InitChannelCache()
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-	return
-}
-
-func EnableTagChannels(c *gin.Context) {
-	channelTag := ChannelTag{}
-	if err := c.ShouldBindJSON(&channelTag); err != nil {
-		httperr.Code(c, types.ErrorCodeBadRequestBody)
-		return
-	}
-	if channelTag.Tag == "" {
-		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "tag"})
-		return
-	}
-	if err := model.EnableChannelByTag(channelTag.Tag); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	model.WriteAdminAuditLog(c, "channel.tag.enable", "channel_tag", channelTag.Tag, channelTag.Tag, nil, channelTag)
-	model.InitChannelCache()
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-	return
-}
-
-func EditTagChannels(c *gin.Context) {
-	channelTag := ChannelTag{}
-	if err := c.ShouldBindJSON(&channelTag); err != nil {
-		httperr.Code(c, types.ErrorCodeBadRequestBody)
-		return
-	}
-	if channelTag.Tag == "" {
-		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "tag"})
-		return
-	}
-	if err := model.EditChannelByTag(channelTag.Tag, channelTag.NewTag, channelTag.ModelMapping, channelTag.Models, channelTag.Groups, channelTag.Priority, channelTag.Weight); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	model.WriteAdminAuditLog(c, "channel.tag.update", "channel_tag", channelTag.Tag, channelTag.Tag, gin.H{"tag": channelTag.Tag}, channelTag)
-	model.InitChannelCache()
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
-	return
-}
-
-type ChannelBatch struct {
-	Ids []string `json:"ids"`
-	Tag *string  `json:"tag"`
-}
-
-func DeleteChannelBatch(c *gin.Context) {
-	channelBatch := ChannelBatch{}
-	if err := c.ShouldBindJSON(&channelBatch); err != nil {
-		httperr.Code(c, types.ErrorCodeBadRequestBody)
-		return
-	}
-	if len(channelBatch.Ids) == 0 {
-		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "ids"})
-		return
-	}
-	ids, err := resolveChannelIDs(channelBatch.Ids)
-	if err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	if err := model.BatchDeleteChannels(ids); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	model.WriteAdminAuditLog(c, "channel.batch_delete", "channel", "batch", "", gin.H{"ids": ids}, nil)
-	model.InitChannelCache()
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    len(ids),
-	})
-	return
 }
 
 type PatchChannel struct {
@@ -988,70 +861,6 @@ func FetchModels(c *gin.Context) {
 		"success": true,
 		"data":    models,
 	})
-}
-
-func BatchSetChannelTag(c *gin.Context) {
-	channelBatch := ChannelBatch{}
-	if err := c.ShouldBindJSON(&channelBatch); err != nil {
-		httperr.Code(c, types.ErrorCodeBadRequestBody)
-		return
-	}
-	if len(channelBatch.Ids) == 0 {
-		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "ids"})
-		return
-	}
-	ids, err := resolveChannelIDs(channelBatch.Ids)
-	if err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	if err := model.BatchSetChannelTag(ids, channelBatch.Tag); err != nil {
-		httperr.Write(c, err)
-		return
-	}
-	model.WriteAdminAuditLog(c, "channel.batch_tag", "channel", "batch", "", gin.H{"ids": ids}, gin.H{"ids": ids, "tag": channelBatch.Tag})
-	model.InitChannelCache()
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    len(ids),
-	})
-	return
-}
-
-func GetTagModels(c *gin.Context) {
-	tag := c.Query("tag")
-	if tag == "" {
-		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "tag"})
-		return
-	}
-
-	channels, err := model.GetChannelsByTag(tag, false) // Assuming false for idSort is fine here
-	if err != nil {
-		httperr.Write(c, err)
-		return
-	}
-
-	var longestModels string
-	maxLength := 0
-
-	// Find the longest models string among all channels with the given tag
-	for _, channel := range channels {
-		if channel.Models != "" {
-			currentModels := strings.Split(channel.Models, ",")
-			if len(currentModels) > maxLength {
-				maxLength = len(currentModels)
-				longestModels = channel.Models
-			}
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    longestModels,
-	})
-	return
 }
 
 // CopyChannel handles cloning an existing channel with its key.

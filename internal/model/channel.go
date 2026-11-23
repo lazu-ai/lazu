@@ -593,35 +593,6 @@ func BatchInsertChannels(channels []Channel) error {
 	return tx.Commit().Error
 }
 
-func BatchDeleteChannels(ids []int) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	// 使用事务 分批删除channel表和abilities表
-	tx := CoreDB().Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-	for _, chunk := range lo.Chunk(ids, 200) {
-		if err := tx.Model(&Channel{}).Where("id in (?)", chunk).Update("status", common.ChannelStatusManuallyDisabled).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err := tx.Where("id in (?)", chunk).Delete(&Channel{}).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err := tx.Where("channel_id in (?)", chunk).Delete(&Ability{}).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-	if err := tx.Commit().Error; err != nil {
-		return err
-	}
-	return DeleteRouteHealthStatesForChannels(ids)
-}
-
 func (channel *Channel) GetPriority() int64 {
 	if channel.Priority == nil {
 		return 0
@@ -916,83 +887,6 @@ func UpdateWholeChannelStatus(channelId int, status int, reason string) bool {
 	return true
 }
 
-func EnableChannelByTag(tag string) error {
-	err := CoreDB().Model(&Channel{}).Where("tag = ?", tag).Update("status", common.ChannelStatusEnabled).Error
-	if err != nil {
-		return err
-	}
-	err = UpdateAbilityStatusByTag(tag, true)
-	return err
-}
-
-func DisableChannelByTag(tag string) error {
-	err := CoreDB().Model(&Channel{}).Where("tag = ?", tag).Update("status", common.ChannelStatusManuallyDisabled).Error
-	if err != nil {
-		return err
-	}
-	err = UpdateAbilityStatusByTag(tag, false)
-	return err
-}
-
-func EditChannelByTag(tag string, newTag *string, modelMapping *string, models *string, group *string, priority *int64, weight *uint) error {
-	updateData := Channel{}
-	shouldReCreateAbilities := false
-	updatedTag := tag
-	// 如果 newTag 不为空且不等于 tag，则更新 tag
-	if newTag != nil && *newTag != tag {
-		updateData.Tag = newTag
-		updatedTag = *newTag
-	}
-	if modelMapping != nil && *modelMapping != "" {
-		updateData.ModelMapping = modelMapping
-	}
-	if models != nil && *models != "" {
-		shouldReCreateAbilities = true
-		updateData.Models = *models
-	}
-	if group != nil && *group != "" {
-		// A source belongs to exactly one lane, and only to a known one.
-		if strings.Contains(*group, ",") {
-			return types.Err(types.ErrorCodeChannelLaneInvalid, types.D{"lane": *group})
-		}
-		normalizedGroup := NormalizeChannelLane(*group)
-		if !IsKnownChannelLane(normalizedGroup) {
-			return types.Err(types.ErrorCodeChannelLaneInvalid, types.D{"lane": normalizedGroup})
-		}
-		shouldReCreateAbilities = true
-		updateData.Group = normalizedGroup
-	}
-	if priority != nil {
-		updateData.Priority = priority
-	}
-	if weight != nil {
-		updateData.Weight = weight
-	}
-
-	err := CoreDB().Model(&Channel{}).Where("tag = ?", tag).Updates(updateData).Error
-	if err != nil {
-		return err
-	}
-	if shouldReCreateAbilities {
-		channels, err := GetChannelsByTag(updatedTag, false)
-		if err == nil {
-			for _, channel := range channels {
-				err = channel.UpdateAbilities(nil)
-				if err != nil {
-					common.SysLog(fmt.Sprintf("failed to update abilities: channel_id=%d, tag=%s, error=%v", channel.Id, channel.GetTag(), err))
-				}
-			}
-		}
-	} else {
-		// Channels already carry the new tag at this point.
-		err := UpdateAbilityByTag(updatedTag, priority, weight)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func DeleteDisabledChannel() (int64, error) {
 	result := CoreDB().
 		Where("status = ? OR status = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled).
@@ -1189,48 +1083,6 @@ func (channel *Channel) GetStatusCodeMapping() string {
 		return ""
 	}
 	return *channel.StatusCodeMapping
-}
-
-func GetChannelsByIds(ids []int) ([]*Channel, error) {
-	var channels []*Channel
-	err := CoreDB().Where("id in (?)", ids).Find(&channels).Error
-	if err == nil {
-		err = decryptChannelKeysForUse(channels)
-	}
-	return channels, err
-}
-
-func BatchSetChannelTag(ids []int, tag *string) error {
-	// 开启事务
-	tx := CoreDB().Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-
-	// 更新标签
-	err := tx.Model(&Channel{}).Where("id in (?)", ids).Update("tag", tag).Error
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// update ability status
-	channels, err := GetChannelsByIds(ids)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	for _, channel := range channels {
-		err = channel.UpdateAbilities(tx)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	// 提交事务
-	return tx.Commit().Error
 }
 
 // CountAllTags returns number of non-empty distinct tags

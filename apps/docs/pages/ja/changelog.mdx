@@ -12,6 +12,7 @@ description: "Lazu API、モデルカタログ、ドキュメントの変更を�
 - 機能しない `POST /api/user/reset` を削除しました。パスワードの再設定は `/api/user/reset/v2` を引き続き使用します。
 - `/api/log/token`、`/api/user/used-models`、`/api/user/models/classified`、`/api/user/self/stripe/pay`、`/api/user/stripe/amount` を削除しました。`/api/log/self`、モデルカタログ、`/api/user/stripe/pay` を使用してください。
 - 未実装の `/v1/fine-tunes*`、`/v1/images/variations`、`DELETE /v1/models/:model` を削除しました。これらの削除は以前の廃止予定日に優先し、互換リダイレクトはありません。
+- 管理用ルート `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*`、`/api/workers/*` を、予定（2026-12-01 以降）より前に削除しました。チャネルごとの操作とお知らせ機能（公開時にメール送信も可能）を使用してください。`config.yaml` の定期アップロードとデータベースのバックアップは引き続き動作します。`GET /api/data/` と、その読み出し元の `usage_data` テーブルは 2027-02-01 まで残します。
 
 ## 2026-10-29 — 検索エンドポイントを削除
 

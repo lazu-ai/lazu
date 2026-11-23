@@ -131,13 +131,6 @@ func TestAnnouncementHandlersAnswerWithCatalogCodes(t *testing.T) {
 	}
 }
 
-func TestEmailHandlersAnswerWithCatalogCodes(t *testing.T) {
-	recorder, body := serveSettingsRequest(t, http.MethodPost, "/api/notification/email/send", "/api/notification/email/send",
-		`{"subject":"s","content":"c"}`, SendBroadcastEmail)
-	expectSettingsError(t, recorder, body, http.StatusBadRequest, "email_recipients_required")
-
-}
-
 func TestPublicChangelogRejectsABadLimitWithItsField(t *testing.T) {
 	recorder, body := serveSettingsRequest(t, http.MethodGet, "/api/public/changelog", "/api/public/changelog?limit=-1",
 		"", GetPublicChangelog)

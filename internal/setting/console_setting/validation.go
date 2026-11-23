@@ -241,10 +241,6 @@ func NormalizeAnnouncementsJSONString(announcementsStr string) (string, []map[st
 	return normalizedJSON, normalized, normalizedJSON != announcementsStr, nil
 }
 
-func GetAnnouncements() []map[string]interface{} {
-	return normalizeAnnouncementsList(getJSONList(GetConsoleSetting().Announcements))
-}
-
 func GetFAQ() []map[string]interface{} {
 	return getJSONList(GetConsoleSetting().FAQ)
 }

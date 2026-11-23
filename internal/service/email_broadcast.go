@@ -111,28 +111,6 @@ type emailRecipient struct {
 	Quota       billing.MicroUSD
 }
 
-func SendBulkEmail(req EmailBroadcastRequest) (EmailSendStats, error) {
-	stats := EmailSendStats{}
-	if req.Subject == "" || req.Content == "" {
-		field := "subject"
-		if req.Subject != "" {
-			field = "content"
-		}
-		return stats, types.Err(types.ErrorCodeMissingRequiredParameter, types.D{"field": field})
-	}
-
-	cfg := email_setting.GetEmailSetting()
-	batchSize := cfg.BatchSize
-	if batchSize <= 0 {
-		batchSize = 200
-	}
-
-	// Broadcast bodies are written by a platform administrator (RootAuth) and
-	// may carry markup.
-	notice := platformNotice{Title: req.Subject, Body: template.HTML(req.Content)}
-	return dispatchEmails(notice, req.UserIDs, req.SendAll, batchSize)
-}
-
 // platformNotice is the one mail an operator sends to many accounts:
 // announcements and broadcasts share it.
 type platformNotice struct {
@@ -390,18 +368,6 @@ type AnnouncementEmail struct {
 	Title   string
 	Content string
 	Link    string
-}
-
-func SendAnnouncementEmail(payload AnnouncementEmail, userIDs []int, sendAll bool) (EmailSendStats, error) {
-	cfg := email_setting.GetEmailSetting()
-	batchSize := cfg.BatchSize
-	if batchSize <= 0 {
-		batchSize = 200
-	}
-	// Announcement text comes from the console's announcement list: plain
-	// text, so it is escaped and its line breaks kept.
-	notice := platformNotice{Title: payload.Title, Body: plainTextMailBody(payload.Content), Link: payload.Link, ProductUpdate: true}
-	return dispatchEmails(notice, userIDs, sendAll, batchSize)
 }
 
 // plainTextMailBody escapes plain text for a mail body and keeps its line
