@@ -478,7 +478,7 @@ async function syncGeneratedTextAssets(): Promise<void> {
   );
   const index = `# Lazu Docs
 
-Lazu is a unified AI model gateway for people and agents.
+Lazu is an open-source model account for coding agents, video, and pipelines: one key for Claude, GPT, Gemini and DeepSeek over their native APIs, plus image and video models, with a budget per key and a usage record for every request.
 
 Recommended workflow:
 - Use Authorization: Bearer <api-key>
