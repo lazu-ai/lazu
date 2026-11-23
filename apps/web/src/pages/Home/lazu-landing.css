@@ -763,9 +763,19 @@ body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
    「所有模型一个账户，/ 一张账单看得懂。」. Japanese keeps the default
    breaking: its sentence has no comma to break at. */
 :lang(zh) .lazu-landing__headline {
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  letter-spacing: -0.025em;
   line-break: strict;
-  max-width: 9.6em;
+  max-width: 11em;
   word-break: keep-all;
+}
+
+:lang(zh-TW) .lazu-landing__headline,
+:lang(ja) .lazu-landing__headline {
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 /* CJK has no italic; the emphasis is carried by the vermilion alone. */

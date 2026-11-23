@@ -206,10 +206,10 @@ async function run(): Promise<void> {
       // Vocs ships no og:image; reuse the marketing card so shared docs
       // links unfurl with the same face as lazu.ai. The ?v= is the PNG's hash
       // (see internal/publicsite OGImagePath).
-      `<meta property="og:image" content="https://lazu.ai/og-image.png?v=ebfcc2f182"/>` +
+      `<meta property="og:image" content="https://lazu.ai/og-image.png?v=ec7552132e"/>` +
       `<meta property="og:image:width" content="1200"/>` +
       `<meta property="og:image:height" content="630"/>` +
-      `<meta property="og:image:alt" content="The model account for coding agents and pipelines."/>` +
+      `<meta property="og:image:alt" content="The model account for coding agents, video, and pipelines."/>` +
       `<meta name="twitter:site" content="@try_lazu"/>` +
       `<script type="application/ld+json">${JSON.stringify(graph)}</script>`;
 

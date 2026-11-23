@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu｜コーディングエージェントと自動化タスクのためのモデルアカウント：Claude・GPT・Gemini を 1 つのキーで",
-      "description": "1 つのキーで Claude・GPT・Gemini・DeepSeek を呼び出せます。キーごとに予算と利用記録を持ちます。Claude Code・Codex・OpenCode から接続でき、評価、データ処理、本番ジョブにも使えます。従量課金。"
+      "title": "Lazu｜コーディング Agent・動画生成・自動化パイプラインのためのモデルアカウント",
+      "description": "複数のモデルアカウントを 1 つのオープンソースゲートウェイに統合。Claude・GPT・Gemini・DeepSeek へのネイティブ API と、最新のマルチモーダル・動画モデルをまとめて提供します。"
     },
     "nav": {
       "models": "モデル",
@@ -35,12 +35,12 @@
       "menu": "メニュー"
     },
     "hero": {
-      "eyebrow": "コーディングエージェントと自動化タスクのために",
-      "headline": "コーディングエージェントと自動化タスクのための",
+      "eyebrow": "コーディング Agent・動画生成・自動化パイプライン向け",
+      "headline": "コーディング Agent・動画生成・自動化パイプラインのための",
       "headlineEm": "モデルアカウント。",
-      "whatBefore": "コードを書く、評価を回す、本番で動かす。",
-      "whatBold": "すべて 1 つのキーで",
-      "whatAfter": "。Claude・GPT・Gemini・DeepSeek が揃っています。従量課金で、キーごとに予算と利用記録を持ちます。Claude Code・Codex・SDK からそのまま接続できます。",
+      "whatBefore": "複数のモデルアカウントを ",
+      "whatBold": "1 つのオープンソースゲートウェイ",
+      "whatAfter": " に統合。最先端モデルへのネイティブ API と、最新のマルチモーダル・動画モデルをまとめて提供します。",
       "ctaPrimary": "無料で登録",
       "ctaSecondary": "画面を見る",
       "free": "初回チャージは 10% 上乗せ（最大 $10）"
