@@ -3,8 +3,8 @@
 **Status: LOCKED**
 **Locked: 2026-07-11**
 **Amended: 2026-11-23** — CJK display 改用无衬线：Instrument Serif 没有中日文字形，退回系统宋体后大字号偏旧，所以 `zh` / `zh-TW` / `ja` 的 Hero 主声明、章节标题与收尾标题改用 `--lazu-font-sans` 600；拉丁文本与标题旁的数字仍用 Instrument Serif。第 01 / 03 条已按此改写。
-**Amended: 2026-09-21** — 公开页其余各页落地 Seal：FAQ 答案常开（第 33 条修订）、条款页与 Key 查询改纸面单栏、`/key` 与状态页归公开顶栏。决策板见 `archive:brand/explorations/brand-refresh-2026-09/` 的第二块画布。
-**Amended: 2026-09-20 (b)** — Hero 恢复控制台窗（成员与额度），display 阶随之收到 42–58px；第 03 / 16 条已按此改写。决策板 `archive:brand/explorations/brand-refresh-2026-09/` 的 `C · 窗`。
+**Amended: 2026-09-21** — 公开页其余各页落地 Seal：FAQ 答案常开（第 33 条修订）、条款页与 Key 查询改纸面单栏、`/key` 与状态页归公开顶栏。
+**Amended: 2026-09-20 (b)** — Hero 恢复控制台窗（成员与额度），display 阶随之收到 42–58px；第 03 / 16 条已按此改写。
 **Amended: 2026-09-20** — 随 `Seal` 标志决议，display 字体改为 Instrument Serif（`--lazu-font-display`），首页 Hero 改为编辑式单栏；第 01 / 03 / 16 / 17 / 19 / 20 条已按此改写。
 **Amended: 2026-08-20** — 颜色规则改为跟随 `02 云母 Yunmu`（见 `yunmu-console.md`）。
 公开页不再有自己的颜色层：`--lazu-web-landing-*` 已从 `tokens/public-web.css` 删除，
@@ -188,3 +188,37 @@ Implementation: `apps/docs` (`public/styles.css`, `public/agent-actions.js`,
   without a redirect.
 - **Method tags** on endpoint routes use success green for POST and evidence
   blue for GET, as drawn on the approved board.
+
+## Locked SEO surfaces and 运营 (2026-09-29)
+
+### Public surfaces
+
+| Surface | Locked direction | Implementation |
+| --- | --- | --- |
+| Public header | 模型 · 文档 · 博客 · 常见问题; Key 查询 and the external Changelog link leave the nav; current section = neutral fill. Worn by every public page, app-owned ones too (payment returns, invites, 403). Languages are `<a href>` links to this page in each locale (crawlable; the static copy repoints them at the page's hreflang alternates). Signed-out actions 登录 / 免费开始 are what the prerender and crawlers see; a signed-in visitor gets 控制台 after load | `components/marketing/PublicHeader.tsx`, `public-site/chrome.ts` |
+| Public footer | Four columns (产品 / 开发者 / 公司 / 法律) + legal line `© DUBRIO LLC · Delaware, USA · Lazu is operated by DUBRIO LLC`. No language or theme control (header only, 2026-09-30) | `components/marketing/PublicFooter.tsx`, docs `public/site-footer.js` |
+| /about | Operator facts ledger (DUBRIO LLC, Delaware, contact, invoices, governing law) + machine-readable addresses | `pages/About` |
+| /models | Maker-grouped cards, rendered by the API so prices are in the HTML; each card links to its model page | `internal/publicsite/templates/models.gohtml` |
+| Model page | **A · single column**: lede sentence with prices, facts, price table with official row and 7-day bars, capabilities, sample, questions, same family, CTA. | `templates/model.gohtml` |
+| Blog | Ledger list with small covers; 720 article with cover, conclusion first, `::model` / `::prices` blocks read live from the catalog | `templates/blog.gohtml`, `post.gohtml` |
+| Covers | Five layouts, picked per post in the editor and exported as the 1200×630 share PNG: 改一行 (base_url diff, default for tool guides), 价目单 (stable-lane prices read from the catalog, default for launches), 模型 ID (ids sized to fit whole, default for comparisons), 刊头 and 大印章 (any post). A layout missing its data (no models / no prices) falls back to 刊头. Prices are never rounded. Until a PNG exists the public page draws the paper / ink card | `pages/Console/Ops/BlogCover.tsx`, `templates/cover.gohtml` (fallback) |
+| Docs | Served at `lazu.ai/docs`; top bar gains Models; `docs.lazu.ai/*` answers 301 | `apps/docs` |
+
+The operator's legal name appears only in the footer line, `/about`, the legal
+documents and the Organization schema (`legalName`) — never in titles or H1.
+
+### 运营 (console)
+
+平台管理 「公告」 is renamed 「运营」 with four tabs:
+
+- **上新** — one record per model launch, opened automatically when a model in
+  the public catalog is new; rows for model page, poster, notice, blog, share
+  copy and search-engine ping, each read from the table that owns it.
+- **公告** — the existing notice workbench.
+- **博客** — one table of posts from three sources (editor, model draft,
+  Markdown import); published only from the editor.
+- **配图** — the poster studio plus the 1200×630 blog cover and X 16:9 formats.
+
+Blog editor: 50/50 Markdown | live preview rendered by the public templates,
+right pane tabs 预览 · 设置 · 搜索结果, publish confirmation that blocks on
+`[placeholders]`, broken links or missing models.

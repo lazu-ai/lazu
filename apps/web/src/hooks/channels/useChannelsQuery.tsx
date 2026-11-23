@@ -36,34 +36,50 @@ type ChannelRecord = LooseRecord & {
   status?: number;
 };
 
-type ChannelFormValues = LooseRecord & {
-  auto_ban?: boolean;
-  source_type?: string;
-  groups?: string[];
-  key?: string;
-  models?: string[];
-  observe_new_routes?: boolean;
-  claude_code_client_only?: boolean;
-  claude_code_user_agent?: string;
-  provider_cost_prices?: string;
-  protocol_dialect?: string;
+export type ChannelFormValues = {
   setting?: string;
-  decision_dialect?: string;
-  cf_account_id?: string;
-  decision_timeout_ms?: number;
-  max_rps?: number;
-  max_in_flight?: number;
-  shared_limit_group?: string;
-  shared_max_rps?: number;
-  shared_max_in_flight?: number;
-  settings?: string;
+  decision_dialect: string;
+  cf_account_id: string;
+  decision_timeout_ms: number;
+  max_rps: number;
+  max_in_flight: number;
+  shared_limit_group: string;
+  shared_max_rps: number;
+  shared_max_in_flight: number;
+
+  auto_ban: boolean;
+  source_type: string;
+  base_url?: string;
+  claude_code_client_only: boolean;
+  claude_code_user_agent?: string;
+  groups: string[];
+  key?: string;
+  models: string[];
+  /** JSON, public name → upstream ID; "" when nothing is mapped. */
+  model_mapping?: string;
+  name: string;
+  observe_new_routes: boolean;
+  priority: number;
+  protocol_dialect: string;
+  provider_cost_prices?: string;
+  remark?: string;
   param_override?: string;
   header_override?: string;
   status_code_mapping?: string;
+  settings?: string;
+  status: boolean;
+  tag?: string;
+  type: number;
+  upstream_sync_ignore: string;
+  upstream_sync_interval: number;
+  upstream_sync_notify_ops: boolean;
+  upstream_sync_on_gone: 'keep' | 'stop';
+  upstream_sync_on_new: 'auto' | 'review';
   video_content_url_template?: string;
   video_envelope?: string;
   video_family?: string;
   video_status_url_template?: string;
+  weight: number;
 };
 
 type OptionItem = {
@@ -213,14 +229,14 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
       data.auto_ban === undefined || data.auto_ban === null
         ? true
         : Number(data.auto_ban) !== 0,
-    base_url: data.base_url || '',
+    base_url: String(data.base_url || ''),
     groups: groups.length
       ? [normalizeChannelGroup(groups[0])]
       : [DEFAULT_CHANNEL_GROUP],
     key: '',
     models: splitListValue(data.models),
     model_mapping: modelMappingText(data.model_mapping),
-    name: data.name || '',
+    name: String(data.name || ''),
     observe_new_routes: settings.observe_new_routes === true,
     claude_code_client_only: settings.claude_code_client_only === true,
     claude_code_user_agent: String(settings.claude_code_user_agent || ''),
@@ -234,15 +250,15 @@ const normalizeChannelDetail = (data: LooseRecord = {}): ChannelFormValues => {
       null,
       2,
     ),
-    remark: data.remark || '',
+    remark: String(data.remark || ''),
     param_override: overrideFormText(data.param_override),
     header_override: overrideFormText(data.header_override),
     status_code_mapping: overrideFormText(data.status_code_mapping),
     settings: JSON.stringify(settingsForBox(settings)),
     source_type: normalizeSourceType(data.source_type),
     status: data.status === undefined ? true : Number(data.status) === 1,
-    tag: data.tag || '',
-    type: String(data.type ?? 1),
+    tag: String(data.tag || ''),
+    type: Number(data.type ?? 1),
     video_content_url_template: String(
       settings.video_content_url_template || '',
     ),
@@ -285,7 +301,7 @@ const upstreamSyncFormValues = (value: unknown) => {
     upstream_sync_notify_ops: sync.notify_ops === true,
     upstream_sync_on_gone: sync.on_gone === 'keep' ? 'keep' : 'stop',
     upstream_sync_on_new: sync.on_new === 'auto' ? 'auto' : 'review',
-  };
+  } as const;
 };
 
 const normalizeChannelPayload = (

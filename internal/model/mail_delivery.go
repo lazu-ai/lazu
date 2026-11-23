@@ -36,7 +36,7 @@ const (
 )
 
 // How long the archive keeps a mail's body and the row itself
-// (brand/foundations/usage-digest-emails.md § 3).
+// (brand/foundations/emails.md § 8.3).
 const (
 	sensitiveMailSubject = "Authentication email"
 	sensitiveMailFailure = "Delivery failed"

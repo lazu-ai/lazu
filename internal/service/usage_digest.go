@@ -21,7 +21,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/publicsite"
 )
 
-// Usage digests (brand/foundations/usage-digest-emails.md): a weekly and a
+// Usage digests (brand/foundations/emails.md § 8): a weekly and a
 // monthly mail to every account that has paid, cut and sent in the reader's
 // own time zone.
 const (

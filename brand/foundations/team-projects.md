@@ -1,16 +1,9 @@
-# Team projects — locked direction (2026-09-10)
+# Team projects — locked direction
 
 Status: **LOCKED by user approval on 2026-09-10**, including the contract-review
-amendments and the 2026-09-10 revision below. This document selects the
-"团队管理" milestone deferred by
-PR #217 and supersedes the role model and backend backlog in
-`archive:brand/explorations/team-console-2026-09/index.html`. Within this milestone it
-also refines older foundations' customer-Key access and member-detail rules.
-The selected artboards live in `archive:brand/explorations/team-workspace-2026-09/`
-(build with `python3 build.py`) and on
-`archive:brand/canvases.md`.
-If an artboard conflicts with this amended foundation, this foundation wins;
-update its affected states during frontend implementation.
+amendments and the 2026-09-10 / 2026-09-28 revisions below. This document defines
+the "团队管理" milestone deferred by PR #217 and refines older foundations'
+customer-Key access and member-detail rules.
 
 ## 2026-09-10 revision
 
@@ -169,7 +162,7 @@ above the limit; block new creation until below it. Key rotation defaults to
 immediate expiry of the old secret, with an explicit 24-hour overlap option
 sharing the same budget and logical Key.
 
-## Interaction rules (extend `console-review-2026-09.md`)
+## Interaction rules (extend `yunmu-console.md`)
 
 - Escape and outside click cancel a dialog before submission. While a request
   is in flight, keep busy/close protection and prevent duplicate submission.
@@ -212,8 +205,8 @@ not delay or repeat credit. The console stores invoice identifiers, Bill to
 snapshots and download links, and shows explicit pending/failed/ready states.
 Paid top-ups send one Lazu e-mail — credit added, with a link to the Stripe
 hosted Invoice page that carries both the Invoice and the Receipt (the Invoice
-PDF is not handed out; see `payment-emails.md` § 6) — as locked in
-[payment-emails](payment-emails.md) (2026-09-23, one e-mail since 2026-09-27); historical receipts remain
+PDF is not handed out; see [emails.md](emails.md) § 7.5) — as locked in
+[emails.md](emails.md) § 7 (2026-09-23, one e-mail since 2026-09-27); historical receipts remain
 available. The project wallet also keeps Invoice and receipt links. Mainland-China
 customers receive the same overseas Invoice
 and a fixed explanation that Lazu cannot issue 增值税发票. Tax wording must match
@@ -265,11 +258,8 @@ contracts.
 
 ## Reasoning-effort cap and team refinement (2026-09-28)
 
-Approved by the owner on the canvas
-`archive:brand/canvases.md` (sources:
-`archive:brand/explorations/thinking-depth-2026-09/`, `python3 build.py`). Direction
-**A · 刻度**, drawn as **A2 「填线」**; the other directions (B 深度条, C 三档,
-D 按供应商, A1 分段, A3 下拉) are decision history only.
+Approved by the owner on 2026-09-28. Direction
+**A · 刻度**, drawn as **A2 「填线」**.
 
 **The rule.** An owner or admin caps the highest reasoning effort ("思考深度")
 a member's Keys may use, and each Key may lower it further.
@@ -344,8 +334,7 @@ in project settings' 新成员默认 card.
 
 ## Invitation funnel and budget notices (2026-10-14)
 
-Approved by the owner on the canvas
-`archive:brand/canvases.md` after a production check
+Approved by the owner after a production check
 found two shared projects out of 198 and an invitation that expired unanswered.
 
 **Invitations.**

@@ -1,11 +1,8 @@
-# E-mails — 邮件体系（2026-09-30）
+# E-mails — 邮件体系
 
-> **Locked:** 2026-09-30 by owner approval（「全部按你建议的实现」）
+> **Locked:** 2026-09-30 by owner approval（付款邮件 2026-09-23 锁定、2026-09-27 修订为一封；周报/月报 2026-09-30 锁定）
 > **Selected direction:** C · 分层（墨头 · 纸面 · 运维）
-> **Visual reference:** `archive:brand/explorations/emails-2026-09/`（`python3 build.py`）；
-> 画布 `archive:brand/canvases.md`
-> **Inherits:** `payment-emails.md`（墨头、事实四格、深色规则；付款邮件本身不改）、`logo-system.md`、
-> `paper-states.md`（眉行是英文机器语域）
+> **Inherits:** `yunmu-console.md`、`logo-system.md`、`paper-states.md`（眉行是英文机器语域）、`team-projects.md` § Invoices
 > **Implementation:** `internal/common/mail.go` + `internal/common/email_templates/mail.html`
 > （付款邮件仍是 `internal/model/email_templates/payment.html`）
 
@@ -15,11 +12,11 @@ Lazu 发出的每一封邮件都属于三层之一。层由「这封信的新闻
 
 | 层 | 新闻 | 邮件 |
 | --- | --- | --- |
-| **墨头 ink** | 一个金额或比例 | 付款到账（锁定，`payment-emails.md`）、余额调整、余额不足、Key 用量提醒、成员预算（预警 / 用完，眉行 `MEMBER BUDGET`）、项目月上限（眉行 `PROJECT BUDGET`） |
+| **墨头 ink** | 一个金额或比例 | 付款到账（见 §7）、余额调整、余额不足、Key 用量提醒、成员预算（预警 / 用完，眉行 `MEMBER BUDGET`）、项目月上限（眉行 `PROJECT BUDGET`）、用量周报与月报（见 §8） |
 | **纸面 paper** | 账号或团队里发生的事 | 注册 / 登录验证码、欢迎、重置密码、密码已修改、账号不用密码、邮箱已注册、暂未开放注册、项目邀请、邀请明天过期、邀请过期未接受、已加入项目、成员变动（8 种）、平台通知 |
 | **运维 ops** | 需要运维处理的事，只发管理员 | 磁盘、错误率、付款单据异常、Stripe 退款 / 争议、备份上传、测试邮件 |
 
-对照：付款邮件定稿时的调研（`payment-emails.md` §1）显示同类产品没有一家把品牌大抬头用在所有邮件上；
+对照：付款邮件定稿时的调研（§7.1）显示同类产品没有一家把品牌大抬头用在所有邮件上；
 只有钱的消息配大抬头，其余保持朴素。账号类和运维类邮件没有另做对照调研。
 
 ## 2. 共用规则
@@ -46,7 +43,7 @@ Lazu 发出的每一封邮件都属于三层之一。层由「这封信的新闻
   其余读英文；未知时读英文（2026-09-30 由中文改为英文）。
 - 控制台每次请求带 `Accept-Language: <界面语言>`，切换语言时写回账户（`PUT /api/user/self/language`），首次登录时
   补记。没有账户的收件人：验证码类邮件按请求语言，项目邀请按邀请人的语言。
-- 付款到账邮件按 `payment-emails.md` 保持英文。运维邮件只写中文。
+- 付款到账邮件按 §7 保持英文。运维邮件只写中文。
 
 ## 4. 发哪些、不发哪些
 
@@ -72,4 +69,122 @@ Lazu 发出的每一封邮件都属于三层之一。层由「这封信的新闻
   两封都在发出（或重发）邀请时排进项目发件箱，接受、撤回、重发、解散时一起取消。
 - **预算预警**（墨头层，与 Key 用量提醒同一模板）：成员本人在预警线和用完时各一封；能改这个人预算的人
   （普通成员：所有者 + 管理员；管理员：只有所有者）只在用完时一封；项目月上限只发所有者，预警线和用完各一封。
-  每人每月每档一封，预算改动后重新计。细则见 `team-projects-2026-09.md`。
+  每人每月每档一封，预算改动后重新计。细则见 `team-projects.md`。
+
+---
+
+## 7. 付款邮件（Payment e-mails，2026-09-23 / 09-27）
+
+每笔付款成功的充值，收件人只收到**一封 Lazu 邮件**，由 `noreply@lazu.ai` 发出。Invoice 和 Receipt
+两份单据由 Stripe 生成；Lazu 负责把它们可靠地交到用户手上，不自建单据版式。
+
+### 7.1 一封邮件
+
+对照海外同类产品（OpenAI、Cursor 不发；Anthropic、OpenRouter、Replicate、Vercel 只发一封 Stripe
+收据），没有一家在付款后发两封。Lazu 自己发这一封，因为预付额度的读者要知道「到账了、余额多少」，
+而 Stripe 收据不说这件事。
+
+| | 付款成功 Payment received |
+| --- | --- |
+| 眉行 | `PAYMENT RECEIVED` |
+| 主视觉 | 到账额度 `$5.00`（≥ $1,000 用紧凑字号） |
+| 副文 | `API credit added to your Lazu account.` |
+| 事实（四格） | 付款时间 · 支付方式 · 钱包余额 · Invoice 编号 |
+| 动作 | 主按钮 **Open wallet** + 一个链接 **View invoice →** |
+| 标题 | `$5.00 added to your Lazu account` |
+
+- **Open wallet** 落到 `/console/wallet?top_up_id=…`，钱包顶部钉住这一笔的付款记录卡。
+- **View invoice** 落到 Stripe hosted Invoice 页：写明「账单已付」，同时提供 Invoice 与 Receipt
+  下载，所以邮件里不再单独放 View receipt（见 §7.6）。
+- **发送时机**：额度入账时，若 Invoice 与 Receipt 已齐，立刻发完整版；否则排一封 60 秒后才发的
+  降级版，并按 outbox 的 `available_at` 安排唤醒，不再等下一轮分钟扫描；进程重启或发送失败仍由
+  持久 outbox 与 worker 补偿。60 秒内单据齐了，就用完整版替换那封尚未发出的邮件并立刻发。降级版没有 View invoice，
+  第四格写充值编号。**一笔充值每位收件人只发一次**，降级版发出后单据再到也不补发，单据留在钱包
+  记录卡与 Stripe 页面里。
+- 状态互相独立、幂等：webhook 可乱序、可重复；Invoice 迟到或失败不得延误到账通知。
+- 补偿：所有事件都没排上邮件时，对账任务在单据齐后补发一次；2026-09-27 之前已发过旧「单据」
+  邮件的收件人视为已发。
+- 实付为 $0（优惠码全额折扣）时 Stripe 不生成 Receipt，单据齐的判断不等待它。
+- **收件人与措辞**：不区分个人与团队，永远写「your Lazu account」与 Wallet balance，邮件里不出现项目名（默认项目名更不能出现）。别人替所有者付款时，所有者与实际付款人都收到同一封，第一格事实由付款时间换成 **Paid by**。支付方式写实际方式：`Visa ···· 4242`、`WeChat Pay`、`Alipay`。
+- **刻意不写的内容**：不再写「Invoice 和收据会另发一封邮件」「这不是中国增值税发票」（见 `team-projects.md` § Invoices）、「系统自动发送，请勿回复」。
+
+### 7.2 墨头版式与深色规则
+
+| 度量 | 桌面 | 手机 |
+| --- | --- | --- |
+| 邮件宽 | 640px | 视口宽，16px 外边距 |
+| 墨头内边距 | 56 / 64 / 72px（上 / 左右 / 下） | 36 / 28 / 44px |
+| Logo | Primary Paper，高 30px | 高 26px |
+| Logo → 主视觉 | 112px | 72px |
+| 主视觉字号 | 金额 120px（≥ $1,000 为 88px） | 88px |
+| 正文内边距 | 56 / 64 / 64px，区块间距 48px | 36 / 28 / 40px，间距 32px |
+| 事实 | 3–4 栏网格，标签 12px，值 15px | 逐行，发丝线分隔，行高 14px 上下内边距 |
+| 主按钮 | 墨底纸字，高 48px，圆角 10px | 通栏 |
+
+- 墨头 = `--lazu-action` `#202329`；主视觉纸色 `#fbfaf7`，副文 72% 纸色，眉行 62% 纸色。
+- 正文 = `--lazu-surface-solid` `#fdfdfc`，发丝线 `--lazu-border`，次要链接 `--lazu-evidence-strong`。
+- 字体：金额用 `--lazu-font-display`（Instrument Serif，均 ≥ 20px）；正文、标签、按钮用 Geist / 系统 CJK；编号、充值 ID 用 IBM Plex Mono。
+- 眉行是机器语域：mono 11px（手机 10px）、`.16em` 大写，**不翻译**（同 `paper-states.md`）。
+- 页脚在卡片**外**：左 `Lazu.ai`，右 Contact support / 联系支持，12px。不加付款印章、对勾徽章或其他装饰。
+- **深色模式**：模板声明 light only，但客户端可能强制深色，应读作：墨头 `#2c2c2f`、正文 `#232325`、文字 `#f1f1f2` / `#a4a4a7`、主按钮纸底墨字（`#f1f1f2` / `#1a1a1b`）、链接 `#9fb6f7`。
+
+### 7.3 实现约束
+
+- 表格布局 + 行内样式；墨头同时写 `bgcolor` 属性，保证 Outlook 等客户端的底色。
+- 字体回退：衬线 `Georgia, 'Times New Roman', serif`，正文 `-apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif`。
+- Logo 用托管的 **PNG**（Gmail / Outlook 不渲染 SVG），由 `assets/logo/generate-assets.mjs` 生成。
+- 按钮链接指向 Lazu 自己的登录后单据跳转地址；后端每次打开时从 Stripe 读取当前 hosted Invoice 页或 Receipt URL 再跳转。
+- 模板共用付款邮件外壳，不再借用 `project_membership.html`；英文邮件不得带中文页脚。
+- 钱包余额在入账事务中快照到 `balance_after_microusd`，邮件晚于入账渲染时仍使用该快照。
+
+### 7.4 Stripe 配置（后台，一次性）
+
+- **Branding**：品牌色 `#F2F2EF`，强调色 `#202329`；图标 `assets/logo/raster/graphite/lazu-graphite-512.png`，Logo `assets/logo/raster/lazu-primary-graphite-1280w.png`。
+- **Business details**：公开名称 Lazu、网站、客服邮箱；卡账单描述 `LAZU`。
+- **Customer emails**：关闭「成功的付款」与自动发送已确定 Invoice，保留「退款」，避免一次付款收两三封。
+- **Invoice 默认支付方式**：关闭 Bank transfer，避免 `send_invoice` PDF 印出虚拟收款账号与转账说明；企业对公电汇按单单独开启。
+
+### 7.5 修订 2026-09-27 · Invoice 给页面，不给 PDF
+
+Stripe 的 Invoice PDF 即使在付款后仍印着 `Amount due` 与 `Pay online`；证明已付款的文件是 Receipt：
+
+- 产品内不直接分发 `invoice_pdf`。邮件的 **View invoice** 与钱包的「在 Stripe 查看」都落到 hosted Invoice 页（写明「账单已付」并提供 Invoice 与 Receipt 下载）。
+- Receipt 是付款凭证，在钱包单据区排在 Invoice 之前作为主动作。
+- 邮件与回跳都落到钱包同一张付款记录卡（`/console/wallet?top_up_id=…`），不再有独立回跳页或付款详情页。
+
+---
+
+## 8. 用量周报与月报（Usage digest e-mails，2026-09-30）
+
+每位付过款的用户默认收到**周报**和**月报**两种用量邮件。两者共用墨头版式：墨头主数字 + 一排三格状态 + 每日图 + 与上一期对比 + 模型 + 调用来源。周报末尾是「上周新上线」，月报末尾是「这个月 Lazu 的变化」。
+
+### 8.1 发送规则
+
+| 邮件 | 默认 | 统计区间（用户时区） | 发送（用户时区） | 关闭 |
+| --- | --- | --- | --- | --- |
+| 周报 | 开 | 上周一 00:00 – 周日 24:00 | 每周一 09:30 | 邮件内一键关闭 |
+| 月报 | 开 | 上月 1 日 00:00 – 月末 24:00 | 每月 1 日 09:30 | 不能关（账户对账单） |
+| 服务通知 | 开 | — | 事件前 7 天 | 不能关 |
+| 产品更新 | 开 | — | 一年几次 | 邮件内一键关闭 |
+
+- **时区**：控制台读取浏览器时区写入账户（只填空值），设置页可改；未记录时中文用户按 `Asia/Shanghai`，其他按 `America/Los_Angeles`。
+- **收件范围**：付过款、账户未停用、本期花费 ≥ $1；零调用不发。
+- **1 日恰逢周一**：只发月报。一个用户一天最多收一封用量邮件。
+- **一键关闭**：签名免登录链接 + `List-Unsubscribe` / `List-Unsubscribe-Post` 头，只关这一种邮件。
+- **新模型、降价**写进周报/月报汇总，不单独发邮件；**余额快用完**由余额提醒单独负责，周报只显示可用天数。
+
+### 8.2 版式
+
+- 沿用 §7.2 墨头规范；眉行 mono 11px `.16em` 大写不翻译（`WEEKLY · SEP 22 – 28` / `MONTHLY · SEP 2026`）。
+- 墨头：标签 → 衬线主数字 96px → 旁注涨跌与上期金额 → 一句解释变化来源（差额最大的模型）。
+- **一排三格**：钱包余额（14 格「未来两周」进度，< 7 天警示色 `#b3821b`）｜比官方价少付（绿色 `#3f7957`）｜成功率。
+- **每日图**：浅灰细柱 = Tokens（`--lazu-chart-3`），墨色平滑线 = 花费（`--lazu-chart-1`），最高点打点；对比基线（`--lazu-chart-2` 虚线）；后端渲染为 @2x PNG。
+- **对比表**：花费、请求、Tokens、缓存命中、平均每次请求、Agent 会话。涨跌用墨色箭头；变好用绿，失败用红。
+- **模型**与**调用来源**：每行两根条（上期 `#dcdcd7`、本期 `#23262d`）+ 本期金额 + 差额；调用来源按 Claude Code / Codex / 直接调用 API 统计。
+- 主按钮一个：「查看上周用量 / 查看 9 月用量」；月报另有「下载 CSV →」。
+
+### 8.3 存档与实现
+
+- 每封发出的邮件记一条发送记录（收件人、类型、期次、模板版本、去重键、服务商邮件 ID、状态）。正文（原样 HTML）压缩加密保存 **180 天**，发送记录保留 **1 年**；周报/月报另存数据快照 JSON；重置密码、验证码、邀请链接等带凭据的邮件**只存固定标题与投递状态**，不存正文。不放追踪像素，不统计打开率。
+- 运营后台 运营 › 邮件（仅平台管理员可见）：用量回顾 / 发送记录 / 单封详情（原样内容、快照、重发、用当前模板重新生成）。
+- 总开关 `UsageDigestEnabled`（Options 表）默认开；阈值（发送门槛 $1、节省 $1 且 15%）同在 Options 表。定时任务 `usage_digests` 每 5 分钟检查，到点后 48 小时内可补发；去重键 `digest:<kind>:<user>:<period>`。数据来自扣费日志（付款人是本人；少付口径与请求收据一致）。

@@ -1,5 +1,5 @@
 /* Actor × target × action matrix from
- * brand/foundations/team-projects-2026-09.md "Permissions". The backend is
+ * brand/foundations/team-projects.md "Permissions". The backend is
  * the authority; this only decides what the console offers, never what it
  * allows. Everything here assumes the actor's membership is active. */
 import type { ProjectRole, ProjectSettings } from './types';

@@ -98,7 +98,7 @@ export function AuthShell({ children }: AuthShellProps) {
 
 /* The mark that anchors the column. Kept separate from AuthPanel so the route
  * skeleton can render it in exactly the same spot. */
-export function AuthMark() {
+function AuthMark() {
   const actualTheme = useActualTheme();
   return (
     <div className='auth-column__mark'>

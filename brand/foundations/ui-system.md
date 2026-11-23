@@ -2,7 +2,7 @@
 
 **Status: LOCKED**
 **Locked: 2026-07-11**
-**Current direction:** [Yunmu](yunmu-console.md), with [September refinements](console-review-2026-09.md).
+**Current direction:** [Yunmu](yunmu-console.md).
 Color, overlay, row and state rules below incorporate later locked amendments.
 
 ## Intent

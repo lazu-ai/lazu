@@ -4,7 +4,7 @@
  * through the row's own action (a small dialog, or a menu for a short list)
  * and saves on its own, so there is no page-wide save bar. The reasoning
  * effort cap for new members sits in its row as the A2 control and saves on
- * change. Locked 2026-09-28: brand/foundations/team-projects-2026-09.md. */
+ * change. Locked 2026-09-28: brand/foundations/team-projects.md. */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';

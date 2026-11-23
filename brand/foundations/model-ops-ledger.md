@@ -1,9 +1,8 @@
 # Model operations ledger — locked
 
-The selected model operations direction is the ledger and inspector in
-`archive:brand/explorations/model-ops-rules-2026-09/DECIDED.md`: model ledger R1–R5,
-source ledger R6/R6b, and discount matrix E1. This foundation promotes that
-recorded selection into the production contract; other explorations remain history.
+The locked model operations direction consists of model ledger R1–R5, source
+ledger R6/R6b, and discount matrix E1, promoted into the production contract
+below.
 
 Model and source editing use one centred dialog over the ledger (880px,
 shared Modal, tabs inside, fixed head and foot, body scrolls); see the

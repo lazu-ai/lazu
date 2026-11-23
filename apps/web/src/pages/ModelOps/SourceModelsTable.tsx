@@ -13,7 +13,7 @@ import { Input } from '../../components/ui/input';
 import { ProviderLogo } from '../../components/ui/provider-icons';
 import { groupByMaker, makerBrand, makerLabel } from '../../lib/model-makers';
 import type { SourceCatalog } from './sourceCatalog';
-import type { ChannelFormValues } from './SourceForm';
+import type { ChannelFormValues } from '../../hooks/channels/useChannelsQuery';
 import type { UpstreamSyncView } from '../../hooks/models/useSourceUpstream';
 import type { TFunction } from 'i18next';
 import type { UseFormReturn } from 'react-hook-form';

@@ -87,7 +87,6 @@ These rules come from [CONTRIBUTING.md](./CONTRIBUTING.md) and should be treated
 
 - `brand/` is the repository's only design and product-UI reference.
 - Only `brand/BRAND.md`, `brand/foundations/*.md`, and `brand/tokens/*` define production constraints.
-- Design explorations record decision history. They are kept outside this repository and cited as `archive:brand/explorations/<dir>`. Do not implement an exploration unless a locked foundation explicitly names the selected direction.
 - `apps/web/src/components/ui/` is the production React implementation of the Brand component language; pages compose it instead of creating private component systems.
 - Production aliases may be generated from Brand tokens during migration, but product code must not redefine canonical color, typography, radius, shadow, or motion values.
 

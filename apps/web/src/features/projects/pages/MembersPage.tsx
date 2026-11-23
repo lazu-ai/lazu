@@ -5,7 +5,7 @@
  * and run at once: role and suspension receipts carry the reverse action,
  * removal and revoking an invite offer an undo
  * (brand/foundations/feedback-system.md §10).
- * Locked 2026-09-28: brand/foundations/team-projects-2026-09.md. */
+ * Locked 2026-09-28: brand/foundations/team-projects.md. */
 import { Download, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

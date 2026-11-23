@@ -9,7 +9,7 @@ import (
 )
 
 // The weekly and monthly usage digests keep their own locked layout
-// (brand/foundations/usage-digest-emails.md) on the ink tier of the shell.
+// (brand/foundations/emails.md § 8) on the ink tier of the shell.
 //
 //go:embed email_templates/digest.html
 var digestHTML string

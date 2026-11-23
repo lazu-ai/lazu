@@ -440,19 +440,8 @@ func (channel *Channel) DeleteAbilities() error {
 // UpdateAbilities updates abilities of this channel.
 // Make sure the channel is completed before calling this function.
 func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
-	isNewTx := false
-	// 如果没有传入事务，创建新的事务
 	if tx == nil {
-		tx = CoreDB().Begin()
-		if tx.Error != nil {
-			return tx.Error
-		}
-		isNewTx = true
-		defer func() {
-			if r := recover(); r != nil {
-				tx.Rollback()
-			}
-		}()
+		return CoreDB().Transaction(channel.UpdateAbilities)
 	}
 
 	// Preserve pool-local routing overrides for abilities that continue to
@@ -463,9 +452,6 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 	// spare into live traffic the next time someone renamed a channel.
 	var existingAbilities []Ability
 	if err := tx.Where("channel_id = ?", channel.Id).Find(&existingAbilities).Error; err != nil {
-		if isNewTx {
-			tx.Rollback()
-		}
 		return err
 	}
 	existingRouting := make(map[string]Ability, len(existingAbilities))
@@ -476,9 +462,6 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 	// First delete all abilities of this channel
 	err := tx.Where("channel_id = ?", channel.Id).Delete(&Ability{}).Error
 	if err != nil {
-		if isNewTx {
-			tx.Rollback()
-		}
 		return err
 	}
 
@@ -535,15 +518,9 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 		keep[key] = true
 	}
 	if err := EndChannelRouteObservations(tx, channel.Id, keep); err != nil {
-		if isNewTx {
-			tx.Rollback()
-		}
 		return err
 	}
 	if err := StartRouteObservations(tx, watched, time.Now()); err != nil {
-		if isNewTx {
-			tx.Rollback()
-		}
 		return err
 	}
 
@@ -551,17 +528,9 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 		for _, chunk := range lo.Chunk(abilities, 50) {
 			err = tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&chunk).Error
 			if err != nil {
-				if isNewTx {
-					tx.Rollback()
-				}
 				return err
 			}
 		}
-	}
-
-	// 如果是新创建的事务，需要提交
-	if isNewTx {
-		return tx.Commit().Error
 	}
 
 	return nil

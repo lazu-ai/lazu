@@ -18,7 +18,7 @@ const REVEAL_DELAY_MS = 300;
 let enteredAt: number | null = null;
 
 /** Called by whatever is waiting; only the first call sets the clock. */
-export function markDoorEntry() {
+function markDoorEntry() {
   if (enteredAt === null) enteredAt = Date.now();
 }
 

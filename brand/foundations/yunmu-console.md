@@ -2,9 +2,8 @@
 
 **Status: LOCKED**  
 **Locked: 2026-08-20**  
-**Source exploration:** `archive:brand/explorations/console-f3-2026-08/ia-4skins.html`, skin `V2 云母`  
-**Locked IA refinement:** `S1 钱包独立`（历史选择板已在决议固化后清理）
-**Locked settings refinement:** `settings-ui-2026-08` option 1 + admin option B, spacing `松`
+**Locked IA refinement:** `S1 钱包独立`
+**Locked settings refinement:** option 1 + admin option B, spacing `松`
 **Canonical registry:** `../BRAND.md`, section `02 云母 Yunmu (Console)`
 
 > **G1 (2026-10-06):** the ground, the floating sidebar, translucent surfaces,
@@ -117,30 +116,20 @@ It is a refinement of Yunmu, not a separate component or visual system.
 - Console shell: `apps/web/src/components/layout/PageLayout.tsx`
 - Canonical tokens: `brand/tokens/colors.css`, `brand/tokens/ui.css`,
   `brand/tokens/data-viz.css`
-- Model plaza: `archive:brand/explorations/console-f3-2026-08/pg-models-final.html`
-- Pricing operations: `archive:brand/explorations/console-f3-2026-08/pg-pricing-final.html`
-- Customer account ledger:
-  `archive:brand/explorations/platform-accounts-2026-09/a-v3.html`
-- Earlier organization and member concepts (superseded for the account page):
-  `archive:brand/explorations/console-f3-2026-08/pg-orgs-final.html` and
-  `pg-members-final.html`
 
 Organization and member management must not claim working impersonation,
-membership or budget controls until registered backend contracts exist. The
-approved mock defines the intended interaction, not permission to fabricate
-production data.
+membership or budget controls until registered backend contracts exist.
 
 ## Locked customer account ledger (2026-09-02)
 
-**Selected exploration:** `archive:brand/explorations/platform-accounts-2026-09/a-v3.html`
-
-The selected surface is a customer ledger plus one account drawer, not a new
-organization profile route. Platform members are excluded from the customer
-cohorts and remain under Settings › Accounts & access. All six facts are real
-server-side filters; search deep links resolve an exact username or ID. The
-drawer preserves the ledger position, supports adjacent-account navigation and
-links back to the existing Key Inspector, Wallet and Usage & Logs surfaces.
-Price factor and cumulative top-up are shown as evidence from existing
+The selected surface is a customer ledger plus one account detail dialog
+(centered dialog since 2026-11-19, per rule 7; replaces the earlier drawer),
+not a new organization profile route. Platform members are excluded from the
+customer cohorts and remain under Settings › Accounts & access. All six facts
+are real server-side filters; search deep links resolve an exact username or ID.
+The detail dialog preserves the ledger position, supports adjacent-account
+navigation and links back to the existing Key Inspector, Wallet and Usage & Logs
+surfaces. Price factor and cumulative top-up are shown as evidence from existing
 contracts. Tier, balance, access and role changes use the registered endpoints;
 destructive or permission-changing actions require confirmation.
 
@@ -165,10 +154,9 @@ centred dialog, 1160 px wide, laid out in two columns:
 
 ## Locked settings surfaces (2026-08-27)
 
-The selected production direction is option 1 from
-`archive:brand/explorations/settings-ui-2026-08/v3.html` for both personal and platform
+The selected production direction is option 1 for both personal and platform
 settings, with the `松` key/value spacing preset. Platform settings use option
-B from `admin.html`. These files remain decision evidence; the rules below are
+B. The rules below are
 the canonical production constraint.
 
 1. A settings row reads `label | value + actions | explanation`. The action is
@@ -274,8 +262,7 @@ scale, so the same kind of row looked slightly different on every page.
 
 ## Locked channel health surface (2026-09-01)
 
-**Selected exploration:** `archive:brand/explorations/channel-stability-2026-09/r2-v3-badge-heatwall.html`
-(the C face), with the A face taken from `r2-v1-inline-matrix.html`.
+Selected direction: badge heatwall (C face) with inline matrix (A face).
 
 Every model runs on two lanes, stable and eco, backed by different upstream
 pools. A model-level health figure hides the only comparison that matters, so
@@ -309,8 +296,7 @@ decision history.
    operators only; no data stays neutral. A lane's status colour is the
    router's breaker verdict on the upstreams it would choose now, never a
    threshold on the window's percentage.
-3a. **One section per kind of model, each with its own figures.** (Locked
-   2026-09-26, canvas `archive:brand/canvases.md`.)
+3a. **One section per kind of model, each with its own figures.** (Locked 2026-09-26.)
    Kind is what the model produces, read from the catalog's output modality:
    大模型 · 向量模型 · 图片生成 · 搜索工具, with 语音 and 视频生成 appearing
    when such models ship. Every section is 可用率 + one speed + one tail:
@@ -332,9 +318,7 @@ decision history.
 
 ## Locked model status cards · C′ (2026-09-27)
 
-The owner chose C′ in Claude session `83ad64b0-5391-4173-989c-3d8910ecdc3e`
-at 13:31 UTC and approved the seven text simplifications at 13:55 UTC.
-Canvas: `archive:brand/canvases.md`.
+The owner chose C′ and approved the seven text simplifications on 2026-09-27.
 This amendment supersedes the earlier lane-row layout and selected-row panel
 above; it preserves the lane as the unit of evidence and comparison.
 
@@ -369,8 +353,8 @@ above; it preserves the lane as the unit of evidence and comparison.
 
 ## Locked Seal refinement (2026-09-21)
 
-Owner-approved continuation of the 2026-09-20 Seal canvas
-`archive:brand/canvases.md`, reconfirmed during PR #252 repair.
+Owner-approved continuation of the 2026-09-20 Seal direction, reconfirmed during
+PR #252 repair.
 
 - Console page headings and display money were set in Instrument Serif
   (superseded 2026-11-21, see [Console type](#console-type-2026-11-21)).
@@ -417,8 +401,7 @@ refinement and the "Instrument Serif" wording of the 2026-10-14 page head.
 
 ## Locked console overview (2026-09-30)
 
-Owner-approved canvas `archive:brand/canvases.md`
-(pages 3 and 5). Implemented on `design/overview-redesign-2026-09`.
+Owner-approved overview A3 and sessions layout, implemented on `design/overview-redesign-2026-09`.
 
 - **Structure A3** on both planes. Platform: metrics grouped 服务质量 (success
   rate is the largest figure; red below 99%) / 收入 (收入, 毛利) / 用户增长
@@ -472,9 +455,7 @@ full-screen sheet on a phone), with no tabs.
 
 ## Locked page-UX revision (2026-10-14)
 
-Owner-approved canvas `archive:brand/canvases.md`
-(audit: `archive:brand/explorations/page-audit-2026-10/index.html`). Five shared
-rules, then the pages built on them.
+Five shared rules, then the pages built on them.
 
 1. **One page head.** Every console page's title sits at the same place —
    12px / 16px insets inside the content column (290px from the window edge
@@ -540,3 +521,143 @@ top-up orders.
 6. **Type.** The wallet is set in the sans face throughout, the page title
    and the one large balance figure included; money uses tabular figures.
    Mono is kept for identifiers (充值编号, 发票编号) and the daily chart's axis.
+
+## Locked Console and Docs refinement (2026-09-06 / 09-09 / 09-20)
+
+Consolidates the September 2026 review (`console-review`), UI audit fixes, and
+top-bar decisions into one console contract.
+
+### Controls, dialogs, and credentials (2026-09-06)
+
+- **Logout confirmation popover**: shared by the desktop account menu and mobile
+  sidebar (`CompactConfirmation`): 210px wide, 14px radius, 28px text actions
+  with 8px corners and a danger-soft confirmation action.
+- **Dialogs and controls**: control geometry travels into portalled dialogs;
+  page layout, heading, and table styles stay scoped to their page. Native
+  button resets must not erase shared Select or date-picker chrome. All dialogs
+  support outside click and Escape (cancelling rather than submitting);
+  in-flight irreversible requests retain busy protection.
+- **Inline Key reveal and copy**: Keys use a dedicated fixed-width inline field
+  with prefix/suffix masking, reveal, and copy (no separate reveal modal). Fetch
+  secrets on explicit interaction only, restricted to the owner for unshared
+  customer Keys and administrators for upstream Keys; never include full secrets
+  in list responses, persisted client caches, or logs. Unrecoverable legacy
+  digest-only Keys state that limitation without inventing a value. Shared
+  project Key permissions follow [team-projects.md](team-projects.md).
+- **Operational surfaces**: Usage exposes requests and user consumption as
+  primary views (monthly reports and files secondary); Users replaces account
+  metric filters with one concern filter alongside search, tier, identity,
+  status and sorting; Model operations separates base lane prices/sources from
+  targeted discounts with change previews; Search services shows masked
+  upstream credentials and real last business use (provider tests do not count;
+  unknown dates stay unknown).
+
+### Top bar and members empty state (2026-09-20)
+
+Selected directions: **T4** (top bar in the main column, then page head, then
+tabs), **X1** (project switcher as first crumb), **V** (build number in help
+menu's last line), search in bar dropped, **E2** (members empty state uses the
+real members table with one owner row, one inline invite row, and one greyed
+placeholder row).
+
+- **Desktop top bar (52px, inside main column)**: no background or bottom rule
+  (page head owns the horizontal rule). Left: project switcher (20px tile, name,
+  chevron) `›` sidebar group name. Right: 32px icon buttons (10px radius, no
+  border) for announcements (6px evidence dot when unread), theme, language,
+  help, 1px divider, 28px round avatar. Menu items warm routes on hover/focus
+  and hide when their destination is hidden.
+- **Mobile drawer exception**: the bar is desktop-only; on phones the drawer
+  retains project switcher and logout, and mobile top chrome holds version,
+  theme, and language.
+- **Members empty state & invite**: `.pj-table` with owner row, inline invite
+  row (address, role, cap `$50 / $100 / $500` plus project default if custom,
+  disabled until project settings arrive), and one greyed seat row. Later
+  invitations open a 440px single-column dialog (address, role, cap, full-width
+  send button, one consequence line; no eyebrow, no second column, no cancel
+  button beside send).
+
+### UI audit fixes (2026-09-09)
+
+1. **Model directory (`/models`, `/console/models`) — A (one hero price per card)**:
+   one price leads the card at display size; its lane row drops the duplicate;
+   output-only lanes lead with output; badges are exception-only (unavailable,
+   every open lane down, or newly listed); context length rounds to one decimal
+   (`1M`, never `1000k`).
+2. **Legal documents (`/privacy`, `/terms`) — B (chapter rail)**: title,
+   breadcrumb, and published date move into a page head; chapters get a
+   scroll-following right rail and mono enumerators; in-page links preserve the
+   URL locale prefix.
+3. **Console overview (`/console`) — A (de-carded KPI strip)**: single hairline
+   strip; no standing status panel; inline notice links to failed requests only
+   above error-rate threshold.
+4. **Wallet (`/console/wallet`) — A**: opens on the user's last checkout amount
+   (never deployment minimum); a created checkout is not a completed payment.
+5. **Key inspector — D (answer in the row)**: `/console/key` redirects to the
+   Keys table where per-Key usage expands in place (queried by immutable public
+   token ID and authenticated owner); public `/key` stays for Key Pass users.
+6. **Platform settings (`/console/setting`) — D (one group at a time)**: one
+   panel mounts at a time; save bar scopes to the visible group; switching away
+   from unsaved drafts guards with a save/discard/stay modal (locked while save
+   is in flight); long template fields preview in one line and edit in a modal.
+   (Settings search box S4 remains deferred.)
+
+## Locked usage and logs · M3 + L1 + S1 (2026-09-29)
+
+Route: `/console/usage`. Inherits [ui-system.md](ui-system.md) and this console
+contract.
+
+### List (L1)
+
+1. **The lane is part of the model.** Lane rides in the model cell as `稳定`
+   (ink dot) or `Agent` (ring dot, evidence colour); no 分组 column (`group` is
+   `direct` / `cheap`).
+2. **Only tag what is known.** Non-lane rows and pre-routing refusals get no
+   tag. `改走稳定` (warning tint, hover hint) marks requests served on stable
+   instead of the Key's requested lane (`other.lane_requested`).
+3. **Status is a dot and a word.** 成功 / 失败; failed rows are not painted.
+   Other record kinds keep their type chip.
+4. **Two merged columns:** `输入 → 输出` (18.4K → 1.2K, Latin K/M) and
+   `用时 · 首字` (6.8s · 0.9s). No 详情 button column; row click opens detail
+   and the time cell is the keyboard handle with `aria-expanded`.
+5. **Summary strip before filters:** 花费 · 请求 · RPM · TPM (pending until
+   query answers).
+6. **Filters:** `线路` switch (全部线路 / 稳定 / Agent) + model search;
+   operator columns (用户, 通道, 重试) appear in platform view only.
+7. **Amounts read to four decimals** (`$0.0213`); under a tenth of a cent keeps
+   six decimals so it never rounds up.
+
+### Detail (M3) & F2 ledger
+
+Expands inline under its row on the selected tint without repeating model, lane,
+or time (deep links off the page are the exception):
+
+- **Left (220px):** 实扣 (32px mono), then S1 (`官方价 ~~$x~~` and
+  `省 $y（z%）` in success green).
+- **Middle:** two aligned bars — 时间 (首字 neutral ≥ 64px, then 生成 with
+  tok/s and total) and 费用 (one unlabelled segment per billed line in ledger
+  swatch colours).
+- **Right (380px, F2 ledger):** one header `数量 × 单价 = 金额`, then one row
+  per billed line (swatch, name, right-aligned mono 62 / 72 / 70px) in order:
+  输入, 图片输入, 缓存读取, 缓存写入 · 5 分钟, 缓存写入 · 1 小时, 音频输入, 输出,
+  图片输出, 音频输出, per-call and tool lines, 最低计费. Whole-order discount or
+  surcharge (`折扣 6 折 · −40% · −$x` green / `加价 20%` amber) sits between
+  小计 and ink rule + 实扣 (14px/600). Tags (`长上下文`, `×2` peak) ride on
+  their lines with one-line foot reason.
+- **Facts line:** 推理强度, 接口, IP, and request ID (`X-Request-Id`,
+  searchable) with 复制.
+- **Failed requests** lead with 发生了什么, whether anything was charged, then
+  upstream message.
+- **Platform view only:** 通道, retry chain, upstream model.
+- **No raw-data toggle, for anyone.**
+
+### Official price (S1) rules
+
+1. **Snapshot at billing, never computed on display** (`quote.official.total_microusd`
+   in `line_items`; pre-2026-09-29 rows show no comparison).
+2. **Only input and output have list prices** (`models.official_*_price`);
+   other lines count at charged price so saving is never overstated.
+3. **No comparison** for long-context tiers, minimum charges, per-call models,
+   or lines missing a list price.
+4. **Say nothing when there is no saving:** under 1% shows no line (never
+   `省 0%`, never negative).
+5. **Never repeat saving on list rows.**
