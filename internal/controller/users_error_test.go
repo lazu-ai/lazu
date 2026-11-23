@@ -257,9 +257,9 @@ func TestVerifyEmailAuthRejectsWrongCode(t *testing.T) {
 	t.Cleanup(func() {
 		common.EmailCodeAuthEnabled = previous
 		common.RedisEnabled = previousRedis
-		common.ClearVerificationFailures("wrong-code@example.com", common.EmailAuthPurpose)
 	})
 
+	issueTestCode(t, "wrong-code@example.com", "123456", common.EmailAuthPurpose)
 	c, w := newUserTestContext(http.MethodPost, "/api/auth/email/verify", `{"email":"wrong-code@example.com","code":"000000"}`)
 	VerifyEmailAuth(c)
 

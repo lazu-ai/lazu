@@ -30,11 +30,8 @@ func bindingUser(t *testing.T, name, email string) *model.User {
 func issueBindingProofs(t *testing.T, user *model.User, email string) *emailBindingRequest {
 	t.Helper()
 	key := emailBindingKey(user, email)
-	common.RegisterVerificationCodeWithKey(key, "123456", emailBindingPurpose)
-	common.RegisterVerificationCodeWithKey(key, "654321", emailBindingCurrentPurpose)
-	common.ClearVerificationFailures(key, emailBindingPurpose)
-	common.ClearVerificationFailures(key, emailBindingCurrentPurpose)
-	t.Cleanup(func() { common.DeleteKey(key, emailBindingPurpose); common.DeleteKey(key, emailBindingCurrentPurpose) })
+	issueTestCode(t, key, "123456", emailBindingPurpose)
+	issueTestCode(t, key, "654321", emailBindingCurrentPurpose)
 	return &emailBindingRequest{Email: email, Code: "123456", CurrentCode: "654321"}
 }
 
@@ -65,9 +62,8 @@ func TestEmailBindingProofsAndOwnership(t *testing.T) {
 			case "other target":
 				request.Email = "different@example.com"
 			case "login code":
-				common.DeleteKey(emailBindingKey(user, target), emailBindingPurpose)
-				common.RegisterVerificationCodeWithKey(target, request.Code, common.EmailAuthPurpose)
-				t.Cleanup(func() { common.DeleteKey(target, common.EmailAuthPurpose) })
+				checkTestCode(t, emailBindingKey(user, target), request.Code, emailBindingPurpose, common.VerificationAccepted)
+				issueTestCode(t, target, request.Code, common.EmailAuthPurpose)
 			case "revoked session":
 				model.CoreDB().Model(&model.User{}).Where("id = ?", user.Id).Update("session_version", user.SessionVersion+1)
 			case "changed password":

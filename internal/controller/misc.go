@@ -205,7 +205,10 @@ func dispatchPasswordResetEmail(email string, requestLang string) {
 	}
 	code := common.GenerateVerificationCode(0)
 	verificationKey := model.PasswordResetVerificationKey(user.Id, user.SessionVersion)
-	common.RegisterVerificationCodeWithKey(verificationKey, code, common.PasswordResetPurpose)
+	if err := common.IssueVerificationCodes(verificationKey, common.VerificationCode{Purpose: common.PasswordResetPurpose, Code: code}); err != nil {
+		common.SysError("could not store password reset token: " + err.Error())
+		return
+	}
 	// The reset page is served by the console, which can live on a different
 	// origin than the API, so the link is built from the frontend base URL.
 	link := fmt.Sprintf(

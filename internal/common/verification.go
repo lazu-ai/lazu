@@ -2,9 +2,9 @@ package common
 
 import (
 	"context"
+	"crypto/hmac"
 	crand "crypto/rand"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -12,11 +12,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
-
-type verificationValue struct {
-	code string
-	time time.Time
-}
 
 const (
 	PasswordResetPurpose = "r"
@@ -32,25 +27,7 @@ const (
 // patient attacker with a workable search; the code itself has to expire.
 const MaxVerificationAttempts = 5
 
-type verificationAttempt struct {
-	count     int
-	expiresAt time.Time
-}
-
-var verificationAttempts = make(map[string]verificationAttempt)
-
-var verificationMutex sync.Mutex
-var verificationMap map[string]verificationValue
-var verificationMapMaxSize = 10
-var VerificationValidMinutes = 10
-
-var verificationGetDelScript = redis.NewScript(`
-local value = redis.call("GET", KEYS[1])
-if value == ARGV[1] then
-  redis.call("DEL", KEYS[1])
-end
-return value
-`)
+const VerificationValidMinutes = 10
 
 func GenerateVerificationCode(length int) string {
 	code := uuid.New().String()
@@ -80,198 +57,177 @@ func GenerateNumericVerificationCode(length int) (string, error) {
 	return string(digits), nil
 }
 
-func RegisterVerificationCodeWithKey(key string, code string, purpose string) {
-	if registerVerificationCodeRedis(key, code, purpose) {
-		registerVerificationCodeMemory(key, code, purpose)
+// VerificationCode binds one proof to its purpose under the caller's identity.
+// Replacing an email address can require two proofs for the same operation.
+type VerificationCode struct {
+	Purpose string
+	Code    string
+}
+
+type VerificationResult int
+
+const (
+	VerificationInvalid VerificationResult = iota
+	VerificationAccepted
+	VerificationExhausted
+)
+
+type verificationEntry struct {
+	key    string
+	digest string
+	limit  int
+}
+
+func verificationEntries(identity string, codes []VerificationCode) ([]verificationEntry, error) {
+	identity = strings.ToLower(strings.TrimSpace(identity))
+	if identity == "" || len(codes) == 0 {
+		return nil, errors.New("missing verification identity or purpose")
+	}
+	scope := GenerateHMAC("verification/identity/v2\x00" + identity)
+	entries := make([]verificationEntry, len(codes))
+	for i, proof := range codes {
+		if proof.Purpose == "" {
+			return nil, errors.New("empty verification purpose")
+		}
+		key := "verification:v2:{" + scope + "}:" + proof.Purpose
+		limit := MaxVerificationAttempts
+		// Reset links are high-entropy and bound to the account/session version.
+		// A wrong token must not revoke someone else's outstanding reset link.
+		if proof.Purpose == PasswordResetPurpose {
+			limit = 0
+		}
+		entries[i] = verificationEntry{key: key, digest: GenerateHMAC("verification/proof/v2\x00" + key + "\x00" + proof.Code), limit: limit}
+	}
+	return entries, nil
+}
+
+// A single script writes every required proof before either email goes out.
+var issueVerificationScript = redis.NewScript(`
+for i, key in ipairs(KEYS) do
+  redis.call("HSET", key, "digest", ARGV[2*i], "failures", 0)
+  redis.call("EXPIRE", key, ARGV[1])
+end
+return 1
+`)
+
+// Check all proofs before consuming any. For numeric codes a missing proof
+// has the same failure allowance as a live one, regardless of mailbox state.
+var consumeVerificationScript = redis.NewScript(`
+for i, key in ipairs(KEYS) do
+  local digest = redis.call("HGET", key, "digest")
+  if digest ~= ARGV[2*i] then
+    local limit = tonumber(ARGV[2*i+1])
+    if limit > 0 then
+      local failures = redis.call("HINCRBY", key, "failures", 1)
+      if failures >= limit then
+        redis.call("DEL", key)
+        return 2
+      end
+      if not digest and failures == 1 then redis.call("EXPIRE", key, ARGV[1]) end
+    end
+    return 0
+  end
+end
+redis.call("DEL", unpack(KEYS))
+return 1
+`)
+
+func runVerificationScript(script *redis.Script, entries []verificationEntry) (VerificationResult, error) {
+	if err := ensureRedisClient(); err != nil {
+		return VerificationInvalid, err
+	}
+	keys := make([]string, 0, len(entries))
+	args := []interface{}{VerificationValidMinutes * 60}
+	for _, entry := range entries {
+		keys = append(keys, entry.key)
+		args = append(args, entry.digest, entry.limit)
+	}
+	result, err := script.Run(context.Background(), RDB, keys, args...).Int()
+	return VerificationResult(result), err
+}
+
+type memoryVerification struct {
+	digest   string
+	failures int
+	expires  time.Time
+}
+
+var verificationMemory = struct {
+	sync.Mutex
+	values      map[string]memoryVerification
+	nextCleanup time.Time
+}{values: make(map[string]memoryVerification)}
+
+func IssueVerificationCodes(identity string, codes ...VerificationCode) error {
+	for _, proof := range codes {
+		if proof.Code == "" {
+			return errors.New("empty verification code")
+		}
+	}
+	entries, err := verificationEntries(identity, codes)
+	if err != nil {
+		return err
+	}
+	if RedisVerificationCodeEnabled {
+		_, err = runVerificationScript(issueVerificationScript, entries)
+		return err
+	}
+	verificationMemory.Lock()
+	defer verificationMemory.Unlock()
+	now := time.Now()
+	cleanExpiredVerification(now)
+	for _, entry := range entries {
+		verificationMemory.values[entry.key] = memoryVerification{digest: entry.digest, expires: now.Add(VerificationValidMinutes * time.Minute)}
+	}
+	return nil
+}
+
+// Caller holds the memory store lock. Each read also checks its own expiry.
+func cleanExpiredVerification(now time.Time) {
+	if now.Before(verificationMemory.nextCleanup) {
 		return
 	}
-	registerVerificationCodeMemory(key, code, purpose)
+	for k, v := range verificationMemory.values {
+		if !now.Before(v.expires) {
+			delete(verificationMemory.values, k)
+		}
+	}
+	verificationMemory.nextCleanup = now.Add(VerificationValidMinutes * time.Minute)
 }
 
-func registerVerificationCodeMemory(key string, code string, purpose string) {
-	verificationMutex.Lock()
-	defer verificationMutex.Unlock()
-	verificationMap[purpose+key] = verificationValue{
-		code: code,
-		time: time.Now(),
+func ConsumeVerificationCodes(identity string, codes ...VerificationCode) (VerificationResult, error) {
+	entries, err := verificationEntries(identity, codes)
+	if err != nil {
+		return VerificationInvalid, err
 	}
-	if len(verificationMap) > verificationMapMaxSize {
-		removeExpiredPairs()
+	if RedisVerificationCodeEnabled {
+		return runVerificationScript(consumeVerificationScript, entries)
 	}
-}
-
-func VerifyCodeWithKey(key string, code string, purpose string) bool {
-	if RedisVerificationCodeEnabled && RedisEnabled && RDB != nil {
-		ok, handled := verifyCodeRedis(key, code, purpose)
-		if handled {
-			if ok {
-				deleteVerificationCodeMemory(key, purpose)
+	verificationMemory.Lock()
+	defer verificationMemory.Unlock()
+	now := time.Now()
+	cleanExpiredVerification(now)
+	for _, entry := range entries {
+		v := verificationMemory.values[entry.key]
+		if !now.Before(v.expires) {
+			delete(verificationMemory.values, entry.key)
+			v = memoryVerification{expires: now.Add(VerificationValidMinutes * time.Minute)}
+		}
+		if hmac.Equal([]byte(v.digest), []byte(entry.digest)) {
+			continue
+		}
+		if entry.limit > 0 {
+			v.failures++
+			if v.failures >= entry.limit {
+				delete(verificationMemory.values, entry.key)
+				return VerificationExhausted, nil
 			}
-			return ok
+			verificationMemory.values[entry.key] = v
 		}
-		return false
+		return VerificationInvalid, nil
 	}
-	return verifyCodeMemory(key, code, purpose)
-}
-
-func verifyCodeMemory(key string, code string, purpose string) bool {
-	verificationMutex.Lock()
-	defer verificationMutex.Unlock()
-	mapKey := purpose + key
-	value, okay := verificationMap[mapKey]
-	now := time.Now()
-	if !okay {
-		return false
+	for _, entry := range entries {
+		delete(verificationMemory.values, entry.key)
 	}
-	if int(now.Sub(value.time).Seconds()) >= VerificationValidMinutes*60 {
-		delete(verificationMap, mapKey)
-		return false
-	}
-	if code != value.code {
-		return false
-	}
-	// Comparing and consuming must happen under the same lock. Splitting the
-	// two operations lets concurrent reset requests both observe a valid token
-	// before either one deletes it.
-	delete(verificationMap, mapKey)
-	return true
-}
-
-// RecordVerificationFailure counts one wrong code and reports whether that
-// exhausted the allowance. When it has, the code is deleted: the person has to
-// request a new one, which resets the search space the attacker was narrowing.
-func RecordVerificationFailure(key string, purpose string) bool {
-	attempts := recordVerificationFailureRedis(key, purpose)
-	if attempts == 0 {
-		attempts = recordVerificationFailureMemory(key, purpose)
-	}
-	if attempts >= MaxVerificationAttempts {
-		DeleteKey(key, purpose)
-		ClearVerificationFailures(key, purpose)
-		return true
-	}
-	return false
-}
-
-// ClearVerificationFailures resets the allowance, called when a code is
-// consumed successfully or replaced by a freshly issued one.
-func ClearVerificationFailures(key string, purpose string) {
-	if RedisVerificationCodeEnabled && RedisEnabled && RDB != nil {
-		if err := RedisDel(verificationAttemptsRedisKey(key, purpose)); err != nil {
-			SysLog(fmt.Sprintf("failed to clear redis verification attempts: %v", err))
-		}
-	}
-	verificationMutex.Lock()
-	defer verificationMutex.Unlock()
-	delete(verificationAttempts, purpose+key)
-}
-
-func recordVerificationFailureMemory(key string, purpose string) int {
-	verificationMutex.Lock()
-	defer verificationMutex.Unlock()
-	now := time.Now()
-	for attemptKey, attempt := range verificationAttempts {
-		if !now.Before(attempt.expiresAt) {
-			delete(verificationAttempts, attemptKey)
-		}
-	}
-	mapKey := purpose + key
-	attempt := verificationAttempts[mapKey]
-	if !now.Before(attempt.expiresAt) {
-		attempt = verificationAttempt{
-			expiresAt: now.Add(time.Duration(VerificationValidMinutes) * time.Minute),
-		}
-	}
-	attempt.count++
-	verificationAttempts[mapKey] = attempt
-	return attempt.count
-}
-
-// recordVerificationFailureRedis returns 0 when Redis is unavailable, so the
-// caller falls back to the in-process counter instead of counting nothing.
-func recordVerificationFailureRedis(key string, purpose string) int {
-	if !RedisVerificationCodeEnabled || !RedisEnabled || RDB == nil {
-		return 0
-	}
-	redisKey := verificationAttemptsRedisKey(key, purpose)
-	attempts, err := RDB.Incr(context.Background(), redisKey).Result()
-	if err != nil {
-		SysLog(fmt.Sprintf("failed to count redis verification attempt: %v", err))
-		return 0
-	}
-	if attempts == 1 {
-		if err := RDB.Expire(context.Background(), redisKey, time.Duration(VerificationValidMinutes)*time.Minute).Err(); err != nil {
-			SysLog(fmt.Sprintf("failed to expire redis verification attempts: %v", err))
-		}
-	}
-	return int(attempts)
-}
-
-func verificationAttemptsRedisKey(key string, purpose string) string {
-	return verificationRedisKey(key, purpose) + ":attempts"
-}
-
-func DeleteKey(key string, purpose string) {
-	if RedisVerificationCodeEnabled && RedisEnabled && RDB != nil {
-		if err := RedisDel(verificationRedisKey(key, purpose)); err != nil {
-			SysLog(fmt.Sprintf("failed to delete redis verification code: %v", err))
-		}
-	}
-	deleteVerificationCodeMemory(key, purpose)
-}
-
-func deleteVerificationCodeMemory(key string, purpose string) {
-	verificationMutex.Lock()
-	defer verificationMutex.Unlock()
-	delete(verificationMap, purpose+key)
-}
-
-func registerVerificationCodeRedis(key string, code string, purpose string) bool {
-	if !RedisVerificationCodeEnabled || !RedisEnabled || RDB == nil {
-		return false
-	}
-	err := RedisSet(verificationRedisKey(key, purpose), code, time.Duration(VerificationValidMinutes)*time.Minute)
-	if err != nil {
-		SysLog(fmt.Sprintf("failed to register redis verification code: %v", err))
-		return false
-	}
-	return true
-}
-
-func verifyCodeRedis(key string, code string, purpose string) (bool, bool) {
-	result, err := verificationGetDelScript.Run(context.Background(), RDB, []string{verificationRedisKey(key, purpose)}, code).Result()
-	if err == redis.Nil {
-		return false, true
-	}
-	if err != nil {
-		SysLog(fmt.Sprintf("failed to verify redis verification code: %v", err))
-		return false, false
-	}
-	stored, ok := result.(string)
-	if !ok {
-		return false, true
-	}
-	return stored == code, true
-}
-
-func verificationRedisKey(key string, purpose string) string {
-	key = strings.ToLower(strings.TrimSpace(key))
-	purpose = strings.TrimSpace(purpose)
-	return "verification:" + purpose + ":" + GenerateHMAC(purpose+":"+key)
-}
-
-// no lock inside, so the caller must lock the verificationMap before calling!
-func removeExpiredPairs() {
-	now := time.Now()
-	for key := range verificationMap {
-		if int(now.Sub(verificationMap[key].time).Seconds()) >= VerificationValidMinutes*60 {
-			delete(verificationMap, key)
-		}
-	}
-}
-
-func init() {
-	verificationMutex.Lock()
-	defer verificationMutex.Unlock()
-	verificationMap = make(map[string]verificationValue)
+	return VerificationAccepted, nil
 }

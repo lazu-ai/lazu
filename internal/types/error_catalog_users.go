@@ -12,6 +12,7 @@ const (
 	ErrorCodeRegistrationClosed                ErrorCode = "registration_closed"
 	ErrorCodeVerificationCodeInvalid           ErrorCode = "verification_code_invalid"
 	ErrorCodeVerificationCodeAttemptsExhausted ErrorCode = "verification_code_attempts_exhausted"
+	ErrorCodeVerificationUnavailable           ErrorCode = "verification_unavailable"
 	ErrorCodeEmailCodeAuthDisabled             ErrorCode = "email_code_auth_disabled"
 	ErrorCodeEmailTransportUnavailable         ErrorCode = "email_transport_unavailable"
 	ErrorCodeOriginalPasswordIncorrect         ErrorCode = "original_password_incorrect"
@@ -62,6 +63,10 @@ func init() {
 		ErrorCodeVerificationCodeAttemptsExhausted: {
 			ID: "LZ-2207", HTTPStatus: http.StatusTooManyRequests, Type: ErrorTypeRateLimit, Audience: AudienceCustomer,
 			Template: "Too many incorrect codes; this code no longer works. Request a new code.",
+		},
+		ErrorCodeVerificationUnavailable: {
+			ID: "LZ-2212", HTTPStatus: http.StatusServiceUnavailable, Type: ErrorTypeAPI, Audience: AudienceCustomer,
+			Template: "Email verification is temporarily unavailable. Please try again shortly.",
 		},
 		ErrorCodeEmailCodeAuthDisabled: {
 			ID: "LZ-2210", HTTPStatus: http.StatusForbidden, Type: ErrorTypePermission, Audience: AudienceCustomer,

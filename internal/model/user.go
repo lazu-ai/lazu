@@ -1766,7 +1766,11 @@ func ResetUserPasswordWithToken(email string, userID int, issuedSessionVersion i
 		return nil, ErrPasswordResetLinkInvalid
 	}
 	verificationKey := PasswordResetVerificationKey(userID, issuedSessionVersion)
-	if !common.VerifyCodeWithKey(verificationKey, token, common.PasswordResetPurpose) {
+	result, err := common.ConsumeVerificationCodes(verificationKey, common.VerificationCode{Purpose: common.PasswordResetPurpose, Code: token})
+	if err != nil {
+		return nil, types.WrapErr(err, types.ErrorCodeVerificationUnavailable)
+	}
+	if result != common.VerificationAccepted {
 		return nil, ErrPasswordResetLinkInvalid
 	}
 	hashedPassword, err := common.Password2Hash(password)

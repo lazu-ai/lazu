@@ -4,6 +4,7 @@
   "registration_closed": "現在、新規アカウントの登録は受け付けていません。アカウントが必要な場合は管理者にお問い合わせください。",
   "verification_code_invalid": "認証コードが正しくないか、有効期限が切れています。確認するか、新しいコードを取得してください。",
   "verification_code_attempts_exhausted": "誤入力が多すぎたため、このコードは無効になりました。新しいコードを取得してください。",
+  "verification_unavailable": "現在、メール認証を利用できません。しばらくしてからもう一度お試しください。",
   "email_code_auth_disabled": "メール認証コードでのログインは無効になっています。別のログイン方法をご利用ください。",
   "email_transport_unavailable": "現在、メール認証コードを送信できません。別のログイン方法をご利用ください。",
   "original_password_incorrect": "現在のパスワードが正しくありません。確認してもう一度お試しください。",

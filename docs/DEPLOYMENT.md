@@ -555,6 +555,20 @@ support window remains six months from each schema release.
 3. Verify that the recreated service is healthy at `/readyz`; test retained
    payment and email integrations from their normal operational workflows.
 
+## Email verification across API replicas
+
+Set `REDIS_VERIFICATION_CODE_ENABLED=true` on every API replica and give them
+the same `REDIS_CONN_STRING` and stable `CRYPTO_SECRET`. If the deployment
+uses `SESSION_SECRET` as its crypto secret, share that value across replicas.
+With the bundled Compose file, set these on the backend service in a Compose
+override. Single-process deployments default to in-memory verification.
+
+Sign-in and sign-up codes, both proofs for email changes, and password reset
+links expire after ten minutes. Redis keeps them valid across API restarts.
+During a Redis outage, issuing and checking credentials pause. When enabling
+Redis or upgrading from the older verification key format, users with an
+outstanding code or reset link must request a fresh one after the cutover.
+
 ## Environment variables kept from earlier releases
 
 These variables keep the names they had before Lazu. They stay as they are,

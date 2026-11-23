@@ -2,23 +2,48 @@ package controller
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/model"
+	"github.com/lazu-ai/lazu/internal/types"
 )
+
+func issueTestCode(t *testing.T, key, code, purpose string) {
+	t.Helper()
+	if err := common.IssueVerificationCodes(key, common.VerificationCode{Purpose: purpose, Code: code}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func checkTestCode(t *testing.T, key, code, purpose string, want common.VerificationResult) {
+	t.Helper()
+	got, err := common.ConsumeVerificationCodes(key, common.VerificationCode{Purpose: purpose, Code: code})
+	if err != nil || got != want {
+		t.Fatalf("verification result %v, want %v; error %v", got, want, err)
+	}
+}
 
 func issueEmailAuthCode(t *testing.T, email string) string {
 	t.Helper()
-	code := common.GenerateVerificationCode(6)
-	common.RegisterVerificationCodeWithKey(email, code, common.EmailAuthPurpose)
-	common.ClearVerificationFailures(email, common.EmailAuthPurpose)
-	t.Cleanup(func() {
-		common.DeleteKey(email, common.EmailAuthPurpose)
-		common.ClearVerificationFailures(email, common.EmailAuthPurpose)
-	})
+	code, err := common.GenerateNumericVerificationCode(6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issueTestCode(t, email, code, common.EmailAuthPurpose)
 	return code
 }
 
@@ -27,6 +52,94 @@ func enableEmailCodeAuthForTest(t *testing.T) {
 	previous := common.EmailCodeAuthEnabled
 	common.EmailCodeAuthEnabled = true
 	t.Cleanup(func() { common.EmailCodeAuthEnabled = previous })
+}
+
+func TestEmailVerificationRedisPersistsAcrossAPIProcesses(t *testing.T) {
+	url := os.Getenv("TEST_REDIS_URL")
+	if url == "" {
+		t.Skip("TEST_REDIS_URL is not configured")
+	}
+	options, err := redis.ParseURL(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	setupOIDCTestDB(t)
+	enableEmailCodeAuthForTest(t)
+	client := redis.NewClient(options)
+	previousRedis, previousMode, previousClient := common.RedisEnabled, common.RedisVerificationCodeEnabled, common.RDB
+	previousSecret, previousSMTP := common.CryptoSecret, common.SMTPServer
+	previousUser, previousToken, previousDelivery := common.SMTPAccount, common.SMTPToken, deliverAuthEmail
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RedisVerificationCodeEnabled, common.RDB = previousRedis, previousMode, previousClient
+		common.CryptoSecret, common.SMTPServer = previousSecret, previousSMTP
+		common.SMTPAccount, common.SMTPToken, deliverAuthEmail = previousUser, previousToken, previousDelivery
+		_ = client.Close()
+	})
+	common.RedisEnabled, common.RedisVerificationCodeEnabled, common.RDB = true, true, client
+	common.CryptoSecret = "shared-verification-test-key" // secret-scan: allow -- disposable test fixture
+	common.SMTPServer, common.SMTPAccount, common.SMTPToken = "smtp.example.test", "test", "test"
+
+	engine := gin.New()
+	engine.Use(sessions.Sessions("test", cookie.NewStore([]byte("email-test-cookie"))))
+	engine.POST("/start", StartEmailAuth)
+	engine.POST("/verify", VerifyEmailAuth)
+	post := func(path, body string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		engine.ServeHTTP(rec, req)
+		return rec
+	}
+	email := os.Getenv("LAZU_TEST_OTP_ADDRESS")
+	if email == "" {
+		email = strings.ToLower(common.GenerateULID()) + "@example.test"
+	}
+	user := bindingUser(t, "mail-recipient", email)
+	if inbox := os.Getenv("LAZU_TEST_OTP_INBOX"); inbox != "" {
+		deliverAuthEmail = func(_, receiver, html string) error {
+			if receiver != user.Email {
+				return fmt.Errorf("unexpected test recipient")
+			}
+			return os.WriteFile(inbox, []byte(html), 0600)
+		}
+		rec := post("/start", fmt.Sprintf(`{"email":%q}`, email))
+		waitForAuthEmailDeliveries()
+		if rec.Code != http.StatusOK {
+			t.Fatalf("request code: %s", rec.Body.String())
+		}
+		return
+	}
+
+	inbox := filepath.Join(t.TempDir(), "mail.html")
+	child := exec.Command(os.Args[0], "-test.run=^TestEmailVerificationRedisPersistsAcrossAPIProcesses$")
+	child.Env = append(os.Environ(), "LAZU_TEST_OTP_ADDRESS="+email, "LAZU_TEST_OTP_INBOX="+inbox)
+	if out, err := child.CombinedOutput(); err != nil {
+		t.Fatalf("issuer: %v %s", err, out)
+	}
+	html, err := os.ReadFile(inbox)
+	if err != nil {
+		t.Fatal(err)
+	}
+	match := regexp.MustCompile(`>([0-9]{6})</td>`).FindSubmatch(html)
+	if len(match) != 2 {
+		t.Fatal("test mailbox did not receive a sign-in code")
+	}
+	body := fmt.Sprintf(`{"email":%q,"code":%q}`, strings.ToUpper(email), string(match[1]))
+	common.RDB = nil
+	requireUserAPIError(t, post("/verify", body), http.StatusServiceUnavailable, types.ErrorCodeVerificationUnavailable)
+	mail := captureAuthMail(t)
+	dispatchEmailAuthCode(email, common.MailEN, false)
+	sendEmailBindingCodes(user, "target@example.test", common.MailEN, true)
+	dispatchPasswordResetEmail(email, common.MailEN)
+	if len(*mail) != 0 {
+		t.Fatal("a credential email was sent while the verification store was unavailable")
+	}
+	common.RDB = client
+	rec := post("/verify", body)
+	if rec.Code != http.StatusOK || len(rec.Result().Cookies()) == 0 {
+		t.Fatalf("sign-in after issuer exit: %d %s", rec.Code, rec.Body.String())
+	}
+	requireUserAPIError(t, post("/verify", body), http.StatusBadRequest, types.ErrorCodeVerificationCodeInvalid)
 }
 
 func TestEmailCodeCreatesAnAccountForAnUnknownAddress(t *testing.T) {
@@ -187,23 +300,12 @@ func TestWrongCodesBurnTheCode(t *testing.T) {
 	email := "brute@example.com"
 	code := issueEmailAuthCode(t, email)
 
+	const wrong = "invalid"
 	for attempt := 1; attempt < common.MaxVerificationAttempts; attempt++ {
-		if common.VerifyCodeWithKey(email, "000000", common.EmailAuthPurpose) {
-			t.Fatal("a wrong code must never verify")
-		}
-		if burned := common.RecordVerificationFailure(email, common.EmailAuthPurpose); burned {
-			t.Fatalf("the code was burned early, on attempt %d", attempt)
-		}
+		checkTestCode(t, email, wrong, common.EmailAuthPurpose, common.VerificationInvalid)
 	}
-	if common.VerifyCodeWithKey(email, "000000", common.EmailAuthPurpose) {
-		t.Fatal("a wrong code must never verify")
-	}
-	if burned := common.RecordVerificationFailure(email, common.EmailAuthPurpose); !burned {
-		t.Fatalf("the code should be burned after %d wrong guesses", common.MaxVerificationAttempts)
-	}
-	if common.VerifyCodeWithKey(email, code, common.EmailAuthPurpose) {
-		t.Fatal("the real code must stop working once it is burned")
-	}
+	checkTestCode(t, email, wrong, common.EmailAuthPurpose, common.VerificationExhausted)
+	checkTestCode(t, email, code, common.EmailAuthPurpose, common.VerificationInvalid)
 }
 
 // A code minted to prove a new address must not also open a session, and a
@@ -212,12 +314,8 @@ func TestEmailAuthCodesDoNotCrossPurposes(t *testing.T) {
 	setupOIDCTestDB(t)
 	email := "purpose@example.com"
 	code := common.GenerateVerificationCode(6)
-	common.RegisterVerificationCodeWithKey(email, code, emailBindingPurpose)
-	t.Cleanup(func() { common.DeleteKey(email, emailBindingPurpose) })
-
-	if common.VerifyCodeWithKey(email, code, common.EmailAuthPurpose) {
-		t.Fatal("an address-verification code must not sign anyone in")
-	}
+	issueTestCode(t, email, code, emailBindingPurpose)
+	checkTestCode(t, email, code, common.EmailAuthPurpose, common.VerificationInvalid)
 }
 
 func TestValidateEmailForAuthAppliesDeploymentPolicy(t *testing.T) {

@@ -4,6 +4,7 @@
   "registration_closed": "目前不开放注册新账号。如需账号，请联系管理员。",
   "verification_code_invalid": "验证码错误或已过期。请检查，或重新获取。",
   "verification_code_attempts_exhausted": "验证码错误次数过多，已失效。请重新获取验证码。",
+  "verification_unavailable": "邮箱验证暂时不可用，请稍后重试。",
   "email_code_auth_disabled": "邮箱验证码登录已关闭。请换用其他登录方式。",
   "email_transport_unavailable": "暂时无法发送邮箱验证码。请换用其他登录方式。",
   "original_password_incorrect": "当前密码不正确。请检查后再试。",

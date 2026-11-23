@@ -135,10 +135,10 @@ func dispatchEmailAuthCode(email string, lang string, invited bool) {
 		common.SysLog(fmt.Sprintf("failed to generate email auth code: %v", err))
 		return
 	}
-	common.RegisterVerificationCodeWithKey(email, code, common.EmailAuthPurpose)
-	// A newly issued code restarts the guess allowance; otherwise a burned-out
-	// counter would keep rejecting codes the person legitimately requested.
-	common.ClearVerificationFailures(email, common.EmailAuthPurpose)
+	if err := common.IssueVerificationCodes(email, common.VerificationCode{Purpose: common.EmailAuthPurpose, Code: code}); err != nil {
+		common.SysError("could not store sign-in code: " + err.Error())
+		return
+	}
 	subject, body := authLoginCodeMail(lang, code)
 	sendAuthEmail(subject, email, body)
 }
@@ -165,15 +165,19 @@ func VerifyEmailAuth(c *gin.Context) {
 		httperr.Code(c, types.ErrorCodeVerificationCodeInvalid)
 		return
 	}
-	if !common.VerifyCodeWithKey(email, code, common.EmailAuthPurpose) {
-		if common.RecordVerificationFailure(email, common.EmailAuthPurpose) {
-			httperr.Code(c, types.ErrorCodeVerificationCodeAttemptsExhausted)
-			return
-		}
+	result, err := common.ConsumeVerificationCodes(email, common.VerificationCode{Purpose: common.EmailAuthPurpose, Code: code})
+	if err != nil {
+		httperr.Write(c, types.WrapErr(err, types.ErrorCodeVerificationUnavailable))
+		return
+	}
+	if result == common.VerificationExhausted {
+		httperr.Code(c, types.ErrorCodeVerificationCodeAttemptsExhausted)
+		return
+	}
+	if result != common.VerificationAccepted {
 		httperr.Code(c, types.ErrorCodeVerificationCodeInvalid)
 		return
 	}
-	common.ClearVerificationFailures(email, common.EmailAuthPurpose)
 
 	if err := restoreDeletedOwnerBeforeSignIn("", "", email, requestMailLang(c)); err != nil {
 		httperr.Write(c, err)
