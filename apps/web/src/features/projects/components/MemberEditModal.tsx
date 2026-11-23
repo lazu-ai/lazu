@@ -2,7 +2,7 @@
  * 「编辑」. Three things only: monthly budget, allowed models and the
  * reasoning-effort cap, saved together. Role, suspension and removal stay in
  * the row's ··· menu, each with its own confirmation. Locked 2026-09-28 in
- * brand/foundations/team-projects-2026-09.md § Member edit dialog. */
+ * brand/foundations/team-projects.md § Member edit dialog. */
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

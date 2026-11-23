@@ -21,7 +21,7 @@ Lazu 使用“两层客户租户 + 独立平台运营面”，不建立企业、
 | Customer self-service | Member                 | Own account and owned Keys                   | Own usage, requests, approved models and policy-limited Key creation                                           | Other members, global billing and platform operations                          |
 | Key Pass              | API Key viewer         | One verified API Key                         | Temporary read-only usage, requests, approved models and public Route status                                   | Full secret, mutations, other Keys and member identity beyond what is required |
 
-The 2026-09-10 [team-projects foundation](team-projects-2026-09.md) refines the
+The 2026-09-10 [team-projects foundation](team-projects.md) refines the
 customer plane into one owned default project plus invited memberships. Its
 actor/target permissions, independent payer, service principal and shared-Key
 reveal rules take precedence for that milestone. Platform account operations

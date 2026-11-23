@@ -1,5 +1,4 @@
-/* 运营 (launches, notices, blog, posters) — drawn from
-   archive:brand/explorations/seo-surfaces-2026-09 boards 12–15b. */
+/* 运营 (launches, notices, blog, posters) — brand/foundations/public-web-system.md. */
 
 .ops-nav {
   display: flex;
@@ -916,7 +915,7 @@ button.ops-chip {
   font-size: 30px;
 }
 
-/* Post layouts (seo-surfaces-2026-09 › Covers): diff, ledger, ids,
+/* Post layouts (brand/foundations/public-web-system.md › Covers): diff, ledger, ids,
    masthead, seal. Drawn at 1200×630 and exported as the share PNG. */
 .ops-cover--diff,
 .ops-cover--ledger,

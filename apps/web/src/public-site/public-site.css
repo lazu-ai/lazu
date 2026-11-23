@@ -1,7 +1,5 @@
-/* Pages the API renders: /models, /models/<maker>/<id>.
-   Drawn from archive:brand/explorations/seo-surfaces-2026-09 (Models, ModelA,
-   ModelPhone, Blog, BlogPost). Colours, type and radii come from the Yunmu
-   tokens only. */
+/* Pages the API renders: /models, /models/<maker>/<id>, /blog (brand/foundations/public-web-system.md).
+   Colours, type and radii come from the Yunmu tokens only. */
 
 body.lazu-site {
   background: var(--lazu-page);

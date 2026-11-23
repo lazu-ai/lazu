@@ -1,7 +1,6 @@
 // @ts-nocheck
 /**
- * Visual parity check for the G1 console (brand/BRAND.md, locked 2026-10-06;
- * reference: archive:brand/explorations/positioning-team-stability-2026-10/).
+ * Visual parity check for the G1 console (brand/BRAND.md, locked 2026-10-06).
  *
  * These assertions describe the signature elements the brand decision named,
  * so a regression here means the implementation drifted from the locked

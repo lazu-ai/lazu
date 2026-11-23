@@ -1,17 +1,12 @@
-# API Keys page — locked direction (2026-09-16)
+# API Keys page — locked direction
 
-Status: **LOCKED by user approval on 2026-09-16.** This document selects
-direction **B (table) + E (connect dialog)** out of
-`archive:brand/explorations/api-keys-2026-09/` and the revision boards that followed
-it. The exploration keeps the rejected directions and the decision history;
-this file is what `apps/web/src/pages/Token/` implements. Where an artboard
-and this file disagree, this file wins.
+Status: **LOCKED by user approval on 2026-09-16** (revised 2026-09-30 and
+2026-10-02). Direction **B (table) + E (connect dialog)** — this file is what
+`apps/web/src/pages/Token/` implements.
 
 Route: `/console/token`. It inherits
-[yunmu-console.md](yunmu-console.md), [ui-system.md](ui-system.md),
-[component-contracts.md](component-contracts.md) and the locked row geometry
-in [console-review-2026-09.md](console-review-2026-09.md); nothing below
-overrides those.
+[yunmu-console.md](yunmu-console.md), [ui-system.md](ui-system.md), and
+[component-contracts.md](component-contracts.md); nothing below overrides those.
 
 ## What the page is for
 
@@ -193,8 +188,7 @@ wins.
 
 ## Revision 2026-10-02 — API addresses, toolbar off the card
 
-Approved on the canvas "API Keys 多接入域名"
-(`archive:brand/canvases.md`). Where this section and
+Approved 2026-10-02 ("API Keys 多接入域名"). Where this section and
 the text above disagree, this section wins.
 
 - **The overview cards are gone.** 启用中 lives in the status tabs; 本月已用

@@ -1,8 +1,7 @@
-/* Locked public footer (public-web-system #15), drawn from
-   archive:brand/explorations/seo-surfaces-2026-09/Footer.dc.html and widened
+/* Locked public footer (brand/foundations/public-web-system.md), widened
    in November 2026 to up to six link columns (PublicFooter.tsx sets
    --lazu-footer-columns). The brand block keeps a third of the width when
-   there are four columns, as in the original drawing. */
+   there are four columns. */
 .lazu-public-footer {
   position: relative;
   z-index: 1;

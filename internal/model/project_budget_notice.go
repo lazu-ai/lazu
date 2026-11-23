@@ -15,7 +15,7 @@ import (
 )
 
 // Budget notices tell people about a shared project's monthly budgets before
-// and when they run out (brand/foundations/team-projects-2026-09.md, "Budget
+// and when they run out (brand/foundations/team-projects.md, "Budget
 // notices"). They are ink-tier mail: the news is the share already spent.
 //
 //   - A member hears about their own budget at the warning line and when it

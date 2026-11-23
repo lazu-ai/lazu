@@ -5,9 +5,8 @@ import { expect, test } from '@playwright/test';
 import { expectRouteReady, setupMockedApp } from './helpers/mock-app';
 import { reviewPayload } from './helpers/review-fixtures';
 
-// The locked reference HTML is a design exploration kept outside this
-// repository (archive:brand/explorations/). Point LAZU_BRAND_REFERENCE_DIR at
-// a copy of that brand archive to run this comparison; it skips otherwise.
+// Optional comparison against an external reference HTML directory. Point
+// LAZU_BRAND_REFERENCE_DIR at a local reference directory to run; it skips otherwise.
 const brand = resolve(
   process.env.LAZU_BRAND_REFERENCE_DIR ?? resolve(process.cwd(), '../../brand'),
 );

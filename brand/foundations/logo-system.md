@@ -3,7 +3,6 @@
 > **Status:** LOCKED · 2026-09-20
 > **Selected direction:** `C · 印章 / Seal` + wordmark `W1 · Instrument Serif`
 > **Supersedes:** `E · 配重方柱 / Counterweight`（2026-08-01）
-> **Decision history:** `archive:brand/explorations/brand-refresh-2026-09/`
 > **Canonical assets:** `brand/assets/logo/current/`
 
 ## 1. Core mark
