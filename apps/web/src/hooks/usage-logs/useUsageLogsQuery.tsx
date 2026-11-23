@@ -463,23 +463,18 @@ const normalizeLogs = (
   });
 };
 
-async function fetchUsageLogs({
+export function usageLogQueryParams({
   admin,
   filters,
-  page,
-  pageSize,
   project,
-}: FetchUsageLogsParams): Promise<ItemsPayload<NormalizedUsageLogRecord>> {
+}: FetchUsageLogStatParams) {
   const range = toUnixRange(filters.dateRange);
-  const base = admin ? '/api/log/' : '/api/log/self/';
-  const query = createSearchParams({
-    ...(project ?? {}),
+  return {
+    ...(!admin && project),
     channel: admin ? filters.channel : undefined,
     end_timestamp: range.end,
     group: filters.group,
     model_name: filters.model_name,
-    p: page,
-    page_size: pageSize,
     start_timestamp: range.start,
     token_name: filters.token_name,
     type: filters.logType || '0',
@@ -490,6 +485,21 @@ async function fetchUsageLogs({
         ? filters.user_id || project?.user_id
         : undefined,
     username: admin ? filters.username : undefined,
+  };
+}
+
+async function fetchUsageLogs({
+  admin,
+  filters,
+  page,
+  pageSize,
+  project,
+}: FetchUsageLogsParams): Promise<ItemsPayload<NormalizedUsageLogRecord>> {
+  const base = admin ? '/api/log/' : '/api/log/self/';
+  const query = createSearchParams({
+    ...usageLogQueryParams({ admin, filters, project }),
+    p: page,
+    page_size: pageSize,
   });
   const pageData = coerceItemsPayload(
     unwrap<unknown>(await API.get(`${base}?${query}`)),
@@ -507,25 +517,10 @@ async function fetchUsageLogStat({
   filters,
   project,
 }: FetchUsageLogStatParams): Promise<UsageLogStat> {
-  const range = toUnixRange(filters.dateRange);
   const base = admin ? '/api/log/stat' : '/api/log/self/stat';
-  const query = createSearchParams({
-    ...(project ?? {}),
-    channel: admin ? filters.channel : undefined,
-    end_timestamp: range.end,
-    group: filters.group,
-    model_name: filters.model_name,
-    start_timestamp: range.start,
-    token_name: filters.token_name,
-    type: filters.logType || '0',
-    // A project deep link carries the actor in the URL; the filter form is
-    // empty then, so the link's user_id must not be overwritten by it.
-    user_id:
-      admin || project?.project_id
-        ? filters.user_id || project?.user_id
-        : undefined,
-    username: admin ? filters.username : undefined,
-  });
+  const query = createSearchParams(
+    usageLogQueryParams({ admin, filters, project }),
+  );
   return unwrap<UsageLogStat | null>(await API.get(`${base}?${query}`)) || {};
 }
 

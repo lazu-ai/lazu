@@ -921,7 +921,8 @@ function CallsTable({
       <div className='sv-foot'>
         <span>
           {t(`${SK}.detail.shownCount`, {
-            defaultValue: '显示 {{shown}} / {{total}} 次 · 点任意一行展开回执',
+            defaultValue:
+              '显示 {{shown}} / {{total}} 次 · 点任意一行展开用量记录',
             shown: Math.min(shown, filtered.length),
             total: filtered.length,
           })}
@@ -1100,7 +1101,7 @@ function CallReceipt({
       ) : (
         <span className='ses-note'>
           {t(`${SK}.detail.receiptMissing`, {
-            defaultValue: '这次调用的回执已经过期。',
+            defaultValue: '这次调用的用量记录已经过期。',
           })}
         </span>
       )}

@@ -149,31 +149,28 @@ func TestInventoryLeavesTheCatalogueAndTheRouter(t *testing.T) {
 	}
 }
 
-func TestChannelEditRollsBackOnAbilityFailure(t *testing.T) {
+func TestChannelUpdateRollsBackOnAbilityFailure(t *testing.T) {
 	db := setupChannelHealthTestDB(t)
-	channel := Channel{Name: "original", Type: 1, Group: ChannelLaneDirect, Models: "original"}
-	if err := db.Create(&channel).Error; err != nil {
+	channel := Channel{Name: "original", Type: 1, Group: ChannelLaneDirect, Models: "before", Status: common.ChannelStatusEnabled}
+	if err := channel.Insert(); err != nil {
 		t.Fatal(err)
 	}
-	if err := channel.UpdateAbilities(nil); err != nil {
+	if err := db.Exec("CREATE TRIGGER refuse_test_ability BEFORE INSERT ON abilities WHEN NEW.model = 'after' BEGIN SELECT RAISE(ABORT, 'ability write failed'); END").Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec("CREATE TRIGGER fail_route BEFORE INSERT ON abilities WHEN NEW.model = 'replacement' BEGIN SELECT RAISE(ABORT, 'route write failed'); END").Error; err != nil {
+	channel.Name, channel.Models = "edited", "after"
+	if err := channel.Update(); err == nil || !strings.Contains(err.Error(), "ability write failed") {
+		t.Fatalf("unexpected update result: %v", err)
+	}
+	var saved Channel
+	if err := db.First(&saved, channel.Id).Error; err != nil {
 		t.Fatal(err)
 	}
-	channel.Models = "replacement"
-	if err := channel.Update(); err == nil || !strings.Contains(err.Error(), "route write failed") {
-		t.Fatalf("expected injected failure, got %v", err)
-	}
-	var stored Channel
-	var routes []Ability
-	if err := db.First(&stored, channel.Id).Error; err != nil {
+	var abilities []Ability
+	if err := db.Where("channel_id = ?", channel.Id).Find(&abilities).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("channel_id = ?", channel.Id).Find(&routes).Error; err != nil {
-		t.Fatal(err)
-	}
-	if stored.Models != "original" || len(routes) != 1 || routes[0].Model != "original" {
-		t.Fatalf("partial edit: %q, %+v", stored.Models, routes)
+	if saved.Name != "original" || saved.Models != "before" || len(abilities) != 1 || abilities[0].Model != "before" {
+		t.Fatal("partial channel edit committed")
 	}
 }

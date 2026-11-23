@@ -464,7 +464,7 @@ const Token = () => {
 
   const exportLogs = async (format: 'csv' | 'xlsx') => {
     try {
-      await downloadUsageLogs(logs.filters, format, logs.isAdminUser);
+      await downloadUsageLogs(logs, format);
     } catch (error) {
       showError(
         await readBlobDownloadError(error),

@@ -111,7 +111,7 @@ func renderAuthMail(m common.Mail) string {
 func authEmailBindingMail(lang, code, target string) (string, string) {
 	name := common.SystemName
 	minutes := strconv.Itoa(common.VerificationValidMinutes)
-	subject := common.MailText(lang, name+" 验证码 "+code, "Your "+name+" verification code: "+code)
+	subject := common.MailText(lang, name+" 验证码", "Your "+name+" verification code")
 	return subject, renderAuthMail(common.Mail{
 		Lang: lang, Eyebrow: "VERIFY EMAIL",
 		Preheader: common.MailText(lang, "验证码 "+minutes+" 分钟内有效", "The code expires in "+minutes+" minutes"),
@@ -129,7 +129,7 @@ func authEmailBindingMail(lang, code, target string) (string, string) {
 func authLoginCodeMail(lang, code string) (string, string) {
 	name := common.SystemName
 	minutes := strconv.Itoa(common.VerificationValidMinutes)
-	subject := common.MailText(lang, name+" 登录验证码 "+code, "Your "+name+" sign-in code: "+code)
+	subject := common.MailText(lang, name+" 登录验证码", "Your "+name+" sign-in code")
 	return subject, renderAuthMail(common.Mail{
 		Lang: lang, Eyebrow: "SIGN IN",
 		Preheader: common.MailText(lang, "验证码 "+minutes+" 分钟内有效", "The code expires in "+minutes+" minutes"),

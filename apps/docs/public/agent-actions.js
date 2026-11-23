@@ -132,7 +132,7 @@
           "Rules:",
           "- Where these docs and your memory of the OpenAI API disagree, follow the docs.",
           "- If the docs do not cover something, say so. Do not invent parameters, endpoints or prices.",
-          "- After a test call, show me the X-Lazu-Request-Id response header so I can check the receipt.",
+          "- After a test call, show me the X-Lazu-Request-Id response header so I can check the usage record.",
           "",
           "My task: ",
         ].join("\n");
@@ -188,7 +188,7 @@
           "规则：",
           "- 文档与你记忆中的 OpenAI API 不一致时，以文档为准。",
           "- 文档没有写到的内容请直接说明，不要编造参数、接口或价格。",
-          "- 测试调用后，把响应头 X-Lazu-Request-Id 告诉我，方便我核对回执。",
+          "- 测试调用后，把响应头 X-Lazu-Request-Id 告诉我，方便我核对用量记录。",
           "",
           "我的任务：",
         ].join("\n");
@@ -244,7 +244,7 @@
           "規則：",
           "- 文件與你記憶中的 OpenAI API 不一致時，以文件為準。",
           "- 文件沒有寫到的內容請直接說明，不要編造參數、介面或價格。",
-          "- 測試呼叫後，把回應標頭 X-Lazu-Request-Id 告訴我，方便我核對回執。",
+          "- 測試呼叫後，把回應標頭 X-Lazu-Request-Id 告訴我，方便我核對用量記錄。",
           "",
           "我的任務：",
         ].join("\n");

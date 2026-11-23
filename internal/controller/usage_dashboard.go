@@ -117,7 +117,11 @@ func ExportUserUsage(c *gin.Context) {
 	// every routing outcome of the range.
 	switch {
 	case dataset == "logs":
-		usage.Window = model.DashboardUsageWindowFor(startTimestamp, endTimestamp)
+		if startTimestamp > 0 && endTimestamp >= startTimestamp {
+			usage.Window = model.DashboardUsageWindow{StartTimestamp: startTimestamp, EndTimestamp: endTimestamp}
+		} else {
+			usage.Window = model.DashboardUsageWindowFor(startTimestamp, endTimestamp)
+		}
 	case projectAccess != nil:
 		usage, err = model.BuildProjectDashboardUsageContext(c.Request.Context(), *projectAccess, startTimestamp, endTimestamp)
 	default:
@@ -196,8 +200,8 @@ func listExportUsageLogs(c *gin.Context, access *model.ProjectLogAccess, role in
 	filter := projectLogFilter(c)
 	filter.Start = window.StartTimestamp
 	filter.End = window.EndTimestamp
-	var rows []*model.Log
-	if err := model.ProjectLogsQuery(*access, filter).WithContext(ctx).Order("logs.created_at ASC, logs.id ASC").Limit(50000).Find(&rows).Error; err != nil {
+	rows, err := model.ListProjectLogPageContext(ctx, *access, filter, 0, 50000)
+	if err != nil {
 		return nil, err
 	}
 	views, err := model.ProjectLogViews(access.Project, rows)

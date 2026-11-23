@@ -1,5 +1,5 @@
 ---
-title: "Agent session costs: reconcile a task with its receipts"
+title: "Agent session costs: reconcile a task with its usage records"
 description: "Check the full cost of a coding-agent session, cached tokens and fair official-price comparisons."
 ---
 
@@ -11,7 +11,7 @@ Lazu groups gateway requests by the session identifier sent by the client. A ses
 
 1. Connect a client using the [Claude Code guide](https://lazu.ai/blog/claude-code-custom-api) or [Codex guide](https://lazu.ai/blog/codex-custom-provider).
 2. Run a small task. In the console, open **Usage → Agent sessions** and select that task. Confirm the client, time window and models.
-3. Read the session total, then open individual request receipts. Check input, output, cache reads, cache writes, lane and any applicable long-context or plan conditions. A failed request is not automatically a zero-charge request; read its receipt.
+3. Read the session total, then open the usage record for each request. Check input, output, cache reads, cache writes, lane and any applicable long-context or plan conditions. A failed request is not automatically a zero-charge request; read its usage record.
 4. Load all available batches before exporting JSON. The coverage notice distinguishes loaded requests from retained requests and the durable session count. Expired records cannot be restored by pagination.
 
 ## A reproducible calculation
@@ -31,4 +31,4 @@ Request concurrency uses completion timestamps minus recorded durations, at whol
 
 Session totals can remain after request details expire. First-message text is available only when content was captured and remains within the configured retention period. Before sharing an export, remove prompts, account information and any proprietary model identifiers, and obtain permission from its owner.
 
-See [billing](/billing) and [request receipts](/endpoints/usage-requests) for the authoritative charge breakdown.
+See [billing](/billing) and [request details](/endpoints/usage-requests) for the authoritative charge breakdown.

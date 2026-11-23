@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	// Version 40 enforces case-insensitive active model names and redacts credential mail archives.
 	// Version 39 adds explicit 30-minute and 12-hour cache-write prices,
 	// including context tiers, to model_sell_prices and provider_cost_prices
 	// through AutoMigrate. Existing cache prices are unchanged.
@@ -73,7 +74,7 @@ const (
 	// Version 12 records the disputed and original charge amounts for proportional reversals.
 	// Version 11 adds payment reversal and dispute hold fields. Version 10
 	// retired startup seeders, so rollback across that floor remains unsafe.
-	SchemaVersionCurrent = 39
+	SchemaVersionCurrent = 40
 
 	schemaVersionPrimary = "primary"
 	schemaVersionLog     = "log"

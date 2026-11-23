@@ -59,7 +59,7 @@ type MailMeta struct {
 	Lang       string
 	Period     string
 	// Sensitive mail carries a credential (sign-in code, reset or invite
-	// link). Only its subject and status are archived, never its body.
+	// link). The archive keeps delivery metadata and a fixed subject.
 	Sensitive bool
 	Headers   map[string]string
 	// AlertText is the plain-text body chat sinks receive for an ops mail.

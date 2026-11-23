@@ -263,3 +263,17 @@ func TestEmailCodeLetsAnInvitedAddressInWhileRegistrationIsClosed(t *testing.T) 
 		t.Fatal("the code proved the address, so it must count as verified")
 	}
 }
+
+func TestCodeMailShowsCredentialOnlyInBody(t *testing.T) {
+	const code = "123456"
+	for _, lang := range []string{"en", "zh"} {
+		check := func(subject, body string) {
+			t.Helper()
+			if strings.Contains(subject, code) || !strings.Contains(body, code) {
+				t.Fatalf("unexpected credential placement for %s", lang)
+			}
+		}
+		check(authLoginCodeMail(lang, code))
+		check(authEmailBindingMail(lang, code, "new@example.test"))
+	}
+}

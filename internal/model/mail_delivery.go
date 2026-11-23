@@ -38,8 +38,10 @@ const (
 // How long the archive keeps a mail's body and the row itself
 // (brand/foundations/emails.md § 8.3).
 const (
-	MailBodyRetention = 180 * 24 * time.Hour
-	MailRowRetention  = 365 * 24 * time.Hour
+	sensitiveMailSubject = "Authentication email"
+	sensitiveMailFailure = "Delivery failed"
+	MailBodyRetention    = 180 * 24 * time.Hour
+	MailRowRetention     = 365 * 24 * time.Hour
 )
 
 // MailDelivery is one mail Lazu sent: who, what kind, what happened to it and,
@@ -159,15 +161,27 @@ func RecordMailDelivery(rec common.MailRecord) {
 }
 
 func recordMailDelivery(rec common.MailRecord, now time.Time) error {
+	meta := rec.Meta
+	sensitive := meta.Sensitive || meta.Kind == common.MailKindAuth
+	subject := truncateString(rec.Subject, 512)
+	if sensitive {
+		subject = sensitiveMailSubject
+	}
 	status, errText := MailStatusSent, ""
 	if rec.Err != nil {
 		status = MailStatusFailed
 		// Provider errors can echo the recipient; keep them short.
-		errText = truncateMailError(rec.Err.Error())
+		if sensitive {
+			errText = sensitiveMailFailure
+		} else {
+			errText = truncateMailError(rec.Err.Error())
+		}
 	}
-	meta := rec.Meta
 	if meta.DeliveryID != 0 {
-		updates := map[string]any{"status": status, "provider_id": rec.ProviderID, "error": errText, "sent_at": now.Unix(), "subject": truncateString(rec.Subject, 512)}
+		updates := map[string]any{"status": status, "provider_id": rec.ProviderID, "error": errText, "sent_at": now.Unix(), "subject": subject}
+		if sensitive {
+			updates["sensitive"], updates["body"], updates["snapshot"], updates["has_body"] = true, "", "", false
+		}
 		return TelemetryDB().Model(&MailDelivery{}).Where("id = ?", meta.DeliveryID).Updates(updates).Error
 	}
 	userID := meta.UserID
@@ -179,11 +193,11 @@ func recordMailDelivery(rec common.MailRecord, now time.Time) error {
 		}
 	}
 	row := MailDelivery{
-		Kind: meta.Kind, UserID: userID, Receiver: truncateString(receiver, 255), Subject: truncateString(rec.Subject, 512),
+		Kind: meta.Kind, UserID: userID, Receiver: truncateString(receiver, 255), Subject: subject,
 		Period: meta.Period, Template: meta.Template, Lang: meta.Lang, Status: status, ProviderID: rec.ProviderID,
-		Error: errText, Sensitive: meta.Sensitive, CreatedAt: now.Unix(), GeneratedAt: now.Unix(), SentAt: now.Unix(),
+		Error: errText, Sensitive: sensitive, CreatedAt: now.Unix(), GeneratedAt: now.Unix(), SentAt: now.Unix(),
 	}
-	if !meta.Sensitive {
+	if !sensitive {
 		sealed, err := SealMailArchive(rec.HTML)
 		if err != nil {
 			return err
@@ -191,6 +205,19 @@ func recordMailDelivery(rec common.MailRecord, now time.Time) error {
 		row.Body, row.HasBody = sealed, sealed != ""
 	}
 	return TelemetryDB().Create(&row).Error
+}
+
+// A split deployment can still hold a historical copy in the primary database.
+func redactSensitiveMailHistory(db *gorm.DB) error {
+	if !db.Migrator().HasTable(&MailDelivery{}) {
+		return nil
+	}
+	return db.Model(&MailDelivery{}).Where("sensitive OR kind = ?", common.MailKindAuth).
+		Where("subject <> ? OR NOT sensitive OR has_body OR body <> '' OR snapshot <> '' OR (error <> '' AND error <> ?)", sensitiveMailSubject, sensitiveMailFailure).
+		Updates(map[string]any{
+			"sensitive": true, "subject": sensitiveMailSubject, "body": "", "snapshot": "", "has_body": false,
+			"error": gorm.Expr("CASE WHEN error <> '' THEN ? ELSE '' END", sensitiveMailFailure),
+		}).Error
 }
 
 func truncateMailError(text string) string {
