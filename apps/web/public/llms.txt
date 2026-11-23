@@ -1,6 +1,6 @@
 # Lazu
 
-> One key for Claude, GPT, Gemini and DeepSeek, with a budget and a usage record per key. Works with Claude Code, Codex and OpenCode, and runs your evals and production jobs. Pay as you go.
+> Consolidate your model accounts into one open-source gateway — native APIs for Claude, GPT, Gemini, and DeepSeek, plus image and video models. Pay as you go.
 
 ## Key facts
 

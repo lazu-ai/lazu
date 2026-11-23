@@ -32,6 +32,10 @@ const marketing = readMarketingContent();
 const brandName = marketing.brand.name;
 const landing = marketing.landing;
 const faq = marketing.faq;
+// Docs routes put every locale but English under its own prefix.
+const integrationDocURL = (slug, locale) =>
+  `${env.docsOrigin}${locale === 'en' ? '' : `/${locale}`}/integrations/${slug}`;
+
 const lede = `${landing.hero.whatBefore}${landing.hero.whatBold}${landing.hero.whatAfter}`;
 // The page splits the headline into a roman lead and an italic close purely for
 // presentation; every generated text surface carries the whole sentence.
@@ -123,6 +127,10 @@ ${landing.features.items.map((item) => `- ${item.title}：${item.body}`).join('\
 ### ${landing.steps.title}
 
 ${landing.steps.items.map((item) => `- ${item.title}：${item.body}`).join('\n')}
+
+### ${landing.ecosystem.title}
+
+${landing.ecosystem.items.map((item) => `- [${item.name}](${integrationDocURL(item.slug, env.defaultPublicLang)})：${item.body}`).join('\n')}
 
 ## FAQ
 
@@ -218,6 +226,12 @@ ${l.features.items.map((item) => `- **${item.title}** \u2014 ${item.body}`).join
 ## ${l.steps.title}
 
 ${l.steps.items.map((item, i) => `${i + 1}. **${item.title}** \u2014 ${item.body}`).join('\n')}
+
+## ${l.ecosystem.title}
+
+${l.ecosystem.subtitle}
+
+${l.ecosystem.items.map((item) => `- [${item.name}](${integrationDocURL(item.slug, locale)}) (${item.badge}) \u2014 ${item.body}`).join('\n')}
 
 OpenAI-compatible endpoint: ${env.apiOrigin}/v1 \u00b7 Docs: ${env.docsOrigin}
 `,

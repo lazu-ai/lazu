@@ -1,17 +1,9 @@
+<!-- README.md and README.zh-CN.md carry the same content; change both in one PR. -->
+
 <p align="center">
   <a href="https://lazu.ai">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./brand/assets/logo/current/lazu-primary-paper.svg" />
-      <source media="(prefers-color-scheme: light)" srcset="./brand/assets/logo/current/lazu-primary-graphite.svg" />
-      <img alt="Lazu" src="./brand/assets/logo/current/lazu-primary-graphite.svg" height="44" />
-    </picture>
+    <img src="./brand/assets/logo/social/lazu-github-social-1280x640.png" alt="Lazu — The model account for coding agents, video, and pipelines." width="100%" />
   </a>
-</p>
-
-<h3 align="center">The model account for coding agents, video, and pipelines.</h3>
-
-<p align="center">
-  Consolidate your model accounts into one open-source gateway — native APIs for frontier models, plus hosted multimodal and video models.
 </p>
 
 <p align="center">
@@ -23,60 +15,48 @@
   <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
-<p align="center">
-  <a href="https://lazu.ai">
-    <img src="./brand/assets/logo/social/lazu-github-social-1280x640.png" alt="Lazu — The model account for coding agents, video, and pipelines." width="100%" />
-  </a>
-</p>
+Lazu is an open-source model gateway with an account and a ledger built in. One API key reaches Claude, GPT, Gemini and DeepSeek over their own native APIs, plus image and video generation. Every key carries its own budget, and every request leaves a usage record you can read back.
 
----
+Use the hosted service at [lazu.ai](https://lazu.ai), or run the same code yourself.
 
-## Architecture
+| | Hosted — [lazu.ai](https://lazu.ai) | Self-hosted — this repository |
+| --- | --- | --- |
+| Models | Provided, pay as you go | Bring your own upstream accounts |
+| Start | Sign up, create a key | `docker compose up` ([Quick start](#quick-start-docker)) |
+| Claude Code base URL | `ANTHROPIC_BASE_URL=https://api.lazu.ai` | `ANTHROPIC_BASE_URL=http://localhost:3001` |
 
-```mermaid
-flowchart LR
-  subgraph Clients["Coding Agents & Pipelines"]
-    CC["Claude Code<br/>(/v1/messages)"]
-    CX["Codex CLI<br/>(/v1/responses)"]
-    OC["OpenCode / cc-connect / SDKs<br/>(/v1/chat/completions)"]
-    VID["Video & Multimodal Jobs<br/>(/v1/videos, /v1/images)"]
-  end
+## How it works
 
-  subgraph Lazu["Lazu Gateway (Go · AGPL-3.0)"]
-    AUTH["Key Scope &<br/>Hard Budget Reserve"]
-    CODEC["Lossless Protocol<br/>Codec"]
-    ROUTE["Lane Router &<br/>Cache Affinity"]
-    LEDGER["Per-Call Usage<br/>& Billing Ledger"]
-    AUTH --> CODEC --> ROUTE --> LEDGER
-  end
-
-  subgraph Upstreams["Upstream Supply"]
-    ANT["Anthropic / OpenAI<br/>Gemini / DeepSeek"]
-    MOD["Hosted Open Multimodal<br/>& Video Models"]
-  end
-
-  CC --> AUTH
-  CX --> AUTH
-  OC --> AUTH
-  VID --> AUTH
-  ROUTE --> ANT
-  ROUTE --> MOD
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./brand/assets/readme/flow-en-dark.png" />
+  <img alt="Claude Code, Codex, OpenCode, Gemini SDKs and media jobs call Lazu on their own protocols; Lazu holds the key budget, converts only when lossless, routes to Anthropic, OpenAI, Google, DeepSeek or media providers, and writes a usage record." src="./brand/assets/readme/flow-en-light.png" width="100%" />
+</picture>
 
 ## What Lazu does
 
 - **One endpoint, four native protocols.** OpenAI Chat Completions and Responses, Anthropic Messages, and Gemini `generateContent` are served natively. Cross-protocol conversion happens only when lossless; otherwise Lazu rejects with a `400` naming the unsupported feature instead of quietly dropping parameters ([design](./docs/protocol-conversion-architecture.md)).
 - **Accounts, keys, and hard budgets.** Users, teams, and projects; per-key and per-member budgets; lanes chosen per key and per model. Funds are reserved before the upstream call and settled strictly from provider usage counters ([billing contract](./docs/billing-contract.md)).
 - **A usage record per request.** Each completed request records normalized token & prompt-cache dimensions, the source of every number (provider, local estimate, or unavailable), billing line items, and public timing — readable by the key that made it ([request details](https://lazu.ai/docs/endpoints/usage-requests)). Coding agent calls group into sessions, with an offline reconciliation script ([`summarize-agent-session.py`](./ops/scripts/summarize-agent-session.py)).
+- **Images, video and speech on the same key.** `/v1/images/generations`, asynchronous `/v1/videos` jobs and audio endpoints, billed into the same ledger ([media API](https://lazu.ai/docs/endpoints/media)).
 - **Visible routing and failover.** Several upstream channels per model picked by priority and weight, automatic health windows, and session affinity (`x-session-id`) to preserve prompt caches.
 - **Extension points instead of forks.** Deployments compile custom features through the generic hooks in [docs/EXTENSIONS.md](./docs/EXTENSIONS.md); the core stays standalone.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./brand/assets/readme/ledger-en-dark.png" />
+  <img alt="A usage record for one claude-opus-5-5 request with token, cache and line-item costs, next to three keys with monthly budgets, one of them stopped." src="./brand/assets/readme/ledger-en-light.png" width="100%" />
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./brand/assets/readme/session-en-dark.png" />
+  <img alt="A Claude Code session of 24 calls with 92% cache hit, cost per call broken into output, fresh input, cache write and cache read." src="./brand/assets/readme/session-en-light.png" width="100%" />
+</picture>
 
 ### How it differs from a thin proxy
 
 | Failure mode | Thin proxy | Lazu |
 | --- | --- | --- |
 | Unsupported parameter across protocols | Silently dropped | Explicit `400` naming the field |
-| Budget or balance exhausted mid-session | Client retries in a loop | Immediate native `402` stop |
+| Budget or balance exhausted mid-session | Client retries in a loop | A final status the SDK will not retry (`402` on Messages, `429` on OpenAI, with `x-should-retry: false`) |
 | Cost & prompt-cache visibility | Opaque balance deduction | Per-call usage record & billing line items |
 | Client model discovery | Hardcoded model lists | Public, unauthenticated `GET /v1/models` |
 
@@ -86,7 +66,7 @@ flowchart LR
 
 | Project | How to use | Guide |
 | --- | --- | --- |
-| **[cc-connect](https://github.com/chenhg5/cc-connect)** | Official built-in preset for Claude Code, Codex (`wire_api: "responses"`), and OpenCode via `cc-connect provider presets` | [cc-connect guide](https://lazu.ai/docs/integrations/cc-connect) |
+| **[cc-connect](https://github.com/chenhg5/cc-connect)** | Built-in provider preset for Claude Code, Codex (`wire_api: "responses"`), and OpenCode via `cc-connect provider presets` | [cc-connect guide](https://lazu.ai/docs/integrations/cc-connect) |
 
 ### First-class coding agents & clients
 

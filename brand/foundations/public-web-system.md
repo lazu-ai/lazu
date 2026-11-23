@@ -2,6 +2,7 @@
 
 **Status: LOCKED**
 **Locked: 2026-07-11**
+**Amended: 2026-11-23** — CJK display 改用无衬线：Instrument Serif 没有中日文字形，退回系统宋体后大字号偏旧，所以 `zh` / `zh-TW` / `ja` 的 Hero 主声明、章节标题与收尾标题改用 `--lazu-font-sans` 600；拉丁文本与标题旁的数字仍用 Instrument Serif。第 01 / 03 条已按此改写。
 **Amended: 2026-09-21** — 公开页其余各页落地 Seal：FAQ 答案常开（第 33 条修订）、条款页与 Key 查询改纸面单栏、`/key` 与状态页归公开顶栏。决策板见 `archive:brand/explorations/brand-refresh-2026-09/` 的第二块画布。
 **Amended: 2026-09-20 (b)** — Hero 恢复控制台窗（成员与额度），display 阶随之收到 42–58px；第 03 / 16 条已按此改写。决策板 `archive:brand/explorations/brand-refresh-2026-09/` 的 `C · 窗`。
 **Amended: 2026-09-20** — 随 `Seal` 标志决议，display 字体改为 Instrument Serif（`--lazu-font-display`），首页 Hero 改为编辑式单栏；第 01 / 03 / 16 / 17 / 19 / 20 条已按此改写。
@@ -21,9 +22,9 @@ Lazu 的公开网页不是另一套营销皮肤，而是 云母产品系统面�
 
 | #   | Area             | Locked direction | Implementation rule                                                                                                                                                                    |
 | --- | ---------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 01  | Display headings | **衬线声明式**   | Hero 主声明、章节标题与标题旁的大数字使用 `--lazu-font-display`（Instrument Serif；CJK 退回系统宋体）；眉题、编号与 ID 用 IBM Plex Mono；20px 以下一律不用衬线。                       |
+| 01  | Display headings | **衬线声明式**   | Hero 主声明、章节标题与标题旁的大数字使用 `--lazu-font-display`（Instrument Serif）；中日文标题改用 `--lazu-font-sans` 600，不退回宋体；眉题、编号与 ID 用 IBM Plex Mono；20px 以下一律不用衬线。                       |
 | 02  | Reading          | **舒展阅读**     | 正文 17px / 1.75，单栏阅读宽度约 720px；长文不铺满 1280px 容器。                                                                                                                       |
-| 03  | Type scale       | **宽屏表达阶**   | Display 42–58px（衬线，行高 1.02，字距 -0.015em；与右栏说明并排，不独占整行；下限 42px 满足 <480px 的 Display 底线），H2 30–46px（衬线），H3 21px（Geist 600）；响应式使用 `clamp()`。 |
+| 03  | Type scale       | **宽屏表达阶**   | Display 42–58px（衬线，行高 1.02，字距 -0.015em；与右栏说明并排，不独占整行；下限 42px 满足 <480px 的 Display 底线），H2 30–46px（拉丁衬线，CJK 无衬线 600），H3 21px（Geist 600）；响应式使用 `clamp()`。 |
 | 04  | Spacing          | **4/8 自适应阶** | 组件内部坚持 4/8 倍数；页面级间距允许 24/48/72/96/120 形成节拍。                                                                                                                       |
 | 05  | Grid             | **1280 十二列**  | 内容最大宽度 1280px，12 列、24px gutter；长文和表单使用子网格收窄。                                                                                                                    |
 | 06  | Section rhythm   | **章节留白**     | 主章节间距 72–120px；相关子区块使用 48–80px，不用连续卡片填满页面。                                                                                                                    |

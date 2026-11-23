@@ -192,8 +192,13 @@ that gets found and quoted. Shape every public-page change for that.
    `bun scripts/generate-seo-assets.mjs` in `apps/web`, and the regenerated
    `apps/web/public/*.md` and `llms.txt` are committed with it.
 
-Rules 4 and 5 are enforced by `make test-docs` and the generators; 1 to 3 on
-review.
+6. **The two READMEs move together.** `README.md` and `README.zh-CN.md`
+   carry the same sections in the same order; a change to one lands in the
+   same PR as the other. The README speaks to self-hosters first and names
+   only models and endpoints that exist on `main`.
+
+Rules 4 and 5 are enforced by `make test-docs` and the generators; 1 to 3 and
+6 on review.
 
 ### Request Path
 

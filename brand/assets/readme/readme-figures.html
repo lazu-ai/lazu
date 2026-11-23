@@ -1,0 +1,325 @@
+<!doctype html>
+<!-- Source of the README figures. One page draws one figure, picked by the
+     query string: ?fig=flow|ledger|session&lang=en|zh&theme=light|dark.
+     Render every variant with brand/assets/readme/render.sh (headless Chrome,
+     2x). Numbers are worked examples at claude-opus-5-5's public list
+     price ($4 input, $0.20 cache read, $5 cache write 5 min, $20 output per
+     million tokens, 2026-11-23); every total is computed from its rows, so the
+     figures add up. Field names follow GET /api/usage/requests/{id}.
+     Brand: paper #F8F8F6 / ground #0F0F11, teal #4FB3AD / #175855, no accent
+     stripes, hairlines instead of shadows. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lazu README figures</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=block" rel="stylesheet">
+<style>
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:block;src:url("../../../apps/web/src/styles/fonts/instrument-serif-latin-400.woff2") format("woff2")}
+@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:block;src:url("../../../apps/web/src/styles/fonts/instrument-serif-latin-400-italic.woff2") format("woff2")}
+:root{
+  --bg:#F8F8F6; --grid:rgba(20,22,28,.045); --card:#FFFFFF; --ink:#1C1D21; --muted:#6B6E76; --faint:#9A9DA4;
+  --line:rgba(20,22,28,.10); --line-strong:rgba(20,22,28,.18); --soft:rgba(20,22,28,.04);
+  --teal:#175855; --teal-2:#4FB3AD; --teal-soft:rgba(31,111,107,.12); --teal-mid:rgba(31,111,107,.42);
+  --warn:#8F6813; --warn-soft:rgba(179,130,27,.14); --danger:#B8443A; --danger-soft:rgba(184,68,58,.12);
+  --gw:#14161C; --gw-ink:#ECECEE; --gw-muted:#9B9DA4; --gw-line:rgba(255,255,255,.10);
+}
+:root[data-theme=dark]{
+  --bg:#0F0F11; --grid:rgba(255,255,255,.04); --card:#18181B; --ink:#ECECEE; --muted:#9B9DA4; --faint:#6F727A;
+  --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.16); --soft:rgba(255,255,255,.04);
+  --teal:#4FB3AD; --teal-2:#4FB3AD; --teal-soft:rgba(79,179,173,.16); --teal-mid:rgba(79,179,173,.5);
+  --warn:#D8A53C; --warn-soft:rgba(216,165,60,.14); --danger:#F06F62; --danger-soft:rgba(240,111,98,.14);
+  --gw:#F8F8F6; --gw-ink:#14161C; --gw-muted:#5C5F68; --gw-line:rgba(20,22,28,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;-webkit-font-smoothing:antialiased}
+body{font-family:Geist,"PingFang SC","Hiragino Sans GB",sans-serif;color:var(--ink);background:transparent}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.serif{font-family:"Instrument Serif","Songti SC",serif;font-weight:400}
+:lang(zh) .serif{font-family:Geist,"PingFang SC",sans-serif;font-weight:600;letter-spacing:-.01em}
+.fig{position:relative;width:960px;padding:34px 40px 36px;border-radius:22px;border:1px solid var(--line);
+  background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px;overflow:hidden}
+.eyebrow{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.title{font-size:34px;line-height:1.08;margin:8px 0 0;letter-spacing:-.01em}
+:lang(zh) .title{font-size:28px}
+.title em{font-style:italic;color:var(--teal)}
+:lang(zh) .title em{font-style:normal}
+:lang(zh) .eyebrow{text-transform:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;line-height:1;padding:5px 8px;border-radius:999px;white-space:nowrap}
+.b-ok{color:var(--teal);background:var(--teal-soft)}
+.b-warn{color:var(--warn);background:var(--warn-soft)}
+.b-stop{color:var(--danger);background:var(--danger-soft)}
+.b-neutral{color:var(--muted);background:var(--soft)}
+
+/* flow */
+.flow{display:grid;grid-template-columns:318px 1fr 196px;gap:44px;align-items:center;margin-top:26px;position:relative;z-index:1}
+.col{display:flex;flex-direction:column;gap:10px}
+.colhead{font-size:12px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.chip{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;font-size:14px;font-weight:500;white-space:nowrap}
+.chip .mono{font-size:12px;color:var(--muted);font-weight:400}
+.gw{background:var(--gw);color:var(--gw-ink);border-radius:18px;padding:20px 20px 18px}
+.gw-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.gw-head .serif{font-size:28px;line-height:1}
+:lang(zh) .gw-head .serif{font-family:"Instrument Serif",serif;font-weight:400}
+.gw-head .mono{margin-left:auto;font-size:11.5px;color:var(--gw-muted)}
+.step{display:grid;grid-template-columns:28px 1fr;gap:4px 8px;padding:11px 0;border-top:1px solid var(--gw-line)}
+.step .n{font-size:12px;color:var(--teal-2);padding-top:2px}
+.step b{font-size:14.5px;font-weight:600}
+.step .n{grid-column:1;grid-row:1 / span 2}
+.step span:not(.n){grid-column:2;font-size:12.5px;color:var(--gw-muted);line-height:1.45}
+.prov{padding:11px 14px;font-size:14px;white-space:nowrap;font-weight:500;display:flex;align-items:center;justify-content:space-between}
+.prov .mono{font-size:11.5px;color:var(--faint);font-weight:400}
+.record{margin:26px auto 0;position:relative;z-index:1;display:flex;align-items:center;gap:14px;padding:13px 18px;width:fit-content}
+.record .lbl{font-weight:600;font-size:14.5px}
+.record .mono{font-size:12.5px;color:var(--muted)}
+.record .dot{width:5px;height:5px;border-radius:50%;background:var(--teal-2)}
+svg.wires{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* ledger */
+.ledger{display:grid;grid-template-columns:1.08fr 1fr;gap:22px;margin-top:24px}
+.rcpt{padding:20px 22px}
+.rcpt-head{display:flex;justify-content:space-between;align-items:baseline}
+.rcpt-head .serif{font-size:26px}
+:lang(zh) .rcpt-head .serif{font-size:21px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;margin-top:14px;font-size:13px}
+.kv .k{color:var(--faint)}
+.kv .v{text-align:right}
+.sep{border-top:1.5px dashed var(--line-strong);margin:14px 0 10px}
+.li{display:grid;grid-template-columns:1fr auto auto;gap:4px 16px;font-size:12.5px;align-items:baseline}
+.li .k{color:var(--ink)}
+.li .q{color:var(--muted);text-align:right}
+.li .t{text-align:right;min-width:64px}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.total b{font-size:15px}
+.total .mono{font-size:18px;color:var(--teal)}
+.cachebar{display:flex;height:8px;border-radius:99px;overflow:hidden;margin-top:12px;background:var(--soft)}
+.cachebar i{display:block;height:100%}
+.legend{display:flex;gap:14px;margin-top:8px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
+.keys{padding:20px 22px;display:flex;flex-direction:column}
+.keys-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.keys-head .serif{font-size:26px}
+:lang(zh) .keys-head .serif{font-size:21px}
+.krow{padding:13px 0;border-top:1px solid var(--line)}
+.krow:first-of-type{border-top:0}
+.krow-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.krow-top .mono{font-size:13.5px}
+.meter{height:6px;border-radius:99px;background:var(--soft);margin:9px 0 6px;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:99px}
+.krow-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.wire-note{margin-top:auto;padding:11px 12px;border-radius:10px;background:var(--soft);font-size:11.5px;line-height:1.6;color:var(--muted)}
+.wire-note b{color:var(--ink);font-weight:500}
+
+/* session */
+.sess{margin-top:22px;padding:20px 22px 18px}
+.sess-head{display:flex;gap:32px;align-items:center;flex-wrap:wrap}
+.stat .k{font-size:11.5px;color:var(--faint);letter-spacing:.05em;text-transform:uppercase}
+.stat .v{font-size:24px;margin-top:6px;height:30px;line-height:30px}
+.stat .v.mono{font-size:20px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:150px;margin-top:20px;padding-bottom:1px;border-bottom:1px solid var(--line)}
+.bar{flex:1;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden}
+.bar i{display:block;width:100%}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:6px}
+.sess-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const fig = q.get('fig') || 'flow';
+const lang = q.get('lang') || 'en';
+const theme = q.get('theme') || 'light';
+document.documentElement.lang = lang === 'zh' ? 'zh' : 'en';
+document.documentElement.dataset.theme = theme;
+const zh = lang === 'zh';
+const T = (en, cn) => (zh ? cn : en);
+const usd = (n, d = 4) => '$' + n.toFixed(d);
+const int = (n) => n.toLocaleString('en-US');
+
+// Worked example at claude-opus-5-5 public list price, per million tokens.
+const PRICE = { input: 4, cache_read: 0.2, cache_write_5m: 5, output: 20 };
+const cost = (u) =>
+  Object.keys(PRICE).reduce((s, k) => s + ((u[k] || 0) * PRICE[k]) / 1e6, 0);
+
+const root = document.getElementById('root');
+// Fixed heights so every language and theme of a figure has the same size;
+// render.sh uses the same numbers for the window.
+const HEIGHT = { flow: 600, ledger: 612, session: 466 };
+document.head.insertAdjacentHTML('beforeend', `<style>.fig{height:${HEIGHT[fig]}px}</style>`);
+
+if (fig === 'flow') {
+  const tools = [
+    ['Claude Code', '/v1/messages'],
+    ['Codex CLI', '/v1/responses'],
+    [T('OpenCode · SDKs', 'OpenCode · SDK'), '/v1/chat/completions'],
+    ['Gemini SDK', ':generateContent'],
+    [T('Image & video jobs', '图像与视频任务'), '/v1/images · videos'],
+  ];
+  const provs = [
+    ['Anthropic', 'Messages'],
+    ['OpenAI', 'Responses'],
+    ['Google', 'Gemini'],
+    ['DeepSeek', 'Chat'],
+    [T('Image & video', '图像与视频'), T('providers', '供应商')],
+  ];
+  root.innerHTML = `
+  <div class="fig" id="fig">
+    <div class="eyebrow mono">${T('How a request flows', '一次请求怎么走')}</div>
+    <h2 class="title serif">${T('Every tool speaks its own protocol. <em>One key</em> carries them all.', '每个工具说自己的协议，<em>一把 Key</em> 全部接住。')}</h2>
+    <div class="flow">
+      <div class="col" id="tools">
+        <div class="colhead mono">${T('Your tools', '你的工具')}</div>
+        ${tools.map(([n, p]) => `<div class="card chip"><span>${n}</span><span class="mono">${p}</span></div>`).join('')}
+      </div>
+      <div class="gw" id="gw">
+        <div class="gw-head">
+          <svg width="30" height="30" viewBox="0 0 1024 1024" aria-hidden="true"><circle cx="512" cy="512" r="512" fill="currentColor"/><g transform="scale(16)" fill="${theme === 'dark' ? '#F8F8F6' : '#14161C'}"><path d="M18 17h10v20h18v10H18z"/><circle cx="41" cy="23" r="5"/></g></svg>
+          <span class="serif">Lazu</span><span class="mono">${T('gateway', '网关')}</span>
+        </div>
+        <div class="step"><span class="n mono">01</span><b>${T('Key scope · budget hold', 'Key 权限 · 预算预扣')}</b><span>${T('Reserve funds before the upstream call; stop when the key is out.', '调用上游前先预扣，Key 额度用完即停。')}</span></div>
+        <div class="step"><span class="n mono">02</span><b>${T('Native protocol codec', '原生协议编解码')}</b><span>${T('Converts only when lossless; otherwise a 400 names the field.', '只做无损转换，否则返回 400 并指出字段。')}</span></div>
+        <div class="step"><span class="n mono">03</span><b>${T('Lane routing · cache affinity', '线路路由 · 缓存亲和')}</b><span>${T('Priority, weight and health windows; a session stays on its channel.', '按优先级、权重和健康窗口选路，会话留在同一线路。')}</span></div>
+      </div>
+      <div class="col" id="provs">
+        <div class="colhead mono">${T('Providers', '上游')}</div>
+        ${provs.map(([n, p]) => `<div class="card prov"><span>${n}</span><span class="mono">${p}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="card record" id="record">
+      <span class="dot"></span><span class="lbl">${T('Usage record', '用量记录')}</span>
+      <span class="mono">${T('tokens · cache read / write · line items · timing — settled from provider counters', 'Token · 缓存读写 · 计费明细 · 耗时 — 按上游计数结算')}</span>
+    </div>
+    <svg class="wires" id="wires"></svg>
+  </div>`;
+  requestAnimationFrame(() => {
+    const box = document.getElementById('fig').getBoundingClientRect();
+    const gw = document.getElementById('gw').getBoundingClientRect();
+    const rel = (r) => ({ l: r.left - box.left, r: r.right - box.left, t: r.top - box.top, b: r.bottom - box.top, m: (r.top + r.bottom) / 2 - box.top, c: (r.left + r.right) / 2 - box.left });
+    const g = rel(gw);
+    const paths = [];
+    const curve = (x1, y1, x2, y2) => { const dx = (x2 - x1) / 2; return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`; };
+    document.querySelectorAll('#tools .chip').forEach((el, i, all) => {
+      const c = rel(el.getBoundingClientRect());
+      const ty = g.m - 36 + (72 * i) / (all.length - 1);
+      paths.push(curve(c.r, c.m, g.l, ty));
+    });
+    document.querySelectorAll('#provs .prov').forEach((el, i, all) => {
+      const c = rel(el.getBoundingClientRect());
+      const sy = g.m - 36 + (72 * i) / (all.length - 1);
+      paths.push(curve(g.r, sy, c.l, c.m));
+    });
+    const rec = rel(document.getElementById('record').getBoundingClientRect());
+    const wires = document.getElementById('wires');
+    wires.innerHTML =
+      paths.map((d) => `<path d="${d}" fill="none" stroke="var(--teal-mid)" stroke-width="1.4"/>`).join('') +
+      `<path d="M${g.c},${g.b} L${g.c},${rec.t}" stroke="var(--teal-mid)" stroke-width="1.4" stroke-dasharray="4 4"/>` +
+      `<circle cx="${g.c}" cy="${rec.t}" r="3" fill="var(--teal-2)"/>`;
+    document.body.dataset.ready = '1';
+  });
+}
+
+if (fig === 'ledger') {
+  const u = { input: 492, cache_read: 38912, cache_write_5m: 1804, output: 1930 };
+  const rows = [
+    ['input', T('input', '输入'), u.input, PRICE.input],
+    ['cache_read', T('cache read', '缓存读取'), u.cache_read, PRICE.cache_read],
+    ['cache_write_5m', T('cache write 5 min', '缓存写入 5 分钟'), u.cache_write_5m, PRICE.cache_write_5m],
+    ['output', T('output', '输出'), u.output, PRICE.output],
+  ];
+  const total = cost(u);
+  const inTotal = u.input + u.cache_read + u.cache_write_5m;
+  const pct = (n) => ((n / inTotal) * 100).toFixed(1) + '%';
+  const keys = [
+    ['ci-runner', 31.4, 50, 'ok', T('Active', '正常')],
+    ['claude-code-alice', 27.9, 30, 'warn', T('93% used', '已用 93%')],
+    ['nightly-evals', 20, 20, 'stop', T('Stopped', '已停止')],
+  ];
+  root.innerHTML = `
+  <div class="fig">
+    <div class="eyebrow mono">${T('Per key · per request', '按 Key · 按请求')}</div>
+    <h2 class="title serif">${T('Every key has a budget. <em>Every request</em> leaves a record.', '每把 Key 有预算，<em>每次请求</em>都有一条记录。')}</h2>
+    <div class="ledger">
+      <div class="card rcpt">
+        <div class="rcpt-head"><span class="serif">${T('One request', '一次请求')}</span><span class="mono" style="font-size:12px;color:var(--muted)">GET /api/usage/requests/{id}</span></div>
+        <div class="kv mono">
+          <span class="k">model</span><span class="v">claude-opus-5-5</span>
+          <span class="k">key</span><span class="v">ci-runner</span>
+          <span class="k">usage.measurement</span><span class="v">provider</span>
+          <span class="k">routing</span><span class="v">${T('first token', '首字')} 1.42 s · ${T('total', '共')} 18.6 s</span>
+        </div>
+        <div class="cachebar"><i style="width:${pct(u.cache_read)};background:var(--teal-2)"></i><i style="width:${pct(u.cache_write_5m)};background:var(--teal-mid)"></i><i style="width:${pct(u.input)};background:var(--faint)"></i></div>
+        <div class="legend mono"><span><i style="background:var(--teal-2)"></i>${T('cache read', '缓存读取')} ${pct(u.cache_read)}</span><span><i style="background:var(--teal-mid)"></i>${T('cache write', '缓存写入')} ${pct(u.cache_write_5m)}</span><span><i style="background:var(--faint)"></i>${T('fresh input', '新输入')} ${pct(u.input)}</span></div>
+        <div class="sep"></div>
+        <div class="li mono">
+          ${rows.map(([, label, n, p]) => `<span class="k">${label}</span><span class="q">${int(n)} × $${p.toFixed(2)}/M</span><span class="t">${usd((n * p) / 1e6)}</span>`).join('')}
+        </div>
+        <div class="total"><b>${T('Charged', '本次扣费')}</b><span class="mono">${usd(total)}</span></div>
+      </div>
+      <div class="card keys">
+        <div class="keys-head"><span class="serif">${T('Keys', 'API Key')}</span><span class="mono" style="font-size:12px;color:var(--muted)">${T('budget this month', '本月预算')}</span></div>
+        ${keys.map(([n, used, cap, st, label]) => `
+        <div class="krow">
+          <div class="krow-top"><span class="mono">${n}</span><span class="badge b-${st}">${label}</span></div>
+          <div class="meter"><i style="width:${Math.min(100, (used / cap) * 100)}%;background:${st === 'stop' ? 'var(--danger)' : st === 'warn' ? 'var(--warn)' : 'var(--teal-2)'}"></i></div>
+          <div class="krow-foot mono"><span>${usd(used, 2)} / ${usd(cap, 2)}</span><span>${usd(Math.max(0, cap - used), 2)} ${T('left', '剩余')}</span></div>
+        </div>`).join('')}
+        <div class="wire-note mono">${T('Out of budget, the client gets a status its SDK will not retry:', 'Key 额度用完，客户端收到 SDK 不会重试的状态：')}<br>Messages&nbsp;&nbsp;<b>402</b> billing_error<br>OpenAI&nbsp;&nbsp;&nbsp;&nbsp;<b>429</b> insufficient_quota<br>x-should-retry: false</div>
+      </div>
+    </div>
+  </div>`;
+  document.body.dataset.ready = '1';
+}
+
+if (fig === 'session') {
+  // A Claude Code session: the context grows call by call and stays cached.
+  const calls = [];
+  let ctx = 14200;
+  for (let i = 0; i < 24; i++) {
+    const add = 900 + ((i * 7919) % 2600);
+    const out = 300 + ((i * 3571) % 2400);
+    const u = i === 0
+      ? { input: 380, cache_read: 0, cache_write_5m: ctx, output: out }
+      : { input: 220 + ((i * 131) % 400), cache_read: ctx, cache_write_5m: add, output: out };
+    ctx += add;
+    calls.push(u);
+  }
+  const costs = calls.map(cost);
+  const total = costs.reduce((a, b) => a + b, 0);
+  const sum = (k) => calls.reduce((a, u) => a + (u[k] || 0), 0);
+  const inAll = sum('input') + sum('cache_read') + sum('cache_write_5m');
+  const hit = sum('cache_read') / inAll;
+  const max = Math.max(...costs);
+  const seg = (u, k) => ((u[k] || 0) * PRICE[k]) / 1e6;
+  root.innerHTML = `
+  <div class="fig">
+    <div class="eyebrow mono">${T('Coding agent sessions', '编程 Agent 会话')}</div>
+    <h2 class="title serif">${T('See what <em>one agent session</em> cost, call by call.', '一次 <em>Agent 会话</em>花了多少，逐次看清。')}</h2>
+    <div class="card sess">
+      <div class="sess-head">
+        <div class="stat"><div class="k mono">${T('client', '客户端')}</div><div class="v serif">Claude Code</div></div>
+        <div class="stat"><div class="k mono">${T('calls', '调用')}</div><div class="v mono">${calls.length}</div></div>
+        <div class="stat"><div class="k mono">${T('cache hit', '缓存命中')}</div><div class="v mono">${(hit * 100).toFixed(0)}%</div></div>
+        <div class="stat"><div class="k mono">${T('session cost', '会话花费')}</div><div class="v mono" style="color:var(--teal)">${usd(total, 2)}</div></div>
+        <span class="badge b-neutral mono" style="margin-left:auto">x-session-id → ${T('same channel', '同一线路')}</span>
+      </div>
+      <div class="bars">
+        ${calls.map((u) => {
+          const h = (cost(u) / max) * 100;
+          const parts = ['cache_read', 'cache_write_5m', 'input', 'output'];
+          const colors = { cache_read: 'var(--teal-2)', cache_write_5m: 'var(--teal-mid)', input: 'var(--faint)', output: 'var(--ink)' };
+          return `<div class="bar" style="height:${h}%">${parts.map((k) => `<i style="height:${(seg(u, k) / cost(u)) * 100}%;background:${colors[k]}"></i>`).join('')}</div>`;
+        }).join('')}
+      </div>
+      <div class="axis mono"><span>${T('call 1', '第 1 次')}</span><span>${T('call', '第')} ${calls.length}${T('', ' 次')}</span></div>
+      <div class="sess-foot">
+        <div class="legend mono" style="margin:0"><span><i style="background:var(--ink)"></i>${T('output', '输出')}</span><span><i style="background:var(--faint)"></i>${T('fresh input', '新输入')}</span><span><i style="background:var(--teal-mid)"></i>${T('cache write', '缓存写入')}</span><span><i style="background:var(--teal-2)"></i>${T('cache read', '缓存读取')}</span></div>
+        <span class="mono" style="font-size:11.5px;color:var(--faint)">${T('bar height = cost per call', '柱高 = 单次花费')}</span>
+      </div>
+    </div>
+  </div>`;
+  document.body.dataset.ready = '1';
+}
+</script>
+</body>
+</html>

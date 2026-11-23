@@ -17,7 +17,7 @@
   "landing": {
     "meta": {
       "title": "Lazu — The model account for coding agents, video, and pipelines",
-      "description": "Consolidate your model accounts into one open-source gateway — native APIs for Claude, GPT, Gemini, and DeepSeek, plus hosted multimodal and video models. Pay as you go."
+      "description": "Consolidate your model accounts into one open-source gateway — native APIs for Claude, GPT, Gemini, and DeepSeek, plus image and video models. Pay as you go."
     },
     "nav": {
       "models": "Models",
@@ -40,7 +40,7 @@
       "headlineEm": "coding agents, video, and pipelines.",
       "whatBefore": "Consolidate your model accounts into ",
       "whatBold": "one open-source gateway",
-      "whatAfter": " — native APIs for frontier models, plus hosted multimodal and video models.",
+      "whatAfter": " — native APIs for frontier models, plus image and video models.",
       "ctaPrimary": "Sign up free",
       "ctaSecondary": "See the console",
       "free": "10% extra on your first top-up, up to $10"
