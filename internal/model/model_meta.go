@@ -47,7 +47,7 @@ type BoundChannel struct {
 
 type Model struct {
 	Id                  int               `json:"id"`
-	ModelName           string            `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
+	ModelName           string            `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_models_live_name,expression:lower(trim(model_name)),where:deleted_at IS NULL"`
 	Description         string            `json:"description,omitempty" gorm:"type:text"`
 	DescriptionEn       string            `json:"description_en,omitempty" gorm:"type:text"`
 	DescriptionZh       string            `json:"description_zh,omitempty" gorm:"type:text"`
@@ -79,7 +79,7 @@ type Model struct {
 	SyncOfficial        int              `json:"sync_official" gorm:"default:1"`
 	CreatedTime         int64            `json:"created_time" gorm:"bigint"`
 	UpdatedTime         int64            `json:"updated_time" gorm:"bigint"`
-	DeletedAt           gorm.DeletedAt   `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
+	DeletedAt           gorm.DeletedAt   `json:"-" gorm:"index"`
 
 	// Model facts, mostly filled from models.dev (see model_info.go).
 	Maker             string                `json:"maker" gorm:"type:varchar(32);not null;default:''"`
@@ -190,15 +190,6 @@ func (mi *Model) Insert() error {
 		mi.LastSeenAt = now
 	}
 	return CoreDB().Create(mi).Error
-}
-
-func IsModelNameDuplicated(id int, name string) (bool, error) {
-	if name == "" {
-		return false, nil
-	}
-	var cnt int64
-	err := CoreDB().Model(&Model{}).Where("model_name = ? AND id <> ?", name, id).Count(&cnt).Error
-	return cnt > 0, err
 }
 
 func (mi *Model) Update() error {

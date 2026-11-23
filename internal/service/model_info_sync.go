@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -1042,37 +1043,31 @@ func modelInfoDisplay(m model.Model, field string) string {
 	return ""
 }
 
-// writeModelInfoField sets one fact on every catalog row carrying the name
-// (older data can hold duplicates) and records where the value came from.
+// writeModelInfoField sets one fact on the catalog model and records its source.
 func writeModelInfoField(modelName, field, payload, source string) error {
 	return writeModelInfoFieldDB(model.CoreDB(), modelName, field, payload, source)
 }
 
 func writeModelInfoFieldDB(db *gorm.DB, modelName, field, payload, source string) error {
-	var rows []model.Model
-	if err := db.Where("model_name = ?", modelName).Find(&rows).Error; err != nil {
-		return err
-	}
-	if len(rows) == 0 {
+	var m model.Model
+	err := db.Where("model_name = ?", modelName).First(&m).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return types.Err(types.ErrorCodeResourceNotFound, types.D{"resource": "model"})
 	}
-	for _, m := range rows {
-		updates, err := modelInfoFieldUpdates(field, payload)
-		if err != nil {
-			return err
-		}
-		sources := model.ModelInfoSources{}
-		for key, value := range m.InfoSources {
-			sources[key] = value
-		}
-		sources[field] = source
-		updates["info_sources"] = sources
-		updates["updated_time"] = common.GetTimestamp()
-		if err := db.Model(&model.Model{}).Where("id = ?", m.Id).Updates(updates).Error; err != nil {
-			return err
-		}
+	if err != nil {
+		return err
 	}
-	return nil
+	updates, err := modelInfoFieldUpdates(field, payload)
+	if err != nil {
+		return err
+	}
+	if m.InfoSources == nil {
+		m.InfoSources = model.ModelInfoSources{}
+	}
+	m.InfoSources[field] = source
+	updates["info_sources"] = m.InfoSources
+	updates["updated_time"] = common.GetTimestamp()
+	return db.Model(&model.Model{}).Where("id = ?", m.Id).Updates(updates).Error
 }
 
 // modelInfoFieldUpdates maps a field and its JSON value to column updates.

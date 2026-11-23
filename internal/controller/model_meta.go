@@ -14,6 +14,7 @@ import (
 	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -100,6 +101,18 @@ func GetModelMeta(c *gin.Context) {
 	common.ApiSuccess(c, &m)
 }
 
+// PostgreSQL identifies the rejecting index by name. SQLite includes it in
+// the error message for expression indexes.
+func writeModelSaveError(c *gin.Context, err error, name string) {
+	var pgErr *pgconn.PgError
+	if (errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "uk_models_live_name") ||
+		strings.Contains(err.Error(), "UNIQUE constraint failed: index 'uk_models_live_name'") {
+		httperr.Code(c, types.ErrorCodeModelNameTaken, types.D{"model": name})
+		return
+	}
+	writeLookupError(c, err, "model")
+}
+
 // CreateModelMeta 新建模型
 func CreateModelMeta(c *gin.Context) {
 	raw, err := c.GetRawData()
@@ -112,19 +125,10 @@ func CreateModelMeta(c *gin.Context) {
 		httperr.Invalid(c, "body")
 		return
 	}
-	if m.ModelName == "" {
+	if strings.TrimSpace(m.ModelName) == "" {
 		httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "model_name"})
 		return
 	}
-	// 名称冲突检查
-	if dup, err := model.IsModelNameDuplicated(0, m.ModelName); err != nil {
-		httperr.Write(c, err)
-		return
-	} else if dup {
-		httperr.Code(c, types.ErrorCodeModelNameTaken, types.D{"model": m.ModelName})
-		return
-	}
-
 	if err := model.NormalizeModelInfo(&m); err != nil {
 		httperr.Invalid(c, "model_info")
 		return
@@ -135,7 +139,7 @@ func CreateModelMeta(c *gin.Context) {
 	prefilled, manual := parseInfoFieldsFromModels(raw)
 	m.InfoSources = model.RegistrationInfoSources(m, prefilled, manual)
 	if err := m.Insert(); err != nil {
-		httperr.Write(c, err)
+		writeModelSaveError(c, err, m.ModelName)
 		return
 	}
 	// The release date is the model's own (or blank), never the day it was
@@ -173,15 +177,10 @@ func UpdateModelMeta(c *gin.Context) {
 			return
 		}
 	} else {
-		// 名称冲突检查
-		if dup, err := model.IsModelNameDuplicated(m.Id, m.ModelName); err != nil {
-			httperr.Write(c, err)
-			return
-		} else if dup {
-			httperr.Code(c, types.ErrorCodeModelNameTaken, types.D{"model": m.ModelName})
+		if strings.TrimSpace(m.ModelName) == "" {
+			httperr.Code(c, types.ErrorCodeMissingRequiredParameter, types.D{"field": "model_name"})
 			return
 		}
-
 		if err := model.NormalizeModelInfo(&m); err != nil {
 			httperr.Invalid(c, "model_info")
 			return
@@ -189,7 +188,7 @@ func UpdateModelMeta(c *gin.Context) {
 		var fields map[string]json.RawMessage
 		_ = common.Unmarshal(raw, &fields)
 		if err := m.UpdateWithModelInfo(fields); err != nil {
-			writeLookupError(c, err, "model")
+			writeModelSaveError(c, err, m.ModelName)
 			return
 		}
 		// An edited official price reprices every lane that follows it.

@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -179,9 +180,25 @@ func TestModelMetaVendorAndPrefillErrors(t *testing.T) {
 	}
 
 	dupModel := callModelsHandler(CreateModelMeta, handlerCall{
-		method: http.MethodPost, target: "/api/models/", body: `{"model_name":"taken-model"}`,
+		method: http.MethodPost, target: "/api/models/", body: `{"model_name":" TAKEN-model "}`,
 	})
 	assertCatalogError(t, dupModel, http.StatusConflict, types.ErrorCodeModelNameTaken)
+
+	second := model.Model{ModelName: "MiXeD"}
+	if err := db.Create(&second).Error; err != nil {
+		t.Fatal(err)
+	}
+	duplicateEdit := callModelsHandler(UpdateModelMeta, handlerCall{method: http.MethodPut, target: "/api/models/", body: fmt.Sprintf(`{"id":%d,"model_name":"Taken-Model"}`, second.Id)})
+	assertCatalogError(t, duplicateEdit, http.StatusConflict, types.ErrorCodeModelNameTaken)
+	if err := db.First(&second, second.Id).Error; err != nil || second.ModelName != "MiXeD" {
+		t.Fatalf("original name changed: %v", err)
+	}
+	if err := db.Delete(&second).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.Model{ModelName: "mixed"}).Error; err != nil {
+		t.Fatal(err)
+	}
 
 	missingModel := callModelsHandler(GetModelMeta, handlerCall{
 		method: http.MethodGet, target: "/api/models/999", params: gin.Params{{Key: "id", Value: "999"}},
