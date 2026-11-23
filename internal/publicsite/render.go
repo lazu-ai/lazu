@@ -57,10 +57,10 @@ type Meta struct {
 // Facebook) cache by image URL, so a new image needs a new URL to show up.
 // apps/web and apps/docs emit the same path; TestShareImageVersion keeps the
 // three in step with apps/web/public/og-image.png.
-const OGImagePath = "/og-image.png?v=ebfcc2f182"
+const OGImagePath = "/og-image.png?v=ec7552132e"
 
 // OGImageAlt describes the share image for og:image:alt and twitter:image:alt.
-const OGImageAlt = "The model account for coding agents and pipelines."
+const OGImageAlt = "The model account for coding agents, video, and pipelines."
 
 // ImageAlt is the og:image:alt / twitter:image:alt text: the page's own when
 // it set one, the site card's when the page kept the site card, else none (a

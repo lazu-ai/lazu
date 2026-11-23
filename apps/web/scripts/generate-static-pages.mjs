@@ -231,8 +231,9 @@ const renderAlternates = (route) =>
 // Site-wide share image. The query string is the first ten hex digits of the
 // PNG's SHA-256, so link previews that cache by image URL pick up a new image.
 // Keep in step with internal/publicsite OGImagePath (checked by its tests).
-const OG_IMAGE_PATH = '/og-image.png?v=ebfcc2f182';
-const OG_IMAGE_ALT = 'The model account for coding agents and pipelines.';
+const OG_IMAGE_PATH = '/og-image.png?v=ec7552132e';
+const OG_IMAGE_ALT =
+  'The model account for coding agents, video, and pipelines.';
 
 const renderHead = (route) => {
   const canonical = `${env.siteOrigin}${route.path}`;

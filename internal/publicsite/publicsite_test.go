@@ -66,7 +66,7 @@ func TestModelPageCarriesPricesForCrawlers(t *testing.T) {
 		"与 Anthropic 官方价相同",
 		`"@id":"https://lazu.ai/#organization"`,
 		`"@type":"Product"`,
-		`"image":"https://lazu.ai/og-image.png?v=ebfcc2f182"`,
+		`"image":"https://lazu.ai/og-image.png?v=ec7552132e"`,
 		`"@type":"FAQPage"`,
 		"同官方",
 	} {

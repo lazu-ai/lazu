@@ -42,8 +42,8 @@
 }
 
 .ops-serif {
-  font-family: var(--lazu-font-display);
-  font-weight: 400;
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
 }
 
 .ops-num {
@@ -849,9 +849,10 @@ button.ops-chip {
 }
 
 .ops-cover__title {
-  font-family: 'Instrument Serif', var(--lazu-font-display);
-  font-size: 77px;
-  line-height: 1.05;
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  font-size: 64px;
+  line-height: 1.08;
 }
 
 .ops-cover__foot {
@@ -910,8 +911,9 @@ button.ops-chip {
 }
 
 .ops-cover__word {
-  font-family: 'Instrument Serif', var(--lazu-font-display);
-  font-size: 33px;
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  font-size: 30px;
 }
 
 /* Post layouts (seo-surfaces-2026-09 › Covers): diff, ledger, ids,
