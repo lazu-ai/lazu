@@ -133,7 +133,7 @@ func TestCatalogModelIDsFollowPublicMetadataRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows := []Model{
-		{ModelName: "gpt-6-astra", Status: 2, NameRule: NameRuleExact},
+		{ModelName: "gpt-disabled", Status: 2, NameRule: NameRuleExact},
 		{ModelName: "gpt-", Status: 1, NameRule: NameRulePrefix},
 		{ModelName: "gpt-6-astra", Status: 1, NameRule: NameRuleExact},
 	}
@@ -142,8 +142,8 @@ func TestCatalogModelIDsFollowPublicMetadataRules(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	ids, err := CatalogModelIDs([]string{"gpt-6-astra", "gpt-other", "missing"})
-	if err != nil || ids["gpt-6-astra"] != rows[2].Id || ids["gpt-other"] != rows[1].Id || ids["missing"] != 0 {
+	ids, err := CatalogModelIDs([]string{"gpt-6-astra", "gpt-disabled", "gpt-other", "missing"})
+	if err != nil || ids["gpt-6-astra"] != rows[2].Id || ids["gpt-disabled"] != rows[1].Id || ids["gpt-other"] != rows[1].Id || ids["missing"] != 0 {
 		t.Fatalf("wrong metadata owner: %+v %v", ids, err)
 	}
 }

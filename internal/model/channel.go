@@ -621,77 +621,58 @@ func (channel *Channel) Insert() error {
 }
 
 func (channel *Channel) Update() error {
-	if strings.TrimSpace(channel.SourceType) != "" {
-		channel.SourceType = NormalizeChannelSourceType(channel.SourceType)
-	}
-	var existingIdentity Channel
-	if err := CoreDB().Select("type, base_url, settings").First(&existingIdentity, "id = ?", channel.Id).Error; err != nil {
-		return err
-	}
-	if err := initializeMissingProtocolDialect(channel, &existingIdentity); err != nil {
-		return err
-	}
-	if err := keepStoredUpstreamSyncState(channel, existingIdentity.OtherSettings); err != nil {
-		return err
-	}
-	// If this is a multi-key channel, recalculate MultiKeySize based on the current key list to avoid inconsistency after editing keys
-	if channel.ChannelInfo.IsMultiKey {
-		var keyStr string
-		if channel.Key != "" {
-			keyStr = channel.Key
-		} else {
-			// If key is not provided, read the existing key from the database
-			if existing, err := GetChannelById(channel.Id, true); err == nil {
-				keyStr = existing.Key
-			}
+	var saved Channel
+	err := CoreDB().Transaction(func(tx *gorm.DB) error {
+		if strings.TrimSpace(channel.SourceType) != "" {
+			channel.SourceType = NormalizeChannelSourceType(channel.SourceType)
 		}
-		// Parse the key list (supports newline separation or JSON array)
-		keys := []string{}
-		if keyStr != "" {
-			trimmed := strings.TrimSpace(keyStr)
-			if strings.HasPrefix(trimmed, "[") {
-				var arr []json.RawMessage
-				if err := common.Unmarshal([]byte(trimmed), &arr); err == nil {
-					keys = make([]string, len(arr))
-					for i, v := range arr {
-						keys[i] = string(v)
+		var existingIdentity Channel
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("type", "base_url", "settings", "key").First(&existingIdentity, "id = ?", channel.Id).Error; err != nil {
+			return err
+		}
+		if err := initializeMissingProtocolDialect(channel, &existingIdentity); err != nil {
+			return err
+		}
+		if err := keepStoredUpstreamSyncState(channel, existingIdentity.OtherSettings); err != nil {
+			return err
+		}
+		// If this is a multi-key channel, recalculate MultiKeySize based on the current key list to avoid inconsistency after editing keys
+		if channel.ChannelInfo.IsMultiKey {
+			keySource := Channel{Key: channel.Key}
+			if keySource.Key == "" {
+				if err := existingIdentity.decryptKeyForUse(); err != nil {
+					return err
+				}
+				keySource.Key = existingIdentity.Key
+			}
+			channel.ChannelInfo.MultiKeySize = len(keySource.GetKeys())
+			// Clean up status data that exceeds the new key count to prevent index out of range
+			if channel.ChannelInfo.MultiKeyStatusList != nil {
+				for idx := range channel.ChannelInfo.MultiKeyStatusList {
+					if idx >= channel.ChannelInfo.MultiKeySize {
+						delete(channel.ChannelInfo.MultiKeyStatusList, idx)
 					}
 				}
 			}
-			if len(keys) == 0 { // fallback to newline split
-				keys = strings.Split(strings.Trim(keyStr, "\n"), "\n")
-			}
 		}
-		channel.ChannelInfo.MultiKeySize = len(keys)
-		// Clean up status data that exceeds the new key count to prevent index out of range
-		if channel.ChannelInfo.MultiKeyStatusList != nil {
-			for idx := range channel.ChannelInfo.MultiKeyStatusList {
-				if idx >= channel.ChannelInfo.MultiKeySize {
-					delete(channel.ChannelInfo.MultiKeyStatusList, idx)
-				}
-			}
+		storageChannel, err := channel.storageCopyWithEncryptedKey()
+		if err != nil {
+			return err
 		}
+		if err := tx.Model(channel).Updates(storageChannel).Error; err != nil {
+			return err
+		}
+		if err := tx.First(&saved, channel.Id).Error; err != nil {
+			return err
+		}
+		if err := saved.decryptKeyForUse(); err != nil {
+			return err
+		}
+		return saved.UpdateAbilities(tx)
+	})
+	if err == nil {
+		*channel = saved
 	}
-	var err error
-	clearKey := channel.Key
-	storageChannel, err := channel.storageCopyWithEncryptedKey()
-	if err != nil {
-		return err
-	}
-	err = CoreDB().Model(channel).Updates(storageChannel).Error
-	if err != nil {
-		return err
-	}
-	if err = CoreDB().Model(channel).First(channel, "id = ?", channel.Id).Error; err != nil {
-		return err
-	}
-	if err = channel.decryptKeyForUse(); err != nil {
-		return err
-	}
-	if clearKey != "" {
-		channel.Key = clearKey
-	}
-	err = channel.UpdateAbilities(nil)
 	return err
 }
 

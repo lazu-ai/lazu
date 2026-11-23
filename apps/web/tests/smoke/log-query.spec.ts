@@ -408,3 +408,39 @@ test('a log list that stopped counting shows its total as a lower bound', async 
   ).toContainText('超过');
   await app.expectNoUnexpectedErrors();
 });
+
+test('both log downloads use the exact window and project filters shown in the list', async ({
+  page,
+}) => {
+  await setupMockedApp(page, { user: { id: 7, username: 'member', role: 1 } });
+  const filters = new URLSearchParams({
+    project_id: 'proj_sample',
+    user_id: 'usr_sample',
+    token_id: 'key_sample',
+    result: 'rejected',
+    reason: 'rate_limit',
+    start_timestamp: '1795000000',
+    end_timestamp: '1795000900',
+  });
+  const listed = page.waitForRequest(
+    (r) =>
+      new URL(r.url()).pathname === '/api/log/self/' &&
+      new URL(r.url()).searchParams.get('project_id') === 'proj_sample',
+  );
+  await expectRouteReady(page, '/console/usage?tab=logs&' + filters);
+  const list = new URL((await listed).url()).searchParams;
+  for (const format of ['csv', 'xlsx']) {
+    const requested = page.waitForRequest(
+      (r) => new URL(r.url()).pathname === '/api/data/export',
+    );
+    await page.getByRole('button', { name: '导出', exact: true }).click();
+    await page.getByRole('menuitem', { name: new RegExp(format, 'i') }).click();
+    const exported = new URL((await requested).url()).searchParams;
+    for (const [key, value] of filters) {
+      expect(list.get(key)).toBe(value);
+      expect(exported.get(key)).toBe(value);
+    }
+    expect(exported.get('scope')).toBe('self');
+    expect(exported.get('format')).toBe(format);
+  }
+});

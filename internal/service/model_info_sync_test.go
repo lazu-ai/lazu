@@ -821,10 +821,10 @@ func TestChangedReviewGetsNewIDAndRejectsStaleDecisions(t *testing.T) {
 	}
 }
 
-func TestDuplicateModelFillsHaveOneUndoDecision(t *testing.T) {
+func TestHistoricalDuplicateFillReviewsHaveOneUndoDecision(t *testing.T) {
 	db := setupModelInfoTestDB(t, "duplicate_model_fills")
-	models := []model.Model{{ModelName: "gpt-6-sol"}, {ModelName: "gpt-6-sol"}}
-	if err := db.Create(&models).Error; err != nil {
+	m := model.Model{ModelName: "gpt-6-sol"}
+	if err := db.Create(&m).Error; err != nil {
 		t.Fatal(err)
 	}
 	if _, err := reconcileModelInfo(testCatalog(), time.Date(2026, 9, 28, 4, 0, 0, 0, time.UTC)); err != nil {
@@ -846,13 +846,11 @@ func TestDuplicateModelFillsHaveOneUndoDecision(t *testing.T) {
 	if err := UndoModelInfoFill(&fills[0]); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Find(&models).Error; err != nil {
+	if err := db.First(&m, m.Id).Error; err != nil {
 		t.Fatal(err)
 	}
-	for _, m := range models {
-		if m.Maker != "" {
-			t.Fatal("undo did not clear every duplicate model")
-		}
+	if m.Maker != "" {
+		t.Fatal("undo did not clear the model maker")
 	}
 	queue, err := model.ListModelInfoReviews()
 	if err != nil {

@@ -420,6 +420,12 @@ func migrateDB() error {
 		return err
 	}
 
+	if err = coreDB.Exec("DROP INDEX IF EXISTS uk_model_name_delete_at").Error; err != nil {
+		return err
+	}
+	if err = redactSensitiveMailHistory(coreDB); err != nil {
+		return err
+	}
 	if err = migrateModelReleaseDates(coreDB); err != nil {
 		return err
 	}
@@ -494,6 +500,9 @@ func migrateLOGDB() error {
 		return err
 	}
 	if err := runOneTimeMigration(telemetryDB, "telemetry_copy_core_v24", func() error { return CopyTelemetryHistory(context.Background(), coreDB, telemetryDB) }); err != nil {
+		return err
+	}
+	if err := redactSensitiveMailHistory(telemetryDB); err != nil {
 		return err
 	}
 	if err := migrateLazuLogPublicIDs(telemetryDB); err != nil {

@@ -184,7 +184,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "10000:5432"
+      - "127.0.0.1:10000:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lazu"]
       interval: 30s

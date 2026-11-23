@@ -789,36 +789,16 @@ func ListDashboardUsageLogsContext(ctx context.Context, userID int, role int, wi
 	if limit <= 0 || limit > 50000 {
 		limit = 50000
 	}
-	tx := TelemetryDB().WithContext(ctx).Model(&Log{}).Where("logs.type <> ?", LogTypeUnknown)
 	if role < common.RoleRootUser {
-		tx = tx.Where("logs.user_id = ?", userID)
+		filters.UserID = userID
+		filters.Username = ""
+		filters.ChannelID = 0
+		if userID <= 0 {
+			return nil, nil
+		}
 	}
-	if filters.LogType != LogTypeUnknown {
-		tx = tx.Where("logs.type = ?", filters.LogType)
-	}
-	if filters.ModelName != "" {
-		tx = tx.Where("logs.model_name LIKE ?", filters.ModelName)
-	}
-	if role >= common.RoleRootUser && filters.UserID > 0 {
-		tx = tx.Where("logs.user_id = ?", filters.UserID)
-	} else if role >= common.RoleRootUser && filters.Username != "" {
-		tx = tx.Where("logs.username = ?", filters.Username)
-	}
-	if filters.TokenName != "" {
-		tx = tx.Where("logs.token_name = ?", filters.TokenName)
-	}
-	if role >= common.RoleRootUser && filters.ChannelID != 0 {
-		tx = tx.Where("logs.channel_id = ?", filters.ChannelID)
-	}
-	if filters.Group != "" {
-		tx = tx.Where("logs."+logGroupCol+" = ?", filters.Group)
-	}
-	if window.StartTimestamp > 0 {
-		tx = tx.Where("logs.created_at >= ?", window.StartTimestamp)
-	}
-	if window.EndTimestamp > 0 {
-		tx = tx.Where("logs.created_at <= ?", window.EndTimestamp)
-	}
+	tx := allLogsQuery(filters.LogType, window.StartTimestamp, window.EndTimestamp, filters.ModelName, filters.Username,
+		filters.UserID, filters.TokenName, filters.ChannelID, filters.Group).WithContext(ctx)
 	var logs []Log
 	if err := orderLogsNewestFirst(tx).Limit(limit).Find(&logs).Error; err != nil {
 		return nil, err

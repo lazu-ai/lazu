@@ -32,6 +32,7 @@ import { useUsageRange } from '../../hooks/usage-logs/usageRange';
 import {
   LOG_COLUMN_KEYS,
   usageDashboardScopeParam,
+  usageLogQueryParams,
   useUsageLogsQuery,
 } from '../../hooks/usage-logs/useUsageLogsQuery';
 import i18n from '../../i18n/i18n';
@@ -54,12 +55,6 @@ const filterSchema = z.object({
   username: z.string(),
 });
 
-type FilterValues = z.infer<typeof filterSchema>;
-type ExportFilters = FilterValues;
-type DateRangeRecord = {
-  from?: unknown;
-  to?: unknown;
-};
 export type UsageRequestRecord = Record<string, unknown>;
 type UsageLogsState = ReturnType<typeof useUsageLogsQuery>;
 export type LogRecord = UsageLogsState['usageLogs'][number];
@@ -89,9 +84,6 @@ type QuoteBreakdown = Record<string, unknown> & {
   total_microusd?: unknown;
 };
 
-const isDateRangeRecord = (value: unknown): value is DateRangeRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const isUnknownRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -99,38 +91,6 @@ export const requestIdentity = (value: unknown) => {
   if (!value || typeof value !== 'object') return '';
   const record = value as UsageRequestRecord;
   return String(record.request_id || record.id || record.key || '');
-};
-
-const toExportDate = (value: unknown) => {
-  if (value instanceof Date) return value;
-  if (value === undefined || value === null || value === '') return new Date();
-  if (typeof value !== 'string' && typeof value !== 'number') {
-    return new Date();
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
-};
-
-const getExportWindow = (filters: ExportFilters) => {
-  const range = filters.dateRange;
-  const from = Array.isArray(range)
-    ? range[0]
-    : isDateRangeRecord(range)
-      ? range.from
-      : undefined;
-  const to = Array.isArray(range)
-    ? range[1]
-    : isDateRangeRecord(range)
-      ? range.to
-      : undefined;
-  const start = toExportDate(from);
-  const end = toExportDate(to);
-  start.setHours(0, 0, 0, 0);
-  end.setHours(23, 59, 59, 999);
-  return {
-    endTimestamp: Math.ceil(end.getTime() / 1000),
-    startTimestamp: Math.floor(start.getTime() / 1000),
-  };
 };
 
 /** A download requested as a blob also receives its failure as a Blob.
@@ -155,27 +115,20 @@ export const readBlobDownloadError = async (
 };
 
 export const downloadUsageLogs = async (
-  filters: ExportFilters,
+  {
+    filters,
+    project,
+    isAdminUser,
+  }: Pick<UsageLogsState, 'filters' | 'project' | 'isAdminUser'>,
   format: 'csv' | 'xlsx',
-  admin: boolean,
 ) => {
-  const window = getExportWindow(filters);
+  const params = usageLogQueryParams({ admin: isAdminUser, filters, project });
   const response = await API.get('/api/data/export', {
     params: {
-      channel: admin ? filters.channel : undefined,
+      ...params,
       dataset: 'logs',
-      end_timestamp: window.endTimestamp,
       format,
-      group: filters.group,
-      model_name: filters.model_name,
-      // Without an explicit scope the export falls back to the session role,
-      // so a self-scoped operator used to download every user's rows.
-      scope: usageDashboardScopeParam(admin),
-      start_timestamp: window.startTimestamp,
-      token_name: filters.token_name,
-      type: filters.logType || '0',
-      user_id: admin ? filters.user_id : undefined,
-      username: admin ? filters.username : undefined,
+      scope: usageDashboardScopeParam(isAdminUser),
     },
     responseType: 'blob',
     skipErrorHandler: true,
@@ -184,7 +137,7 @@ export const downloadUsageLogs = async (
   const href = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = href;
-  link.download = `usage-logs-${window.startTimestamp}-${window.endTimestamp}.${format}`;
+  link.download = `usage-logs-${params.start_timestamp}-${params.end_timestamp}.${format}`;
   document.body.appendChild(link);
   link.click();
   link.remove();

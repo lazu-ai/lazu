@@ -524,6 +524,17 @@ unknown paths continue to return their normal responses.
 
 ## Upgrade path
 
+Schema 40 requires unique model names among rows with `deleted_at IS NULL`,
+including disabled entries. Spelling and case are preserved. Before upgrading,
+check for conflicting names and resolve their intended catalog and routing
+assignments. The migration stops on a conflict and leaves both rows intact.
+
+```sql
+SELECT lower(trim(model_name)) AS name, array_agg(id ORDER BY id) AS model_ids
+FROM models WHERE deleted_at IS NULL GROUP BY 1 HAVING count(*) > 1;
+```
+
+
 Fresh databases initialize directly. Schema 16 and newer upgrade in one step.
 For schema 15 and older, including a populated installation without a version
 marker, run the **v0.7.297** migrator against both configured stores first.
