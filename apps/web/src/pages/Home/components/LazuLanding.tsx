@@ -699,8 +699,6 @@ const LazuLanding = () => {
                     className='lazu-landing__eco-card'
                     href={integrationHref(item.slug)}
                     key={item.slug}
-                    rel='noreferrer'
-                    target='_blank'
                   >
                     <div className='lazu-landing__eco-head'>
                       <b>{item.name}</b>

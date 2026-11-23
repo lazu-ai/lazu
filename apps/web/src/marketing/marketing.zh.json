@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu｜编程 Agent、多模态与自动化任务的模型账户",
-      "description": "把多平台账号收进一个开源网关：原生协议直连 Claude、GPT、Gemini、DeepSeek，同时托管最新多模态与视频模型。按量计费，直接接入 Claude Code、Codex 与任意 SDK。"
+      "title": "Lazu｜编程 Agent、多模态与自动化任务的模型账户：Claude、GPT、Gemini 一个 Key",
+      "description": "把多平台账号收进一个开源网关：原生协议直连 Claude、GPT、Gemini、DeepSeek，同时提供图像与视频模型。按量计费，直接接入 Claude Code、Codex 与任意 SDK。"
     },
     "nav": {
       "models": "模型",
@@ -40,7 +40,7 @@
       "headlineEm": "模型账户。",
       "whatBefore": "把多平台账号收进",
       "whatBold": "一个开源网关",
-      "whatAfter": "：原生协议直连前沿模型，同时托管最新多模态与视频模型。",
+      "whatAfter": "：原生协议直连前沿模型，同时提供图像与视频模型。",
       "ctaPrimary": "免费注册",
       "ctaSecondary": "看看界面",
       "free": "首充送 10%,最多 $10"

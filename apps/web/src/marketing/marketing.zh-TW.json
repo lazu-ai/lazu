@@ -16,8 +16,8 @@
   },
   "landing": {
     "meta": {
-      "title": "Lazu｜程式設計 Agent、多模態與自動化任務的模型帳戶",
-      "description": "把多平台帳號收進一個開源閘道：原生協定直連 Claude、GPT、Gemini、DeepSeek，同時託管最新多模態與影片模型。按量付費，直接接入 Claude Code、Codex 與任意 SDK。"
+      "title": "Lazu｜程式設計 Agent、多模態與自動化任務的模型帳戶：Claude、GPT、Gemini 一把 Key",
+      "description": "把多平台帳號收進一個開源閘道：原生協定直連 Claude、GPT、Gemini、DeepSeek，同時提供圖像與影片模型。按量付費，直接接入 Claude Code、Codex 與任意 SDK。"
     },
     "nav": {
       "models": "模型",
@@ -40,7 +40,7 @@
       "headlineEm": "模型帳戶。",
       "whatBefore": "把多平台帳號收進",
       "whatBold": "一個開源閘道",
-      "whatAfter": "：原生協定直連前沿模型，同時託管最新多模態與影片模型。",
+      "whatAfter": "：原生協定直連前沿模型，同時提供圖像與影片模型。",
       "ctaPrimary": "免費註冊",
       "ctaSecondary": "看看介面",
       "free": "首次儲值送 10%,最多 $10"

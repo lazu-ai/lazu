@@ -778,6 +778,18 @@ body[theme-mode='dark'] .lazu-theme-toggle .lazu-theme-toggle__sun {
   letter-spacing: -0.02em;
 }
 
+/* Instrument Serif has no CJK glyphs, so CJK display text would fall back to
+   the system Song face. Section and closing headings follow the hero into
+   the sans; Latin figures (stats, step numbers) keep the serif. */
+:lang(zh) .lazu-landing__sec-head h2,
+:lang(zh) .lazu-landing__final h2,
+:lang(ja) .lazu-landing__sec-head h2,
+:lang(ja) .lazu-landing__final h2 {
+  font-family: var(--lazu-font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
 /* CJK has no italic; the emphasis is carried by the vermilion alone. */
 :lang(zh) .lazu-landing__headline em,
 :lang(zh-TW) .lazu-landing__headline em,

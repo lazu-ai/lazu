@@ -1,8 +1,8 @@
-<!-- Lazu · Lazu｜コーディングエージェントと自動化タスクのためのモデルアカウント：Claude・GPT・Gemini を 1 つのキーで · https://lazu.ai/ja/ -->
+<!-- Lazu · Lazu｜コーディング Agent・動画生成・自動化パイプラインのためのモデルアカウント · https://lazu.ai/ja/ -->
 
-# コーディングエージェントと自動化タスクのためのモデルアカウント。
+# コーディング Agent・動画生成・自動化パイプラインのためのモデルアカウント。
 
-コードを書く、評価を回す、本番で動かす。すべて 1 つのキーで。Claude・GPT・Gemini・DeepSeek が揃っています。従量課金で、キーごとに予算と利用記録を持ちます。Claude Code・Codex・SDK からそのまま接続できます。
+複数のモデルアカウントを 1 つのオープンソースゲートウェイ に統合。最先端モデルへのネイティブ API と、画像・動画モデルをまとめて提供します。
 
 ## アカウントはひとつ、キーはエージェントごとに
 
@@ -16,5 +16,16 @@
 1. **登録してチャージ** — 登録するとチーム用アカウントができます。チャージは $10 から、初回は 10% 上乗せされます。
 2. **ゲートウェイを設定** — コンソールで利用するモデルとルートを選びます。
 3. **キーを作成して使い始める** — キーをツールに貼り付ければ使え、コンソールで利用量を確認できます。
+
+## いつものツールにそのまま接続
+
+ネイティブプロトコルと公開 /v1/models 自動取得に対応。cc-connect の公式プリセットにも組み込まれています。
+
+- [cc-connect](https://lazu.ai/docs/ja/integrations/cc-connect) (公式プリセット) — Telegram・Slack・Lark からローカル Agent を操作。プリセットから Lazu を選ぶだけで完了。
+- [Claude Code](https://lazu.ai/docs/ja/integrations/claude-code) (ネイティブ Messages) — Prompt Cache と思考ブロックを保持し、予算上限時は HTTP 402 で安全に停止します。
+- [Codex CLI](https://lazu.ai/docs/ja/integrations/codex) (ネイティブ Responses) — wire_api = "responses" に対応し、ツール呼び出しと推論強度をそのまま利用可能。
+- [OpenCode](https://lazu.ai/docs/ja/integrations/opencode) (OpenAI 互換) — api.lazu.ai/v1 を指定するだけで Claude・GPT・Gemini・DeepSeek を切り替え可能。
+- [Goose](https://lazu.ai/docs/ja/integrations/goose) (カスタム JSON) — カスタムプロバイダー JSON を配置するだけで /v1/models からモデルを自動取得。
+- [その他のクライアント・SDK](https://lazu.ai/docs/ja/integrations/overview) (公開 /v1/models) — Cursor・Cline・Cherry Studio・Chatbox など OpenAI 互換ツール全般に対応。
 
 OpenAI-compatible endpoint: https://api.lazu.ai/v1 · Docs: https://lazu.ai/docs
