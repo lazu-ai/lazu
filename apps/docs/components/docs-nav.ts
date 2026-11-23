@@ -37,6 +37,7 @@ type SidebarCopy = {
     string,
     string,
     string,
+    string,
   ];
 };
 
@@ -81,6 +82,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu vs Helicone",
       "Lazu vs Kong AI Gateway",
       "Lazu vs OpenRouter",
+      "Clients & integrations",
     ],
   },
   zh: {
@@ -115,6 +117,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu 与 Helicone",
       "Lazu 与 Kong AI Gateway",
       "Lazu 与 OpenRouter",
+      "客户端与集成",
     ],
   },
   "zh-TW": {
@@ -149,6 +152,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu 與 Helicone",
       "Lazu 與 Kong AI Gateway",
       "Lazu 與 OpenRouter",
+      "用戶端與整合",
     ],
   },
   ja: {
@@ -191,6 +195,7 @@ const sidebarCopy: Record<DocsLocale, SidebarCopy> = {
       "Lazu と Helicone",
       "Lazu と Kong AI Gateway",
       "Lazu と OpenRouter",
+      "クライアント連携",
     ],
   },
 };
@@ -208,6 +213,7 @@ function createSidebar(prefix: string, copy: SidebarCopy) {
         { link: link("/"), text: p[0] },
         { link: link("/quickstart"), text: p[1] },
         { link: link("/authentication"), text: p[2] },
+        { link: link("/integrations"), text: p[29] },
       ],
     },
     {

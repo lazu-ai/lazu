@@ -1,0 +1,110 @@
+---
+title: "クライアント・ツール連携：Claude Code、Codex、OpenCode、cc-connect、Goose"
+description: コーディングエージェントや OpenAI 互換クライアントを Lazu に接続する方法と、公開 /v1/models によるモデル自動取得の案内。
+---
+
+# クライアント・ツール連携
+
+Lazu は単一の API オリジン（`https://api.lazu.ai`）でネイティブの **Anthropic Messages**（`/v1/messages`）、**OpenAI Responses**（`/v1/responses`）、**OpenAI Chat Completions**（`/v1/chat/completions`）、**Gemini**（`/v1beta/models/{model}:generateContent`）を提供しています。[コンソール](https://lazu.ai/console/token)で作成した 1 つのキーで共通利用できます。
+
+## 組み込みプリセット
+
+### cc-connect
+
+[cc-connect](https://github.com/chenhg5/cc-connect) に **Lazu** が標準プリセットとして組み込まれており、Claude Code、Codex（`wire_api: "responses"`）、OpenCode に対応しています。
+
+```bash
+cc-connect provider presets
+```
+
+CLI または Web 管理画面（**Providers → Add from Preset**）から **Lazu** を選択し、API キーを入力してください。
+
+## コーディングエージェント
+
+### Claude Code
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.lazu.ai"
+export ANTHROPIC_AUTH_TOKEN="YOUR_LAZU_API_KEY"
+export ANTHROPIC_MODEL="claude-sonnet-5-5"
+```
+
+### Codex CLI
+
+`~/.codex/config.toml` にネイティブ Responses エンドポイントを設定します：
+
+```toml
+model_provider = "lazu"
+model = "gpt-6.2-astra"
+
+[model_providers.lazu]
+name = "Lazu"
+base_url = "https://api.lazu.ai/v1"
+env_key = "LAZU_API_KEY"
+wire_api = "responses"
+```
+
+### OpenCode
+
+```json
+{
+  "provider": {
+    "lazu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Lazu",
+      "options": {
+        "baseURL": "https://api.lazu.ai/v1",
+        "apiKey": "{env:LAZU_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-5-5": { "name": "Claude Sonnet 5.5" },
+        "gpt-6.2-astra": { "name": "GPT-6.2 Astra" },
+        "gemini-4-hydrogen": { "name": "Gemini 4 Hydrogen" },
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  }
+}
+```
+
+### Goose（カスタムプロバイダー JSON）
+
+以下を `~/.config/goose/custom_providers/lazu.json` に保存し、環境変数 `LAZU_API_KEY` を設定してください：
+
+```json
+{
+  "name": "lazu",
+  "engine": "openai",
+  "display_name": "Lazu",
+  "description": "AI gateway for Claude, GPT, Gemini, and DeepSeek models",
+  "api_key_env": "LAZU_API_KEY",
+  "base_url": "https://api.lazu.ai/v1/chat/completions",
+  "models_path": "/v1/models",
+  "models": [
+    { "name": "claude-sonnet-5-5", "context_limit": 1000000 },
+    { "name": "claude-opus-5-5", "context_limit": 1000000 },
+    { "name": "gpt-6.2-astra", "context_limit": 1050000 },
+    { "name": "gemini-4-hydrogen", "context_limit": 1048576 },
+    { "name": "deepseek-v4-pro", "context_limit": 1000000 }
+  ]
+}
+```
+
+## OpenAI 互換エディタ・チャットアプリ
+
+Cursor、Cline、Cherry Studio、Chatbox、OpenCat などの OpenAI 互換クライアントは以下を設定するだけです：
+
+- **Base URL**: `https://api.lazu.ai/v1`
+- **API Key**: [コンソール](https://lazu.ai/console/token)で発行した `sk-lazu-…`
+
+## クライアント・ツール開発者向け
+
+Lazu をクライアントやモデルカタログに統合する場合は、モデル一覧をハードコードせず**動的取得**を推奨します：
+
+| エンドポイント | 認証 | 内容 |
+| --- | --- | --- |
+| `GET https://api.lazu.ai/v1/models` | 公開（キー不要） | OpenAI 互換 `{ "object": "list", "data": [...] }`（`context_length`、`max_output_tokens`、`pricing`、`capabilities`、`modality`、`supported_endpoints` を含む） |
+| `GET https://lazu.ai/api/pricing` | 公開（キー不要） | 自動同期向けのライブカタログ・料金 JSON |
+| `GET https://api.lazu.ai/api/models/catalog` | Bearer キー | キー単位の許可・除外ルールを反映したカタログ |
+
+マルチターンのエージェントセッションでは、`x-session-id` ヘッダーを送ることでプロンプトキャッシュのヒット率を維持できます。

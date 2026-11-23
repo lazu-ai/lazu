@@ -1,0 +1,116 @@
+---
+title: "Clients & integrations: Claude Code, Codex, OpenCode, cc-connect and Goose"
+description: Connect coding agents and OpenAI-compatible clients to Lazu, use built-in presets, or auto-discover models via the public /v1/models endpoint.
+---
+
+# Clients & integrations
+
+Lazu exposes native **Anthropic Messages** (`/v1/messages`), **OpenAI Responses** (`/v1/responses`), **OpenAI Chat Completions** (`/v1/chat/completions`), and **Gemini** (`/v1beta/models/{model}:generateContent`) on one API origin (`https://api.lazu.ai`) with one key from the [console](https://lazu.ai/console/token).
+
+## Built-in presets
+
+### cc-connect
+
+[cc-connect](https://github.com/chenhg5/cc-connect) includes **Lazu** as a built-in provider preset covering Claude Code, Codex (`wire_api: "responses"`), and OpenCode.
+
+```bash
+cc-connect provider presets
+```
+
+Select **Lazu** in the CLI or Web UI (**Providers → Add from Preset**) and paste your Lazu API key.
+
+## Coding agents
+
+### Claude Code
+
+Point Claude Code at Lazu's native Anthropic Messages endpoint:
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.lazu.ai"
+export ANTHROPIC_AUTH_TOKEN="YOUR_LAZU_API_KEY"
+export ANTHROPIC_MODEL="claude-sonnet-5-5"
+```
+
+### Codex CLI
+
+Use Lazu's native OpenAI Responses endpoint (`wire_api = "responses"`) in `~/.codex/config.toml`:
+
+```toml
+model_provider = "lazu"
+model = "gpt-6.2-astra"
+
+[model_providers.lazu]
+name = "Lazu"
+base_url = "https://api.lazu.ai/v1"
+env_key = "LAZU_API_KEY"
+wire_api = "responses"
+```
+
+### OpenCode
+
+Configure Lazu as an OpenAI-compatible provider pointed at `https://api.lazu.ai/v1`:
+
+```json
+{
+  "provider": {
+    "lazu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Lazu",
+      "options": {
+        "baseURL": "https://api.lazu.ai/v1",
+        "apiKey": "{env:LAZU_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-5-5": { "name": "Claude Sonnet 5.5" },
+        "gpt-6.2-astra": { "name": "GPT-6.2 Astra" },
+        "gemini-4-hydrogen": { "name": "Gemini 4 Hydrogen" },
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  }
+}
+```
+
+### Goose (custom provider JSON)
+
+[Goose](https://block.github.io/goose/docs/getting-started/providers#custom-providers) supports provider-maintained custom provider definitions. Save the file below as `~/.config/goose/custom_providers/lazu.json` and set `LAZU_API_KEY`:
+
+```json
+{
+  "name": "lazu",
+  "engine": "openai",
+  "display_name": "Lazu",
+  "description": "AI gateway for Claude, GPT, Gemini, and DeepSeek models",
+  "api_key_env": "LAZU_API_KEY",
+  "base_url": "https://api.lazu.ai/v1/chat/completions",
+  "models_path": "/v1/models",
+  "models": [
+    { "name": "claude-sonnet-5-5", "context_limit": 1000000 },
+    { "name": "claude-opus-5-5", "context_limit": 1000000 },
+    { "name": "gpt-6.2-astra", "context_limit": 1050000 },
+    { "name": "gemini-4-hydrogen", "context_limit": 1048576 },
+    { "name": "deepseek-v4-pro", "context_limit": 1000000 }
+  ]
+}
+```
+
+## OpenAI-compatible editors & chat apps
+
+Any OpenAI-compatible client (Cursor, Cline, Cherry Studio, Chatbox, OpenCat, etc.) connects with:
+
+- **Base URL**: `https://api.lazu.ai/v1`
+- **API Key**: `sk-lazu-…` from the [console](https://lazu.ai/console/token)
+
+You can also generate ready-to-paste setup scripts and one-click import links directly from each key in the [console](https://lazu.ai/console/token).
+
+## For client & tool maintainers
+
+If you are adding Lazu to a client, agent, or model registry, prefer **live model discovery** over hardcoding model lists:
+
+| Endpoint | Auth | What it returns |
+| --- | --- | --- |
+| `GET https://api.lazu.ai/v1/models` | Public (no key required) | OpenAI-compatible `{ "object": "list", "data": [...] }` with `id`, `context_length`, `max_output_tokens`, `pricing`, `capabilities`, `modality`, and `supported_endpoints` |
+| `GET https://lazu.ai/api/pricing` | Public (no key required) | Live catalog and per-million-token USD pricing for automated catalog syncers |
+| `GET https://api.lazu.ai/api/models/catalog` | Bearer key | Key-scoped catalog reflecting per-key model allow/deny rules |
+
+For multi-turn agent sessions, send a stable `x-session-id` header so requests stay on the same upstream lane and preserve prompt caches.

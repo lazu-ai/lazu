@@ -1,0 +1,110 @@
+---
+title: "用戶端與工具整合：Claude Code、Codex、OpenCode、cc-connect 與 Goose"
+description: 將程式設計 Agent 與 OpenAI 相容用戶端接入 Lazu，使用內建預設，或透過公開的 /v1/models 自動探索模型清單。
+---
+
+# 用戶端與工具整合
+
+Lazu 在同一個 API 位址（`https://api.lazu.ai`）下同時提供原生 **Anthropic Messages**（`/v1/messages`）、**OpenAI Responses**（`/v1/responses`）、**OpenAI Chat Completions**（`/v1/chat/completions`）與 **Gemini**（`/v1beta/models/{model}:generateContent`）介面，在[控制台](https://lazu.ai/console/token)建立一把金鑰即可通用。
+
+## 已內建預設
+
+### cc-connect
+
+[cc-connect](https://github.com/chenhg5/cc-connect) 已內建 **Lazu** 預設，直接支援 Claude Code、Codex（`wire_api: "responses"`）與 OpenCode。
+
+```bash
+cc-connect provider presets
+```
+
+在命令列或 Web 管理介面（**Providers → Add from Preset**）選擇 **Lazu**，貼上你的 Lazu API Key 即可使用。
+
+## 程式設計 Agent 接入
+
+### Claude Code
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.lazu.ai"
+export ANTHROPIC_AUTH_TOKEN="YOUR_LAZU_API_KEY"
+export ANTHROPIC_MODEL="claude-sonnet-5-5"
+```
+
+### Codex CLI
+
+在 `~/.codex/config.toml` 設定 Lazu 的原生 OpenAI Responses 端點：
+
+```toml
+model_provider = "lazu"
+model = "gpt-6.2-astra"
+
+[model_providers.lazu]
+name = "Lazu"
+base_url = "https://api.lazu.ai/v1"
+env_key = "LAZU_API_KEY"
+wire_api = "responses"
+```
+
+### OpenCode
+
+```json
+{
+  "provider": {
+    "lazu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Lazu",
+      "options": {
+        "baseURL": "https://api.lazu.ai/v1",
+        "apiKey": "{env:LAZU_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-5-5": { "name": "Claude Sonnet 5.5" },
+        "gpt-6.2-astra": { "name": "GPT-6.2 Astra" },
+        "gemini-4-hydrogen": { "name": "Gemini 4 Hydrogen" },
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  }
+}
+```
+
+### Goose（自訂 Provider JSON）
+
+將下方設定儲存為 `~/.config/goose/custom_providers/lazu.json` 並設定環境變數 `LAZU_API_KEY`：
+
+```json
+{
+  "name": "lazu",
+  "engine": "openai",
+  "display_name": "Lazu",
+  "description": "AI gateway for Claude, GPT, Gemini, and DeepSeek models",
+  "api_key_env": "LAZU_API_KEY",
+  "base_url": "https://api.lazu.ai/v1/chat/completions",
+  "models_path": "/v1/models",
+  "models": [
+    { "name": "claude-sonnet-5-5", "context_limit": 1000000 },
+    { "name": "claude-opus-5-5", "context_limit": 1000000 },
+    { "name": "gpt-6.2-astra", "context_limit": 1050000 },
+    { "name": "gemini-4-hydrogen", "context_limit": 1048576 },
+    { "name": "deepseek-v4-pro", "context_limit": 1000000 }
+  ]
+}
+```
+
+## OpenAI 相容編輯器與聊天用戶端
+
+所有支援 OpenAI 相容介面的工具（Cursor、Cline、Cherry Studio、Chatbox、OpenCat 等）皆可直接填入：
+
+- **Base URL**：`https://api.lazu.ai/v1`
+- **API Key**：在[控制台](https://lazu.ai/console/token)建立的 `sk-lazu-…`
+
+## 給用戶端與開源專案維護者
+
+整合 Lazu 時建議優先**動態拉取模型清單**而非寫死模型名稱：
+
+| 端點 | 驗證 | 回傳內容 |
+| --- | --- | --- |
+| `GET https://api.lazu.ai/v1/models` | 公開（免金鑰） | 標準 OpenAI `{ "object": "list", "data": [...] }`，附帶 `context_length`、`max_output_tokens`、`pricing`、`capabilities`、`modality` 與 `supported_endpoints` |
+| `GET https://lazu.ai/api/pricing` | 公開（免金鑰） | 即時模型目錄與美元/百萬 token 價格，適合排程同步 |
+| `GET https://api.lazu.ai/api/models/catalog` | Bearer 金鑰 | 依金鑰權限篩選後的可用模型目錄 |
+
+多輪 Agent 工作階段建議帶上穩定的 `x-session-id` 標頭，維持同一上游線路並保留 prompt cache 命中率。
