@@ -11,11 +11,9 @@ test('key actions remain visible when the key details expand', async ({
     payloadFor: reviewPayload,
   });
   await expectRouteReady(page, '/console/token');
-  const row = page
-    .getByRole('row')
-    .filter({
-      has: page.getByRole('button', { name: '删除 production', exact: true }),
-    });
+  const row = page.getByRole('row').filter({
+    has: page.getByRole('button', { name: '删除 production', exact: true }),
+  });
   const table = page.getByRole('table').first();
   const before = await table.boundingBox();
   await row.getByRole('button', { name: '展开详情' }).click();
