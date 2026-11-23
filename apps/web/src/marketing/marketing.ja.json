@@ -206,6 +206,55 @@
       "ariaDoneCount": "GitHub で Lazu にスターを付けました（現在 {{stars}}）",
       "hint": "Lazu は AGPL-3.0 のオープンソースです。GitHub のウィンドウが開き、スターの権限だけを求めます。",
       "linkHint": "Lazu は AGPL-3.0 のオープンソースです。GitHub でリポジトリを開きます。"
+    },
+    "ecosystem": {
+      "eyebrow": "エコシステム・連携ツール",
+      "title": "いつものツールにそのまま接続",
+      "subtitle": "ネイティブプロトコルと公開 /v1/models 自動取得に対応。cc-connect の公式プリセットにも組み込まれています。",
+      "items": [
+        {
+          "name": "cc-connect",
+          "badge": "公式プリセット",
+          "highlight": true,
+          "body": "Telegram・Slack・Lark からローカル Agent を操作。プリセットから Lazu を選ぶだけで完了。",
+          "slug": "cc-connect"
+        },
+        {
+          "name": "Claude Code",
+          "badge": "ネイティブ Messages",
+          "highlight": false,
+          "body": "Prompt Cache と思考ブロックを保持し、予算上限時は HTTP 402 で安全に停止します。",
+          "slug": "claude-code"
+        },
+        {
+          "name": "Codex CLI",
+          "badge": "ネイティブ Responses",
+          "highlight": false,
+          "body": "wire_api = \"responses\" に対応し、ツール呼び出しと推論強度をそのまま利用可能。",
+          "slug": "codex"
+        },
+        {
+          "name": "OpenCode",
+          "badge": "OpenAI 互換",
+          "highlight": false,
+          "body": "api.lazu.ai/v1 を指定するだけで Claude・GPT・Gemini・DeepSeek を切り替え可能。",
+          "slug": "opencode"
+        },
+        {
+          "name": "Goose",
+          "badge": "カスタム JSON",
+          "highlight": false,
+          "body": "カスタムプロバイダー JSON を配置するだけで /v1/models からモデルを自動取得。",
+          "slug": "goose"
+        },
+        {
+          "name": "その他のクライアント・SDK",
+          "badge": "公開 /v1/models",
+          "highlight": false,
+          "body": "Cursor・Cline・Cherry Studio・Chatbox など OpenAI 互換ツール全般に対応。",
+          "slug": "overview"
+        }
+      ]
     }
   },
   "about": {

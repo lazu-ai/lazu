@@ -206,6 +206,55 @@
       "ariaDoneCount": "Starred Lazu on GitHub, {{stars}} stars",
       "hint": "Lazu is open source under AGPL-3.0. Opens a GitHub window that asks only to star.",
       "linkHint": "Lazu is open source under AGPL-3.0. Opens the repository on GitHub."
+    },
+    "ecosystem": {
+      "eyebrow": "Ecosystem & clients",
+      "title": "Works with the tools you already run",
+      "subtitle": "Native protocols with zero code rewrites and public /v1/models discovery — including a built-in preset in cc-connect.",
+      "items": [
+        {
+          "name": "cc-connect",
+          "badge": "Built-in preset",
+          "highlight": true,
+          "body": "Control local Claude Code, Codex, and OpenCode from Telegram, Slack, or Lark — pick Lazu directly from presets.",
+          "slug": "cc-connect"
+        },
+        {
+          "name": "Claude Code",
+          "badge": "Native Messages",
+          "highlight": false,
+          "body": "Preserves prompt caching and thinking blocks, stopping cleanly on HTTP 402 when a key's budget runs out.",
+          "slug": "claude-code"
+        },
+        {
+          "name": "Codex CLI",
+          "badge": "Native Responses",
+          "highlight": false,
+          "body": "Native wire_api = \"responses\" transport with full tool calling, reasoning effort, and cache affinity.",
+          "slug": "codex"
+        },
+        {
+          "name": "OpenCode",
+          "badge": "OpenAI-compatible",
+          "highlight": false,
+          "body": "Point at api.lazu.ai/v1 to switch between Claude, GPT, Gemini, and DeepSeek on one key.",
+          "slug": "opencode"
+        },
+        {
+          "name": "Goose",
+          "badge": "Custom JSON",
+          "highlight": false,
+          "body": "Drop in the provider-maintained custom JSON definition with automatic /v1/models discovery.",
+          "slug": "goose"
+        },
+        {
+          "name": "More clients & SDKs",
+          "badge": "Public /v1/models",
+          "highlight": false,
+          "body": "Cursor, Cline, Cherry Studio, Chatbox, and any OpenAI-compatible SDK work out of the box.",
+          "slug": "overview"
+        }
+      ]
     }
   },
   "about": {
