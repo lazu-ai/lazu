@@ -1,0 +1,19 @@
+---
+title: "Codex CLI で Lazu を使う"
+description: "OpenAI Codex CLI を Lazu のネイティブ Responses API（wire_api = responses）に接続します。"
+---
+
+# Codex CLI
+
+環境変数 `LAZU_API_KEY` を設定し、`~/.codex/config.toml` に以下を追加してください：
+
+```toml
+model_provider = "lazu"
+model = "gpt-6.2-astra"
+
+[model_providers.lazu]
+name = "Lazu"
+base_url = "https://api.lazu.ai/v1"
+env_key = "LAZU_API_KEY"
+wire_api = "responses"
+```

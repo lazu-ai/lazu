@@ -746,7 +746,10 @@
  * Silent scroll removes the scrollbar; without a cue, overflowing code on a
  * phone reads as if it simply ended. */
 (function markCodeBlocks() {
+  var rafId = 0;
   function scan() {
+    rafId = 0;
+    var updates = [];
     document.querySelectorAll(".vocs_CodeBlock").forEach(function (block) {
       var pre = block.querySelector("pre");
       if (!pre) return;
@@ -758,18 +761,26 @@
             (code.className.match(/language-([^ ]+)/) || [])[1])) ||
         (pre.className.match(/language-([^ ]+)/) || [])[1] ||
         "text";
+      var more = pre.scrollWidth - pre.clientWidth > 4 ? "true" : "false";
+      updates.push([block, language, more]);
+    });
+    for (var i = 0; i < updates.length; i++) {
+      var block = updates[i][0];
+      var language = updates[i][1];
+      var more = updates[i][2];
       if (block.getAttribute("data-language") !== language)
         block.setAttribute("data-language", language);
-      var more = pre.scrollWidth - pre.clientWidth > 4;
-      block.setAttribute("data-overflow", more ? "true" : "false");
-    });
+      if (block.getAttribute("data-overflow") !== more)
+        block.setAttribute("data-overflow", more);
+    }
   }
   function schedule() {
-    window.requestAnimationFrame(scan);
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(scan);
   }
   if (document.readyState === "complete") schedule();
   else window.addEventListener("load", schedule, { once: true });
-  window.addEventListener("resize", schedule);
+  window.addEventListener("resize", schedule, { passive: true });
   new MutationObserver(schedule).observe(document.body, {
     childList: true,
     subtree: true,

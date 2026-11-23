@@ -1,0 +1,31 @@
+---
+title: "Clients & integrations overview"
+description: "Connect Claude Code, Codex CLI, OpenCode, cc-connect, Goose, and any OpenAI-compatible client to Lazu with native protocols and live /v1/models discovery."
+---
+
+# Clients & integrations
+
+Lazu serves native **Anthropic Messages** (`/v1/messages`), **OpenAI Responses** (`/v1/responses`), **OpenAI Chat Completions** (`/v1/chat/completions`), and **Gemini** (`/v1beta/models/{model}:generateContent`) on `https://api.lazu.ai` with one key from the [console](https://lazu.ai/console/token).
+
+## Supported tools
+
+| Tool | Integration type | Endpoint & protocol | Guide |
+| --- | --- | --- | --- |
+| **cc-connect** | Built-in preset | `cc-connect provider presets` → Lazu | [cc-connect](/integrations/cc-connect) |
+| **Claude Code** | Native Anthropic Messages | `https://api.lazu.ai` (`/v1/messages`) | [Claude Code](/integrations/claude-code) |
+| **Codex CLI** | Native OpenAI Responses | `https://api.lazu.ai/v1` (`wire_api = "responses"`) | [Codex CLI](/integrations/codex) |
+| **OpenCode** | OpenAI-compatible | `https://api.lazu.ai/v1` | [OpenCode](/integrations/opencode) |
+| **Goose** | Custom provider JSON | `https://api.lazu.ai/v1/chat/completions` | [Goose](/integrations/goose) |
+| **Cursor, Cline, Cherry Studio, Chatbox** | OpenAI-compatible | `https://api.lazu.ai/v1` + live `/v1/models` | Set Base URL and API key |
+
+## For client & tool maintainers
+
+Prefer **live model discovery** over hardcoding model lists:
+
+| Endpoint | Auth | What it returns |
+| --- | --- | --- |
+| `GET https://api.lazu.ai/v1/models` | Public (no key required) | OpenAI-compatible `{ "object": "list", "data": [...] }` with `context_length`, `max_output_tokens`, `pricing`, `capabilities`, `modality`, and `supported_endpoints` |
+| `GET https://lazu.ai/api/pricing` | Public (no key required) | Live catalog and per-million-token USD pricing for automated syncers |
+| `GET https://api.lazu.ai/api/models/catalog` | Bearer key | Key-scoped catalog reflecting per-key model allow/deny rules |
+
+For multi-turn agent sessions, send a stable `x-session-id` header to keep requests on the same upstream lane and preserve prompt caches.

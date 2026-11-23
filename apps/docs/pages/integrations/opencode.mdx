@@ -1,0 +1,32 @@
+---
+title: "Use Lazu with OpenCode"
+description: "Add Lazu as an OpenAI-compatible provider in OpenCode for Claude, GPT, Gemini, and DeepSeek models."
+---
+
+# OpenCode
+
+Add Lazu to your `opencode.json` (project root or `~/.config/opencode/opencode.json`) and set `LAZU_API_KEY`:
+
+```json
+{
+  "provider": {
+    "lazu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Lazu",
+      "options": {
+        "baseURL": "https://api.lazu.ai/v1",
+        "apiKey": "{env:LAZU_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-5-5": { "name": "Claude Sonnet 5.5" },
+        "claude-opus-5-5": { "name": "Claude Opus 5.5" },
+        "gpt-6.2-astra": { "name": "GPT-6.2 Astra" },
+        "gemini-4-hydrogen": { "name": "Gemini 4 Hydrogen" },
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  }
+}
+```
+
+Then run `opencode` and choose a `lazu/*` model via `/models`.

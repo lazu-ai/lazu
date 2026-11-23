@@ -1,0 +1,21 @@
+---
+title: "在 cc-connect 中使用 Lazu（官方內建預設）"
+description: "透過 cc-connect 官方內建的 Lazu 預設，在飛書、Telegram、Slack 或 Discord 遠端操作本地 Claude Code、Codex 與 OpenCode。"
+---
+
+# cc-connect
+
+[cc-connect](https://github.com/chenhg5/cc-connect) 已內建 **Lazu** 預設，免手動設定 Base URL 與協定參數。
+
+```bash
+npm install -g cc-connect
+cc-connect provider presets
+```
+
+或在 Web 管理介面（`cc-connect web`）進入 **Providers → Add from Preset** 選擇 **Lazu**，填入[控制台](https://lazu.ai/console/token)建立的金鑰即可。
+
+| Agent | Base URL | 預設模型 | 協定 |
+| --- | --- | --- | --- |
+| `claudecode` | `https://api.lazu.ai` | `claude-sonnet-5-5` | 原生 Anthropic Messages |
+| `codex` | `https://api.lazu.ai/v1` | `gpt-6.2-astra` | 原生 OpenAI Responses（`wire_api: "responses"`） |
+| `opencode` | `https://api.lazu.ai/v1` | `claude-sonnet-5-5` | OpenAI 相容 |

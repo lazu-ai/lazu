@@ -1,0 +1,31 @@
+---
+title: "客户端与工具接入总览"
+description: "将 Claude Code、Codex CLI、OpenCode、cc-connect、Goose 及任意 OpenAI 兼容客户端接入 Lazu，支持原生协议与免 Key /v1/models 自动发现。"
+---
+
+# 客户端与工具接入
+
+Lazu 在同一个 API 地址（`https://api.lazu.ai`）下同时提供原生 **Anthropic Messages**（`/v1/messages`）、**OpenAI Responses**（`/v1/responses`）、**OpenAI Chat Completions**（`/v1/chat/completions`）和 **Gemini**（`/v1beta/models/{model}:generateContent`）接口，在[控制台](https://lazu.ai/console/token)创建一把 Key 即可通用。
+
+## 支持的工具与接入方式
+
+| 工具 | 接入方式 | 地址与协议 | 详细指南 |
+| --- | --- | --- | --- |
+| **cc-connect** | 官方内置预设 | `cc-connect provider presets` → 选择 Lazu | [cc-connect](/zh/integrations/cc-connect) |
+| **Claude Code** | 原生 Anthropic Messages | `https://api.lazu.ai`（`/v1/messages`） | [Claude Code](/zh/integrations/claude-code) |
+| **Codex CLI** | 原生 OpenAI Responses | `https://api.lazu.ai/v1`（`wire_api = "responses"`） | [Codex CLI](/zh/integrations/codex) |
+| **OpenCode** | OpenAI 兼容协议 | `https://api.lazu.ai/v1` | [OpenCode](/zh/integrations/opencode) |
+| **Goose** | 自定义 Provider JSON | `https://api.lazu.ai/v1/chat/completions` | [Goose](/zh/integrations/goose) |
+| **Cursor、Cline、Cherry Studio、Chatbox** | OpenAI 兼容协议 | `https://api.lazu.ai/v1` + 自动拉取 `/v1/models` | 直接填写 Base URL 与 Key |
+
+## 给客户端与开源项目维护者
+
+如果你正在把 Lazu 集成到客户端、Agent 或模型目录里，建议优先**动态拉取模型列表**而不是写死模型名：
+
+| 接口 | 鉴权 | 返回内容 |
+| --- | --- | --- |
+| `GET https://api.lazu.ai/v1/models` | 公开（免 Key） | 标准 OpenAI `{ "object": "list", "data": [...] }`，附带 `context_length`、`max_output_tokens`、`pricing`、`capabilities`、`modality` 和 `supported_endpoints` |
+| `GET https://lazu.ai/api/pricing` | 公开（免 Key） | 实时模型目录与美元/百万 token 价格，适合定时同步脚本 |
+| `GET https://api.lazu.ai/api/models/catalog` | Bearer Key | 按该 Key 权限过滤后的可用模型目录 |
+
+多轮 Agent 会话建议带上稳定的 `x-session-id` 请求头，让同一会话持续命中同一上游线路并保持 prompt cache 命中率。

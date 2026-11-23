@@ -1,0 +1,27 @@
+---
+title: "Goose で Lazu を使う（カスタムプロバイダー JSON）"
+description: "カスタムプロバイダー JSON を使って Lazu を Goose に追加します。"
+---
+
+# Goose
+
+以下を `~/.config/goose/custom_providers/lazu.json` に保存し、`LAZU_API_KEY` を設定して `goose configure` を実行してください：
+
+```json
+{
+  "name": "lazu",
+  "engine": "openai",
+  "display_name": "Lazu",
+  "description": "AI gateway for Claude, GPT, Gemini, and DeepSeek models",
+  "api_key_env": "LAZU_API_KEY",
+  "base_url": "https://api.lazu.ai/v1/chat/completions",
+  "models_path": "/v1/models",
+  "models": [
+    { "name": "claude-sonnet-5-5", "context_limit": 1000000 },
+    { "name": "claude-opus-5-5", "context_limit": 1000000 },
+    { "name": "gpt-6.2-astra", "context_limit": 1050000 },
+    { "name": "gemini-4-hydrogen", "context_limit": 1048576 },
+    { "name": "deepseek-v4-pro", "context_limit": 1000000 }
+  ]
+}
+```

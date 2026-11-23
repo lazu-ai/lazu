@@ -1,0 +1,35 @@
+---
+title: "Use Lazu with Codex CLI"
+description: "Configure OpenAI Codex CLI to use Lazu's native Responses API (wire_api = responses) with GPT-6.2 models."
+---
+
+# Codex CLI
+
+Lazu natively supports OpenAI's `/v1/responses` endpoint (`wire_api = "responses"`), so Codex CLI keeps full tool-calling, reasoning effort, and prompt-cache behavior.
+
+## 1. Set your API key
+
+```bash
+export LAZU_API_KEY="YOUR_LAZU_API_KEY"
+```
+
+## 2. Add Lazu to `~/.codex/config.toml`
+
+```toml
+model_provider = "lazu"
+model = "gpt-6.2-astra"
+
+[model_providers.lazu]
+name = "Lazu"
+base_url = "https://api.lazu.ai/v1"
+env_key = "LAZU_API_KEY"
+wire_api = "responses"
+```
+
+## Recommended models
+
+- `gpt-6.2-astra` — flagship coding and reasoning model (1.05M context)
+- `gpt-6.2-sol` — fast coding model (1.05M context)
+- `gpt-6.1-terra` — balanced general coding model (1.05M context)
+
+Always keep `wire_api = "responses"` rather than `chat_completions` so Codex uses the native Responses transport.

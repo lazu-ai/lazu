@@ -1,0 +1,29 @@
+---
+title: "OpenCode で Lazu を使う"
+description: "OpenCode に Lazu を OpenAI 互換プロバイダーとして設定します。"
+---
+
+# OpenCode
+
+`opencode.json` に以下を追加し、`LAZU_API_KEY` を設定してください：
+
+```json
+{
+  "provider": {
+    "lazu": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Lazu",
+      "options": {
+        "baseURL": "https://api.lazu.ai/v1",
+        "apiKey": "{env:LAZU_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-5-5": { "name": "Claude Sonnet 5.5" },
+        "gpt-6.2-astra": { "name": "GPT-6.2 Astra" },
+        "gemini-4-hydrogen": { "name": "Gemini 4 Hydrogen" },
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  }
+}
+```

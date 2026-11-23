@@ -1,0 +1,35 @@
+---
+title: "在 Claude Code 中使用 Lazu"
+description: "将 Claude Code 接入 Lazu 原生 Anthropic Messages 接口，支持 Prompt Cache、按 Key 控预算与会话级账单明细。"
+---
+
+# Claude Code
+
+Lazu 原生支持 Anthropic `/v1/messages` 协议，保留 Prompt Cache 与思考块，并在余额或预算触顶时返回标准 `402` 立即停机，避免客户端空转重试。
+
+## 1. 创建 Key
+
+在[控制台](https://lazu.ai/console/token)创建一把 API Key（可单独设置美元预算上限，也可以直接点 Key 旁边的接入按钮一键复制脚本）。
+
+## 2. 配置环境变量
+
+注意：`ANTHROPIC_BASE_URL` **不要**加 `/v1`，Claude Code 会自动拼接 `/v1/messages`：
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.lazu.ai"
+export ANTHROPIC_AUTH_TOKEN="YOUR_LAZU_API_KEY"
+export ANTHROPIC_MODEL="claude-sonnet-5-5"
+```
+
+可选配置 `/model` 切换槽位：
+
+```bash
+export ANTHROPIC_DEFAULT_OPUS_MODEL="claude-opus-5-5"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="claude-sonnet-5-5"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="claude-haiku-5-5"
+```
+
+## 3. 验证与排查
+
+- 启动 `claude` 后输入 `/status`，确认当前模型和地址生效；随后可在[用量页](https://lazu.ai/console/usage)查看单次调用的缓存命中与费用。
+- 若遇到 `404`，检查 `ANTHROPIC_BASE_URL` 末尾是否多写了 `/v1`。

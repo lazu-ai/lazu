@@ -1,0 +1,21 @@
+---
+title: "cc-connect で Lazu を使う（標準プリセット）"
+description: "cc-connect の標準プリセットから Lazu を選択し、Claude Code・Codex・OpenCode を Telegram や Slack から操作します。"
+---
+
+# cc-connect
+
+[cc-connect](https://github.com/chenhg5/cc-connect) に **Lazu** が標準プリセットとして組み込まれています。
+
+```bash
+npm install -g cc-connect
+cc-connect provider presets
+```
+
+Web 管理画面（`cc-connect web`）の **Providers → Add from Preset** から **Lazu** を選択し、[コンソール](https://lazu.ai/console/token)で作成した API キーを入力してください。
+
+| Agent | Base URL | デフォルトモデル | プロトコル |
+| --- | --- | --- | --- |
+| `claudecode` | `https://api.lazu.ai` | `claude-sonnet-5-5` | ネイティブ Anthropic Messages |
+| `codex` | `https://api.lazu.ai/v1` | `gpt-6.2-astra` | ネイティブ OpenAI Responses (`wire_api: "responses"`) |
+| `opencode` | `https://api.lazu.ai/v1` | `claude-sonnet-5-5` | OpenAI 互換 |
