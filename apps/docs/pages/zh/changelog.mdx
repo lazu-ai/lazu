@@ -12,6 +12,7 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 - 删除无实际功能的 `POST /api/user/reset`；密码重置继续使用 `/api/user/reset/v2`。
 - 删除 `/api/log/token`、`/api/user/used-models`、`/api/user/models/classified`、`/api/user/self/stripe/pay` 和 `/api/user/stripe/amount`。请使用 `/api/log/self`、模型目录和 `/api/user/stripe/pay`。
 - 删除从未实现的 `/v1/fine-tunes*`、`/v1/images/variations` 和 `DELETE /v1/models/:model`。以上删除取代此前公告的退役日期，不保留兼容重定向。
+- 提前删除管理接口 `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*` 和 `/api/workers/*`（原定 2026-12-01 之后删除）。请改用逐个渠道操作和公告（发布公告时可同时发邮件）。`config.yaml` 里的定时上传和数据库备份照常运行。`GET /api/data/` 和它读取的 `usage_data` 表保留到 2027-02-01。
 
 ## 2026-11-02 — 用量与日志改版，移除月度报告
 

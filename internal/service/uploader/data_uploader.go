@@ -17,7 +17,6 @@ import (
 
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/storage"
-	"github.com/lazu-ai/lazu/internal/types"
 
 	"github.com/robfig/cron/v3"
 )
@@ -74,9 +73,8 @@ func dateBucketFromFilename(base string) string {
 var cr *cron.Cron
 var uploadRunning int32 // 0 idle, 1 running
 
-func tryStartUpload() bool  { return atomic.CompareAndSwapInt32(&uploadRunning, 0, 1) }
-func endUpload()            { atomic.StoreInt32(&uploadRunning, 0) }
-func IsUploadRunning() bool { return atomic.LoadInt32(&uploadRunning) == 1 }
+func tryStartUpload() bool { return atomic.CompareAndSwapInt32(&uploadRunning, 0, 1) }
+func endUpload()           { atomic.StoreInt32(&uploadRunning, 0) }
 
 // UploadOptions 上传选项
 type UploadOptions struct {
@@ -425,132 +423,6 @@ type PendingFile struct {
 	SkipReason    string `json:"skip_reason"` // 跳过原因
 }
 
-// ListPendingFiles 列出 data 目录下所有可上传的文件
-func ListPendingFiles() ([]PendingFile, error) {
-	cfg := common.AppConfig
-	dataDir := common.GetDataDir()
-	if dataDir == "" {
-		dataDir = "./data"
-	}
-
-	// 转换为绝对路径以避免路径比较问题
-	absDataDir, err := filepath.Abs(dataDir)
-	if err != nil {
-		common.SysError(fmt.Sprintf("ListPendingFiles: failed to get absolute path for %s: %v", dataDir, err))
-		absDataDir = dataDir
-	}
-
-	common.SysLog(fmt.Sprintf("ListPendingFiles: scanning directory %s (abs: %s)", dataDir, absDataDir))
-
-	// Check if directory exists
-	if _, err := os.Stat(absDataDir); os.IsNotExist(err) {
-		common.SysLog(fmt.Sprintf("ListPendingFiles: data directory does not exist: %s", absDataDir))
-		return []PendingFile{}, nil
-	}
-
-	files := make([]PendingFile, 0) // 使用 make 确保返回 [] 而不是 null
-
-	// Precompute relative prefixes using absolute paths
-	exportDir, _ := filepath.Abs(common.GetExportDir())
-	logsDir, _ := filepath.Abs(common.GetLogsDir())
-
-	exportRel, _ := filepath.Rel(absDataDir, exportDir)
-	exportRel = filepath.ToSlash(exportRel)
-	if exportRel != "" && !strings.HasSuffix(exportRel, "/") {
-		exportRel += "/"
-	}
-
-	logsRel, _ := filepath.Rel(absDataDir, logsDir)
-	logsRel = filepath.ToSlash(logsRel)
-	if logsRel != "" && !strings.HasSuffix(logsRel, "/") {
-		logsRel += "/"
-	}
-
-	common.SysLog(fmt.Sprintf("ListPendingFiles: dataDir=%s exportDir=%s logsDir=%s exportRel=%s logsRel=%s",
-		absDataDir, exportDir, logsDir, exportRel, logsRel))
-
-	fileCount := 0
-	walkErr := filepath.Walk(absDataDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			common.SysLog(fmt.Sprintf("ListPendingFiles: walk error at %s: %v", path, err))
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-		fileCount++
-		rel, err := filepath.Rel(absDataDir, path)
-		if err != nil {
-			return nil
-		}
-		relSlashed := filepath.ToSlash(rel)
-		if relSlashed == ".lazu-owned-v1" {
-			return nil
-		}
-
-		// Skip config files (never show these)
-		if strings.HasPrefix(relSlashed, "config/") {
-			return nil
-		}
-
-		localSize := info.Size()
-		pf := PendingFile{
-			Key:       relSlashed,
-			LocalPath: path,
-			SizeBytes: localSize,
-			SizeHuman: humanSize(localSize),
-			ModTime:   info.ModTime().Format("2006-01-02 15:04:05"),
-			IsJSONL:   strings.HasSuffix(strings.ToLower(path), ".jsonl"),
-			Category:  "other",
-			Status:    "pending",
-		}
-
-		// Determine category
-		if exportRel != "" && strings.HasPrefix(relSlashed, exportRel) {
-			pf.Category = "export"
-		}
-		if logsRel != "" && strings.HasPrefix(relSlashed, logsRel) {
-			pf.Category = "logs"
-		}
-
-		// Check skip reasons (for display purposes, actual upload still skips these by default)
-		if time.Since(info.ModTime()) < 10*time.Minute {
-			pf.Status = "skipped"
-			pf.SkipReason = "正在写入 (修改时间 < 10分钟)"
-		} else if pf.Category == "export" && pf.IsJSONL && containsToday(rel) && isCurrentRotatingDailyFile(path, time.Now()) {
-			pf.Status = "skipped"
-			pf.SkipReason = "当前写入分片"
-		} else if pf.Category == "logs" && isTodayLogFilename(filepath.Base(relSlashed)) {
-			pf.Status = "skipped"
-			pf.SkipReason = "今天的日志"
-		} else {
-			// Check if the object already exists and compare sizes.
-			if cfg.Upload.PublicBaseURL != "" {
-				if exists, remoteSize := headPublicWithSize(cfg.Upload.PublicBaseURL, relSlashed); exists {
-					pf.RemoteSizeStr = humanSize(remoteSize)
-					if localSize > remoteSize {
-						pf.Status = "needs_update"
-						pf.SkipReason = fmt.Sprintf("本地文件更大 (%s > %s)", humanSize(localSize), humanSize(remoteSize))
-					} else {
-						pf.Status = "uploaded"
-						pf.SkipReason = "已上传到对象存储"
-					}
-				}
-			}
-		}
-
-		files = append(files, pf)
-		return nil
-	})
-
-	common.SysLog(fmt.Sprintf("ListPendingFiles: walked %d files, returning %d files", fileCount, len(files)))
-
-	if walkErr != nil {
-		return nil, walkErr
-	}
-	return files, nil
-}
-
 func isTodayLogFilename(base string) bool {
 	// expect: lazu-YYYYMMDDHHMMSS.log or similar
 	if !strings.HasPrefix(base, "lazu-") || !strings.HasSuffix(base, ".log") {
@@ -642,77 +514,6 @@ func humanSize(b int64) string {
 type SingleFileResult struct {
 	Key       string
 	SizeHuman string
-}
-
-// UploadSingleFile uploads one file to object storage.
-func UploadSingleFile(key string) (*SingleFileResult, error) {
-	cfg := common.AppConfig
-	dataDir := common.GetDataDir()
-	if dataDir == "" {
-		dataDir = "./data"
-	}
-
-	// 转换为绝对路径
-	absDataDir, err := filepath.Abs(dataDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %v", err)
-	}
-
-	// 构建完整文件路径
-	localPath := filepath.Join(absDataDir, filepath.FromSlash(key))
-
-	// 检查文件是否存在
-	info, err := os.Stat(localPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, types.Err(types.ErrorCodeUploadFileNotFound, types.D{"field": "key", "key": key})
-		}
-		return nil, fmt.Errorf("stat data file %s: %w", key, err)
-	}
-
-	if info.IsDir() {
-		return nil, types.Err(types.ErrorCodeUploadKeyNotAllowed, types.D{"field": "key", "key": key, "reason": "it is a directory"})
-	}
-
-	// 安全检查：不允许上传 config 目录下的文件
-	if strings.HasPrefix(key, "config/") {
-		return nil, types.Err(types.ErrorCodeUploadKeyNotAllowed, types.D{"field": "key", "key": key, "reason": "configuration files are never uploaded"})
-	}
-
-	// 创建存储客户端
-	client, err := newStorageClient(cfg.Upload.S3)
-	if err != nil {
-		return nil, types.WrapErr(fmt.Errorf("create storage client: %w", err), types.ErrorCodeStorageNotConfigured)
-	}
-
-	// 上传文件
-	common.SysLog(fmt.Sprintf("uploading single file: %s (%s)", key, humanSize(info.Size())))
-	if err := client.PutFromFile(context.Background(), key, localPath); err != nil {
-		return nil, types.WrapErr(fmt.Errorf("upload %s: %w", key, err), types.ErrorCodeUploadFailed, types.D{"key": key})
-	}
-
-	// 验证上传
-	verified := false
-	if cfg.Upload.VerifyViaPublic && cfg.Upload.PublicBaseURL != "" {
-		if ok, _ := headPublic(cfg.Upload.PublicBaseURL, key); ok {
-			verified = true
-		}
-	}
-	if !verified {
-		if meta, err := client.Head(context.Background(), key); err == nil && meta.Exists {
-			verified = true
-		}
-	}
-	if !verified {
-		return nil, types.WrapErr(fmt.Errorf("uploaded object %s could not be verified", key), types.ErrorCodeUploadFailed, types.D{"key": key})
-	}
-
-	common.SysLog(fmt.Sprintf("single file uploaded successfully: %s (%s)", key, humanSize(info.Size())))
-
-	return &SingleFileResult{
-		Key:       key,
-		SizeHuman: humanSize(info.Size()),
-	}, nil
 }
 
 // SendScheduledUploadEmail suppresses healthy cron success emails only when
