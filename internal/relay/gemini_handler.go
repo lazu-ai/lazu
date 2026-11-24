@@ -10,7 +10,6 @@ import (
 	"github.com/lazu-ai/lazu/internal/common"
 	"github.com/lazu-ai/lazu/internal/dto"
 	"github.com/lazu-ai/lazu/internal/logger"
-	"github.com/lazu-ai/lazu/internal/relay/channel"
 	relaycommon "github.com/lazu-ai/lazu/internal/relay/common"
 	"github.com/lazu-ai/lazu/internal/relay/helper"
 	"github.com/lazu-ai/lazu/internal/relay/wirepatch"
@@ -28,13 +27,8 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected *dto.GeminiChatRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	request, err := DeepCopy(geminiReq)
-	if err != nil {
-		return types.NewError(fmt.Errorf("failed to copy request to GeminiChatRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
-	}
-
 	// model mapped 模型映射
-	err = helper.ModelMappedHelper(c, info, request)
+	err := helper.ModelMappedHelper(c, info, geminiReq)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
 	}
@@ -46,29 +40,33 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 
 	adaptor.Init(info)
 	bridged := planBridges(info)
-	var geminiConverter channel.GeminiRequestConverter
-	if !bridged {
-		if geminiConverter, lazuErr = requireGeminiRequestConverter(adaptor, info); lazuErr != nil {
-			return lazuErr
-		}
-	}
-
-	// Clean up empty system instruction
-	if request.SystemInstructions != nil {
-		hasContent := false
-		for _, part := range request.SystemInstructions.Parts {
-			if part.Text != "" {
-				hasContent = true
-				break
-			}
-		}
-		if !hasContent {
-			request.SystemInstructions = nil
-		}
-	}
+	nativeConverter, nativeConvertible := adaptor.(interface {
+		ConvertNativeGeminiRequest([]byte, *relaycommon.RelayInfo) ([]byte, error)
+	})
 
 	var requestBody io.Reader
-	if bridged {
+	if nativeConvertible && !bridged {
+		bodyTimer := common.StartHotPathStage(common.HotPathStageOutboundBody)
+		body := info.NativeBodyCache
+		if body == nil || info.NativeBodyChannelID != info.ChannelId {
+			body, err = common.GetRequestBody(c)
+			if err != nil {
+				bodyTimer.Finish(err)
+				return types.NewRequestBodyError(err)
+			}
+			body, err = nativeConverter.ConvertNativeGeminiRequest(body, info)
+			if err == nil {
+				info.NativeBodyCache = body
+				info.NativeBodyChannelID = info.ChannelId
+			}
+		}
+		bodyTimer.Finish(err)
+		if err != nil {
+			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+		}
+		logger.LogDebug(c, "Gemini request body: "+string(body))
+		requestBody = bytes.NewReader(body)
+	} else if bridged {
 		// hub: the IR encoded for the upstream the plan chose
 		body, _, bridgeErr := BridgeBody(c, info, adaptor)
 		if bridgeErr != nil {
@@ -76,6 +74,27 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 		}
 		requestBody = bytes.NewReader(body)
 	} else {
+		request, err := DeepCopy(geminiReq)
+		if err != nil {
+			return types.NewError(fmt.Errorf("failed to copy request to GeminiChatRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
+		}
+		geminiConverter, lazuErr := requireGeminiRequestConverter(adaptor, info)
+		if lazuErr != nil {
+			return lazuErr
+		}
+		// Clean up empty system instruction
+		if request.SystemInstructions != nil {
+			hasContent := false
+			for _, part := range request.SystemInstructions.Parts {
+				if part.Text != "" {
+					hasContent = true
+					break
+				}
+			}
+			if !hasContent {
+				request.SystemInstructions = nil
+			}
+		}
 		// 使用 ConvertGeminiRequest 转换请求格式
 		convertedRequest, err := geminiConverter.ConvertGeminiRequest(c, info, request)
 		if err != nil {
@@ -92,6 +111,11 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (lazuErr *types.L
 			if err != nil {
 				return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 			}
+		}
+
+		jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings)
+		if err != nil {
+			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 
 		// apply param override

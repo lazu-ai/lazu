@@ -30,6 +30,26 @@ var knownGeneration = map[string]struct{}{
 	"response_mime_type": {}, "response_schema": {}, "response_json_schema": {}, "thinking_config": {}, "response_logprobs": {},
 }
 
+// knownContent and knownPart are the content/part fields the IR inspects.
+// Unmodeled fields (such as videoMetadata, part-level mediaResolution,
+// mediaProcessing, partMetadata) are recorded in UnknownFields so native
+// Gemini channels pass them through verbatim while cross-protocol bridges
+// refuse rather than silently dropping them.
+var knownContent = map[string]struct{}{
+	"role": {}, "parts": {},
+}
+
+var knownPart = map[string]struct{}{
+	"text": {}, "thought": {},
+	"thoughtSignature": {}, "thought_signature": {},
+	"inlineData": {}, "inline_data": {},
+	"functionCall": {}, "function_call": {},
+	"functionResponse": {}, "function_response": {},
+	"fileData": {}, "file_data": {},
+	"executableCode": {}, "executable_code": {},
+	"codeExecutionResult": {}, "code_execution_result": {},
+}
+
 // Decode is a generateContent request (a Gemini client's body) as the IR,
 // beside the wire DTO a native relay sends. The model and whether it
 // streams are in the URL, not the body: the caller gives the model and sets
@@ -66,7 +86,7 @@ func Decode(body []byte, model string) (*textgen.Request, *dto.GeminiChatRequest
 			request.Instructions = append(request.Instructions, textgen.Instruction{Role: "system", Text: strings.Join(texts, "\n")})
 		}
 	}
-	if err := decodeContents(wire.Contents, request); err != nil {
+	if err := decodeContents(raw["contents"], wire.Contents, request); err != nil {
 		return nil, nil, err
 	}
 	decodeTools(&wire, request)
@@ -89,7 +109,9 @@ func unknown(request *textgen.Request, path string, value any) {
 // decodeContents is the turns as IR items. A function response answers the
 // earliest open call of its name (Gemini pairs them by name, Chat by id); a
 // call without an id gets one no other call has.
-func decodeContents(contents []dto.GeminiChatContent, request *textgen.Request) error {
+func decodeContents(rawContents json.RawMessage, contents []dto.GeminiChatContent, request *textgen.Request) error {
+	var rawList []map[string]json.RawMessage
+	_ = json.Unmarshal(rawContents, &rawList)
 	used := map[string]bool{}
 	for _, content := range contents {
 		for _, part := range content.Parts {
@@ -105,6 +127,15 @@ func decodeContents(contents []dto.GeminiChatContent, request *textgen.Request) 
 	type pending struct{ id, name string }
 	var open []pending
 	for index, content := range contents {
+		var rawParts []map[string]json.RawMessage
+		if index < len(rawList) {
+			for key, value := range rawList[index] {
+				if _, known := knownContent[key]; !known && !bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+					request.Raw.UnknownFields[fmt.Sprintf("contents[%d].%s", index, key)] = append(json.RawMessage(nil), value...)
+				}
+			}
+			_ = json.Unmarshal(rawList[index]["parts"], &rawParts)
+		}
 		role := "user"
 		if content.Role == "model" {
 			role = "assistant"
@@ -119,6 +150,13 @@ func decodeContents(contents []dto.GeminiChatContent, request *textgen.Request) 
 		prompt := false
 		for partIndex, part := range content.Parts {
 			path := fmt.Sprintf("contents[%d].parts[%d]", index, partIndex)
+			if partIndex < len(rawParts) {
+				for key, value := range rawParts[partIndex] {
+					if _, known := knownPart[key]; !known && !bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+						request.Raw.UnknownFields[path+"."+key] = append(json.RawMessage(nil), value...)
+					}
+				}
+			}
 			switch {
 			case part.FunctionCall != nil:
 				flush()
