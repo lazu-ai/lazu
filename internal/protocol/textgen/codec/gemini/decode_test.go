@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/lazu-ai/lazu/internal/protocol/textgen"
@@ -161,5 +162,72 @@ func TestDecodeGeminiCLIToolTurn(t *testing.T) {
 	}
 	if budget := request.Reasoning.Budget; !budget.Set || budget.Value != 8192 {
 		t.Fatalf("reasoning: %+v", request.Reasoning)
+	}
+}
+
+func TestDecodeRecordsUnknownPartAndContentFields(t *testing.T) {
+	body := `{"contents":[{
+		"role":"user",
+		"contentVendor":"extra",
+		"parts":[
+			{
+				"inlineData":{"mimeType":"video/mp4","data":"AAAA"},
+				"videoMetadata":{"fps":10,"startOffset":"2s","endOffset":"4s"},
+				"mediaResolution":{"level":"media_resolution_high"},
+				"partMetadata":{"source":"clip-1"},
+				"ignoredNull":null
+			},
+			{"text":"summarize"}
+		]
+	}]}`
+
+	request, _, err := Decode([]byte(body), "gemini-4-carbon")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, path := range []string{
+		"contents[0].contentVendor",
+		"contents[0].parts[0].videoMetadata",
+		"contents[0].parts[0].mediaResolution",
+		"contents[0].parts[0].partMetadata",
+	} {
+		if _, ok := request.Raw.UnknownFields[path]; !ok {
+			t.Fatalf("%s must be recorded as unknown (native-only): %v", path, request.Raw.UnknownFields)
+		}
+	}
+	if _, ok := request.Raw.UnknownFields["contents[0].parts[0].ignoredNull"]; ok {
+		t.Fatalf("explicit null field must not be recorded as unknown: %v", request.Raw.UnknownFields)
+	}
+
+	client := textgen.Protocol{Family: textgen.ProtocolGemini, Dialect: "gemini"}
+	var nativeFeatures textgen.FeatureSet
+	nativeFeatures.Add(textgen.FeatureInputText)
+	nativeFeatures.Add(textgen.FeatureEndpointGemini)
+	nativeSnapshot := textgen.CapabilitySnapshot{
+		Dialect:  "gemini",
+		Revision: "test-rev",
+		Features: nativeFeatures,
+	}
+	plan, err := textgen.PlanAttempt(client, nativeSnapshot, request, 47, "gemini-4-carbon")
+	if err != nil {
+		t.Fatalf("native Gemini plan must succeed: %v", err)
+	}
+	if !plan.Native {
+		t.Fatalf("expected native Gemini plan, got %+v", plan)
+	}
+
+	var bridgeFeatures textgen.FeatureSet
+	bridgeFeatures.Add(textgen.FeatureInputText)
+	bridgeFeatures.Add(textgen.FeatureEndpointChat)
+	bridgeSnapshot := textgen.CapabilitySnapshot{
+		Dialect:  "openai",
+		Revision: "test-rev",
+		Features: bridgeFeatures,
+	}
+	_, err = textgen.PlanAttempt(client, bridgeSnapshot, request, 99, "gpt-5")
+	var unsupported *textgen.UnsupportedFeatureError
+	if !errors.As(err, &unsupported) || unsupported.Path == "" {
+		t.Fatalf("cross-protocol bridge must refuse with field path, got %v", err)
 	}
 }
