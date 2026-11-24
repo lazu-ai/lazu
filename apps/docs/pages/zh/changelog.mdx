@@ -5,20 +5,35 @@ description: "Lazu API、模型目录和文档的更新记录，按时间倒序�
 
 # 更新日志
 
-## 尚未发布 — 旧接口与配置清理
+## 2026-11-24 — 多实例下的邮箱验证
+
+- 邮箱登录和注册验证码、换绑邮箱时的两个验证码，以及密码重置链接，现在共用同一套验证存储。每个验证码或链接 10 分钟内有效，只能使用一次。
+- 单进程部署仍默认存在内存里。运行多个 API 实例时，请在每个实例上设置 `REDIS_VERIFICATION_CODE_ENABLED=true`，并使用相同的 `REDIS_CONN_STRING` 和 `CRYPTO_SECRET`；验证码在 API 重启后仍然有效。
+- Redis 不可用期间，暂停发送和校验验证码，不会发出无法验证的验证码。
+- 开启 Redis，或升级已开启 Redis 的部署后，尚未使用的验证码和重置链接需要重新获取。
+
+## 2026-11-23 — 凭证邮件、模型名称与日志下载
+
+- 邮件标题不再包含验证码。邮件日志对凭证类邮件只保存固定标题和投递状态，不保存正文；升级到数据库版本 40 时会清理此前的记录。
+- 未删除的模型名称不区分大小写和首尾空格，不能重复，保留原始拼写。新建或改名造成重名时返回 `409`，错误码 `model_name_taken`。升级前请先改名或删除只差大小写或首尾空格的重名模型，否则新的唯一索引无法建立。
+- 保存渠道时，渠道设置和路由一起提交；保存失败时两者都不改变。
+- 日志下载（CSV 和 XLSX）和统计使用与列表相同的时间、用户和项目筛选。
+- 自带的 Compose 文件只在 `127.0.0.1:10000` 上发布 PostgreSQL。原先从其他主机连接 10000 端口的工具，需要改用 SSH 隧道或 Compose override。
+
+## 2026-11-23 — 旧接口与配置清理
 
 - 本版提前执行此前公告的退役计划。移除社区模型、排行、Playground、旧余额查询、重复的用户接口和管理员充值标记。余额请看钱包，用量、任务和看板分别使用 `/api/usage/summary`、`/api/log/self/tasks` 和 `/api/data/dashboard/self`。
 - 消费日志始终记录，金额按美元显示。媒体直连，渠道字段过滤始终生效。旧结算 outbox 和小时用量写入已停用。升级前请归档现有 `usage_data`，并在 v0.7.297 上处理完未结 outbox。
 - 数据库版本 15 及以前先经 v0.7.297 升级。新安装和版本 16 起可直接使用本版。
+- 提前删除管理接口 `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*` 和 `/api/workers/*`（原定 2026-12-01 之后删除）。请改用逐个渠道操作和公告（发布公告时可同时发邮件）。`config.yaml` 里的定时上传和数据库备份照常运行。
 
-## 尚未发布 — 账户安全清理
+## 2026-11-16 — 账户安全清理
 
 - 新账户使用邮箱验证码或已启用的第三方登录。用户名／密码注册和 `/register` 已删除；老用户仍可使用密码登录。
 - 邮箱绑定改为登录后调用 `POST /api/user/email/bind/start` 和 `POST /api/user/email/bind`。换绑需验证新旧两个邮箱。旧的 `GET /api/verification` 和 GET 绑定接口已删除。
 - 删除无实际功能的 `POST /api/user/reset`；密码重置继续使用 `/api/user/reset/v2`。
 - 删除 `/api/log/token`、`/api/user/used-models`、`/api/user/models/classified`、`/api/user/self/stripe/pay` 和 `/api/user/stripe/amount`。请使用 `/api/log/self`、模型目录和 `/api/user/stripe/pay`。
 - 删除从未实现的 `/v1/fine-tunes*`、`/v1/images/variations` 和 `DELETE /v1/models/:model`。以上删除取代此前公告的退役日期，不保留兼容重定向。
-- 提前删除管理接口 `/api/channel/tag/*`、`/api/channel/batch*`、`POST /api/notification/email/{send,announcement}`、`/api/upload/*` 和 `/api/workers/*`（原定 2026-12-01 之后删除）。请改用逐个渠道操作和公告（发布公告时可同时发邮件）。`config.yaml` 里的定时上传和数据库备份照常运行。
 
 ## 2026-11-02 — 用量与日志改版，移除月度报告
 

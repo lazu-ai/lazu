@@ -5,20 +5,35 @@ description: "What changed in the Lazu API, the model catalog and these docs, ne
 
 # Changelog
 
-## Unreleased — Legacy API and settings retirement
+## 2026-11-24 — Email verification across API replicas
+
+- Email sign-in and sign-up codes, both proofs for an address change, and password reset links now share one verification store. Each expires after ten minutes and works once.
+- Single-process deployments keep the in-memory default. With more than one API replica, set `REDIS_VERIFICATION_CODE_ENABLED=true` on every replica and give them the same `REDIS_CONN_STRING` and `CRYPTO_SECRET`; codes then stay valid across API restarts.
+- While Redis is unavailable, issuing and checking codes pause instead of sending a code that cannot be verified.
+- After enabling Redis, or upgrading a deployment that already had it on, users with an outstanding code or reset link request a fresh one.
+
+## 2026-11-23 — Credential mail, model names and log downloads
+
+- Verification codes no longer appear in email subjects. The mail log keeps a fixed subject and the delivery status for credential mail and never stores its body; the upgrade to schema 40 redacts earlier records.
+- Live model names are unique regardless of letter case and surrounding spaces, and keep their original spelling. Creating or renaming a model into a clash answers `409` with `model_name_taken`. Before upgrading, rename or delete live models whose names differ only that way: the new unique index cannot be built while they exist.
+- Saving a channel commits its settings and routing together, so a failed save changes neither.
+- Log downloads (CSV and XLSX) and statistics use the same time, user and project filters as the list.
+- The bundled Compose file publishes PostgreSQL on `127.0.0.1:10000` only. Tools on other hosts that connected to port 10000 need an SSH tunnel or a Compose override.
+
+## 2026-11-23 — Legacy API and settings retirement
 
 - This release advances the previously announced removal dates. Removed the community and ranking APIs, playground, legacy balance queries, redundant user routes and the root top-up marker. Use the wallet, `/api/usage/summary`, `/api/log/self/tasks` and `/api/data/dashboard/self`.
 - Consumption logs are always recorded. Amounts in log messages are displayed in USD. Media fetches connect directly and channel field policy always applies. The old settlement outbox and hourly usage writer have been retired. Archive existing `usage_data` before upgrading and finish outstanding outbox work on v0.7.297.
 - Schema 15 and earlier upgrade through v0.7.297. Fresh databases and schema 16 or newer upgrade directly.
+- Removed the admin routes `/api/channel/tag/*`, `/api/channel/batch*`, `POST /api/notification/email/{send,announcement}`, `/api/upload/*` and `/api/workers/*` ahead of their 2026-12-01 sunset. Use per-channel actions and announcements (publishing one can email users). Scheduled uploads and database backups keep running from `config.yaml`.
 
-## Unreleased — Account security cleanup
+## 2026-11-16 — Account security cleanup
 
 - New accounts use email verification codes or enabled identity providers. Username/password registration and `/register` are removed; existing users can still sign in with a password.
 - Email binding now uses authenticated `POST /api/user/email/bind/start` and `POST /api/user/email/bind`. Changing an existing address requires codes from both mailboxes. The old `GET /api/verification` and GET binding route are removed.
 - Removed `POST /api/user/reset` (the inactive reset stub); password reset continues through `/api/user/reset/v2`.
 - Removed `/api/log/token`, `/api/user/used-models`, `/api/user/models/classified`, `/api/user/self/stripe/pay`, and `/api/user/stripe/amount`. Use `/api/log/self`, the model catalog and `/api/user/stripe/pay`.
 - Removed the unimplemented `/v1/fine-tunes*`, `/v1/images/variations` and `DELETE /v1/models/:model` routes. These removals supersede their previously announced sunset dates; no compatibility redirects remain.
-- Removed the admin routes `/api/channel/tag/*`, `/api/channel/batch*`, `POST /api/notification/email/{send,announcement}`, `/api/upload/*` and `/api/workers/*` ahead of their 2026-12-01 sunset. Use per-channel actions and announcements (publishing one can email users). Scheduled uploads and database backups keep running from `config.yaml`.
 
 ## 2026-10-29 — Search endpoint removed
 
